@@ -6,10 +6,12 @@ class EventBanner extends StatelessWidget {
     return Container(
       margin: EdgeInsets.symmetric(vertical: 20),
       padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: Colors.purple,
-        borderRadius: BorderRadius.circular(10),
-      ),
+          shape: ContinuousRectangleBorder(
+            borderRadius: BorderRadius.circular(35),
+
+          )         ),
       child: Column(
         children: [
           Text(

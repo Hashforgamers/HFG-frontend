@@ -66,10 +66,12 @@ class TournamentsListView extends StatelessWidget {
   Widget _buildTournamentCard(Map<String, String> tournament) {
     return Container(
       margin: EdgeInsets.all(10),
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: Colors.grey[850],
-        borderRadius: BorderRadius.circular(10),
-      ),
+shape: ContinuousRectangleBorder(
+  borderRadius: BorderRadius.circular(15),
+
+)      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

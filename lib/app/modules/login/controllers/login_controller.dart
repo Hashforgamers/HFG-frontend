@@ -1,9 +1,14 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
+import '../../../../utils/constants.dart';
 import '../../../../utils/widgets/quote_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../../../routes/app_routes.dart';
+import '../../signup/controllers/signup_verify_view.dart';
+
 class LoginController extends GetxController {
   final emailController = TextEditingController();
-  final passwordController = TextEditingController();
   final quote = ''.obs;
   final character = ''.obs;
 
@@ -26,16 +31,76 @@ class LoginController extends GetxController {
     }
   }
 
-  void login() {
-    final email = emailController.text;
-    final password = passwordController.text;
-    // Implement your login logic here
+  Future<void> login() async {
+    const url = '$hostName/login'; // Replace with your API endpoint
+
+    final body = jsonEncode({
+      "name": "",
+      "gender": "",
+      "dob": "",
+      "gameUserName": "",
+      "service": "login",
+      "contact": {
+        "physicalAddress": {
+          "address_type": "",
+          "addressLine1": "",
+          "addressLine2": "",
+          "pincode": "",
+          "State": "",
+          "Country": ""
+        },
+        "electronicAddress": {
+          "mobileNo": "",
+          "emailId": emailController.text
+        }
+      }
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {"Content-Type": "application/json"},
+        body: body,
+      );
+
+      final responseData = json.decode(response.body);
+      print(response.statusCode);
+
+      if (response.statusCode == 201) {
+        final message = responseData['message'];
+
+        Get.snackbar(
+          'Success',
+          message ?? 'OTP sent to your email!',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+
+        // Navigate to OTP verify screen
+        Get.to(() => VerifyOtpView(email:emailController.text, isLogin: true)); // Pass the email to the OTP screen
+      } else {
+        final errorMessage = responseData['error'] ?? 'An error occurred';
+        Get.snackbar(
+          'Error',
+          errorMessage,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      print(e);
+
+      Get.snackbar(
+        'Error',
+        'Error: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
   }
 
-  @override
-  void onClose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.onClose();
-  }
+
 }

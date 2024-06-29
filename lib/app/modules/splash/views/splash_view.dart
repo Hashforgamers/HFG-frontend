@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
-import '../../../../utils/widgets/loader.dart';
 import '../controllers/splash_controller.dart';
 
 class SplashView extends StatefulWidget {
@@ -38,19 +37,23 @@ class _SplashViewState extends State<SplashView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(backgroundColor: Colors.black,
+    return Scaffold(
+      backgroundColor: Colors.black,
       body: Center(
         child: _videoController.value.isInitialized
             ? AspectRatio(
           aspectRatio: _videoController.value.aspectRatio,
           child: VideoPlayer(_videoController),
         )
-            : Center(child: Column(mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('LOADING'),
-            RainbowLoadingBar(width: 80,height: 2,),
-          ],
-        ))
+            : Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('LOADING'),
+              CircularProgressIndicator(),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -34,6 +34,13 @@ class HomeView extends StatelessWidget {
               activeIcon: Image.asset('assets/icons/target-04.png',scale: 2.5,color: CupertinoColors.systemGreen,),
 
             ),
+
+            BottomNavigationBarItem(backgroundColor: Colors.black,
+              icon: Image.asset('assets/icons/gaming-pad-01.png',scale: 2.5,color: Colors.grey[800]),
+              label: '',
+              activeIcon: Image.asset('assets/icons/gaming-pad-01.png',scale: 2.0,color: CupertinoColors.systemGreen,),
+
+            ),
             BottomNavigationBarItem(backgroundColor: Colors.black,
               icon: Image.asset('assets/icons/shopping-bag-01.png',scale: 3,color: Colors.grey[800]),
               label: '',

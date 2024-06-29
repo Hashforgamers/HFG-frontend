@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/shop/views/shop_view.dart';
 import 'package:hash/app/modules/tournaments/views/tournament_view.dart';
+import '../../arena/views/arena_view.dart';
+import '../../profile/user_profile_view.dart';
 import '../views/home_content_view.dart';
 
 class HomeController extends GetxController {
@@ -18,11 +20,15 @@ class HomeController extends GetxController {
         currentScreen.value = TournamentView();
         break;
       case 2:
-        currentScreen.value = ShopView();
+        currentScreen.value = ArenaView();
         break;
       case 3:
-        currentScreen.value = TournamentView();
+        currentScreen.value = ShopView();
         break;
+      case 4:
+        currentScreen.value = UserProfileView();
+        break;
+
     }
   }
 }
