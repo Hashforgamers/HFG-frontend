@@ -26,15 +26,18 @@ class LoginView extends StatelessWidget {
               ),
               child: Form(
                 key: _formKey,
-                child: ListView(
+                child: ListView(    physics: BouncingScrollPhysics(),
+
                   shrinkWrap: true,
                   children: [
-                    Text(
-                      'HASH.',
-                      style: TextStyle(
-                        color: Color.fromRGBO(58, 255, 107, 1.0),
-                        fontSize: 44,
-                        fontWeight: FontWeight.w900,
+                    Center(
+                      child: Text(
+                        'HASH.',
+                        style: TextStyle(
+                          color: Color(0xff00D701),
+                          fontSize: 44,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                     SizedBox(height: 20),

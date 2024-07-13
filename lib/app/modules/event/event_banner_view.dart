@@ -34,7 +34,7 @@ class EventBanner extends StatelessWidget {
           ElevatedButton(
             onPressed: () {},
             style: ElevatedButton.styleFrom(
-              primary: Color.fromRGBO(58, 255, 107, 1.0),
+              primary: Color(0xff00D701),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),

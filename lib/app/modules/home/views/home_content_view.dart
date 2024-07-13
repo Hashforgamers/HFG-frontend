@@ -32,20 +32,20 @@ class HomeContentView extends StatelessWidget {
           itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
             const PopupMenuItem<String>(
               value: 'Profile',
-              child: Text('Profile',style: TextStyle(color:Color.fromRGBO(58, 255, 107, 1.0), ),),
+              child: Text('Profile',style: TextStyle(color:Color(0xff00D701), ),),
             ),
             const PopupMenuItem<String>(
               value: 'Settings',
-              child: Text('Settings',style: TextStyle(color:Color.fromRGBO(58, 255, 107, 1.0), ),),
+              child: Text('Settings',style: TextStyle(color:Color(0xff00D701), ),),
             ),
             const PopupMenuItem<String>(
               value: 'Logout',
-              child: Text('Logout',style: TextStyle(color:Color.fromRGBO(58, 255, 107, 1.0), ),),
+              child: Text('Logout',style: TextStyle(color:Color(0xff00D701), ),),
             ),
           ],
           child: CircleAvatar(
             child: Icon(Icons.person),
-            backgroundColor: Color.fromRGBO(58, 255, 107, 1.0),
+            backgroundColor: Color(0xff00D701),
           ),
         )
           ],

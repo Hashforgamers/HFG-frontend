@@ -1,49 +1,19 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:get/get.dart';
 
-class TournamentsSection extends StatelessWidget {
+import '../views/tournament_view.dart';
+
+class TournamentCard extends StatelessWidget {
+  final Tournament tournament;
+
+  const TournamentCard({required this.tournament});
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'TOURNAMENTS',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildTournamentItem(
-                title: 'Game Time',
-                imageUrl: 'https://t4.ftcdn.net/jpg/05/57/61/79/360_F_557617905_iSt6BAH73qgXHULb0ZpHOwADFj7tX6q8.jpg',
-                description: 'Exciting Tournament!',
-              ),
-              _buildTournamentItem(
-                title: '8 Ball Pool Tournament',
-                imageUrl: 'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
-                description: 'Join Now!',
-              ),
-              _buildTournamentItem(
-                title: 'Galactic Battle',
-                imageUrl: 'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
-                description: 'Battle for Glory!',
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTournamentItem({required String title, required String imageUrl, required String description}) {
     return Container(
-      margin: const EdgeInsets.all(5),
-      width: 300,
-      height: 255,
+      margin: const EdgeInsets.all(10),
       decoration: ShapeDecoration(
         color: const Color(0xff1E1E1E),
         shape: ContinuousRectangleBorder(
@@ -56,8 +26,8 @@ class TournamentsSection extends StatelessWidget {
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
             child: CachedNetworkImage(
-              imageUrl: imageUrl,
-              height: 130,
+              imageUrl: tournament.imageUrl,
+              height: 150,
               width: double.infinity,
               fit: BoxFit.cover,
               placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
@@ -70,18 +40,28 @@ class TournamentsSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  tournament.title,
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  description,
+                  tournament.description,
                   style: const TextStyle(
                       color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 15),
+                Row(
+                  children: const [
+                    _TournamentDetail(icon: Icons.group_work, text: 'Squad'),
+                    SizedBox(width: 15),
+                    _TournamentDetail(icon: CupertinoIcons.money_dollar_circle, text: '20K'),
+                    SizedBox(width: 15),
+                    _TournamentDetail(icon: CupertinoIcons.group_solid, text: '10/100'),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 SizedBox(
-                  width: double.infinity,
+                  width: Get.width,
                   child: ElevatedButton(
                     onPressed: () {
                       // Handle tournament button tap
@@ -100,6 +80,23 @@ class TournamentsSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+class _TournamentDetail extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _TournamentDetail({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.grey),
+        const SizedBox(width: 5),
+        Text(text, style: const TextStyle(color: Colors.grey)),
+      ],
     );
   }
 }

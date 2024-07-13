@@ -59,12 +59,14 @@ class CartController extends GetxController {
           "Authorization": "Bearer $token",
         },
       );
-      print(response.body);
+      print(response.statusCode);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
         final List<dynamic> items = responseData['items'];
         cartItems.value = items.map((json) => CartItem.fromJson(json)).toList();
+
+
       } else {
         errorMessage.value = 'Failed to fetch cart';
       }

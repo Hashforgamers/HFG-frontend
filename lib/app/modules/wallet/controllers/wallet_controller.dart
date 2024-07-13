@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class WalletController extends GetxController {
   var balance = 0.0.obs;
-  var transactions = <String>[].obs;
+  var transactions = <Map<String, dynamic>>[].obs;
   final String baseUri = hostName; // Replace with your base URI
 
   @override
@@ -35,11 +35,12 @@ class WalletController extends GetxController {
       'Content-Type': 'application/json',
       "Authorization": "Bearer $token",
     },);
-    print(response.body);
     if (response.statusCode == 200) {
       var data = json.decode(response.body);
       balance.value = data['balance'];
-      transactions.value = List<String>.from(data['transactions']);
+      transactions.value = List<Map<String, dynamic>>.from(data['transactions']);
+      print('this ${transactions.value}');
+
     } else {
       Get.snackbar('Error', 'Failed to fetch wallet data');
     }

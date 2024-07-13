@@ -6,13 +6,13 @@ class AppTheme {
     brightness: Brightness.dark,
     primarySwatch: Colors.blue,
     primaryColor: Colors.blue,
-    hintColor: Color.fromRGBO(58, 255, 107, 1.0),
+    hintColor: Color(0xff00D701),
     scaffoldBackgroundColor: Colors.black,
     textTheme: GoogleFonts.playTextTheme(
       ThemeData.dark().textTheme,
     ),
     appBarTheme: AppBarTheme(
-      color: Color.fromRGBO(58, 255, 107, 1.0),
+      color: Color(0xff00D701),
       iconTheme: IconThemeData(color: Colors.black),
       toolbarTextStyle: GoogleFonts.playTextTheme(
         ThemeData.dark().textTheme,
@@ -22,10 +22,10 @@ class AppTheme {
       ).apply(bodyColor: Colors.black).titleLarge,
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(
-      color: Color(0xFF3AFF6B), // Using hex code for the loader color
+      color: Color(0xff00D701), // Using hex code for the loader color
     ),
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
-      selectedItemColor: Color.fromRGBO(58, 255, 107, 1.0),
+      selectedItemColor: Color(0xff00D701),
       backgroundColor: Colors.black12,
     ),
   );

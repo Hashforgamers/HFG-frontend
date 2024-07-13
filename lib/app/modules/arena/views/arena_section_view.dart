@@ -34,7 +34,7 @@ class ArenaSection extends StatelessWidget {
       height: 140,
       padding: EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(image: DecorationImage(image: NetworkImage('https://fortnite.gg/img/lore/bg-chapter-2.jpg?2'),fit: BoxFit.cover),
-        color: Colors.grey[900],
+        color: Color(0xff1E1E1E),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Container(alignment: Alignment.center,

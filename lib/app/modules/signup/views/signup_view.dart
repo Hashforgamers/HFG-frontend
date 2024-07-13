@@ -33,7 +33,7 @@ class SignUpView extends StatelessWidget {
                   child: Text(
                     'HASH.',
                     style: TextStyle(
-                      color: Color.fromRGBO(58, 255, 107, 1.0),
+                      color: Color(0xff00D701),
                       fontSize: 44,
                       fontWeight: FontWeight.w900,
                     ),

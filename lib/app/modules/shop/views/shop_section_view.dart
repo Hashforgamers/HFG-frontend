@@ -7,7 +7,7 @@ import '../controllers/fetch_products_controller.dart';
 
 class ShopSection extends StatelessWidget {
   final ProductsController controller = Get.put(ProductsController());
-
+  bool isSale=true;
   @override
   Widget build(BuildContext context) {
     controller.fetchProducts();
@@ -46,13 +46,66 @@ class ShopSection extends StatelessWidget {
       width: 150,
       height: 250,
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        color: Color(0xff1E1E1E),
         borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 4,
+            offset: Offset(2, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          isSale?
+          Container(
+            padding: EdgeInsets.symmetric(vertical: 2),
+            width: 150,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(10),
+                topRight: Radius.circular(10),
+              ),
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xffdf1b1b),
+                  Color(0xffd62121),
+                  Color(0xffce2525),
+                  Color(0xffc72c2c),
+
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: Offset(2, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                'SALE',
+                style: TextStyle(
+                  fontSize: 14, // Increased font size for emphasis
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(
+                      blurRadius: 2,
+                      color: Colors.black26,
+                      offset: Offset(1, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ):SizedBox(),
           GestureDetector(
             onTap: (){
               Get.to(ProductDetailView(productId:productId ,));
@@ -96,7 +149,7 @@ class ShopSection extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
-                    primary: Color.fromRGBO(58, 255, 107, 1.0),
+                    primary: Color(0xff00D701),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),

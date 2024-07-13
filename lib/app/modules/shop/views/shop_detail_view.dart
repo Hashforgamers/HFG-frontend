@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hash/app/modules/shop/views/shop_view.dart';
 
+import '../../reviews/views/review_view.dart';
 import '../controllers/cart_controller.dart';
 import '../controllers/fetch_productsById_controller.dart';
 import '../products_model.dart';
@@ -55,7 +56,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           onTap: () {
             Get.back();
           },
-          child: Icon(CupertinoIcons.back, color: Color.fromRGBO(58, 255, 107, 1.0)),
+          child: Icon(CupertinoIcons.back, color: Color(0xff00D701),),
         ),
         actions: [
           GestureDetector(
@@ -120,7 +121,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                     SizedBox(width: 10,),
                                     Text(
                                       '₹${product.price.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Color.fromRGBO(58, 255, 107, 1.0), fontSize: 18, fontWeight: FontWeight.bold),
+                                      style: TextStyle(color: Color(0xff00D701), fontSize: 18, fontWeight: FontWeight.bold),
                                     ),
                                   ],
                                 ),
@@ -141,7 +142,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             SizedBox(height: 20),
                             Text(
                               'Availability: ${product.availability.inStock ? "In Stock" : "Out of Stock"}',
-                              style: TextStyle(color: Color.fromRGBO(58, 255, 107, 1.0), fontSize: 16),
+                              style: TextStyle(color: Color(0xff00D701), fontSize: 16),
                             ),
                             SizedBox(height: 20),
                             Text(
@@ -166,7 +167,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                               style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                             ),
                             SizedBox(height: 10),
-                            ...List.generate(3, (index) => _buildReview()),
+                          ReviewPage(),
                             SizedBox(height: 30),
                           ],
                         ),
@@ -208,7 +209,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     // Handle product buy now tap
                   },
                   style: ElevatedButton.styleFrom(
-                    primary:  Color.fromRGBO(58, 255, 107, 1.0),
+                    primary:  Color(0xff00D701),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -274,37 +275,4 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     );
   }
 
-  Widget _buildReview() {
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 5),
-      padding: EdgeInsets.all(14),
-      decoration: ShapeDecoration(
-          color: Colors.black26,
-          shape:
-          ContinuousRectangleBorder(
-            borderRadius:BorderRadius.circular(28),
-
-          )
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.star, color: Colors.yellow, size: 20),
-              SizedBox(width: 5),
-              Text('4.5', style: TextStyle(color: Colors.white, fontSize: 16)),
-              SizedBox(width: 10),
-              Text('by John Doe', style: TextStyle(color: Colors.white70, fontSize: 15)),
-            ],
-          ),
-          SizedBox(height: 10),
-          Text(
-            'This product is amazing! I have been using it for a week now and it exceeds my expectations.',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
 }

@@ -39,7 +39,7 @@ class VerifyOtpView extends StatelessWidget {
                 child: Text(
                   'HASH.',
                   style: TextStyle(
-                    color: Color.fromRGBO(58, 255, 107, 1.0),
+                    color: Color(0xff00D701),
                     fontSize: 44,
                     fontWeight: FontWeight.w900,
                   ),
@@ -156,7 +156,7 @@ class VerifyOtpController extends GetxController {
       "otp": otpController.text,
     });
 
-    try {
+    // try {
       final response = await http.post(
         Uri.parse(url),
         headers: {"Content-Type": "application/json"},
@@ -181,7 +181,7 @@ class VerifyOtpController extends GetxController {
           backgroundColor: Colors.green,
           colorText: Colors.white,
         );
-
+        await createNewWallet(token);
         // Navigate to the home screen
         Get.offAllNamed(AppRoutes.HOME); // Replace with your home screen route
       } else {
@@ -195,18 +195,42 @@ class VerifyOtpController extends GetxController {
           colorText: Colors.white,
         );
       }
-    } catch (e) {
-      print(e);
-
-      Get.snackbar(
-        'Error',
-        'Error: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    }
+    // } catch (e) {
+    //   print(e);
+    //
+    //   Get.snackbar(
+    //     'Error',
+    //     'Error: $e',
+    //     snackPosition: SnackPosition.BOTTOM,
+    //     backgroundColor: Colors.red,
+    //     colorText: Colors.white,
+    //   );
+    // }
   }
 
+  Future<void> createNewWallet(String token) async {
+    final url = Uri.parse('$hostName/wallet/new-wallet');
 
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Successfully created the wallet
+        print('Wallet created successfully');
+        // Handle success response
+      } else {
+        // Handle error response
+        print('Failed to create wallet: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Handle any exceptions
+      print('Error creating wallet: $e');
+    }
+  }
 }

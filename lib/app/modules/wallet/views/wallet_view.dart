@@ -30,11 +30,14 @@ class WalletDetailView extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'Pricedown',
                 fontSize: 26,
-                color: Color.fromRGBO(58, 255, 107, 1.0),
+                color: Color(0xff00D701),
               ),
             )),
             SizedBox(height: 20),
             ElevatedButton(
+              style: ButtonStyle(
+              backgroundColor: MaterialStateColor.resolveWith((states) => Color(0xff00D701),)
+            ),
               onPressed: () {
                 showWithdrawDialog(context);
               },
@@ -52,8 +55,22 @@ class WalletDetailView extends StatelessWidget {
               child: Obx(() => ListView.builder(
                 itemCount: walletController.transactions.length,
                 itemBuilder: (context, index) {
+                  final transaction = walletController.transactions[index];
+
                   return ListTile(
-                    title: Text(walletController.transactions[index]),
+                    leading: Icon(Icons.arrow_downward_sharp),
+                    title: Text(
+                      transaction['description'],
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      transaction['timestamp'],
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    trailing: Text(
+                      '\$${transaction['amount'].toString()}',
+                      style: const TextStyle(color: Colors.green,fontSize: 18,fontWeight: FontWeight.bold),
+                    ),
                   );
                 },
               )),
@@ -83,13 +100,13 @@ class WalletDetailView extends StatelessWidget {
             ),
             actions: [
               CupertinoDialogAction(
-                child: Text("Cancel"),
+                child: Text("Cancel",style: TextStyle(color: Colors.red),),
                 onPressed: () {
                   Navigator.of(context).pop();
                 },
               ),
               CupertinoDialogAction(
-                child: Text("Proceed"),
+                child: Text("Proceed",style: TextStyle(color: Colors.green,),),
                 onPressed: () {
                   double amount = double.tryParse(_amountController.text) ?? 0.0;
                   if (amount > 0 && amount <= walletController.balance.value) {

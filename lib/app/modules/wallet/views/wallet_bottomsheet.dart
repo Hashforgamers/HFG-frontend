@@ -59,7 +59,7 @@ class WalletBottomSheet extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: 'Pricedown',
                   fontSize: 26,
-                  color: Color.fromRGBO(58, 255, 107, 1.0),
+                  color: Color(0xff00D701),
                 ),
               )),
               SizedBox(height: 20),
@@ -105,9 +105,9 @@ class WalletBottomSheet extends StatelessWidget {
                       );
                     },
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Color.fromRGBO(58, 255, 107, 1.0),
+                        color: Color(0xff00D701),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(
@@ -121,19 +121,7 @@ class WalletBottomSheet extends StatelessWidget {
                 }).toList(),
               ),
               SizedBox(height: 10),
-              Expanded(
-                child: Obx(() => ListView.builder(
-                  itemCount: walletController.transactions.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(
-                        walletController.transactions[index],
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    );
-                  },
-                )),
-              ),
+
               GestureDetector(
                 onTap: (){
                   Get.to(() => WalletDetailView());

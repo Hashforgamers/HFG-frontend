@@ -98,7 +98,7 @@ class ShopView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
+          Container(height: 100,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
             child: Text(
               title,
@@ -106,7 +106,7 @@ class ShopView extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: Get.height*0.725, // Adjust the height as needed
+            height: Get.height-345, // Adjust the height as needed
             child: ListView.builder(
               shrinkWrap: true,
               itemCount: products.length,
@@ -205,7 +205,7 @@ class ShopView extends StatelessWidget {
                           // Handle product button tap
                         },
                         style: ElevatedButton.styleFrom(
-                          primary: const Color.fromRGBO(58, 255, 107, 1.0),
+                          primary: const Color(0xff00D701),
                           shape: ContinuousRectangleBorder(
                             borderRadius: BorderRadius.circular(28),
                           ),

@@ -2,6 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../routes/app_routes.dart';
 
 class UserProfileView extends StatelessWidget {
   const UserProfileView({super.key});
@@ -13,22 +16,14 @@ class UserProfileView extends StatelessWidget {
         centerTitle: false,
         title: const Text('Profile', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.black,
-        leading: GestureDetector(
-            onTap: () {
-              Get.back();
-            },
-            child: Icon(
-              CupertinoIcons.back,
-              color: Color.fromRGBO(58, 255, 107, 1.0),
-            )),
       ),
       body: Padding(
         padding: const EdgeInsets.all(10.0),
         child: ListView(
           children: [
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             _buildProfileHeader(),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             _buildProfileOption(
               icon: CupertinoIcons.person,
               title: 'My Orders',
@@ -47,7 +42,7 @@ class UserProfileView extends StatelessWidget {
               icon: CupertinoIcons.money_dollar_circle,
               title: 'Wallet',
               onTap: () {
-                // Handle wishlist
+                // Handle wallet
               },
             ),
             _buildProfileOption(
@@ -58,8 +53,8 @@ class UserProfileView extends StatelessWidget {
               },
             ),
             _buildProfileOption(
-              icon: CupertinoIcons.lock,
-              title: 'Change Password',
+              icon: Icons.change_circle_outlined,
+              title: 'Change Address',
               onTap: () {
                 // Handle change password
               },
@@ -71,7 +66,7 @@ class UserProfileView extends StatelessWidget {
                 // Handle about
               },
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             _buildLogoutButton(),
           ],
         ),
@@ -85,16 +80,16 @@ class UserProfileView extends StatelessWidget {
         CircleAvatar(
           radius: 50,
           backgroundImage: CachedNetworkImageProvider(
-            'https://via.placeholder.com/150', // Replace with actual profile image URL
+            'https://t4.ftcdn.net/jpg/03/20/70/67/360_F_320706748_9EHt2oP8NgekFXsM3INJtN7HhdRHOTJN.jpg', // Replace with actual profile image URL
           ),
         ),
-        SizedBox(height: 20),
-        Text(
+        const SizedBox(height: 20),
+        const Text(
           'John Doe',
           style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: 10),
-        Text(
+        const SizedBox(height: 10),
+        const Text(
           'john.doe@example.com',
           style: TextStyle(color: Colors.white70, fontSize: 16),
         ),
@@ -104,29 +99,36 @@ class UserProfileView extends StatelessWidget {
 
   Widget _buildProfileOption({required IconData icon, required String title, required VoidCallback onTap}) {
     return ListTile(
-      leading: Icon(icon, color: Color.fromRGBO(58, 255, 107, 1.0)),
+      leading: Icon(icon, color: const Color(0xff00D701)),
       title: Text(
         title,
-        style: TextStyle(color: Colors.white, fontSize: 18),
+        style: const TextStyle(color: Colors.white, fontSize: 18),
       ),
-      trailing: Icon(CupertinoIcons.forward, color: Colors.white70),
+      trailing: const Icon(CupertinoIcons.forward, color: Colors.white70),
       onTap: onTap,
     );
   }
 
   Widget _buildLogoutButton() {
-    return ElevatedButton(
-      onPressed: () {
-        // Handle logout
-      },
-      style: ElevatedButton.styleFrom(
-        primary: Colors.red,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 20.0),
+      child: ElevatedButton(
+        onPressed: () async {
+          // Handle logout
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('token');
+
+          Get.offAllNamed(AppRoutes.LOGIN); // Navigates to the login screen and removes all previous routes
+        },
+        style: ElevatedButton.styleFrom(
+          primary: const Color(0xffFF0000),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          minimumSize: const Size(double.infinity, 50),
         ),
-        minimumSize: Size(double.infinity, 50),
+        child: const Text('Logout', style: TextStyle(color: Colors.white, fontSize: 18)),
       ),
-      child: Text('Logout', style: TextStyle(color: Colors.white, fontSize: 18)),
     );
   }
 }

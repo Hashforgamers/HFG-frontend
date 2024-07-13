@@ -12,7 +12,7 @@ class RewardsSection extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildRewardItem(CupertinoIcons.hexagon, "2,559", "Hash. Coins", Color.fromRGBO(58, 255, 107, 1.0),),
+        _buildRewardItem(CupertinoIcons.hexagon, "2,559", "Hash. Coins", Color(0xff00D701),),
         GestureDetector(
             onTap: (){
               Get.bottomSheet(

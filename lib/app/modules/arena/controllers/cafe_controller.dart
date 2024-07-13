@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/utils/constants.dart';
@@ -21,10 +23,12 @@ class CybercafesController extends GetxController {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/cybercafe/getAll'),
-        headers: {'Authorization': authToken},
+        headers: {'Authorization': "Bearer $authToken"},
       );
+      print('result${response.body}');
       if (response.statusCode == 200) {
         cybercafes.assignAll(response.body as List<dynamic>);
+
       } else {
         throw Exception('Failed to load cybercafes');
       }
@@ -34,15 +38,25 @@ class CybercafesController extends GetxController {
   }
 
   // Set user location
+  // Set user location
   Future<void> setUserLocation(double latitude, double longitude) async {
     final authToken = await _getToken();
 
     try {
-      await http.post(
+      final response = await http.post(
         Uri.parse('$baseUrl/user/set_location'),
-        headers: {'Authorization': authToken},
-        body: {'latitude': latitude.toString(), 'longitude': longitude.toString()},
+        headers: {
+          'Authorization': "Bearer $authToken",
+          'Content-Type': 'application/json', // Ensure content type is JSON
+        },
+        body: jsonEncode({'latitude': latitude.toString(), 'longitude': longitude.toString()}),
       );
+
+      if (response.statusCode == 200) {
+        print('fetchloc${latitude}   $longitude');
+      } else {
+        throw Exception('Failed to set user location: ${response.statusCode}');
+      }
     } catch (e) {
       print('Error setting user location: $e');
     }
@@ -52,20 +66,19 @@ class CybercafesController extends GetxController {
   Future<void> fetchNearbyCybercafes(double latitude, double longitude) async {
     final authToken = await _getToken();
 
-    try {
       await setUserLocation(latitude, longitude);
       final response = await http.get(
         Uri.parse('$baseUrl/cybercafes'),
-        headers: {'Authorization': authToken},
+        headers: {'Authorization': "Bearer $authToken"},
       );
+      print('fetchloc${response.body}');
       if (response.statusCode == 200) {
-        cybercafes.assignAll(response.body as List<dynamic>);
+        cybercafes.assignAll(jsonDecode(response.body) as List);
+
       } else {
-        throw Exception('Failed to load nearby cybercafes');
+        throw Exception('Failed to load nearby cybercafes: ${response.statusCode}');
       }
-    } catch (e) {
-      print('Error fetching nearby cybercafes: $e');
-    }
+
   }
 }
 
@@ -84,7 +97,7 @@ class BookingController extends GetxController {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/cybercafe/book'),
-        headers: {'Authorization': authToken},
+        headers: {'Authorization': "Bearer $authToken"},
         body: {
           'cafe_id': cafeId,
           'booking_time': bookingTime.toUtc().toIso8601String(),

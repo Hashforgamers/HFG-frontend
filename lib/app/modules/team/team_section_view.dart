@@ -66,7 +66,7 @@ class TeamSection extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.symmetric(vertical: 1, horizontal: 8),
-                primary: Color.fromRGBO(58, 255, 107, 1.0),
+                primary: Color(0xff00D701),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

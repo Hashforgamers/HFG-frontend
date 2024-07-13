@@ -6,8 +6,9 @@ class SplashController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _checkLoginStatus();
-  }
+    Future.delayed(Duration(seconds: 6), () {
+      _checkLoginStatus();
+    });  }
 
   Future<void> _checkLoginStatus() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();

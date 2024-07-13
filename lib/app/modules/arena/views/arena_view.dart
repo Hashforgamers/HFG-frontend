@@ -1,52 +1,55 @@
 import 'dart:async';
-import 'dart:math';
+import 'dart:typed_data';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:location/location.dart' as loc; // Prefix the location package
+import 'package:location/location.dart' as loc;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'arena_view_detailed.dart'; // Geocoding package
+import '../../../../utils/service.dart';
+import '../controllers/cafe_controller.dart';
+import 'arena_view_detailed.dart';
 
 class ArenaView extends StatefulWidget {
-  const ArenaView({super.key});
+  const ArenaView({Key? key}) : super(key: key);
 
   @override
-  State<ArenaView> createState() => _ArenaViewState();
+  _ArenaViewState createState() => _ArenaViewState();
 }
 
 class _ArenaViewState extends State<ArenaView> {
   late GoogleMapController mapController;
   final loc.Location _location = loc.Location();
   final Set<Marker> _markers = {};
-  TextEditingController _searchController = TextEditingController(); // Controller for the search bar
-  BitmapDescriptor? _customMarker; // Custom marker for current location
-  BitmapDescriptor? _customMarker2; // Custom marker for current location
-
-  static const LatLng _initialPosition =
-  LatLng(37.7749, -122.4194); // Default position (San Francisco)
+  TextEditingController _searchController = TextEditingController();
+  BitmapDescriptor? _customMarker;
+  BitmapDescriptor? _customMarker2;
+  static const LatLng _initialPosition = LatLng(
+      37.7749, -122.4194); // Default position (San Francisco)
   String _mapStyle = '';
-
+  final CybercafesController _cybercafesController = Get.put(CybercafesController());
+  final BookingController _bookingController = Get.put(BookingController());
   @override
   void initState() {
     super.initState();
     _initializeLocation();
     _loadMapStyle();
-    _loadCustomMarker(); // Load custom marker
+    _loadCustomMarker();
   }
 
   void _loadCustomMarker() async {
     _customMarker = await BitmapDescriptor.fromAssetImage(
-      ImageConfiguration(size: Size(48, 48),devicePixelRatio: 2),
+      ImageConfiguration(size: Size(48, 48), devicePixelRatio: 2),
       'assets/custom_marker.png',
-    );_customMarker2 = await BitmapDescriptor.fromAssetImage(
-      ImageConfiguration(size: Size(48, 48),devicePixelRatio: 2),
+    );
+    _customMarker2 = await BitmapDescriptor.fromAssetImage(
+      ImageConfiguration(size: Size(48, 48), devicePixelRatio: 2),
       'assets/custom_marker2.png',
     );
-
   }
 
   void _initializeLocation() async {
@@ -80,17 +83,22 @@ class _ArenaViewState extends State<ArenaView> {
     _location.onLocationChanged.listen((loc.LocationData currentLocation) {
       _updateCurrentLocationMarker(currentLocation);
     });
+
+    // Fetch nearby cybercafes initially
+    _fetchNearbyCybercafes(locationData.latitude!, locationData.longitude!);
   }
 
   void _updateCurrentLocationMarker(loc.LocationData currentLocation) {
     setState(() {
-      _markers.removeWhere((marker) => marker.markerId.value == 'current_location');
+      _markers.removeWhere((marker) =>
+      marker.markerId.value == 'current_location');
       _markers.add(
         Marker(
-          markerId: const MarkerId('current_location'),
-          position: LatLng(currentLocation.latitude!, currentLocation.longitude!),
+          markerId: MarkerId('current_location'),
+          position: LatLng(
+              currentLocation.latitude!, currentLocation.longitude!),
           icon: _customMarker ?? BitmapDescriptor.defaultMarker,
-          infoWindow: const InfoWindow(title: 'Your Location'),
+          infoWindow: InfoWindow(title: 'Your Location'),
         ),
       );
     });
@@ -102,49 +110,46 @@ class _ArenaViewState extends State<ArenaView> {
     setState(() {
       _markers.add(
         Marker(
-          markerId: const MarkerId('current_location'),
+          markerId: MarkerId('current_location'),
           position: LatLng(latitude, longitude),
           icon: _customMarker ?? BitmapDescriptor.defaultMarker,
-          infoWindow: const InfoWindow(title: 'Your Location'),
+          infoWindow: InfoWindow(title: 'Your Location'),
         ),
       );
-      _markers.addAll([
-        Marker(
-          markerId: const MarkerId('cafe_1'),
-          position: LatLng(latitude + 0.01, longitude + 0.01),
-          infoWindow: const InfoWindow(title: 'Gaming Cafe 1'),
-          icon:_customMarker2?? BitmapDescriptor.defaultMarker,
-        ),
-        Marker(
-          markerId: const MarkerId('cafe_332'),
-          position: LatLng(latitude - 0.01, longitude - 0.01),
-          infoWindow: const InfoWindow(title: 'Gaming Cafe 2'),
-          icon:_customMarker2?? BitmapDescriptor.defaultMarker,
-
-        ),
-        Marker(
-          markerId: const MarkerId('cafe_23'),
-          position: LatLng(latitude - 0.013, longitude - 0.031),
-          infoWindow: const InfoWindow(title: 'Gaming Cafe 2'),
-          icon:_customMarker2?? BitmapDescriptor.defaultMarker,
-
-        ),
-        Marker(
-          markerId: const MarkerId('cafe_32'),
-          position: LatLng(latitude - 0.021, longitude - 0.031),
-          infoWindow: const InfoWindow(title: 'Gaming Cafe 2'),
-          icon:_customMarker2?? BitmapDescriptor.defaultMarker,
-
-        ),
-        Marker(
-          markerId: const MarkerId('cafe_22'),
-          position: LatLng(latitude - 0.301, longitude - 0.021),
-          infoWindow: const InfoWindow(title: 'Gaming Cafe 2'),
-          icon:_customMarker2?? BitmapDescriptor.defaultMarker,
-
-        ),
-      ]);
     });
+  }
+
+  Future<void> _fetchNearbyCybercafes(double latitude, double longitude) async {
+    final authToken = await _getToken();
+
+    // try {
+      await _cybercafesController.setUserLocation(latitude, longitude);
+      await _cybercafesController.fetchNearbyCybercafes(latitude, longitude);
+
+      // Clear existing markers and add fetched cybercafes as markers
+      setState(() {
+        _markers.removeWhere((marker) =>
+        marker.markerId.value != 'current_location');
+        _cybercafesController.cybercafes.forEach((cafe) {
+          _markers.add(
+            Marker(
+              markerId: MarkerId(cafe['_id']),
+              position: LatLng(
+                  cafe['location']['latitude'], cafe['location']['longitude']),
+              icon: _customMarker2 ?? BitmapDescriptor.defaultMarker,
+              infoWindow: InfoWindow(title: cafe['name']),
+            ),
+          );
+        });
+      });
+    // } catch (e) {
+    //   print('Error fetching nearby cybercafes: $e');
+    // }
+  }
+
+  Future<String> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token') ?? '';
   }
 
   Future<void> _loadMapStyle() async {
@@ -194,12 +199,12 @@ class _ArenaViewState extends State<ArenaView> {
           children: [
             GoogleMap(
               onMapCreated: _onMapCreated,
-              initialCameraPosition: const CameraPosition(
+              initialCameraPosition: CameraPosition(
                 target: _initialPosition,
                 zoom: 12,
               ),
               markers: _markers,
-              myLocationEnabled: false, // Disable the default blue marker
+              myLocationEnabled: false,
               myLocationButtonEnabled: true,
             ),
             Positioned(
@@ -233,9 +238,9 @@ class _ArenaViewState extends State<ArenaView> {
               ),
             ),
             DraggableScrollableSheet(
-              initialChildSize: 0.2,
-              minChildSize: 0.18,
-              maxChildSize: 0.5,
+              initialChildSize: 0.5,
+              minChildSize: 0.3,
+              maxChildSize: 0.7,
               snap: true,
               builder: (BuildContext context, scrollController) {
                 return Container(
@@ -244,19 +249,19 @@ class _ArenaViewState extends State<ArenaView> {
                   decoration: BoxDecoration(
                     color: Colors.black,
                   ),
-                  child: ListView(
+                  child: ListView.builder(
+                    itemCount: _cybercafesController.cybercafes.length,
+                    itemBuilder: (context, index) {
+                      final cafe = _cybercafesController.cybercafes[index];
+                      return SizedBox(
+                        width: 300,
+                        height: 320,
+                        child: gradientCardSample(cafe),
+                      );
+                    },
                     shrinkWrap: true,
                     scrollDirection: Axis.horizontal,
-                    controller: scrollController,
-                    children: _markers
-                        .where((marker) =>
-                    marker.markerId.value != 'current_location')
-                        .map((marker) => SizedBox(
-                      width: 300,
-                      height: 320,
-                      child: gradientCardSample(marker),
-                    ))
-                        .toList(),
+
                   ),
                 );
               },
@@ -266,100 +271,114 @@ class _ArenaViewState extends State<ArenaView> {
       ),
     );
   }
-}
 
-Widget gradientCardSample(Marker marker) {
-  return Container(
-    height: 200,
-    width: double.infinity,
-    padding: const EdgeInsets.symmetric(vertical: 16),
-    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-    decoration: ShapeDecoration(
-        color: Colors.grey[900],
+  Widget gradientCardSample(Map<String, dynamic> cafe) {
+    bool isActive = cafe['address']['is_active'];
+    int distance = cafe['distance']=='Infinity'?0:cafe['distance'];
+
+    return Container(
+      height: 200,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      decoration: ShapeDecoration(
+        color: Color(0xff1E1E1E),
         shape: ContinuousRectangleBorder(
           borderRadius: BorderRadius.circular(36),
-        )),
-    child: ListView(
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    marker.infoWindow.title ?? 'Unknown Cafe',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: "monospace",
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  cafe['name'],
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: "monospace",
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  Row(
-                    children: [
-                      Icon(Icons.circle, color: Colors.green, size: 6),
-                      SizedBox(width: 3),
-                      Text('Open'),
-                      SizedBox(width: 3),
-                      Text('(24hrs)', style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5),
-              child: Text(
-                'Gaming Road, new ways - 6km ↱',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontFamily: "monospace",
-                  fontSize: 16,
                 ),
-              ),
-            ),
-          ],
-        ),
-        Container(
-          child: Image.network(
-              'https://t3.ftcdn.net/jpg/04/29/97/24/360_F_429972422_idgQSEcP8Ur9ky1ZXXUlrGwx39wUjyqH.jpg'),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: ElevatedButton(
-            onPressed: () {
-              Get.to(ArenaDetailView(
-                title: 'Epic Gaming Cafe',
-                address: '123 Gamer St, Gametown, GT 56789',
-                openingHours: 'Mon-Sun: 10 AM - 10 PM',
-                availableGames: ['League of Legends', 'Overwatch', 'Minecraft', 'FIFA 21'],
-                amenities: ['VR Experiences', 'Game Streaming', 'Food and Beverages'],
-                contactInfo: '+123 456 7890 | contact@epicgamingcafe.com',
-                reviews: [
-                  'Amazing place! Loved the VR experience.',
-                  'Great selection of games and very friendly staff.',
-                  'The best place to hang out with friends and game!'
-                ],
-              ));              // Handle product button tap
-            },
-            style: ElevatedButton.styleFrom(
-              primary: const Color.fromRGBO(58, 255, 107, 1.0),
-              shape: ContinuousRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-              minimumSize: Size(double.infinity, 30),
-            ),
-            child: const Text(
-              'View',
-              style: TextStyle(color: Colors.black),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(Icons.circle, color: Color(0xff39FF14), size: 12,),
+                    SizedBox(width: 3),
+                    Text(isActive ? 'Open' : 'Closed'),
+                    SizedBox(width: 3),
+                    Text('(24hrs)', style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ],
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5),
+            child: Text(
+              '${cafe['address']['addressLine1']} - ${metersToKilometers(distance).toStringAsFixed(2)} km ↱',
+              style: TextStyle(
+                color: Colors.white,
+                fontFamily: "monospace",
+                fontSize: 15,
+              ),
+            ),
+          ),
+          Container(
+            height: 130,width: Get.width, // Adjust the height as needed
+            child: Image.network(
+              'https://t3.ftcdn.net/jpg/04/29/97/24/360_F_429972422_idgQSEcP8Ur9ky1ZXXUlrGwx39wUjyqH.jpg',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ElevatedButton(
+              onPressed: () {
+                // Handle button tap (navigate to details or any other action)
+                Get.to(ArenaDetailView(
+                  title: cafe['name'],
+                  address: '${cafe['address']['addressLine1']}, ${cafe['address']['State']}, ${cafe['address']['Country']} - ${cafe['address']['pincode']}',
+                  openingHours: 'Mon-Sun: 10 AM - 10 PM', // Example data, replace with actual data
+                  availableGames: [
+                    'League of Legends',
+                    'Overwatch',
+                    'Minecraft',
+                    'FIFA 21'
+                  ], // Example data, replace with actual data
+                  amenities: [
+                    'VR Experiences',
+                    'Game Streaming',
+                    'Food and Beverages'
+                  ], // Example data, replace with actual data
+                  contactInfo: '+123 456 7890 | contact@${cafe['name'].toLowerCase().replaceAll(' ', '')}.com', // Example data, replace with actual data
+                  reviews: [
+                    'Amazing place! Loved the VR experience.',
+                    'Great selection of games and very friendly staff.',
+                    'The best place to hang out with friends and game!'
+                  ], // Example data, replace with actual data
+                ));
+              },
+              style: ElevatedButton.styleFrom(
+                primary: const Color(0xff00D701),
+                shape: ContinuousRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                minimumSize: Size(double.infinity, 30),
+              ),
+              child: const Text(
+                'View',
+                style: TextStyle(color: Colors.black),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }}

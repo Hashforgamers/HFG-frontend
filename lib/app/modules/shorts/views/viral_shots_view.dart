@@ -51,7 +51,7 @@ class ViralShotsSection extends StatelessWidget {
         width: 120,
         height: 220,
         decoration: BoxDecoration(
-          color: Colors.grey[900],
+          color: Color(0xff1E1E1E),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Stack(
@@ -130,7 +130,7 @@ class ViralShotsSection extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.symmetric(vertical: 1, horizontal: 8),
-                          primary: Color.fromRGBO(58, 255, 107, 1.0),
+                          primary: Color(0xff00D701),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),

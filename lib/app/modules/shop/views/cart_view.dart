@@ -26,7 +26,7 @@ class CartView extends StatelessWidget {
             padding: EdgeInsets.all(5),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: Color.fromRGBO(58, 255, 107, 1.0),
+              color: Color(0xff00D701),
             ),
             child: Center(
               child: Obx(() {
@@ -48,14 +48,12 @@ class CartView extends StatelessWidget {
           onTap: () {
             Get.back();
           },
-          child: Icon(CupertinoIcons.back, color: Color.fromRGBO(58, 255, 107, 1.0)),
+          child: Icon(CupertinoIcons.back, color: Color(0xff00D701),),
         ),
       ),
       body: Obx(() {
         if (cartController.isLoading.value) {
           return Center(child: CircularProgressIndicator());
-        } else if (cartController.errorMessage.value.isNotEmpty) {
-          return Center(child: Text(cartController.errorMessage.value, style: TextStyle(color: Colors.white)));
         } else if (cartController.cartItems.isEmpty) {
           return Center(child: Text('Cart is empty', style: TextStyle(color: Colors.white)));
         } else {
@@ -115,7 +113,7 @@ class CartView extends StatelessWidget {
                 RadioListTile(
                   visualDensity: VisualDensity.compact,
                   contentPadding: EdgeInsets.symmetric(horizontal: 0),
-                  activeColor: Color.fromRGBO(58, 255, 107, 1.0),
+                  activeColor: Color(0xff00D701),
                   title: Text('Wallet', style: TextStyle(color: Colors.white)),
                   value: 'wallet',
                   groupValue: checkoutController.paymentMethod.value,
@@ -126,7 +124,7 @@ class CartView extends StatelessWidget {
                 RadioListTile(
                   visualDensity: VisualDensity.compact,
                   contentPadding: EdgeInsets.symmetric(horizontal: 0),
-                  activeColor: Color.fromRGBO(58, 255, 107, 1.0),
+                  activeColor: Color(0xff00D701),
                   title: Text('Other', style: TextStyle(color: Colors.white)),
                   value: 'other',
                   groupValue: checkoutController.paymentMethod.value,
@@ -159,7 +157,7 @@ class CartView extends StatelessWidget {
               child: DropdownButton<String>(
                 value: addressController.activeAddress.value['addressLine1'],
                 dropdownColor: Colors.black,
-                icon: Icon(Icons.arrow_drop_down_outlined, color: Color.fromRGBO(58, 255, 107, 1.0)),
+                icon: Icon(Icons.arrow_drop_down_outlined, color: Color(0xff00D701),),
                 iconSize: 24,
                 elevation: 16,
                 style: TextStyle(color: Colors.white),

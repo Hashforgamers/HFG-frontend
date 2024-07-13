@@ -1,6 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+import '../widget/tournament_card.dart';
 
 class TournamentView extends StatelessWidget {
   const TournamentView({super.key});
@@ -12,11 +15,11 @@ class TournamentView extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           centerTitle: false,
-          title: Text('Tournaments',style: TextStyle(color: Colors.white),),
+          title: const Text('Tournaments', style: TextStyle(color: Colors.white)),
           backgroundColor: Colors.black,
-          bottom: TabBar(
-            indicatorColor:  Color(0xFF3AFF6B),
-            labelColor:  Color(0xFF3AFF6B),
+          bottom: const TabBar(
+            indicatorColor: Color(0xff00D701),
+            labelColor: Color(0xff00D701),
             unselectedLabelColor: Colors.grey,
             tabs: [
               Tab(text: 'Upcoming'),
@@ -25,7 +28,7 @@ class TournamentView extends StatelessWidget {
             ],
           ),
         ),
-        body: TabBarView(
+        body: const TabBarView(
           children: [
             TournamentsListView(type: 'Upcoming'),
             TournamentsListView(type: 'Live'),
@@ -44,82 +47,35 @@ class TournamentsListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Here you would fetch the actual tournaments data based on the type.
-    // For simplicity, we'll use dummy data.
-    final List<Map<String, String>> tournaments = List.generate(
-      10,
-          (index) => {
-        'title': '$type Tournament ${index + 1}',
-        'image': 'https://via.placeholder.com/150', // Replace with actual image URLs
-        'description': 'Description for $type Tournament ${index + 1}',
-      },
+    // Dummy data for demonstration
+    final List<Tournament> tournaments = List.generate(
+      3,
+          (index) => Tournament(
+        title: '19 Nov 2024',
+        imageUrl: 'https://t4.ftcdn.net/jpg/05/57/61/79/360_F_557617905_iSt6BAH73qgXHULb0ZpHOwADFj7tX6q8.jpg',
+        description: 'Top 12 Battle Pass',
+      ),
     );
 
     return ListView.builder(
       itemCount: tournaments.length,
       itemBuilder: (context, index) {
-        return _buildTournamentCard(tournaments[index]);
+        return TournamentCard(tournament: tournaments[index]);
       },
     );
   }
-
-  Widget _buildTournamentCard(Map<String, String> tournament) {
-    return Container(
-      margin: EdgeInsets.all(10),
-      decoration: ShapeDecoration(
-        color: Colors.grey[850],
-shape: ContinuousRectangleBorder(
-  borderRadius: BorderRadius.circular(15),
-
-)      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
-            child: CachedNetworkImage(
-              imageUrl: tournament['image']!,
-              height: 150,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Center(child: CircularProgressIndicator()),
-              errorWidget: (context, url, error) => Icon(Icons.error),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tournament['title']!,
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  tournament['description']!,
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                SizedBox(height: 10),
-                SizedBox(width: Get.width,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Handle tournament button tap
-                    },
-                    style: ElevatedButton.styleFrom(
-                      primary: Color.fromRGBO(58, 255, 107, 1.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text('Register Now',style:TextStyle(color: Colors.black)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
+
+class Tournament {
+  final String title;
+  final String imageUrl;
+  final String description;
+
+  Tournament({
+    required this.title,
+    required this.imageUrl,
+    required this.description,
+  });
+}
+
+
