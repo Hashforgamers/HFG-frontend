@@ -2,8 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hash/app/modules/profile/profile_view.dart';
+import 'package:hash/app/modules/wallet/views/wallet_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../../data/services/user_controller.dart';
 import '../../routes/app_routes.dart';
 
 class UserProfileView extends StatelessWidget {
@@ -11,7 +13,10 @@ class UserProfileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    UserController userController = Get.put(UserController());
+
     return Scaffold(
+      bottomNavigationBar:  _buildLogoutButton(),
       appBar: AppBar(
         centerTitle: false,
         title: const Text('Profile', style: TextStyle(color: Colors.white)),
@@ -22,10 +27,18 @@ class UserProfileView extends StatelessWidget {
         child: ListView(
           children: [
             const SizedBox(height: 20),
-            _buildProfileHeader(),
+            _buildProfileHeader(userController),
             const SizedBox(height: 30),
             _buildProfileOption(
               icon: CupertinoIcons.person,
+              title: 'Profile',
+              onTap: () {
+                Get.to(ProfileView());
+                // Handle view orders
+              },
+            ),
+            _buildProfileOption(
+              icon: CupertinoIcons.bag,
               title: 'My Orders',
               onTap: () {
                 // Handle view orders
@@ -43,6 +56,7 @@ class UserProfileView extends StatelessWidget {
               title: 'Wallet',
               onTap: () {
                 // Handle wallet
+                Get.to(WalletDetailView());
               },
             ),
             _buildProfileOption(
@@ -67,34 +81,42 @@ class UserProfileView extends StatelessWidget {
               },
             ),
             const SizedBox(height: 30),
-            _buildLogoutButton(),
+
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileHeader() {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 50,
-          backgroundImage: CachedNetworkImageProvider(
-            'https://t4.ftcdn.net/jpg/03/20/70/67/360_F_320706748_9EHt2oP8NgekFXsM3INJtN7HhdRHOTJN.jpg', // Replace with actual profile image URL
+  Widget _buildProfileHeader(UserController userController) {
+    return Obx(() {
+      if (userController.isLoading.value) {
+        return Center(child: CircularProgressIndicator());
+      }
+
+      final user = userController.user.value;
+
+      return Column(
+        children: [
+          CircleAvatar(
+            radius: 50,
+            backgroundImage: CachedNetworkImageProvider(
+              'https://t4.ftcdn.net/jpg/03/20/70/67/360_F_320706748_9EHt2oP8NgekFXsM3INJtN7HhdRHOTJN.jpg', // Replace with actual profile image URL
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        const Text(
-          'John Doe',
-          style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          'john.doe@example.com',
-          style: TextStyle(color: Colors.white70, fontSize: 16),
-        ),
-      ],
-    );
+          const SizedBox(height: 20),
+          Text(
+            user.name,
+            style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            user.contact.electronicAddress.emailId,
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
+        ],
+      );
+    });
   }
 
   Widget _buildProfileOption({required IconData icon, required String title, required VoidCallback onTap}) {
@@ -111,7 +133,7 @@ class UserProfileView extends StatelessWidget {
 
   Widget _buildLogoutButton() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 20.0),
+      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
       child: ElevatedButton(
         onPressed: () async {
           // Handle logout

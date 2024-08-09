@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../views/tournament_detail_view.dart';
 import '../views/tournament_view.dart';
 
 class TournamentCard extends StatelessWidget {
@@ -64,6 +65,7 @@ class TournamentCard extends StatelessWidget {
                   width: Get.width,
                   child: ElevatedButton(
                     onPressed: () {
+                      Get.to(TournamentDetailView());
                       // Handle tournament button tap
                     },
                     style: ElevatedButton.styleFrom(
