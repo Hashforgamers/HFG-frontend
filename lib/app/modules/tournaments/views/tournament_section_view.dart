@@ -5,6 +5,27 @@ import 'package:cached_network_image/cached_network_image.dart';
 class TournamentsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final List<Tournament> tournaments = [
+      Tournament(
+        title: 'Game Time',
+        imageUrl: 'https://t4.ftcdn.net/jpg/05/57/61/79/360_F_557617905_iSt6BAH73qgXHULb0ZpHOwADFj7tX6q8.jpg',
+        description: 'Exciting Tournament!',
+        prize: '20K',
+      ),
+      Tournament(
+        title: '8 Ball Pool Tournament',
+        imageUrl: 'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
+        description: 'Join Now!',
+        prize: '50K',
+      ),
+      Tournament(
+        title: 'Galactic Battle',
+        imageUrl: 'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
+        description: 'Battle for Glory!',
+        prize: '30K',
+      ),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -13,37 +34,45 @@ class TournamentsSection extends StatelessWidget {
           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildTournamentItem(
-                title: 'Game Time',
-                imageUrl: 'https://t4.ftcdn.net/jpg/05/57/61/79/360_F_557617905_iSt6BAH73qgXHULb0ZpHOwADFj7tX6q8.jpg',
-                description: 'Exciting Tournament!',
-              ),
-              _buildTournamentItem(
-                title: '8 Ball Pool Tournament',
-                imageUrl: 'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
-                description: 'Join Now!',
-              ),
-              _buildTournamentItem(
-                title: 'Galactic Battle',
-                imageUrl: 'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
-                description: 'Battle for Glory!',
-              ),
-            ],
+        SizedBox(
+          height: 261,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: tournaments.length,
+            itemBuilder: (context, index) {
+              return TournamentCard(tournament: tournaments[index]);
+            },
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildTournamentItem({required String title, required String imageUrl, required String description}) {
+class Tournament {
+  final String title;
+  final String imageUrl;
+  final String description;
+  final String prize;
+
+  Tournament({
+    required this.title,
+    required this.imageUrl,
+    required this.description,
+    required this.prize,
+  });
+}
+
+class TournamentCard extends StatelessWidget {
+  final Tournament tournament;
+
+  const TournamentCard({Key? key, required this.tournament}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(5),
       width: 300,
-      height: 255,
       decoration: ShapeDecoration(
         color: const Color(0xff1E1E1E),
         shape: ContinuousRectangleBorder(
@@ -56,7 +85,7 @@ class TournamentsSection extends StatelessWidget {
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
             child: CachedNetworkImage(
-              imageUrl: imageUrl,
+              imageUrl: tournament.imageUrl,
               height: 130,
               width: double.infinity,
               fit: BoxFit.cover,
@@ -70,14 +99,23 @@ class TournamentsSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  tournament.title,
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 const SizedBox(height: 5),
-                Text(
-                  description,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      tournament.description,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    _TournamentDetail(icon: CupertinoIcons.money_dollar_circle, text: tournament.prize),
+                  ],
                 ),
                 const SizedBox(height: 15),
                 SizedBox(
@@ -92,7 +130,17 @@ class TournamentsSection extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text('Register Now', style: TextStyle(color: Colors.black)),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.lock, color: Colors.black, size: 16),
+                        SizedBox(width: 5),
+                        Text(
+                          'Coming Soon',
+                          style: TextStyle(color: Colors.black),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -100,6 +148,24 @@ class TournamentsSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TournamentDetail extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _TournamentDetail({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.yellow, size: 16),
+        const SizedBox(width: 5),
+        Text(text, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+      ],
     );
   }
 }

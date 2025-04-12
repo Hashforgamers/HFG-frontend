@@ -12,8 +12,9 @@ import 'cart_view.dart';
 
 class ProductDetailView extends StatefulWidget {
   final String productId;
+  final String productImages;
 
-  const ProductDetailView({super.key, required this.productId});
+  const ProductDetailView({super.key, required this.productId, required this.productImages});
 
   @override
   _ProductDetailViewState createState() => _ProductDetailViewState();
@@ -46,7 +47,6 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   Widget build(BuildContext context) {
     final CartController cartController = Get.put(CartController());
     cartController.fetchCart(); // Fetch cart items on page load
-
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
@@ -84,6 +84,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           return Center(child: Text(controller.errorMessage.value));
         } else if (controller.product.value != null) {
           final product = controller.product.value;
+          print('product ${controller.isLoading.value}');
+
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 10.0),
             child: Stack(
@@ -181,7 +183,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   right: 0,
 
                   child: CachedNetworkImage(
-                    imageUrl: product.images.first.url,
+                    imageUrl: widget.productImages,
                     height: _imageHeight,
                     width: double.infinity,
                     fit: BoxFit.contain,

@@ -7,7 +7,6 @@ import '../controllers/login_controller.dart';
 
 class LoginView extends StatelessWidget {
   final LoginController controller = Get.put(LoginController());
-
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -18,19 +17,19 @@ class LoginView extends StatelessWidget {
         children: [
           Center(
             child: Container(
-              width: Get.width * 0.85,
+              width: Get.width ,
               height: Get.height * 0.85,
-              padding: EdgeInsets.all(20),
+              padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Form(
                 key: _formKey,
-                child: ListView(    physics: BouncingScrollPhysics(),
-
+                child: ListView(
+                  physics: const BouncingScrollPhysics(),
                   shrinkWrap: true,
                   children: [
-                    Center(
+                    const Center(
                       child: Text(
                         'HASH.',
                         style: TextStyle(
@@ -40,46 +39,42 @@ class LoginView extends StatelessWidget {
                         ),
                       ),
                     ),
-                    SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Login',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Login',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     TextFormField(
-                      controller: controller.emailController,
-                      style: TextStyle(color: Colors.white),
+                      controller: controller.phoneNumberController,
+                      style: const TextStyle(color: Colors.white,letterSpacing: 4),
                       decoration: InputDecoration(
-                        labelText: 'Email',
-                        labelStyle: TextStyle(color: Colors.white70),
+                        labelText: 'Phone Number',
+                        prefix: Text('  +91  '),
+                        labelStyle: const TextStyle(color: Colors.white70),
                         enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white70),
+                          borderSide: const BorderSide(color: Colors.white70),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
+                          borderSide: const BorderSide(color: Colors.white),
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your email';
-                        } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                          return 'Please enter a valid email address';
+                          return 'Please enter your phone number';
+                        } else if (!RegExp(r'^[0-9]{10}$').hasMatch(value)) {
+                          return 'Please enter a valid 10-digit phone number';
                         }
                         return null;
                       },
                     ),
-                    SizedBox(height: 30),
+                    const SizedBox(height: 30),
                     Stack(
                       children: [
                         Container(
@@ -96,7 +91,7 @@ class LoginView extends StatelessWidget {
                           child: ElevatedButton(
                             onPressed: () {
                               if (_formKey.currentState!.validate()) {
-                                controller.login();
+                                controller.signInWithPhoneNumber();
                               }
                             },
                             style: ElevatedButton.styleFrom(
@@ -105,92 +100,106 @@ class LoginView extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: Text('Continue', style: TextStyle(color: Colors.white)),
+                            child: const Text('Continue', style: TextStyle(color: Colors.white,                                  fontSize: 16,
+                            )),
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 20),
-                    TextButton(
-                      onPressed: () {
-                        // Handle forgot password
-                      },
-                      child: Text(
-                        'Forgot Password?',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    Obx(() {
-                      return Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          SizedBox(height: 55),
-                          Text(
-                            controller.quote.value,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Divider(
+                            thickness: 1,height: 50,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Text(
+                            'or',
                             style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 10,
-                              fontStyle: FontStyle.italic,
+                              color: Colors.white70, // Adjust text color
+                              fontSize: 16,
                             ),
-                            textAlign: TextAlign.center,
                           ),
-                          SizedBox(height: 5),
-                          Text(
-                            '~${controller.character.value}',
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 10,
-                              fontStyle: FontStyle.italic,
-                            ),
-                            textAlign: TextAlign.center,
+                        ),
+                        Expanded(
+                          child: Divider(
+                            thickness: 1,height: 50,
                           ),
-                        ],
-                      );
-                    }),
-                    SizedBox(height: 45),
-                    TextButton(
-                      onPressed: () {
-                        Get.offAllNamed(AppRoutes.SIGNUP);
-                      },
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        ),
+                      ],
+                    ),
+
+                                   GestureDetector(
+                      onTap: controller.googleSignIn,
+                      child: Stack(alignment: Alignment.center,
                         children: [
-                          Text(
-                            'New to Hash? ',
-                            style: TextStyle(color: Colors.white70),
+                          SizedBox(
+                            width: Get.width,
+                            height: 55,
+                            child: RGBLightFrame(
+                              width: Get.width,
+                              height: Get.height,
+                              borderRadius:25,
+                            ),
                           ),
-                          Text(
-                            ' Signup',
-                            style: TextStyle(color: Color(0xFF3AFF6B)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Image.network(
+                                'https://cdn-icons-png.flaticon.com/512/2702/2702602.png', // Ensure the Google logo is saved in assets
+                                width: 24,
+                                height: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                "Sign in with Google",
+                                style: TextStyle(
+                                  color: Colors.white, // Google branding black text
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(height: 45),
-                    TextButton(
-                      onPressed: () {
-                        Get.offAllNamed(AppRoutes.HOME);
-                      },
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Are you a Dev? ',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                          Text(
-                            ' Proceed',
-                            style: TextStyle(color: Color(0xFF3AFF6B)),
-                          ),
-                        ],
-                      ),
-                    ),
+                    const SizedBox(height: 20),
+                    // TextButton(
+                    //   onPressed: () {
+                    //     Get.offAllNamed(AppRoutes.SIGNUP);
+                    //   },
+                    //   child: const Row(
+                    //     mainAxisAlignment: MainAxisAlignment.center,
+                    //     children: [
+                    //       Text('New to Hash? ', style: TextStyle(color: Colors.white70)),
+                    //       Text(' Signup', style: TextStyle(color: Color(0xFF3AFF6B))),
+                    //     ],
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
             ),
           ),
+          Obx(() {
+            if (controller.isLoading.value) {
+              return Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: Colors.black.withOpacity(0.5),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xff00D701)),
+                  ),
+                ),
+              );
+            } else {
+              return SizedBox.shrink(); // Empty widget when not loading
+            }
+          }),
         ],
       ),
     );

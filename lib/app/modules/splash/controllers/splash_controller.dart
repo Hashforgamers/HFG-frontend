@@ -12,7 +12,7 @@ class SplashController extends GetxController {
 
   Future<void> _checkLoginStatus() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token');
+    String? token = prefs.getString('user_data');
 
     if (token != null && token.isNotEmpty) {
       navigateToHome();

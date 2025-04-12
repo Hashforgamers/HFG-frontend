@@ -6,9 +6,10 @@ import '../wallet/controllers/wallet_controller.dart';
 import '../wallet/views/wallet_bottomsheet.dart';
 
 class RewardsSection extends StatelessWidget {
-  WalletController walletController=Get.put(WalletController());
   @override
   Widget build(BuildContext context) {
+    WalletController walletController=Get.put(WalletController());
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [

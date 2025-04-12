@@ -36,6 +36,8 @@ class AppPages {
   page: () => TournamentView(),),
     GetPage(
       name: AppRoutes.SIGNUP,
-      page: () => SignUpView(),),
+      page: () => SignUpView(
+
+      ),),
   ];
 }

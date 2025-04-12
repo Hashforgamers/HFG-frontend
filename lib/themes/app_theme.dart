@@ -12,14 +12,14 @@ class AppTheme {
       ThemeData.dark().textTheme,
     ),
     appBarTheme: AppBarTheme(
-      color: Color(0xff00D701),
-      iconTheme: IconThemeData(color: Colors.black),
+      color: Color(0xff0F0F0F),
+      iconTheme: IconThemeData(color: Color(0xff00D701)),
       toolbarTextStyle: GoogleFonts.playTextTheme(
         ThemeData.dark().textTheme,
-      ).apply(bodyColor: Colors.black).bodyMedium,
+      ).apply(bodyColor:  Color(0xff00D701)).bodyMedium,
       titleTextStyle: GoogleFonts.playTextTheme(
         ThemeData.dark().textTheme,
-      ).apply(bodyColor: Colors.black).titleLarge,
+      ).apply(bodyColor:  Color(0xff00D701)).titleLarge,
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(
       color: Color(0xff00D701), // Using hex code for the loader color

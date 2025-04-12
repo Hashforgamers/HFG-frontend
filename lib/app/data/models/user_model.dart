@@ -1,76 +1,75 @@
 class User {
-  Contact contact;
-  String dob;
-  String gameUserName;
-  String gender;
-  String name;
+  late  String? name;
+  late  String? photoUrl;
+  late  Contact? contact;
+  late String? dob;
+  late String? gameUserName;
+  late String? gender;
 
   User({
-    required this.contact,
-    required this.dob,
-    required this.gameUserName,
-    required this.gender,
-    required this.name,
+    this.name,
+    this.photoUrl,
+    this.contact,
+    this.dob,
+    this.gameUserName,
+    this.gender,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      contact: Contact.fromJson(json['contact']),
-      dob: json['dob'],
-      gameUserName: json['gameUserName'],
-      gender: json['gender'],
-      name: json['name'],
+      name: json['name'] as String?,
+      photoUrl: json['photoUrl'] as String?,
+      contact: json['contact'] != null ? Contact.fromJson(json['contact']) : null,
+      dob: json['dob'] as String?,
+      gameUserName: json['gameUserName'] as String?,
+      gender: json['gender'] as String?,
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'contact': contact.toJson(),
-      'dob': dob,
-      'gameUserName': gameUserName,
-      'gender': gender,
-      'name': name,
-    };
   }
 }
 
+
+
 class Contact {
-  ElectronicAddress electronicAddress;
-  PhysicalAddress physicalAddress;
+  late ElectronicAddress? electronicAddress;
+  late PhysicalAddress? physicalAddress;
 
   Contact({
-    required this.electronicAddress,
-    required this.physicalAddress,
+    this.electronicAddress,
+    this.physicalAddress,
   });
 
   factory Contact.fromJson(Map<String, dynamic> json) {
     return Contact(
-      electronicAddress: ElectronicAddress.fromJson(json['electronicAddress']),
-      physicalAddress: PhysicalAddress.fromJson(json['physicalAddress']),
+      electronicAddress: json['electronicAddress'] != null
+          ? ElectronicAddress.fromJson(json['electronicAddress'])
+          : null,
+      physicalAddress: json['physicalAddress'] != null
+          ? PhysicalAddress.fromJson(json['physicalAddress'])
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'electronicAddress': electronicAddress.toJson(),
-      'physicalAddress': physicalAddress.toJson(),
+      'electronicAddress': electronicAddress?.toJson(),
+      'physicalAddress': physicalAddress?.toJson(),
     };
   }
 }
 
 class ElectronicAddress {
-  String emailId;
-  String mobileNo;
+  late String? emailId;
+  late String? mobileNo;
 
   ElectronicAddress({
-    required this.emailId,
-    required this.mobileNo,
+    this.emailId,
+    this.mobileNo,
   });
 
   factory ElectronicAddress.fromJson(Map<String, dynamic> json) {
     return ElectronicAddress(
-      emailId: json['emailId'],
-      mobileNo: json['mobileNo'] ?? '',
+      emailId: json['emailId'] as String?,
+      mobileNo: json['mobileNo'] as String?,
     );
   }
 
@@ -82,25 +81,27 @@ class ElectronicAddress {
   }
 }
 
+
+
 class PhysicalAddress {
-  String country;
-  String addressLine1;
-  String addressLine2;
-  String state;
+  late String? country;
+  late String? addressLine1;
+  late String? addressLine2;
+  late String? state;
 
   PhysicalAddress({
-    required this.country,
-    required this.addressLine1,
-    required this.addressLine2,
-    required this.state,
+    this.country,
+    this.addressLine1,
+    this.addressLine2,
+    this.state,
   });
 
   factory PhysicalAddress.fromJson(Map<String, dynamic> json) {
     return PhysicalAddress(
-      country: json['Country'],
-      addressLine1: json['addressLine1'],
-      addressLine2: json['addressLine2'],
-      state: json['state'],
+      country: json['Country'] as String?,
+      addressLine1: json['addressLine1'] as String?,
+      addressLine2: json['addressLine2'] as String?,
+      state: json['state'] as String?,
     );
   }
 

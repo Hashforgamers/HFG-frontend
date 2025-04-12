@@ -1,52 +1,74 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ArenaSection extends StatelessWidget {
+  final List<Map<String, String>> arenaItems = [
+    {
+      'text': 'Tournament is going on\nFree Entry',
+      'image': 'https://fortnite.gg/img/lore/bg-chapter-2.jpg?2'
+    },
+    {
+      'text': 'Fan Meet in\nBangalore',
+      'image': 'https://static.wixstatic.com/media/7ef39e_5e704881922a40f293a56f4602a9384c~mv2.jpeg/v1/fill/w_640,h_360,al_c,q_80,usm_0.66_1.00_0.01,enc_auto/7ef39e_5e704881922a40f293a56f4602a9384c~mv2.jpeg'
+    },
+    {
+      'text': 'Launching new\nGames',
+      'image': 'https://images.hindustantimes.com/tech/img/2021/07/07/960x540/youtube-screenshot-thelaunchpartybattlegroundsmobileindia_1625651911539_1625651921244.jpeg'
+    },
+    // Add more items as needed
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'IN THE ARENA',
           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: 10),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildArenaItem('Tournament is going on\nFree Entry'),
-              _buildArenaItem('Fan Meet in\nBangalore'),
-              _buildArenaItem('Launching new\nGames'),
-            ],
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 140,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: arenaItems.length,
+            itemBuilder: (context, index) {
+              final item = arenaItems[index];
+              return _buildArenaItem(item['text']!, item['image']!);
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildArenaItem(String text) {
-    return Container(alignment: Alignment.center,
-
-      margin: EdgeInsets.all(5),
+  Widget _buildArenaItem(String text, String imageUrl) {
+    return Container(
+      alignment: Alignment.center,
+      margin: const EdgeInsets.symmetric(horizontal: 5),
       width: 140,
       height: 140,
-      padding: EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(image: DecorationImage(image: NetworkImage('https://fortnite.gg/img/lore/bg-chapter-2.jpg?2'),fit: BoxFit.cover),
-        color: Color(0xff1E1E1E),
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: CachedNetworkImageProvider(imageUrl), // CachedNetworkImage for performance
+          fit: BoxFit.cover,
+        ),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Container(alignment: Alignment.center,
-        width: 140,
+      child: Container(
+        alignment: Alignment.center,
+        width: double.infinity,
         height: 60,
-
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.5)
+          color: Colors.black.withOpacity(0.5),
+          borderRadius: const BorderRadius.vertical(
+            bottom: Radius.circular(10),
+          ),
         ),
         child: Text(
           text,
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white, fontSize: 12),
           textAlign: TextAlign.center,
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 
 import '../views/tournament_detail_view.dart';
@@ -51,9 +52,9 @@ class TournamentCard extends StatelessWidget {
                       color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 15),
-                Row(
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: const [
-                    _TournamentDetail(icon: Icons.group_work, text: 'Squad'),
+                    _TournamentDetail(icon: Icons.group_work, text: 'Squad',),
                     SizedBox(width: 15),
                     _TournamentDetail(icon: CupertinoIcons.money_dollar_circle, text: '20K'),
                     SizedBox(width: 15),
@@ -65,16 +66,35 @@ class TournamentCard extends StatelessWidget {
                   width: Get.width,
                   child: ElevatedButton(
                     onPressed: () {
-                      Get.to(TournamentDetailView());
+                      Fluttertoast.showToast(
+                        msg: "Coming Soon",
+                        toastLength: Toast.LENGTH_SHORT,
+                        gravity: ToastGravity.CENTER,
+                        timeInSecForIosWeb: 1,
+                        backgroundColor: Colors.red,
+                        textColor: Colors.white,
+                        fontSize: 16.0,
+                      );
+                      // Get.to(TournamentDetailView());
                       // Handle tournament button tap
                     },
+
                     style: ElevatedButton.styleFrom(
-                      primary: const Color(0xff00D701),
+                      primary: const Color(0xff01ff00),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text('Register Now', style: TextStyle(color: Colors.black)),
+                    child: const Row(mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.lock,color: Colors.black,size: 16,),
+                        SizedBox(width: 5,),
+                        const Text(
+                          'Coming Soon',
+                          style: TextStyle(color: Colors.black),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -95,7 +115,7 @@ class _TournamentDetail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: Colors.grey),
+        Icon(icon, color: Colors.yellow),
         const SizedBox(width: 5),
         Text(text, style: const TextStyle(color: Colors.grey)),
       ],

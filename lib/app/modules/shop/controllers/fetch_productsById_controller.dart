@@ -15,6 +15,9 @@ class GetProductByIdController extends GetxController {
     final token = await _getToken(); // Retrieve the token from storage or any other source
 
     try {
+      isLoading.value = true;
+      errorMessage.value = '';
+
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -22,12 +25,12 @@ class GetProductByIdController extends GetxController {
           "Authorization": "Bearer $token"
         },
       );
-      print('token $token');
+
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         product.value = Product.fromJson(responseData);
       } else {
-        errorMessage.value = 'Failed to fetch product';
+        errorMessage.value = 'Failed to fetch product. Status code: ${response.statusCode}';
       }
     } catch (e) {
       errorMessage.value = 'Error: $e';

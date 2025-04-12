@@ -1,236 +1,197 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:pin_code_fields/pin_code_fields.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../utils/constants.dart';
+import '../../../../utils/widgets/loader.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
-import '../../../routes/app_routes.dart'; // Import your app routes
+import '../../login/controllers/login_controller.dart';
 
+class VerifyOtpView extends StatefulWidget {
+  final String verificationId;
 
-class VerifyOtpView extends StatelessWidget {
-  final String email;
-  final bool isLogin;
+  VerifyOtpView({required this.verificationId});
 
-  VerifyOtpView({required this.email, required this.isLogin});
+  @override
+  _VerifyOtpViewState createState() => _VerifyOtpViewState();
+}
+
+class _VerifyOtpViewState extends State<VerifyOtpView> {
+  final TextEditingController _otpController = TextEditingController();
+
+  @override
+  void dispose() {
+    // Dispose of the TextEditingController to free up resources
+    _otpController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final VerifyOtpController controller = Get.put(VerifyOtpController(email, isLogin: isLogin));
+    final controller = Get.find<LoginController>(); // Access LoginController
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: Container(
-          margin: EdgeInsets.only(top: 125),
-          width: Get.width * 0.85,
-          height: Get.height,
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              Align(
-                alignment: Alignment.center,
-                child: Text(
-                  'HASH.',
-                  style: TextStyle(
-                    color: Color(0xff00D701),
-                    fontSize: 44,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Text(
-                    'Verify OTP',
+      body:
+        // Show loader if isLoading is true
+
+
+        // Main OTP verification UI
+         Center(
+          child: Container(
+            margin: EdgeInsets.only(top: 125),
+            width: Get.width,
+            height: Get.height,
+            padding: EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                Align(
+                  alignment: Alignment.center,
+                  child: Text(
+                    'HASH.',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      color: Color(0xff00D701),
+                      fontSize: 44,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                ],
-              ),
-              SizedBox(height: 20),
-              Text(
-                'Enter the 6-digit OTP sent to your email',
-                style: TextStyle(color: Colors.white70),
-              ),
-              SizedBox(height: 20),
-              PinCodeTextField(
-                appContext: context,
-                length: 6,
-                obscureText: false,
-                animationType: AnimationType.fade,
-                pinTheme: PinTheme(
-                  shape: PinCodeFieldShape.box,
-                  borderRadius: BorderRadius.circular(10),
-                  fieldHeight: 50,
-                  fieldWidth: 40,
-                  inactiveFillColor: Colors.black87,
-                  inactiveColor: Colors.white70,
-                  selectedFillColor: Colors.black,
-                  selectedColor: Colors.white10,
-                  activeFillColor: Colors.white12,
-                  activeColor: Colors.black,
                 ),
-                backgroundColor: Colors.black,
-                enableActiveFill: true,
-                controller: controller.otpController,
-                onCompleted: (v) {
-                  print("Completed: $v");
-                },
-                onChanged: (value) {
-                  print(value);
-                },
-                beforeTextPaste: (text) {
-                  return true;
-                },
-              ),
-              SizedBox(height: 30),
-              Stack(
-                children: [
-                  Container(
-                    width: Get.width,
-                    height: 50,
-                    child: RGBLightFrame(
-                      width: Get.width,
-                      height: Get.height,
-                      borderRadius: 10,
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Verify OTP',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                  ],
+                ),
+                SizedBox(height: 20),
+                Text(
+                  'Enter the 6-digit OTP sent to your phone',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                SizedBox(height: 20),
+                PinCodeTextField(
+                  appContext: context,
+                  length: 6,
+                  obscureText: false,
+                  animationType: AnimationType.fade,
+                  pinTheme: PinTheme(
+                    shape: PinCodeFieldShape.box,
+                    borderRadius: BorderRadius.circular(10),
+                    fieldHeight: 50,
+                    fieldWidth: 40,
+                    inactiveFillColor: Colors.black87,
+                    inactiveColor: Colors.white70,
+                    selectedFillColor: Colors.black,
+                    selectedColor: Colors.white10,
+                    activeFillColor: Colors.white12,
+                    activeColor: Colors.black,
                   ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        controller.verifyOtp();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        primary: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                  backgroundColor: Colors.black,
+                  enableActiveFill: true,
+                  controller: _otpController, // Use a single TextEditingController
+                  onCompleted: (value) {
+                    print("Completed OTP: $value");
+                  },
+                  onChanged: (value) {
+                    print(value);
+                  },
+                  beforeTextPaste: (text) {
+                    return true;
+                  },
+                ),
+                SizedBox(height: 30),
+                Stack(
+                  children: [
+                    Container(
+                      width: Get.width,
+                      height: 50,
+                      child: RGBLightFrame(
+                        width: Get.width,
+                        height: Get.height,
+                        borderRadius: 10,
+                      ),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: controller.isLoading.value?null:_verifyOtp,
+                        style: ElevatedButton.styleFrom(
+                          primary: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Obx(
+                           () { if (controller.isLoading.value) {
+                             return Center(
+                               child: RainbowLoadingBar(width: 300, height: 1),
+                             );
+                           }
+                            return Text('Verify OTP', style: TextStyle(color: Colors.white));
+                          }
                         ),
                       ),
-                      child: Text('Verify OTP', style: TextStyle(color: Colors.white)),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 20),
-              TextButton(
-                onPressed: () {
-                  // Handle resend OTP
-                },
-                child: Text(
-                  'Resend OTP',
-                  style: TextStyle(color: Color(0xFF3AFF6B)),
+                  ],
                 ),
-              ),
-            ],
+                SizedBox(height: 20),
+                TextButton(
+                  onPressed: _resendOtp,
+                  child: Text(
+                    'Resend OTP',
+                    style: TextStyle(color: Color(0xFF3AFF6B)),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        )
     );
   }
-}
-class VerifyOtpController extends GetxController {
-  final TextEditingController otpController = TextEditingController();
-  final String email;
-  final bool isLogin;
 
-  VerifyOtpController(this.email, {required this.isLogin});
+  /// Function to verify OTP
+  void _verifyOtp() {
+    final otp = _otpController.text.trim();
 
-  Future<void> verifyOtp() async {
-    const url = '$hostName/verify'; // Replace with your API endpoint
-    final body = jsonEncode({
-      "email": email,
-      "service": isLogin ? "loginVerify" : "signupVerify",
-      "otp": otpController.text,
-    });
-
-    // try {
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {"Content-Type": "application/json"},
-        body: body,
+    if (otp.isEmpty || otp.length != 6) {
+      Get.snackbar(
+        'Error',
+        'Please enter a valid 6-digit OTP',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
+      return;
+    }
 
-      print(response.body);
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        final message = responseData['message'];
-        final token = responseData['token'];
-
-        // Save the token using shared_preferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', token);
-
-        Get.snackbar(
-          'Success',
-          message,
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-        );
-        await createNewWallet(token);
-        // Navigate to the home screen
-        Get.offAllNamed(AppRoutes.HOME); // Replace with your home screen route
-      } else {
-        final responseData = json.decode(response.body);
-        final message = responseData['error'];
-        Get.snackbar(
-          'Error',
-          message,
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
-      }
-    // } catch (e) {
-    //   print(e);
-    //
-    //   Get.snackbar(
-    //     'Error',
-    //     'Error: $e',
-    //     snackPosition: SnackPosition.BOTTOM,
-    //     backgroundColor: Colors.red,
-    //     colorText: Colors.white,
-    //   );
-    // }
+    // Call LoginController to verify OTP
+    final controller = Get.find<LoginController>();
+    controller.isLoading.value = true; // Start loader
+    controller.verifyOtp(otp).then((_) {
+      controller.isLoading.value = false; // Stop loader
+    });
   }
 
-  Future<void> createNewWallet(String token) async {
-    final url = Uri.parse('$hostName/wallet/new-wallet');
-
-    try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        // Successfully created the wallet
-        print('Wallet created successfully');
-        // Handle success response
-      } else {
-        // Handle error response
-        print('Failed to create wallet: ${response.statusCode}');
-      }
-    } catch (e) {
-      // Handle any exceptions
-      print('Error creating wallet: $e');
-    }
+  /// Function to resend OTP
+  void _resendOtp() {
+    // Handle resend OTP logic
+    Get.snackbar(
+      'Info',
+      'OTP Resent',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.blue,
+      colorText: Colors.white,
+    );
+    // Add your resend OTP logic here if needed
   }
 }

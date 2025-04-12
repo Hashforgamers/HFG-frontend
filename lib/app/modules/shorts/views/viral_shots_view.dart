@@ -1,13 +1,10 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/material.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:http/http.dart' as http;
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
-
-import '../../../../utils/widgets/loader.dart';
 
 class ViralShotsSection extends StatelessWidget {
   final YouTubeShortsController _controller = Get.put(YouTubeShortsController());
@@ -17,41 +14,50 @@ class ViralShotsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'TRENDING SHORTS',
           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: 10),
-        Obx(() {
-          if (_controller.isLoading.value) {
-            return Center(child: CircularProgressIndicator());
-          } else if (_controller.shorts.isEmpty) {
-            return Center(child: Text('No shorts found'));
-          } else {
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _controller.shorts.map((short) => _buildViralShotItem(short)).toList(),
-              ),
-            );
-          }
-        }),
+        const SizedBox(height: 10),
+        GetBuilder<YouTubeShortsController>(
+          builder: (controller) {
+            if (controller.isLoading.value) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (controller.shorts.isEmpty) {
+              return const Center(
+                child: Text(
+                  'No shorts found',
+                  style: TextStyle(color: Colors.white),
+                ),
+              );
+            } else {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: controller.shorts
+                      .map((short) => _buildViralShotItem(short, controller))
+                      .toList(),
+                ),
+              );
+            }
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildViralShotItem(YouTubeShort short) {
+  Widget _buildViralShotItem(YouTubeShort short, YouTubeShortsController controller) {
     return GestureDetector(
       onTap: () {
-        int index = _controller.shorts.indexOf(short);
-        Get.to(() => ShortVideoPlayer(shorts: _controller.shorts, initialIndex: index));
+        int index = controller.shorts.indexOf(short);
+        Get.to(() => ShortVideoPlayer(shorts: controller.shorts, initialIndex: index));
       },
       child: Container(
-        margin: EdgeInsets.all(5),
+        margin: const EdgeInsets.all(5),
         width: 120,
         height: 220,
         decoration: BoxDecoration(
-          color: Color(0xff1E1E1E),
+          color: const Color(0xff1E1E1E),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Stack(
@@ -64,13 +70,11 @@ class ViralShotsSection extends StatelessWidget {
                 height: 220,
                 width: 120,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Center(child: CircularProgressIndicator()),
-                errorWidget: (context, url, error) => Icon(Icons.error),
+                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
               ),
             ),
             Container(
-              width: 120,
-              height: 220,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
                 gradient: LinearGradient(
@@ -78,18 +82,16 @@ class ViralShotsSection extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.9)
+                    Colors.black.withOpacity(0.9),
                   ],
                 ),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
@@ -98,45 +100,41 @@ class ViralShotsSection extends StatelessWidget {
                             height: 30,
                             width: 30,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => Center(child: CircularProgressIndicator()),
-                            errorWidget: (context, url, error) => Icon(Icons.error),
+                            placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                            errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
                           ),
                         ),
-                        SizedBox(width: 5,),
+                        const SizedBox(width: 5),
                         Expanded(
                           child: Text(
                             short.channelName,
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            style: const TextStyle(
+                                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    Spacer(),
+                    const Spacer(),
                     Text(
                       short.title,
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          int index = _controller.shorts.indexOf(short);
-                          Get.to(() => ShortVideoPlayer(shorts: _controller.shorts, initialIndex: index));
-                        },
-                        style: ElevatedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.symmetric(vertical: 1, horizontal: 8),
-                          primary: Color(0xff00D701),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Text('Watch Now',style: TextStyle(color: Colors.black),),
+                    ElevatedButton(
+                      onPressed: () {
+                        int index = controller.shorts.indexOf(short);
+                        Get.to(() => ShortVideoPlayer(shorts: controller.shorts, initialIndex: index));
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 8),
+                        primary: const Color(0xff00D701),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
+                      child: const Text('Watch Now', style: TextStyle(color: Colors.black)),
                     ),
                   ],
                 ),
@@ -148,7 +146,6 @@ class ViralShotsSection extends StatelessWidget {
     );
   }
 }
-
 class ShortVideoPlayer extends StatefulWidget {
   final List<YouTubeShort> shorts;
   final int initialIndex;
@@ -163,11 +160,6 @@ class _ShortVideoPlayerState extends State<ShortVideoPlayer> {
   late PageController _pageController;
   YoutubePlayerController? _youtubePlayerController;
   int _currentIndex = 0;
-  final CacheManager _cacheManager = CacheManager(Config(
-    'videoCache',
-    stalePeriod: const Duration(days: 7),
-    maxNrOfCacheObjects: 20,
-  ));
 
   @override
   void initState() {
@@ -175,49 +167,23 @@ class _ShortVideoPlayerState extends State<ShortVideoPlayer> {
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
     _initializeController(_currentIndex);
-    _preloadNextVideo(_currentIndex + 1);  // Preload the next video
   }
 
-  void _initializeController(int index) async {
+  void _initializeController(int index) {
     final videoId = YoutubePlayer.convertUrlToId(widget.shorts[index].link);
     if (videoId != null) {
-      final videoUrl = 'https://www.youtube.com/watch?v=$videoId';
-      final fileInfo = await _cacheManager.getFileFromCache(videoUrl);
-      if (fileInfo == null) {
-        await _cacheManager.downloadFile(videoUrl);
-      }
-
       _youtubePlayerController?.dispose();
       _youtubePlayerController = YoutubePlayerController(
         initialVideoId: videoId,
-        flags: YoutubePlayerFlags(
+        flags: const YoutubePlayerFlags(
           autoPlay: true,
           mute: false,
-          forceHD: false,
           hideControls: true,
           hideThumbnail: true,
         ),
       );
       setState(() {});
-    } else {
-      log('Error converting URL to video ID');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to load video')));
     }
-  }
-
-  void _preloadNextVideo(int index) {
-    if (index < widget.shorts.length) {
-      final videoId = YoutubePlayer.convertUrlToId(widget.shorts[index].link);
-      if (videoId != null) {
-        final videoUrl = 'https://www.youtube.com/watch?v=$videoId';
-        _cacheManager.downloadFile(videoUrl);
-      }
-    }
-  }
-
-  void _onControllerChange(int index) {
-    _initializeController(index);
-    _preloadNextVideo(index + 1);  // Preload the next video
   }
 
   @override
@@ -237,41 +203,14 @@ class _ShortVideoPlayerState extends State<ShortVideoPlayer> {
         onPageChanged: (index) {
           setState(() {
             _currentIndex = index;
-            _onControllerChange(index);
+            _initializeController(index);
           });
         },
         itemBuilder: (context, index) {
-          return _youtubePlayerController != null
-              ? YoutubePlayer(
-            bufferIndicator: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('LOADING'),
-                  RainbowLoadingBar(width: 80, height: 2),
-                ],
-              ),
-            ),
+          return YoutubePlayer(
             key: ObjectKey(_youtubePlayerController),
             controller: _youtubePlayerController!,
             showVideoProgressIndicator: true,
-            onReady: () {
-              log('Player is ready');
-            },
-            onEnded: (data) {
-              if (index + 1 < widget.shorts.length) {
-                _onControllerChange(index + 1);
-              }
-            },
-          )
-              : Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('LOADING'),
-                RainbowLoadingBar(width: 80, height: 2),
-              ],
-            ),
           );
         },
       ),
@@ -279,7 +218,7 @@ class _ShortVideoPlayerState extends State<ShortVideoPlayer> {
   }
 }
 class ApiService {
-  static const String _apiKey = 'ff0566d621126eb6442cc76e33807d74dde7473b9417be93dd1cbc757a6c6baf'; // Replace with your SerpApi key
+  static const String _apiKey = 'ff0566d621126eb6442cc76e33807d74dde7473b9417be93dd1cbc757a6c6baf'; // Replace with your SerpAPI key
   static const String _baseUrl = 'https://serpapi.com/search';
 
   Future<List<YouTubeShort>> fetchYouTubeShorts(String query) async {
@@ -287,7 +226,6 @@ class ApiService {
 
     if (response.statusCode == 200) {
       List<dynamic> data = json.decode(response.body)['video_results'];
-      // Filter out live streams
       data = data.where((item) => item['live'] == null || !item['live']).toList();
       return data.map((item) => YouTubeShort.fromJson(item)).toList();
     } else {
@@ -295,7 +233,6 @@ class ApiService {
     }
   }
 }
-
 class YouTubeShort {
   final String title;
   final String link;
@@ -321,7 +258,6 @@ class YouTubeShort {
     );
   }
 }
-
 class YouTubeShortsController extends GetxController {
   var shorts = <YouTubeShort>[].obs;
   var isLoading = true.obs;
@@ -329,17 +265,16 @@ class YouTubeShortsController extends GetxController {
 
   @override
   void onInit() {
-    fetchYouTubeShorts();
     super.onInit();
+    fetchYouTubeShorts();
   }
 
-  void fetchYouTubeShorts() async {
+  Future<void> fetchYouTubeShorts() async {
+    isLoading(true);
     try {
-      isLoading(true);
-      var fetchedShorts = await _apiService.fetchYouTubeShorts('live Gaming Shorts');
-      if (fetchedShorts != null) {
-        shorts.value = fetchedShorts;
-      }
+      shorts.value = await _apiService.fetchYouTubeShorts('Gaming Shorts');
+    } catch (e) {
+      log('Error fetching YouTube shorts: $e');
     } finally {
       isLoading(false);
     }

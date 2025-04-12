@@ -12,7 +12,10 @@
         >
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyAU6EJ_OUzkVvtDqM9C_2N9Gnkc_4SsmV8"/>
+            android:value="AIzaSyAIeaszJ60ZcjL9hNYpsQ_JD8w8J2vnmuQ"/>
+        <meta-data
+            android:name="com.google.android.gms.maps.Logging"
+            android:value="true"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

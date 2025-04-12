@@ -1,80 +1,181 @@
-import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:flutter/material.dart';
 
 class TeamSection extends StatelessWidget {
+  final List<Map<String, String>> profiles = [
+    {'title': 'Backend Developer', 'description': 'Flask (Python)', 'buttonText': 'Apply'},
+    {'title': 'Frontend Developer', 'description': 'Flutter (Dart)', 'buttonText': 'Apply'},
+    {'title': 'AWS Specialist', 'description': 'Cloud Infrastructure', 'buttonText': 'Apply'},
+    {'title': 'Database Expert', 'description': 'PostgreSQL & Optimization', 'buttonText': 'Apply'},
+    {'title': 'UI/UX Designer', 'description': 'Figma & Prototyping', 'buttonText': 'Apply'},
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'FIND A TEAM',
+          'CAREER OPPORTUNITIES',
           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            _buildTeamItem('ARE YOU AWESOME?', 'We are hiring', 'Join Us'),
-            _buildTeamItem('JOIN OUR TEAM!', 'We are looking for developers & UI designers', 'Join Us'),
-          ],
+        SizedBox(
+          height: 110, // Fixed height for scrolling
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: profiles.length,
+            itemBuilder: (context, index) {
+              final profile = profiles[index];
+              final cardColor = _getRandomColor();
+              return GestureDetector(
+                onTap: () => _openForm(context, profile['title']!, cardColor),
+                child: _buildProfileCard(profile['title']!, profile['description']!, profile['buttonText']!, cardColor),
+              );
+            },
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildTeamItem(String title, String subtitle, String buttonText) {
-    final random = Random();
-    final colors = [
-      Colors.red[900],
-      Colors.blue[900],
-      Colors.green[900],
-      Colors.purple[900],
-      Colors.orange[900],
-      Colors.cyan[900],
-      Colors.amber[900],
-    ];
-    final buttonColor = colors[random.nextInt(colors.length)];
-
+  Widget _buildProfileCard(String title, String description, String buttonText, Color color) {
     return Container(
-      margin: EdgeInsets.all(5),
-      width: 150,
-      height: 200,
-      padding: EdgeInsets.all(10),
+      margin: EdgeInsets.symmetric(horizontal: 5),
+      width: 130,
+      height: 130,
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: buttonColor,
+        color: color,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             title,
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          SizedBox(height: 10),
-          Text(
-            subtitle,
-            style: TextStyle(color: Colors.white70),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 10),
-          SizedBox(
-            width:120,child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.symmetric(vertical: 1, horizontal: 8),
-                primary: Color(0xff00D701),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+
+          SizedBox(height: 8),
+          GestureDetector(
+            onTap: () {}, // Add functionality if needed
+            child: Container(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Text(
+                  buttonText,
+                  style: TextStyle(color: color, fontWeight: FontWeight.bold),
                 ),
               ),
-              child: Text(buttonText,style: TextStyle(color: Colors.black),),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openForm(BuildContext context, String title, Color backgroundColor) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TeamFormScreen(title: title, backgroundColor: backgroundColor),
+      ),
+    );
+  }
+
+  Color _getRandomColor() {
+    final random = Random();
+    final colors = [
+      Colors.red[800],
+      Colors.blue[800],
+      Colors.green[800],
+      Colors.purple[800],
+      Colors.orange[800],
+      Colors.cyan[800],
+      Colors.amber[800],
+    ];
+    return colors[random.nextInt(colors.length)]!;
+  }
+}
+
+class TeamFormScreen extends StatelessWidget {
+  final String title;
+  final Color backgroundColor;
+
+  TeamFormScreen({required this.title, required this.backgroundColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        backgroundColor: Colors.black,
+      ),
+      body: Container(
+        color: Colors.black,
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Apply for $title',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              SizedBox(height: 20),
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Your Name',
+                  border: OutlineInputBorder(),
+                  fillColor: Colors.white,
+                  filled: true,
+                ),
+              ),
+              SizedBox(height: 20),
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Your Email',
+                  border: OutlineInputBorder(),
+                  fillColor: Colors.white,
+                  filled: true,
+                ),
+              ),
+              SizedBox(height: 20),
+              TextField(
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Why are you a good fit?',
+                  border: OutlineInputBorder(),
+                  fillColor: Colors.white,
+                  filled: true,
+                ),
+              ),
+              SizedBox(height: 20),
+              SizedBox(width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    // Submit logic
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    primary: Colors.white,
+                    onPrimary: backgroundColor,
+                  ),
+                  child: Text(
+                    'Submit',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

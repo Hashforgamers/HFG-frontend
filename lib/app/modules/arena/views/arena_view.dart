@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:ui';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
 import 'package:location/location.dart' as loc;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:geocoding/geocoding.dart';
@@ -24,23 +27,50 @@ class ArenaView extends StatefulWidget {
 class _ArenaViewState extends State<ArenaView> {
   late GoogleMapController mapController;
   final loc.Location _location = loc.Location();
-  final Set<Marker> _markers = {};
+  final RxSet<Marker> markers = RxSet<Marker>();
   TextEditingController _searchController = TextEditingController();
   BitmapDescriptor? _customMarker;
   BitmapDescriptor? _customMarker2;
-  static const LatLng _initialPosition = LatLng(
-      37.7749, -122.4194); // Default position (San Francisco)
+  static const LatLng _initialPosition = LatLng(37.7749, -122.4194);
   String _mapStyle = '';
   final CybercafesController _cybercafesController = Get.put(CybercafesController());
-  final BookingController _bookingController = Get.put(BookingController());
+
+  List<String> images = [
+    'https://next-level.gg/assets/cafes/11.jpg',
+    'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
+    'https://media.assettype.com/afkgaming%2F2024-04%2Fe11d1515-bb0d-48a5-9ad9-1ddfdef286ef%2FUntitled_design_117_.png?auto=format%2Ccompress&dpr=1.0&w=1200',
+    'https://i.ytimg.com/vi/3ZPtQAKKado/maxresdefault.jpg',
+    'https://pvplayer.com/wp-content/uploads/2024/04/kafejka-gamingowa.jpg'
+  ];
+  Timer? debounce;
+
+  void _updateCameraPosition(LatLng position) {
+    debounce?.cancel();
+    debounce = Timer(const Duration(milliseconds: 300), () {
+      mapController.animateCamera(CameraUpdate.newLatLng(position));
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _initializeLocation();
+    _cybercafesController.fetchCybercafes();
     _loadMapStyle();
     _loadCustomMarker();
   }
-
+  Future<void> _loadMapStyle() async {
+    String style = await rootBundle.loadString('assets/map_style.json');
+    setState(() {
+      _mapStyle = style;
+    });
+  }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Fetch cybercafes again when coming back to this page
+    _cybercafesController.fetchCybercafes();
+  }
   void _loadCustomMarker() async {
     _customMarker = await BitmapDescriptor.fromAssetImage(
       ImageConfiguration(size: Size(48, 48), devicePixelRatio: 2),
@@ -53,115 +83,251 @@ class _ArenaViewState extends State<ArenaView> {
   }
 
   void _initializeLocation() async {
-    bool serviceEnabled;
-    loc.PermissionStatus permissionGranted;
-
-    serviceEnabled = await _location.serviceEnabled();
+    bool serviceEnabled = await _location.serviceEnabled();
     if (!serviceEnabled) {
       serviceEnabled = await _location.requestService();
-      if (!serviceEnabled) {
-        return;
-      }
+      if (!serviceEnabled) return;
     }
 
-    permissionGranted = await _location.hasPermission();
-    if (permissionGranted == loc.PermissionStatus.denied) {
-      permissionGranted = await _location.requestPermission();
-      if (permissionGranted != loc.PermissionStatus.granted) {
-        return;
-      }
-    }
+    final permissionGranted = await _location.requestPermission();
+    if (permissionGranted != loc.PermissionStatus.granted) return;
 
     final locationData = await _location.getLocation();
-    mapController.animateCamera(CameraUpdate.newLatLng(
-        LatLng(locationData.latitude!, locationData.longitude!)));
+    _updateCameraPosition(LatLng(locationData.latitude!, locationData.longitude!));
 
-    // Add markers
+
     _addMarkers(locationData.latitude!, locationData.longitude!);
-
-    // Listen for location changes and update the marker
-    _location.onLocationChanged.listen((loc.LocationData currentLocation) {
-      _updateCurrentLocationMarker(currentLocation);
-    });
-
-    // Fetch nearby cybercafes initially
     _fetchNearbyCybercafes(locationData.latitude!, locationData.longitude!);
   }
 
-  void _updateCurrentLocationMarker(loc.LocationData currentLocation) {
-    setState(() {
-      _markers.removeWhere((marker) =>
-      marker.markerId.value == 'current_location');
-      _markers.add(
-        Marker(
-          markerId: MarkerId('current_location'),
-          position: LatLng(
-              currentLocation.latitude!, currentLocation.longitude!),
-          icon: _customMarker ?? BitmapDescriptor.defaultMarker,
-          infoWindow: InfoWindow(title: 'Your Location'),
-        ),
-      );
-    });
-    mapController.animateCamera(CameraUpdate.newLatLng(
-        LatLng(currentLocation.latitude!, currentLocation.longitude!)));
+  void _addMarkers(double latitude, double longitude) {
+    markers.add(
+      Marker(
+        markerId: MarkerId('current_location'),
+        position: LatLng(latitude, longitude),
+        icon: _customMarker ?? BitmapDescriptor.defaultMarker,
+        infoWindow: InfoWindow(title: 'Your Location'),
+      ),
+    );
   }
 
-  void _addMarkers(double latitude, double longitude) {
-    setState(() {
-      _markers.add(
-        Marker(
-          markerId: MarkerId('current_location'),
-          position: LatLng(latitude, longitude),
-          icon: _customMarker ?? BitmapDescriptor.defaultMarker,
-          infoWindow: InfoWindow(title: 'Your Location'),
-        ),
-      );
-    });
-  }
 
   Future<void> _fetchNearbyCybercafes(double latitude, double longitude) async {
-    final authToken = await _getToken();
+    try {
+      if (_cybercafesController.cybercafes.isEmpty) return;
 
-    // try {
-      await _cybercafesController.setUserLocation(latitude, longitude);
-      await _cybercafesController.fetchNearbyCybercafes(latitude, longitude);
-
-      // Clear existing markers and add fetched cybercafes as markers
-      setState(() {
-        _markers.removeWhere((marker) =>
-        marker.markerId.value != 'current_location');
-        _cybercafesController.cybercafes.forEach((cafe) {
-          _markers.add(
-            Marker(
-              markerId: MarkerId(cafe['_id']),
-              position: LatLng(
-                  cafe['location']['latitude'], cafe['location']['longitude']),
-              icon: _customMarker2 ?? BitmapDescriptor.defaultMarker,
-              infoWindow: InfoWindow(title: cafe['name']),
+      markers.addAll(
+        _cybercafesController.cybercafes.map((cafe) {
+          return Marker(
+            markerId: MarkerId(cafe['id'] ?? 'unknown'),
+            position: LatLng(
+              cafe['location']['latitude'] ?? 0.0,
+              cafe['location']['longitude'] ?? 0.0,
             ),
+            icon: _customMarker2 ?? BitmapDescriptor.defaultMarker,
+            infoWindow: InfoWindow(title: cafe['name'] ?? 'Unknown'),
           );
-        });
-      });
-    // } catch (e) {
-    //   print('Error fetching nearby cybercafes: $e');
-    // }
+        }),
+      );
+    } catch (e) {
+      print('Fetch Error: $e');
+    }
   }
 
-  Future<String> _getToken() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token') ?? '';
+
+  @override
+  Widget build(BuildContext context) {
+
+    return Scaffold(
+      floatingActionButton: GestureDetector(
+        onTap: () {
+          Get.to(PastBookingsScreen());
+        },
+        child: Container(
+          width: 108,
+          padding: EdgeInsets.symmetric(horizontal: 12,vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            color:Color(0xff00D701)
+
+
+          ),
+
+          child:Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(Icons.qr_code_2,color: Colors.black,size: 15,),
+              Text('Bookings',style: TextStyle(color: Colors.black,fontSize: 15,fontWeight: FontWeight.bold),),
+            ],
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Stack(alignment: Alignment.bottomCenter,
+          children: [
+            Obx(() => GoogleMap(
+              onMapCreated: (controller) {
+                mapController = controller;
+                mapController.setMapStyle(_mapStyle);
+              },
+              initialCameraPosition: CameraPosition(
+                target: _initialPosition,
+                zoom: 12,
+              ),
+              markers: markers.toSet(), // Convert RxSet to Set for GoogleMap
+              myLocationEnabled: true,
+            )),
+
+
+            Positioned(
+              top: 50,
+              left: 10,
+              right: 10,
+              child: _buildSearchBar(),
+            ),
+            Obx(() {
+              if (_cybercafesController.isLoading.value) {
+                return Center(child: CircularProgressIndicator());
+              }
+
+              if (_cybercafesController.cybercafes.isEmpty) {
+                return Center(child: Text('No cybercafes available.'));
+              }
+
+              return RepaintBoundary(
+                child: Container(color: Colors.black,height: 250,alignment: Alignment.bottomCenter,
+                  child: ListView.builder(
+                    physics: BouncingScrollPhysics(),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _cybercafesController.cybercafes.length,
+                    itemBuilder: (context, index) {
+                      final cafe = _cybercafesController.cybercafes[index];
+                      return _buildGradientCard(
+                        cafe,
+                        images[index % images.length],
+                      );
+                    },
+                  ),
+                ),
+              );
+
+            }),
+          ],
+        ),
+      ),
+    );
   }
 
-  Future<void> _loadMapStyle() async {
-    String style = await rootBundle.loadString('assets/map_style.json');
-    setState(() {
-      _mapStyle = style;
-    });
-  }
+  Widget _buildSearchBar() {
+    return Container(
+      height: 50,
+      padding: EdgeInsets.symmetric(horizontal: 15),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: TextField(
+        controller: _searchController,
 
-  void _onMapCreated(GoogleMapController controller) {
-    mapController = controller;
-    mapController.setMapStyle(_mapStyle);
+        decoration: InputDecoration(
+          labelText: 'Search for a location',
+          border: InputBorder.none,
+          suffixIcon: IconButton(
+            icon: Icon(Icons.search, color: Color(0xff00D701)),
+            onPressed: _searchAndNavigate,
+          ),
+        ),
+        style: TextStyle(color: Color(0xff00D701)),
+      ),
+    );
+  }
+  Widget _buildGradientCard(Map<String, dynamic> cafe, String image) {
+    return GestureDetector(
+      onTap: () async{
+        await Get.to(ArenaDetailView(
+          images: image,
+          title: cafe['cafe_name'] ?? 'Unknown Cafe',
+          address: 'Owner: ${cafe['owner_name']}',
+          openingHours: 'Created: ${cafe['created_at']}', // Example data
+          availableGames: ['Game 1', 'Game 2'], // Placeholder
+          amenities: ['Amenity 1', 'Amenity 2'], // Placeholder
+          contactInfo: 'Contact: contact@domain.com', // Placeholder
+          reviews: ['Great place!', 'Loved it!'],
+          vendorId:cafe['vendor_id']// Placeholder
+        ));
+      },
+      child: Container(width: 300,
+        margin: EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Color(0xff0E0E0E),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Stack(
+          alignment: Alignment.topCenter,
+          children: [
+            ClipRRect(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+                child: CachedNetworkImage(
+                  imageUrl: image,
+                  fit: BoxFit.cover,
+                  height: 320,
+                  width: 400,
+                  placeholder: (context, url) => Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => Container(
+                    height: 320,
+                    width: 400,
+                    color: Colors.grey,
+                    child: Center(
+                      child: Text(
+                        'Image Not Available',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                )
+
+
+            ),
+            ClipRRect(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: ListTile(
+                  title: Text(cafe['cafe_name'] ?? 'Unknown Cafe', style: TextStyle(color: Colors.white)),
+                  subtitle: Text('Mumbai | 9 - 12am', style: TextStyle(color: Colors.white70)),
+                  trailing: Container(width: 100,
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(crossAxisAlignment: CrossAxisAlignment.center,mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Icon(Icons.circle,color: cafe['status'] == 'active' ? Colors.green : Colors.red,size: 8,),
+                                SizedBox(width: 3,),
+                                Text(cafe['status']== 'active' ?'Open':'Close', style: TextStyle(color: cafe['status'] == 'active' ? Colors.green : Colors.red)),
+                              ],
+                            ),
+                            SizedBox(height: 5,),
+                            Text('2.3KM', style: TextStyle(color: Colors.white70)),
+                          ],
+                        ),
+                        SizedBox(width: 10,),
+                        CircleAvatar(radius: 20,
+                          child: Icon(Icons.chevron_right),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _searchAndNavigate() async {
@@ -172,213 +338,12 @@ class _ArenaViewState extends State<ArenaView> {
         if (locations.isNotEmpty) {
           final location = locations.first;
           mapController.animateCamera(CameraUpdate.newLatLng(
-              LatLng(location.latitude, location.longitude)));
-          setState(() {
-            _markers.add(
-              Marker(
-                markerId: MarkerId(query),
-                position: LatLng(location.latitude, location.longitude),
-                infoWindow: InfoWindow(title: query),
-              ),
-            );
-          });
-        } else {
-          Get.snackbar('Location Not Found', 'Please enter a valid location.');
+            LatLng(location.latitude, location.longitude),
+          ));
         }
       } catch (e) {
-        Get.snackbar('Error', 'Failed to find the location.');
+        Get.snackbar('Error', 'Location not found.');
       }
     }
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            GoogleMap(
-              onMapCreated: _onMapCreated,
-              initialCameraPosition: CameraPosition(
-                target: _initialPosition,
-                zoom: 12,
-              ),
-              markers: _markers,
-              myLocationEnabled: false,
-              myLocationButtonEnabled: true,
-            ),
-            Positioned(
-              top: 50,
-              left: 10,
-              right: 10,
-              child: Container(
-                height: 50,
-                padding: const EdgeInsets.symmetric(horizontal: 15),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search',
-                          border: InputBorder.none,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.search),
-                      onPressed: _searchAndNavigate,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            DraggableScrollableSheet(
-              initialChildSize: 0.5,
-              minChildSize: 0.3,
-              maxChildSize: 0.7,
-              snap: true,
-              builder: (BuildContext context, scrollController) {
-                return Container(
-                  height: 250,
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                  ),
-                  child: ListView.builder(
-                    itemCount: _cybercafesController.cybercafes.length,
-                    itemBuilder: (context, index) {
-                      final cafe = _cybercafesController.cybercafes[index];
-                      return SizedBox(
-                        width: 300,
-                        height: 320,
-                        child: gradientCardSample(cafe),
-                      );
-                    },
-                    shrinkWrap: true,
-                    scrollDirection: Axis.horizontal,
-
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget gradientCardSample(Map<String, dynamic> cafe) {
-    bool isActive = cafe['address']['is_active'];
-    int distance = cafe['distance']=='Infinity'?0:cafe['distance'];
-
-    return Container(
-      height: 200,
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      decoration: ShapeDecoration(
-        color: Color(0xff1E1E1E),
-        shape: ContinuousRectangleBorder(
-          borderRadius: BorderRadius.circular(36),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(10.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  cafe['name'],
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: "monospace",
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(Icons.circle, color: Color(0xff39FF14), size: 12,),
-                    SizedBox(width: 3),
-                    Text(isActive ? 'Open' : 'Closed'),
-                    SizedBox(width: 3),
-                    Text('(24hrs)', style: TextStyle(fontSize: 12)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5),
-            child: Text(
-              '${cafe['address']['addressLine1']} - ${metersToKilometers(distance).toStringAsFixed(2)} km ↱',
-              style: TextStyle(
-                color: Colors.white,
-                fontFamily: "monospace",
-                fontSize: 15,
-              ),
-            ),
-          ),
-          Container(
-            height: 130,width: Get.width, // Adjust the height as needed
-            child: Image.network(
-              'https://t3.ftcdn.net/jpg/04/29/97/24/360_F_429972422_idgQSEcP8Ur9ky1ZXXUlrGwx39wUjyqH.jpg',
-              fit: BoxFit.cover,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: () {
-                // Handle button tap (navigate to details or any other action)
-                Get.to(ArenaDetailView(
-                  title: cafe['name'],
-                  address: '${cafe['address']['addressLine1']}, ${cafe['address']['State']}, ${cafe['address']['Country']} - ${cafe['address']['pincode']}',
-                  openingHours: 'Mon-Sun: 10 AM - 10 PM', // Example data, replace with actual data
-                  availableGames: [
-                    'League of Legends',
-                    'Overwatch',
-                    'Minecraft',
-                    'FIFA 21'
-                  ], // Example data, replace with actual data
-                  amenities: [
-                    'VR Experiences',
-                    'Game Streaming',
-                    'Food and Beverages'
-                  ], // Example data, replace with actual data
-                  contactInfo: '+123 456 7890 | contact@${cafe['name'].toLowerCase().replaceAll(' ', '')}.com', // Example data, replace with actual data
-                  reviews: [
-                    'Amazing place! Loved the VR experience.',
-                    'Great selection of games and very friendly staff.',
-                    'The best place to hang out with friends and game!'
-                  ], // Example data, replace with actual data
-                ));
-              },
-              style: ElevatedButton.styleFrom(
-                primary: const Color(0xff00D701),
-                shape: ContinuousRectangleBorder(
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                minimumSize: Size(double.infinity, 30),
-              ),
-              child: const Text(
-                'View',
-                style: TextStyle(color: Colors.black),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }}
+}

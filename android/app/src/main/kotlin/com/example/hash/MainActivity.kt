@@ -1,4 +1,4 @@
-package com.example.hash
+package com.hfg.hash
 
 import io.flutter.embedding.android.FlutterActivity
 

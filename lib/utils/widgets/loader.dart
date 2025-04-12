@@ -78,11 +78,4 @@ class _RainbowLoadingBarState extends State<RainbowLoadingBar> with SingleTicker
   }
 }
 
-void main() {
-  runApp(MaterialApp(
-    home: Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(child: RainbowLoadingBar(width: 300, height: 10)), // You can set width and height here
-    ),
-  ));
-}
+

@@ -106,12 +106,12 @@ class UserProfileView extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            user.name,
+            user.name!,
             style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
           Text(
-            user.contact.electronicAddress.emailId,
+            user.contact?.electronicAddress?.emailId??"",
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
         ],
@@ -139,6 +139,7 @@ class UserProfileView extends StatelessWidget {
           // Handle logout
           final prefs = await SharedPreferences.getInstance();
           await prefs.remove('token');
+          await prefs.remove('user_data');
 
           Get.offAllNamed(AppRoutes.LOGIN); // Navigates to the login screen and removes all previous routes
         },
