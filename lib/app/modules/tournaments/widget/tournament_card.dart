@@ -80,7 +80,7 @@ class TournamentCard extends StatelessWidget {
                     },
 
                     style: ElevatedButton.styleFrom(
-                      primary: const Color(0xff01ff00),
+                      backgroundColor: const Color(0xff01ff00),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),

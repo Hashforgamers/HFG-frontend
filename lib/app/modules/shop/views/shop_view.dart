@@ -329,7 +329,7 @@ class ShopView extends StatelessWidget {
                                               );
                       },
                       style: ElevatedButton.styleFrom(
-                        primary: const Color(0xff00D701),
+                        backgroundColor: const Color(0xff00D701),
                         shape: ContinuousRectangleBorder(
                           borderRadius: BorderRadius.circular(28),
                         ),

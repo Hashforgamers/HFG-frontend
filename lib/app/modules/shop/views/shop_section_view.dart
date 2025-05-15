@@ -186,7 +186,7 @@ class ProductCard extends StatelessWidget {
           ElevatedButton(
             onPressed: () => _showComingSoonToast(),
             style: ElevatedButton.styleFrom(
-              primary: const Color(0xff00D701),
+              backgroundColor: const Color(0xff00D701),
               shape: ContinuousRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),

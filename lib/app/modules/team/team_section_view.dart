@@ -164,8 +164,8 @@ class TeamFormScreen extends StatelessWidget {
                     Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
-                    primary: Colors.white,
-                    onPrimary: backgroundColor,
+                    backgroundColor: Colors.white,
+                    foregroundColor: backgroundColor,
                   ),
                   child: Text(
                     'Submit',

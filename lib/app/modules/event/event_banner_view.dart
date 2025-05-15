@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:carousel_slider/carousel_slider.dart';
+import 'package:carousel_slider/carousel_slider.dart' as carousel_slider;
 import 'package:cached_network_image/cached_network_image.dart';
 
 class EventBanner extends StatelessWidget {
@@ -14,8 +14,8 @@ class EventBanner extends StatelessWidget {
     return Container(
       height: 200,
       margin: const EdgeInsets.symmetric(vertical: 20),
-      child: CarouselSlider(
-        options: CarouselOptions(
+      child: carousel_slider.CarouselSlider(
+        options: carousel_slider.CarouselOptions(
           height: 190,
           autoPlay: true,
           enlargeCenterPage: true,

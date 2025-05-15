@@ -64,7 +64,7 @@ class BookingCard extends StatelessWidget {
                   Navigator.of(context).pop();
                 },
                 style: ElevatedButton.styleFrom(
-                  primary: Colors.redAccent,
+                  backgroundColor: Colors.redAccent,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 child: Text('Close', style: TextStyle(color: Colors.white)),

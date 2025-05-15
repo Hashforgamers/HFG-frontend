@@ -295,8 +295,8 @@ class BookingCard extends StatelessWidget {
                         ));
                       },
                       style: ElevatedButton.styleFrom(
-                        primary: Color(0xff00D701),
-                        onPrimary: Colors.black,
+                        backgroundColor: Color(0xff00D701),
+                        foregroundColor: Colors.black,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),

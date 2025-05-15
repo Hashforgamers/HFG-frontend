@@ -33,11 +33,11 @@ class ViralShotsSection extends StatelessWidget {
             } else {
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: controller.shorts
-                      .map((short) => _buildViralShotItem(short, controller))
-                      .toList(),
-                ),
+                // child: Row(
+                //   children: controller.shorts
+                //       .map((short) => _buildViralShotItem(short, controller))
+                //       .toList(),
+                // ),
               );
             }
           },
@@ -131,7 +131,7 @@ class ViralShotsSection extends StatelessWidget {
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 8),
-                        primary: const Color(0xff00D701),
+                        backgroundColor: const Color(0xff00D701),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       child: const Text('Watch Now', style: TextStyle(color: Colors.black)),

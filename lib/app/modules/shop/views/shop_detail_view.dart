@@ -211,7 +211,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     // Handle product buy now tap
                   },
                   style: ElevatedButton.styleFrom(
-                    primary:  Color(0xff00D701),
+                    backgroundColor:  Color(0xff00D701),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),

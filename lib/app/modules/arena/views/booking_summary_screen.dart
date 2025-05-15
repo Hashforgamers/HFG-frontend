@@ -99,8 +99,8 @@ class BookingSummaryScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () => handleBooking(context,gameId),
                 style: ElevatedButton.styleFrom(
-                  primary: Color(0xff00D701),
-                  onPrimary: Colors.black,
+                  backgroundColor: Color(0xff00D701),
+                  foregroundColor: Colors.black,
                   padding: EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
