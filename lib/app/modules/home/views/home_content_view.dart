@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../../../../utils/widgets/loader.dart';
 import '../../../data/services/user_controller.dart';
 import '../../../routes/app_routes.dart';
@@ -12,6 +13,8 @@ import '../../arena/controllers/booking_controller.dart';
 import '../../arena/views/arena_section_view.dart';
 import '../../event/event_banner_view.dart';
 import '../../game/views/game_section_view.dart';
+import '../../login/controllers/login_controller.dart';
+import '../../news/news_section_view.dart';
 import '../../rewards/reward_section_view.dart';
 import '../../shop/views/shop_section_view.dart';
 import '../../shorts/views/viral_shots_view.dart';
@@ -21,10 +24,12 @@ import '../widgets/booking_card_widget.dart';
 
 class HomeContentView extends StatelessWidget {
   final BookingController bookingController = Get.put(BookingController());
+  final LoginController loginController = Get.put(LoginController());
 
   HomeContentView() {
     // Fetch user bookings when HomeContentView is initialized
     bookingController.fetchUserBookings();
+    loginController.checkUserExistsInAPI();
   }
 
   String _formatTimeTo24Hour(String rawTime) {
@@ -62,11 +67,11 @@ class HomeContentView extends StatelessWidget {
                   itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                     const PopupMenuItem<String>(
                       value: 'Profile',
-                      child: Text('Profile', style: TextStyle(color: Color(0xff00D701))),
+                      child: Text('Profile', style: TextStyle(color: Color(0xffDE3A3A))),
                     ),
                     const PopupMenuItem<String>(
                       value: 'Settings',
-                      child: Text('Settings', style: TextStyle(color: Color(0xff00D701))),
+                      child: Text('Settings', style: TextStyle(color: Color(0xffDE3A3A))),
                     ),
                     PopupMenuItem<String>(
                       onTap: () async {
@@ -76,7 +81,7 @@ class HomeContentView extends StatelessWidget {
                         Get.offAllNamed(AppRoutes.LOGIN);
                       },
                       value: 'Logout',
-                      child: const Text('Logout', style: TextStyle(color: Color(0xff00D701))),
+                      child: const Text('Logout', style: TextStyle(color: Color(0xffDE3A3A))),
                     ),
                   ],
                   child: Obx(() => CircleAvatar(
@@ -104,17 +109,20 @@ class HomeContentView extends StatelessWidget {
           const SizedBox(height: 18),
            EventBanner(), // Static widget; marked as const
           const SizedBox(height: 18),
-          Obx(() {
-            if (bookingController.isLoading.value) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (bookingController.userBookings.isEmpty) {
-              return const SizedBox();
-            }
-            return _buildBookingsSection();
-          }),
+          // Obx(() {
+          //   if (bookingController.isLoading.value) {
+          //     return const Center(child: RainbowGlowingLoader(size: 50),);
+          //   }
+          //   if (bookingController.userBookings.isEmpty) {
+          //     return const SizedBox();
+          //   }
+          //   return _buildBookingsSection();
+          // }),
           const SizedBox(height: 18),
-           ViralShotsSection(), // Static widget
+          GamerNewsSection(),
+          const SizedBox(height: 18),
+
+          ViralShotsSection(), // Static widget
           const SizedBox(height: 18),
            ShopSection(), // Static widget
           const SizedBox(height: 18),

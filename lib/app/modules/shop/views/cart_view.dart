@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../controllers/cart_controller.dart';
 import '../controllers/checkout_controller.dart';
 import '../controllers/address_controller.dart';
@@ -26,12 +27,12 @@ class CartView extends StatelessWidget {
             padding: EdgeInsets.all(5),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: Color(0xff00D701),
+              color: Color(0xffDE3A3A),
             ),
             child: Center(
               child: Obx(() {
                 if (checkoutController.isLoading.value) {
-                  return CircularProgressIndicator();
+                  return RainbowGlowingLoader(size: 50);
                 } else {
                   return Text('Checkout', style: TextStyle(color: Colors.black));
                 }
@@ -48,12 +49,12 @@ class CartView extends StatelessWidget {
           onTap: () {
             Get.back();
           },
-          child: Icon(CupertinoIcons.back, color: Color(0xff00D701),),
+          child: Icon(CupertinoIcons.back, color: Color(0xffDE3A3A),),
         ),
       ),
       body: Obx(() {
         if (cartController.isLoading.value) {
-          return Center(child: CircularProgressIndicator());
+          return Center(child: RainbowGlowingLoader(size: 50),);
         } else if (cartController.cartItems.isEmpty) {
           return Center(child: Text('Cart is empty', style: TextStyle(color: Colors.white)));
         } else {
@@ -113,7 +114,7 @@ class CartView extends StatelessWidget {
                 RadioListTile(
                   visualDensity: VisualDensity.compact,
                   contentPadding: EdgeInsets.symmetric(horizontal: 0),
-                  activeColor: Color(0xff00D701),
+                  activeColor: Color(0xffDE3A3A),
                   title: Text('Wallet', style: TextStyle(color: Colors.white)),
                   value: 'wallet',
                   groupValue: checkoutController.paymentMethod.value,
@@ -124,7 +125,7 @@ class CartView extends StatelessWidget {
                 RadioListTile(
                   visualDensity: VisualDensity.compact,
                   contentPadding: EdgeInsets.symmetric(horizontal: 0),
-                  activeColor: Color(0xff00D701),
+                  activeColor: Color(0xffDE3A3A),
                   title: Text('Other', style: TextStyle(color: Colors.white)),
                   value: 'other',
                   groupValue: checkoutController.paymentMethod.value,
@@ -157,7 +158,7 @@ class CartView extends StatelessWidget {
               child: DropdownButton<String>(
                 value: addressController.activeAddress.value['addressLine1'],
                 dropdownColor: Colors.black,
-                icon: Icon(Icons.arrow_drop_down_outlined, color: Color(0xff00D701),),
+                icon: Icon(Icons.arrow_drop_down_outlined, color: Color(0xffDE3A3A),),
                 iconSize: 24,
                 elevation: 16,
                 style: TextStyle(color: Colors.white),

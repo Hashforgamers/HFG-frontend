@@ -1,8 +1,13 @@
+// Optimized TournamentsSection with structured layout and clean code
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import '../../../../utils/widgets/glow_neon_loader.dart';
+
 class TournamentsSection extends StatelessWidget {
+  const TournamentsSection({super.key});
+
   @override
   Widget build(BuildContext context) {
     final List<Tournament> tournaments = [
@@ -35,13 +40,13 @@ class TournamentsSection extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         SizedBox(
-          height: 261,
-          child: ListView.builder(
+          height: 192,
+          child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: tournaments.length,
-            itemBuilder: (context, index) {
-              return TournamentCard(tournament: tournaments[index]);
-            },
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) => TournamentCard(tournament: tournaments[index]),
           ),
         ),
       ],
@@ -55,7 +60,7 @@ class Tournament {
   final String description;
   final String prize;
 
-  Tournament({
+  const Tournament({
     required this.title,
     required this.imageUrl,
     required this.description,
@@ -66,86 +71,72 @@ class Tournament {
 class TournamentCard extends StatelessWidget {
   final Tournament tournament;
 
-  const TournamentCard({Key? key, required this.tournament}) : super(key: key);
+  const TournamentCard({super.key, required this.tournament});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(5),
       width: 300,
-      decoration: ShapeDecoration(
+      decoration: BoxDecoration(
         color: const Color(0xff1E1E1E),
-        shape: ContinuousRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
+        borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
             child: CachedNetworkImage(
               imageUrl: tournament.imageUrl,
-              height: 130,
+              height: 65,
               width: double.infinity,
               fit: BoxFit.cover,
-              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-              errorWidget: (context, url, error) => const Icon(Icons.error),
+              placeholder: (context, url) => const Center(child: RainbowGlowingLoader(size: 40)),
+              errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.white),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  tournament.title,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-                const SizedBox(height: 5),
+                Text(tournament.title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      tournament.description,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Text(
+                        tournament.description,
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     _TournamentDetail(icon: CupertinoIcons.money_dollar_circle, text: tournament.prize),
                   ],
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // Handle tournament button tap
-                    },
+                    onPressed: () {},
                     style: ElevatedButton.styleFrom(
-                      primary: const Color(0xff00D701),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      backgroundColor: const Color(0xffDE3A3A),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.lock, color: Colors.black, size: 16),
-                        SizedBox(width: 5),
-                        Text(
-                          'Coming Soon',
-                          style: TextStyle(color: Colors.black),
-                        ),
+                        SizedBox(width: 6),
+                        Text('Coming Soon', style: TextStyle(color: Colors.black)),
                       ],
                     ),
                   ),
-                ),
+                )
               ],
             ),
-          ),
+          )
         ],
       ),
     );

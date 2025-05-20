@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../controllers/review_controller.dart';
 
 class ReviewPage extends StatelessWidget {
@@ -27,7 +28,7 @@ class ReviewPage extends StatelessWidget {
         ),
         Obx(() {
           if (reviewController.isLoading.value) {
-            return Center(child: CircularProgressIndicator());
+            return Center(child: RainbowGlowingLoader(size: 50),);
           }
           return ListView.builder(
             physics: NeverScrollableScrollPhysics(),

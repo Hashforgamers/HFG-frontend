@@ -108,7 +108,7 @@ class BookingCard extends StatelessWidget {
                           style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xff00D701)
+                              color: Color(0xffDE3A3A)
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),

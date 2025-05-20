@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
+import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../controllers/splash_controller.dart';
 
 class SplashView extends StatefulWidget {
@@ -50,7 +51,7 @@ class _SplashViewState extends State<SplashView> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text('LOADING'),
-              CircularProgressIndicator(),
+              RainbowGlowingLoader(size: 50),
             ],
           ),
         ),

@@ -53,7 +53,7 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
                   child: Text(
                     'HASH.',
                     style: TextStyle(
-                      color: Color(0xff00D701),
+                      color: Color(0xffDE3A3A),
                       fontSize: 44,
                       fontWeight: FontWeight.w900,
                     ),

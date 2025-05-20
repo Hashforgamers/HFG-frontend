@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
 import 'package:hash/app/modules/wallet/views/wallet_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../utils/widgets/glow_neon_loader.dart';
 import '../../data/services/user_controller.dart';
 import '../../routes/app_routes.dart';
 
@@ -91,7 +92,7 @@ class UserProfileView extends StatelessWidget {
   Widget _buildProfileHeader(UserController userController) {
     return Obx(() {
       if (userController.isLoading.value) {
-        return Center(child: CircularProgressIndicator());
+        return Center(child: RainbowGlowingLoader(size: 50),);
       }
 
       final user = userController.user.value;
@@ -121,7 +122,7 @@ class UserProfileView extends StatelessWidget {
 
   Widget _buildProfileOption({required IconData icon, required String title, required VoidCallback onTap}) {
     return ListTile(
-      leading: Icon(icon, color: const Color(0xff00D701)),
+      leading: Icon(icon, color: const Color(0xffDE3A3A)),
       title: Text(
         title,
         style: const TextStyle(color: Colors.white, fontSize: 18),

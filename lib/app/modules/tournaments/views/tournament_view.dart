@@ -18,8 +18,8 @@ class TournamentView extends StatelessWidget {
           title: const Text('Tournaments', style: TextStyle(color: Colors.white)),
           backgroundColor: Colors.black,
           bottom: const TabBar(
-            indicatorColor: Color(0xff00D701),
-            labelColor: Color(0xff00D701),
+            indicatorColor: Color(0xffDE3A3A),
+            labelColor: Color(0xffDE3A3A),
             unselectedLabelColor: Colors.grey,
             tabs: [
               Tab(text: 'Upcoming'),

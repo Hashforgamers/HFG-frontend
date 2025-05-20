@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:location/location.dart' as loc;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:geocoding/geocoding.dart';
@@ -54,11 +55,14 @@ class _ArenaViewState extends State<ArenaView> {
   @override
   void initState() {
     super.initState();
-    _initializeLocation();
-    _cybercafesController.fetchCybercafes();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeLocation();
+      _cybercafesController.fetchCybercafes();
+    });
     _loadMapStyle();
     _loadCustomMarker();
   }
+
   Future<void> _loadMapStyle() async {
     String style = await rootBundle.loadString('assets/map_style.json');
     setState(() {
@@ -148,7 +152,7 @@ class _ArenaViewState extends State<ArenaView> {
           padding: EdgeInsets.symmetric(horizontal: 12,vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            color:Color(0xff00D701)
+            color:Color(0xffDE3A3A)
 
 
           ),
@@ -187,7 +191,7 @@ class _ArenaViewState extends State<ArenaView> {
             ),
             Obx(() {
               if (_cybercafesController.isLoading.value) {
-                return Center(child: CircularProgressIndicator());
+                return Center(child: RainbowGlowingLoader(size: 50),);
               }
 
               if (_cybercafesController.cybercafes.isEmpty) {
@@ -233,11 +237,11 @@ class _ArenaViewState extends State<ArenaView> {
           labelText: 'Search for a location',
           border: InputBorder.none,
           suffixIcon: IconButton(
-            icon: Icon(Icons.search, color: Color(0xff00D701)),
+            icon: Icon(Icons.search, color: Color(0xffDE3A3A)),
             onPressed: _searchAndNavigate,
           ),
         ),
-        style: TextStyle(color: Color(0xff00D701)),
+        style: TextStyle(color: Color(0xffDE3A3A)),
       ),
     );
   }
@@ -272,7 +276,7 @@ class _ArenaViewState extends State<ArenaView> {
                   fit: BoxFit.cover,
                   height: 320,
                   width: 400,
-                  placeholder: (context, url) => Center(child: CircularProgressIndicator()),
+                  placeholder: (context, url) => Center(child: RainbowGlowingLoader(size: 50),),
                   errorWidget: (context, url, error) => Container(
                     height: 320,
                     width: 400,

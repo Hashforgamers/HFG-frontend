@@ -16,7 +16,7 @@ class TournamentDetailView extends StatelessWidget {
             },
           ),
           bottom: TabBar(
-            indicatorColor: Color(0xff00D701),
+            indicatorColor: Color(0xffDE3A3A),
             isScrollable: true,
             tabs: [
               Tab(text: 'Overview'),

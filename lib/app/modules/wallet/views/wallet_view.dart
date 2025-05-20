@@ -30,13 +30,13 @@ class WalletDetailView extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'Pricedown',
                 fontSize: 26,
-                color: Color(0xff00D701),
+                color: Color(0xffDE3A3A),
               ),
             )),
             SizedBox(height: 20),
             ElevatedButton(
               style: ButtonStyle(
-              backgroundColor: MaterialStateColor.resolveWith((states) => Color(0xff00D701),)
+              backgroundColor: MaterialStateColor.resolveWith((states) => Color(0xffDE3A3A),)
             ),
               onPressed: () {
                 showWithdrawDialog(context);

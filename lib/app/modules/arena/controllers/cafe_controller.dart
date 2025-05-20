@@ -15,7 +15,7 @@ class CybercafesController extends GetxController {
   Future<void> fetchCybercafes() async {
     isLoading.value = true;
     try {
-      final response = await http.get(Uri.parse('https://hfg-onboard.onrender.com/api/vendor/dashboard'));
+      final response = await http.get(Uri.parse('https://hfg-onboard-hqqb.onrender.com/api/vendor/dashboard'));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -23,6 +23,7 @@ class CybercafesController extends GetxController {
 
         // Ensure the data is properly cast to List<Map<String, dynamic>>
         cybercafes.value = List<Map<String, dynamic>>.from(data['vendors']);
+        print(cybercafes.value);
       } else {
         Get.snackbar('Error', 'Failed to fetch data. Status code: ${response.statusCode}');
       }

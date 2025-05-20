@@ -161,7 +161,7 @@ class SignUpController extends GetxController {
 
       final responseData = json.decode(response.body);
       final message = responseData['message'];
-
+      print(message);
       if (response.statusCode == 201) {
         // Save UID locally
         await saveUidLocally(currentUser.uid);

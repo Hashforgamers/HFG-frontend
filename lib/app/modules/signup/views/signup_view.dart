@@ -46,7 +46,7 @@ class SignUpView extends StatelessWidget {
                 child: Text(
                   'HASH.',
                   style: TextStyle(
-                    color: Color(0xff00D701),
+                    color: Color(0xffDE3A3A),
                     fontSize: 44,
                     fontWeight: FontWeight.w900,
                   ),
@@ -127,7 +127,7 @@ class SignUpView extends StatelessWidget {
                       TextFormField(
                         controller: emailController.text.isEmpty?controller.emailController:emailController,
                         style: TextStyle(color: Colors.white),
-                        readOnly: true, // Disable editing
+                        readOnly: emailController.text.isEmpty?false:true, // Disable editing
                         decoration: InputDecoration(
                           labelText: 'Email',
                           labelStyle: TextStyle(color: Colors.white70),
