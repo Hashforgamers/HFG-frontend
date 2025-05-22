@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:hash/core/service_locator.dart';
 import 'app/data/services/user_controller.dart';
 import 'app/modules/arena/controllers/booking_controller.dart';
 import 'app/modules/game/views/game_section_view.dart';
@@ -19,6 +20,7 @@ void main() async {
   Get.put(RazorpayController()); // Bind the controller
   Get.put(BookingController());
   Get.put(GamesController(), permanent: true); // Register the controller
+  await setupServiceLocator();
 
   runApp(MyApp());
 }
