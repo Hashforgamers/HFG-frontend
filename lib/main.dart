@@ -20,10 +20,12 @@ void main() async {
   Get.put(BookingController());
   Get.put(GamesController(), permanent: true); // Register the controller
 
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(

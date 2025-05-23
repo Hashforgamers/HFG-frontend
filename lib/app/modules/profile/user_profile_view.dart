@@ -145,7 +145,7 @@ class UserProfileView extends StatelessWidget {
           Get.offAllNamed(AppRoutes.LOGIN); // Navigates to the login screen and removes all previous routes
         },
         style: ElevatedButton.styleFrom(
-          primary: const Color(0xffFF0000),
+          backgroundColor: const Color(0xffFF0000),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),

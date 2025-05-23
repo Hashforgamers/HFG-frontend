@@ -1,35 +1,36 @@
 import 'dart:convert';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
+import 'package:http/http.dart' as http;
+
 import '../../payment/razorpay_controller.dart';
 import '../controllers/booking_controller.dart';
 
 class BookingSummaryScreen extends StatelessWidget {
-  final List<Map<String, dynamic>> selectedSlots;
-  final int gameId;
-  final int userId;
-
-  BookingSummaryScreen({Key? key, required this.selectedSlots, required this.gameId, required this.userId}) : super(key: key);
-
+  final List<Map<String, dynamic>> selectedSlots; // Changed type
+  final String userName = "Shen"; // Booking user
+  final double slotPrice = 50.0; // Price per slot
   final BookingController bookingController = Get.put(BookingController());
   final RazorpayController razorpayController = Get.put(RazorpayController());
-
-  final String userName = "Shen";
-  final double slotPrice = 50.0;
+  final int gameId;
+  final int userId;
+  BookingSummaryScreen({Key? key, required this.selectedSlots, required this.gameId,
+    required this.userId}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    double totalPrice = calculateTotalPrice();
+    final razorpayController = Get.put(RazorpayController());
 
+    double totalPrice = calculateTotalPrice();
+    print('selectedSlots: ${gameId}');
     return Scaffold(
-      backgroundColor: Color(0xFF0F0F0F),
       appBar: AppBar(
-        title: Text('Booking Summary', style: TextStyle(color: Colors.white)),
-        backgroundColor: Color(0xFF0F0F0F),
-        elevation: 1,
-        iconTheme: IconThemeData(color: Colors.white),
+        title: Text('Booking Summary'),
+        elevation: 2,
+        foregroundColor: Colors.black,
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -37,71 +38,80 @@ class BookingSummaryScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${selectedSlots.length} Slot(s) Selected', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white)),
+              Text('${selectedSlots.length} Slot(s) Selected',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               SizedBox(height: 16),
-              ListView.separated(
+              ListView.builder(
                 shrinkWrap: true,
                 physics: NeverScrollableScrollPhysics(),
                 itemCount: selectedSlots.length,
-                separatorBuilder: (context, index) => Divider(color: Colors.grey.shade800),
                 itemBuilder: (context, index) {
                   final slot = selectedSlots[index];
+
+
                   return ListTile(
-                    tileColor: Colors.grey.shade900,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    title: Text('PC ${slot['pc_index']}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                    subtitle: Text('Time: ${slot['start_time']} - ${slot['end_time']}', style: TextStyle(color: Colors.white70)),
+                    title: Text('PC ${slot['pc_index']}'),
+                    subtitle: Text(
+                        'Time: ${slot['start_time']} - ${slot['end_time']}'),
                   );
                 },
               ),
-              SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Booking User', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white70)),
-                      SizedBox(height: 4),
-                      Text(userName, style: TextStyle(fontSize: 16, color: Colors.white)),
-                    ],
-                  ),
-                  TextButton(onPressed: () {}, child: Text('Change', style: TextStyle(color: Colors.deepOrange)))
-                ],
+              SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Booking User', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(userName, style: TextStyle(fontSize: 16)),
+                trailing: TextButton(
+                  onPressed: () {
+                    // Change user logic if needed
+                  },
+                  child: Text('Change', style: TextStyle(color: Colors.orangeAccent)),
+                ),
               ),
-              Divider(height: 32, color: Colors.grey.shade800),
-              Text('Payment Summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
-              SizedBox(height: 12),
+              Divider(),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(
+                  'Payment Summary',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
               buildPaymentRow('Sub Total', '₹${totalPrice.toStringAsFixed(2)}'),
               buildPaymentRow('GST', '₹0.00'),
-              Divider(color: Colors.grey.shade800),
-              buildPaymentRow('GRAND TOTAL', '₹${totalPrice.toStringAsFixed(2)}', bold: true, fontSize: 16),
+              Divider(),
+              buildPaymentRow('GRAND TOTAL', '₹${totalPrice.toStringAsFixed(2)}',
+                  bold: true, fontSize: 16),
             ],
           ),
         ),
       ),
       bottomNavigationBar: BottomAppBar(
-        color: Color(0xFF0F0F0F),
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          color: Color(0xff0F0F0F),
+          padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 '₹${totalPrice.toStringAsFixed(2)}',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
               ),
               ElevatedButton(
-                onPressed: () => handleBooking(context),
+                onPressed: () => handleBooking(context,gameId),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xffDE3A3A),
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: Color(0xff00D701),
+                  foregroundColor: Colors.black,
+                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: Obx(() => bookingController.isLoading.value
-                    ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : Text('PROCEED', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                    ? CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                  'PROCEED',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                )),
               ),
             ],
           ),
@@ -110,7 +120,7 @@ class BookingSummaryScreen extends StatelessWidget {
     );
   }
 
-  Future<void> handleBooking(BuildContext context) async {
+  Future<void> handleBooking(BuildContext context, int gameId) async {
     if (selectedSlots.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('No slots selected!')),
@@ -118,31 +128,41 @@ class BookingSummaryScreen extends StatelessWidget {
       return;
     }
 
-    double totalPrice = calculateTotalPrice();
-    int amountInPaisa = (totalPrice * 100).toInt();
+    double totalPrice = calculateTotalPrice(); // Total amount in rupees
+    int amountInPaisa = (totalPrice * 100).toInt(); // Convert amount to paisa
 
-    List<int> slotIds = selectedSlots.map((slot) => slot['slot_id'] as int).toList();
-    List<int> bookingIds = await createBooking(slotIds);
-    print(slotIds);
-    if (bookingIds.isEmpty) {
-      print("Booking failed.");
-      return;
+    Set<int> processedSlotIds = {}; // Track processed slot IDs to avoid duplicates
+
+    for (var slot in selectedSlots) {
+      int slotId = slot['slot_id'];
+
+      // Skip duplicate slot IDs
+      if (processedSlotIds.contains(slotId)) {
+        print('Duplicate slot ID detected, skipping: $slotId');
+        continue;
+      }
+
+      processedSlotIds.add(slotId);
+
+      // Attempt booking for each unique slot ID
+      int bookingId = await createBooking(context, gameId, userId, slotId);
+
+
+      print('Booking successful for Slot ID: $slotId with Booking ID: $bookingId $gameId');
     }
 
-    razorpayController.bookingIdList.value = bookingIds;
+    // If all bookings succeeded, initiate payment
     await initiatePayment(context, amountInPaisa);
   }
 
-  Future<List<int>> createBooking(List<int> slotIds) async {
-    const String url = "https://hfg-booking-hmnx.onrender.com/api/bookings";
-    final today = DateTime.now();
-    final bookDate = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+  Future<int> createBooking(
+      BuildContext context, int gameId, int userId, int slotId) async {
+    const String url = "https://hfg-booking-service.onrender.com/api/bookings";
 
-    final payload = {
-      "slot_id": slotIds,
+    Map<String, dynamic> payload = {
+      "slot_id": slotId,
       "user_id": userId,
       "game_id": gameId,
-      "book_date": bookDate
     };
 
     try {
@@ -151,65 +171,183 @@ class BookingSummaryScreen extends StatelessWidget {
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(payload),
       );
-      print(response.body);
 
-      if (response.statusCode == 200) {
+      print(payload);
+      if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        return List<int>.from(data['booking_ids']);
+         razorpayController.bookingId.value= data['booking_id']; // Ensure this is properly parsed
+        return data; // Return the booking ID
       } else {
-        print('Failed to create booking. Response: ${response.body}');
-        return [];
+        print('Failed to create booking for Slot ID: $slotId. Response: ${response.body}');
+        return -1; // Indicate failure
       }
     } catch (e) {
-      print('Exception during booking: $e');
-      return [];
+      print('Error creating booking for Slot ID: $slotId: $e');
+      return -1; // Indicate failure
     }
   }
 
-  Future<void> initiatePayment(BuildContext context, int amountInPaisa) async {
-    String receiptId = "order_rcpt_${DateTime.now().millisecondsSinceEpoch}";
-    final url = Uri.parse("https://api.razorpay.com/v1/orders");
-    String basicAuth = 'Basic ' + base64Encode(utf8.encode('rzp_test_viVAhwtbVdu1X4:PsxakTrbRvfQCbZ1vj2lQ1i5'));
 
-    Map<String, dynamic> payload = {
-      "amount": amountInPaisa,
-      "currency": "INR",
-      "receipt": receiptId,
-      "payment_capture": 1,
-    };
+  Future<void> initiatePayment(BuildContext context, int amountInPaisa) async {
+    String receiptId = "order_rcpt_${DateTime.now().millisecondsSinceEpoch}"; // Unique receipt ID
 
     try {
-      final response = await http.post(url, headers: {"Authorization": basicAuth, "Content-Type": "application/json"}, body: jsonEncode(payload));
+      // Razorpay API endpoint
+      final url = Uri.parse("https://api.razorpay.com/v1/orders");
+
+      // Razorpay credentials (replace with your actual Key ID and Secret)
+      String razorpayKeyId = "rzp_test_viVAhwtbVdu1X4";
+      String razorpayKeySecret = "PsxakTrbRvfQCbZ1vj2lQ1i5";
+
+      // Base64 encode the credentials
+      String basicAuth = 'Basic ${base64Encode(utf8.encode('$razorpayKeyId:$razorpayKeySecret'))}';
+
+      // API request payload
+      Map<String, dynamic> payload = {
+        "amount": amountInPaisa, // Amount in paisa
+        "currency": "INR",
+        "receipt": receiptId,
+        "payment_capture": 1, // Auto-capture payment
+      };
+
+      // Send POST request to Razorpay Order API
+      final response = await http.post(
+        url,
+        headers: {
+          "Authorization": basicAuth,
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode(payload),
+      );
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        // Order created successfully
+        final orderData = jsonDecode(response.body);
+        String orderId = orderData['id']; // Extract Razorpay order ID
+
+        // // Show a success message
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(content: Text('Order created successfully! Order ID: $orderId')),
+        // );
+
+        // Trigger Razorpay Checkout
         razorpayController.openCheckout(
-          orderId: data['id'],
+          orderId: orderId,
           name: "HashForGamers",
           description: "Booking for selected slots",
           amount: amountInPaisa / 100,
-          contact: "9876543210",
-          email: "user@example.com",
+          contact: "9876543210", // Replace with user contact
+          email: "user@example.com", // Replace with user email
         );
       } else {
-        print('Error creating Razorpay order: ${response.body}');
+        // Handle error
+        final errorData = jsonDecode(response.body);
+        String errorMessage = errorData['error']?['description'] ?? 'Failed to create order';
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(content: Text('Error: $errorMessage')),
+        // );
       }
     } catch (e) {
-      print('Payment error: $e');
+      // Handle exceptions
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(content: Text('An error occurred: $e')),
+      // );
     }
   }
 
-  Widget buildPaymentRow(String label, String value, {bool bold = false, double fontSize = 14}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: fontSize, fontWeight: bold ? FontWeight.bold : FontWeight.normal, color: Colors.white)),
-          Text(value, style: TextStyle(fontSize: fontSize, fontWeight: bold ? FontWeight.bold : FontWeight.normal, color: Colors.white)),
-        ],
+  Widget buildSlotRow(int pcIndex, int timeSlot) {
+    return Container(
+      decoration: BoxDecoration(
+          color: Color(0xff0E0E0E),
+          border: Border.all(color: Color(0xff2D2D2D)),
+          borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('PC $pcIndex', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                SizedBox(height: 4),
+                Text('Sep 17, 2024', style: TextStyle(fontSize: 10)),
+                SizedBox(height: 2),
+                Text('${getTimeSlot(timeSlot)} - ${getTimeSlot(timeSlot + 1)}',
+                    style: TextStyle(fontSize: 10)),
+              ],
+            ),
+            Text('₹$slotPrice', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }
 
-  double calculateTotalPrice() => selectedSlots.length * slotPrice;
+  Widget buildPaymentRow(String label, String value, {bool bold = false, double fontSize = 14}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: fontSize, fontWeight: bold ? FontWeight.bold : FontWeight.normal),
+        ),
+        Text(
+          value,
+          style: TextStyle(fontSize: fontSize, fontWeight: bold ? FontWeight.bold : FontWeight.normal),
+        ),
+      ],
+    );
+  }
+
+  String getTimeSlot(int index) {
+    List<String> timeSlots = [
+      "12:00 AM",
+      "12:30 AM",
+      "01:00 AM",
+      "01:30 AM",
+      "02:00 AM",
+      "02:30 AM",
+      "03:00 AM",
+      "03:30 AM",
+    ];
+    return timeSlots[index % timeSlots.length];
+  }
+
+  Future<void> confirmBooking({required int bookingId, required String paymentId}) async {
+    const String url = 'https://hfg-booking-service.onrender.com/api/bookings/confirm';
+
+    final Map<String, dynamic> body = {
+      "booking_id": bookingId,
+      "payment_id": 1234,
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {"Content-Type": "application/json"},
+        body: json.encode(body),
+      );
+
+      if (response.statusCode == 200) {
+        print('Booking confirmation successful: ${response.body}');
+          Get.to(PastBookingsScreen());
+      } else {
+        print('Failed to confirm booking: ${response.statusCode}, ${response.body}');
+
+      }
+    } catch (e) {
+      print('Error occurred while confirming booking: $e');
+      // Get.snackbar(
+      //   'Error',
+      //   'Unable to confirm booking. Please try again later.',
+      //   snackPosition: SnackPosition.BOTTOM,
+      // );
+    }
+  }
+
+  double calculateTotalPrice() {
+    return selectedSlots.length * slotPrice;
+
+  }
 }
