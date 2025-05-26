@@ -60,7 +60,7 @@ class _SignUpViewState extends State<SignUpView> {
                 child: Text(
                   'HASH.',
                   style: TextStyle(
-                    color: Color(0xff00D701),
+                    color: Color(0xffDE3A3A),
                     fontSize: 44,
                     fontWeight: FontWeight.w900,
                   ),
@@ -139,11 +139,9 @@ class _SignUpViewState extends State<SignUpView> {
                       const SizedBox(height: 20),
                       // Email field (Prefilled with Google data)
                       TextFormField(
-                        controller: emailController.text.isEmpty
-                            ? controller.emailController
-                            : emailController,
+                        controller: emailController.text.isEmpty?controller.emailController:emailController,
                         style: const TextStyle(color: Colors.white),
-                        readOnly: true, // Disable editing
+                        readOnly: emailController.text.isEmpty?false:true, // Disable editing
                         decoration: InputDecoration(
                           labelText: 'Email',
                           labelStyle: const TextStyle(color: Colors.white70),

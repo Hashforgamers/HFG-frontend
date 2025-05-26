@@ -7,6 +7,8 @@ import 'package:hash/app/modules/arena/views/past_booking_screen_detail.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../../../utils/widgets/glow_neon_loader.dart';
+
 class PastBookingsScreen extends StatefulWidget {
 
   PastBookingsScreen({Key? key}) : super(key: key);
@@ -62,7 +64,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen> {
       ),
       body: Obx(() {
         if (bookingController.isLoading.value) {
-          return Center(child: CircularProgressIndicator());
+          return Center(child: RainbowGlowingLoader(size: 50),);
         }
 
         if (bookingController.userBookings.isEmpty) {
@@ -160,7 +162,7 @@ class BookingCard extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 cafeName.toUpperCase() ,
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xff00D701),),
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xffDE3A3A),),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -212,7 +214,7 @@ class BookingCard extends StatelessWidget {
                                 ),
                                 Text(
                                   '₹${price.toStringAsFixed(2)}',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff00D701),),
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xffDE3A3A),),
                                 ),
                               ],
                             ),
@@ -295,7 +297,7 @@ class BookingCard extends StatelessWidget {
                         ));
                       },
                       style: ElevatedButton.styleFrom(
-                        primary: Color(0xff00D701),
+                        primary: Color(0xffDE3A3A),
                         onPrimary: Colors.black,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),

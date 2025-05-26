@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 
+import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../views/tournament_detail_view.dart';
 import '../views/tournament_view.dart';
 
@@ -32,7 +33,7 @@ class TournamentCard extends StatelessWidget {
               height: 150,
               width: double.infinity,
               fit: BoxFit.cover,
-              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+              placeholder: (context, url) => const Center(child: RainbowGlowingLoader(size: 50),),
               errorWidget: (context, url, error) => const Icon(Icons.error),
             ),
           ),

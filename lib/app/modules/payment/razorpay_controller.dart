@@ -1,13 +1,15 @@
+import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 import '../arena/views/past_booking_screen.dart';
 
 class RazorpayController extends GetxController {
   late Razorpay _razorpay;
-  RxInt bookingId = (-1).obs; // Default to -1 to indicate no booking ID
+
+  // Store multiple booking IDs after booking API response
+  RxList<int> bookingIdList = <int>[].obs;
 
   @override
   void onInit() {
@@ -29,16 +31,16 @@ class RazorpayController extends GetxController {
     required String orderId,
     required String name,
     required String description,
-    required double amount, // Pass amount in rupees
+    required double amount, // in rupees
     required String contact,
     required String email,
   }) {
     var options = {
-      'key': 'rzp_test_viVAhwtbVdu1X4', // Replace with your Razorpay API key
-      'amount': (amount * 100).toInt(), // Amount in paise
+      'key': 'rzp_test_viVAhwtbVdu1X4',
+      'amount': (amount * 100).toInt(),
       'name': name,
       'description': description,
-      'order_id': orderId, // Order ID from your backend
+      'order_id': orderId,
       'prefill': {
         'contact': contact,
         'email': email,
@@ -51,7 +53,7 @@ class RazorpayController extends GetxController {
       print('Error while opening Razorpay Checkout: $e');
       Get.snackbar(
         'Checkout Error',
-        'Failed to open Razorpay Checkout. Please try again.',
+        'Failed to open Razorpay Checkout.',
         snackPosition: SnackPosition.BOTTOM,
       );
     }
@@ -59,54 +61,50 @@ class RazorpayController extends GetxController {
 
   /// Handle Successful Payment
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    print("✅ Payment successful: ${response.paymentId}");
 
+    if (bookingIdList.isEmpty) {
+      print("⚠️ No booking IDs to confirm.");
+      return;
+    }
 
-    // Get.snackbar(
-    //   'Payment Successful',
-    //   'Payment ID: ${response.paymentId}',
-    //   snackPosition: SnackPosition.BOTTOM,
-    // );
-
-    // Confirm the booking with the stored bookingId
     await confirmBooking(
-      bookingId: bookingId.value, // Use the stored bookingId
-      paymentId: '1234', // Use the actual Razorpay payment ID
+      bookingIds: bookingIdList.toList(),
+      paymentId: response.paymentId!,
     );
-    print(bookingId.value);
-    print(bookingId.value);
   }
 
   /// Handle Payment Error
   void _handlePaymentError(PaymentFailureResponse response) {
+    print('❌ Payment failed: ${response.code} - ${response.message}');
     Get.snackbar(
       'Payment Failed',
       'Error: ${response.message}',
       snackPosition: SnackPosition.BOTTOM,
     );
-    print('Payment failed: ${response.code} - ${response.message}');
   }
 
   /// Handle External Wallet Selection
   void _handleExternalWallet(ExternalWalletResponse response) {
+    print('📦 External wallet selected: ${response.walletName}');
     Get.snackbar(
       'External Wallet',
-      'Wallet Name: ${response.walletName}',
+      'Wallet: ${response.walletName}',
       snackPosition: SnackPosition.BOTTOM,
     );
-    print('External wallet selected: ${response.walletName}');
   }
 
-  /// Confirm Booking
+  /// Confirm Booking with Backend
   Future<void> confirmBooking({
-    required int bookingId,
+    required List<int> bookingIds,
     required String paymentId,
   }) async {
-    const String url = 'https://hfg-booking-service.onrender.com/api/bookings/confirm';
-    print('Confirming booking with ID: $bookingId');
+    const String url = 'https://hfg-booking-hmnx.onrender.com/api/bookings/confirm';
 
-    final Map<String, dynamic> body = {
-      "booking_id": bookingId,
-      "payment_id": '1234',
+    final body = {
+      "booking_id": bookingIds,
+      "payment_id": paymentId,
+      "book_date":"2025-05-20"
     };
 
     try {
@@ -115,20 +113,15 @@ class RazorpayController extends GetxController {
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(body),
       );
-      print('Booking confirmation : ${response.body}');
 
       if (response.statusCode == 200) {
-        print('Booking confirmation successful: ${response.body}');
-        Get.to(PastBookingsScreen());
-
-
+        print('✅ Booking confirmation successful!');
+        Get.to(() => PastBookingsScreen());
       } else {
-        print('Failed to confirm booking: ${response.statusCode}, ${response.body}');
-
+        print('❌ Booking confirmation failed: ${response.body}');
       }
     } catch (e) {
-      print('Error occurred while confirming booking: $e');
-
+      print('🔥 Error confirming booking: $e');
     }
   }
 }

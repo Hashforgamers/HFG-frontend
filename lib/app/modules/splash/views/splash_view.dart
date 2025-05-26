@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:video_player/video_player.dart';
+import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../controllers/splash_controller.dart';
 
 class SplashView extends StatefulWidget {
@@ -47,18 +48,18 @@ class _SplashViewState extends State<SplashView> {
       body: Center(
         child: _videoController.value.isInitialized
             ? AspectRatio(
-                aspectRatio: _videoController.value.aspectRatio,
-                child: VideoPlayer(_videoController),
-              )
+          aspectRatio: _videoController.value.aspectRatio,
+          child: VideoPlayer(_videoController),
+        )
             : const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('LOADING'),
-                    CircularProgressIndicator(),
-                  ],
-                ),
-              ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('LOADING'),
+              RainbowGlowingLoader(size: 50),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import '../../../utils/widgets/glow_neon_loader.dart';
 import '../../data/models/user_model.dart';
 
 class ProfileView extends StatelessWidget {
@@ -23,12 +24,12 @@ class ProfileView extends StatelessWidget {
           onTap: () {
             Get.back();
           },
-          child: Icon(CupertinoIcons.back, color: Color(0xff00D701)),
+          child: Icon(CupertinoIcons.back, color: Color(0xffDE3A3A)),
         ),
       ),
       body: Obx(() {
         if (userController.isLoading.value) {
-          return Center(child: CircularProgressIndicator());
+          return Center(child: RainbowGlowingLoader(size: 50),);
         }
 
         final user = userController.user.value;
@@ -99,7 +100,7 @@ class ProfileView extends StatelessWidget {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    primary: const Color(0xff00D701),
+                    primary: const Color(0xffDE3A3A),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),

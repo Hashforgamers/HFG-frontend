@@ -30,15 +30,16 @@ class LoginView extends StatelessWidget {
                   physics: const BouncingScrollPhysics(),
                   shrinkWrap: true,
                   children: [
-                    const Center(
-                      child: Text(
-                        'HASH.',
-                        style: TextStyle(
-                          color: Color(0xff00D701),
-                          fontSize: 44,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
+                     Center(
+                      child: Image.asset('assets/Transparent Logo.png',scale: 8,)
+                      // child: Text(
+                      //   'HASH.',
+                      //   style: TextStyle(
+                      //     color: Color(0xffDE3A3A),
+                      //     fontSize: 44,
+                      //     fontWeight: FontWeight.w900,
+                      //   ),
+                      // ),
                     ),
                     const SizedBox(height: 20),
                     const Text(
@@ -96,6 +97,8 @@ class LoginView extends StatelessWidget {
                                 segementService.onOtpRequested(
                                     mobile:
                                         controller.phoneNumberController.text);
+                                controller.isLoading.value = true; // Start loader immediately
+
                                 controller.signInWithPhoneNumber();
                               }
                             },
@@ -204,8 +207,7 @@ class LoginView extends StatelessWidget {
                 color: Colors.black.withOpacity(0.5),
                 child: const Center(
                   child: CircularProgressIndicator(
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(Color(0xff00D701)),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
                   ),
                 ),
               );

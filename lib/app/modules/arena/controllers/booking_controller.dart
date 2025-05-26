@@ -11,7 +11,7 @@ class BookingController extends GetxController {
   final userId = 0.obs; // Holds user ID
   final selectedSlots = RxMap<int, List<int>>({}); // Holds selected slots per PC
 
-  final String _baseUrl = 'https://hfg-booking-service.onrender.com/api'; // Base URL for API
+  final String _baseUrl = 'https://hfg-booking.onrender.com/api/bookings/api'; // Base URL for API
 
   @override
   void onInit() {
@@ -19,9 +19,15 @@ class BookingController extends GetxController {
   fetchUserId().then((_) => fetchUserBookings()); // Fetch bookings after fetching user ID
   }
 
-  Future<void> fetchSlots(int gameId) async {
+  Future<void> fetchSlots({
+    required int vendorId,
+    required int gameId,
+    required String date, // e.g., '20250519'
+  }) async {
     _setLoading(true);
-    final url = Uri.parse('$_baseUrl/slots/game/$gameId');
+    final url = Uri.parse(
+        'https://hfg-booking-hmnx.onrender.com/api/getSlots/vendor/$vendorId/game/$gameId/$date');
+
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -41,6 +47,7 @@ class BookingController extends GetxController {
       _setLoading(false);
     }
   }
+
 
 
   /// Create a booking

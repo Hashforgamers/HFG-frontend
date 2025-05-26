@@ -57,7 +57,7 @@ class ViewDetailScreen extends StatelessWidget {
               // Game and Booking Details
               Text(
                 cafeName.toUpperCase() ,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xff00D701),),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xffDE3A3A),),
                 overflow: TextOverflow.ellipsis,
               ),
               SizedBox(height: 8),

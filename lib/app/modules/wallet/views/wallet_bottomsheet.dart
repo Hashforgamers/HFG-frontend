@@ -59,7 +59,7 @@ class WalletBottomSheet extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: 'Pricedown',
                   fontSize: 26,
-                  color: Color(0xff00D701),
+                  color: Color(0xffDE3A3A),
                 ),
               )),
               SizedBox(height: 20),
@@ -107,7 +107,7 @@ class WalletBottomSheet extends StatelessWidget {
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Color(0xff00D701),
+                        color: Color(0xffDE3A3A),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(

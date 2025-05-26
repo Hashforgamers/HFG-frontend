@@ -11,7 +11,7 @@ class CafeGamesController extends GetxController {
     isLoading.value = true; // Set loading to true
     try {
       final response = await http.get(
-        Uri.parse('https://hfg-booking-service.onrender.com/api/games/vendor/$vendorId'),
+        Uri.parse('https://hfg-booking-hmnx.onrender.com/api/games/vendor/$vendorId'),
       );
       print(response.body); // Debugging API response
       if (response.statusCode == 200) {

@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:shimmer/shimmer.dart';
 
+import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../controllers/booking_controller.dart';
 import 'booking_summary_screen.dart';
 
@@ -19,28 +22,26 @@ class BookingScreen extends StatefulWidget {
 
 class _BookingScreenState extends State<BookingScreen> {
   final BookingController controller = Get.put(BookingController());
-  final selectedSlots = RxMap<int, List<int>>({});
-  late int userId; // User ID dynamically fetched
+  late int userId;
+  String selectedDate = DateFormat('yyyyMMdd').format(DateTime.now());
+  String selectedDateText = DateFormat('dd MMM, yyyy').format(DateTime.now());
 
   @override
   void initState() {
     super.initState();
-    _fetchUserId(); // Fetch userId on initialization
-    controller.fetchSlots(widget.gameId);
-    print('gaemrId:${widget.gameId}');// Fetch slots when the screen loads
+    _fetchUserId();
+    controller.fetchSlots(vendorId: 1, gameId: widget.gameId, date: selectedDate);
   }
 
-  /// Fetch the `userId` from SharedPreferences
   Future<void> _fetchUserId() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? userDataString = prefs.getString('user_data'); // Get JSON string
+    final String? userDataString = prefs.getString('user_data');
 
     if (userDataString != null) {
-      final Map<String, dynamic> userData = jsonDecode(userDataString); // Decode JSON string
+      final Map<String, dynamic> userData = jsonDecode(userDataString);
       setState(() {
-        userId = userData['id']; // Access and assign the id directly as an integer
+        userId = userData['id'];
       });
-      print('User ID: $userId');
     } else {
       Get.snackbar(
         'Error',
@@ -53,8 +54,6 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    controller.fetchSlots(widget.gameId);
-
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -64,7 +63,23 @@ class _BookingScreenState extends State<BookingScreen> {
         decoration: BoxDecoration(color: Colors.black),
         child: Obx(() {
           if (controller.isLoading.value) {
-            return Center(child: CircularProgressIndicator());
+            return ListView.builder(
+              itemCount: 4,
+              itemBuilder: (context, index) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Shimmer.fromColors(
+                  baseColor: Colors.grey[900]!,
+                  highlightColor: Colors.grey[800]!,
+                  child: Container(
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            );
           }
 
           if (controller.slots.isEmpty) {
@@ -87,14 +102,43 @@ class _BookingScreenState extends State<BookingScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Text(
-            'Global Gaming Cafe | 17 Sep, 2024',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 1.2,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Global Gaming Cafe | $selectedDateText',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              IconButton(
+                onPressed: () async {
+                  DateTime? pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(Duration(days: 30)),
+                    builder: (context, child) {
+                      return Theme(
+                        data: ThemeData.dark(),
+                        child: child!,
+                      );
+                    },
+                  );
+
+                  if (pickedDate != null) {
+                    setState(() {
+                      selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
+                      selectedDateText = DateFormat('dd MMM, yyyy').format(pickedDate);
+                      controller.fetchSlots(vendorId: 1, gameId: widget.gameId, date: selectedDate);
+                    });
+                  }
+                },
+                icon: Icon(Icons.calendar_today, color: Colors.white),
+              )
+            ],
           ),
         ),
         Expanded(
@@ -110,143 +154,56 @@ class _BookingScreenState extends State<BookingScreen> {
       ],
     );
   }
+
   String formatTime(String rawTime) {
     try {
-      // Parse the raw time string
       final DateTime parsedTime = DateFormat('HH:mm:ss').parse(rawTime);
-
-      // Format it to 24-hour format (HH:mm)
       return DateFormat('HH:mm').format(parsedTime);
     } catch (e) {
       print('Error formatting time: $e');
-      return rawTime; // Fallback to rawTime in case of error
+      return rawTime;
     }
   }
+
   Widget buildSlotItem(Map<String, dynamic> slot, int index) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-          child: Column(
-            children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 90,
-                    alignment: Alignment.center,
-                    child: Row(
-                      children: [
-                        // Icon(Icons.access_time, color: Colors.white70, size: 15),
-                        // SizedBox(width: 4),
-                        Text(
-                          '${formatTime(slot['time']['start_time'])} - ${formatTime(slot['time']['end_time'])}     |',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white.withOpacity(0.6),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),                        SizedBox(width: 14),
-
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: List.generate(
-                          6, // Number of PCs
-                              (pcIndex) => buildPCSlotRow(
-                            pcIndex: pcIndex + 1,
-                            timeIndex: index,
-                            slotId: slot['id'],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Divider(
-          color: Color(0xff2D2D2D),
-          thickness: 1,
-          indent: 24,
-          endIndent: 24,
-          height: 30,
-        ),
-      ],
-    );
-  }
-
-  Widget buildFooter() {
-    return Obx(() {
-      int totalSelectedSlots = controller.selectedSlots.values.fold(
-        0,
-            (sum, slots) => sum + slots.length,
-      );
-
-      return Container(
-        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Container(
         decoration: BoxDecoration(
-          color: Color(0xff0F0F0F),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              offset: Offset(0, -5),
-            ),
-          ],
+          color: const Color(0xFF1A1A1D),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xff2D2D2D)),
         ),
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '$totalSelectedSlots Slot(s) Selected',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'Total: ₹${totalSelectedSlots * 50}',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+            Text(
+              'Slot: ${formatTime(slot['start_time'])} - ${formatTime(slot['end_time'])}',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.85),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: totalSelectedSlots > 0 ? onProceed : null,
-              child: Text('PROCEED', style: TextStyle(color: Colors.black)),
-              style: ElevatedButton.styleFrom(
-                minimumSize: Size(double.infinity, 50),
-                backgroundColor: totalSelectedSlots > 0
-                    ? Color(0xff00D701)
-                    : Colors.grey,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(
+                  6,
+                      (pcIndex) => buildPCSlotRow(
+                    pcIndex: pcIndex + 1,
+                    timeIndex: index,
+                    slotId: slot['slot_id'],
+                  ),
                 ),
-                elevation: totalSelectedSlots > 0 ? 8 : 0,
               ),
             ),
           ],
         ),
-      );
-    });
-  }
-
-
-  int getTotalSelectedSlots() {
-    return selectedSlots.values.fold(0, (sum, slots) => sum + slots.length);
+      ),
+    );
   }
 
   Widget buildPCSlotRow({
@@ -254,80 +211,136 @@ class _BookingScreenState extends State<BookingScreen> {
     required int timeIndex,
     required int slotId,
   }) {
-    bool isSelected = controller.selectedSlots[pcIndex]?.contains(timeIndex) ?? false;
+    return Obx(() {
+      final isSelected = controller.selectedSlots[pcIndex]?.contains(timeIndex) ?? false;
 
-    return GestureDetector(
-      onTap: () {
-        if (isSelected) {
-          controller.selectedSlots[pcIndex]?.remove(timeIndex);
-          if (controller.selectedSlots[pcIndex]?.isEmpty ?? true) {
-            controller.selectedSlots.remove(pcIndex);
+      return GestureDetector(
+        onTap: () {
+          String message;
+          if (isSelected) {
+            controller.selectedSlots[pcIndex]?.remove(timeIndex);
+            if (controller.selectedSlots[pcIndex]?.isEmpty ?? true) {
+              controller.selectedSlots.remove(pcIndex);
+            }
+            message = 'Slot deselected from PC $pcIndex';
+          } else {
+            controller.selectedSlots[pcIndex] = controller.selectedSlots[pcIndex] ?? [];
+            controller.selectedSlots[pcIndex]?.add(timeIndex);
+            message = 'Slot selected for PC $pcIndex';
           }
-        } else {
-          controller.selectedSlots[pcIndex] = controller.selectedSlots[pcIndex] ?? [];
-          controller.selectedSlots[pcIndex]?.add(timeIndex);
-        }
-        controller.selectedSlots.refresh(); // Notify observers
-      },
-      child: Obx(() {
-        final isSelected = controller.selectedSlots[pcIndex]?.contains(timeIndex) ?? false;
-        return AnimatedContainer(
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
+
+          Fluttertoast.showToast(
+            msg: message,
+            backgroundColor: Colors.black,
+            textColor: Colors.white,
+            fontSize: 14,
+          );
+
+          controller.selectedSlots.refresh();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.only(right: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
             gradient: isSelected
                 ? LinearGradient(
-              colors: [
-                Colors.green.withOpacity(0.8),
-                Color(0xff00D701),
-              ],
+              colors: [Color(0xff00FFAB), Color(0xffDE3A3A)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             )
                 : null,
-            color: isSelected ? Colors.white.withOpacity(0.9) : Color(0xff0E0E0E),
-            border: Border.all(color: Color(0xff2D2D2D)),
-            boxShadow: [
-              if (isSelected)
-                BoxShadow(
-                  color: Colors.deepPurple.withOpacity(0.5),
-                  blurRadius: 10,
-                  offset: Offset(0, 5),
-                ),
-            ],
+            color: isSelected ? null : const Color(0xff2D2D2D),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? Colors.greenAccent : Colors.grey.shade700,
+            ),
           ),
-          margin: EdgeInsets.symmetric(horizontal: 5),
-          padding: EdgeInsets.all(8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'PC $pcIndex',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: isSelected ? Colors.white : Colors.white,
-                ),
-              ),
-            ],
+          child: Text(
+            'PC $pcIndex',
+            style: TextStyle(
+              color: isSelected ? Colors.black : Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
           ),
-        );
-      }),
-    );
+        ),
+      );
+    });
   }
 
+  Widget buildFooter() {
+    return Obx(() {
+      int totalSelectedSlots = controller.selectedSlots.values.fold(0, (sum, slots) => sum + slots.length);
+
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        decoration: const BoxDecoration(
+          color: Color(0xff121212),
+          border: Border(
+            top: BorderSide(color: Color(0xff2D2D2D), width: 1),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$totalSelectedSlots Slot(s)',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.95),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '₹${totalSelectedSlots * 50}',
+                  style: TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: totalSelectedSlots > 0 ? onProceed : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: totalSelectedSlots > 0 ? const Color(0xffDE3A3A) : Colors.grey,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: totalSelectedSlots > 0 ? 8 : 0,
+              ),
+              child: Text(
+                'PROCEED',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: totalSelectedSlots > 0 ? Colors.white : Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
 
   void onProceed() {
     List<Map<String, dynamic>> selectedSlotDetails = [];
-    selectedSlots.forEach((pcIndex, timeIndices) {
+    controller.selectedSlots.forEach((pcIndex, timeIndices) {
       for (var timeIndex in timeIndices) {
         final slot = controller.slots[timeIndex];
         selectedSlotDetails.add({
           "pc_index": pcIndex,
-          "slot_id": slot['id'],
-          "start_time": slot['time']['start_time'],
-          "end_time": slot['time']['end_time'],
+          "slot_id": slot['slot_id'],
+          "start_time": slot['start_time'],
+          "end_time": slot['end_time'],
         });
       }
     });
@@ -335,8 +348,7 @@ class _BookingScreenState extends State<BookingScreen> {
     Get.to(() => BookingSummaryScreen(
       selectedSlots: selectedSlotDetails,
       gameId: widget.gameId,
-      userId:userId,
-
+      userId: userId,
     ));
   }
 }

@@ -2,7 +2,7 @@
   "project_info": {
     "project_number": "376797794992",
     "project_id": "hash-ee6fc",
-    "storage_bucket": "hash-ee6fc.appspot.com"
+    "storage_bucket": "hash-ee6fc.firebasestorage.app"
   },
   "client": [
     {
@@ -12,7 +12,28 @@
           "package_name": "com.example.hash"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "376797794992-6n1pa1g8kmo87g98mknh7nlbj6br177f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.hash",
+            "certificate_hash": "d73669347ddd5ea4209fdce4015c94be0d1c6698"
+          }
+        },
+        {
+          "client_id": "376797794992-gaupcihpsdtcq5f2u4riehjd7c0ltrrq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.hash",
+            "certificate_hash": "0fd8d2ffa83baa7b6f863427731e70a53a4e3f9b"
+          }
+        },
+        {
+          "client_id": "376797794992-8lq5depj5708k6jr8nnofborl9451coc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyA0Xb7IoP_JZfF0KEPMouS7dmVg1CiIxyQ"
@@ -20,7 +41,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "376797794992-8lq5depj5708k6jr8nnofborl9451coc.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "376797794992-hh2ntm6s07o4j2kuv2jrh9rlgsnt5o6o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.hash"
+              }
+            }
+          ]
         }
       }
     }
