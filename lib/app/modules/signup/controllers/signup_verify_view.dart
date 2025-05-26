@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 
 import '../../../../utils/widgets/loader.dart';
@@ -9,14 +11,15 @@ import '../../login/controllers/login_controller.dart';
 class VerifyOtpView extends StatefulWidget {
   final String verificationId;
 
-  VerifyOtpView({required this.verificationId});
+  const VerifyOtpView({super.key, required this.verificationId});
 
   @override
-  _VerifyOtpViewState createState() => _VerifyOtpViewState();
+  VerifyOtpViewState createState() => VerifyOtpViewState();
 }
 
-class _VerifyOtpViewState extends State<VerifyOtpView> {
+class VerifyOtpViewState extends State<VerifyOtpView> {
   final TextEditingController _otpController = TextEditingController();
+  final segementService = locator<SegmentSdkService>();
 
   @override
   void dispose() {
@@ -30,25 +33,24 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
     final controller = Get.find<LoginController>(); // Access LoginController
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      body:
-        // Show loader if isLoading is true
+        backgroundColor: Colors.black,
+        body:
+            // Show loader if isLoading is true
 
-
-        // Main OTP verification UI
-         Center(
+            // Main OTP verification UI
+            Center(
           child: Container(
-            margin: EdgeInsets.only(top: 125),
+            margin: const EdgeInsets.only(top: 125),
             width: Get.width,
             height: Get.height,
-            padding: EdgeInsets.all(15),
+            padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(15),
             ),
             child: ListView(
               shrinkWrap: true,
               children: [
-                Align(
+                const Align(
                   alignment: Alignment.center,
                   child: Text(
                     'HASH.',
@@ -59,8 +61,8 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
                     ),
                   ),
                 ),
-                SizedBox(height: 20),
-                Row(
+                const SizedBox(height: 20),
+                const Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     Text(
@@ -73,12 +75,12 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
                     ),
                   ],
                 ),
-                SizedBox(height: 20),
-                Text(
+                const SizedBox(height: 20),
+                const Text(
                   'Enter the 6-digit OTP sent to your phone',
                   style: TextStyle(color: Colors.white70),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 PinCodeTextField(
                   appContext: context,
                   length: 6,
@@ -98,7 +100,8 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
                   ),
                   backgroundColor: Colors.black,
                   enableActiveFill: true,
-                  controller: _otpController, // Use a single TextEditingController
+                  controller:
+                      _otpController, // Use a single TextEditingController
                   onCompleted: (value) {
                     print("Completed OTP: $value");
                   },
@@ -109,10 +112,10 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
                     return true;
                   },
                 ),
-                SizedBox(height: 30),
+                const SizedBox(height: 30),
                 Stack(
                   children: [
-                    Container(
+                    SizedBox(
                       width: Get.width,
                       height: 50,
                       child: RGBLightFrame(
@@ -124,30 +127,31 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: controller.isLoading.value?null:_verifyOtp,
+                        onPressed:
+                            controller.isLoading.value ? null : _verifyOtp,
                         style: ElevatedButton.styleFrom(
                           primary: Colors.transparent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        child: Obx(
-                           () { if (controller.isLoading.value) {
-                             return Center(
-                               child: RainbowLoadingBar(width: 300, height: 1),
-                             );
-                           }
-                            return Text('Verify OTP', style: TextStyle(color: Colors.white));
+                        child: Obx(() {
+                          if (controller.isLoading.value) {
+                            return const Center(
+                              child: RainbowLoadingBar(width: 300, height: 1),
+                            );
                           }
-                        ),
+                          return const Text('Verify OTP',
+                              style: TextStyle(color: Colors.white));
+                        }),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 TextButton(
                   onPressed: _resendOtp,
-                  child: Text(
+                  child: const Text(
                     'Resend OTP',
                     style: TextStyle(color: Color(0xFF3AFF6B)),
                   ),
@@ -155,8 +159,7 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
               ],
             ),
           ),
-        )
-    );
+        ));
   }
 
   /// Function to verify OTP
@@ -178,6 +181,7 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
     final controller = Get.find<LoginController>();
     controller.isLoading.value = true; // Start loader
     controller.verifyOtp(otp).then((_) {
+      segementService.onOtpVerified(mobile: controller.phoneNumberController.text);
       controller.isLoading.value = false; // Stop loader
     });
   }

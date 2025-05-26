@@ -1,13 +1,14 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
-import '../../../routes/app_routes.dart';
 import '../controllers/login_controller.dart';
 
 class LoginView extends StatelessWidget {
   final LoginController controller = Get.put(LoginController());
   final _formKey = GlobalKey<FormState>();
+  final segementService = locator<SegmentSdkService>();
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +18,7 @@ class LoginView extends StatelessWidget {
         children: [
           Center(
             child: Container(
-              width: Get.width ,
+              width: Get.width,
               height: Get.height * 0.85,
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
@@ -51,10 +52,11 @@ class LoginView extends StatelessWidget {
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: controller.phoneNumberController,
-                      style: const TextStyle(color: Colors.white,letterSpacing: 4),
+                      style: const TextStyle(
+                          color: Colors.white, letterSpacing: 4),
                       decoration: InputDecoration(
                         labelText: 'Phone Number',
-                        prefix: Text('  +91  '),
+                        prefix: const Text('  +91  '),
                         labelStyle: const TextStyle(color: Colors.white70),
                         enabledBorder: OutlineInputBorder(
                           borderSide: const BorderSide(color: Colors.white70),
@@ -77,7 +79,7 @@ class LoginView extends StatelessWidget {
                     const SizedBox(height: 30),
                     Stack(
                       children: [
-                        Container(
+                        SizedBox(
                           width: Get.width,
                           height: 50,
                           child: RGBLightFrame(
@@ -91,6 +93,9 @@ class LoginView extends StatelessWidget {
                           child: ElevatedButton(
                             onPressed: () {
                               if (_formKey.currentState!.validate()) {
+                                segementService.onOtpRequested(
+                                    mobile:
+                                        controller.phoneNumberController.text);
                                 controller.signInWithPhoneNumber();
                               }
                             },
@@ -100,8 +105,11 @@ class LoginView extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text('Continue', style: TextStyle(color: Colors.white,                                  fontSize: 16,
-                            )),
+                            child: const Text('Continue',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                )),
                           ),
                         ),
                       ],
@@ -110,7 +118,8 @@ class LoginView extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Divider(
-                            thickness: 1,height: 50,
+                            thickness: 1,
+                            height: 50,
                           ),
                         ),
                         Padding(
@@ -125,15 +134,17 @@ class LoginView extends StatelessWidget {
                         ),
                         Expanded(
                           child: Divider(
-                            thickness: 1,height: 50,
+                            thickness: 1,
+                            height: 50,
                           ),
                         ),
                       ],
                     ),
 
-                                   GestureDetector(
+                    GestureDetector(
                       onTap: controller.googleSignIn,
-                      child: Stack(alignment: Alignment.center,
+                      child: Stack(
+                        alignment: Alignment.center,
                         children: [
                           SizedBox(
                             width: Get.width,
@@ -141,7 +152,7 @@ class LoginView extends StatelessWidget {
                             child: RGBLightFrame(
                               width: Get.width,
                               height: Get.height,
-                              borderRadius:25,
+                              borderRadius: 25,
                             ),
                           ),
                           Row(
@@ -156,7 +167,8 @@ class LoginView extends StatelessWidget {
                               const Text(
                                 "Sign in with Google",
                                 style: TextStyle(
-                                  color: Colors.white, // Google branding black text
+                                  color: Colors
+                                      .white, // Google branding black text
                                   fontSize: 16,
                                   fontWeight: FontWeight.normal,
                                 ),
@@ -190,14 +202,15 @@ class LoginView extends StatelessWidget {
                 width: double.infinity,
                 height: double.infinity,
                 color: Colors.black.withOpacity(0.5),
-                child: Center(
+                child: const Center(
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xff00D701)),
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Color(0xff00D701)),
                   ),
                 ),
               );
             } else {
-              return SizedBox.shrink(); // Empty widget when not loading
+              return const SizedBox.shrink(); // Empty widget when not loading
             }
           }),
         ],
