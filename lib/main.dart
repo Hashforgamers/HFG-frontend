@@ -9,16 +9,28 @@ import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import '/themes/app_theme.dart';
 import 'firebase_options.dart'; // Make sure to include your generated Firebase options file.
+import 'core/services/service_locator.dart';
+import 'core/services/amplitude_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Ensure binding for async operations
+  
+  // Setup service locator and initialize Amplitude first
+  await setupServiceLocator();
+  
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize controllers after services are ready
   Get.put(UserController());  // Initialize globally here
-  Get.put(RazorpayController()); // Bind the controller
   Get.put(BookingController());
   Get.put(GamesController(), permanent: true); // Register the controller
+  Get.put(RazorpayController()); // Bind the controller after AmplitudeService is ready
+  
+  // Track app opened
+  await serviceLocator<AmplitudeService>().trackAppOpened();
 
   runApp(MyApp());
 }

@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:http/http.dart' as http;
+import '../../../../core/services/service_locator.dart';
+import '../../../../core/services/amplitude_service.dart';
 
 import '../arena/views/past_booking_screen.dart';
 
 class RazorpayController extends GetxController {
   late Razorpay _razorpay;
+  final _amplitudeService = serviceLocator<AmplitudeService>();
 
   // Store multiple booking IDs after booking API response
   RxList<int> bookingIdList = <int>[].obs;
@@ -61,37 +64,24 @@ class RazorpayController extends GetxController {
 
   /// Handle Successful Payment
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    print("✅ Payment successful: ${response.paymentId}");
-
-    if (bookingIdList.isEmpty) {
-      print("⚠️ No booking IDs to confirm.");
-      return;
-    }
-
-    await confirmBooking(
-      bookingIds: bookingIdList.toList(),
-      paymentId: response.paymentId!,
+    await _amplitudeService.trackPaymentSuccess(
+      transactionId: response.paymentId ?? '',
+      bookingId: response.orderId ?? '',
+      paymentGateway: 'razorpay',
     );
   }
 
   /// Handle Payment Error
-  void _handlePaymentError(PaymentFailureResponse response) {
-    print('❌ Payment failed: ${response.code} - ${response.message}');
-    Get.snackbar(
-      'Payment Failed',
-      'Error: ${response.message}',
-      snackPosition: SnackPosition.BOTTOM,
+  void _handlePaymentError(PaymentFailureResponse response) async {
+    await _amplitudeService.trackPaymentError(
+      error: response.message ?? 'Unknown error',
+      orderId: '', // Razorpay doesn't provide orderId in error response
     );
   }
 
   /// Handle External Wallet Selection
   void _handleExternalWallet(ExternalWalletResponse response) {
-    print('📦 External wallet selected: ${response.walletName}');
-    Get.snackbar(
-      'External Wallet',
-      'Wallet: ${response.walletName}',
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    print('External wallet selected: ${response.walletName}');
   }
 
   /// Confirm Booking with Backend
@@ -122,6 +112,26 @@ class RazorpayController extends GetxController {
       }
     } catch (e) {
       print('🔥 Error confirming booking: $e');
+    }
+  }
+
+  Future<void> initiatePayment({
+    required double amount,
+    required String orderId,
+  }) async {
+    try {
+      await _amplitudeService.trackPaymentInitiated(
+        bookingId: orderId,
+        amount: amount,
+        paymentMethodSelected: 'razorpay',
+      );
+      // Your existing payment initiation logic
+    } catch (e) {
+      await _amplitudeService.trackPaymentError(
+        error: e.toString(),
+        orderId: orderId,
+      );
+      rethrow;
     }
   }
 }

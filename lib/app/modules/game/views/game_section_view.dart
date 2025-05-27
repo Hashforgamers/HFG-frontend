@@ -8,6 +8,9 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../../utils/widgets/glow_neon_loader.dart';
+import '../../../../core/services/service_locator.dart';
+import '../../../../core/services/amplitude_service.dart';
+import '../controllers/game_controller.dart';
 
 class Game {
   final int id;
@@ -59,6 +62,7 @@ class GamesController extends GetxController {
   final games = <Game>[].obs;
   final isLoading = false.obs;
   final _service = GameService();
+  final _amplitudeService = serviceLocator<AmplitudeService>();
 
   final List<Color> _colors = [
     Colors.red[900]!, Colors.blue[900]!, Colors.green[900]!,
@@ -78,13 +82,54 @@ class GamesController extends GetxController {
     if (isLoading.value || games.isNotEmpty) return;
     try {
       isLoading(true);
+      await _amplitudeService.trackGameAction(
+        action: 'fetch_games_started',
+      );
       final result = await _service.fetchGames(_colors);
       games.assignAll(result);
+      await _amplitudeService.trackGameAction(
+        action: 'fetch_games_completed',
+        gameCount: result.length,
+      );
     } catch (e) {
+      await _amplitudeService.trackGameAction(
+        action: 'fetch_games_failed',
+        error: e.toString(),
+      );
       Get.snackbar('Error', 'Failed to fetch games', backgroundColor: Colors.red, colorText: Colors.white);
     } finally {
       isLoading(false);
     }
+  }
+}
+
+class GameSectionView extends GetView<GamesController> {
+  late final AmplitudeService _amplitudeService;
+
+  GameSectionView({Key? key}) : super(key: key) {
+    _amplitudeService = serviceLocator<AmplitudeService>();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          GamesSection(),
+          ElevatedButton(
+            onPressed: () async {
+              await _amplitudeService.trackGameAction(
+                action: 'start_game',
+                gameId: 'selected_game_id', // Replace with actual game ID
+                gameType: 'selected_game_type', // Replace with actual game type
+              );
+              // Your existing game start logic
+            },
+            child: Text('Start Game'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -125,44 +170,57 @@ class GamesSection extends StatelessWidget {
 
 class GameCard extends StatelessWidget {
   final Game game;
+  late final AmplitudeService _amplitudeService;
 
-  const GameCard({Key? key, required this.game}) : super(key: key);
+  GameCard({Key? key, required this.game}) : super(key: key) {
+    _amplitudeService = serviceLocator<AmplitudeService>();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 150,
-      decoration: BoxDecoration(
-        color: game.backgroundColor,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(topRight: Radius.circular(8), topLeft: Radius.circular(8)),
-            child: CachedNetworkImage(
-              imageUrl: game.backgroundImage,
-              height: 100,
-              width: 150,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => const Center(child: RainbowGlowingLoader(size: 30)),
-              errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.white),
+    return GestureDetector(
+      onTap: () async {
+        await _amplitudeService.trackGameAction(
+          action: 'game_card_clicked',
+          gameId: game.id.toString(),
+          gameName: game.name,
+          gameRating: game.rating,
+        );
+      },
+      child: Container(
+        width: 150,
+        decoration: BoxDecoration(
+          color: game.backgroundColor,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(topRight: Radius.circular(8), topLeft: Radius.circular(8)),
+              child: CachedNetworkImage(
+                imageUrl: game.backgroundImage,
+                height: 100,
+                width: 150,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => const Center(child: RainbowGlowingLoader(size: 30)),
+                errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.white),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Column(
-              children: [
-                Text(game.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text(game.released, style: const TextStyle(color: Colors.white70), maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text('✪ ${game.rating}', style: const TextStyle(color: Colors.amberAccent), maxLines: 1),
-                const Text('View More', style: TextStyle(color: Colors.white70)),
-              ],
-            ),
-          )
-        ],
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                children: [
+                  Text(game.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(game.released, style: const TextStyle(color: Colors.white70), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text('✪ ${game.rating}', style: const TextStyle(color: Colors.amberAccent), maxLines: 1),
+                  const Text('View More', style: TextStyle(color: Colors.white70)),
+                ],
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
