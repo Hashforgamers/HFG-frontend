@@ -56,13 +56,18 @@ class _PastBookingsScreenState extends State<PastBookingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         title: Text('Past Bookings'),
         backgroundColor: Colors.black,
       ),
-      body: Obx(() {
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await bookingController.fetchUserBookings();
+        },
+        color: Color(0xffDE3A3A),
+        backgroundColor: Colors.black,
+        child: Obx(() {
         if (bookingController.isLoading.value) {
           return Center(child: RainbowGlowingLoader(size: 50),);
         }
@@ -108,6 +113,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen> {
           },
         );
       }),
+      ),
     );
   }
 }

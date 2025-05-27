@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../../../../utils/widgets/loader.dart';
@@ -41,6 +42,44 @@ class HomeContentView extends StatelessWidget {
       print('Error formatting time: $e');
       return 'Invalid Time';
     }
+  }
+
+  Widget _buildSectionShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[900]!,
+      highlightColor: Colors.grey[800]!,
+      child: Container(
+        height: 200,
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHorizontalShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[900]!,
+      highlightColor: Colors.grey[800]!,
+      child: Container(
+        height: 150,
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: 3,
+          itemBuilder: (context, index) => Container(
+            width: 200,
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -99,42 +138,69 @@ class HomeContentView extends StatelessWidget {
         ),
         backgroundColor: Colors.black,
       ),
-      body: ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.all(10),
-        children: [
-          RewardsSection(), // Static widget; marked as const
-          const SizedBox(height: 18),
-          RainbowLoadingBar(height: 0.5, width: Get.width),
-          const SizedBox(height: 18),
-           EventBanner(), // Static widget; marked as const
-          const SizedBox(height: 18),
-          // Obx(() {
-          //   if (bookingController.isLoading.value) {
-          //     return const Center(child: RainbowGlowingLoader(size: 50),);
-          //   }
-          //   if (bookingController.userBookings.isEmpty) {
-          //     return const SizedBox();
-          //   }
-          //   return _buildBookingsSection();
-          // }),
-          const SizedBox(height: 18),
-          GamerNewsSection(),
-          const SizedBox(height: 18),
-
-          ViralShotsSection(), // Static widget
-          const SizedBox(height: 18),
-           ShopSection(), // Static widget
-          const SizedBox(height: 18),
-           TournamentsSection(), // Static widget
-          const SizedBox(height: 18),
-           ArenaSection(), // Static widget
-          const SizedBox(height: 18),
-           TeamSection(), // Static widget
-          const SizedBox(height: 18),
-           GamesSection(), // Static widget
-          _buildGameOnIndiaBanner(),
-        ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await Future.wait([
+            bookingController.fetchUserBookings(),
+            loginController.checkUserExistsInAPI(),
+          ]);
+        },
+        color: Color(0xffDE3A3A),
+        backgroundColor: Colors.black,
+        child: Obx(() {
+          if (user.isLoading.value) {
+            return ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(10),
+              children: [
+                _buildSectionShimmer(), // Rewards Section
+                const SizedBox(height: 18),
+                _buildHorizontalShimmer(), // Event Banner
+                const SizedBox(height: 18),
+                _buildSectionShimmer(), // News Section
+                const SizedBox(height: 18),
+                _buildHorizontalShimmer(), // Viral Shots
+                const SizedBox(height: 18),
+                _buildSectionShimmer(), // Shop Section
+                const SizedBox(height: 18),
+                _buildHorizontalShimmer(), // Tournaments
+                const SizedBox(height: 18),
+                _buildSectionShimmer(), // Arena Section
+                const SizedBox(height: 18),
+                _buildHorizontalShimmer(), // Team Section
+                const SizedBox(height: 18),
+                _buildSectionShimmer(), // Games Section
+                const SizedBox(height: 45),
+                _buildGameOnIndiaBanner(),
+              ],
+            );
+          }
+          
+          return ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(10),
+            children: [
+              RewardsSection(),
+              const SizedBox(height: 18),
+              EventBanner(),
+              const SizedBox(height: 18),
+              GamerNewsSection(),
+              const SizedBox(height: 18),
+              ViralShotsSection(),
+              const SizedBox(height: 18),
+              ShopSection(),
+              const SizedBox(height: 18),
+              TournamentsSection(),
+              const SizedBox(height: 18),
+              ArenaSection(),
+              const SizedBox(height: 18),
+              TeamSection(),
+              const SizedBox(height: 18),
+              GamesSection(),
+              _buildGameOnIndiaBanner(),
+            ],
+          );
+        }),
       ),
     );
   }

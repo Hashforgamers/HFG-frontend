@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
 import '../../../routes/app_routes.dart';
 import '../controllers/login_controller.dart';
+import '../../../../utils/widgets/glow_neon_loader.dart';
+import '../../../../utils/widgets/loader.dart';
 
 class LoginView extends StatelessWidget {
   final LoginController controller = Get.put(LoginController());
@@ -92,8 +94,9 @@ class LoginView extends StatelessWidget {
                           child: ElevatedButton(
                             onPressed: () {
                               if (_formKey.currentState!.validate()) {
-                                controller.isLoading.value = true; // Start loader immediately
-
+                                // Dismiss keyboard
+                                FocusScope.of(context).unfocus();
+                                controller.isLoading.value = true;
                                 controller.signInWithPhoneNumber();
                               }
                             },
@@ -103,8 +106,14 @@ class LoginView extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text('Continue', style: TextStyle(color: Colors.white,                                  fontSize: 16,
-                            )),
+                            child: Obx(() {
+                              if (controller.isLoading.value) {
+                                return Center(
+                                  child: RainbowLoadingBar(width: 300, height: 1),
+                                );
+                              }
+                              return const Text('Continue', style: TextStyle(color: Colors.white, fontSize: 16));
+                            }),
                           ),
                         ),
                       ],
@@ -194,9 +203,7 @@ class LoginView extends StatelessWidget {
                 height: double.infinity,
                 color: Colors.black.withOpacity(0.5),
                 child: Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
-                  ),
+                  child: RainbowGlowingLoader(size: 50),
                 ),
               );
             } else {

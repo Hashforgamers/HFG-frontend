@@ -102,7 +102,8 @@ class LoginController extends GetxController {
     try {
       // Make API call to check if user exists
       final response = await http.get(
-        Uri.parse('https://hfg-user-onboard-3nzn.onrender.com/api/users/fid/${user.uid}'),
+        // Uri.parse('https://hfg-user-onboard-3nzn.onrender.com/api/users/fid/${user.uid}'),
+        Uri.parse('https://hfg-user-onboard.onrender.com/api/users/fid/${user.uid}'),
         headers: {'Content-Type': 'application/json'},
       );
 
