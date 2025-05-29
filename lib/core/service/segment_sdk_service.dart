@@ -109,9 +109,9 @@ class SegmentSdkService {
     required List<String> selectedGames,
   }) async {
     await analytics.track(
-      'Game Preferences Set',
+      'Console Selected',
       properties: {
-        'selected_games': selectedGames,
+        'selected_consoles': selectedGames,
       },
     );
   }
