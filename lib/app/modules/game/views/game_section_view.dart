@@ -188,38 +188,38 @@ class GameCard extends StatelessWidget {
         );
       },
       child: Container(
-        width: 150,
-        decoration: BoxDecoration(
-          color: game.backgroundColor,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.only(topRight: Radius.circular(8), topLeft: Radius.circular(8)),
-              child: CachedNetworkImage(
-                imageUrl: game.backgroundImage,
-                height: 100,
-                width: 150,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => const Center(child: RainbowGlowingLoader(size: 30)),
-                errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.white),
-              ),
+      width: 150,
+      decoration: BoxDecoration(
+        color: game.backgroundColor,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.only(topRight: Radius.circular(8), topLeft: Radius.circular(8)),
+            child: CachedNetworkImage(
+              imageUrl: game.backgroundImage,
+              height: 100,
+              width: 150,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => const Center(child: RainbowGlowingLoader(size: 30)),
+              errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.white),
             ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Column(
-                children: [
-                  Text(game.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text(game.released, style: const TextStyle(color: Colors.white70), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text('✪ ${game.rating}', style: const TextStyle(color: Colors.amberAccent), maxLines: 1),
-                  const Text('View More', style: TextStyle(color: Colors.white70)),
-                ],
-              ),
-            )
-          ],
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              children: [
+                Text(game.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(game.released, style: const TextStyle(color: Colors.white70), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text('✪ ${game.rating}', style: const TextStyle(color: Colors.amberAccent), maxLines: 1),
+                const Text('View More', style: TextStyle(color: Colors.white70)),
+              ],
+            ),
+          )
+        ],
         ),
       ),
     );
