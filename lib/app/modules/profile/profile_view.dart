@@ -1,10 +1,11 @@
 import 'package:flutter/cupertino.dart';
 
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 import '../../../utils/widgets/glow_neon_loader.dart';
 import '../../data/models/user_model.dart';
@@ -12,13 +13,15 @@ import '../../data/models/user_model.dart';
 class ProfileView extends StatelessWidget {
   final UserController userController = Get.put(UserController());
   final _formKey = GlobalKey<FormState>();
+  final segmentService = locator<SegmentSdkService>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: const Text('Edit Profile', style: TextStyle(color: Colors.white)),
+        title:
+            const Text('Edit Profile', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.black,
         leading: GestureDetector(
           onTap: () {
@@ -29,7 +32,9 @@ class ProfileView extends StatelessWidget {
       ),
       body: Obx(() {
         if (userController.isLoading.value) {
-          return Center(child: RainbowGlowingLoader(size: 50),);
+          return Center(
+            child: RainbowGlowingLoader(size: 50),
+          );
         }
 
         final user = userController.user.value;
@@ -58,44 +63,57 @@ class ProfileView extends StatelessWidget {
                   onChanged: (value) => user.gender = value,
                 ),
                 _buildTextField(
-                  initialValue: user.dob??'',
+                  initialValue: user.dob ?? '',
                   labelText: 'Date of Birth',
                   onChanged: (value) => user.dob = value,
                 ),
                 _buildTextField(
-                  initialValue: user.contact?.electronicAddress?.emailId??'',
+                  initialValue: user.contact?.electronicAddress?.emailId ?? '',
                   labelText: 'Email',
-                  onChanged: (value) => user.contact?.electronicAddress?.emailId = value,
+                  onChanged: (value) =>
+                      user.contact?.electronicAddress?.emailId = value,
                 ),
                 _buildTextField(
-                  initialValue: user.contact?.electronicAddress?.mobileNo??'',
+                  initialValue: user.contact?.electronicAddress?.mobileNo ?? '',
                   labelText: 'Mobile Number',
-                  onChanged: (value) => user.contact?.electronicAddress?.mobileNo = value,
+                  onChanged: (value) =>
+                      user.contact?.electronicAddress?.mobileNo = value,
                 ),
                 _buildTextField(
-                  initialValue: user.contact?.physicalAddress?.addressLine1??'',
+                  initialValue:
+                      user.contact?.physicalAddress?.addressLine1 ?? '',
                   labelText: 'Address Line 1',
-                  onChanged: (value) => user.contact?.physicalAddress?.addressLine1 = value,
+                  onChanged: (value) =>
+                      user.contact?.physicalAddress?.addressLine1 = value,
                 ),
                 _buildTextField(
-                  initialValue: user.contact?.physicalAddress?.addressLine2??'',
+                  initialValue:
+                      user.contact?.physicalAddress?.addressLine2 ?? '',
                   labelText: 'Address Line 2',
-                  onChanged: (value) => user.contact?.physicalAddress?.addressLine2 = value,
+                  onChanged: (value) =>
+                      user.contact?.physicalAddress?.addressLine2 = value,
                 ),
                 _buildTextField(
-                  initialValue: user.contact?.physicalAddress?.state??'',
+                  initialValue: user.contact?.physicalAddress?.state ?? '',
                   labelText: 'State',
-                  onChanged: (value) => user.contact?.physicalAddress?.state = value,
+                  onChanged: (value) =>
+                      user.contact?.physicalAddress?.state = value,
                 ),
                 _buildTextField(
-                  initialValue: user.contact?.physicalAddress?.country??'',
+                  initialValue: user.contact?.physicalAddress?.country ?? '',
                   labelText: 'Country',
-                  onChanged: (value) => user.contact?.physicalAddress?.country = value,
+                  onChanged: (value) =>
+                      user.contact?.physicalAddress?.country = value,
                 ),
                 const SizedBox(height: 30),
                 ElevatedButton(
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
+                      segmentService.onProfileUpdated(
+                        updatedFields: [
+                          'name',
+                        ],
+                      );
                       // userController.updateUserData(user);
                     }
                   },
@@ -106,7 +124,8 @@ class ProfileView extends StatelessWidget {
                     ),
                     minimumSize: const Size(double.infinity, 50),
                   ),
-                  child: const Text('Update', style: TextStyle(color: Colors.white, fontSize: 18)),
+                  child: const Text('Update',
+                      style: TextStyle(color: Colors.white, fontSize: 18)),
                 ),
               ],
             ),
@@ -121,18 +140,20 @@ class ProfileView extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 50,
-          backgroundImage: user.photoUrl!=null
+          backgroundImage: user.photoUrl != null
               ? CachedNetworkImageProvider(user.photoUrl!)
-              : AssetImage('assets/default_profile.png') as ImageProvider, // Fallback to a local asset if no photoUrl
+              : AssetImage('assets/default_profile.png')
+                  as ImageProvider, // Fallback to a local asset if no photoUrl
         ),
         const SizedBox(height: 20),
         Text(
           user.name!,
-          style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         Text(
-          user.contact?.electronicAddress?.emailId??'',
+          user.contact?.electronicAddress?.emailId ?? '',
           style: TextStyle(color: Colors.white70, fontSize: 16),
         ),
       ],

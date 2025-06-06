@@ -23,6 +23,7 @@ class SegmentSdkService {
       'OTP Requested',
       properties: {
         'mobile': mobile,
+        'method': 'sms',
       },
     );
   }
@@ -52,7 +53,7 @@ class SegmentSdkService {
   Future<void> onSignupCompleted(
       {required String referralBy, required String userId}) async {
     await analytics.track(
-      'Signup Completed',
+      'Signup Completed', 
       properties: {
         'user_id': userId,
         'referred_by': referralBy,
