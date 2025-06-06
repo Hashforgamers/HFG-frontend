@@ -50,12 +50,9 @@ dependencies:
   pin_code_fields: ^8.0.1
   shared_preferences: ^2.2.3
   location: ^5.0.3
-<<<<<<< Updated upstream
-  url_launcher: ^6.2.3
-=======
+
   url_launcher: ^6.2.2
   url_launcher_ios: ^6.2.2
->>>>>>> Stashed changes
   dio: ^5.4.3+1
   flutter_inappwebview: ^5.7.2+3
   carousel_slider: ^4.0.0
@@ -71,11 +68,12 @@ dependencies:
   intl:
   shimmer:
   qr_flutter:
-<<<<<<< Updated upstream
-=======
-dependency_overrides:
-  url_launcher_ios: 6.2.2
->>>>>>> Stashed changes
+  get_it: ^8.0.3
+  pretty_dio_logger: ^1.4.0
+  flutter_secure_storage: ^9.2.4
+  firebase_messaging:
+  flutter_local_notifications:
+  uni_links:
 dev_dependencies:
   flutter_test:
     sdk: flutter

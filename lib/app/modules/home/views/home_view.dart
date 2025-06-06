@@ -41,6 +41,27 @@ class HomeView extends StatelessWidget {
               activeIcon: Image.asset('assets/icons/gaming-pad-01.png',scale:2.1,color:Color(0xffDE3A3A),),
 
             ),
+            BottomNavigationBarItem(
+              backgroundColor: Colors.black,
+              icon: SizedBox(
+                height: 25, // Adjust height
+                width: 25,  // Adjust width
+                child: Image.asset(
+                  'assets/icons/bookings.png',
+                  color: Colors.grey[800],
+                ),
+              ),
+              label: '',
+              activeIcon: SizedBox(
+                height: 27, // Slightly larger when active
+                width: 27,
+                child: Image.asset(
+                  'assets/icons/bookings.png',
+                  color: Color(0xffDE3A3A),
+                ),
+              ),
+            ),
+
             BottomNavigationBarItem(backgroundColor: Colors.black,
               icon: Image.asset('assets/icons/shopping-bag-01.png',scale: 3,color: Colors.grey[800]),
               label: '',

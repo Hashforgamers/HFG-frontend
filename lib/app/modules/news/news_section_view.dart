@@ -156,10 +156,10 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
           // Foreground card content
           Positioned.fill(
             child: Container(
-              margin: const EdgeInsets.all(5),
+              margin: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.cyanAccent.withOpacity(0.1),
