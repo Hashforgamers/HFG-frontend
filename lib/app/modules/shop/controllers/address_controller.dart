@@ -1,44 +1,26 @@
 import 'package:get/get.dart';
-import 'package:hash/utils/constants.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
 
 class AddressController extends GetxController {
   var addresses = [].obs;
   var activeAddress = {}.obs;
   var isLoading = false.obs;
   var errorMessage = ''.obs;
+  final _remoteRepo = locator<RemoteRepoInterface>();
 
   @override
   void onInit() {
     super.onInit();
     fetchAddresses();
     fetchActiveAddress();
-    _getToken();
   }
-  Future<String> _getToken() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token') ?? '';
-  }
-  Future<void> fetchAddresses() async {
-    final token = await _getToken(); // Retrieve the token from storage or any other source
 
+  Future<void> fetchAddresses() async {
     try {
       isLoading.value = true;
-      final response = await http.get(
-        Uri.parse('$hostName/checkout/addresses'),
-        headers: {
-          "Authorization": "Bearer $token",
-        },
-      );
-      if (response.statusCode == 200) {
-        var data = json.decode(response.body);
-        addresses.value = data['addresses'];
-      } else {
-        errorMessage.value = 'Failed to load addresses';
-      }
+      final addressList = await _remoteRepo.fetchAddresses();
+      addresses.value = addressList;
     } catch (e) {
       errorMessage.value = e.toString();
     } finally {
@@ -47,50 +29,25 @@ class AddressController extends GetxController {
   }
 
   Future<void> fetchActiveAddress() async {
-    final token = await _getToken(); // Retrieve the token from storage or any other source
-
     try {
-      final response = await http.get(
-        Uri.parse('$hostName/checkout/address/active'),
-        headers: {
-          "Authorization": "Bearer $token",
-        },
-      );
-      if (response.statusCode == 200) {
-        var data = json.decode(response.body);
-        activeAddress.value = data;
-      } else {
-        errorMessage.value = 'Failed to load active address';
-      }
+      final address = await _remoteRepo.fetchActiveAddress();
+      activeAddress.value = address;
     } catch (e) {
       errorMessage.value = e.toString();
     }
   }
 
   Future<void> addAddress(Map<String, dynamic> address) async {
-    final token = await _getToken(); // Retrieve the token from storage or any other source
-
     try {
-      final response = await http.post(
-        Uri.parse('$hostName/checkout/address'),
-        headers: {
-          "Authorization": "Bearer $token",
-          'Content-Type': 'application/json',
-        },
-        body: json.encode(address),
-      );
-      if (response.statusCode == 200) {
-        var data = json.decode(response.body);
-        fetchAddresses();
-        fetchActiveAddress();
-      } else {
-        errorMessage.value = 'Failed to add address';
-      }
+      await _remoteRepo.addAddress(address);
+      await fetchAddresses();
+      await fetchActiveAddress();
     } catch (e) {
       errorMessage.value = e.toString();
     }
   }
 }
+
 class Address {
   String? addressLine1;
   String? addressLine2;

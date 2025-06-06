@@ -6,7 +6,7 @@ import 'package:hash/app/modules/shop/views/shop_view.dart';
 
 import '../../reviews/views/review_view.dart';
 import '../controllers/cart_controller.dart';
-import '../controllers/fetch_productsById_controller.dart';
+import '../controllers/fetch_products_by_id_controller.dart';
 import '../products_model.dart';
 import 'cart_view.dart';
 

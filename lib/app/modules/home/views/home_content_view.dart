@@ -5,7 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../utils/widgets/glow_neon_loader.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
+
 import '../../../../utils/widgets/loader.dart';
 import '../../../data/services/user_controller.dart';
 import '../../../routes/app_routes.dart';
@@ -25,8 +27,9 @@ import '../widgets/booking_card_widget.dart';
 class HomeContentView extends StatelessWidget {
   final BookingController bookingController = Get.put(BookingController());
   final LoginController loginController = Get.put(LoginController());
+  final segmentService = locator<SegmentSdkService>();
 
-  HomeContentView() {
+  HomeContentView({super.key}) {
     // Fetch user bookings when HomeContentView is initialized
     bookingController.fetchUserBookings();
     loginController.checkUserExistsInAPI();
@@ -46,15 +49,16 @@ class HomeContentView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UserController user = Get.find<UserController>();
+    segmentService.onHomeScreenViewed(userId: '');
     return Scaffold(
       appBar: AppBar(
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Obx(() => Text(
-              'Hey, ${user.user.value.gameUserName}!',
-              style: const TextStyle(color: Colors.white),
-            )),
+                  'Hey, ${user.user.value.gameUserName}!',
+                  style: const TextStyle(color: Colors.white),
+                )),
             Obx(() {
               if (user.isLoading.value) {
                 return const CircularProgressIndicator(color: Colors.white);
@@ -62,16 +66,20 @@ class HomeContentView extends StatelessWidget {
                 return PopupMenuButton<String>(
                   offset: const Offset(0, 40),
                   color: Colors.black87,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   onSelected: (String result) => print(result),
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<String>>[
                     const PopupMenuItem<String>(
                       value: 'Profile',
-                      child: Text('Profile', style: TextStyle(color: Color(0xffDE3A3A))),
+                      child: Text('Profile',
+                          style: TextStyle(color: Color(0xffDE3A3A))),
                     ),
                     const PopupMenuItem<String>(
                       value: 'Settings',
-                      child: Text('Settings', style: TextStyle(color: Color(0xffDE3A3A))),
+                      child: Text('Settings',
+                          style: TextStyle(color: Color(0xffDE3A3A))),
                     ),
                     PopupMenuItem<String>(
                       onTap: () async {
@@ -81,17 +89,20 @@ class HomeContentView extends StatelessWidget {
                         Get.offAllNamed(AppRoutes.LOGIN);
                       },
                       value: 'Logout',
-                      child: const Text('Logout', style: TextStyle(color: Color(0xffDE3A3A))),
+                      child: const Text('Logout',
+                          style: TextStyle(color: Color(0xffDE3A3A))),
                     ),
                   ],
                   child: Obx(() => CircleAvatar(
-                    radius: 15,
-                    backgroundImage: user.user.value.photoUrl != null &&
-                        user.user.value.photoUrl!.isNotEmpty
-                        ? CachedNetworkImageProvider(user.user.value.photoUrl!) as ImageProvider
-                        : const NetworkImage('https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg'),
-                    backgroundColor: Colors.white,
-                  )),
+                        radius: 15,
+                        backgroundImage: user.user.value.photoUrl != null &&
+                                user.user.value.photoUrl!.isNotEmpty
+                            ? CachedNetworkImageProvider(
+                                user.user.value.photoUrl!) as ImageProvider
+                            : const NetworkImage(
+                                'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg'),
+                        backgroundColor: Colors.white,
+                      )),
                 );
               }
             }),
@@ -107,7 +118,7 @@ class HomeContentView extends StatelessWidget {
           const SizedBox(height: 18),
           RainbowLoadingBar(height: 0.5, width: Get.width),
           const SizedBox(height: 18),
-           EventBanner(), // Static widget; marked as const
+          EventBanner(), // Static widget; marked as const
           const SizedBox(height: 18),
           // Obx(() {
           //   if (bookingController.isLoading.value) {
@@ -124,15 +135,15 @@ class HomeContentView extends StatelessWidget {
 
           ViralShotsSection(), // Static widget
           const SizedBox(height: 18),
-           ShopSection(), // Static widget
+          ShopSection(), // Static widget
           const SizedBox(height: 18),
-           TournamentsSection(), // Static widget
+          TournamentsSection(), // Static widget
           const SizedBox(height: 18),
-           ArenaSection(), // Static widget
+          ArenaSection(), // Static widget
           const SizedBox(height: 18),
-           TeamSection(), // Static widget
+          TeamSection(), // Static widget
           const SizedBox(height: 18),
-           GamesSection(), // Static widget
+          GamesSection(), // Static widget
           _buildGameOnIndiaBanner(),
         ],
       ),
@@ -145,7 +156,8 @@ class HomeContentView extends StatelessWidget {
       children: [
         const Text(
           'BOOKINGS',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         SizedBox(
@@ -158,12 +170,20 @@ class HomeContentView extends StatelessWidget {
             itemBuilder: (context, index) {
               final booking = bookingController.userBookings[index];
               return BookingCard(
-                gameName: booking['slot']?['gaming_type_id']?['game_name'] ?? 'Unknown Game',
-                cafeName: booking['slot']?['gaming_type_id']?['cafe_name']['cafe_name'] ?? 'Unknown Cafe',
-                startTime: _formatTimeTo24Hour(booking['slot']?['time']?['start_time'] ?? 'N/A'),
-                endTime: _formatTimeTo24Hour(booking['slot']?['time']?['end_time'] ?? 'N/A'),
+                gameName: booking['slot']?['gaming_type_id']?['game_name'] ??
+                    'Unknown Game',
+                cafeName: booking['slot']?['gaming_type_id']?['cafe_name']
+                        ['cafe_name'] ??
+                    'Unknown Cafe',
+                startTime: _formatTimeTo24Hour(
+                    booking['slot']?['time']?['start_time'] ?? 'N/A'),
+                endTime: _formatTimeTo24Hour(
+                    booking['slot']?['time']?['end_time'] ?? 'N/A'),
                 status: booking['status'] ?? 'Pending',
-                price: (booking['slot']?['gaming_type_id']?['single_slot_price'] ?? 0.0).toDouble(),
+                price: (booking['slot']?['gaming_type_id']
+                            ?['single_slot_price'] ??
+                        0.0)
+                    .toDouble(),
                 location: booking['slot']?['location'] ?? 'Mumbai',
                 bookingId: booking['booking_id'] ?? 0,
                 additionalServices: booking['additional_services'] ?? '',

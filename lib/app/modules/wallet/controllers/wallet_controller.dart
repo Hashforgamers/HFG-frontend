@@ -1,25 +1,20 @@
-import 'dart:convert';
 import 'package:get/get.dart';
-import 'package:hash/utils/constants.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
 
 class WalletController extends GetxController {
   var balance = 0.0.obs;
   var transactions = <Map<String, dynamic>>[].obs;
-  final String baseUri = hostName; // Replace with your base URI
+  final _remoteRepo = locator<RemoteRepoInterface>();
 
   @override
   void onInit() {
     super.onInit();
     fetchWallet();
   }
-  Future<String> _getToken() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token') ?? '';
-  }
+
   Future<void> withdrawFunds(double amount) async {
     // Call your withdraw funds API here
     // Example:
@@ -28,48 +23,30 @@ class WalletController extends GetxController {
     balance.value -= amount;
     fetchWallet(); // Refresh wallet details
   }
-  Future<void> fetchWallet() async {
-    final token = await _getToken(); // Retrieve the token from storage or any other source
 
-    final response = await http.get(Uri.parse('$baseUri/wallet'),  headers: {
-      'Content-Type': 'application/json',
-      "Authorization": "Bearer $token",
-    },);
-    if (response.statusCode == 200) {
-      var data = json.decode(response.body);
+  Future<void> fetchWallet() async {
+    try {
+      final data = await _remoteRepo.fetchWallet();
       balance.value = data['balance'];
       transactions.value = List<Map<String, dynamic>>.from(data['transactions']);
       print('this ${transactions.value}');
-
-    } else {
+    } catch (e) {
       Get.snackbar('Error', 'Failed to fetch wallet data');
     }
   }
 
   Future<void> addFunds(double amount, String description, String name, String contact, String emailId, BuildContext context) async {
-    final token = await _getToken(); // Retrieve the token from storage or any other source
-
-    final response = await http.post(
-      Uri.parse('$baseUri/wallet/add-funds'),
-      headers: {
-        'Content-Type': 'application/json',
-        "Authorization": "Bearer $token",
-      },
-      body: json.encode({
-        'amount': amount,
-        'description': description,
-        'name': name,
-        'contact': contact,
-        'email_id': emailId,
-      }),
-    );
-    print(response.body);
-
-    if (response.statusCode == 200) {
-      var data = json.decode(response.body);
+    try {
+      final data = await _remoteRepo.addFunds(
+        amount: amount,
+        description: description,
+        name: name,
+        contact: contact,
+        emailId: emailId,
+      );
       String paymentLink = data['short_url'];
       openPaymentLink(paymentLink, data['id'], context);
-    } else {
+    } catch (e) {
       Get.snackbar('Error', 'Failed to add funds');
     }
   }
@@ -79,25 +56,11 @@ class WalletController extends GetxController {
   }
 
   Future<void> validateFunds(String paymentLinkId) async {
-    final token = await _getToken(); // Retrieve the token from storage or any other source
-    print('validate funds${paymentLinkId}');
-
-    final response = await http.post(
-      Uri.parse('$baseUri/wallet/validate-funds'),
-      headers: {
-        'Content-Type': 'application/json',
-        "Authorization": "Bearer $token",
-      },      body: json.encode({
-        'payment_link_ids': [paymentLinkId],
-      }),
-    );
-    print('validate funds${response.body}');
-    print('validate funds${response.statusCode}');
-
-    if (response.statusCode == 200) {
+    try {
+      await _remoteRepo.validateFunds(paymentLinkId);
       fetchWallet();
       Get.snackbar('Success', 'Funds Added successfully');
-    } else {
+    } catch (e) {
       Get.snackbar('Error', 'Failed to validate funds');
     }
   }
@@ -125,9 +88,9 @@ class _PaymentWebViewState extends State<PaymentWebView> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Complete Payment'),
+          title: const Text('Complete Payment'),
           leading: IconButton(
-            icon: Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back),
             onPressed: () async {
               await Get.find<WalletController>().validateFunds(widget.paymentId);
               Navigator.pop(context);

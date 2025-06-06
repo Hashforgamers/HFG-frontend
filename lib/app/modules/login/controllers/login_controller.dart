@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 
 import '../../../data/services/user_controller.dart' as userModel;
@@ -16,6 +17,7 @@ class LoginController extends GetxController {
   final userModel.UserController userController =
       Get.put(userModel.UserController());
   final remoteRepo = locator<RemoteRepoInterface>();
+  final segmentService = locator<SegmentSdkService>();
   final isLoading = false.obs;
 
   String? _verificationId;
@@ -102,6 +104,11 @@ class LoginController extends GetxController {
       final userData = await remoteRepo.checkUserExistsInAPI(user.uid);
 
       if (userData != null) {
+        segmentService.onLoginSuccess(
+          userId: user.uid,
+          loginMethod: 'phone',
+          deviceId: '',
+        );
         // Parse user data using your User model's fromJson method
         User fetchedUser = User.fromJson(userData);
         // Update the UserController's user data
