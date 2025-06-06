@@ -1,4 +1,3 @@
-// Optimized ShopSection code with unchanged UI but better structure and readability
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -7,12 +6,9 @@ import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lottie/lottie.dart';
 
-import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../products_model.dart';
 
 class ShopSection extends StatelessWidget {
-  const ShopSection({super.key});
-
   @override
   Widget build(BuildContext context) {
     final List<Product> products = [
@@ -22,9 +18,19 @@ class ShopSection extends StatelessWidget {
         currency: 'INR',
         description: 'High-quality gaming mouse with RGB lighting.',
         dimensions: Dimensions(height: 5.0, length: 12.0, width: 8.0, unit: 'cm'),
-        electronic: Electronic(compatibility: 'PC, Mac', connectivity: 'Wireless', item: 'Mouse', powerConsumption: '5W'),
+        electronic: Electronic(
+          compatibility: 'PC, Mac',
+          connectivity: 'Wireless',
+          item: 'Mouse',
+          powerConsumption: '5W',
+        ),
         id: '1',
-        images: [ProductImage(altText: 'Gaming Mouse', url: 'https://www.pngkey.com/png/full/246-2463403_gaming-mice-razer-naga-razer-mouse.png')],
+        images: [
+          ProductImage(
+            altText: 'Gaming Mouse',
+            url: 'https://www.pngkey.com/png/full/246-2463403_gaming-mice-razer-naga-razer-mouse.png',
+          )
+        ],
         manufacturer: 'Razer',
         name: 'Gaming Mouse 1',
         nonElectronic: NonElectronic(color: 'Black', material: 'Plastic', size: 'Standard', item: null),
@@ -39,9 +45,19 @@ class ShopSection extends StatelessWidget {
         currency: 'INR',
         description: 'Mechanical gaming keyboard with customizable RGB lighting.',
         dimensions: Dimensions(height: 3.5, length: 45.0, width: 15.0, unit: 'cm'),
-        electronic: Electronic(compatibility: 'PC', connectivity: 'Wired', item: 'Keyboard', powerConsumption: '10W'),
+        electronic: Electronic(
+          compatibility: 'PC',
+          connectivity: 'Wired',
+          item: 'Keyboard',
+          powerConsumption: '10W',
+        ),
         id: '2',
-        images: [ProductImage(altText: 'Gaming Keyboard', url: 'https://assets.mspimages.in/wp-content/uploads/2017/03/pro-tenkeyless-gaming-keyboard-1.png')],
+        images: [
+          ProductImage(
+            altText: 'Gaming Keyboard',
+            url: 'https://assets.mspimages.in/wp-content/uploads/2017/03/pro-tenkeyless-gaming-keyboard-1.png',
+          )
+        ],
         manufacturer: 'Logitech',
         name: 'Gaming Keyboard Pro',
         nonElectronic: NonElectronic(color: 'Black', material: 'Aluminum', size: 'Full Size', item: null),
@@ -55,16 +71,21 @@ class ShopSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('HASH QUEST', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        const Text(
+          'HASH QUEST',
+          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 10),
         SizedBox(
-          height: 220,
+          height: 220, // Adjust height for product cards
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: products.length,
             itemBuilder: (context, index) {
               final product = products[index];
-              final productImage = product.images.isNotEmpty ? product.images[0].url : 'https://via.placeholder.com/150';
+              final productImage = product.images.isNotEmpty
+                  ? product.images[0].url
+                  : 'https://via.placeholder.com/150';
               return ProductCard(product: product, productImage: productImage);
             },
           ),
@@ -78,7 +99,7 @@ class ProductCard extends StatelessWidget {
   final Product product;
   final String productImage;
 
-  const ProductCard({super.key, required this.product, required this.productImage});
+  const ProductCard({Key? key, required this.product, required this.productImage}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +111,9 @@ class ProductCard extends StatelessWidget {
           margin: const EdgeInsets.only(right: 10, left: 55, bottom: 20),
           decoration: ShapeDecoration(
             color: Colors.white12,
-            shape: ContinuousRectangleBorder(borderRadius: BorderRadius.circular(65)),
+            shape: ContinuousRectangleBorder(
+              borderRadius: BorderRadius.circular(65),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -109,7 +132,7 @@ class ProductCard extends StatelessWidget {
 
   Widget _buildFavoriteIcon() {
     return GestureDetector(
-      onTap: _showComingSoonToast,
+      onTap: () => _showComingSoonToast(),
       child: const Padding(
         padding: EdgeInsets.only(top: 15.0, right: 15),
         child: Icon(CupertinoIcons.heart, size: 20, color: Colors.red),
@@ -119,18 +142,30 @@ class ProductCard extends StatelessWidget {
 
   Widget _buildProductDetails() {
     return GestureDetector(
-      onTap: _showComingSoonToast,
+      onTap: () => _showComingSoonToast(),
       child: Container(
         width: Get.width * 0.5,
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(product.name,
-                textAlign: TextAlign.end,
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              product.name,
+              textAlign: TextAlign.end,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 5),
-            Text('₹${product.price}', style: const TextStyle(color: Colors.greenAccent, fontSize: 14)),
+            Text(
+              '₹${product.price}',
+              style: const TextStyle(
+                color: Colors.greenAccent,
+                fontSize: 14,
+              ),
+            ),
           ],
         ),
       ),
@@ -144,21 +179,26 @@ class ProductCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           GestureDetector(
-            onTap: _showComingSoonToast,
+            onTap: () => _showComingSoonToast(),
             child: const Icon(CupertinoIcons.bag_badge_plus, size: 24, color: Colors.white),
           ),
           const SizedBox(width: 10),
           ElevatedButton(
-            onPressed: _showComingSoonToast,
+            onPressed: () => _showComingSoonToast(),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xffDE3A3A),
-              shape: ContinuousRectangleBorder(borderRadius: BorderRadius.circular(28)),
+              backgroundColor: const Color(0xff00D701),
+              shape: ContinuousRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
             ),
             child: const Row(
               children: [
                 Icon(Icons.lock, color: Colors.black, size: 16),
                 SizedBox(width: 5),
-                Text('Coming Soon', style: TextStyle(color: Colors.black)),
+                Text(
+                  'Coming Soon',
+                  style: TextStyle(color: Colors.black),
+                ),
               ],
             ),
           ),
@@ -169,7 +209,7 @@ class ProductCard extends StatelessWidget {
 
   Widget _buildProductImage() {
     return GestureDetector(
-      onTap: _showComingSoonToast,
+      onTap: () => _showComingSoonToast(),
       child: Stack(
         alignment: Alignment.centerLeft,
         children: [
@@ -187,7 +227,7 @@ class ProductCard extends StatelessWidget {
               fit: BoxFit.fitWidth,
               width: Get.width * 0.45,
               height: 150,
-              placeholder: (context, url) => const Center(child: RainbowGlowingLoader(size: 50)),
+              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
               errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
             ),
           ),

@@ -7,7 +7,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 
-import '../../../utils/widgets/glow_neon_loader.dart';
 import '../../data/models/user_model.dart';
 
 class ProfileView extends StatelessWidget {
@@ -27,7 +26,7 @@ class ProfileView extends StatelessWidget {
           onTap: () {
             Get.back();
           },
-          child: Icon(CupertinoIcons.back, color: Color(0xffDE3A3A)),
+          child: Icon(CupertinoIcons.back, color: Color(0xff00D701)),
         ),
       ),
       body: Obx(() {
@@ -118,7 +117,7 @@ class ProfileView extends StatelessWidget {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    primary: const Color(0xffDE3A3A),
+                    backgroundColor: const Color(0xff00D701),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),

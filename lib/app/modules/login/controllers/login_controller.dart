@@ -49,7 +49,6 @@ class LoginController extends GetxController {
       );
     } catch (e) {
       _showErrorSnackbar('Error sending OTP', e.toString());
-      print(e.toString());
     } finally {
       isLoading.value = false;
     }

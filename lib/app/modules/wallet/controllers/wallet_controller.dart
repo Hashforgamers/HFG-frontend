@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-// import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
@@ -77,7 +77,7 @@ class PaymentWebView extends StatefulWidget {
 }
 
 class _PaymentWebViewState extends State<PaymentWebView> {
-  // InAppWebViewController? webViewController;
+  InAppWebViewController? webViewController;
 
   @override
   Widget build(BuildContext context) {
@@ -97,14 +97,12 @@ class _PaymentWebViewState extends State<PaymentWebView> {
             },
           ),
         ),
-        // body: InAppWebView(
-        //   initialUrlRequest: URLRequest(
-        //       // url: WebUri(widget.url)
-        //   ),
-        //   onWebViewCreated: (controller) {
-        //     webViewController = controller;
-        //   },
-        // ),
+        body: InAppWebView(
+          initialUrlRequest: URLRequest(url: Uri.parse(widget.url)),
+          onWebViewCreated: (controller) {
+            webViewController = controller;
+          },
+        ),
       ),
     );
   }

@@ -179,7 +179,7 @@ class ShopView extends StatelessWidget {
       )
       // Obx(() {
       //   if (productsController.isLoading.value) {
-      //     return Center(child: RainbowGlowingLoader(size: 50),);
+      //     return Center(child: CircularProgressIndicator());
       //   } else if (productsController.errorMessage.value.isNotEmpty) {
       //     return Center(child: Text(productsController.errorMessage.value, style: TextStyle(color: Colors.white)));
       //   } else {
@@ -329,7 +329,7 @@ class ShopView extends StatelessWidget {
                                               );
                       },
                       style: ElevatedButton.styleFrom(
-                        primary: const Color(0xffDE3A3A),
+                        backgroundColor: const Color(0xff00D701),
                         shape: ContinuousRectangleBorder(
                           borderRadius: BorderRadius.circular(28),
                         ),

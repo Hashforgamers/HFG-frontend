@@ -130,7 +130,7 @@ class VerifyOtpViewState extends State<VerifyOtpView> {
                         onPressed:
                             controller.isLoading.value ? null : _verifyOtp,
                         style: ElevatedButton.styleFrom(
-                          primary: Colors.transparent,
+                          backgroundColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),

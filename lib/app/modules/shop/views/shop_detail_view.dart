@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hash/app/modules/shop/views/shop_view.dart';
 
-import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../../reviews/views/review_view.dart';
 import '../controllers/cart_controller.dart';
 import '../controllers/fetch_products_by_id_controller.dart';
@@ -57,7 +56,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           onTap: () {
             Get.back();
           },
-          child: Icon(CupertinoIcons.back, color: Color(0xffDE3A3A),),
+          child: Icon(CupertinoIcons.back, color: Color(0xff00D701),),
         ),
         actions: [
           GestureDetector(
@@ -80,7 +79,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
-          return Center(child: RainbowGlowingLoader(size: 50),);
+          return Center(child: CircularProgressIndicator());
         } else if (controller.errorMessage.isNotEmpty) {
           return Center(child: Text(controller.errorMessage.value));
         } else if (controller.product.value != null) {
@@ -124,7 +123,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                     SizedBox(width: 10,),
                                     Text(
                                       '₹${product.price.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Color(0xffDE3A3A), fontSize: 18, fontWeight: FontWeight.bold),
+                                      style: TextStyle(color: Color(0xff00D701), fontSize: 18, fontWeight: FontWeight.bold),
                                     ),
                                   ],
                                 ),
@@ -145,7 +144,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             SizedBox(height: 20),
                             Text(
                               'Availability: ${product.availability.inStock ? "In Stock" : "Out of Stock"}',
-                              style: TextStyle(color: Color(0xffDE3A3A), fontSize: 16),
+                              style: TextStyle(color: Color(0xff00D701), fontSize: 16),
                             ),
                             SizedBox(height: 20),
                             Text(
@@ -189,7 +188,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     width: double.infinity,
                     fit: BoxFit.contain,
 
-                    placeholder: (context, url) => const Center(child: RainbowGlowingLoader(size: 50),),
+                    placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
                     errorWidget: (context, url, error) => const Icon(Icons.error),
                   ),
                 ),
@@ -212,7 +211,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     // Handle product buy now tap
                   },
                   style: ElevatedButton.styleFrom(
-                    primary:  Color(0xffDE3A3A),
+                    backgroundColor:  Color(0xff00D701),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
