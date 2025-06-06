@@ -14,11 +14,12 @@ import '/themes/app_theme.dart';
 import 'firebase_options.dart'; // Make sure to include your generated Firebase options file.
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Ensure binding for async operations
+  WidgetsFlutterBinding
+      .ensureInitialized(); // Ensure binding for async operations
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  Get.put(UserController());  // Initialize globally here
+  Get.put(UserController()); // Initialize globally here
   Get.put(RazorpayController()); // Bind the controller
   Get.put(BookingController());
   Get.put(GamesController(), permanent: true);

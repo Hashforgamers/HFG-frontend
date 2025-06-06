@@ -1,12 +1,14 @@
-import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:http/http.dart' as http;
+import 'package:hash/core/network/api_endpoints.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
 
 import '../arena/views/past_booking_screen.dart';
 
 class RazorpayController extends GetxController {
   late Razorpay _razorpay;
+  final _remoteRepo = locator<RemoteRepoInterface>();
 
   // Store multiple booking IDs after booking API response
   RxList<int> bookingIdList = <int>[].obs;
@@ -36,7 +38,7 @@ class RazorpayController extends GetxController {
     required String email,
   }) {
     var options = {
-      'key': 'rzp_test_viVAhwtbVdu1X4',
+      'key': ApiEndpoints.razorpayKey,
       'amount': (amount * 100).toInt(),
       'name': name,
       'description': description,
@@ -99,29 +101,21 @@ class RazorpayController extends GetxController {
     required List<int> bookingIds,
     required String paymentId,
   }) async {
-    const String url = 'https://hfg-booking-hmnx.onrender.com/api/bookings/confirm';
-
-    final body = {
-      "booking_id": bookingIds,
-      "payment_id": paymentId,
-      "book_date":"2025-05-20"
-    };
-
     try {
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
+      await _remoteRepo.confirmBooking(
+        bookingIds: bookingIds,
+        paymentId: paymentId,
+        bookDate: DateTime.now().toIso8601String(),
       );
-
-      if (response.statusCode == 200) {
-        print('✅ Booking confirmation successful!');
-        Get.to(() => PastBookingsScreen());
-      } else {
-        print('❌ Booking confirmation failed: ${response.body}');
-      }
+      print('✅ Booking confirmation successful!');
+      Get.to(() => PastBookingsScreen());
     } catch (e) {
       print('🔥 Error confirming booking: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to confirm booking: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 }

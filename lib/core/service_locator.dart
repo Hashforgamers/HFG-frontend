@@ -4,6 +4,7 @@ import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final locator = GetIt.instance;
@@ -27,4 +28,6 @@ Future<void> setupServiceLocator() async {
   locator.registerSingleton<RemoteRepoInterface>(
     RemoteRepo(networkProvider: locator<NetworkProvider>()),
   );
+
+  locator.registerSingleton<SegmentSdkService>(SegmentSdkService());
 }
