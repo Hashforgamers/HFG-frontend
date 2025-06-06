@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:hash/utils/constants.dart';
 import 'package:http/http.dart' as http;
-// import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -114,7 +114,7 @@ class PaymentWebView extends StatefulWidget {
 }
 
 class _PaymentWebViewState extends State<PaymentWebView> {
-  // InAppWebViewController? webViewController;
+  InAppWebViewController? webViewController;
 
   @override
   Widget build(BuildContext context) {
@@ -134,14 +134,12 @@ class _PaymentWebViewState extends State<PaymentWebView> {
             },
           ),
         ),
-        // body: InAppWebView(
-        //   initialUrlRequest: URLRequest(
-        //       // url: WebUri(widget.url)
-        //   ),
-        //   onWebViewCreated: (controller) {
-        //     webViewController = controller;
-        //   },
-        // ),
+        body: InAppWebView(
+          initialUrlRequest: URLRequest(url: Uri.parse(widget.url)),
+          onWebViewCreated: (controller) {
+            webViewController = controller;
+          },
+        ),
       ),
     );
   }
