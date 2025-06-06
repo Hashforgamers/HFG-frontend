@@ -6,6 +6,7 @@ import 'package:hash/app/data/services/user_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 import '../../data/models/user_model.dart';
 
@@ -26,12 +27,12 @@ class ProfileView extends StatelessWidget {
           onTap: () {
             Get.back();
           },
-          child: Icon(CupertinoIcons.back, color: Color(0xff00D701)),
+          child: const Icon(CupertinoIcons.back, color: Color(0xff00D701)),
         ),
       ),
       body: Obx(() {
         if (userController.isLoading.value) {
-          return Center(
+          return const Center(
             child: RainbowGlowingLoader(size: 50),
           );
         }
@@ -141,19 +142,19 @@ class ProfileView extends StatelessWidget {
           radius: 50,
           backgroundImage: user.photoUrl != null
               ? CachedNetworkImageProvider(user.photoUrl!)
-              : AssetImage('assets/default_profile.png')
+              : const AssetImage('assets/default_profile.png')
                   as ImageProvider, // Fallback to a local asset if no photoUrl
         ),
         const SizedBox(height: 20),
         Text(
           user.name!,
-          style: TextStyle(
+          style: const TextStyle(
               color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         Text(
           user.contact?.electronicAddress?.emailId ?? '',
-          style: TextStyle(color: Colors.white70, fontSize: 16),
+          style: const TextStyle(color: Colors.white70, fontSize: 16),
         ),
       ],
     );
@@ -170,17 +171,17 @@ class ProfileView extends StatelessWidget {
         initialValue: initialValue,
         decoration: InputDecoration(
           labelText: labelText,
-          labelStyle: TextStyle(color: Colors.white70),
+          labelStyle: const TextStyle(color: Colors.white70),
           enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.white70),
+            borderSide: const BorderSide(color: Colors.white70),
             borderRadius: BorderRadius.circular(10),
           ),
           focusedBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.white),
+            borderSide: const BorderSide(color: Colors.white),
             borderRadius: BorderRadius.circular(10),
           ),
         ),
-        style: TextStyle(color: Colors.white),
+        style: const TextStyle(color: Colors.white),
         validator: (value) {
           if (value == null || value.isEmpty) {
             return 'Please enter $labelText';
