@@ -131,7 +131,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                   startAngle: 0,
                   endAngle: math.pi * 2,
                   tileMode: TileMode.repeated,
-                  colors: [
+                  colors: const [
                     Colors.red,
                     Colors.orange,
                     Colors.yellow,
@@ -202,8 +202,8 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                     endIndent: 40,
                   ),
                   const SizedBox(height: 4),
-                  Row(
-                    children: const [
+                  const Row(
+                    children: [
                       Icon(Icons.play_arrow, size: 16, color: Colors.cyanAccent),
                       SizedBox(width: 6),
                       Text(

@@ -57,8 +57,8 @@ dependencies:
   flutter_inappwebview: ^5.7.2+3
   carousel_slider: ^4.0.0
   firebase_core: ^2.24.2
-  firebase_auth: ^4.16.0
-  cloud_firestore: ^4.14.0
+  firebase_auth: ^4.15.3
+  cloud_firestore: ^4.13.6
   google_sign_in: ^5.0.7
   ticket_widget: ^1.0.2
   lottie: ^2.7.0

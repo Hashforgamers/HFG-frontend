@@ -17,7 +17,7 @@ class LoginView extends StatelessWidget {
         children: [
           Center(
             child: Container(
-              width: Get.width ,
+              width: Get.width,
               height: Get.height * 0.85,
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
@@ -29,17 +29,20 @@ class LoginView extends StatelessWidget {
                   physics: const BouncingScrollPhysics(),
                   shrinkWrap: true,
                   children: [
-                     Center(
-                      child: Image.asset('assets/Transparent Logo.png',scale: 8,)
-                      // child: Text(
-                      //   'HASH.',
-                      //   style: TextStyle(
-                      //     color: Color(0xffDE3A3A),
-                      //     fontSize: 44,
-                      //     fontWeight: FontWeight.w900,
-                      //   ),
-                      // ),
-                    ),
+                    Center(
+                        child: Image.asset(
+                      'assets/Transparent Logo.png',
+                      scale: 8,
+                    )
+                        // child: Text(
+                        //   'HASH.',
+                        //   style: TextStyle(
+                        //     color: Color(0xffDE3A3A),
+                        //     fontSize: 44,
+                        //     fontWeight: FontWeight.w900,
+                        //   ),
+                        // ),
+                        ),
                     const SizedBox(height: 20),
                     const Text(
                       'Login',
@@ -51,11 +54,13 @@ class LoginView extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
+                      keyboardType: TextInputType.phone,
                       controller: controller.phoneNumberController,
-                      style: const TextStyle(color: Colors.white,letterSpacing: 4),
+                      style: const TextStyle(
+                          color: Colors.white, letterSpacing: 4),
                       decoration: InputDecoration(
                         labelText: 'Phone Number',
-                        prefix: Text('  +91  '),
+                        prefix: const Text('  +91  '),
                         labelStyle: const TextStyle(color: Colors.white70),
                         enabledBorder: OutlineInputBorder(
                           borderSide: const BorderSide(color: Colors.white70),
@@ -92,7 +97,8 @@ class LoginView extends StatelessWidget {
                           child: ElevatedButton(
                             onPressed: () {
                               if (_formKey.currentState!.validate()) {
-                                controller.isLoading.value = true; // Start loader immediately
+                                controller.isLoading.value =
+                                    true; // Start loader immediately
 
                                 controller.signInWithPhoneNumber();
                               }
@@ -103,21 +109,25 @@ class LoginView extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text('Continue', style: TextStyle(color: Colors.white,                                  fontSize: 16,
-                            )),
+                            child: const Text('Continue',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                )),
                           ),
                         ),
                       ],
                     ),
-                    Row(
+                    const Row(
                       children: [
                         Expanded(
                           child: Divider(
-                            thickness: 1,height: 50,
+                            thickness: 1,
+                            height: 50,
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          padding: EdgeInsets.symmetric(horizontal: 8.0),
                           child: Text(
                             'or',
                             style: TextStyle(
@@ -128,15 +138,17 @@ class LoginView extends StatelessWidget {
                         ),
                         Expanded(
                           child: Divider(
-                            thickness: 1,height: 50,
+                            thickness: 1,
+                            height: 50,
                           ),
                         ),
                       ],
                     ),
 
-                                   GestureDetector(
+                    GestureDetector(
                       onTap: controller.googleSignIn,
-                      child: Stack(alignment: Alignment.center,
+                      child: Stack(
+                        alignment: Alignment.center,
                         children: [
                           SizedBox(
                             width: Get.width,
@@ -144,7 +156,7 @@ class LoginView extends StatelessWidget {
                             child: RGBLightFrame(
                               width: Get.width,
                               height: Get.height,
-                              borderRadius:25,
+                              borderRadius: 25,
                             ),
                           ),
                           Row(
@@ -159,7 +171,8 @@ class LoginView extends StatelessWidget {
                               const Text(
                                 "Sign in with Google",
                                 style: TextStyle(
-                                  color: Colors.white, // Google branding black text
+                                  color: Colors
+                                      .white, // Google branding black text
                                   fontSize: 16,
                                   fontWeight: FontWeight.normal,
                                 ),
@@ -193,14 +206,15 @@ class LoginView extends StatelessWidget {
                 width: double.infinity,
                 height: double.infinity,
                 color: Colors.black.withOpacity(0.5),
-                child: Center(
+                child: const Center(
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
                   ),
                 ),
               );
             } else {
-              return SizedBox.shrink(); // Empty widget when not loading
+              return const SizedBox.shrink(); // Empty widget when not loading
             }
           }),
         ],

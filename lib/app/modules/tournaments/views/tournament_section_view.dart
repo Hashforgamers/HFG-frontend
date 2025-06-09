@@ -11,19 +11,19 @@ class TournamentsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<Tournament> tournaments = [
-      Tournament(
+      const Tournament(
         title: 'Game Time',
         imageUrl: 'https://t4.ftcdn.net/jpg/05/57/61/79/360_F_557617905_iSt6BAH73qgXHULb0ZpHOwADFj7tX6q8.jpg',
         description: 'Exciting Tournament!',
         prize: '20K',
       ),
-      Tournament(
+      const Tournament(
         title: '8 Ball Pool Tournament',
         imageUrl: 'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
         description: 'Join Now!',
         prize: '50K',
       ),
-      Tournament(
+      const Tournament(
         title: 'Galactic Battle',
         imageUrl: 'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
         description: 'Battle for Glory!',
