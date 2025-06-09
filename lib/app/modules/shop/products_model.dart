@@ -14,6 +14,7 @@ class Product {
   final Rating rating;
   final String sku;
   final Weight weight;
+  final int preRegisterCount;
 
   Product({
     required this.availability,
@@ -31,6 +32,7 @@ class Product {
     required this.rating,
     required this.sku,
     required this.weight,
+    this.preRegisterCount = 0,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -53,6 +55,7 @@ class Product {
       rating: Rating.fromJson(json['rating'] ?? {}),
       sku: json['sku'] ?? '',
       weight: Weight.fromJson(json['weight'] ?? {}),
+      preRegisterCount: json['preRegisterCount'] ?? 0,
     );
   }
 }

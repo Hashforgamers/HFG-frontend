@@ -5,5 +5,6 @@ abstract class RemoteRepoInterface {
   Future<void> saveUserToPreferences(Map<String, dynamic> userData);
   Future<Map<String, dynamic>?> getUserFromPreferences();
   Future<void> clearUserFromPreferences();
+  Future<List<Map<String, dynamic>>> fetchCybercafes();
 
 }

@@ -48,8 +48,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       backgroundColor: const Color(0xff0F0F0F),
       appBar: AppBar(
         backgroundColor: const Color(0xff0F0F0F),
-        title: Text(widget.title, style: TextStyle(color: Colors.white)),
-        iconTheme: IconThemeData(color: Colors.white),
+        title: Text(widget.title, style: const TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: ListView(
         children: [
@@ -72,23 +72,23 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 infoCard([
                   rowInfo(Icons.location_on, widget.address),
                   rowInfo(Icons.access_time, "Opening Hours: ${widget.openingHours}"),
                 ]),
 
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 Text("Book a slot:", style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 SizedBox(
                   height: 166,
                   child: Obx(() {
                     if (_gamesController.isLoading.value) {
-                      return Center(child: RainbowGlowingLoader(size: 50));
+                      return const Center(child: RainbowGlowingLoader(size: 50));
                     }
                     if (_gamesController.games.isEmpty) {
-                      return Center(child: Text('No games available.', style: TextStyle(color: Colors.white70)));
+                      return const Center(child: Text('No games available.', style: TextStyle(color: Colors.white70)));
                     }
                     return ListView.builder(
                       scrollDirection: Axis.horizontal,
@@ -97,12 +97,12 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                         final game = _gamesController.games[index];
                         return Container(
                           width: 180,
-                          margin: EdgeInsets.symmetric(vertical: 8, horizontal: 5),
-                          padding: EdgeInsets.all(12),
+                          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 5),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Color(0xff181818),
+                            color: const Color(0xff181818),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Color(0xff2D2D2D)),
+                            border: Border.all(color: const Color(0xff2D2D2D)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,21 +119,21 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                     ),
                                     radius: 12,
                                   ),
-                                  SizedBox(width: 8),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       game['game_name'] ?? 'Unknown Game',
-                                      style: TextStyle(fontSize: 16, color: Colors.white),
+                                      style: const TextStyle(fontSize: 16, color: Colors.white),
                                     ),
                                   ),
                                 ],
                               ),
-                              SizedBox(height: 8),
+                              const SizedBox(height: 8),
                               Text(
                                 "Slot Price: ₹${game['single_slot_price']} | Total Slots: ${game['total_slots']}",
-                                style: TextStyle(color: Colors.grey),
+                                style: const TextStyle(color: Colors.grey),
                               ),
-                              Spacer(),
+                              const Spacer(),
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
@@ -141,10 +141,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                     Get.to(BookingScreen(title: widget.title, gameId: game['id']));
                                   },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Color(0xffDE3A3A),
+                                    backgroundColor: const Color(0xffDE3A3A),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                                   ),
-                                  child: Text('Book Slot', style: TextStyle(color: Colors.black)),
+                                  child: const Text('Book Slot', style: TextStyle(color: Colors.black)),
                                 ),
                               ),
                             ],
@@ -154,30 +154,30 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     );
                   }),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 sectionChip("Available Games:", widget.availableGames),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 sectionChip("Amenities:", widget.amenities, includeIcon: true),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 Text("Contact Information:", style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 infoCard([rowInfo(Icons.phone, widget.contactInfo)]),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 Text("Reviews:", style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 ...widget.reviews.map((review) => Container(
-                  margin: EdgeInsets.symmetric(vertical: 4),
+                  margin: const EdgeInsets.symmetric(vertical: 4),
                   decoration: BoxDecoration(
-                    color: Color(0xff181818),
-                    border: Border.all(color: Color(0xff2D2D2D)),
+                    color: const Color(0xff181818),
+                    border: Border.all(color: const Color(0xff2D2D2D)),
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: ListTile(
-                    leading: Icon(Icons.person, color: Colors.white),
-                    title: Text(review, style: TextStyle(color: Colors.white)),
+                    leading: const Icon(Icons.person, color: Colors.white),
+                    title: Text(review, style: const TextStyle(color: Colors.white)),
                   ),
                 )),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
               ],
             ),
           )
@@ -189,16 +189,16 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   Widget rowInfo(IconData icon, String text) => Row(
     children: [
       Icon(icon, size: 18, color: Colors.white70),
-      SizedBox(width: 8),
-      Expanded(child: Text(text, style: TextStyle(color: Colors.white70))),
+      const SizedBox(width: 8),
+      Expanded(child: Text(text, style: const TextStyle(color: Colors.white70))),
     ],
   );
 
   Widget infoCard(List<Widget> children) => Container(
-    padding: EdgeInsets.all(12),
+    padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: Color(0xff181818),
-      border: Border.all(color: Color(0xff2D2D2D)),
+      color: const Color(0xff181818),
+      border: Border.all(color: const Color(0xff2D2D2D)),
       borderRadius: BorderRadius.circular(15),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
@@ -207,8 +207,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   Widget sectionChip(String title, List<String> items, {bool includeIcon = false}) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(title, style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-      SizedBox(height: 8),
+      Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 8),
       Wrap(
         spacing: 8,
         runSpacing: 8,
@@ -218,14 +218,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               ? Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.check, size: 16, color: Colors.white),
-              SizedBox(width: 4),
-              Text(item, style: TextStyle(color: Colors.white))
+              const Icon(Icons.check, size: 16, color: Colors.white),
+              const SizedBox(width: 4),
+              Text(item, style: const TextStyle(color: Colors.white))
             ],
           )
-              : Text(item, style: TextStyle(color: Colors.white)),
-          backgroundColor: Color(0xff0E0E0E),
-          side: BorderSide(color: Color(0xff2D2D2D)),
+              : Text(item, style: const TextStyle(color: Colors.white)),
+          backgroundColor: const Color(0xff0E0E0E),
+          side: const BorderSide(color: Color(0xff2D2D2D)),
         ))
             .toList(),
       )

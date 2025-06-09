@@ -61,4 +61,25 @@ class RemoteRepo implements RemoteRepoInterface {
     await prefs.remove('user_data');
     print('User data cleared from preferences.');
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchCybercafes() async {
+    final dio = networkProvider.noAuth();
+
+    try {
+      final response = await dio.get(
+        ApiEndpoints.vendorDashboard,
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseBody = response.data;
+        return List<Map<String, dynamic>>.from(responseBody['vendors']);
+      } else {
+        throw Exception('Failed to fetch cybercafes: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching cybercafes: $e');
+      rethrow;
+    }
+  }
 }

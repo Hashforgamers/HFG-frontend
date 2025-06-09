@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:hash/app/modules/shop/services/product_service.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo.dart';
@@ -27,4 +28,6 @@ Future<void> setupServiceLocator() async {
   locator.registerSingleton<RemoteRepoInterface>(
     RemoteRepo(networkProvider: locator<NetworkProvider>()),
   );
+
+  locator.registerSingleton<ProductService>(ProductService());
 }
