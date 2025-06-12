@@ -23,6 +23,12 @@ class RemoteRepo implements RemoteRepoInterface {
         // Dio already decodes the response data, so we don't need jsonDecode
         final Map<String, dynamic> responseBody = response.data;
         final Map<String, dynamic>? userData = responseBody['user'];
+        final Map<String, dynamic>? userReferralData =
+            responseBody['referralCode'];
+        if (userReferralData != null) {
+          await saveReferralCodeToPreferences(
+              userReferralData['referralCode']);
+        }
 
         if (userData != null) {
           // Save user data to preferences when found
@@ -35,6 +41,13 @@ class RemoteRepo implements RemoteRepoInterface {
       print('Error checking user existence: $e');
       return null;
     }
+  }
+
+  @override
+  Future<void> saveReferralCodeToPreferences(String referralCode) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('referralCode', referralCode);
+    print('Referral code saved to preferences.');
   }
 
   @override

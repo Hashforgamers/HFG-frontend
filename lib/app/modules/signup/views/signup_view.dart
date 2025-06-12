@@ -34,14 +34,14 @@ class SignUpView extends StatelessWidget {
         child: Container(
           width: Get.width,
           height: Get.height,
-          padding: EdgeInsets.all(15),
+          padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15),
           ),
           child: Column(
             children: [
-              SizedBox(height: 100),
-              Align(
+              const SizedBox(height: 100),
+              const Align(
                 alignment: Alignment.center,
                 child: Text(
                   'HASH.',
@@ -59,8 +59,8 @@ class SignUpView extends StatelessWidget {
                   child: ListView(
                     shrinkWrap: true,
                     children: [
-                      SizedBox(height: 20),
-                      Row(
+                      const SizedBox(height: 20),
+                      const Row(
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           Text(
@@ -73,20 +73,20 @@ class SignUpView extends StatelessWidget {
                           ),
                         ],
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       // Name field
                       TextFormField(
                         controller: nameController,
-                        style: TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           labelText: 'Name',
-                          labelStyle: TextStyle(color: Colors.white70),
+                          labelStyle: const TextStyle(color: Colors.white70),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white70),
+                            borderSide: const BorderSide(color: Colors.white70),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderSide: const BorderSide(color: Colors.white),
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
@@ -96,22 +96,22 @@ class SignUpView extends StatelessWidget {
                           }
                           return null;
                         },
-                        autofillHints: [AutofillHints.name],
+                        autofillHints: const [AutofillHints.name],
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       // Game Username field
                       TextFormField(
                         controller: controller.gameUserNameController,
-                        style: TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           labelText: 'Game Username',
-                          labelStyle: TextStyle(color: Colors.white70),
+                          labelStyle: const TextStyle(color: Colors.white70),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white70),
+                            borderSide: const BorderSide(color: Colors.white70),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderSide: const BorderSide(color: Colors.white),
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
@@ -122,40 +122,40 @@ class SignUpView extends StatelessWidget {
                           return null;
                         },
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       // Email field (Prefilled with Google data)
                       TextFormField(
                         controller: emailController.text.isEmpty?controller.emailController:emailController,
-                        style: TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Colors.white),
                         readOnly: emailController.text.isEmpty?false:true, // Disable editing
                         decoration: InputDecoration(
                           labelText: 'Email',
-                          labelStyle: TextStyle(color: Colors.white70),
+                          labelStyle: const TextStyle(color: Colors.white70),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white70),
+                            borderSide: const BorderSide(color: Colors.white70),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderSide: const BorderSide(color: Colors.white),
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        autofillHints: [AutofillHints.email],
+                        autofillHints: const [AutofillHints.email],
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       // Mobile Number field
                       TextFormField(
                         controller: controller.mobileNoController,
-                        style: TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           labelText: phoneNumber.isNotEmpty?phoneNumber:'Mobile Number',
-                          labelStyle: TextStyle(color: Colors.white70),
+                          labelStyle: const TextStyle(color: Colors.white70),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white70),
+                            borderSide: const BorderSide(color: Colors.white70),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderSide: const BorderSide(color: Colors.white),
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
@@ -167,9 +167,9 @@ class SignUpView extends StatelessWidget {
                           }
                           return null;
                         },
-                        autofillHints: [AutofillHints.telephoneNumber],
+                        autofillHints: const [AutofillHints.telephoneNumber],
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       // Fetch Location Button
                       Stack(
                         alignment: Alignment.center,
@@ -187,7 +187,7 @@ class SignUpView extends StatelessWidget {
                             onTap: () {
                               controller.fetchLocation();
                             },
-                            child: Row(
+                            child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(CupertinoIcons.location_circle, size: 18, color: Colors.white),
@@ -201,48 +201,48 @@ class SignUpView extends StatelessWidget {
                           ),
                         ],
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       // Other address fields
                       TextFormField(
                         controller: controller.addressLine1Controller,
-                        style: TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           labelText: 'Address Line 1',
-                          labelStyle: TextStyle(color: Colors.white70),
+                          labelStyle: const TextStyle(color: Colors.white70),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white70),
+                            borderSide: const BorderSide(color: Colors.white70),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderSide: const BorderSide(color: Colors.white),
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        autofillHints: [AutofillHints.streetAddressLine1],
+                        autofillHints: const [AutofillHints.streetAddressLine1],
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       TextFormField(
                         controller: controller.addressLine2Controller,
-                        style: TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           labelText: 'Address Line 2',
-                          labelStyle: TextStyle(color: Colors.white70),
+                          labelStyle: const TextStyle(color: Colors.white70),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white70),
+                            borderSide: const BorderSide(color: Colors.white70),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderSide: const BorderSide(color: Colors.white),
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        autofillHints: [AutofillHints.streetAddressLine2],
+                        autofillHints: const [AutofillHints.streetAddressLine2],
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       // Submit button
                       Stack(
                         children: [
-                          Container(
+                          SizedBox(
                             width: Get.width,
                             height: 50,
                             child: RGBLightFrame(
@@ -265,17 +265,17 @@ class SignUpView extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                              child: Text('Sign Up', style: TextStyle(color: Colors.white)),
+                              child: const Text('Sign Up', style: TextStyle(color: Colors.white)),
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       TextButton(
                         onPressed: () {
                           Get.offAllNamed(AppRoutes.LOGIN);
                         },
-                        child: Row(
+                        child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(

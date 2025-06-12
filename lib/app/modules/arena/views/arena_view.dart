@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -14,6 +15,7 @@ import 'package:geocoding/geocoding.dart';
 
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'arena_view_detailed.dart';
+import 'add_cafe_screen.dart';
 
 class ArenaView extends StatefulWidget {
   const ArenaView({Key? key}) : super(key: key);
@@ -192,7 +194,7 @@ class _ArenaViewState extends State<ArenaView> {
                   },
                   initialCameraPosition: const CameraPosition(
                     target: _initialPosition,
-                    zoom: 12,
+                    zoom: 16,
                   ),
                   markers:
                       markers.toSet(), // Convert RxSet to Set for GoogleMap
@@ -218,19 +220,65 @@ class _ArenaViewState extends State<ArenaView> {
               return RepaintBoundary(
                 child: Container(
                   color: Colors.black,
-                  height: 250,
+                  height: 300,
                   alignment: Alignment.bottomCenter,
-                  child: ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _cybercafesController.cybercafes.length,
-                    itemBuilder: (context, index) {
-                      final cafe = _cybercafesController.cybercafes[index];
-                      return _buildGradientCard(
-                        cafe,
-                        images[index % images.length],
-                      );
-                    },
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      SizedBox(
+                        height: 249,
+                        child: ListView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _cybercafesController.cybercafes.length,
+                          itemBuilder: (context, index) {
+                            final cafe = _cybercafesController.cybercafes[index];
+                            return _buildGradientCard(
+                              cafe,
+                              images[index % images.length],
+                            );
+                          },
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 16),
+                        child: RichText(
+                          text: TextSpan(
+                            children: [
+                              const TextSpan(
+                                text: 'Not found your favorite cafe, ',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              TextSpan(
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () {
+                                    Get.to(() => const AddCafeScreen());
+                                  },
+                                text: 'Let us know',
+                                style: const TextStyle(
+                                  color: Color(0xffDE3A3A),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const TextSpan(
+                                text: ' about it',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );

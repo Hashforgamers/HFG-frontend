@@ -6,8 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../../../../utils/widgets/glow_neon_loader.dart';
-import '../controllers/booking_controller.dart';
+import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'booking_summary_screen.dart';
 
 class BookingScreen extends StatefulWidget {

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:hash/services/amplitude_service.dart';
 import 'package:video_player/video_player.dart';
 import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../controllers/splash_controller.dart';
 
 class SplashView extends StatefulWidget {
+  const SplashView({super.key});
+
   @override
   _SplashViewState createState() => _SplashViewState();
 }
@@ -12,10 +16,12 @@ class SplashView extends StatefulWidget {
 class _SplashViewState extends State<SplashView> {
   final SplashController controller = Get.put(SplashController());
   late VideoPlayerController _videoController;
+  final amplitudeService = locator<AmplitudeService>();
 
   @override
   void initState() {
     super.initState();
+    amplitudeService.trackAppOpened();
     _videoController = VideoPlayerController.asset('assets/splash.mp4')
       ..initialize().then((_) {
         setState(() {});
@@ -23,7 +29,8 @@ class _SplashViewState extends State<SplashView> {
         _videoController.setLooping(false);
         _videoController.addListener(() {
           if (!_videoController.value.isPlaying &&
-              _videoController.value.position == _videoController.value.duration) {
+              _videoController.value.position ==
+                  _videoController.value.duration) {
             controller.navigateToHome();
           }
         });
@@ -43,18 +50,18 @@ class _SplashViewState extends State<SplashView> {
       body: Center(
         child: _videoController.value.isInitialized
             ? AspectRatio(
-          aspectRatio: _videoController.value.aspectRatio,
-          child: VideoPlayer(_videoController),
-        )
+                aspectRatio: _videoController.value.aspectRatio,
+                child: VideoPlayer(_videoController),
+              )
             : Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('LOADING'),
-              RainbowGlowingLoader(size: 50),
-            ],
-          ),
-        ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('LOADING'),
+                    RainbowGlowingLoader(size: 50),
+                  ],
+                ),
+              ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
+import 'package:hash/app/modules/refferal/refferal_view.dart';
 import 'package:hash/app/modules/wallet/views/wallet_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../utils/widgets/glow_neon_loader.dart';
@@ -58,6 +59,13 @@ class UserProfileView extends StatelessWidget {
               onTap: () {
                 // Handle wallet
                 Get.to(WalletDetailView());
+              },
+            ),
+            _buildProfileOption(
+              icon: CupertinoIcons.person_2,
+              title: 'Refer & Earn',
+              onTap: () {
+                Get.to(const RefferalView());
               },
             ),
             _buildProfileOption(

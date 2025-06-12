@@ -15,6 +15,7 @@ import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shop/views/shop_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import "package:hash/app/modules/tournaments/views/tournament_section_view.dart";
+import 'package:hash/app/modules/cafe/views/cafe_section_view.dart';
 
 class HomeContentView extends StatelessWidget {
   final BookingController bookingController = Get.put(BookingController());
@@ -117,10 +118,8 @@ class HomeContentView extends StatelessWidget {
           const ShopSection(), // Static widget
           const SizedBox(height: 18),
           const TournamentsSection(), // Static widget
-          // const SizedBox(height: 18),
-          //  ArenaSection(), // Static widget
-          // const SizedBox(height: 18),
-          // TeamSection(), // Static widget
+          const SizedBox(height: 18),
+          CafeSection(), // Add the new cafe section
           const SizedBox(height: 18),
           GamesSection(), // Static widget
           _buildGameOnIndiaBanner(),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/services/amplitude_service.dart';
 import 'package:hash/services/deeplink_service.dart';
 import 'package:hash/services/notification_service.dart';
 import 'app/data/services/user_controller.dart';
@@ -28,7 +29,7 @@ void main() async {
 
 // Register the controller
   await setupServiceLocator();
-
+  await locator<AmplitudeService>().initialize();
   runApp(MyApp());
 }
 

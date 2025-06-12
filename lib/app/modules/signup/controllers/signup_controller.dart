@@ -113,7 +113,7 @@ class SignUpController extends GetxController {
 
   // Sign up user
   Future<void> signUp() async {
-    const url = 'https://hfg-user-onboard.onrender.com/api/users'; // Replace with your API endpoint
+    const url = 'https://hfg-user-onboard-3nzn.onrender.com/api/users'; // Replace with your API endpoint
 
     // Get the current Firebase user's UID
     User? currentUser = _auth.currentUser;
