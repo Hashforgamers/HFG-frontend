@@ -77,6 +77,9 @@ dependencies:
   amplitude_flutter: ^3.16.4
   device_info_plus: ^9.1.1
   package_info_plus: ^4.2.0
+  barcode_widget:
+  flutter_polyline_points:
+  share_plus:
 dev_dependencies:
   flutter_test:
     sdk: flutter

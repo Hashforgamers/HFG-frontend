@@ -65,7 +65,7 @@ class UserProfileView extends StatelessWidget {
               icon: CupertinoIcons.person_2,
               title: 'Refer & Earn',
               onTap: () {
-                Get.to(const RefferalView());
+                Get.to( RefferalView());
               },
             ),
             _buildProfileOption(

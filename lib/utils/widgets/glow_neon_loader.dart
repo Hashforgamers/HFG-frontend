@@ -51,10 +51,7 @@ class _RainbowGlowingLoaderState extends State<RainbowGlowingLoader>
           ],
         ),
       ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(color: Colors.transparent),
-      ),
+      child: Container(color: Colors.transparent),
     );
   }
 

@@ -11,7 +11,7 @@ class BookingController extends GetxController {
   final userId = 0.obs; // Holds user ID
   final selectedSlots = RxMap<int, List<int>>({}); // Holds selected slots per PC
 
-  final String _baseUrl = 'https://hfg-booking.onrender.com/api/bookings/api'; // Base URL for API
+  final String _baseUrl = 'https://hfg-booking-hmnx.onrender.com/api'; // Base URL for API
 
   @override
   void onInit() {
@@ -115,7 +115,7 @@ class BookingController extends GetxController {
         final List<dynamic> data = json.decode(response.body);
         userBookings.assignAll(data.map((e) => e as Map<String, dynamic>).toList());
       } else {
-        _logError('Failed to fetch bookings. Status code: ${response.statusCode}');
+        _logError('Failed to fetch bookings. Status code: ${response.body}');
         userBookings.clear();
       }
     } catch (e) {

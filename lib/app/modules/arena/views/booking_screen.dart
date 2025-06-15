@@ -12,8 +12,9 @@ import 'booking_summary_screen.dart';
 class BookingScreen extends StatefulWidget {
   final String title;
   final int gameId;
+  final int vendorId;
 
-  BookingScreen({super.key, required this.title, required this.gameId});
+  BookingScreen({super.key, required this.title, required this.gameId, required this.vendorId});
 
   @override
   _BookingScreenState createState() => _BookingScreenState();
@@ -29,7 +30,7 @@ class _BookingScreenState extends State<BookingScreen> {
   void initState() {
     super.initState();
     _fetchUserId();
-    controller.fetchSlots(vendorId: 1, gameId: widget.gameId, date: selectedDate);
+    controller.fetchSlots(vendorId: widget.vendorId, gameId: widget.gameId, date: selectedDate);
   }
 
   Future<void> _fetchUserId() async {

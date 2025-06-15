@@ -138,7 +138,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                 width: double.infinity,
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    Get.to(BookingScreen(title: widget.title, gameId: game['id']));
+                                    Get.to(BookingScreen(title: widget.title, gameId: game['id'],vendorId:widget.vendorId));
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xffDE3A3A),

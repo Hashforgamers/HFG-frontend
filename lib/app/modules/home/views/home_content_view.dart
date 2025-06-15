@@ -110,6 +110,8 @@ class HomeContentView extends StatelessWidget {
           //   return _buildBookingsSection();
           // }),
           const SizedBox(height: 18),
+          CafeSection(), // Add the new cafe section
+          const SizedBox(height: 18),
           const GamerNewsSection(),
           const SizedBox(height: 18),
 
@@ -117,10 +119,9 @@ class HomeContentView extends StatelessWidget {
           const SizedBox(height: 18),
           const ShopSection(), // Static widget
           const SizedBox(height: 18),
-          const TournamentsSection(), // Static widget
-          const SizedBox(height: 18),
-          CafeSection(), // Add the new cafe section
-          const SizedBox(height: 18),
+          // const TournamentsSection(), // Static widget
+          // const SizedBox(height: 18),
+
           GamesSection(), // Static widget
           _buildGameOnIndiaBanner(),
         ],
