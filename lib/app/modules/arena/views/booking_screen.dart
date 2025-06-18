@@ -14,7 +14,7 @@ class BookingScreen extends StatefulWidget {
   final int gameId;
   final int vendorId;
 
-  BookingScreen({super.key, required this.title, required this.gameId, required this.vendorId});
+  const BookingScreen({super.key, required this.title, required this.gameId, required this.vendorId});
 
   @override
   _BookingScreenState createState() => _BookingScreenState();
@@ -60,39 +60,110 @@ class _BookingScreenState extends State<BookingScreen> {
         title: Text(widget.title),
       ),
       body: Container(
-        decoration: BoxDecoration(color: Colors.black),
+        decoration: const BoxDecoration(color: Colors.black),
         child: Obx(() {
           if (controller.isLoading.value) {
-            return ListView.builder(
-              itemCount: 4,
-              itemBuilder: (context, index) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Shimmer.fromColors(
-                  baseColor: Colors.grey[900]!,
-                  highlightColor: Colors.grey[800]!,
-                  child: Container(
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[900],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            );
+            return _buildLoadingShimmer();
+          }
+
+          if (controller.errorMessage.isNotEmpty) {
+            return _buildErrorState();
           }
 
           if (controller.slots.isEmpty) {
-            return Center(
-              child: Text(
-                'No slots available',
-                style: TextStyle(color: Colors.white),
-              ),
-            );
+            return _buildEmptyState();
           }
 
           return buildSlotList();
         }),
+      ),
+    );
+  }
+
+  Widget _buildLoadingShimmer() {
+    return ListView.builder(
+      itemCount: 4,
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey[900]!,
+          highlightColor: Colors.grey[800]!,
+          child: Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: Colors.red,
+            size: 48,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            controller.errorMessage.value,
+            style: const TextStyle(color: Colors.white),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              controller.fetchSlots(
+                vendorId: widget.vendorId,
+                gameId: widget.gameId,
+                date: selectedDate,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xffDE3A3A),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.event_busy,
+            color: Colors.grey,
+            size: 48,
+          ),
+          SizedBox(height: 16),
+          Text(
+            'No slots available',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Please try a different date',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -107,7 +178,7 @@ class _BookingScreenState extends State<BookingScreen> {
             children: [
               Text(
                 'Global Gaming Cafe | $selectedDateText',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -119,7 +190,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     context: context,
                     initialDate: DateTime.now(),
                     firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(Duration(days: 30)),
+                    lastDate: DateTime.now().add(const Duration(days: 30)),
                     builder: (context, child) {
                       return Theme(
                         data: ThemeData.dark(),
@@ -136,7 +207,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     });
                   }
                 },
-                icon: Icon(Icons.calendar_today, color: Colors.white),
+                icon: const Icon(Icons.calendar_today, color: Colors.white),
               )
             ],
           ),
@@ -244,7 +315,7 @@ class _BookingScreenState extends State<BookingScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             gradient: isSelected
-                ? LinearGradient(
+                ? const LinearGradient(
               colors: [Color(0xff00FFAB), Color(0xffDE3A3A)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -297,7 +368,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
                 Text(
                   '₹${totalSelectedSlots * 50}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.greenAccent,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -332,6 +403,16 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void onProceed() {
+    if (controller.errorMessage.isNotEmpty) {
+      Get.snackbar(
+        'Error',
+        'Please resolve the error before proceeding',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
     List<Map<String, dynamic>> selectedSlotDetails = [];
     controller.selectedSlots.forEach((pcIndex, timeIndices) {
       for (var timeIndex in timeIndices) {
