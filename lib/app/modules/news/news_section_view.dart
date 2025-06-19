@@ -41,8 +41,8 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
           height: 200,
           child: Center(
               child: CircularProgressIndicator(
-                color: Colors.cyanAccent,
-              )),
+            color: Colors.cyanAccent,
+          )),
         );
       }
 
@@ -108,7 +108,8 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     return GestureDetector(
       onTap: () async {
         if (await canLaunchUrl(Uri.parse(siteUrl))) {
-          await launchUrl(Uri.parse(siteUrl), mode: LaunchMode.externalApplication);
+          await launchUrl(Uri.parse(siteUrl),
+              mode: LaunchMode.externalApplication);
         } else {
           Get.snackbar('Error', 'Could not launch article');
         }
@@ -131,7 +132,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                   startAngle: 0,
                   endAngle: math.pi * 2,
                   tileMode: TileMode.repeated,
-                  colors: [
+                  colors: const [
                     Colors.red,
                     Colors.orange,
                     Colors.yellow,
@@ -202,9 +203,10 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                     endIndent: 40,
                   ),
                   const SizedBox(height: 4),
-                  Row(
-                    children: const [
-                      Icon(Icons.play_arrow, size: 16, color: Colors.cyanAccent),
+                  const Row(
+                    children: [
+                      Icon(Icons.play_arrow,
+                          size: 16, color: Colors.cyanAccent),
                       SizedBox(width: 6),
                       Text(
                         "Read Article",
@@ -224,5 +226,4 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       ),
     );
   }
-
 }

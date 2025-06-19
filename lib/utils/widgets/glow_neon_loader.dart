@@ -36,9 +36,9 @@ class _RainbowGlowingLoaderState extends State<RainbowGlowingLoader>
     return Container(
       height: size,
       width: size,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const SweepGradient(
+        gradient: SweepGradient(
           colors: [
             Colors.red,
             Colors.orange,
@@ -51,10 +51,7 @@ class _RainbowGlowingLoaderState extends State<RainbowGlowingLoader>
           ],
         ),
       ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(color: Colors.transparent),
-      ),
+      child: Container(color: Colors.transparent),
     );
   }
 

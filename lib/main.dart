@@ -19,15 +19,16 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Setup service locator first before any controllers that depend on it
+  await setupServiceLocator();
+  
   Get.put(UserController()); // Initialize globally here
   Get.put(RazorpayController()); // Bind the controller
   Get.put(BookingController());
   Get.put(GamesController(), permanent: true);
   Get.put(NotificationController()); // Initialize the controller
   Get.put(DeepLinkController()); // Add this
-
-// Register the controller
-  await setupServiceLocator();
 
   runApp(const MyApp());
 }

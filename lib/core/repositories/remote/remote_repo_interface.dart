@@ -69,4 +69,7 @@ abstract class RemoteRepoInterface {
     required String emailId,
   });
   Future<Map<String, dynamic>> validateFunds(String paymentLinkId);
+    Future<void> saveReferralCodeToPreferences(String referralCode);
+
+
 }
