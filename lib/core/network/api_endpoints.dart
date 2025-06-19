@@ -3,17 +3,23 @@ class ApiEndpoints {
 
   static const String checkUserExistsInAPI =
       'https://hfg-user-onboard.onrender.com/api/users/fid/';
-      
-  static const String signUp = 'https://hfg-user-onboard.onrender.com/api/users';
+
+  static const String signUp =
+      'https://hfg-user-onboard.onrender.com/api/users';
 
   // Booking related endpoints
-  static const String slotsBaseUrl = 'https://hfg-booking-hmnx.onrender.com/api';
-  static const String bookingsBaseUrl = 'https://hfg-booking.onrender.com/api/bookings/api';
-  static const String confirmBooking = 'https://hfg-booking-hmnx.onrender.com/api/bookings/confirm';
-  
+  static const String slotsBaseUrl =
+      'https://hfg-booking-hmnx.onrender.com/api';
+  static const String bookingsBaseUrl =
+      'https://hfg-booking.onrender.com/api/bookings/api';
+  static const String confirmBooking =
+      'https://hfg-booking-hmnx.onrender.com/api/bookings/confirm';
+
   // Vendor related endpoints
-  static const String vendorDashboard = 'https://hfg-onboard-hqqb.onrender.com/api/vendor/dashboard';
-  static const String vendorGames = 'https://hfg-booking-hmnx.onrender.com/api/games/vendor';
+  static const String getAllVendorsList =
+      'https://hfg-onboard-hqqb.onrender.com/api/vendor/getAllGamingCafe';
+  static const String vendorGames =
+      'https://hfg-booking-hmnx.onrender.com/api/games/vendor';
 
   // News related endpoints
   static const String gameSpotBaseUrl = 'https://www.gamespot.com/api';

@@ -166,7 +166,7 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<List<Map<String, dynamic>>> fetchCybercafes() async {
     final dio = networkProvider.noAuth();
     try {
-      final response = await dio.get(ApiEndpoints.vendorDashboard);
+      final response = await dio.get(ApiEndpoints.getAllVendorsList);
 
       if (response.statusCode == 200) {
         final data = response.data;
