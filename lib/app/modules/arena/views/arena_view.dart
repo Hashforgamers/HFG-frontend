@@ -52,7 +52,7 @@ class _ArenaViewState extends State<ArenaView> {
   String _mapStyle = '';
 
   final CybercafesController _cybercafesController =
-  Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
+      Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
 
   String? _selectedCafeId;
   bool _isMapControllerInitialized = false;
@@ -117,9 +117,9 @@ class _ArenaViewState extends State<ArenaView> {
     final lngRaw = locMap['longitude'] ?? 0;
 
     final double lat =
-    latRaw is double ? latRaw : double.tryParse(latRaw.toString()) ?? 0.0;
+        latRaw is double ? latRaw : double.tryParse(latRaw.toString()) ?? 0.0;
     final double lng =
-    lngRaw is double ? lngRaw : double.tryParse(lngRaw.toString()) ?? 0.0;
+        lngRaw is double ? lngRaw : double.tryParse(lngRaw.toString()) ?? 0.0;
 
     return LatLng(lat, lng);
   }
@@ -127,7 +127,7 @@ class _ArenaViewState extends State<ArenaView> {
   void _updateCameraPosition(LatLng pos) {
     debounce?.cancel();
     debounce = Timer(const Duration(milliseconds: 300),
-            () => mapController.animateCamera(CameraUpdate.newLatLng(pos)));
+        () => mapController.animateCamera(CameraUpdate.newLatLng(pos)));
   }
 
   /* -------------------------------------------------------------------------- */
@@ -137,22 +137,21 @@ class _ArenaViewState extends State<ArenaView> {
   Future<Map<String, String>> _getDistanceDuration(
       LatLng dest, String cafeId) async {
     if (_userLatLng == null) {
-      print('🛑 _userLatLng is null');           // <-- add
+      print('🛑 _userLatLng is null'); // <-- add
       return {'distance': '--', 'duration': '--'};
     }
     if (_userLatLng == null) return {'distance': '--', 'duration': '--'};
     if (_distanceCache.containsKey(cafeId)) return _distanceCache[cafeId]!;
 
-    final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/directions/json'
-            '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
-            '&destination=${dest.latitude},${dest.longitude}'
-            '&mode=driving'
-            '&key=$_googleDirectionsKey');
-    print('➡️  Hitting URL: $url');             // <-- add
+    final url = Uri.parse('https://maps.googleapis.com/maps/api/directions/json'
+        '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
+        '&destination=${dest.latitude},${dest.longitude}'
+        '&mode=driving'
+        '&key=$_googleDirectionsKey');
+    print('➡️  Hitting URL: $url'); // <-- add
     final res = await http.get(url);
-    print('⬅️  Status: ${res.statusCode}');     // <-- add
-    print('⬅️  Body: ${res.body}');             // <-- add
+    print('⬅️  Status: ${res.statusCode}'); // <-- add
+    print('⬅️  Body: ${res.body}'); // <-- add
 
     if (res.statusCode == 200) {
       final data = json.decode(res.body);
@@ -174,8 +173,10 @@ class _ArenaViewState extends State<ArenaView> {
   /* -------------------------------------------------------------------------- */
 
   Future<void> _initializeLocation() async {
-    if (!await _location.serviceEnabled() && !await _location.requestService()) return;
-    if (await _location.requestPermission() != loc.PermissionStatus.granted) return;
+    if (!await _location.serviceEnabled() && !await _location.requestService())
+      return;
+    if (await _location.requestPermission() != loc.PermissionStatus.granted)
+      return;
 
     final locData = await _location.getLocation();
     _userLatLng = LatLng(locData.latitude!, locData.longitude!);
@@ -244,13 +245,14 @@ class _ArenaViewState extends State<ArenaView> {
       jointType: JointType.round,
       endCap: Cap.roundCap,
       startCap: Cap.roundCap,
-      points: result.points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
+      points:
+          result.points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
     ));
 
     // Optional: quick toast with ETA
     final info = await _getDistanceDuration(dest, 'route');
-    Get.snackbar('Route',
-        'Distance: ${info['distance']}  |  ETA: ${info['duration']}');
+    Get.snackbar(
+        'Route', 'Distance: ${info['distance']}  |  ETA: ${info['duration']}');
 
     setState(() {});
   }
@@ -261,8 +263,7 @@ class _ArenaViewState extends State<ArenaView> {
 
   Future<void> _openExternalMaps(LatLng dest) async {
     if (_userLatLng == null) return;
-    final url =
-        'https://www.google.com/maps/dir/?api=1'
+    final url = 'https://www.google.com/maps/dir/?api=1'
         '&origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
         '&destination=${dest.latitude},${dest.longitude}'
         '&travelmode=driving';
@@ -340,13 +341,13 @@ class _ArenaViewState extends State<ArenaView> {
         await _jumpToCafe();
         await Future.delayed(const Duration(milliseconds: 800));
         await Get.to(
-              () => ArenaDetailView(
+          () => ArenaDetailView(
             images: image,
             title: cafe['cafe_name'] ?? 'Unknown Cafe',
             address: 'Owner: ${cafe['owner_name']}',
             openingHours: 'Created: ${cafe['created_at']}',
             availableGames: const ['Game 1', 'Game 2'],
-            amenities: const ['Amenity 1', 'Amenity 2'],
+            amenities: cafe['amenities'],
             contactInfo: 'Contact: contact@domain.com',
             reviews: const ['Great place!', 'Loved it!'],
             vendorId: cafe['vendor_id'],
@@ -370,7 +371,7 @@ class _ArenaViewState extends State<ArenaView> {
                 height: 250,
                 width: 300,
                 placeholder: (c, _) =>
-                const Center(child: RainbowGlowingLoader(size: 50)),
+                    const Center(child: RainbowGlowingLoader(size: 50)),
                 errorWidget: (c, _, __) => Container(
                   height: 250,
                   width: 300,
@@ -387,7 +388,7 @@ class _ArenaViewState extends State<ArenaView> {
               right: 0,
               child: ClipRRect(
                 borderRadius:
-                const BorderRadius.vertical(bottom: Radius.circular(16)),
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
@@ -473,8 +474,8 @@ class _ArenaViewState extends State<ArenaView> {
                                   decoration: BoxDecoration(
                                       color: Colors.white12,
                                       borderRadius: BorderRadius.circular(12)),
-                                  child: const Icon(Icons.map_outlined,
-                                      size: 20),
+                                  child:
+                                      const Icon(Icons.map_outlined, size: 20),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -508,14 +509,14 @@ class _ArenaViewState extends State<ArenaView> {
           alignment: Alignment.bottomCenter,
           children: [
             Obx(
-                  () => GoogleMap(
+              () => GoogleMap(
                 onMapCreated: (controller) {
                   mapController = controller;
                   mapController.setMapStyle(_mapStyle);
                   _isMapControllerInitialized = true;
                 },
-                initialCameraPosition: const CameraPosition(
-                    target: _initialPosition, zoom: 16),
+                initialCameraPosition:
+                    const CameraPosition(target: _initialPosition, zoom: 16),
                 markers: markers.toSet(),
                 polylines: _polylines.toSet(),
                 myLocationEnabled: true,
@@ -541,11 +542,9 @@ class _ArenaViewState extends State<ArenaView> {
                       child: ListView.builder(
                         physics: const BouncingScrollPhysics(),
                         scrollDirection: Axis.horizontal,
-                        itemCount:
-                        _cybercafesController.cybercafes.length,
+                        itemCount: _cybercafesController.cybercafes.length,
                         itemBuilder: (context, index) {
-                          final cafe =
-                          _cybercafesController.cybercafes[index];
+                          final cafe = _cybercafesController.cybercafes[index];
                           return _buildGradientCard(
                               cafe, images[index % images.length]);
                         },
@@ -566,8 +565,8 @@ class _ArenaViewState extends State<ArenaView> {
                             TextSpan(
                                 text: 'Let us know',
                                 recognizer: TapGestureRecognizer()
-                                  ..onTap = () =>
-                                      Get.to(() => const AddCafeScreen()),
+                                  ..onTap =
+                                      () => Get.to(() => const AddCafeScreen()),
                                 style: const TextStyle(
                                     color: Color(0xffDE3A3A),
                                     fontSize: 12,

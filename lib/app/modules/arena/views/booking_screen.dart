@@ -107,7 +107,7 @@ class _BookingScreenState extends State<BookingScreen> {
             children: [
               Text(
                 'Global Gaming Cafe | $selectedDateText',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -272,6 +272,17 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget buildFooter() {
     return Obx(() {
       int totalSelectedSlots = controller.selectedSlots.values.fold(0, (sum, slots) => sum + slots.length);
+      
+      // Calculate total price based on actual slot prices
+      double totalPrice = 0.0;
+      controller.selectedSlots.forEach((pcIndex, timeIndices) {
+        for (var timeIndex in timeIndices) {
+          if (timeIndex < controller.slots.length) {
+            final slot = controller.slots[timeIndex];
+            totalPrice += (slot['single_slot_price'] ?? 50).toDouble();
+          }
+        }
+      });
 
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
@@ -296,7 +307,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
                 Text(
-                  '₹${totalSelectedSlots * 50}',
+                  '₹${totalPrice.toInt()}',
                   style: TextStyle(
                     color: Colors.greenAccent,
                     fontSize: 16,
@@ -341,6 +352,7 @@ class _BookingScreenState extends State<BookingScreen> {
           "slot_id": slot['slot_id'],
           "start_time": slot['start_time'],
           "end_time": slot['end_time'],
+          "price": slot['single_slot_price'] ?? 50,
         });
       }
     });

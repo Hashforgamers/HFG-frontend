@@ -1,5 +1,6 @@
 class ApiEndpoints {
-  static const String baseUrl = 'http://34.93.80.156:6000';
+  static const String baseUrl =
+      'https://hfg-user-onboard-3nzn.onrender.com/api/users';
 
   static const String checkUserExistsInAPI =
       'https://hfg-user-onboard-3nzn.onrender.com/api/users/fid/';
@@ -49,4 +50,9 @@ class ApiEndpoints {
   static const String wallet = '$baseUrl/wallet';
   static const String addFunds = '$wallet/add-funds';
   static const String validateFunds = '$wallet/validate-funds';
+
+  // Creating voucher
+  static const String createVoucher = '$baseUrl/{userId}/create-voucher';
+  // Get Voucher
+  static const String getVoucher = '$baseUrl/{userId}/voucher';
 }

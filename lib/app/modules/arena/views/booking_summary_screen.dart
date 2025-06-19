@@ -4,28 +4,144 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import '../../payment/razorpay_controller.dart';
 import '../controllers/booking_controller.dart';
+import '../../../../core/repositories/model/get_voucher_model.dart';
+import '../../../../core/repositories/remote/remote_repo_interface.dart';
+import '../../../../core/service_locator.dart';
+import 'past_booking_screen.dart';
 
-class BookingSummaryScreen extends StatelessWidget {
+class BookingSummaryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> selectedSlots;
   final int gameId;
   final int userId;
 
-  BookingSummaryScreen({Key? key, required this.selectedSlots, required this.gameId, required this.userId}) : super(key: key);
+  BookingSummaryScreen(
+      {Key? key,
+      required this.selectedSlots,
+      required this.gameId,
+      required this.userId})
+      : super(key: key);
 
+  @override
+  State<BookingSummaryScreen> createState() => _BookingSummaryScreenState();
+}
+
+class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final BookingController bookingController = Get.put(BookingController());
   final RazorpayController razorpayController = Get.put(RazorpayController());
+  final _remoteRepo = locator<RemoteRepoInterface>();
 
   final String userName = "Shen";
   final double slotPrice = 50.0;
 
+  // Voucher related variables
+  final TextEditingController _voucherController = TextEditingController();
+  final RxBool _isLoadingVouchers = false.obs;
+  final RxList<Voucher> _availableVouchers = <Voucher>[].obs;
+  final Rx<Voucher?> _appliedVoucher = Rx<Voucher?>(null);
+  final RxBool _isApplyingVoucher = false.obs;
+  final RxString _voucherError = ''.obs;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVouchers();
+  }
+
+  @override
+  void dispose() {
+    _voucherController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadVouchers() async {
+    _isLoadingVouchers(true);
+    try {
+      final voucherResponse =
+          await _remoteRepo.getVoucher(userId: widget.userId.toString());
+      if (voucherResponse.isNotEmpty) {
+        _availableVouchers.value = voucherResponse.first.vouchers;
+      } else {
+        _availableVouchers.value = [];
+      }
+    } catch (e) {
+      print('Error loading vouchers: $e');
+      _availableVouchers.value = [];
+    } finally {
+      _isLoadingVouchers(false);
+    }
+  }
+
+  Future<void> _applyVoucher() async {
+    if (_voucherController.text.trim().isEmpty) {
+      _voucherError.value = 'Please enter a voucher code';
+      return;
+    }
+
+    _isApplyingVoucher(true);
+    _voucherError.value = '';
+
+    try {
+      // Find voucher in available vouchers
+      final voucher = _availableVouchers.firstWhereOrNull((v) =>
+          v.code.toLowerCase() == _voucherController.text.trim().toLowerCase());
+
+      if (voucher != null) {
+        if (voucher.isActive) {
+          _appliedVoucher.value = voucher;
+          _voucherError.value = '';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Voucher applied! ${voucher.discountPercentage}% discount'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          _voucherError.value = 'This voucher is not active';
+        }
+      } else {
+        _voucherError.value = 'Invalid voucher code';
+      }
+    } catch (e) {
+      _voucherError.value = 'Error applying voucher';
+    } finally {
+      _isApplyingVoucher(false);
+    }
+  }
+
+  void _removeVoucher() {
+    _appliedVoucher.value = null;
+    _voucherController.clear();
+    _voucherError.value = '';
+  }
+
+  double calculateTotalPrice() {
+    double subtotal = widget.selectedSlots.length * slotPrice;
+
+    if (_appliedVoucher.value != null) {
+      double discount =
+          subtotal * (_appliedVoucher.value!.discountPercentage / 100);
+      return subtotal - discount;
+    }
+
+    return subtotal;
+  }
+
+  double calculateDiscount() {
+    if (_appliedVoucher.value != null) {
+      double subtotal = widget.selectedSlots.length * slotPrice;
+      return subtotal * (_appliedVoucher.value!.discountPercentage / 100);
+    }
+    return 0.0;
+  }
+
   @override
   Widget build(BuildContext context) {
-    double totalPrice = calculateTotalPrice();
-
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
-        title: const Text('Booking Summary', style: TextStyle(color: Colors.white)),
+        title: const Text('Booking Summary',
+            style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF0F0F0F),
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -36,20 +152,30 @@ class BookingSummaryScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${selectedSlots.length} Slot(s) Selected', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white)),
+              Text('${widget.selectedSlots.length} Slot(s) Selected',
+                  style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white)),
               const SizedBox(height: 16),
               ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: selectedSlots.length,
-                separatorBuilder: (context, index) => Divider(color: Colors.grey.shade800),
+                itemCount: widget.selectedSlots.length,
+                separatorBuilder: (context, index) =>
+                    Divider(color: Colors.grey.shade800),
                 itemBuilder: (context, index) {
-                  final slot = selectedSlots[index];
+                  final slot = widget.selectedSlots[index];
                   return ListTile(
                     tileColor: Colors.grey.shade900,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    title: Text('PC ${slot['pc_index']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                    subtitle: Text('Time: ${slot['start_time']} - ${slot['end_time']}', style: const TextStyle(color: Colors.white70)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    title: Text('PC ${slot['pc_index']}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.white)),
+                    subtitle: Text(
+                        'Time: ${slot['start_time']} - ${slot['end_time']}',
+                        style: const TextStyle(color: Colors.white70)),
                   );
                 },
               ),
@@ -60,21 +186,55 @@ class BookingSummaryScreen extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Booking User', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white70)),
+                      const Text('Booking User',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white70)),
                       const SizedBox(height: 4),
-                      Text(userName, style: const TextStyle(fontSize: 16, color: Colors.white)),
+                      Text(userName,
+                          style: const TextStyle(
+                              fontSize: 16, color: Colors.white)),
                     ],
                   ),
-                  TextButton(onPressed: () {}, child: const Text('Change', style: TextStyle(color: Colors.deepOrange)))
+                  TextButton(
+                      onPressed: () {},
+                      child: const Text('Change',
+                          style: TextStyle(color: Colors.deepOrange)))
                 ],
               ),
               Divider(height: 32, color: Colors.grey.shade800),
-              const Text('Payment Summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+
+              // Voucher Section
+              _buildVoucherSection(),
+              const SizedBox(height: 24),
+
+              const Text('Payment Summary',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white)),
               const SizedBox(height: 12),
-              buildPaymentRow('Sub Total', '₹${totalPrice.toStringAsFixed(2)}'),
-              buildPaymentRow('GST', '₹0.00'),
-              Divider(color: Colors.grey.shade800),
-              buildPaymentRow('GRAND TOTAL', '₹${totalPrice.toStringAsFixed(2)}', bold: true, fontSize: 16),
+              Obx(() {
+                double totalPrice = calculateTotalPrice();
+                double discount = calculateDiscount();
+
+                return Column(
+                  children: [
+                    buildPaymentRow('Sub Total',
+                        '₹${(widget.selectedSlots.length * slotPrice).toStringAsFixed(2)}'),
+                    if (discount > 0) ...[
+                      buildPaymentRow(
+                          'Discount', '-₹${discount.toStringAsFixed(2)}',
+                          color: Colors.green),
+                    ],
+                    buildPaymentRow('GST', '₹0.00'),
+                    Divider(color: Colors.grey.shade800),
+                    buildPaymentRow(
+                        'GRAND TOTAL', '₹${totalPrice.toStringAsFixed(2)}',
+                        bold: true, fontSize: 16),
+                  ],
+                );
+              }),
             ],
           ),
         ),
@@ -86,21 +246,33 @@ class BookingSummaryScreen extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '₹${totalPrice.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
+              Obx(() => Text(
+                    '₹${calculateTotalPrice().toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  )),
               ElevatedButton(
-                onPressed: () => handleBooking(context),
+                onPressed: () =>
+                    handleBooking(context, _appliedVoucher.value != null),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xffDE3A3A),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 child: Obx(() => bookingController.isLoading.value
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('PROCEED', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Text('PROCEED',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold))),
               ),
             ],
           ),
@@ -109,8 +281,243 @@ class BookingSummaryScreen extends StatelessWidget {
     );
   }
 
-  Future<void> handleBooking(BuildContext context) async {
-    if (selectedSlots.isEmpty) {
+  Widget _buildVoucherSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade800),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Have a Voucher?',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white)),
+              Obx(() => _isLoadingVouchers.value
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(
+                          color: Colors.deepOrange, strokeWidth: 2))
+                  : IconButton(
+                      onPressed: _loadVouchers,
+                      icon: const Icon(Icons.refresh, color: Colors.deepOrange),
+                      iconSize: 20,
+                    )),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Applied voucher display
+          Obx(() {
+            if (_appliedVoucher.value != null) {
+              return Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle,
+                        color: Colors.green, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Voucher Applied: ${_appliedVoucher.value!.code}',
+                            style: const TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            '${_appliedVoucher.value!.discountPercentage}% discount applied',
+                            style: TextStyle(
+                                color: Colors.green.withOpacity(0.8),
+                                fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _removeVoucher,
+                      icon: const Icon(Icons.close,
+                          color: Colors.green, size: 18),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+
+          // Voucher input field
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _voucherController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Enter voucher code',
+                    hintStyle: TextStyle(color: Colors.grey.shade400),
+                    filled: true,
+                    fillColor: Colors.black.withOpacity(0.3),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey.shade700),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey.shade700),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.deepOrange),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Obx(() => ElevatedButton(
+                    onPressed: _isApplyingVoucher.value ? null : _applyVoucher,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepOrange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: _isApplyingVoucher.value
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Text('Apply'),
+                  )),
+            ],
+          ),
+
+          // Error message
+          Obx(() {
+            if (_voucherError.value.isNotEmpty) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _voucherError.value,
+                  style: TextStyle(color: Colors.red.shade300, fontSize: 12),
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+
+          // Available vouchers
+          Obx(() {
+            if (_availableVouchers.isNotEmpty) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  Text(
+                    'Your Available Vouchers (${_availableVouchers.length})',
+                    style: TextStyle(
+                        color: Colors.grey.shade300,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _availableVouchers.length,
+                      itemBuilder: (context, index) {
+                        final voucher = _availableVouchers[index];
+                        return Container(
+                          width: 140,
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: voucher.isActive
+                                ? Colors.deepOrange.withOpacity(0.1)
+                                : Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: voucher.isActive
+                                  ? Colors.deepOrange.withOpacity(0.3)
+                                  : Colors.grey.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                voucher.code,
+                                style: TextStyle(
+                                  color: voucher.isActive
+                                      ? Colors.deepOrange
+                                      : Colors.grey,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${voucher.discountPercentage}% OFF',
+                                style: TextStyle(
+                                  color: voucher.isActive
+                                      ? Colors.white
+                                      : Colors.grey,
+                                  fontSize: 10,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                voucher.isActive ? 'Active' : 'Inactive',
+                                style: TextStyle(
+                                  color: voucher.isActive
+                                      ? Colors.green
+                                      : Colors.red,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+        ],
+      ),
+    );
+  }
+
+  Future<void> handleBooking(
+      BuildContext context, bool isVoucherApplied) async {
+    if (widget.selectedSlots.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No slots selected!')),
       );
@@ -120,7 +527,8 @@ class BookingSummaryScreen extends StatelessWidget {
     double totalPrice = calculateTotalPrice();
     int amountInPaisa = (totalPrice * 100).toInt();
 
-    List<int> slotIds = selectedSlots.map((slot) => slot['slot_id'] as int).toList();
+    List<int> slotIds =
+        widget.selectedSlots.map((slot) => slot['slot_id'] as int).toList();
     List<int> bookingIds = await createBooking(slotIds);
     print(slotIds);
     if (bookingIds.isEmpty) {
@@ -128,19 +536,59 @@ class BookingSummaryScreen extends StatelessWidget {
       return;
     }
 
-    razorpayController.bookingIdList.value = bookingIds;
-    await initiatePayment(context, amountInPaisa);
+    if (isVoucherApplied && _appliedVoucher.value != null) {
+      // Handle voucher case - skip Razorpay and directly confirm booking
+      await confirmBookingWithVoucher(bookingIds, _appliedVoucher.value!.code);
+    } else {
+      // Normal payment flow with Razorpay
+      razorpayController.bookingIdList.value = bookingIds;
+      await initiatePayment(context, amountInPaisa);
+    }
+  }
+
+  Future<void> confirmBookingWithVoucher(
+      List<int> bookingIds, String voucherCode) async {
+    try {
+      await _remoteRepo.confirmBooking(
+        bookingIds: bookingIds,
+        paymentId: "VOUCHER_${DateTime.now().millisecondsSinceEpoch}",
+        bookDate: DateTime.now().toIso8601String(),
+        voucherCode: voucherCode,
+      );
+
+      print('✅ Booking confirmation with voucher successful!');
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Booking confirmed with voucher $voucherCode!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Navigate to past bookings screen
+      Get.to(() => const PastBookingsScreen());
+    } catch (e) {
+      print('🔥 Error confirming booking with voucher: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to confirm booking: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<List<int>> createBooking(List<int> slotIds) async {
     const String url = "https://hfg-booking-hmnx.onrender.com/api/bookings";
     final today = DateTime.now();
-    final bookDate = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+    final bookDate =
+        "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
     final payload = {
       "slot_id": slotIds,
-      "user_id": userId,
-      "game_id": gameId,
+      "user_id": widget.userId,
+      "game_id": widget.gameId,
       "book_date": bookDate
     };
 
@@ -168,7 +616,8 @@ class BookingSummaryScreen extends StatelessWidget {
   Future<void> initiatePayment(BuildContext context, int amountInPaisa) async {
     String receiptId = "order_rcpt_${DateTime.now().millisecondsSinceEpoch}";
     final url = Uri.parse("https://api.razorpay.com/v1/orders");
-    String basicAuth = 'Basic ${base64Encode(utf8.encode('rzp_test_viVAhwtbVdu1X4:PsxakTrbRvfQCbZ1vj2lQ1i5'))}';
+    String basicAuth =
+        'Basic ${base64Encode(utf8.encode('rzp_test_viVAhwtbVdu1X4:PsxakTrbRvfQCbZ1vj2lQ1i5'))}';
 
     Map<String, dynamic> payload = {
       "amount": amountInPaisa,
@@ -178,7 +627,12 @@ class BookingSummaryScreen extends StatelessWidget {
     };
 
     try {
-      final response = await http.post(url, headers: {"Authorization": basicAuth, "Content-Type": "application/json"}, body: jsonEncode(payload));
+      final response = await http.post(url,
+          headers: {
+            "Authorization": basicAuth,
+            "Content-Type": "application/json"
+          },
+          body: jsonEncode(payload));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         razorpayController.openCheckout(
@@ -197,18 +651,25 @@ class BookingSummaryScreen extends StatelessWidget {
     }
   }
 
-  Widget buildPaymentRow(String label, String value, {bool bold = false, double fontSize = 14}) {
+  Widget buildPaymentRow(String label, String value,
+      {bool bold = false, double fontSize = 14, Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: fontSize, fontWeight: bold ? FontWeight.bold : FontWeight.normal, color: Colors.white)),
-          Text(value, style: TextStyle(fontSize: fontSize, fontWeight: bold ? FontWeight.bold : FontWeight.normal, color: Colors.white)),
+          Text(label,
+              style: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+                  color: Colors.white)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+                  color: color ?? Colors.white)),
         ],
       ),
     );
   }
-
-  double calculateTotalPrice() => selectedSlots.length * slotPrice;
 }
