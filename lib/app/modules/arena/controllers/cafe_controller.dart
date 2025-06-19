@@ -1,11 +1,13 @@
 import 'package:get/get.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
-import 'package:hash/core/service_locator.dart';
 
 class CybercafesController extends GetxController {
+  final RemoteRepoInterface remoteRepo;
+  
+  CybercafesController({required this.remoteRepo});
+  
   var cybercafes = [].obs; // Observable list to store cybercafes data
   var isLoading = false.obs; // Observable to manage loading state
-  final _remoteRepo = locator<RemoteRepoInterface>();
 
   @override
   void onInit() {
@@ -16,7 +18,7 @@ class CybercafesController extends GetxController {
   Future<void> fetchCybercafes() async {
     isLoading.value = true;
     try {
-      final cafes = await _remoteRepo.fetchCybercafes();
+      final cafes = await remoteRepo.fetchCybercafes();
       cybercafes.value = cafes;
     } catch (e) {
       Get.snackbar('Error', 'Failed to fetch data: $e');

@@ -28,12 +28,12 @@ class HomeView extends StatelessWidget {
               label: '',
               activeIcon: Image.asset('assets/icons/home-02.png',scale: 2.5,color: Color(0xffDE3A3A),),
             ),
-            BottomNavigationBarItem(backgroundColor: Colors.black,
-              icon: Image.asset('assets/icons/target-04.png',scale: 3,color: Colors.grey[800]),
-              label: '',
-              activeIcon: Image.asset('assets/icons/target-04.png',scale: 2.5,color: Color(0xffDE3A3A),),
+            // BottomNavigationBarItem(backgroundColor: Colors.black,
+            //   icon: Image.asset('assets/icons/target-04.png',scale: 3,color: Colors.grey[800]),
+            //   label: '',
+            //   activeIcon: Image.asset('assets/icons/target-04.png',scale: 2.5,color: Color(0xffDE3A3A),),
 
-            ),
+            // ),
 
             BottomNavigationBarItem(backgroundColor: Colors.black,
               icon: Image.asset('assets/icons/gaming-pad-01.png',scale: 2.5,color: Colors.grey[800]),

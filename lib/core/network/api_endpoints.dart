@@ -2,16 +2,16 @@ class ApiEndpoints {
   static const String baseUrl = 'http://34.93.80.156:6000';
 
   static const String checkUserExistsInAPI =
-      'https://hfg-user-onboard.onrender.com/api/users/fid/';
+      'https://hfg-user-onboard-3nzn.onrender.com/api/users/fid/';
 
   static const String signUp =
-      'https://hfg-user-onboard.onrender.com/api/users';
+      'https://hfg-user-onboard-3nzn.onrender.com/api/users';
 
   // Booking related endpoints
   static const String slotsBaseUrl =
       'https://hfg-booking-hmnx.onrender.com/api';
   static const String bookingsBaseUrl =
-      'https://hfg-booking.onrender.com/api/bookings/api';
+      'https://hfg-booking-hmnx.onrender.com/api';
   static const String confirmBooking =
       'https://hfg-booking-hmnx.onrender.com/api/bookings/confirm';
 

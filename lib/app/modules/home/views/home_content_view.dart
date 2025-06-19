@@ -2,32 +2,23 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:hash/core/service/segment_sdk_service.dart';
-import 'package:hash/core/service_locator.dart';
-
-import '../../../../utils/widgets/loader.dart';
-import '../../../data/services/user_controller.dart';
-import '../../../routes/app_routes.dart';
-import '../../arena/controllers/booking_controller.dart';
-import '../../arena/views/arena_section_view.dart';
-import '../../event/event_banner_view.dart';
-import '../../game/views/game_section_view.dart';
-import '../../login/controllers/login_controller.dart';
-import '../../news/news_section_view.dart';
-import '../../rewards/reward_section_view.dart';
-import '../../shop/views/shop_section_view.dart';
-import '../../shorts/views/viral_shots_view.dart';
-import '../../team/team_section_view.dart';
-import '../../tournaments/views/tournament_section_view.dart';
-import '../widgets/booking_card_widget.dart';
+import 'package:hash/utils/widgets/loader.dart';
+import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/app/routes/app_routes.dart';
+import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
+import 'package:hash/app/modules/event/event_banner_view.dart';
+import 'package:hash/app/modules/game/views/game_section_view.dart';
+import 'package:hash/app/modules/login/controllers/login_controller.dart';
+import 'package:hash/app/modules/news/news_section_view.dart';
+import 'package:hash/app/modules/rewards/reward_section_view.dart';
+import 'package:hash/app/modules/shop/views/shop_section_view.dart';
+import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
+import 'package:hash/app/modules/cafe/views/cafe_section_view.dart';
 
 class HomeContentView extends StatelessWidget {
   final BookingController bookingController = Get.put(BookingController());
   final LoginController loginController = Get.put(LoginController());
-  final segmentService = locator<SegmentSdkService>();
 
   HomeContentView({super.key}) {
     // Fetch user bookings when HomeContentView is initialized
@@ -35,21 +26,9 @@ class HomeContentView extends StatelessWidget {
     loginController.checkUserExistsInAPI();
   }
 
-  String _formatTimeTo24Hour(String rawTime) {
-    if (rawTime == 'N/A') return rawTime;
-    try {
-      final DateTime parsedTime = DateFormat('HH:mm:ss').parse(rawTime);
-      return DateFormat('HH:mm').format(parsedTime);
-    } catch (e) {
-      print('Error formatting time: $e');
-      return 'Invalid Time';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final UserController user = Get.find<UserController>();
-    segmentService.onHomeScreenViewed(userId: '');
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -130,69 +109,22 @@ class HomeContentView extends StatelessWidget {
           //   return _buildBookingsSection();
           // }),
           const SizedBox(height: 18),
-          GamerNewsSection(),
+          CafeSection(), // Add the new cafe section
+          const SizedBox(height: 18),
+          const GamerNewsSection(),
           const SizedBox(height: 18),
 
           ViralShotsSection(), // Static widget
           const SizedBox(height: 18),
           ShopSection(), // Static widget
           const SizedBox(height: 18),
-          TournamentsSection(), // Static widget
-          const SizedBox(height: 18),
-          ArenaSection(), // Static widget
-          const SizedBox(height: 18),
-          TeamSection(), // Static widget
-          const SizedBox(height: 18),
+          // const TournamentsSection(), // Static widget
+          // const SizedBox(height: 18),
+
           GamesSection(), // Static widget
           _buildGameOnIndiaBanner(),
         ],
       ),
-    );
-  }
-
-  Widget _buildBookingsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'BOOKINGS',
-          style: TextStyle(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 122,
-          width: Get.width * 0.99,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            shrinkWrap: true,
-            itemCount: bookingController.userBookings.length,
-            itemBuilder: (context, index) {
-              final booking = bookingController.userBookings[index];
-              return BookingCard(
-                gameName: booking['slot']?['gaming_type_id']?['game_name'] ??
-                    'Unknown Game',
-                cafeName: booking['slot']?['gaming_type_id']?['cafe_name']
-                        ['cafe_name'] ??
-                    'Unknown Cafe',
-                startTime: _formatTimeTo24Hour(
-                    booking['slot']?['time']?['start_time'] ?? 'N/A'),
-                endTime: _formatTimeTo24Hour(
-                    booking['slot']?['time']?['end_time'] ?? 'N/A'),
-                status: booking['status'] ?? 'Pending',
-                price: (booking['slot']?['gaming_type_id']
-                            ?['single_slot_price'] ??
-                        0.0)
-                    .toDouble(),
-                location: booking['slot']?['location'] ?? 'Mumbai',
-                bookingId: booking['booking_id'] ?? 0,
-                additionalServices: booking['additional_services'] ?? '',
-                booking: booking,
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 

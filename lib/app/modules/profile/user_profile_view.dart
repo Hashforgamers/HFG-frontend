@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
+import 'package:hash/app/modules/refferal/refferal_view.dart';
 import 'package:hash/app/modules/wallet/views/wallet_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../utils/widgets/glow_neon_loader.dart';
@@ -17,7 +18,7 @@ class UserProfileView extends StatelessWidget {
     UserController userController = Get.put(UserController());
 
     return Scaffold(
-      bottomNavigationBar:  _buildLogoutButton(),
+      bottomNavigationBar: _buildLogoutButton(),
       appBar: AppBar(
         centerTitle: false,
         title: const Text('Profile', style: TextStyle(color: Colors.white)),
@@ -61,6 +62,13 @@ class UserProfileView extends StatelessWidget {
               },
             ),
             _buildProfileOption(
+              icon: CupertinoIcons.person_2,
+              title: 'Refer & Earn',
+              onTap: () {
+                Get.to(RefferalView());
+              },
+            ),
+            _buildProfileOption(
               icon: CupertinoIcons.heart,
               title: 'Wishlist',
               onTap: () {
@@ -82,7 +90,6 @@ class UserProfileView extends StatelessWidget {
               },
             ),
             const SizedBox(height: 30),
-
           ],
         ),
       ),
@@ -92,7 +99,9 @@ class UserProfileView extends StatelessWidget {
   Widget _buildProfileHeader(UserController userController) {
     return Obx(() {
       if (userController.isLoading.value) {
-        return Center(child: RainbowGlowingLoader(size: 50),);
+        return Center(
+          child: RainbowGlowingLoader(size: 50),
+        );
       }
 
       final user = userController.user.value;
@@ -108,11 +117,12 @@ class UserProfileView extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             user.name!,
-            style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+            style: TextStyle(
+                color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
           Text(
-            user.contact?.electronicAddress?.emailId??"",
+            user.contact?.electronicAddress?.emailId ?? "",
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
         ],
@@ -120,7 +130,10 @@ class UserProfileView extends StatelessWidget {
     });
   }
 
-  Widget _buildProfileOption({required IconData icon, required String title, required VoidCallback onTap}) {
+  Widget _buildProfileOption(
+      {required IconData icon,
+      required String title,
+      required VoidCallback onTap}) {
     return ListTile(
       leading: Icon(icon, color: const Color(0xffDE3A3A)),
       title: Text(
@@ -142,16 +155,18 @@ class UserProfileView extends StatelessWidget {
           await prefs.remove('token');
           await prefs.remove('user_data');
 
-          Get.offAllNamed(AppRoutes.LOGIN); // Navigates to the login screen and removes all previous routes
+          Get.offAllNamed(AppRoutes
+              .LOGIN); // Navigates to the login screen and removes all previous routes
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xffFF0000),
+          primary: const Color(0xffFF0000),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
           minimumSize: const Size(double.infinity, 50),
         ),
-        child: const Text('Logout', style: TextStyle(color: Colors.white, fontSize: 18)),
+        child: const Text('Logout',
+            style: TextStyle(color: Colors.white, fontSize: 18)),
       ),
     );
   }
