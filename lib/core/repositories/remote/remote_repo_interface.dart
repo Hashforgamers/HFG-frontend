@@ -1,3 +1,5 @@
+import 'package:hash/core/repositories/model/get_voucher_model.dart';
+
 abstract class RemoteRepoInterface {
 
 
@@ -34,6 +36,7 @@ abstract class RemoteRepoInterface {
     required List<int> bookingIds,
     required String paymentId,
     required String bookDate,
+    String? voucherCode,
   });
 
   // Address related methods
@@ -70,6 +73,9 @@ abstract class RemoteRepoInterface {
   });
   Future<Map<String, dynamic>> validateFunds(String paymentLinkId);
     Future<void> saveReferralCodeToPreferences(String referralCode);
+
+  Future<void> createVoucher({required String userId});
+  Future<List<GetVoucherModel>> getVoucher({required String userId});
 
 
 }

@@ -106,6 +106,7 @@ class RazorpayController extends GetxController {
         bookingIds: bookingIds,
         paymentId: paymentId,
         bookDate: DateTime.now().toIso8601String(),
+        voucherCode: null, // No voucher for Razorpay payments
       );
       print('✅ Booking confirmation successful!');
       Get.to(() => PastBookingsScreen());

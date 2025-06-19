@@ -1,7 +1,9 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/network_config.dart';
+import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
@@ -246,16 +248,24 @@ class RemoteRepo implements RemoteRepoInterface {
     required List<int> bookingIds,
     required String paymentId,
     required String bookDate,
+    String? voucherCode,
   }) async {
     final dio = networkProvider.noAuth();
     try {
+      final Map<String, dynamic> requestData = {
+        "booking_id": bookingIds,
+        "payment_id": paymentId,
+        "book_date": bookDate,
+      };
+      
+      // Add voucher code if provided
+      if (voucherCode != null && voucherCode.isNotEmpty) {
+        requestData["voucher_code"] = voucherCode;
+      }
+
       final response = await dio.post(
         ApiEndpoints.confirmBooking,
-        data: {
-          "booking_id": bookingIds,
-          "payment_id": paymentId,
-          "book_date": bookDate,
-        },
+        data: requestData,
       );
 
       if (response.statusCode == 200) {
@@ -563,5 +573,62 @@ class RemoteRepo implements RemoteRepoInterface {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('referralCode', referralCode);
     print('Referral code saved to preferences.');
+  }
+
+  @override
+  Future<void> createVoucher({required String userId}) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio
+          .post(ApiEndpoints.createVoucher.replaceAll('{userId}', userId));
+      if (response.statusCode == 200) {
+        return response.data;
+      } else if (response.statusCode == 400) {
+        final responseData = response.data;
+        String errorMessage = 'Failed to create voucher.';
+        if (responseData is Map<String, dynamic> &&
+            responseData.containsKey('error')) {
+          errorMessage = responseData['error'];
+        }
+        debugPrint('Voucher creation failed: $errorMessage');
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      debugPrint('Error creating voucher: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<GetVoucherModel>> getVoucher({required String userId}) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response =
+          await dio.get(ApiEndpoints.getVoucher.replaceAll('{userId}', userId));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = response.data;
+        
+        // The API returns {"vouchers": [...]}, so we need to extract the vouchers array
+        if (responseData.containsKey('vouchers')) {
+          final List<dynamic> vouchersList = responseData['vouchers'] as List<dynamic>;
+          
+          // Convert each voucher to GetVoucherModel
+          return vouchersList.map((voucherData) {
+            // Create a wrapper structure that matches GetVoucherModel.fromJson expectation
+            final wrapper = {'vouchers': [voucherData]};
+            return GetVoucherModel.fromJson(wrapper);
+          }).toList();
+        } else {
+          // If no vouchers field, return empty list
+          return [];
+        }
+      } else {
+        throw Exception(
+            'Failed to get voucher. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error getting voucher: $e');
+      rethrow;
+    }
   }
 }

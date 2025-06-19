@@ -10,12 +10,12 @@ class ArenaDetailView extends StatefulWidget {
   final String title;
   final String address;
   final String openingHours;
-  final List<String> availableGames;
-  final List<String> amenities;
+  final List<dynamic> availableGames;
+  final List<dynamic> amenities;
   final String contactInfo;
   final String images;
   final int vendorId;
-  final List<String> reviews;
+  final List<dynamic> reviews;
 
   ArenaDetailView({
     required this.title,
@@ -174,7 +174,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                   ),
                   child: ListTile(
                     leading: const Icon(Icons.person, color: Colors.white),
-                    title: Text(review, style: const TextStyle(color: Colors.white)),
+                    title: Text(review.toString(), style: const TextStyle(color: Colors.white)),
                   ),
                 )),
                 const SizedBox(height: 16),
@@ -204,7 +204,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
   );
 
-  Widget sectionChip(String title, List<String> items, {bool includeIcon = false}) => Column(
+  Widget sectionChip(String title, List<dynamic> items, {bool includeIcon = false}) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
@@ -213,6 +213,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         spacing: 8,
         runSpacing: 8,
         children: items
+            .where((item) {
+              // For amenities, check if available is true
+              if (includeIcon && item is Map) {
+                return item['available'] == true;
+              }
+              return true; // For other items, show all
+            })
             .map((item) => Chip(
           label: includeIcon
               ? Row(
@@ -220,10 +227,16 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             children: [
               const Icon(Icons.check, size: 16, color: Colors.white),
               const SizedBox(width: 4),
-              Text(item, style: const TextStyle(color: Colors.white))
+              Text(
+                item is Map ? item['name']?.toString() ?? 'Unknown' : item.toString(), 
+                style: const TextStyle(color: Colors.white)
+              )
             ],
           )
-              : Text(item, style: const TextStyle(color: Colors.white)),
+              : Text(
+                item is Map ? item['name']?.toString() ?? 'Unknown' : item.toString(), 
+                style: const TextStyle(color: Colors.white)
+              ),
           backgroundColor: const Color(0xff0E0E0E),
           side: const BorderSide(color: Color(0xff2D2D2D)),
         ))
