@@ -610,14 +610,8 @@ class RemoteRepo implements RemoteRepoInterface {
         
         // The API returns {"vouchers": [...]}, so we need to extract the vouchers array
         if (responseData.containsKey('vouchers')) {
-          final List<dynamic> vouchersList = responseData['vouchers'] as List<dynamic>;
-          
-          // Convert each voucher to GetVoucherModel
-          return vouchersList.map((voucherData) {
-            // Create a wrapper structure that matches GetVoucherModel.fromJson expectation
-            final wrapper = {'vouchers': [voucherData]};
-            return GetVoucherModel.fromJson(wrapper);
-          }).toList();
+          // Create a single GetVoucherModel with all vouchers
+          return [GetVoucherModel.fromJson(responseData)];
         } else {
           // If no vouchers field, return empty list
           return [];

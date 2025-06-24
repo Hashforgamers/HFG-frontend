@@ -17,7 +17,7 @@ class ArenaDetailView extends StatefulWidget {
   final int vendorId;
   final List<dynamic> reviews;
 
-  ArenaDetailView({
+  const ArenaDetailView({
     required this.title,
     required this.address,
     required this.openingHours,
@@ -225,7 +225,11 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               ? Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.check, size: 16, color: Colors.white),
+              Icon(
+                _getAmenityIcon(item is Map ? item['name']?.toString() ?? '' : item.toString()),
+                size: 16,
+                color: Colors.white
+              ),
               const SizedBox(width: 4),
               Text(
                 item is Map ? item['name']?.toString() ?? 'Unknown' : item.toString(), 
@@ -244,4 +248,46 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       )
     ],
   );
+
+  IconData _getAmenityIcon(String amenityName) {
+    final name = amenityName.toLowerCase();
+    
+    // Gaming related amenities
+    if (name.contains('ps5') || name.contains('playstation')) return Icons.games;
+    if (name.contains('xbox')) return Icons.games;
+    if (name.contains('pc') || name.contains('computer')) return Icons.computer;
+    if (name.contains('gaming') || name.contains('game')) return Icons.sports_esports;
+    
+    // Food & Beverage
+    if (name.contains('food') || name.contains('meal') || name.contains('snack')) return Icons.restaurant;
+    if (name.contains('coffee') || name.contains('tea') || name.contains('drink')) return Icons.local_cafe;
+    if (name.contains('water') || name.contains('beverage')) return Icons.local_drink;
+    
+    // Comfort & Facilities
+    if (name.contains('ac') || name.contains('air conditioning')) return Icons.ac_unit;
+    if (name.contains('wifi') || name.contains('internet')) return Icons.wifi;
+    if (name.contains('parking')) return Icons.local_parking;
+    if (name.contains('toilet') || name.contains('washroom') || name.contains('bathroom')) return Icons.wc;
+    if (name.contains('charging') || name.contains('power')) return Icons.power;
+    if (name.contains('headphone') || name.contains('audio')) return Icons.headphones;
+    if (name.contains('chair') || name.contains('seat')) return Icons.chair;
+    if (name.contains('table')) return Icons.table_restaurant;
+    
+    // Entertainment
+    if (name.contains('tv') || name.contains('television')) return Icons.tv;
+    if (name.contains('music') || name.contains('sound')) return Icons.music_note;
+    if (name.contains('lighting') || name.contains('light')) return Icons.lightbulb;
+    
+    // Security & Safety
+    if (name.contains('security') || name.contains('cctv')) return Icons.security;
+    if (name.contains('first aid') || name.contains('medical')) return Icons.medical_services;
+    
+    // General amenities
+    if (name.contains('locker') || name.contains('storage')) return Icons.lock;
+    if (name.contains('fan') || name.contains('ventilation')) return Icons.air;
+    if (name.contains('clean') || name.contains('hygiene')) return Icons.cleaning_services;
+    
+    // Default icon for unknown amenities
+    return Icons.check;
+  }
 }
