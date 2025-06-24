@@ -6,7 +6,7 @@ import '../controller/refferal_controller.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 
 class ReferralViewWithController extends StatefulWidget {
-  ReferralViewWithController({Key? key}) : super(key: key);
+  const ReferralViewWithController({Key? key}) : super(key: key);
 
   @override
   State<ReferralViewWithController> createState() =>
@@ -250,7 +250,7 @@ class _ReferralViewWithControllerState
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.card_giftcard,
                             color: Colors.white,
                             size: 20,
