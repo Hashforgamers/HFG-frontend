@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/app/modules/arena/models/slot_model.dart';
 
 class BookingController extends GetxController {
   final isLoading = false.obs;
@@ -32,6 +33,13 @@ class BookingController extends GetxController {
         gameId: gameId,
         date: date,
       );
+      
+      // Debug logging to understand the slot structure
+      print('Fetched ${slotList.length} slots');
+      if (slotList.isNotEmpty) {
+        print('First slot structure: ${slotList.first}');
+      }
+      
       slots.assignAll(slotList);
     } catch (e) {
       _logError('Error fetching slots: $e');
