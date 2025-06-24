@@ -7,6 +7,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shimmer/shimmer.dart';
 
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
+import 'package:hash/app/modules/arena/models/slot_model.dart';
 import 'booking_summary_screen.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -84,9 +85,69 @@ class _BookingScreenState extends State<BookingScreen> {
 
           if (controller.slots.isEmpty) {
             return Center(
-              child: Text(
-                'No slots available',
-                style: TextStyle(color: Colors.white),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.schedule,
+                    size: 64,
+                    color: Colors.grey[600],
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'No slots available',
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Try selecting a different date',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Check if there are any available slots
+          final availableSlots = controller.slots.where((slot) {
+            final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+            return isAvailable;
+          }).toList();
+          if (availableSlots.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.computer,
+                    size: 64,
+                    color: Colors.grey[600],
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'No available slots for this date',
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'All slots are currently booked',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             );
           }
@@ -105,12 +166,37 @@ class _BookingScreenState extends State<BookingScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Global Gaming Cafe | $selectedDateText',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Global Gaming Cafe | $selectedDateText',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Obx(() {
+                      final availableSlots = controller.slots.where((slot) {
+                        final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+                        return isAvailable;
+                      }).toList();
+                      final totalAvailablePCs = availableSlots.fold<int>(0, (sum, slot) {
+                        final int availablePCs = slot['available_slot'] ?? slot['availableSlot'] ?? slot['available_slots'] ?? 0;
+                        return sum + availablePCs;
+                      });
+                      return Text(
+                        '$totalAvailablePCs PCs available across ${availableSlots.length} time slots',
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 14,
+                        ),
+                      );
+                    }),
+                  ],
                 ),
               ),
               IconButton(
@@ -132,7 +218,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     setState(() {
                       selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
                       selectedDateText = DateFormat('dd MMM, yyyy').format(pickedDate);
-                      controller.fetchSlots(vendorId: 1, gameId: widget.gameId, date: selectedDate);
+                      controller.fetchSlots(vendorId: widget.vendorId, gameId: widget.gameId, date: selectedDate);
                     });
                   }
                 },
@@ -146,7 +232,13 @@ class _BookingScreenState extends State<BookingScreen> {
             itemCount: controller.slots.length,
             itemBuilder: (context, index) {
               final slot = controller.slots[index];
-              return buildSlotItem(slot, index);
+              // Check availability with fallback field names
+              final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+              if (isAvailable) {
+                return buildSlotItem(slot, index);
+              } else {
+                return SizedBox.shrink(); // Hide unavailable slots
+              }
             },
           ),
         ),
@@ -166,6 +258,9 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget buildSlotItem(Map<String, dynamic> slot, int index) {
+    // Get the number of available PCs for this slot with fallback
+    final int availablePCs = slot['available_slot'] ?? slot['availableSlot'] ?? slot['available_slots'] ?? 0;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Container(
@@ -178,28 +273,74 @@ class _BookingScreenState extends State<BookingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Slot: ${formatTime(slot['start_time'])} - ${formatTime(slot['end_time'])}',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.85),
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Slot: ${formatTime(slot['start_time'])} - ${formatTime(slot['end_time'])}',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.withOpacity(0.5)),
+                  ),
+                  child: Text(
+                    '$availablePCs PC${availablePCs > 1 ? 's' : ''} Available',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: List.generate(
-                  6,
-                      (pcIndex) => buildPCSlotRow(
-                    pcIndex: pcIndex + 1,
-                    timeIndex: index,
-                    slotId: slot['slot_id'],
+            if (availablePCs > 0) ...[
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: List.generate(
+                    availablePCs,
+                    (pcIndex) => buildPCSlotRow(
+                      pcIndex: pcIndex + 1,
+                      timeIndex: index,
+                      slotId: slot['slot_id'] ?? slot['id'],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ] else ...[
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.red, size: 16),
+                    SizedBox(width: 8),
+                    Text(
+                      'No PCs available for this slot',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -349,7 +490,7 @@ class _BookingScreenState extends State<BookingScreen> {
         final slot = controller.slots[timeIndex];
         selectedSlotDetails.add({
           "pc_index": pcIndex,
-          "slot_id": slot['slot_id'],
+          "slot_id": slot['slot_id'] ?? slot['id'],
           "start_time": slot['start_time'],
           "end_time": slot['end_time'],
           "price": slot['single_slot_price'] ?? 50,
