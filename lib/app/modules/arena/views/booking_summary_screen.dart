@@ -31,7 +31,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final _remoteRepo = locator<RemoteRepoInterface>();
 
   final String userName = "Shen";
-  final double slotPrice = 50.0;
 
   // Voucher related variables
   final TextEditingController _voucherController = TextEditingController();
@@ -40,6 +39,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final Rx<Voucher?> _appliedVoucher = Rx<Voucher?>(null);
   final RxBool _isApplyingVoucher = false.obs;
   final RxString _voucherError = ''.obs;
+  
+  // Payment processing state
+  final RxBool _isProcessingPayment = false.obs;
 
   @override
   void initState() {
@@ -109,6 +111,20 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
   }
 
+  void _selectVoucher(Voucher voucher) {
+    if (voucher.isActive) {
+      _voucherController.text = voucher.code;
+      _applyVoucher();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('This voucher is not active'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _removeVoucher() {
     _appliedVoucher.value = null;
     _voucherController.clear();
@@ -116,7 +132,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   }
 
   double calculateTotalPrice() {
-    double subtotal = widget.selectedSlots.length * slotPrice;
+    // Calculate subtotal using actual prices from selected slots
+    double subtotal = widget.selectedSlots.fold(0.0, (sum, slot) {
+      double slotPrice = (slot['price'] ?? 50.0).toDouble();
+      return sum + slotPrice;
+    });
 
     if (_appliedVoucher.value != null) {
       double discount =
@@ -129,10 +149,20 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   double calculateDiscount() {
     if (_appliedVoucher.value != null) {
-      double subtotal = widget.selectedSlots.length * slotPrice;
+      double subtotal = widget.selectedSlots.fold(0.0, (sum, slot) {
+        double slotPrice = (slot['price'] ?? 50.0).toDouble();
+        return sum + slotPrice;
+      });
       return subtotal * (_appliedVoucher.value!.discountPercentage / 100);
     }
     return 0.0;
+  }
+
+  double calculateSubtotal() {
+    return widget.selectedSlots.fold(0.0, (sum, slot) {
+      double slotPrice = (slot['price'] ?? 50.0).toDouble();
+      return sum + slotPrice;
+    });
   }
 
   @override
@@ -166,6 +196,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     Divider(color: Colors.grey.shade800),
                 itemBuilder: (context, index) {
                   final slot = widget.selectedSlots[index];
+                  final double slotPrice = (slot['price'] ?? 50.0).toDouble();
                   return ListTile(
                     tileColor: Colors.grey.shade900,
                     shape: RoundedRectangleBorder(
@@ -176,6 +207,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     subtitle: Text(
                         'Time: ${slot['start_time']} - ${slot['end_time']}',
                         style: const TextStyle(color: Colors.white70)),
+                    trailing: Text(
+                        '₹${slotPrice.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, 
+                            color: Colors.green,
+                            fontSize: 16)),
                   );
                 },
               ),
@@ -217,11 +254,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               Obx(() {
                 double totalPrice = calculateTotalPrice();
                 double discount = calculateDiscount();
+                double subtotal = calculateSubtotal();
 
                 return Column(
                   children: [
                     buildPaymentRow('Sub Total',
-                        '₹${(widget.selectedSlots.length * slotPrice).toStringAsFixed(2)}'),
+                        '₹${subtotal.toStringAsFixed(2)}'),
                     if (discount > 0) ...[
                       buildPaymentRow(
                           'Discount', '-₹${discount.toStringAsFixed(2)}',
@@ -264,15 +302,21 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
                 ),
-                child: Obx(() => bookingController.isLoading.value
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                    : const Text('PROCEED',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold))),
+                child: Obx(() {
+                  if (bookingController.isLoading.value || _isProcessingPayment.value) {
+                    return const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white, 
+                        strokeWidth: 2
+                      )
+                    );
+                  }
+                  return const Text('PROCEED',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold));
+                }),
               ),
             ],
           ),
@@ -451,55 +495,58 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       itemCount: _availableVouchers.length,
                       itemBuilder: (context, index) {
                         final voucher = _availableVouchers[index];
-                        return Container(
-                          width: 140,
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: voucher.isActive
-                                ? Colors.deepOrange.withOpacity(0.1)
-                                : Colors.grey.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
+                        return GestureDetector(
+                          onTap: () => _selectVoucher(voucher),
+                          child: Container(
+                            width: 140,
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
                               color: voucher.isActive
-                                  ? Colors.deepOrange.withOpacity(0.3)
-                                  : Colors.grey.withOpacity(0.3),
+                                  ? Colors.deepOrange.withOpacity(0.1)
+                                  : Colors.grey.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: voucher.isActive
+                                    ? Colors.deepOrange.withOpacity(0.3)
+                                    : Colors.grey.withOpacity(0.3),
+                              ),
                             ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                voucher.code,
-                                style: TextStyle(
-                                  color: voucher.isActive
-                                      ? Colors.deepOrange
-                                      : Colors.grey,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  voucher.code,
+                                  style: TextStyle(
+                                    color: voucher.isActive
+                                        ? Colors.deepOrange
+                                        : Colors.grey,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${voucher.discountPercentage}% OFF',
-                                style: TextStyle(
-                                  color: voucher.isActive
-                                      ? Colors.white
-                                      : Colors.grey,
-                                  fontSize: 10,
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${voucher.discountPercentage}% OFF',
+                                  style: TextStyle(
+                                    color: voucher.isActive
+                                        ? Colors.white
+                                        : Colors.grey,
+                                    fontSize: 10,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                voucher.isActive ? 'Active' : 'Inactive',
-                                style: TextStyle(
-                                  color: voucher.isActive
-                                      ? Colors.green
-                                      : Colors.red,
-                                  fontSize: 10,
+                                const SizedBox(height: 4),
+                                Text(
+                                  voucher.isActive ? 'Active' : 'Inactive',
+                                  style: TextStyle(
+                                    color: voucher.isActive
+                                        ? Colors.green
+                                        : Colors.red,
+                                    fontSize: 10,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       },
@@ -541,8 +588,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       await confirmBookingWithVoucher(bookingIds, _appliedVoucher.value!.code);
     } else {
       // Normal payment flow with Razorpay
-      razorpayController.bookingIdList.value = bookingIds;
-      await initiatePayment(context, amountInPaisa);
+      _isProcessingPayment(true);
+      try {
+        razorpayController.bookingIdList.value = bookingIds;
+        await initiatePayment(context, amountInPaisa);
+      } finally {
+        _isProcessingPayment(false);
+      }
     }
   }
 
