@@ -55,4 +55,11 @@ class ApiEndpoints {
   static const String createVoucher = '$baseUrl/{userId}/create-voucher';
   // Get Voucher
   static const String getVoucher = '$baseUrl/{userId}/voucher';
+
+  // Get HashCoin For a User By User ID
+  static const String getHashCoin = '$baseUrl/{userId}/hash-coins';
+
+  // Create offer using HashCoins
+  static const String createOffer = 'https://hfg-booking-hmnx.onrender.com/api/redeem-voucher';
+
 }

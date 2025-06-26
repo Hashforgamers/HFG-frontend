@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/network_config.dart';
+import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -257,7 +258,7 @@ class RemoteRepo implements RemoteRepoInterface {
         "payment_id": paymentId,
         "book_date": bookDate,
       };
-      
+
       // Add voucher code if provided
       if (voucherCode != null && voucherCode.isNotEmpty) {
         requestData["voucher_code"] = voucherCode;
@@ -607,7 +608,7 @@ class RemoteRepo implements RemoteRepoInterface {
           await dio.get(ApiEndpoints.getVoucher.replaceAll('{userId}', userId));
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = response.data;
-        
+
         // The API returns {"vouchers": [...]}, so we need to extract the vouchers array
         if (responseData.containsKey('vouchers')) {
           // Create a single GetVoucherModel with all vouchers
@@ -622,6 +623,49 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       debugPrint('Error getting voucher: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<int> getHashCoin({required String userId}) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.get(
+        ApiEndpoints.getHashCoin.replaceAll('{userId}', userId),
+      );
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = response.data;
+        // Handle null case by returning 0 if hash_coin is null
+        final hashCoin = responseData['hash_coins'];
+        return hashCoin is int ? hashCoin : 0;
+      } else {
+        throw Exception(
+            'Failed to get hash coin. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error getting hash coin: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<CreateVoucherResponse> createOffer(
+      {required int discountPercentage, required String userId}) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.post(ApiEndpoints.createOffer, data: {
+        'discount_percentage': discountPercentage,
+        'user_id': userId,
+      });
+      if (response.statusCode == 200) {
+        return CreateVoucherResponse.fromJson(response.data);
+      } else {
+        throw Exception(
+            'Failed to create offer. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error creating offer: $e');
       rethrow;
     }
   }

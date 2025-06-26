@@ -156,8 +156,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                 ),
                 const SizedBox(height: 20),
                 sectionChip("Available Games:", widget.availableGames),
+                const SizedBox(height: 16),
+                gameTitlesGrid(widget.availableGames),
                 const SizedBox(height: 20),
-                sectionChip("Amenities:", widget.amenities, includeIcon: true),
+                amenitiesGrid(widget.amenities),
                 const SizedBox(height: 20),
                 Text("Contact Information:", style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
                 const SizedBox(height: 8),
@@ -248,6 +250,117 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       )
     ],
   );
+
+  Widget gameTitlesGrid(List<dynamic> games) {
+    // Example static mapping for popular games
+    final Map<String, String> gameImages = {
+      'fifa': 'https://cdn.cloudflare.steamstatic.com/steam/apps/1506830/header.jpg',
+      'valorant': 'https://static.wikia.nocookie.net/valorant/images/2/2a/VALORANT_icon.png',
+      'csgo': 'https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg',
+      'ps5': 'https://static0.gamerantimages.com/wordpress/wp-content/uploads/2020/01/00bcfa0319c7e24446f9ddaaeb57f15e.jpg',
+      'xbox': 'https://sm.ign.com/ign_in/screenshot/default/48de604b-99ee-4400-a600-6958a71f0959_caj1.jpg',
+      // Add more as needed
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Game Titles", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 120,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: games.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, index) {
+              final game = games[index];
+              final name = (game is Map ? game['name'] ?? game['game_name'] : game).toString().toLowerCase();
+              final displayName = name.replaceAll('_', ' ').split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' ');
+              final imageUrl = gameImages[name] ?? 'https://storage.googleapis.com/webdesignledger.pub.network/WDL/6f050e39-windows_10_logoblue.svg-copy_windows.jpg';
+
+              return Container(
+                width: 90,
+                decoration: BoxDecoration(
+                  color: const Color(0xff181818),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xff2D2D2D)),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(imageUrl, width: 60, height: 60, fit: BoxFit.cover),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      child: Text(
+                        displayName,
+                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget amenitiesGrid(List<dynamic> amenities) {
+    final filtered = amenities.where((item) => item is Map && item['available'] == true).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Facilities", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 18,
+          runSpacing: 18,
+          children: filtered.map<Widget>((item) {
+            final name = item['name']?.toString() ?? '';
+            final displayName = name.replaceAll('_', ' ').split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' ');
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xff181818),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _getAmenityIcon(name),
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: 70,
+                  child: Text(
+                    displayName,
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
 
   IconData _getAmenityIcon(String amenityName) {
     final name = amenityName.toLowerCase();

@@ -2,9 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hash/app/modules/hash_coin/pages/hash_coin_page.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
-import 'package:hash/app/modules/wallet/views/wallet_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../utils/widgets/glow_neon_loader.dart';
 import '../../data/services/user_controller.dart';
@@ -58,7 +58,8 @@ class UserProfileView extends StatelessWidget {
               title: 'Wallet',
               onTap: () {
                 // Handle wallet
-                Get.to(WalletDetailView());
+                // Get.to(WalletDetailView());
+                Get.to(const HashCoinPage());
               },
             ),
             _buildProfileOption(
