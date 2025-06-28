@@ -5,6 +5,7 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 
 import '../arena/views/past_booking_screen.dart';
+import '../home/controllers/home_controller.dart';
 
 class RazorpayController extends GetxController {
   late Razorpay _razorpay;
@@ -12,6 +13,10 @@ class RazorpayController extends GetxController {
 
   // Store multiple booking IDs after booking API response
   RxList<int> bookingIdList = <int>[].obs;
+  
+  // Payment status for UI feedback
+  RxBool isPaymentInProgress = false.obs;
+  RxString paymentStatus = ''.obs;
 
   @override
   void onInit() {
@@ -50,9 +55,12 @@ class RazorpayController extends GetxController {
     };
 
     try {
+      paymentStatus.value = 'Payment gateway opened. Please complete payment...';
       _razorpay.open(options);
     } catch (e) {
       print('Error while opening Razorpay Checkout: $e');
+      isPaymentInProgress(false);
+      paymentStatus.value = '';
       Get.snackbar(
         'Checkout Error',
         'Failed to open Razorpay Checkout.',
@@ -64,9 +72,12 @@ class RazorpayController extends GetxController {
   /// Handle Successful Payment
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
     print("✅ Payment successful: ${response.paymentId}");
+    paymentStatus.value = 'Payment successful! Confirming booking...';
 
     if (bookingIdList.isEmpty) {
       print("⚠️ No booking IDs to confirm.");
+      isPaymentInProgress(false);
+      paymentStatus.value = '';
       return;
     }
 
@@ -79,6 +90,8 @@ class RazorpayController extends GetxController {
   /// Handle Payment Error
   void _handlePaymentError(PaymentFailureResponse response) {
     print('❌ Payment failed: ${response.code} - ${response.message}');
+    isPaymentInProgress(false);
+    paymentStatus.value = '';
     Get.snackbar(
       'Payment Failed',
       'Error: ${response.message}',
@@ -109,9 +122,24 @@ class RazorpayController extends GetxController {
         voucherCode: null, // No voucher for Razorpay payments
       );
       print('✅ Booking confirmation successful!');
-      Get.to(() => PastBookingsScreen());
+      
+      // Stop loading
+      isPaymentInProgress(false);
+      paymentStatus.value = '';
+      
+      // Navigate to past bookings first
+      await Get.to(() => PastBookingsScreen());
+      
+      // Then navigate back to home with arena tab selected
+      // This ensures when user presses back, they go to cafe page
+      final homeController = Get.find<HomeController>();
+      homeController.onItemTapped(1); // Select arena/cafe tab
+      Get.offAllNamed('/home'); // Replace all routes with home
+      
     } catch (e) {
       print('🔥 Error confirming booking: $e');
+      isPaymentInProgress(false);
+      paymentStatus.value = '';
       Get.snackbar(
         'Error',
         'Failed to confirm booking: $e',

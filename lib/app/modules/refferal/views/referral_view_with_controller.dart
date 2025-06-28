@@ -34,81 +34,81 @@ class _ReferralViewWithControllerState
       color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18);
 
   /* -------------------------------------------------------------------------- */
-  Widget _tierProgressCard(ReferralController controller) {
-    /// Get real data from controller
-    final currentReferrals = controller.getReferralRewards();
-    const tier1 = 1;
-    const tier2 = 5;
-    const tier3 = 10;
-    const amountEarnable = '₹25,000';
+  // Widget _tierProgressCard(ReferralController controller) {
+  //   /// Get real data from controller
+  //   final currentReferrals = controller.getReferralRewards();
+  //   const tier1 = 1;
+  //   const tier2 = 5;
+  //   const tier3 = 10;
+  //   const amountEarnable = '₹25,000';
 
-    return Container(
-      width: 320,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-          color: _darkCard, borderRadius: BorderRadius.circular(24)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Amount you will Earn', style: _heading.copyWith(fontSize: 16)),
-          const SizedBox(height: 8),
-          Text(amountEarnable,
-              style: GoogleFonts.inter(
-                  fontSize: 32, fontWeight: FontWeight.w800, color: _accent)),
-          const SizedBox(height: 16),
-          Text('When you refer', style: _heading.copyWith(fontSize: 14)),
-          const SizedBox(height: 6),
-          _tierSlider(currentReferrals, [tier1, tier2, tier3]),
-          const SizedBox(height: 12),
-          // Create Voucher Button
-          Obx(() => Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xff008BFF), Color(0xff0FEBFF)],
-                  ),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: controller.isLoading.value
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : GestureDetector(
-                        onTap: () => controller.createVoucher(),
-                        child: Text('Create Voucher',
-                            style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white)),
-                      ),
-              )),
-          const SizedBox(height: 24),
-          Text('How it Works', style: _heading),
-          const SizedBox(height: 14),
-          _howItWorksStep(
-              'Share your referral link/code with your friends', Icons.share),
-          _howItWorksStep(
-              'Friend registers on HashforGamers using your link/code',
-              Icons.person_add_alt_1),
-          _howItWorksStep(
-              'You both earn rewards when your friend makes a booking',
-              Icons.card_giftcard),
-        ],
-      ),
-    );
-  }
+  //   return Container(
+  //     width: 320,
+  //     padding: const EdgeInsets.all(24),
+  //     decoration: BoxDecoration(
+  //         color: _darkCard, borderRadius: BorderRadius.circular(24)),
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         // Text('Amount you will Earn', style: _heading.copyWith(fontSize: 16)),
+  //         // const SizedBox(height: 8),
+  //         // Text(amountEarnable,
+  //         //     style: GoogleFonts.inter(
+  //         //         fontSize: 32, fontWeight: FontWeight.w800, color: _accent)),
+  //         // const SizedBox(height: 16),
+  //         // Text('When you refer', style: _heading.copyWith(fontSize: 14)),
+  //         // const SizedBox(height: 6),
+  //         // _tierSlider(currentReferrals, [tier1, tier2, tier3]),
+  //         const SizedBox(height: 12),
+  //         // Create Voucher Button
+  //         Obx(() => Container(
+  //               width: double.infinity,
+  //               padding: const EdgeInsets.symmetric(vertical: 10),
+  //               alignment: Alignment.center,
+  //               decoration: BoxDecoration(
+  //                 gradient: const LinearGradient(
+  //                   colors: [Color(0xff008BFF), Color(0xff0FEBFF)],
+  //                 ),
+  //                 borderRadius: BorderRadius.circular(30),
+  //               ),
+  //               child: controller.isLoading.value
+  //                   ? const SizedBox(
+  //                       height: 20,
+  //                       width: 20,
+  //                       child: CircularProgressIndicator(
+  //                         color: Colors.white,
+  //                         strokeWidth: 2,
+  //                       ),
+  //                     )
+  //                   : GestureDetector(
+  //                       onTap: () => controller.createVoucher(),
+  //                       child: Text('Create Voucher',
+  //                           style: GoogleFonts.inter(
+  //                               fontWeight: FontWeight.w600,
+  //                               color: Colors.white)),
+  //                     ),
+  //             )),
+  //         const SizedBox(height: 24),
+  //         Text('How it Works', style: _heading),
+  //         const SizedBox(height: 14),
+  //         _howItWorksStep(
+  //             'Share your referral link/code with your friends', Icons.share),
+  //         _howItWorksStep(
+  //             'Friend registers on HashforGamers using your link/code',
+  //             Icons.person_add_alt_1),
+  //         _howItWorksStep(
+  //             'You both earn rewards when your friend makes a booking',
+  //             Icons.card_giftcard),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _tierSlider(int current, List<int> tiers) {
     // Clamp the current value to the valid range to prevent slider assertion errors
     final maxValue = tiers.last.toDouble();
     final clampedValue = current.toDouble().clamp(0.0, maxValue);
-    
+
     return Column(children: [
       SliderTheme(
         data: SliderThemeData(
@@ -176,7 +176,7 @@ class _ReferralViewWithControllerState
                     spreadRadius: 1,
                     blurRadius: 8)
               ]),
-          child: Text('Refer & Earn  ₹₹ Unlimited',
+          child: Text('Refer & Earn Vouchers',
               style: GoogleFonts.inter(
                   fontWeight: FontWeight.w800, color: Colors.black)),
         ),
@@ -272,7 +272,7 @@ class _ReferralViewWithControllerState
         // mini progress inside the central card
         _miniProgressBar(controller),
       ]),
-    );
+    ); 
   }
 
   List<Widget> _shareBtns() {
@@ -375,13 +375,13 @@ class _ReferralViewWithControllerState
                 children: [
                   Text('Your Vouchers', style: _heading),
                   Obx(() => Text(
-                    '${controller.vouchers.length} voucher${controller.vouchers.length == 1 ? '' : 's'}',
-                    style: GoogleFonts.inter(
-                      color: Colors.white54,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  )),
+                        '${controller.vouchers.length} voucher${controller.vouchers.length == 1 ? '' : 's'}',
+                        style: GoogleFonts.inter(
+                          color: Colors.white54,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      )),
                 ],
               ),
             ),
@@ -444,7 +444,8 @@ class _ReferralViewWithControllerState
             return Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(12),
@@ -475,7 +476,8 @@ class _ReferralViewWithControllerState
                 ),
                 const SizedBox(height: 12),
                 Container(
-                  height: 350, // Slightly smaller height to accommodate search bar
+                  height:
+                      350, // Slightly smaller height to accommodate search bar
                   child: ListView.builder(
                     padding: EdgeInsets.zero,
                     itemCount: controller.vouchers.length,
@@ -504,7 +506,9 @@ class _ReferralViewWithControllerState
 
           // For few vouchers, use regular column
           return Column(
-            children: controller.vouchers.map((voucher) => _voucherItem(voucher)).toList(),
+            children: controller.vouchers
+                .map((voucher) => _voucherItem(voucher))
+                .toList(),
           );
         }),
       ]),
@@ -558,7 +562,8 @@ class _ReferralViewWithControllerState
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: isActive ? _accent : Colors.white24,
                   borderRadius: BorderRadius.circular(20),
@@ -580,7 +585,9 @@ class _ReferralViewWithControllerState
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isActive ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                  color: isActive
+                      ? Colors.green.withOpacity(0.2)
+                      : Colors.red.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -611,13 +618,15 @@ class _ReferralViewWithControllerState
                   );
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Voucher code ${voucher.code} copied to share!'),
+                      content:
+                          Text('Voucher code ${voucher.code} copied to share!'),
                       backgroundColor: _accent,
                     ),
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: _accent.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
@@ -689,7 +698,7 @@ class _ReferralViewWithControllerState
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
           child: Column(children: [
-            _tierProgressCard(referralController),
+            // _tierProgressCard(referralController),
             const SizedBox(height: 26),
             _centralReferralCard(context, referralController),
             const SizedBox(height: 26),

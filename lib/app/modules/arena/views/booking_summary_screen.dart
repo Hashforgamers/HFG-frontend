@@ -7,6 +7,7 @@ import '../controllers/booking_controller.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
 import '../../../../core/repositories/remote/remote_repo_interface.dart';
 import '../../../../core/service_locator.dart';
+import '../../home/controllers/home_controller.dart';
 import 'past_booking_screen.dart';
 
 class BookingSummaryScreen extends StatefulWidget {
@@ -14,12 +15,12 @@ class BookingSummaryScreen extends StatefulWidget {
   final int gameId;
   final int userId;
 
-  BookingSummaryScreen(
-      {Key? key,
-      required this.selectedSlots,
-      required this.gameId,
-      required this.userId})
-      : super(key: key);
+  const BookingSummaryScreen({
+    super.key,
+    required this.selectedSlots,
+    required this.gameId,
+    required this.userId,
+  });
 
   @override
   State<BookingSummaryScreen> createState() => _BookingSummaryScreenState();
@@ -39,20 +40,49 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final Rx<Voucher?> _appliedVoucher = Rx<Voucher?>(null);
   final RxBool _isApplyingVoucher = false.obs;
   final RxString _voucherError = ''.obs;
-  
+
   // Payment processing state
   final RxBool _isProcessingPayment = false.obs;
+  final RxString _paymentStatus = ''.obs;
 
   @override
   void initState() {
     super.initState();
     _loadVouchers();
+    // Listen to payment events
+    _setupPaymentListeners();
   }
 
   @override
   void dispose() {
     _voucherController.dispose();
     super.dispose();
+  }
+
+  void _setupPaymentListeners() {
+    // Listen to booking controller loading state
+    ever(bookingController.isLoading, (bool loading) {
+      if (!loading && _isProcessingPayment.value) {
+        // Booking creation completed, payment will be initiated
+        _paymentStatus.value = 'Initiating payment...';
+      }
+    });
+
+    // Listen to Razorpay controller payment status
+    ever(razorpayController.paymentStatus, (String status) {
+      if (status.isNotEmpty) {
+        _paymentStatus.value = status;
+      }
+    });
+
+    // Listen to Razorpay controller payment progress
+    ever(razorpayController.isPaymentInProgress, (bool inProgress) {
+      if (!inProgress && _isProcessingPayment.value) {
+        // Payment completed (success or failure)
+        _isProcessingPayment(false);
+        _paymentStatus.value = '';
+      }
+    });
   }
 
   Future<void> _loadVouchers() async {
@@ -207,10 +237,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     subtitle: Text(
                         'Time: ${slot['start_time']} - ${slot['end_time']}',
                         style: const TextStyle(color: Colors.white70)),
-                    trailing: Text(
-                        '₹${slotPrice.toStringAsFixed(2)}',
+                    trailing: Text('₹${slotPrice.toStringAsFixed(2)}',
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, 
+                            fontWeight: FontWeight.bold,
                             color: Colors.green,
                             fontSize: 16)),
                   );
@@ -258,8 +287,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
                 return Column(
                   children: [
-                    buildPaymentRow('Sub Total',
-                        '₹${subtotal.toStringAsFixed(2)}'),
+                    buildPaymentRow(
+                        'Sub Total', '₹${subtotal.toStringAsFixed(2)}'),
                     if (discount > 0) ...[
                       buildPaymentRow(
                           'Discount', '-₹${discount.toStringAsFixed(2)}',
@@ -281,42 +310,88 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         color: const Color(0xFF0F0F0F),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Obx(() => Text(
-                    '₹${calculateTotalPrice().toStringAsFixed(2)}',
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  )),
-              ElevatedButton(
-                onPressed: () =>
-                    handleBooking(context, _appliedVoucher.value != null),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xffDE3A3A),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                child: Obx(() {
-                  if (bookingController.isLoading.value || _isProcessingPayment.value) {
-                    return const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white, 
-                        strokeWidth: 2
-                      )
-                    );
-                  }
-                  return const Text('PROCEED',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold));
-                }),
+              // Payment status indicator
+              Obx(() {
+                if (_isProcessingPayment.value &&
+                    _paymentStatus.value.isNotEmpty) {
+                  return Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            color: Colors.blue,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _paymentStatus.value,
+                            style: const TextStyle(
+                              color: Colors.blue,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Obx(() => Text(
+                        '₹${calculateTotalPrice().toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      )),
+                  ElevatedButton(
+                    onPressed: _isProcessingPayment.value
+                        ? null
+                        : () => handleBooking(
+                            context, _appliedVoucher.value != null),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xffDE3A3A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: Obx(() {
+                      if (_isProcessingPayment.value) {
+                        return const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2));
+                      }
+                      return const Text('PROCEED',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold));
+                    }),
+                  ),
+                ],
               ),
             ],
           ),
@@ -571,30 +646,58 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       return;
     }
 
-    double totalPrice = calculateTotalPrice();
-    int amountInPaisa = (totalPrice * 100).toInt();
+    // Start loading state
+    _isProcessingPayment(true);
+    _paymentStatus.value = 'Creating booking...';
+    razorpayController.isPaymentInProgress(true);
 
-    List<int> slotIds =
-        widget.selectedSlots.map((slot) => slot['slot_id'] as int).toList();
-    List<int> bookingIds = await createBooking(slotIds);
-    print(slotIds);
-    if (bookingIds.isEmpty) {
-      print("Booking failed.");
-      return;
-    }
+    try {
+      double totalPrice = calculateTotalPrice();
+      int amountInPaisa = (totalPrice * 100).toInt();
 
-    if (isVoucherApplied && _appliedVoucher.value != null) {
-      // Handle voucher case - skip Razorpay and directly confirm booking
-      await confirmBookingWithVoucher(bookingIds, _appliedVoucher.value!.code);
-    } else {
-      // Normal payment flow with Razorpay
-      _isProcessingPayment(true);
-      try {
+      List<int> slotIds =
+          widget.selectedSlots.map((slot) => slot['slot_id'] as int).toList();
+
+      List<int> bookingIds = await createBooking(slotIds);
+      print(slotIds);
+
+      if (bookingIds.isEmpty) {
+        print("Booking failed.");
+        _isProcessingPayment(false);
+        _paymentStatus.value = '';
+        razorpayController.isPaymentInProgress(false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to create booking. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      if (isVoucherApplied && _appliedVoucher.value != null) {
+        // Handle voucher case - skip Razorpay and directly confirm booking
+        _paymentStatus.value = 'Confirming booking with voucher...';
+        razorpayController.isPaymentInProgress(false);
+        await confirmBookingWithVoucher(
+            bookingIds, _appliedVoucher.value!.code);
+      } else {
+        // Normal payment flow with Razorpay
+        _paymentStatus.value = 'Initiating payment gateway...';
         razorpayController.bookingIdList.value = bookingIds;
         await initiatePayment(context, amountInPaisa);
-      } finally {
-        _isProcessingPayment(false);
       }
+    } catch (e) {
+      print('Error in handleBooking: $e');
+      _isProcessingPayment(false);
+      _paymentStatus.value = '';
+      razorpayController.isPaymentInProgress(false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('An error occurred: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -610,6 +713,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       print('✅ Booking confirmation with voucher successful!');
 
+      // Stop loading
+      _isProcessingPayment(false);
+      _paymentStatus.value = '';
+
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -618,10 +725,21 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         ),
       );
 
-      // Navigate to past bookings screen
-      Get.to(() => const PastBookingsScreen());
+      // Navigate to past bookings first
+      await Get.to(() => const PastBookingsScreen());
+
+      // Then navigate back to home with arena tab selected
+      // This ensures when user presses back, they go to cafe page
+      final homeController = Get.find<HomeController>();
+      homeController.onItemTapped(1); // Select arena/cafe tab
+      Get.offAllNamed('/home'); // Replace all routes with home
     } catch (e) {
       print('🔥 Error confirming booking with voucher: $e');
+
+      // Stop loading
+      _isProcessingPayment(false);
+      _paymentStatus.value = '';
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to confirm booking: $e'),
@@ -679,14 +797,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     };
 
     try {
+      _paymentStatus.value = 'Creating payment order...';
       final response = await http.post(url,
           headers: {
             "Authorization": basicAuth,
             "Content-Type": "application/json"
           },
           body: jsonEncode(payload));
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        _paymentStatus.value = 'Opening payment gateway...';
+
         razorpayController.openCheckout(
           orderId: data['id'],
           name: "HashForGamers",
@@ -697,9 +819,27 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         );
       } else {
         print('Error creating Razorpay order: ${response.body}');
+        _isProcessingPayment(false);
+        _paymentStatus.value = '';
+        razorpayController.isPaymentInProgress(false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to create payment order. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       print('Payment error: $e');
+      _isProcessingPayment(false);
+      _paymentStatus.value = '';
+      razorpayController.isPaymentInProgress(false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Payment error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

@@ -34,6 +34,15 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
   late Animation<double> _floatAnimation;
   late Animation<double> _particleAnimation;
 
+  // Helper method to format hash coin numbers
+  String _formatHashCoins(int coins) {
+    if (coins >= 1000) {
+      double kValue = coins / 1000.0;
+      return kValue.toStringAsFixed(kValue.truncateToDouble() == kValue ? 0 : 1) + 'K';
+    }
+    return coins.toString();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -279,7 +288,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
     return Column(
       children: [
         Text(
-          '${widget.hashCoin.toStringAsFixed(0)}',
+          _formatHashCoins(widget.hashCoin),
           style: GoogleFonts.play(
             fontSize: 56,
             fontWeight: FontWeight.w900,
@@ -420,7 +429,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                     child: _buildModernStatItem(
                       icon: Icons.trending_up,
                       label: 'Total Earned',
-                      value: '${(widget.hashCoin * 1.5).toStringAsFixed(0)}',
+                      value: _formatHashCoins((widget.hashCoin * 1.5).toInt()),
                       color: Colors.green,
                     ),
                   ),
@@ -429,7 +438,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                     child: _buildModernStatItem(
                       icon: Icons.redeem,
                       label: 'Redeemed',
-                      value: '${(widget.hashCoin * 0.3).toStringAsFixed(0)}',
+                      value: _formatHashCoins((widget.hashCoin * 0.3).toInt()),
                       color: Colors.orange,
                     ),
                   ),
@@ -560,7 +569,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                 icon: Icons.games,
                 title: 'Play Games',
                 description: 'Earn coins for every gaming session',
-                coins: '+50',
+                coins: _formatHashCoins(50),
                 gradient: const LinearGradient(
                   colors: [Color(0xffDE3A3A), Color(0xffcb1dcd)],
                 ),
@@ -570,7 +579,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                 icon: Icons.share,
                 title: 'Refer Friends',
                 description: 'Get bonus coins for successful referrals',
-                coins: '+100',
+                coins: _formatHashCoins(100),
                 gradient: const LinearGradient(
                   colors: [Color(0xffF4C342), Color(0xffDE3A3A)],
                 ),
@@ -580,7 +589,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                 icon: Icons.star,
                 title: 'Daily Login',
                 description: 'Collect daily rewards',
-                coins: '+25',
+                coins: _formatHashCoins(25),
                 gradient: const LinearGradient(
                   colors: [Color(0xff37ebf3), Color(0xffF4C342)],
                 ),
@@ -660,7 +669,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              coins,
+              '+$coins',
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -927,7 +936,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                                           ),
                                         ),
                                         Text(
-                                          '${widget.hashCoin.toStringAsFixed(0)} Hash Coins',
+                                          _formatHashCoins(widget.hashCoin),
                                           style: GoogleFonts.play(
                                             fontSize: 20,
                                             fontWeight: FontWeight.w700,
@@ -1193,7 +1202,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Requires $requiredCoins Hash Coins',
+                    'Requires ${_formatHashCoins(requiredCoins)} Hash Coins',
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       color: hasEnoughCoins ? Colors.white70 : Colors.grey,
@@ -1273,7 +1282,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
         _showErrorSnackbar('Error processing redemption: $e');
       }
     } else {
-      _showErrorSnackbar('Insufficient coins. You need $requiredCoins coins for $percentage% redemption.');
+      _showErrorSnackbar('Insufficient coins. You need ${_formatHashCoins(requiredCoins)} coins for $percentage% redemption.');
     }
   }
 

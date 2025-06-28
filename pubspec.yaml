@@ -80,6 +80,7 @@ dependencies:
   barcode_widget:
   flutter_polyline_points:
   share_plus:
+  coupon_uikit: ^0.2.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

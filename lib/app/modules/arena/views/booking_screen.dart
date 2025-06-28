@@ -61,7 +61,7 @@ class _BookingScreenState extends State<BookingScreen> {
         title: Text(widget.title),
       ),
       body: Container(
-        decoration: BoxDecoration(color: Colors.black),
+        decoration: const BoxDecoration(color: Colors.black),
         child: Obx(() {
           if (controller.isLoading.value) {
             return ListView.builder(
@@ -93,7 +93,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     size: 64,
                     color: Colors.grey[600],
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text(
                     'No slots available',
                     style: TextStyle(
@@ -102,7 +102,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     'Try selecting a different date',
                     style: TextStyle(
@@ -130,7 +130,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     size: 64,
                     color: Colors.grey[600],
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text(
                     'No available slots for this date',
                     style: TextStyle(
@@ -139,7 +139,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     'All slots are currently booked',
                     style: TextStyle(
@@ -171,14 +171,14 @@ class _BookingScreenState extends State<BookingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Global Gaming Cafe | $selectedDateText',
+                      '${widget.title} | $selectedDateText',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Obx(() {
                       final availableSlots = controller.slots.where((slot) {
                         final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
@@ -205,7 +205,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     context: context,
                     initialDate: DateTime.now(),
                     firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(Duration(days: 30)),
+                    lastDate: DateTime.now().add(const Duration(days: 30)),
                     builder: (context, child) {
                       return Theme(
                         data: ThemeData.dark(),
@@ -222,7 +222,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     });
                   }
                 },
-                icon: Icon(Icons.calendar_today, color: Colors.white),
+                icon: const Icon(Icons.calendar_today, color: Colors.white),
               )
             ],
           ),
@@ -237,7 +237,7 @@ class _BookingScreenState extends State<BookingScreen> {
               if (isAvailable) {
                 return buildSlotItem(slot, index);
               } else {
-                return SizedBox.shrink(); // Hide unavailable slots
+                return const SizedBox.shrink(); // Hide unavailable slots
               }
             },
           ),
@@ -285,7 +285,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -293,7 +293,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                   child: Text(
                     '$availablePCs PC${availablePCs > 1 ? 's' : ''} Available',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.green,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -319,13 +319,13 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
             ] else ...[
               Container(
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.red.withOpacity(0.3)),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
                     Icon(Icons.info_outline, color: Colors.red, size: 16),
                     SizedBox(width: 8),
@@ -384,14 +384,7 @@ class _BookingScreenState extends State<BookingScreen> {
           margin: const EdgeInsets.only(right: 10),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            gradient: isSelected
-                ? LinearGradient(
-              colors: [Color(0xff00FFAB), Color(0xffDE3A3A)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            )
-                : null,
-            color: isSelected ? null : const Color(0xff2D2D2D),
+            color: isSelected ? const Color(0xffDE3A3A) : const Color(0xff2D2D2D),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected ? Colors.greenAccent : Colors.grey.shade700,
@@ -399,8 +392,8 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
           child: Text(
             'PC $pcIndex',
-            style: TextStyle(
-              color: isSelected ? Colors.black : Colors.white,
+            style: const TextStyle(
+              color: Colors.white,
               fontWeight: FontWeight.w600,
               fontSize: 13,
             ),
@@ -449,7 +442,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
                 Text(
                   '₹${totalPrice.toInt()}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.greenAccent,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
