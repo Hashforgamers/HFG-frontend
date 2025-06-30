@@ -1,65 +1,65 @@
+import 'package:hash/config/flavor_config.dart';
+
 class ApiEndpoints {
-  static const String baseUrl =
-      'https://hfg-user-onboard-3nzn.onrender.com/api/users';
+  // User Onboard Service
+  static String get userOnboardBaseUrl => FlavorConfig.getBaseUrl('userOnboard');
+  static String get baseUrl => '$userOnboardBaseUrl/api/users';
+  static String get checkUserExistsInAPI => '$userOnboardBaseUrl/api/users/fid/';
+  static String get signUp => '$userOnboardBaseUrl/api/users';
 
-  static const String checkUserExistsInAPI =
-      'https://hfg-user-onboard-3nzn.onrender.com/api/users/fid/';
+  // Booking Service
+  static String get bookingBaseUrl => FlavorConfig.getBaseUrl('booking');
+  static String get slotsBaseUrl => '$bookingBaseUrl/api';
+  static String get bookingsBaseUrl => '$bookingBaseUrl/api';
+  static String get confirmBooking => '$bookingBaseUrl/api/bookings/confirm';
+  static String get vendorGames => '$bookingBaseUrl/api/games/vendor';
+  static String get createOffer => '$bookingBaseUrl/api/redeem-voucher';
 
-  static const String signUp =
-      'https://hfg-user-onboard-3nzn.onrender.com/api/users';
+  // Vendor Service
+  static String get vendorBaseUrl => FlavorConfig.getBaseUrl('vendor');
+  static String get getAllVendorsList => '$vendorBaseUrl/api/vendor/getAllGamingCafe';
 
-  // Booking related endpoints
-  static const String slotsBaseUrl =
-      'https://hfg-booking-hmnx.onrender.com/api';
-  static const String bookingsBaseUrl =
-      'https://hfg-booking-hmnx.onrender.com/api';
-  static const String confirmBooking =
-      'https://hfg-booking-hmnx.onrender.com/api/bookings/confirm';
+  // Dashboard Service
+  static String get dashboardBaseUrl => FlavorConfig.getBaseUrl('dashboard');
+  // Add dashboard endpoints as needed, e.g.:
+  // static String get dashboardStats => '$dashboardBaseUrl/api/stats';
 
-  // Vendor related endpoints
-  static const String getAllVendorsList =
-      'https://hfg-onboard-hqqb.onrender.com/api/vendor/getAllGamingCafe';
-  static const String vendorGames =
-      'https://hfg-booking-hmnx.onrender.com/api/games/vendor';
-
-  // News related endpoints
+  // News related endpoints (external, not flavored)
   static const String gameSpotBaseUrl = 'https://www.gamespot.com/api';
   static const String gameSpotArticles = '$gameSpotBaseUrl/articles';
 
   // Payment related constants
-  static const String razorpayKey = 'rzp_test_viVAhwtbVdu1X4';
+  static String get razorpayKey => FlavorConfig.isProduction() 
+      ? 'rzp_live_YOUR_LIVE_KEY' // Replace with your live key
+      : 'rzp_test_viVAhwtbVdu1X4';
 
-  // Address related endpoints
-  static const String addresses = '$baseUrl/checkout/addresses';
-  static const String activeAddress = '$baseUrl/checkout/address/active';
-  static const String addAddress = '$baseUrl/checkout/address';
+  // Address related endpoints (userOnboard)
+  static String get addresses => '$userOnboardBaseUrl/api/users/checkout/addresses';
+  static String get activeAddress => '$userOnboardBaseUrl/api/users/checkout/address/active';
+  static String get addAddress => '$userOnboardBaseUrl/api/users/checkout/address';
 
-  // Cart related endpoints
-  static const String cartBaseUrl = '$baseUrl/cart';
-  static const String cartItem = '$cartBaseUrl/item';
+  // Cart related endpoints (userOnboard)
+  static String get cartBaseUrl => '$userOnboardBaseUrl/api/users/cart';
+  static String get cartItem => '$userOnboardBaseUrl/api/users/cart/item';
 
-  // Checkout related endpoints
-  static const String checkoutOther = '$baseUrl/checkout/other';
-  static const String validatePayment = '$baseUrl/checkout/pay/validate';
+  // Checkout related endpoints (userOnboard)
+  static String get checkoutOther => '$userOnboardBaseUrl/api/users/checkout/other';
+  static String get validatePayment => '$userOnboardBaseUrl/api/users/checkout/pay/validate';
 
-  // Products related endpoints
-  static const String products = '$baseUrl/products';
-  static const String productById = '$baseUrl/product';
+  // Products related endpoints (userOnboard)
+  static String get products => '$userOnboardBaseUrl/api/users/products';
+  static String get productById => '$userOnboardBaseUrl/api/users/product';
 
-  // Wallet related endpoints
-  static const String wallet = '$baseUrl/wallet';
-  static const String addFunds = '$wallet/add-funds';
-  static const String validateFunds = '$wallet/validate-funds';
+  // Wallet related endpoints (userOnboard)
+  static String get wallet => '$userOnboardBaseUrl/api/users/wallet';
+  static String get addFunds => '$userOnboardBaseUrl/api/users/wallet/add-funds';
+  static String get validateFunds => '$userOnboardBaseUrl/api/users/wallet/validate-funds';
 
-  // Creating voucher
-  static const String createVoucher = '$baseUrl/{userId}/create-voucher';
-  // Get Voucher
-  static const String getVoucher = '$baseUrl/{userId}/voucher';
+  // Creating voucher (userOnboard)
+  static String get createVoucher => '$userOnboardBaseUrl/api/users/{userId}/create-voucher';
+  // Get Voucher (userOnboard)
+  static String get getVoucher => '$userOnboardBaseUrl/api/users/{userId}/voucher';
 
-  // Get HashCoin For a User By User ID
-  static const String getHashCoin = '$baseUrl/{userId}/hash-coins';
-
-  // Create offer using HashCoins
-  static const String createOffer = 'https://hfg-booking-hmnx.onrender.com/api/redeem-voucher';
-
+  // Get HashCoin For a User By User ID (userOnboard)
+  static String get getHashCoin => '$userOnboardBaseUrl/api/users/{userId}/hash-coins';
 }
