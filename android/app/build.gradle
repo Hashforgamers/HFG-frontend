@@ -71,6 +71,24 @@ android {
         }
     }
 
+    flavorDimensions "environment"
+    
+    productFlavors {
+        dev {
+            dimension "environment"
+            applicationId "com.hfg.hash.dev"
+            versionNameSuffix "-dev"
+            resValue "string", "app_name", "HFG Dev"
+            buildConfigField "String", "API_BASE_URL", "\"https://dev-api.hfg.com\""
+        }
+        
+        prod {
+            dimension "environment"
+            applicationId "com.hfg.hash"
+            resValue "string", "app_name", "HFG"
+            buildConfigField "String", "API_BASE_URL", "\"https://api.hfg.com\""
+        }
+    }
 
     buildTypes {
         release {
@@ -78,6 +96,9 @@ android {
             signingConfig signingConfigs.debug
             minifyEnabled false
             shrinkResources false
+        }
+        debug {
+            debuggable true
         }
     }
 }

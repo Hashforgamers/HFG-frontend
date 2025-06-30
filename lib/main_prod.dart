@@ -12,27 +12,28 @@ import 'app/modules/payment/razorpay_controller.dart';
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import '/themes/app_theme.dart';
-import 'firebase_options.dart'; // Make sure to include your generated Firebase options file.
+import 'firebase_options.dart';
 
 void main() async {
-  WidgetsFlutterBinding
-      .ensureInitialized(); // Ensure binding for async operations
+  WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize flavor configuration (default to dev for safety)
+  // Initialize flavor configuration for production
   FlavorConfig(
-    flavor: Flavor.dev,
-    appName: 'HFG Dev',
+    flavor: Flavor.prod,
+    appName: 'HFG',
     baseUrls: {
-      'userOnboard': 'https://dev-api.hfg.com',
-      'booking': 'https://dev-api.hfg.com',
-      'vendor': 'https://dev-api.hfg.com',
-      'dashboard': 'https://dev-api.hfg.com',
+      'userOnboard': 'https://hfg-user-onboard.onrender.com',
+      'booking': 'https://hfg-booking.onrender.com',
+      'dashboard': 'https://hfg-dashboard.onrender.com',
+      'login': 'https://hfg-login.onrender.com',
+      'vendor': 'https://hfg-onboard.onrender.com',
+      // Add more as needed
     },
-    appId: 'com.hfg.hash.dev',
-    bundleId: 'com.hfg.hash.dev',
-    appIcon: 'assets/icons/app_icon_dev.png',
-    primaryColor: Colors.blue,
-    accentColor: Colors.blueAccent,
+    appId: 'com.hfg.hash',
+    bundleId: 'com.hfg.hash',
+    appIcon: 'assets/icons/app_icon.png',
+    primaryColor: Colors.purple,
+    accentColor: Colors.purpleAccent,
   );
 
   await Firebase.initializeApp(
@@ -42,12 +43,12 @@ void main() async {
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
   
-  Get.put(UserController()); // Initialize globally here
-  Get.put(RazorpayController()); // Bind the controller
+  Get.put(UserController());
+  Get.put(RazorpayController());
   Get.put(BookingController());
   Get.put(GamesController(), permanent: true);
-  Get.put(NotificationController()); // Initialize the controller
-  Get.put(DeepLinkController()); // Add this
+  Get.put(NotificationController());
+  Get.put(DeepLinkController());
 
   runApp(const MyApp());
 }
@@ -58,11 +59,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      debugShowCheckedModeBanner: FlavorConfig.isDevelopment(),
+      debugShowCheckedModeBanner: false, // Hide debug banner for prod
       title: FlavorConfig.instance.appName,
       theme: AppTheme.dark,
       initialRoute: AppRoutes.SPLASH,
       getPages: AppPages.pages,
     );
   }
-}
+} 

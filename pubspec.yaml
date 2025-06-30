@@ -96,6 +96,25 @@ flutter_icons:
   android: true
   ios: true
   image_path: "assets/app_icon.png" # Path to your app icon
+
+# Flavor-specific configurations
+flutter_flavorizr:
+  flavors:
+    dev:
+      app:
+        name: "HFG Dev"
+      android:
+        applicationId: "com.hfg.hash.dev"
+      ios:
+        bundleId: "com.hfg.hash.dev"
+    prod:
+      app:
+        name: "HFG"
+      android:
+        applicationId: "com.hfg.hash"
+      ios:
+        bundleId: "com.hfg.hash"
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
