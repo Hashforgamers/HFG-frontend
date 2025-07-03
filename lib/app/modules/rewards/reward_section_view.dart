@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/core/service/global_bottom_sheet_service.dart';
 
 import '../wallet/controllers/wallet_controller.dart';
 import '../wallet/views/wallet_bottomsheet.dart';
@@ -16,11 +17,28 @@ class RewardsSection extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildRewardItem(
-          CupertinoIcons.hexagon,
-          "$hashCoin",
-          "Hash Coins",
-          const Color(0xff338125),
+        GestureDetector(
+          onTap: () async {
+            await GlobalBottomSheetService().showHashCoinRedemptionBottomSheet(
+              context,
+              hashCoin: hashCoin,
+              onSuccess: (message) {
+                Get.snackbar("Success", message);
+              },
+              onError: (message) {
+                Get.snackbar("Error", message);
+              },
+              onLoading: () {
+                Get.snackbar("Loading", "Please wait...");
+              },
+            );
+          },
+          child: _buildRewardItem(
+            CupertinoIcons.hexagon,
+            "$hashCoin",
+            "Hash Coins",
+            const Color(0xff338125),
+          ),
         ),
         GestureDetector(
             onTap: () {
@@ -29,11 +47,8 @@ class RewardsSection extends StatelessWidget {
                 isScrollControlled: true,
               );
             },
-            child: _buildRewardItem(
-                CupertinoIcons.circle_bottomthird_split,
-                "₹${walletController.balance.value}",
-                "Wallet",
-                Colors.yellow)),
+            child: _buildRewardItem(CupertinoIcons.circle_bottomthird_split,
+                "₹${walletController.balance.value}", "Wallet", Colors.yellow)),
       ],
     );
   }
