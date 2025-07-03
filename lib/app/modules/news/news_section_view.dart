@@ -4,6 +4,7 @@ import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math' as math;
 
+import '../../../utils/widgets/custom_card.dart';
 import 'game_news_controller.dart';
 
 class GamerNewsSection extends StatefulWidget {
@@ -83,11 +84,10 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                 return AnimatedBuilder(
                   animation: _animController,
                   builder: (_, __) {
-                    return _rainbowCard(
+                    return EarlyAccessCard(
                       title: article.title,
-                      deck: article.deck,
+                      subTitle: article.deck,
                       siteUrl: article.siteUrl,
-                      hueRotation: _animController.value,
                     );
                   },
                 );
