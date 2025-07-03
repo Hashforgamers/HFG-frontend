@@ -2,19 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import 'dart:ui';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/hash_coin/cubit/create_offer_cubit.dart';
-import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/service/global_bottom_sheet_service.dart';
 
 class HashCoinWidget extends StatefulWidget {
   final int hashCoin;
-  final CreateOfferCubit createOfferCubit;
+  final CreateOfferCubit? createOfferCubit;
   
   const HashCoinWidget({
     super.key, 
     required this.hashCoin,
-    required this.createOfferCubit,
+    this.createOfferCubit,
   });
 
   @override
@@ -38,7 +37,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
   String _formatHashCoins(int coins) {
     if (coins >= 1000) {
       double kValue = coins / 1000.0;
-      return kValue.toStringAsFixed(kValue.truncateToDouble() == kValue ? 0 : 1) + 'K';
+      return '${kValue.toStringAsFixed(kValue.truncateToDouble() == kValue ? 0 : 1)}K';
     }
     return coins.toString();
   }
@@ -787,380 +786,25 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
     );
   }
 
-  void _showRedeemBottomSheet(BuildContext context) {
-    int? selectedVoucher;
-    final vouchers = [
-      {
-        'discount': 10,
-        'requiredCoins': 10000,
-        'code': 'Hash10',
-        'desc': 'Redeem for just 10,000 HashCoins.'
+    void _showRedeemBottomSheet(BuildContext context) {
+    final globalBottomSheetService = locator<GlobalBottomSheetService>();
+    
+    globalBottomSheetService.showHashCoinRedemptionBottomSheet(
+      context,
+      hashCoin: widget.hashCoin,
+      onSuccess: (message) {
+        _showSuccessSnackbar(message);
       },
-      {
-        'discount': 20,
-        'requiredCoins': 20000,
-        'code': 'Hash20',
-        'desc': 'Redeem for just 20,000 HashCoins.'
+      onError: (message) {
+        _showErrorSnackbar(message);
       },
-      {
-        'discount': 30,
-        'requiredCoins': 30000,
-        'code': 'Hash30',
-        'desc': 'Redeem for just 30,000 HashCoins.'
-      },
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return BlocProvider.value(
-          value: widget.createOfferCubit,
-          child: BlocListener<CreateOfferCubit, CreateOfferState>(
-            listener: (context, state) {
-              if (state is CreateOfferLoading) {
-                _showLoadingSnackbar();
-              } else if (state is CreateOfferSuccess) {
-                Navigator.pop(context);
-                _showSuccessSnackbar('Successfully redeemed! Your voucher has been created.');
-              } else if (state is CreateOfferFailure) {
-                Navigator.pop(context);
-                _showErrorSnackbar(state.message);
-              }
-            },
-            child: StatefulBuilder(
-              builder: (context, setState) {
-                return Container(
-                  height: MediaQuery.of(context).size.height * 0.7,
-                  decoration: const BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(28),
-                      topRight: Radius.circular(28),
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(28),
-                      topRight: Radius.circular(28),
-                    ),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Close button
-                            Align(
-                              alignment: Alignment.topRight,
-                              child: GestureDetector(
-                                onTap: () => Navigator.pop(context),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            // HashCoins Balance
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.hexagon, color: Colors.green, size: 28),
-                                ),
-                                const SizedBox(width: 12),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'HashCoins Balance',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 18,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatHashCoins(widget.hashCoin),
-                                      style: GoogleFonts.inter(
-                                        fontSize: 32,
-                                        color: Colors.green,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Use your HashCoins to unlock exclusive discounts on your bookings',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'Vouchers',
-                              style: GoogleFonts.inter(
-                                fontSize: 20,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Expanded(
-                              child: ListView.separated(
-                                itemCount: vouchers.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                                itemBuilder: (context, i) {
-                                  final voucher = vouchers[i];
-                                  final int requiredCoins = voucher['requiredCoins'] as int;
-                                  final int discount = voucher['discount'] as int;
-                                  final String code = voucher['code'] as String;
-                                  final String desc = voucher['desc'] as String;
-                                  final bool hasEnough = widget.hashCoin >= requiredCoins;
-                                  final bool isSelected = selectedVoucher == i;
-                                  final int coinsNeeded = requiredCoins - widget.hashCoin;
-                                  return GestureDetector(
-                                    onTap: hasEnough
-                                        ? () {
-                                            setState(() {
-                                              selectedVoucher = i;
-                                            });
-                                          }
-                                        : null,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.01),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? Colors.green
-                                              : hasEnough
-                                                  ? Colors.white.withOpacity(0.2)
-                                                  : Colors.grey.withOpacity(0.3),
-                                          width: isSelected ? 2 : 1,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Icon(
-                                            Icons.card_giftcard,
-                                            color: hasEnough ? Colors.white : Colors.grey,
-                                            size: 28,
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    Text(
-                                                      'Flat $discount% OFF',
-                                                      style: GoogleFonts.inter(
-                                                        fontSize: 18,
-                                                        fontWeight: FontWeight.w700,
-                                                        color: hasEnough ? Colors.white : Colors.grey,
-                                                      ),
-                                                    ),
-                                                    if (isSelected)
-                                                      Padding(
-                                                        padding: const EdgeInsets.only(left: 8.0),
-                                                        child: Icon(Icons.check_circle, color: Colors.green, size: 18),
-                                                      ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  desc,
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 14,
-                                                    color: hasEnough ? Colors.white70 : Colors.grey,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: hasEnough ? Colors.green.withOpacity(0.15) : Colors.grey.withOpacity(0.15),
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: Text(
-                                                    code,
-                                                    style: GoogleFonts.inter(
-                                                      fontSize: 13,
-                                                      color: hasEnough ? Colors.green : Colors.grey,
-                                                      fontWeight: FontWeight.w700,
-                                                    ),
-                                                  ),
-                                                ),
-                                                if (!hasEnough)
-                                                  Padding(
-                                                    padding: const EdgeInsets.only(top: 6.0),
-                                                    child: Text(
-                                                      'You need \'${_formatHashCoins(coinsNeeded)}\' more HashCoins to redeem this voucher.',
-                                                      style: GoogleFonts.inter(
-                                                        fontSize: 13,
-                                                        color: Colors.red,
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
-                                          Radio<int>(
-                                            value: i,
-                                            groupValue: selectedVoucher,
-                                            onChanged: hasEnough
-                                                ? (val) {
-                                                    setState(() {
-                                                      selectedVoucher = val;
-                                                    });
-                                                  }
-                                                : null,
-                                            activeColor: Colors.green,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            BlocBuilder<CreateOfferCubit, CreateOfferState>(
-                              builder: (context, state) {
-                                final isLoading = state is CreateOfferLoading;
-                                return GestureDetector(
-                                  onTap: (selectedVoucher != null && !isLoading)
-                                      ? () {
-                                          final voucher = vouchers[selectedVoucher!];
-                                          final int discount = voucher['discount'] as int;
-                                          _processRedemption(discount);
-                                        }
-                                      : null,
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(vertical: 18),
-                                    decoration: BoxDecoration(
-                                      color: (selectedVoucher != null && !isLoading)
-                                          ? Colors.green
-                                          : Colors.grey.withOpacity(0.3),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: isLoading
-                                        ? Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              const SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Text(
-                                                'Processing...',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Colors.white,
-                                                  letterSpacing: 1,
-                                                ),
-                                              ),
-                                            ],
-                                          )
-                                        : Text(
-                                            'Redeem',
-                                            textAlign: TextAlign.center,
-                                            style: GoogleFonts.inter(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w700,
-                                              color: Colors.white,
-                                              letterSpacing: 1,
-                                            ),
-                                          ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        );
+      onLoading: () {
+        _showLoadingSnackbar();
       },
     );
   }
 
-  void _processRedemption(int percentage) async {
-    // Calculate required coins based on percentage
-    int requiredCoins;
-    switch (percentage) {
-      case 10:
-        requiredCoins = 10000;
-        break;
-      case 20:
-        requiredCoins = 20000;
-        break;
-      case 30:
-        requiredCoins = 30000;
-        break;
-      default:
-        requiredCoins = 10000;
-    }
-    
-    // Check if user has enough coins
-    if (widget.hashCoin >= requiredCoins) {
-      try {
-        final remoteRepo = locator<RemoteRepoInterface>();
-        final userData = await remoteRepo.getUserFromPreferences();
-        
-        if (userData != null) {
-          final userId = userData['id']?.toString() ?? '';
-          if (userId.isNotEmpty) {
-            // Use the CreateOfferCubit to process the redemption
-            widget.createOfferCubit.createOffer(percentage, userId);
-          } else {
-            _showErrorSnackbar('User ID not found');
-          }
-        } else {
-          _showErrorSnackbar('User data not found');
-        }
-      } catch (e) {
-        _showErrorSnackbar('Error processing redemption: $e');
-      }
-    } else {
-      _showErrorSnackbar('Insufficient coins. You need ${_formatHashCoins(requiredCoins)} coins for $percentage% redemption.');
-    }
-  }
+
 
   void _showSuccessSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(

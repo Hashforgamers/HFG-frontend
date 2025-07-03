@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/config/flavor_config.dart';
+import 'package:hash/core/network/api_endpoints.dart';
 import 'package:http/http.dart' as http;
 import '../../payment/razorpay_controller.dart';
 import '../controllers/booking_controller.dart';
@@ -750,7 +752,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   }
 
   Future<List<int>> createBooking(List<int> slotIds) async {
-    const String url = "https://hfg-booking.onrender.com/api/bookings";
+    final url = '${FlavorConfig.getBaseUrl('booking')}/api/bookings';
     final today = DateTime.now();
     final bookDate =
         "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
@@ -787,7 +789,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     String receiptId = "order_rcpt_${DateTime.now().millisecondsSinceEpoch}";
     final url = Uri.parse("https://api.razorpay.com/v1/orders");
     String basicAuth =
-        'Basic ${base64Encode(utf8.encode('rzp_test_viVAhwtbVdu1X4:PsxakTrbRvfQCbZ1vj2lQ1i5'))}';
+        'Basic ${base64Encode(utf8.encode(ApiEndpoints.razorpayKey))}';
 
     Map<String, dynamic> payload = {
       "amount": amountInPaisa,
