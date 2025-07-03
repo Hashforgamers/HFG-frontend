@@ -16,6 +16,8 @@ import 'package:hash/app/modules/shop/views/shop_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:hash/app/modules/cafe/views/cafe_section_view.dart';
 
+import '../../../../utils/widgets/custom_card.dart';
+
 class HomeContentView extends StatelessWidget {
   final BookingController bookingController = Get.put(BookingController());
   final LoginController loginController = Get.put(LoginController());
