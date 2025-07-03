@@ -5,6 +5,7 @@ import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/global_bottom_sheet_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final locator = GetIt.instance;
@@ -30,4 +31,7 @@ Future<void> setupServiceLocator() async {
   );
 
   locator.registerSingleton<SegmentSdkService>(SegmentSdkService());
+  
+  // Register Global Bottom Sheet Service
+  locator.registerSingleton<GlobalBottomSheetService>(GlobalBottomSheetService());
 }
