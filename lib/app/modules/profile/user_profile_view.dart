@@ -136,7 +136,7 @@ class UserProfileView extends StatelessWidget {
       required String title,
       required VoidCallback onTap}) {
     return ListTile(
-      leading: Icon(icon, color: const Color(0xffDE3A3A)),
+      leading: Icon(icon, color: Colors.green),
       title: Text(
         title,
         style: const TextStyle(color: Colors.white, fontSize: 18),
@@ -160,7 +160,7 @@ class UserProfileView extends StatelessWidget {
               .LOGIN); // Navigates to the login screen and removes all previous routes
         },
         style: ElevatedButton.styleFrom(
-          primary: const Color(0xffFF0000),
+          primary: Colors.green,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),

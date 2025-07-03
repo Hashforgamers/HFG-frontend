@@ -53,7 +53,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       ),
       body: ListView(
         children: [
-          Container(
+          SizedBox(
             height: 200,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
@@ -141,10 +141,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                     Get.to(BookingScreen(title: widget.title, gameId: game['id'],vendorId:widget.vendorId));
                                   },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xffDE3A3A),
+                                    backgroundColor: const Color(0xff338125),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                                   ),
-                                  child: const Text('Book Slot', style: TextStyle(color: Colors.black)),
+                                  child: const Text('Book Slot', style: TextStyle(color: Colors.white)),
                                 ),
                               ),
                             ],
