@@ -147,7 +147,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       _applyVoucher();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('This voucher is not active'),
           backgroundColor: Colors.red,
         ),
@@ -750,7 +750,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   }
 
   Future<List<int>> createBooking(List<int> slotIds) async {
-    const String url = "https://hfg-booking-hmnx.onrender.com/api/bookings";
+    const String url = "https://hfg-booking.onrender.com/api/bookings";
     final today = DateTime.now();
     final bookDate =
         "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";

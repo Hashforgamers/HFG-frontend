@@ -33,11 +33,11 @@ class ViralShotsSection extends StatelessWidget {
             } else {
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                // child: Row(
-                //   children: controller.shorts
-                //       .map((short) => _buildViralShotItem(short, controller))
-                //       .toList(),
-                // ),
+                child: Row(
+                  children: controller.shorts
+                      .map((short) => _buildViralShotItem(short, controller))
+                      .toList(),
+                ),
               );
             }
           },
