@@ -788,8 +788,28 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
   }
 
   void _showRedeemBottomSheet(BuildContext context) {
-    int? selectedPercentage;
-    
+    int? selectedVoucher;
+    final vouchers = [
+      {
+        'discount': 10,
+        'requiredCoins': 10000,
+        'code': 'Hash10',
+        'desc': 'Redeem for just 10,000 HashCoins.'
+      },
+      {
+        'discount': 20,
+        'requiredCoins': 20000,
+        'code': 'Hash20',
+        'desc': 'Redeem for just 20,000 HashCoins.'
+      },
+      {
+        'discount': 30,
+        'requiredCoins': 30000,
+        'code': 'Hash30',
+        'desc': 'Redeem for just 30,000 HashCoins.'
+      },
+    ];
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -827,264 +847,264 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                     ),
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Colors.white.withOpacity(0.1),
-                              Colors.white.withOpacity(0.05),
-                            ],
-                          ),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(28),
-                            topRight: Radius.circular(28),
-                          ),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                            width: 1,
-                          ),
-                        ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Handle bar
-                            Container(
-                              margin: const EdgeInsets.only(top: 12),
-                              width: 40,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(2),
+                            // Close button
+                            Align(
+                              alignment: Alignment.topRight,
+                              child: GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
                               ),
                             ),
-                            
-                            // Header
-                            Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Redeem Hash Coins',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
+                            const SizedBox(height: 8),
+                            // HashCoins Balance
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    shape: BoxShape.circle,
                                   ),
-                                  GestureDetector(
-                                    onTap: () => Navigator.pop(context),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: const Icon(
-                                        Icons.close,
+                                  child: const Icon(Icons.hexagon, color: Colors.green, size: 28),
+                                ),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'HashCoins Balance',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 18,
                                         color: Colors.white,
-                                        size: 20,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                            // Current balance
-                            Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 24),
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    const Color(0xffDE3A3A).withOpacity(0.2),
-                                    const Color(0xffF4C342).withOpacity(0.2),
+                                    Text(
+                                      _formatHashCoins(widget.hashCoin),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 32,
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
                                   ],
                                 ),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xffDE3A3A).withOpacity(0.3),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xffDE3A3A).withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.monetization_on,
-                                      color: Color(0xffDE3A3A),
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Available Balance',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 14,
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                        Text(
-                                          _formatHashCoins(widget.hashCoin),
-                                          style: GoogleFonts.play(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Use your HashCoins to unlock exclusive discounts on your bookings',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: Colors.white70,
                               ),
                             ),
-                            
                             const SizedBox(height: 24),
-                            
-                            // Percentage options
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
-                              child: Text(
-                                'Select Redemption Percentage',
-                                style: GoogleFonts.inter(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
+                            Text(
+                              'Vouchers',
+                              style: GoogleFonts.inter(
+                                fontSize: 20,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            
-                            const SizedBox(height: 16),
-                            
+                            const SizedBox(height: 12),
                             Expanded(
-                              child: ListView(
-                                padding: const EdgeInsets.symmetric(horizontal: 24),
-                                children: [
-                                  _buildPercentageOption(
-                                    percentage: 10,
-                                    requiredCoins: 10000,
-                                    selectedPercentage: selectedPercentage,
-                                    onTap: () {
-                                      setState(() {
-                                        selectedPercentage = 10;
-                                      });
-                                    },
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildPercentageOption(
-                                    percentage: 20,
-                                    requiredCoins: 20000,
-                                    selectedPercentage: selectedPercentage,
-                                    onTap: () {
-                                      setState(() {
-                                        selectedPercentage = 20;
-                                      });
-                                    },
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildPercentageOption(
-                                    percentage: 30,
-                                    requiredCoins: 30000,
-                                    selectedPercentage: selectedPercentage,
-                                    onTap: () {
-                                      setState(() {
-                                        selectedPercentage = 30;
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                            // Confirm button
-                            Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: BlocBuilder<CreateOfferCubit, CreateOfferState>(
-                                builder: (context, state) {
-                                  final isLoading = state is CreateOfferLoading;
-                                  
+                              child: ListView.separated(
+                                itemCount: vouchers.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                itemBuilder: (context, i) {
+                                  final voucher = vouchers[i];
+                                  final int requiredCoins = voucher['requiredCoins'] as int;
+                                  final int discount = voucher['discount'] as int;
+                                  final String code = voucher['code'] as String;
+                                  final String desc = voucher['desc'] as String;
+                                  final bool hasEnough = widget.hashCoin >= requiredCoins;
+                                  final bool isSelected = selectedVoucher == i;
+                                  final int coinsNeeded = requiredCoins - widget.hashCoin;
                                   return GestureDetector(
-                                    onTap: (selectedPercentage != null && !isLoading)
+                                    onTap: hasEnough
                                         ? () {
-                                            _processRedemption(selectedPercentage!);
+                                            setState(() {
+                                              selectedVoucher = i;
+                                            });
                                           }
                                         : null,
                                     child: Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(vertical: 18),
+                                      padding: const EdgeInsets.all(20),
                                       decoration: BoxDecoration(
-                                        gradient: (selectedPercentage != null && !isLoading)
-                                            ? const LinearGradient(
-                                                colors: [Color(0xffDE3A3A), Color(0xffF4C342)],
-                                              )
-                                            : null,
-                                        color: (selectedPercentage == null || isLoading)
-                                            ? Colors.grey.withOpacity(0.3)
-                                            : null,
+                                        color: Colors.white.withOpacity(0.01),
                                         borderRadius: BorderRadius.circular(16),
-                                        boxShadow: (selectedPercentage != null && !isLoading)
-                                            ? [
-                                                BoxShadow(
-                                                  color: const Color(0xffDE3A3A).withOpacity(0.4),
-                                                  blurRadius: 15,
-                                                  offset: const Offset(0, 5),
-                                                ),
-                                              ]
-                                            : null,
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? Colors.green
+                                              : hasEnough
+                                                  ? Colors.white.withOpacity(0.2)
+                                                  : Colors.grey.withOpacity(0.3),
+                                          width: isSelected ? 2 : 1,
+                                        ),
                                       ),
-                                      child: isLoading
-                                          ? Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Icon(
+                                            Icons.card_giftcard,
+                                            color: hasEnough ? Colors.white : Colors.grey,
+                                            size: 28,
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                const SizedBox(
-                                                  width: 20,
-                                                  height: 20,
-                                                  child: CircularProgressIndicator(
-                                                    strokeWidth: 2,
-                                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                                  ),
+                                                Row(
+                                                  children: [
+                                                    Text(
+                                                      'Flat $discount% OFF',
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 18,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: hasEnough ? Colors.white : Colors.grey,
+                                                      ),
+                                                    ),
+                                                    if (isSelected)
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(left: 8.0),
+                                                        child: Icon(Icons.check_circle, color: Colors.green, size: 18),
+                                                      ),
+                                                  ],
                                                 ),
-                                                const SizedBox(width: 12),
+                                                const SizedBox(height: 4),
                                                 Text(
-                                                  'Processing...',
+                                                  desc,
                                                   style: GoogleFonts.inter(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: Colors.white,
-                                                    letterSpacing: 1,
+                                                    fontSize: 14,
+                                                    color: hasEnough ? Colors.white70 : Colors.grey,
                                                   ),
                                                 ),
+                                                const SizedBox(height: 6),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: hasEnough ? Colors.green.withOpacity(0.15) : Colors.grey.withOpacity(0.15),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Text(
+                                                    code,
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 13,
+                                                      color: hasEnough ? Colors.green : Colors.grey,
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (!hasEnough)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(top: 6.0),
+                                                    child: Text(
+                                                      'You need \'${_formatHashCoins(coinsNeeded)}\' more HashCoins to redeem this voucher.',
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 13,
+                                                        color: Colors.red,
+                                                      ),
+                                                    ),
+                                                  ),
                                               ],
-                                            )
-                                          : Text(
-                                              selectedPercentage != null
-                                                  ? 'Confirm ${selectedPercentage}% Redemption'
-                                                  : 'Select a percentage',
-                                              textAlign: TextAlign.center,
-                                              style: GoogleFonts.inter(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w700,
-                                                color: (selectedPercentage != null && !isLoading)
-                                                    ? Colors.white
-                                                    : Colors.white70,
-                                                letterSpacing: 1,
-                                              ),
                                             ),
+                                          ),
+                                          Radio<int>(
+                                            value: i,
+                                            groupValue: selectedVoucher,
+                                            onChanged: hasEnough
+                                                ? (val) {
+                                                    setState(() {
+                                                      selectedVoucher = val;
+                                                    });
+                                                  }
+                                                : null,
+                                            activeColor: Colors.green,
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   );
                                 },
                               ),
+                            ),
+                            const SizedBox(height: 16),
+                            BlocBuilder<CreateOfferCubit, CreateOfferState>(
+                              builder: (context, state) {
+                                final isLoading = state is CreateOfferLoading;
+                                return GestureDetector(
+                                  onTap: (selectedVoucher != null && !isLoading)
+                                      ? () {
+                                          final voucher = vouchers[selectedVoucher!];
+                                          final int discount = voucher['discount'] as int;
+                                          _processRedemption(discount);
+                                        }
+                                      : null,
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(vertical: 18),
+                                    decoration: BoxDecoration(
+                                      color: (selectedVoucher != null && !isLoading)
+                                          ? Colors.green
+                                          : Colors.grey.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: isLoading
+                                        ? Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                'Processing...',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                  letterSpacing: 1,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Text(
+                                            'Redeem',
+                                            textAlign: TextAlign.center,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                              letterSpacing: 1,
+                                            ),
+                                          ),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -1097,150 +1117,6 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
           ),
         );
       },
-    );
-  }
-
-  Widget _buildPercentageOption({
-    required int percentage,
-    required int requiredCoins,
-    required int? selectedPercentage,
-    required VoidCallback onTap,
-  }) {
-    final hasEnoughCoins = widget.hashCoin >= requiredCoins;
-    final isSelected = selectedPercentage == percentage;
-    
-    return GestureDetector(
-      onTap: hasEnoughCoins ? onTap : null,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isSelected
-                ? [
-                    const Color(0xffDE3A3A).withOpacity(0.3),
-                    const Color(0xffF4C342).withOpacity(0.3),
-                  ]
-                : [
-                    Colors.white.withOpacity(0.08),
-                    Colors.white.withOpacity(0.03),
-                  ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected
-                ? const Color(0xffDE3A3A).withOpacity(0.6)
-                : hasEnoughCoins
-                    ? Colors.white.withOpacity(0.2)
-                    : Colors.grey.withOpacity(0.3),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            // Selection indicator
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: hasEnoughCoins
-                      ? (isSelected ? const Color(0xffDE3A3A) : Colors.white.withOpacity(0.5))
-                      : Colors.grey.withOpacity(0.5),
-                  width: 2,
-                ),
-                color: isSelected
-                    ? const Color(0xffDE3A3A)
-                    : Colors.transparent,
-              ),
-              child: isSelected
-                  ? const Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: 16,
-                    )
-                  : null,
-            ),
-            
-            const SizedBox(width: 16),
-            
-            // Percentage and details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        '$percentage%',
-                        style: GoogleFonts.play(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: hasEnoughCoins ? Colors.white : Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (isSelected)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xffDE3A3A),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'SELECTED',
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Requires ${_formatHashCoins(requiredCoins)} Hash Coins',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: hasEnoughCoins ? Colors.white70 : Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        hasEnoughCoins ? Icons.check_circle : Icons.cancel,
-                        color: hasEnoughCoins ? Colors.green : Colors.red,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        hasEnoughCoins ? 'Eligible' : 'Insufficient coins',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: hasEnoughCoins ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            // Arrow icon
-            if (hasEnoughCoins)
-              Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.white.withOpacity(0.5),
-                size: 16,
-              ),
-          ],
-        ),
-      ),
     );
   }
 

@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:hash/app/data/services/user_controller.dart';
@@ -18,20 +20,38 @@ import 'package:hash/app/modules/cafe/views/cafe_section_view.dart';
 
 import '../../../../utils/widgets/custom_card.dart';
 
-class HomeContentView extends StatelessWidget {
+class HomeContentView extends StatefulWidget {
+  const HomeContentView({super.key});
+
+  @override
+  State<HomeContentView> createState() => _HomeContentViewState();
+}
+
+class _HomeContentViewState extends State<HomeContentView> {
   final BookingController bookingController = Get.put(BookingController());
+
   final LoginController loginController = Get.put(LoginController());
 
-  HomeContentView({super.key}) {
-    // Fetch user bookings when HomeContentView is initialized
+  @override
+  void initState() {
     bookingController.fetchUserBookings();
     loginController.checkUserExistsInAPI();
+    BlocProvider.of<HashCoinCubit>(context).getHashCoin();
+    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
     final UserController user = Get.find<UserController>();
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {},
+        backgroundColor: const Color(0xFF338125),
+        child: const Icon(
+          Icons.support_agent_outlined,
+          color: Colors.white,
+        ),
+      ),
       appBar: AppBar(
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -95,7 +115,26 @@ class HomeContentView extends StatelessWidget {
         shrinkWrap: true,
         padding: const EdgeInsets.all(10),
         children: [
-          RewardsSection(), // Static widget; marked as const
+          BlocBuilder<HashCoinCubit, HashCoinState>(
+            builder: (context, state) {
+              if (state is HashCoinLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                );
+              }
+              if (state is HashCoinLoaded) {
+                return RewardsSection(
+                  hashCoin: state.hashCoin,
+                );
+              }
+              if (state is HashCoinError) {
+                return const Center(
+                  child: Text('Error loading hash coin'),
+                );
+              }
+              return const RewardsSection(hashCoin: 0);
+            },
+          ), // Static widget; marked as const
           const SizedBox(height: 18),
           RainbowLoadingBar(height: 0.5, width: Get.width),
           const SizedBox(height: 18),

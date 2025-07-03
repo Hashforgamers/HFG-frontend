@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class ViewDetailScreen extends StatelessWidget {
@@ -34,8 +33,6 @@ class ViewDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Extract data or use dummy values
     final gameName = booking['slot']?['gaming_type_id']?['game_name'] ?? getDummyGameName();
-    // startTime = startTime?? getDummyTime();
-    // final endTime = formatTime(booking['slot']?['time']?['end_time']) ?? getDummyTime();
     final status = booking['status'] ?? getDummyStatus();
     final price = booking['slot']?['gaming_type_id']?['single_slot_price'] ?? getDummyPrice();
     final location = booking['slot']?['location'] ?? getDummyLocation();
@@ -44,168 +41,157 @@ class ViewDetailScreen extends StatelessWidget {
     final cafeName = booking['slot']?['gaming_type_id']?['cafe_name']['cafe_name'] ?? 'Unknown Cafe';
 
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text('Booking Details'),
         backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text('Booking Details', style: TextStyle(color: Colors.white)),
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16.0),
-        child: Container(height: Get.height*0.99,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Game and Booking Details
-              Text(
-                cafeName.toUpperCase() ,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xffDE3A3A),),
-                overflow: TextOverflow.ellipsis,
-              ),
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(CupertinoIcons.location_circle,size: 16,),
-                  SizedBox(width: 3,),
-                  Text(
-                    location,
-                    style: TextStyle(fontSize: 14, color: Colors.white70),
-                  ),
-                ],
-              ),
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  Text(
-                    '$startTime ----- ',
-                    style: GoogleFonts.tulpenOne(fontSize: 56 , color: Colors.white,),
-                  ),
-                  Image.asset('assets/game-controller.png',scale: 15,color: Colors.white,),
-                  Text(
-                      ' ----- $endTime',
-                      style: GoogleFonts.tulpenOne(fontSize: 56, color: Colors.white,)
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-              Divider(color: Colors.white24),
-
-              // Booking ID and Price
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Booking ID',
-                      style: TextStyle(fontSize: 18, color: Colors.white70),
-                    ),
-                    Text(
-                      '$bookingId',
-                      style: TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                  ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cafe Name
+            Text(
+              cafeName,
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+              overflow: TextOverflow.ellipsis,
+            ),
+            SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(CupertinoIcons.location_solid, size: 18, color: Colors.green),
+                SizedBox(width: 4),
+                Text(
+                  location,
+                  style: TextStyle(fontSize: 16, color: Colors.green),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              ],
+            ),
+            SizedBox(height: 18),
+            // Booking Details Card
+            Card(
+              color: Color(0xFF18191A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(18.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Price',
-                      style: TextStyle(fontSize: 18, color: Colors.white70),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Booking ID', style: TextStyle(fontSize: 16, color: Colors.white54)),
+                        Text('$bookingId', style: TextStyle(fontSize: 16, color: Colors.white)),
+                      ],
                     ),
-                    Text(
-                      '₹${price.toStringAsFixed(2)}',
-                      style: TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold, color: Colors.greenAccent),
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Price', style: TextStyle(fontSize: 16, color: Colors.white54)),
+                        Text('₹${price.toStringAsFixed(0)}', style: TextStyle(fontSize: 16, color: Colors.white)),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-
-              // Status
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Status',
-                      style: TextStyle(fontSize: 18, color: Colors.white70),
-                    ),
-                    Text(
-                      status,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: status == 'confirmed' ? Colors.green : Colors.orange,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 16),
-              Divider(color: Colors.white24),
-
-              // Additional Services
-              Text(
-                'Additional Services:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              SizedBox(height: 8),
-              Text(
-                additionalServices,
-                style: TextStyle(fontSize: 16, color: Colors.white70),
-              ),
-              SizedBox(height: 16),
-              Divider(color: Colors.white24),
-
-              // QR Code
-              Center(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    QrImageView(
-                      padding: EdgeInsets.only(left: 15, top: 5, right: 2),
-                      data:
-                      'Booking ID: $bookingId\nGame: $gameName\nLocation: $location\nTime: $startTime - $endTime\nPrice: ₹${price.toStringAsFixed(2)}\nStatus: $status',
-                      version: QrVersions.auto,
-                      eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.circle),
-                      size: 150.0,
-                      foregroundColor: Colors.white,
-                    ),
-                    Container(color: Colors.black,
-                      margin: EdgeInsets.only(left: 14,bottom: 5),
-                      padding: EdgeInsets.symmetric(horizontal: 5,vertical: 2),
-                      child: Text(
-                        'HASH', // Text to display in the center
-                        style: TextStyle(
-                          color: Colors.white, // Adjust text color to contrast with the QR code
-                          fontSize: 16, // Adjust text size
-                          fontWeight: FontWeight.bold, // Make the text bold
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Status', style: TextStyle(fontSize: 16, color: Colors.white54)),
+                        Text(
+                          status.toString().capitalizeFirst ?? '',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: status.toString().toLowerCase() == 'confirmed' ? Colors.green : Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Time', style: TextStyle(fontSize: 16, color: Colors.white54)),
+                        Text('$startTime - $endTime', style: TextStyle(fontSize: 16, color: Colors.white)),
+                      ],
+                    ),
+                    Divider(color: Colors.white12, height: 28),
+                    Text('Additional Services', style: TextStyle(fontSize: 15, color: Colors.white54)),
+                    SizedBox(height: 4),
+                    Text(
+                      additionalServices,
+                      style: TextStyle(fontSize: 15, color: Colors.white),
                     ),
                   ],
                 ),
               ),
-              SizedBox(height: 16),
-
-              // Notes
-              Text(
-                'Important Notes:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            SizedBox(height: 18),
+            // Important Notes Card
+            Card(
+              color: Color(0xFF18191A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(18.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Important Notes:', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white)),
+                    SizedBox(height: 10),
+                    Text('• Please arrive 15 minutes early.', style: TextStyle(fontSize: 15, color: Colors.white60)),
+                    Text('• Non-refundable booking.', style: TextStyle(fontSize: 15, color: Colors.white60)),
+                    Text('• Contact the venue for any changes to your booking.', style: TextStyle(fontSize: 15, color: Colors.white60)),
+                  ],
+                ),
               ),
-              SizedBox(height: 8),
-              Text(
-                '• Please arrive 15 minutes early.\n'
-                    '• Non-refundable booking.\n'
-                    '• Contact the venue for any changes to your booking.',
-                style: TextStyle(fontSize: 16, color: Colors.white70),
+            ),
+            SizedBox(height: 28),
+            // QR Code
+            Center(
+              child: QrImageView(
+                data: 'Booking ID: $bookingId\nGame: $gameName\nLocation: $location\nTime: $startTime - $endTime\nPrice: ₹${price.toStringAsFixed(2)}\nStatus: $status',
+                version: QrVersions.auto,
+                eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.circle),
+                size: 140.0,
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.black,
               ),
-            ],
-          ),
+            ),
+            SizedBox(height: 32),
+            // Footer
+            Center(
+              child: Column(
+                children: [
+                  Text(
+                    '#HashforGamers',
+                    style: TextStyle(
+                      color: Color(0xFF2B5726),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 28,
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'For Gamers, By Gamers!',
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 18),
+          ],
         ),
       ),
     );

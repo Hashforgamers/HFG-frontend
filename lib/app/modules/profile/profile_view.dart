@@ -50,32 +50,38 @@ class ProfileView extends StatelessWidget {
                 _buildTextField(
                   initialValue: user.name!,
                   labelText: 'Name',
+                  icon: Icons.person,
                   onChanged: (value) => user.name = value,
                 ),
                 _buildTextField(
                   initialValue: user.gameUserName!,
                   labelText: 'Game Username',
+                  icon: Icons.games,
                   onChanged: (value) => user.gameUserName = value,
                 ),
                 _buildTextField(
                   initialValue: user.gender!,
                   labelText: 'Gender',
+                  icon: Icons.person_outline,
                   onChanged: (value) => user.gender = value,
                 ),
                 _buildTextField(
                   initialValue: user.dob ?? '',
                   labelText: 'Date of Birth',
+                  icon: Icons.calendar_today,
                   onChanged: (value) => user.dob = value,
                 ),
                 _buildTextField(
                   initialValue: user.contact?.electronicAddress?.emailId ?? '',
                   labelText: 'Email',
+                  icon: Icons.email,
                   onChanged: (value) =>
                       user.contact?.electronicAddress?.emailId = value,
                 ),
                 _buildTextField(
                   initialValue: user.contact?.electronicAddress?.mobileNo ?? '',
                   labelText: 'Mobile Number',
+                  icon: Icons.phone,
                   onChanged: (value) =>
                       user.contact?.electronicAddress?.mobileNo = value,
                 ),
@@ -83,6 +89,7 @@ class ProfileView extends StatelessWidget {
                   initialValue:
                       user.contact?.physicalAddress?.addressLine1 ?? '',
                   labelText: 'Address Line 1',
+                  icon: Icons.location_on,
                   onChanged: (value) =>
                       user.contact?.physicalAddress?.addressLine1 = value,
                 ),
@@ -90,18 +97,21 @@ class ProfileView extends StatelessWidget {
                   initialValue:
                       user.contact?.physicalAddress?.addressLine2 ?? '',
                   labelText: 'Address Line 2',
+                  icon: Icons.location_city,
                   onChanged: (value) =>
                       user.contact?.physicalAddress?.addressLine2 = value,
                 ),
                 _buildTextField(
                   initialValue: user.contact?.physicalAddress?.state ?? '',
                   labelText: 'State',
+                  icon: Icons.map,
                   onChanged: (value) =>
                       user.contact?.physicalAddress?.state = value,
                 ),
                 _buildTextField(
                   initialValue: user.contact?.physicalAddress?.country ?? '',
                   labelText: 'Country',
+                  icon: Icons.public,
                   onChanged: (value) =>
                       user.contact?.physicalAddress?.country = value,
                 ),
@@ -163,6 +173,7 @@ class ProfileView extends StatelessWidget {
   Widget _buildTextField({
     required String initialValue,
     required String labelText,
+    required IconData icon,
     required Function(String) onChanged,
   }) {
     return Padding(
@@ -172,12 +183,13 @@ class ProfileView extends StatelessWidget {
         decoration: InputDecoration(
           labelText: labelText,
           labelStyle: const TextStyle(color: Colors.white70),
+          prefixIcon: Icon(icon, color: const Color(0xff00D701)),
           enabledBorder: OutlineInputBorder(
             borderSide: const BorderSide(color: Colors.white70),
             borderRadius: BorderRadius.circular(10),
           ),
           focusedBorder: OutlineInputBorder(
-            borderSide: const BorderSide(color: Colors.white),
+            borderSide: const BorderSide(color: Color(0xff00D701)),
             borderRadius: BorderRadius.circular(10),
           ),
         ),
