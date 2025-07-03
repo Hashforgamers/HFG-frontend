@@ -20,6 +20,7 @@ class SignUpController extends GetxController {
   var countryController = TextEditingController();
   var mobileNoController = TextEditingController();
   var emailController = TextEditingController();
+  var referralCodeController = TextEditingController();
   var avatarPath = ''.obs;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final segmentService = locator<SegmentSdkService>();
@@ -118,6 +119,7 @@ class SignUpController extends GetxController {
         "gender": genderController.text,
         "dob": dobController.text,
         "gameUserName": gameUserNameController.text,
+        "referral_code": referralCodeController.text.isNotEmpty ? referralCodeController.text : "",
         "contact": {
           "physicalAddress": {
             "address_type": "home",

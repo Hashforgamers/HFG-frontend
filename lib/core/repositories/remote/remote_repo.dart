@@ -66,6 +66,23 @@ class RemoteRepo implements RemoteRepoInterface {
             'Signup failed with status code: ${response.statusCode}');
       }
     } catch (e) {
+      // Handle DioException specifically to extract error messages
+      if (e is DioException && e.response != null) {
+        final statusCode = e.response!.statusCode;
+        final responseData = e.response!.data;
+        
+        if (statusCode == 400) {
+          // Extract error message from response data
+          String errorMessage = 'Signup failed';
+          if (responseData is Map<String, dynamic> && 
+              responseData.containsKey('message')) {
+            errorMessage = responseData['message'];
+          }
+          throw Exception(errorMessage);
+        } else {
+          throw Exception('Signup failed with status code: $statusCode');
+        }
+      }
       print('Error during signup: $e');
       rethrow;
     }
