@@ -46,37 +46,37 @@ class ViewDetailScreen extends StatelessWidget {
         backgroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Booking Details', style: TextStyle(color: Colors.white)),
+        title: const Text('Booking Details', style: TextStyle(color: Colors.white)),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Cafe Name
             Text(
               cafeName,
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
               overflow: TextOverflow.ellipsis,
             ),
-            SizedBox(height: 6),
+            const SizedBox(height: 6),
             Row(
               children: [
-                Icon(CupertinoIcons.location_solid, size: 18, color: Colors.green),
-                SizedBox(width: 4),
+                const Icon(CupertinoIcons.location_solid, size: 18, color: Colors.green),
+                const SizedBox(width: 4),
                 Text(
                   location,
-                  style: TextStyle(fontSize: 16, color: Colors.green),
+                  style: const TextStyle(fontSize: 16, color: Colors.green),
                 ),
               ],
             ),
-            SizedBox(height: 18),
+            const SizedBox(height: 18),
             // Booking Details Card
             Card(
-              color: Color(0xFF18191A),
+              color: const Color(0xFF18191A),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               margin: EdgeInsets.zero,
               child: Padding(
@@ -87,23 +87,23 @@ class ViewDetailScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Booking ID', style: TextStyle(fontSize: 16, color: Colors.white54)),
-                        Text('$bookingId', style: TextStyle(fontSize: 16, color: Colors.white)),
+                        const Text('Booking ID', style: TextStyle(fontSize: 16, color: Colors.white54)),
+                        Text('$bookingId', style: const TextStyle(fontSize: 16, color: Colors.white)),
                       ],
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Price', style: TextStyle(fontSize: 16, color: Colors.white54)),
-                        Text('₹${price.toStringAsFixed(0)}', style: TextStyle(fontSize: 16, color: Colors.white)),
+                        const Text('Price', style: TextStyle(fontSize: 16, color: Colors.white54)),
+                        Text('₹${price.toStringAsFixed(0)}', style: const TextStyle(fontSize: 16, color: Colors.white)),
                       ],
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Status', style: TextStyle(fontSize: 16, color: Colors.white54)),
+                        const Text('Status', style: TextStyle(fontSize: 16, color: Colors.white54)),
                         Text(
                           status.toString().capitalizeFirst ?? '',
                           style: TextStyle(
@@ -114,33 +114,33 @@ class ViewDetailScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Time', style: TextStyle(fontSize: 16, color: Colors.white54)),
-                        Text('$startTime - $endTime', style: TextStyle(fontSize: 16, color: Colors.white)),
+                        const Text('Time', style: TextStyle(fontSize: 16, color: Colors.white54)),
+                        Text('$startTime - $endTime', style: const TextStyle(fontSize: 16, color: Colors.white)),
                       ],
                     ),
-                    Divider(color: Colors.white12, height: 28),
-                    Text('Additional Services', style: TextStyle(fontSize: 15, color: Colors.white54)),
-                    SizedBox(height: 4),
+                    const Divider(color: Colors.white12, height: 28),
+                    const Text('Additional Services', style: TextStyle(fontSize: 15, color: Colors.white54)),
+                    const SizedBox(height: 4),
                     Text(
                       additionalServices,
-                      style: TextStyle(fontSize: 15, color: Colors.white),
+                      style: const TextStyle(fontSize: 15, color: Colors.white),
                     ),
                   ],
                 ),
               ),
             ),
-            SizedBox(height: 18),
+            const SizedBox(height: 18),
             // Important Notes Card
             Card(
-              color: Color(0xFF18191A),
+              color: const Color(0xFF18191A),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(18.0),
+              child: const Padding(
+                padding: EdgeInsets.all(18.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -153,21 +153,21 @@ class ViewDetailScreen extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(height: 28),
+            const SizedBox(height: 28),
             // QR Code
             Center(
               child: QrImageView(
                 data: 'Booking ID: $bookingId\nGame: $gameName\nLocation: $location\nTime: $startTime - $endTime\nPrice: ₹${price.toStringAsFixed(2)}\nStatus: $status',
                 version: QrVersions.auto,
-                eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.circle),
+                eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.circle),
                 size: 140.0,
                 foregroundColor: Colors.white,
                 backgroundColor: Colors.black,
               ),
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             // Footer
-            Center(
+            const Center(
               child: Column(
                 children: [
                   Text(
@@ -190,7 +190,7 @@ class ViewDetailScreen extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(height: 18),
+            const SizedBox(height: 18),
           ],
         ),
       ),
