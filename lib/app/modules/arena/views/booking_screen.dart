@@ -7,7 +7,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shimmer/shimmer.dart';
 
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
-import 'package:hash/app/modules/arena/models/slot_model.dart';
 import 'booking_summary_screen.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -15,10 +14,14 @@ class BookingScreen extends StatefulWidget {
   final int gameId;
   final int vendorId;
 
-  BookingScreen({super.key, required this.title, required this.gameId, required this.vendorId});
+  const BookingScreen(
+      {super.key,
+      required this.title,
+      required this.gameId,
+      required this.vendorId});
 
   @override
-  _BookingScreenState createState() => _BookingScreenState();
+  State<BookingScreen> createState() => _BookingScreenState();
 }
 
 class _BookingScreenState extends State<BookingScreen> {
@@ -31,7 +34,8 @@ class _BookingScreenState extends State<BookingScreen> {
   void initState() {
     super.initState();
     _fetchUserId();
-    controller.fetchSlots(vendorId: widget.vendorId, gameId: widget.gameId, date: selectedDate);
+    controller.fetchSlots(
+        vendorId: widget.vendorId, gameId: widget.gameId, date: selectedDate);
   }
 
   Future<void> _fetchUserId() async {
@@ -58,7 +62,20 @@ class _BookingScreenState extends State<BookingScreen> {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        title: Text(widget.title),
+        leading: IconButton(
+            onPressed: () {
+              Get.back();
+            },
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.green,
+            )),
+        title: Text(
+          widget.title,
+          style: const TextStyle(
+              color: Colors.green, fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.black,
       ),
       body: Container(
         decoration: const BoxDecoration(color: Colors.black),
@@ -67,7 +84,8 @@ class _BookingScreenState extends State<BookingScreen> {
             return ListView.builder(
               itemCount: 4,
               itemBuilder: (context, index) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Shimmer.fromColors(
                   baseColor: Colors.grey[900]!,
                   highlightColor: Colors.grey[800]!,
@@ -117,7 +135,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
           // Check if there are any available slots
           final availableSlots = controller.slots.where((slot) {
-            final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+            final bool isAvailable =
+                slot['is_available'] ?? slot['isAvailable'] ?? true;
             return isAvailable;
           }).toList();
           if (availableSlots.isEmpty) {
@@ -181,11 +200,16 @@ class _BookingScreenState extends State<BookingScreen> {
                     const SizedBox(height: 4),
                     Obx(() {
                       final availableSlots = controller.slots.where((slot) {
-                        final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+                        final bool isAvailable =
+                            slot['is_available'] ?? slot['isAvailable'] ?? true;
                         return isAvailable;
                       }).toList();
-                      final totalAvailablePCs = availableSlots.fold<int>(0, (sum, slot) {
-                        final int availablePCs = slot['available_slot'] ?? slot['availableSlot'] ?? slot['available_slots'] ?? 0;
+                      final totalAvailablePCs =
+                          availableSlots.fold<int>(0, (sum, slot) {
+                        final int availablePCs = slot['available_slot'] ??
+                            slot['availableSlot'] ??
+                            slot['available_slots'] ??
+                            0;
                         return sum + availablePCs;
                       });
                       return Text(
@@ -217,8 +241,12 @@ class _BookingScreenState extends State<BookingScreen> {
                   if (pickedDate != null) {
                     setState(() {
                       selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
-                      selectedDateText = DateFormat('dd MMM, yyyy').format(pickedDate);
-                      controller.fetchSlots(vendorId: widget.vendorId, gameId: widget.gameId, date: selectedDate);
+                      selectedDateText =
+                          DateFormat('dd MMM, yyyy').format(pickedDate);
+                      controller.fetchSlots(
+                          vendorId: widget.vendorId,
+                          gameId: widget.gameId,
+                          date: selectedDate);
                     });
                   }
                 },
@@ -233,7 +261,8 @@ class _BookingScreenState extends State<BookingScreen> {
             itemBuilder: (context, index) {
               final slot = controller.slots[index];
               // Check availability with fallback field names
-              final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+              final bool isAvailable =
+                  slot['is_available'] ?? slot['isAvailable'] ?? true;
               if (isAvailable) {
                 return buildSlotItem(slot, index);
               } else {
@@ -259,8 +288,11 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Widget buildSlotItem(Map<String, dynamic> slot, int index) {
     // Get the number of available PCs for this slot with fallback
-    final int availablePCs = slot['available_slot'] ?? slot['availableSlot'] ?? slot['available_slots'] ?? 0;
-    
+    final int availablePCs = slot['available_slot'] ??
+        slot['availableSlot'] ??
+        slot['available_slots'] ??
+        0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Container(
@@ -285,7 +317,8 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -353,7 +386,8 @@ class _BookingScreenState extends State<BookingScreen> {
     required int slotId,
   }) {
     return Obx(() {
-      final isSelected = controller.selectedSlots[pcIndex]?.contains(timeIndex) ?? false;
+      final isSelected =
+          controller.selectedSlots[pcIndex]?.contains(timeIndex) ?? false;
 
       return GestureDetector(
         onTap: () {
@@ -365,7 +399,8 @@ class _BookingScreenState extends State<BookingScreen> {
             }
             message = 'Slot deselected from PC $pcIndex';
           } else {
-            controller.selectedSlots[pcIndex] = controller.selectedSlots[pcIndex] ?? [];
+            controller.selectedSlots[pcIndex] =
+                controller.selectedSlots[pcIndex] ?? [];
             controller.selectedSlots[pcIndex]?.add(timeIndex);
             message = 'Slot selected for PC $pcIndex';
           }
@@ -384,7 +419,8 @@ class _BookingScreenState extends State<BookingScreen> {
           margin: const EdgeInsets.only(right: 10),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xffDE3A3A) : const Color(0xff2D2D2D),
+            color:
+                isSelected ? const Color(0xffDE3A3A) : const Color(0xff2D2D2D),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected ? Colors.greenAccent : Colors.grey.shade700,
@@ -405,8 +441,9 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Widget buildFooter() {
     return Obx(() {
-      int totalSelectedSlots = controller.selectedSlots.values.fold(0, (sum, slots) => sum + slots.length);
-      
+      int totalSelectedSlots = controller.selectedSlots.values
+          .fold(0, (sum, slots) => sum + slots.length);
+
       // Calculate total price based on actual slot prices
       double totalPrice = 0.0;
       controller.selectedSlots.forEach((pcIndex, timeIndices) {
@@ -454,7 +491,9 @@ class _BookingScreenState extends State<BookingScreen> {
             ElevatedButton(
               onPressed: totalSelectedSlots > 0 ? onProceed : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: totalSelectedSlots > 0 ? const Color(0xffDE3A3A) : Colors.grey,
+                backgroundColor: totalSelectedSlots > 0
+                    ? const Color(0xffDE3A3A)
+                    : Colors.grey,
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -492,9 +531,9 @@ class _BookingScreenState extends State<BookingScreen> {
     });
 
     Get.to(() => BookingSummaryScreen(
-      selectedSlots: selectedSlotDetails,
-      gameId: widget.gameId,
-      userId: userId,
-    ));
+          selectedSlots: selectedSlotDetails,
+          gameId: widget.gameId,
+          userId: userId,
+        ));
   }
 }

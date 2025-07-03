@@ -307,12 +307,12 @@ class _ArenaViewState extends State<ArenaView> {
       ),
       child: TextField(
         controller: _searchController,
-        style: const TextStyle(color: Color(0xffDE3A3A)),
+        style: const TextStyle(color: Color(0xff338125)),
         decoration: InputDecoration(
           labelText: 'Search for a location',
           border: InputBorder.none,
           suffixIcon: IconButton(
-            icon: const Icon(Icons.search, color: Color(0xffDE3A3A)),
+            icon: const Icon(Icons.search, color: Color(0xff338125)),
             onPressed: _searchAndNavigate,
           ),
         ),
@@ -459,7 +459,7 @@ class _ArenaViewState extends State<ArenaView> {
                                 child: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                      color: const Color(0xffDE3A3A),
+                                      color: const Color(0xff338125),
                                       borderRadius: BorderRadius.circular(12)),
                                   child: const Icon(Icons.route,
                                       color: Colors.black, size: 20),

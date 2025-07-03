@@ -53,7 +53,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                   'My Bookings',
                   style: GoogleFonts.bebasNeue(
                     fontSize: 36,
-                    color: Colors.white,
+                    color: Colors.green,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
@@ -65,25 +65,26 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                   controller: _tabController,
                   indicatorColor: Colors.transparent,
                   labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  labelColor: const Color(0xFFEF5658),
+                  labelColor: const Color(0xff338125),
                   unselectedLabelColor: Colors.white70,
                   labelStyle: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 18),
                   unselectedLabelStyle: const TextStyle(
                       fontWeight: FontWeight.w500, fontSize: 18),
                   tabs: const [
-                    Tab(child: Text('All')),
-                    Tab(child: Text('Upcoming')),
-                    Tab(child: Text('Completed')),
+                    Tab(child: Text('All',style: TextStyle(color: Colors.green),)),
+                    Tab(child: Text('Upcoming',style: TextStyle(color: Colors.green),)),
+                    Tab(child: Text('Completed',style: TextStyle(color: Colors.green),)),
                   ],
                 ),
               ),
               const SizedBox(height: 8),
               Expanded(
                 child: Obx(() {
-                  if (ctr.isLoading.value)
+                  if (ctr.isLoading.value) {
                     return const Center(
                         child: CircularProgressIndicator(color: Colors.white));
+                  }
                   if (ctr.userBookings.isEmpty) {
                     return const Center(
                         child: Text('No past bookings.',
@@ -203,7 +204,7 @@ class _BookingCard extends StatelessWidget {
                       Text(
                         '#$id',
                         style: const TextStyle(
-                          color: mainRed,
+                          color: Colors.green,
                           fontWeight: FontWeight.bold,
                           fontSize: 28,
                         ),

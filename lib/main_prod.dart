@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/services/deeplink_service.dart';
 import 'package:hash/services/notification_service.dart';
@@ -16,7 +18,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize flavor configuration for production
   FlavorConfig(
     flavor: Flavor.prod,
@@ -39,10 +41,10 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
-  
+
   Get.put(UserController());
   Get.put(RazorpayController());
   Get.put(BookingController());
@@ -58,12 +60,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      debugShowCheckedModeBanner: false, // Hide debug banner for prod
-      title: FlavorConfig.instance.appName,
-      theme: AppTheme.dark,
-      initialRoute: AppRoutes.SPLASH,
-      getPages: AppPages.pages,
+    return BlocProvider(
+      create: (context) => HashCoinCubit(),
+      child: GetMaterialApp(
+        debugShowCheckedModeBanner: false, // Hide debug banner for prod
+        title: FlavorConfig.instance.appName,
+        theme: AppTheme.dark,
+        initialRoute: AppRoutes.SPLASH,
+        getPages: AppPages.pages,
+      ),
     );
   }
-} 
+}
