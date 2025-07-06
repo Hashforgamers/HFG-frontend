@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
@@ -16,205 +17,132 @@ class LoginView extends StatelessWidget {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          Center(
-            child: Container(
-              width: Get.width,
-              height: Get.height * 0.85,
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  physics: const BouncingScrollPhysics(),
-                  shrinkWrap: true,
-                  children: [
-                     Center(
-                      child: Image.asset('assets/Transparent Logo.png',scale: 8,)
-                      // child: Text(
-                      //   'HASH.',
-                      //   style: TextStyle(
-                      //     color: Color(0xffDE3A3A),
-                      //     fontSize: 44,
-                      //     fontWeight: FontWeight.w900,
-                      //   ),
-                      // ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Login',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: controller.phoneNumberController,
-                      style: const TextStyle(
-                          color: Colors.white, letterSpacing: 4),
-                      decoration: InputDecoration(
-                        labelText: 'Phone Number',
-                        prefix: const Text('  +91  '),
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Colors.white70),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Colors.white),
-                          borderRadius: BorderRadius.circular(10),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // ─── logo ───────────────────────────────────────────────
+                      Image.asset('assets/logo.png', width: 140),
+                      const SizedBox(height: 30),
+
+                      // Tag-line
+                      Text(
+                        'Welcome to Hash for Gamers',
+                        style: GoogleFonts.orbitron(
+                          color: Colors.white70,
+                          fontSize: 18,
+                          letterSpacing: 1.1,
                         ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your phone number';
-                        } else if (!RegExp(r'^[0-9]{10}$').hasMatch(value)) {
-                          return 'Please enter a valid 10-digit phone number';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 30),
-                    Stack(
-                      children: [
-                        SizedBox(
-                          width: Get.width,
-                          height: 50,
-                          child: RGBLightFrame(
-                            width: Get.width,
-                            height: Get.height,
-                            borderRadius: 10,
-                          ),
-                        ),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              if (_formKey.currentState!.validate()) {
-                                segementService.onOtpRequested(
-                                    mobile:
-                                        controller.phoneNumberController.text);
-                                controller.isLoading.value = true; // Start loader immediately
+                      const SizedBox(height: 40),
 
-                                controller.signInWithPhoneNumber();
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            child: const Text('Continue',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                )),
+                      // ─── title ─────────────────────────────────────────────
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Login',
+                          style: GoogleFonts.orbitron(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Divider(
-                            thickness: 1,
-                            height: 50,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Text(
-                            'or',
-                            style: TextStyle(
-                              color: Colors.white70, // Adjust text color
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Divider(
-                            thickness: 1,
-                            height: 50,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 20),
 
-                    GestureDetector(
-                      onTap: controller.googleSignIn,
-                      child: Stack(
-                        alignment: Alignment.center,
+                      // ─── phone input ──────────────────────────────────────
+                      TextFormField(
+                        controller: controller.phoneNumberController,
+                        style: const TextStyle(color: Colors.white),
+                        keyboardType: TextInputType.number,
+                        maxLength: 10,
+                        decoration: InputDecoration(
+                          labelText: 'Phone Number',
+                          prefix: const Text(' +91 ', style: TextStyle(color: Colors.white)),
+                          counterText: '',
+                          labelStyle: const TextStyle(color: Colors.white70),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(color: Colors.white24),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(color: Color(0xff3AFF6B)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your phone number';
+                          } else if (!RegExp(r'^[0-9]{10}$').hasMatch(value)) {
+                            return 'Enter valid 10-digit number';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 30),
+
+                      // ─── Continue button with neon frame ──────────────────
+                      Stack(
                         children: [
                           SizedBox(
-                            width: Get.width,
-                            height: 55,
+                            width: double.infinity,
+                            height: 50,
                             child: RGBLightFrame(
                               width: Get.width,
                               height: Get.height,
-                              borderRadius: 25,
+                              borderRadius: 12,
                             ),
                           ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Image.network(
-                                'https://cdn-icons-png.flaticon.com/512/2702/2702602.png', // Ensure the Google logo is saved in assets
-                                width: 24,
-                                height: 24,
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                "Sign in with Google",
-                                style: TextStyle(
-                                  color: Colors
-                                      .white, // Google branding black text
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.normal,
+                          Positioned.fill(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                if (_formKey.currentState!.validate()) {
+                                  segementService.onOtpRequested(
+                                      mobile: controller.phoneNumberController.text);
+                                  controller.isLoading.value = true;
+                                  controller.signInWithPhoneNumber();
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                            ],
+                              child: const Text(
+                                'Continue',
+                                style: TextStyle(color: Colors.white, fontSize: 16),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    // TextButton(
-                    //   onPressed: () {
-                    //     Get.offAllNamed(AppRoutes.SIGNUP);
-                    //   },
-                    //   child: const Row(
-                    //     mainAxisAlignment: MainAxisAlignment.center,
-                    //     children: [
-                    //       Text('New to Hash? ', style: TextStyle(color: Colors.white70)),
-                    //       Text(' Signup', style: TextStyle(color: Color(0xFF3AFF6B))),
-                    //     ],
-                    //   ),
-                    // ),
-                  ],
+                      const SizedBox(height: 20),
+                      // (Google-sign in & divider removed)
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-          Obx(() {
-            if (controller.isLoading.value) {
-              return Container(
-                width: double.infinity,
-                height: double.infinity,
-                color: Colors.black.withOpacity(0.5),
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
-                  ),
-                ),
-              );
-            } else {
-              return const SizedBox.shrink(); // Empty widget when not loading
-            }
-          }),
+
+          // ─── overlay loader ───────────────────────────────────────────────
+          Obx(() => controller.isLoading.value
+              ? Container(
+            color: Colors.black.withOpacity(0.5),
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
+              ),
+            ),
+          )
+              : const SizedBox.shrink()),
         ],
       ),
     );

@@ -7,6 +7,7 @@ import 'package:hash/core/service_locator.dart';
 import 'package:hash/services/deeplink_service.dart';
 import 'package:hash/services/notification_service.dart';
 import 'package:hash/config/flavor_config.dart';
+import 'package:hash/utils/scroll_behaviour.dart';
 import 'app/data/services/user_controller.dart';
 import 'app/modules/arena/controllers/booking_controller.dart';
 import 'app/modules/game/views/game_section_view.dart';
@@ -61,13 +62,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => HashCoinCubit(),
-      child: GetMaterialApp(
-        debugShowCheckedModeBanner: true, // Show debug banner for dev
-        title: FlavorConfig.instance.appName,
-        theme: AppTheme.dark,
-        initialRoute: AppRoutes.SPLASH,
-        getPages: AppPages.pages,
+      create: (context)=> HashCoinCubit(),
+      child: ScrollConfiguration(
+        behavior: NoGlowScrollBehavior(),
+        child: GetMaterialApp(
+          debugShowCheckedModeBanner: true, // Show debug banner for dev
+          title: FlavorConfig.instance.appName,
+          theme: AppTheme.dark,
+          initialRoute: AppRoutes.SPLASH,
+          getPages: AppPages.pages,
+        ),
       ),
     );
   }

@@ -3,22 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:hash/utils/widgets/loader.dart';
 import 'package:hash/app/data/services/user_controller.dart';
-import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
+import 'package:hash/app/modules/cafe/views/cafe_section_view.dart';
 import 'package:hash/app/modules/event/event_banner_view.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
+import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shop/views/shop_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
-import 'package:hash/app/modules/cafe/views/cafe_section_view.dart';
-
-import '../../../../utils/widgets/custom_card.dart';
+import 'package:hash/app/routes/app_routes.dart';
+import 'package:hash/utils/widgets/loader.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shimmer/shimmer.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -28,145 +28,137 @@ class HomeContentView extends StatefulWidget {
 }
 
 class _HomeContentViewState extends State<HomeContentView> {
-  final BookingController bookingController = Get.put(BookingController());
-
-  final LoginController loginController = Get.put(LoginController());
+  final BookingController bookingController = Get.find();
+  final LoginController loginController = Get.find();
+  final UserController userController = Get.find();
 
   @override
   void initState() {
-    bookingController.fetchUserBookings();
-    loginController.checkUserExistsInAPI();
-    BlocProvider.of<HashCoinCubit>(context).getHashCoin();
     super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      bookingController.fetchUserBookings();
+      loginController.checkUserExistsInAPI();
+      BlocProvider.of<HashCoinCubit>(context).getHashCoin();
+
+      final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        userController.fetchUserData(currentUser.uid);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final UserController user = Get.find<UserController>();
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: const Color(0xFF338125),
-        child: const Icon(
-          Icons.support_agent_outlined,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.support_agent_outlined, color: Colors.white),
       ),
-      appBar: AppBar(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Obx(() => Text(
-                  'Hey, ${user.user.value.gameUserName}!',
-                  style: const TextStyle(color: Colors.white),
-                )),
-            Obx(() {
-              if (user.isLoading.value) {
-                return const CircularProgressIndicator(color: Colors.white);
-              } else {
-                return PopupMenuButton<String>(
-                  offset: const Offset(0, 40),
-                  color: Colors.black87,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  onSelected: (String result) => print(result),
-                  itemBuilder: (BuildContext context) =>
-                      <PopupMenuEntry<String>>[
-                    const PopupMenuItem<String>(
-                      value: 'Profile',
-                      child: Text('Profile',
-                          style: TextStyle(color: Color(0xffDE3A3A))),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'Settings',
-                      child: Text('Settings',
-                          style: TextStyle(color: Color(0xffDE3A3A))),
-                    ),
-                    PopupMenuItem<String>(
-                      onTap: () async {
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.remove('token');
-                        await prefs.remove('user_data');
-                        Get.offAllNamed(AppRoutes.LOGIN);
-                      },
-                      value: 'Logout',
-                      child: const Text('Logout',
-                          style: TextStyle(color: Color(0xffDE3A3A))),
-                    ),
-                  ],
-                  child: Obx(() => CircleAvatar(
-                        radius: 15,
-                        backgroundImage: user.user.value.photoUrl != null &&
-                                user.user.value.photoUrl!.isNotEmpty
-                            ? CachedNetworkImageProvider(
-                                user.user.value.photoUrl!) as ImageProvider
-                            : const NetworkImage(
-                                'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg'),
-                        backgroundColor: Colors.white,
-                      )),
-                );
-              }
-            }),
-          ],
-        ),
-        backgroundColor: Colors.black,
-      ),
+      appBar: _buildAppBar(),
       body: ListView(
-        shrinkWrap: true,
         padding: const EdgeInsets.all(10),
         children: [
           BlocBuilder<HashCoinCubit, HashCoinState>(
-            builder: (context, state) {
-              if (state is HashCoinLoading) {
-                return const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                );
-              }
-              if (state is HashCoinLoaded) {
-                return RewardsSection(
-                  hashCoin: state.hashCoin,
-                );
-              }
-              if (state is HashCoinError) {
-                return const Center(
-                  child: Text('Error loading hash coin'),
-                );
-              }
-              return const RewardsSection(hashCoin: 0);
-            },
-          ), // Static widget; marked as const
+            builder: (_, state) => RewardsSection(
+              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+            ),
+          ),
           const SizedBox(height: 18),
           RainbowLoadingBar(height: 0.5, width: Get.width),
           const SizedBox(height: 18),
-          EventBanner(), // Static widget; marked as const
+          EventBanner(),
           const SizedBox(height: 18),
-          // Obx(() {
-          //   if (bookingController.isLoading.value) {
-          //     return const Center(child: RainbowGlowingLoader(size: 50),);
-          //   }
-          //   if (bookingController.userBookings.isEmpty) {
-          //     return const SizedBox();
-          //   }
-          //   return _buildBookingsSection();
-          // }),
-          const SizedBox(height: 18),
-          CafeSection(), // Add the new cafe section
+          CafeSection(),
           const SizedBox(height: 18),
           const GamerNewsSection(),
           const SizedBox(height: 18),
-
-          ViralShotsSection(), // Static widget
+          ViralShotsSection(),
           const SizedBox(height: 18),
-          ShopSection(), // Static widget
+          ShopSection(),
           const SizedBox(height: 18),
-          // const TournamentsSection(), // Static widget
-          // const SizedBox(height: 18),
-
-          GamesSection(), // Static widget
+          GamesSection(),
           _buildGameOnIndiaBanner(),
         ],
       ),
     );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.black,
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Obx(() => Text(
+            'Hey, ${userController.user.value.gameUserName}!',
+            style: const TextStyle(color: Colors.white),
+          )),
+          Obx(() => PopupMenuButton<String>(
+            offset: const Offset(0, 40),
+            color: Colors.black87,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            onSelected: (value) => _handleMenuSelection(value),
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'Profile',
+                child: Text('Profile', style: TextStyle(color: Color(0xffDE3A3A))),
+              ),
+              const PopupMenuItem(
+                value: 'Settings',
+                child: Text('Settings', style: TextStyle(color: Color(0xffDE3A3A))),
+              ),
+              PopupMenuItem(
+                value: 'Logout',
+                onTap: _logout,
+                child: const Text('Logout', style: TextStyle(color: Color(0xffDE3A3A))),
+              ),
+            ],
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              child: userController.isLoading.value
+                  ? _shimmerAvatar()
+                  : _userAvatar(userController.user.value.photoUrl),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _shimmerAvatar() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade800,
+      highlightColor: Colors.grey.shade600,
+      child: const CircleAvatar(radius: 15, backgroundColor: Colors.grey),
+    );
+  }
+
+  Widget _userAvatar(String? photoUrl) {
+    return CircleAvatar(
+      radius: 15,
+      backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+          ? CachedNetworkImageProvider(photoUrl)
+          : const NetworkImage('https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg')
+      as ImageProvider,
+      backgroundColor: Colors.white,
+    );
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('user_data');
+    Get.offAllNamed(AppRoutes.LOGIN);
+  }
+
+  void _handleMenuSelection(String value) {
+    if (value == 'Profile') {
+      // Handle profile tap
+    } else if (value == 'Settings') {
+      // Handle settings tap
+    }
   }
 
   Widget _buildGameOnIndiaBanner() {
@@ -175,11 +167,7 @@ class _HomeContentViewState extends State<HomeContentView> {
       child: Center(
         child: ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
-            colors: [
-              Color(0xFFFF9933), // Saffron
-              Colors.white, // White
-              Color(0xFF138808), // Green
-            ],
+            colors: [Color(0xFFFF9933), Colors.white, Color(0xFF138808)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ).createShader(bounds),
@@ -188,7 +176,7 @@ class _HomeContentViewState extends State<HomeContentView> {
             style: GoogleFonts.tulpenOne(
               fontSize: 100,
               fontWeight: FontWeight.normal,
-              color: Colors.white, // Text color required for ShaderMask
+              color: Colors.white,
             ),
           ),
         ),

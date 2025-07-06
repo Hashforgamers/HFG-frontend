@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import '../controllers/home_controller.dart';
 
 class HomeView extends StatelessWidget {
-  final HomeController controller = Get.put(HomeController());
+  final HomeController controller = Get.find();
 
   @override
   Widget build(BuildContext context) {

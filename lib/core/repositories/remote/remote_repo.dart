@@ -266,6 +266,8 @@ class RemoteRepo implements RemoteRepoInterface {
     required List<int> bookingIds,
     required String paymentId,
     required String bookDate,
+    required String paymentMode,           // ✅ ADD THIS
+
     String? voucherCode,
   }) async {
     final dio = networkProvider.noAuth();
@@ -274,6 +276,8 @@ class RemoteRepo implements RemoteRepoInterface {
         "booking_id": bookingIds,
         "payment_id": paymentId,
         "book_date": bookDate,
+        "payment_mode": paymentMode,   // ★ you missed this
+
       };
 
       // Add voucher code if provided

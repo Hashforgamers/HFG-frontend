@@ -36,6 +36,7 @@ abstract class RemoteRepoInterface {
     required String paymentId,
     required String bookDate,
     String? voucherCode,
+    required String paymentMode,
   });
 
   // Address related methods
