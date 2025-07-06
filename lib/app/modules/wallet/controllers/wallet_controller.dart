@@ -1,109 +1,84 @@
+import 'dart:convert';
 import 'package:get/get.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:flutter/material.dart';
-import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
-import 'package:hash/core/service_locator.dart';
+import 'package:http/http.dart' as http;
+import 'package:hash/core/network/api_endpoints.dart';
+import '../../../data/services/user_controller.dart';
 
 class WalletController extends GetxController {
-  var balance = 0.0.obs;
-  var transactions = <Map<String, dynamic>>[].obs;
-  final _remoteRepo = locator<RemoteRepoInterface>();
+  final userController = Get.find<UserController>(); // Injected
 
+  var balance = 0.obs;
+  var isLoading = false.obs;
   @override
   void onInit() {
     super.onInit();
-    fetchWallet();
+    fetchWallet(); // 👈 Automatically fetch on controller load
   }
 
-  Future<void> withdrawFunds(double amount) async {
-    // Call your withdraw funds API here
-    // Example:
-    // var response = await api.withdrawFunds(amount);
-    // Handle response and update balance
-    balance.value -= amount;
-    fetchWallet(); // Refresh wallet details
-  }
-
+  /// Fetch wallet balance using userId
   Future<void> fetchWallet() async {
+    isLoading.value = true;
+
+    final userId = userController.userId?.trim();
+    if (userId == null || userId.isEmpty) {
+      Get.snackbar('User ID Missing', 'Cannot load wallet without a valid user ID');
+      isLoading.value = false;
+      return;
+    }
+
+    final url = Uri.parse(ApiEndpoints.walletByUserId(userId));
+    print('📦 Wallet API: $url');
+
     try {
-      final data = await _remoteRepo.fetchWallet();
-      balance.value = data['balance'];
-      transactions.value = List<Map<String, dynamic>>.from(data['transactions']);
-      print('this ${transactions.value}');
+      final res = await http.get(url);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        balance.value = data['balance'];
+      } else {
+        print('❌ Wallet API Error: ${res.body}');
+        Get.snackbar("Error", "Failed to load wallet • ${res.body}");
+      }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to fetch wallet data');
+      print('❌ Wallet Exception: $e');
+      Get.snackbar("Error", e.toString());
+    } finally {
+      isLoading.value = false;
     }
   }
 
-  Future<void> addFunds(double amount, String description, String name, String contact, String emailId, BuildContext context) async {
+  /// Confirm top-up and refresh wallet
+  Future<void> confirmTopUp({
+    required int amount,
+    required String paymentId,
+  }) async {
+    final userId = userController.userId?.trim();
+    if (userId == null || userId.isEmpty) {
+      Get.snackbar('Error', 'User ID missing, cannot confirm top-up.');
+      return;
+    }
+
+    final url = Uri.parse(ApiEndpoints.addFundsByUserId(userId));
+    print('💸 Confirm Top-Up URL: $url');
+
     try {
-      final data = await _remoteRepo.addFunds(
-        amount: amount,
-        description: description,
-        name: name,
-        contact: contact,
-        emailId: emailId,
+      final res = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "amount": amount,
+          "reference_id": paymentId,
+        }),
       );
-      String paymentLink = data['short_url'];
-      openPaymentLink(paymentLink, data['id'], context);
+
+      if (res.statusCode == 200) {
+        Get.snackbar("Success", "Wallet credited");
+        await fetchWallet();
+      } else {
+        print('❌ Top-Up Error: ${res.body}');
+        Get.snackbar("Error", "Top-up failed");
+      }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to add funds');
+      Get.snackbar("Error", e.toString());
     }
-  }
-
-  void openPaymentLink(String url, String paymentId, BuildContext context) {
-    Get.to(() => PaymentWebView(url: url, paymentId: paymentId));
-  }
-
-  Future<void> validateFunds(String paymentLinkId) async {
-    try {
-      await _remoteRepo.validateFunds(paymentLinkId);
-      fetchWallet();
-      Get.snackbar('Success', 'Funds Added successfully');
-    } catch (e) {
-      Get.snackbar('Error', 'Failed to validate funds');
-    }
-  }
-}
-
-class PaymentWebView extends StatefulWidget {
-  final String url;
-  final String paymentId;
-
-  PaymentWebView({required this.url, required this.paymentId});
-
-  @override
-  _PaymentWebViewState createState() => _PaymentWebViewState();
-}
-
-class _PaymentWebViewState extends State<PaymentWebView> {
-  InAppWebViewController? webViewController;
-
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        await Get.find<WalletController>().validateFunds(widget.paymentId);
-        return true;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Complete Payment'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () async {
-              await Get.find<WalletController>().validateFunds(widget.paymentId);
-              Navigator.pop(context);
-            },
-          ),
-        ),
-        body: InAppWebView(
-          initialUrlRequest: URLRequest(url: Uri.parse(widget.url)),
-          onWebViewCreated: (controller) {
-            webViewController = controller;
-          },
-        ),
-      ),
-    );
   }
 }

@@ -5,6 +5,7 @@ import 'package:hash/core/service/global_bottom_sheet_service.dart';
 
 import '../wallet/controllers/wallet_controller.dart';
 import '../wallet/views/wallet_bottomsheet.dart';
+import '../wallet/views/wallet_view.dart';
 
 class RewardsSection extends StatelessWidget {
   final int hashCoin;
@@ -12,7 +13,7 @@ class RewardsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    WalletController walletController = Get.put(WalletController());
+    final WalletController walletController = Get.put(WalletController());
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -41,14 +42,19 @@ class RewardsSection extends StatelessWidget {
           ),
         ),
         GestureDetector(
-            onTap: () {
-              Get.bottomSheet(
-                WalletBottomSheet(),
-                isScrollControlled: true,
-              );
-            },
-            child: _buildRewardItem(CupertinoIcons.circle_bottomthird_split,
-                "₹${walletController.balance.value}", "Wallet", Colors.yellow)),
+          onTap: () {
+            Get.to(WalletScreen());
+          },
+          child: Obx(() {
+            final walletBalance = walletController.balance.value;
+            return _buildRewardItem(
+              CupertinoIcons.circle_bottomthird_split,
+              "₹$walletBalance",
+              "Wallet",
+              Colors.yellow,
+            );
+          }),
+        ),
       ],
     );
   }
@@ -70,10 +76,15 @@ class RewardsSection extends StatelessWidget {
             Icon(icon, color: color, size: 30),
           ],
         ),
-        SizedBox(height: 5),
-        Text(amount,
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        Text(label, style: TextStyle(color: Colors.white)),
+        const SizedBox(height: 5),
+        Text(
+          amount,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(label, style: const TextStyle(color: Colors.white)),
       ],
     );
   }

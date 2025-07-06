@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:http/http.dart' as http;
+import '../../../../config/flavor_config.dart';
 import '../../payment/razorpay_controller.dart';
 import '../controllers/booking_controller.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
@@ -32,6 +34,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final BookingController bookingController = Get.put(BookingController());
   final RazorpayController razorpayController = Get.put(RazorpayController());
   final _remoteRepo = locator<RemoteRepoInterface>();
+  final RxString _selectedPayment = 'wallet'.obs;  // 'wallet'  or  'gateway'
 
   final String userName = "Shen";
 
@@ -304,6 +307,24 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   ],
                 );
               }),
+              // ─── Payment Method ──────────────────────────────────────────
+              const SizedBox(height: 16),
+              Text('Choose Payment Method',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white)),
+              const SizedBox(height: 12),
+
+              Obx(() => Row(
+                children: [
+                  _paymentChip('Wallet', Icons.account_balance_wallet, 'wallet'),
+                  const SizedBox(width: 12),
+                  _paymentChip('Gateway', Icons.credit_card, 'gateway'),
+                ],
+              )),
+              Divider(height: 32, color: Colors.grey.shade800),
+
             ],
           ),
         ),
@@ -370,8 +391,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   ElevatedButton(
                     onPressed: _isProcessingPayment.value
                         ? null
-                        : () => handleBooking(
-                            context, _appliedVoucher.value != null),
+                        : // Normal button tap
+                        () => handleBooking(
+                      context,
+                      isVoucherApplied: _appliedVoucher.value != null,
+                      useWallet: _selectedPayment.value == 'wallet',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xffDE3A3A),
                       foregroundColor: Colors.white,
@@ -639,8 +664,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
-  Future<void> handleBooking(
-      BuildContext context, bool isVoucherApplied) async {
+  Future<void> handleBooking(BuildContext context, 
+      {required bool isVoucherApplied, required bool useWallet}) async {
+
     if (widget.selectedSlots.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No slots selected!')),
@@ -662,28 +688,39 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       List<int> bookingIds = await createBooking(slotIds);
       print(slotIds);
-
-      if (bookingIds.isEmpty) {
-        print("Booking failed.");
-        _isProcessingPayment(false);
-        _paymentStatus.value = '';
-        razorpayController.isPaymentInProgress(false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to create booking. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
+      // a) WALLET route
+      if (useWallet) {
+        _paymentStatus.value = 'Debiting wallet…';
+        await confirmBooking(
+          bookingIds: bookingIds,
+          paymentMode: 'wallet',
+          voucherCode: isVoucherApplied ? _appliedVoucher.value!.code : null,
         );
         return;
       }
 
+// ✅ Razorpay flow should be checked before voucher-only path
+      if (_selectedPayment.value == 'gateway') {
+        _paymentStatus.value = 'Initiating payment gateway...';
+        razorpayController.bookingIdList.value = bookingIds;
+        await initiatePayment(context, amountInPaisa);
+        return;
+      }
+
+// Only if voucher is applied and not using Razorpay or Wallet
       if (isVoucherApplied && _appliedVoucher.value != null) {
-        // Handle voucher case - skip Razorpay and directly confirm booking
-        _paymentStatus.value = 'Confirming booking with voucher...';
+        _paymentStatus.value = 'Confirming booking with voucher…';
         razorpayController.isPaymentInProgress(false);
-        await confirmBookingWithVoucher(
-            bookingIds, _appliedVoucher.value!.code);
-      } else {
+        await confirmBooking(
+          bookingIds: bookingIds,
+          paymentMode: 'voucher',
+          voucherCode: _appliedVoucher.value!.code,
+        );
+        return;
+      }
+
+
+      else {
         // Normal payment flow with Razorpay
         _paymentStatus.value = 'Initiating payment gateway...';
         razorpayController.bookingIdList.value = bookingIds;
@@ -703,15 +740,19 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
   }
 
-  Future<void> confirmBookingWithVoucher(
-      List<int> bookingIds, String voucherCode) async {
+  Future<void> confirmBooking(
+      {required List<int> bookingIds,
+        required String paymentMode,     //  "wallet" | "voucher" | "gateway"
+        String? voucherCode}) async {
     try {
       await _remoteRepo.confirmBooking(
-        bookingIds: bookingIds,
-        paymentId: "VOUCHER_${DateTime.now().millisecondsSinceEpoch}",
-        bookDate: DateTime.now().toIso8601String(),
-        voucherCode: voucherCode,
+        bookingIds : bookingIds,
+        paymentId  : "${paymentMode.toUpperCase()}_${DateTime.now().millisecondsSinceEpoch}",
+        bookDate   : DateTime.now().toIso8601String(),
+        paymentMode: paymentMode,           // <-- NEW field
+        voucherCode: voucherCode,           // null unless a voucher really applied
       );
+      print('payment mode : $paymentMode');
 
       print('✅ Booking confirmation with voucher successful!');
 
@@ -866,4 +907,32 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       ),
     );
   }
+  Widget _paymentChip(String label, IconData icon, String value) {
+    final bool isSelected = _selectedPayment.value == value;
+
+    return GestureDetector(
+      onTap: () => _selectedPayment(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 18),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.deepOrange : Colors.grey.shade800,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: isSelected ? Colors.deepOrange : Colors.grey.shade700),
+        ),
+        child: Row(
+          children: [
+            Icon(icon,
+                color: isSelected ? Colors.white : Colors.white70, size: 16),
+            const SizedBox(width: 6),
+            Text(label,
+                style: TextStyle(
+                    color:
+                    isSelected ? Colors.white : Colors.white70, fontSize: 13))
+          ],
+        ),
+      ),
+    );
+  }
+
 }

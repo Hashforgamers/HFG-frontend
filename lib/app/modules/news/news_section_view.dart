@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math' as math;
 
@@ -33,19 +34,37 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     _animController.dispose();
     super.dispose();
   }
+  Widget _newsShimmerCard() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade800,
+      highlightColor: Colors.grey.shade700,
+      child: Container(
+        width: 320,
+        height: 190,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          color: Colors.grey.shade900,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       if (controller.isLoading.value) {
-        return const SizedBox(
-          height: 200,
-          child: Center(
-              child: CircularProgressIndicator(
-            color: Colors.cyanAccent,
-          )),
+        return SizedBox(
+          height: 190,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+            itemCount: 3,                                // 3 shimmer cards
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, __) => _newsShimmerCard(),
+          ),
         );
       }
+
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,

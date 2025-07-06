@@ -8,6 +8,7 @@ import 'package:hash/app/modules/arena/views/arena_view_detailed.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:shimmer/shimmer.dart';
 
 class CafeSection extends StatelessWidget {
   final CybercafesController _cafeController =
@@ -32,8 +33,31 @@ class CafeSection extends StatelessWidget {
         ),
         Obx(() {
           if (_cafeController.isLoading.value) {
-            return const Center(child: RainbowGlowingLoader(size: 50));
+            return SizedBox(
+              height: 230,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                itemCount: 3,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  return Shimmer.fromColors(
+                    baseColor: Colors.grey.shade800,
+                    highlightColor: Colors.grey.shade700,
+                    child: Container(
+                      width: 300,
+                      height: 230,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: Colors.grey.shade900,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
           }
+
 
           if (_cafeController.cybercafes.isEmpty) {
             return const Center(

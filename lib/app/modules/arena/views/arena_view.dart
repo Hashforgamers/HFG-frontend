@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
@@ -25,362 +27,414 @@ class ArenaView extends StatefulWidget {
   const ArenaView({Key? key}) : super(key: key);
 
   @override
-  _ArenaViewState createState() => _ArenaViewState();
+  State<ArenaView> createState() => _ArenaViewState();
 }
 
 class _ArenaViewState extends State<ArenaView> {
-  /* -------------------------------------------------------------------------- */
-  /*                               STATE & FIELDS                               */
-  /* -------------------------------------------------------------------------- */
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  STATE                                                                    */
+  /* ────────────────────────────────────────────────────────────────────────── */
 
-  late GoogleMapController mapController;
-  final loc.Location _location = loc.Location();
+  final CybercafesController _cafeCtr =
+  Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
 
-  final RxSet<Marker> markers = RxSet<Marker>();
-  final RxSet<Polyline> _polylines = RxSet<Polyline>();
-  final PolylinePoints _polylinePoints = PolylinePoints();
+  late GoogleMapController _mapCtr;
+  final loc.Location _loc = loc.Location();
 
-  // TODO: put your real key here
-  static const _googleDirectionsKey = 'AIzaSyAIeaszJ60ZcjL9hNYpsQ_JD8w8J2vnmuQ';
+  final markers = <Marker>{}.obs;
+  final polylines = <Polyline>{}.obs;
+  final _polylinePoints = PolylinePoints();
 
-  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchCtl = TextEditingController();
+  Timer? _camDebounce;
 
-  BitmapDescriptor? _customMarker;
-  BitmapDescriptor? _customMarker2;
-
-  static const LatLng _initialPosition = LatLng(37.7749, -122.4194);
+  LatLng? _userLatLng;
+  String? _selectedCafeId;
   String _mapStyle = '';
 
-  final CybercafesController _cybercafesController =
-      Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
-
-  String? _selectedCafeId;
-  bool _isMapControllerInitialized = false;
-  LatLng? _userLatLng;
-  Timer? debounce;
-
-  /// `cafeId -> {distance: 'x km', duration: 'y mins'}`
+  /// Directions API response cache  (cafeId  ->  distance / duration)
   final Map<String, Map<String, String>> _distanceCache = {};
 
-  final List<String> images = [
-    'https://next-level.gg/assets/cafes/11.jpg',
-    'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
-    'https://media.assettype.com/afkgaming%2F2024-04%2Fe11d1515-bb0d-48a5-9ad9-1ddfdef286ef%2FUntitled_design_117_.png?auto=format%2Ccompress&dpr=1.0&w=1200',
-    'https://i.ytimg.com/vi/3ZPtQAKKado/maxresdefault.jpg',
-    'https://pvplayer.com/wp-content/uploads/2024/04/kafejka-gamingowa.jpg'
-  ];
+  /// ⚠️  Replace with build-time env variable or secure storage
+  static const _gmapsKey = 'AIzaSyAIeaszJ60ZcjL9hNYpsQ_JD8w8J2vnmuQ';
+  bool _mapReady = false;              // NEW
+  bool _playedZoom = false;            // NEW
 
-  /* -------------------------------------------------------------------------- */
-  /*                                INITIALISERS                                */
-  /* -------------------------------------------------------------------------- */
+  BitmapDescriptor? _markerUser, _markerCafe, _markerCafeHighlighted;
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  LIFECYCLE                                                                */
+  /* ────────────────────────────────────────────────────────────────────────── */
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeLocation();
-      _cybercafesController.fetchCybercafes();
+    _loadAssets();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initLocation();
+      await _cafeCtr.fetchCybercafes();
+      _addUserMarker();
+      _refreshCafeMarkers();
     });
-    _loadMapStyle();
-    _loadCustomMarker();
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _cybercafesController.fetchCybercafes();
+  void dispose() {
+    _searchCtl.dispose();
+    _camDebounce?.cancel();
+    super.dispose();
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                              HELPER FUNCTIONS                              */
-  /* -------------------------------------------------------------------------- */
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  ASSET & MARKER HELPERS                                                   */
+  /* ────────────────────────────────────────────────────────────────────────── */
 
-  Future<void> _loadMapStyle() async {
+  Future<void> _loadAssets() async {
     _mapStyle = await rootBundle.loadString('assets/map_style.json');
-    setState(() {});
-  }
 
-  void _loadCustomMarker() async {
-    _customMarker = await BitmapDescriptor.fromAssetImage(
-      const ImageConfiguration(size: Size(48, 48), devicePixelRatio: 2),
+    _markerUser = await BitmapDescriptor.fromAssetImage(
+      const ImageConfiguration(size: Size(48, 48)),
       'assets/custom_marker.png',
     );
-    _customMarker2 = await BitmapDescriptor.fromAssetImage(
-      const ImageConfiguration(size: Size(48, 48), devicePixelRatio: 2),
+
+    _markerCafe = await BitmapDescriptor.fromAssetImage(
+      const ImageConfiguration(size: Size(48, 48)),
       'assets/custom_marker2.png',
     );
+
+    _markerCafeHighlighted =
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
   }
 
-  LatLng _extractLatLng(Map<String, dynamic> cafe) {
-    final locMap = cafe['address'] ?? cafe['location'] ?? {};
-    final latRaw = locMap['latitude'] ?? 0;
-    final lngRaw = locMap['longitude'] ?? 0;
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  LOCATION INIT                                                            */
+  /* ────────────────────────────────────────────────────────────────────────── */
 
-    final double lat =
-        latRaw is double ? latRaw : double.tryParse(latRaw.toString()) ?? 0.0;
-    final double lng =
-        lngRaw is double ? lngRaw : double.tryParse(lngRaw.toString()) ?? 0.0;
+  Future<void> _initLocation() async {
+    if (!await _loc.serviceEnabled()) {
+      if (!await _loc.requestService()) return;
+    }
+    if (await _loc.requestPermission() != loc.PermissionStatus.granted) return;
 
+    final locData = await _loc.getLocation();
+    _userLatLng = LatLng(locData.latitude!, locData.longitude!);
+    _tryPlayZoom();                    // attempt GTA zoom once coords ready
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  CAMERA & MOVEMENT                                                        */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  void _smoothMoveCamera(LatLng target, {double zoom = 15}) {
+    _camDebounce?.cancel();
+    _camDebounce = Timer(const Duration(milliseconds: 280), () {
+      _mapCtr.animateCamera(CameraUpdate.newCameraPosition(
+          CameraPosition(target: target, zoom: zoom)));
+    });
+  }
+/* ────────────────────────────────────────────────────────────────────────── */
+  /*  GTA-STYLE ZOOM LOGIC                                                    */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<void> _playZoomAnimation() async {
+    if (_userLatLng == null) return;
+    _playedZoom = true;
+
+    // start far away
+    await _mapCtr.moveCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: _userLatLng!, zoom: 4),
+      ),
+    );
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // zoom mid-range
+    await _mapCtr.animateCamera(CameraUpdate.zoomTo(9));
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // final close-up
+    await _mapCtr.animateCamera(CameraUpdate.zoomTo(15));
+  }
+
+  void _tryPlayZoom() {
+    if (_mapReady && _userLatLng != null && !_playedZoom) {
+      _playZoomAnimation();
+    }
+  }
+
+
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  SEARCH                                                                   */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<void> _searchAndGo() async {
+    final query = _searchCtl.text.trim();
+    if (query.isEmpty) return;
+    try {
+      final res = await locationFromAddress(query);
+      if (res.isNotEmpty) {
+        _smoothMoveCamera(LatLng(res[0].latitude, res[0].longitude));
+      }
+    } catch (_) {
+      Get.snackbar('Error', 'Location not found');
+    }
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  MARKERS                                                                  */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  LatLng _latLngFromCafe(Map<String, dynamic> cafe) {
+    final locData = cafe['address'] ?? cafe['location'] ?? {};
+    final lat = double.tryParse('${locData['latitude']}') ?? 0.0;
+    final lng = double.tryParse('${locData['longitude']}') ?? 0.0;
     return LatLng(lat, lng);
   }
 
-  void _updateCameraPosition(LatLng pos) {
-    debounce?.cancel();
-    debounce = Timer(const Duration(milliseconds: 300),
-        () => mapController.animateCamera(CameraUpdate.newLatLng(pos)));
+  void _addUserMarker() {
+    if (_userLatLng == null) return;
+    markers.add(Marker(
+      markerId: const MarkerId('me'),
+      position: _userLatLng!,
+      icon: _markerUser ?? BitmapDescriptor.defaultMarker,
+    ));
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                       DISTANCE & ETA (Directions API)                      */
-  /* -------------------------------------------------------------------------- */
+  void _refreshCafeMarkers() {
+    markers.removeWhere((m) => m.markerId.value.startsWith('cafe_'));
 
-  Future<Map<String, String>> _getDistanceDuration(
-      LatLng dest, String cafeId) async {
-    if (_userLatLng == null) {
-      print('🛑 _userLatLng is null'); // <-- add
-      return {'distance': '--', 'duration': '--'};
+    for (final cafe in _cafeCtr.cybercafes) {
+      final id = '${cafe['id'] ?? cafe.hashCode}';
+      final pos = _latLngFromCafe(cafe);
+      markers.add(Marker(
+        markerId: MarkerId('cafe_$id'),
+        position: pos,
+        icon: id == _selectedCafeId
+            ? (_markerCafeHighlighted ?? BitmapDescriptor.defaultMarker)
+            : (_markerCafe ?? BitmapDescriptor.defaultMarker),
+        infoWindow: InfoWindow(title: cafe['cafe_name'] ?? 'Cafe'),
+        onTap: () {
+          _selectedCafeId = id;
+          _smoothMoveCamera(pos, zoom: 16);
+          _refreshCafeMarkers();
+        },
+      ));
     }
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  DISTANCE + DURATION (Directions API)                                     */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<Map<String, String>> _distanceInfo(LatLng dest, String id) async {
     if (_userLatLng == null) return {'distance': '--', 'duration': '--'};
-    if (_distanceCache.containsKey(cafeId)) return _distanceCache[cafeId]!;
-
-    final url = Uri.parse('https://maps.googleapis.com/maps/api/directions/json'
-        '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
-        '&destination=${dest.latitude},${dest.longitude}'
-        '&mode=driving'
-        '&key=$_googleDirectionsKey');
-    print('➡️  Hitting URL: $url'); // <-- add
+    if (_distanceCache.containsKey(id)) return _distanceCache[id]!;
+    final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/directions/json'
+            '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
+            '&destination=${dest.latitude},${dest.longitude}'
+            '&mode=driving'
+            '&key=$_gmapsKey');
     final res = await http.get(url);
-    print('⬅️  Status: ${res.statusCode}'); // <-- add
-    print('⬅️  Body: ${res.body}'); // <-- add
-
     if (res.statusCode == 200) {
       final data = json.decode(res.body);
-      if (data['routes'] != null &&
-          data['routes'].isNotEmpty &&
-          data['routes'][0]['legs'].isNotEmpty) {
+      if ((data['routes'] as List).isNotEmpty) {
         final leg = data['routes'][0]['legs'][0];
-        final dist = leg['distance']['text'] as String;
-        final dur = leg['duration']['text'] as String;
-        _distanceCache[cafeId] = {'distance': dist, 'duration': dur};
-        return _distanceCache[cafeId]!;
+        _distanceCache[id] = {
+          'distance': leg['distance']['text'],
+          'duration': leg['duration']['text'],
+        };
       }
     }
-    return {'distance': '--', 'duration': '--'};
+    return _distanceCache[id]!;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                           LOCATION & MARKER SETUP                          */
-  /* -------------------------------------------------------------------------- */
-
-  Future<void> _initializeLocation() async {
-    if (!await _location.serviceEnabled() && !await _location.requestService())
-      return;
-    if (await _location.requestPermission() != loc.PermissionStatus.granted)
-      return;
-
-    final locData = await _location.getLocation();
-    _userLatLng = LatLng(locData.latitude!, locData.longitude!);
-
-    _updateCameraPosition(_userLatLng!);
-    _addUserMarker(_userLatLng!);
-    _fetchNearbyCybercafes();
-  }
-
-  void _addUserMarker(LatLng pos) {
-    markers.add(
-      Marker(
-        markerId: const MarkerId('current_location'),
-        position: pos,
-        icon: _customMarker ?? BitmapDescriptor.defaultMarker,
-        infoWindow: const InfoWindow(title: 'Your Location'),
-      ),
-    );
-  }
-
-  Future<void> _fetchNearbyCybercafes() async {
-    if (_cybercafesController.cybercafes.isEmpty) return;
-
-    markers.addAll(_cybercafesController.cybercafes.map((cafe) {
-      final LatLng pos = _extractLatLng(cafe);
-      final isSelected = cafe['id'] == _selectedCafeId;
-
-      return Marker(
-        markerId: MarkerId(cafe['id'] ?? 'unknown'),
-        position: pos,
-        icon: isSelected
-            ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed)
-            : (_customMarker2 ?? BitmapDescriptor.defaultMarker),
-        infoWindow: InfoWindow(
-          title: cafe['name'] ?? 'Unknown',
-          snippet: isSelected ? 'Selected Location' : null,
-        ),
-      );
-    }));
-  }
-
-  /* -------------------------------------------------------------------------- */
-  /*                               ROUTE DRAWING                                */
-  /* -------------------------------------------------------------------------- */
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  ROUTE DRAWING                                                            */
+  /* ────────────────────────────────────────────────────────────────────────── */
 
   Future<void> _drawRoute(LatLng dest) async {
     if (_userLatLng == null) return;
-
-    _polylines.clear();
     final result = await _polylinePoints.getRouteBetweenCoordinates(
-      _googleDirectionsKey,
+      _gmapsKey,
       PointLatLng(_userLatLng!.latitude, _userLatLng!.longitude),
       PointLatLng(dest.latitude, dest.longitude),
       travelMode: TravelMode.driving,
     );
-
     if (result.points.isEmpty) {
-      Get.snackbar('Route', 'No route found.');
+      Get.snackbar('Route', 'No route found');
       return;
     }
-
-    final id = PolylineId('route');
-    _polylines.add(Polyline(
-      polylineId: id,
+    polylines.clear();
+    polylines.add(Polyline(
+      polylineId: const PolylineId('route'),
+      color: const Color(0xff338125),
       width: 6,
-      jointType: JointType.round,
-      endCap: Cap.roundCap,
-      startCap: Cap.roundCap,
-      points:
-          result.points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
+      points: result.points
+          .map((p) => LatLng(p.latitude, p.longitude))
+          .toList(),
     ));
-
-    // Optional: quick toast with ETA
-    final info = await _getDistanceDuration(dest, 'route');
-    Get.snackbar(
-        'Route', 'Distance: ${info['distance']}  |  ETA: ${info['duration']}');
-
-    setState(() {});
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                        EXTERNAL GOOGLE MAPS LAUNCHER                       */
-  /* -------------------------------------------------------------------------- */
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  EXTERNAL MAP LAUNCH                                                      */
+  /* ────────────────────────────────────────────────────────────────────────── */
 
   Future<void> _openExternalMaps(LatLng dest) async {
     if (_userLatLng == null) return;
-    final url = 'https://www.google.com/maps/dir/?api=1'
-        '&origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
-        '&destination=${dest.latitude},${dest.longitude}'
-        '&travelmode=driving';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    final uri = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1'
+            '&origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
+            '&destination=${dest.latitude},${dest.longitude}'
+            '&travelmode=driving');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      Get.snackbar('Error', 'Cannot open Google Maps.');
+      Get.snackbar('Error', 'Could not open Google Maps');
     }
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                             SEARCH BAR ACTION                              */
-  /* -------------------------------------------------------------------------- */
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  UI HELPERS                                                               */
+  /* ────────────────────────────────────────────────────────────────────────── */
 
-  Future<void> _searchAndNavigate() async {
-    if (_searchController.text.trim().isEmpty) return;
-    try {
-      final locs = await locationFromAddress(_searchController.text.trim());
-      if (locs.isNotEmpty) {
-        mapController.animateCamera(
-          CameraUpdate.newLatLng(
-              LatLng(locs.first.latitude, locs.first.longitude)),
-        );
-      }
-    } catch (_) {
-      Get.snackbar('Error', 'Location not found.');
-    }
-  }
-
-  /* -------------------------------------------------------------------------- */
-  /*                                 UI PIECES                                 */
-  /* -------------------------------------------------------------------------- */
-
-  Widget _buildSearchBar() {
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.3),
-        borderRadius: BorderRadius.circular(25),
-      ),
-      child: TextField(
-        controller: _searchController,
-        style: const TextStyle(color: Color(0xff338125)),
-        decoration: InputDecoration(
-          labelText: 'Search for a location',
-          border: InputBorder.none,
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.search, color: Color(0xff338125)),
-            onPressed: _searchAndNavigate,
+  Widget _glassSearchBar() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          height: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(.15),
+            borderRadius: BorderRadius.circular(25),
+            border:
+            Border.all(color: const Color(0xff338125).withOpacity(.2)),
           ),
+          child: Row(children: [
+            const Icon(Icons.search, color: Color(0xff338125)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _searchCtl,
+                style: const TextStyle(color: Colors.white),
+                cursorColor: const Color(0xff338125),
+                decoration: const InputDecoration(
+                  hintText: 'Search location',
+                  hintStyle: TextStyle(color: Colors.white70),
+                  border: InputBorder.none,
+                ),
+                onSubmitted: (_) => _searchAndGo(),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_forward_ios_rounded,
+                  size: 18, color: Color(0xff338125)),
+              onPressed: _searchAndGo,
+            )
+          ]),
         ),
       ),
     );
   }
 
-  Widget _buildGradientCard(Map<String, dynamic> cafe, String image) {
-    final LatLng cafeLatLng = _extractLatLng(cafe);
+  Widget _locateMeBtn() {
+    return Positioned(
+      bottom: 280,
+      right: 16,
+      child: FloatingActionButton(
+        heroTag: 'locateMe',
+        mini: true,
+        backgroundColor: const Color(0xff338125),
+        child: const Icon(Icons.my_location, color: Colors.black),
+        onPressed:
+        _userLatLng == null ? null : () => _smoothMoveCamera(_userLatLng!),
+      ),
+    );
+  }
 
-    Future<void> _jumpToCafe() async {
-      if (!_isMapControllerInitialized) return;
-      setState(() => _selectedCafeId = cafe['id']);
-      markers.clear();
-      await _fetchNearbyCybercafes();
-
-      await mapController.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: cafeLatLng, zoom: 16, tilt: 45),
-        ),
-      );
+  Widget _cafeCarousel() {
+    // if (_cafeCtr.isLoading.value) {
+    //   return const Center(child: RainbowGlowingLoader(size: 50));
+    // }
+    if (_cafeCtr.cybercafes.isEmpty) {
+      return const Center(child: Text('No cybercafes available'));
     }
+
+    _refreshCafeMarkers();
+
+    const dummyImgs = [
+      'https://next-level.gg/assets/cafes/11.jpg',
+      'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
+      'https://media.assettype.com/afkgaming/2024-04/e11d1515-bb0d-48a5-9ad9-1ddfdef286ef/Untitled_design_117_.png',
+      'https://i.ytimg.com/vi/3ZPtQAKKado/maxresdefault.jpg',
+      'https://pvplayer.com/wp-content/uploads/2024/04/kafejka-gamingowa.jpg',
+    ];
+
+    return SizedBox(
+      height: 230,
+      child: ListView.separated(
+        physics: const BouncingScrollPhysics(),
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(left: 8,top: 10),
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemCount: _cafeCtr.cybercafes.length,
+        itemBuilder: (_, i) {
+          final cafe = _cafeCtr.cybercafes[i];
+          return _gradientCard(
+            cafe: cafe,
+            img: dummyImgs[i % dummyImgs.length],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _gradientCard({
+    required Map<String, dynamic> cafe,
+    required String img,
+  }) {
+    final pos = _latLngFromCafe(cafe);
+    final id = '${cafe['id'] ?? cafe.hashCode}';
 
     return GestureDetector(
       onTap: () async {
-        await _jumpToCafe();
-        await Future.delayed(const Duration(milliseconds: 800));
-        await Get.to(
-          () => ArenaDetailView(
-            images: image,
-            title: cafe['cafe_name'] ?? 'Unknown Cafe',
-            address: 'Owner: ${cafe['owner_name']}',
-            openingHours: 'Created: ${cafe['created_at']}',
-            availableGames: const ['Game 1', 'Game 2'],
-            amenities: cafe['amenities'],
-            contactInfo: 'Contact: contact@domain.com',
-            reviews: const ['Great place!', 'Loved it!'],
-            vendorId: cafe['vendor_id'],
-          ),
-        );
+        _selectedCafeId = id;
+        _smoothMoveCamera(pos, zoom: 16);
+        _refreshCafeMarkers();
+        await Future.delayed(const Duration(milliseconds: 600));
+        await Get.to(() => ArenaDetailView(
+          images: img,
+          title: cafe['cafe_name'] ?? 'Unknown Cafe',
+          address: 'Owner: ${cafe['owner_name']}',
+          openingHours: 'Created: ${cafe['created_at']}',
+          availableGames: cafe['available_games'] ?? ['N/A'],
+          amenities: cafe['amenities'] ?? [],
+          contactInfo: 'contact@domain.com',
+          reviews: cafe['reviews'] ?? ['Great place!'],
+          vendorId: cafe['vendor_id'] ?? 0,
+        ));
       },
       child: Container(
         width: 300,
-        margin: const EdgeInsets.all(8),
+        clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
           color: const Color(0xff0E0E0E),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Stack(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: CachedNetworkImage(
-                imageUrl: image,
-                fit: BoxFit.cover,
-                height: 250,
-                width: 300,
-                placeholder: (c, _) =>
-                    const Center(child: RainbowGlowingLoader(size: 50)),
-                errorWidget: (c, _, __) => Container(
-                  height: 250,
-                  width: 300,
-                  color: Colors.grey,
-                  alignment: Alignment.center,
-                  child: const Text('Image Not Available',
-                      style: TextStyle(color: Colors.white)),
-                ),
-              ),
+            CachedNetworkImage(
+              imageUrl: img,
+              width: 300,
+              height: 250,
+              fit: BoxFit.cover,
+              placeholder: (_, __) =>
+              const Center(child: RainbowGlowingLoader(size: 40)),
+              errorWidget: (_, __, ___) =>
+              const Center(child: Icon(Icons.error, color: Colors.white)),
             ),
             Positioned(
               bottom: 0,
@@ -388,106 +442,10 @@ class _ArenaViewState extends State<ArenaView> {
               right: 0,
               child: ClipRRect(
                 borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(16)),
+                const BorderRadius.vertical(bottom: Radius.circular(16)),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0),
-                          Colors.black.withOpacity(.8),
-                        ],
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(cafe['cafe_name'] ?? 'Unknown Cafe',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        const Text('Mumbai | 9 - 12 am',
-                            style: TextStyle(color: Colors.white70)),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(children: [
-                              Icon(Icons.circle,
-                                  color: cafe['status'] == 'active'
-                                      ? Colors.green
-                                      : Colors.red,
-                                  size: 8),
-                              const SizedBox(width: 4),
-                              Text(
-                                cafe['status'] == 'active' ? 'Open' : 'Close',
-                                style: TextStyle(
-                                    color: cafe['status'] == 'active'
-                                        ? Colors.green
-                                        : Colors.red),
-                              ),
-                              const SizedBox(width: 8),
-                              // Distance · ETA
-                              FutureBuilder<Map<String, String>>(
-                                future: _getDistanceDuration(
-                                    cafeLatLng, cafe['id'] ?? '0'),
-                                builder: (context, snapshot) {
-                                  final dist =
-                                      snapshot.data?['distance'] ?? '--';
-                                  final eta =
-                                      snapshot.data?['duration'] ?? '--';
-                                  return Text('$dist · $eta',
-                                      style: const TextStyle(
-                                          color: Colors.white70));
-                                },
-                              ),
-                            ]),
-                            Row(children: [
-                              // Route icon
-                              GestureDetector(
-                                onTap: () async {
-                                  await _jumpToCafe();
-                                  await _drawRoute(cafeLatLng);
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                      color: const Color(0xff338125),
-                                      borderRadius: BorderRadius.circular(12)),
-                                  child: const Icon(Icons.route,
-                                      color: Colors.black, size: 20),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // External Maps icon
-                              GestureDetector(
-                                onTap: () => _openExternalMaps(cafeLatLng),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                      color: Colors.white12,
-                                      borderRadius: BorderRadius.circular(12)),
-                                  child:
-                                      const Icon(Icons.map_outlined, size: 20),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const CircleAvatar(
-                                  radius: 16,
-                                  child: Icon(Icons.chevron_right, size: 20)),
-                            ]),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                  child: _cardFooter(cafe, pos, id),
                 ),
               ),
             )
@@ -497,96 +455,109 @@ class _ArenaViewState extends State<ArenaView> {
     );
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                                   BUILD                                    */
-  /* -------------------------------------------------------------------------- */
+  Widget _cardFooter(Map<String, dynamic> cafe, LatLng pos, String id) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.black.withOpacity(0), Colors.black.withOpacity(.8)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            cafe['cafe_name'] ?? 'Unknown',
+            style: const TextStyle(
+                color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.circle,
+                  color: cafe['status'] == 'active' ? Colors.green : Colors.red,
+                  size: 8),
+              const SizedBox(width: 4),
+              Text(
+                cafe['status'] == 'active' ? 'Open' : 'Closed',
+                style: TextStyle(
+                    color: cafe['status'] == 'active' ? Colors.green : Colors.red),
+              ),
+              const SizedBox(width: 8),
+              FutureBuilder<Map<String, String>>(
+                future: _distanceInfo(pos, id),
+                builder: (_, snap) {
+                  final dist = snap.data?['distance'] ?? '--';
+                  final dur = snap.data?['duration'] ?? '--';
+                  return Text('$dist · $dur',
+                      style: const TextStyle(color: Colors.white70));
+                },
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => _drawRoute(pos),
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                      color: const Color(0xff338125),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.route, size: 18, color: Colors.black),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _openExternalMaps(pos),
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                      color: const Color(0xff338125),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.map, size: 18, color: Colors.black),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: SafeArea(
-        child: Stack(
-          alignment: Alignment.bottomCenter,
-          children: [
-            Obx(
-              () => GoogleMap(
-                onMapCreated: (controller) {
-                  mapController = controller;
-                  mapController.setMapStyle(_mapStyle);
-                  _isMapControllerInitialized = true;
-                },
+        child: Obx(() {
+
+          return Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              GoogleMap(
                 initialCameraPosition:
-                    const CameraPosition(target: _initialPosition, zoom: 16),
-                markers: markers.toSet(),
-                polylines: _polylines.toSet(),
+                const CameraPosition(target: LatLng(20, 77), zoom: 4),
                 myLocationEnabled: true,
+                markers: markers.toSet(),
+                polylines: polylines.toSet(),
+                onMapCreated: (ctrl) {
+                  _mapCtr = ctrl;
+                  _mapCtr.setMapStyle(_mapStyle);
+                  _mapReady = true;
+                  _tryPlayZoom();
+                },
+                zoomControlsEnabled: false,
               ),
-            ),
-            Positioned(top: 50, left: 10, right: 10, child: _buildSearchBar()),
-            Obx(() {
-              if (_cybercafesController.isLoading.value) {
-                return const Center(child: RainbowGlowingLoader(size: 50));
-              }
-              if (_cybercafesController.cybercafes.isEmpty) {
-                return const Center(child: Text('No cybercafes available.'));
-              }
-              return Container(
+              Positioned(top: 16, left: 16, right: 16, child: _glassSearchBar()),
+              _locateMeBtn(),
+              Container(
                 color: Colors.black,
-                height: 300,
-                alignment: Alignment.bottomCenter,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    SizedBox(
-                      height: 249,
-                      child: ListView.builder(
-                        physics: const BouncingScrollPhysics(),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _cybercafesController.cybercafes.length,
-                        itemBuilder: (context, index) {
-                          final cafe = _cybercafesController.cybercafes[index];
-                          return _buildGradientCard(
-                              cafe, images[index % images.length]);
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 16, horizontal: 16),
-                      child: RichText(
-                        text: TextSpan(
-                          children: [
-                            const TextSpan(
-                                text: 'Not found your favorite cafe, ',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500)),
-                            TextSpan(
-                                text: 'Let us know',
-                                recognizer: TapGestureRecognizer()
-                                  ..onTap =
-                                      () => Get.to(() => const AddCafeScreen()),
-                                style: const TextStyle(
-                                    color: Color(0xffDE3A3A),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500)),
-                            const TextSpan(
-                                text: ' about it',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            })
-          ],
-        ),
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _cafeCarousel(),
+              ),
+            ],
+          );
+        }),
       ),
     );
   }

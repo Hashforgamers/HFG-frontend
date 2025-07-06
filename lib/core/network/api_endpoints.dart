@@ -12,7 +12,7 @@ class ApiEndpoints {
   // Booking Service
   static String get bookingBaseUrl => FlavorConfig.getBaseUrl('booking');
   static String get slotsBaseUrl => '$bookingBaseUrl/api';
-  static String get bookingsBaseUrl => '$bookingBaseUrl/api/bookings';
+  static String get bookingsBaseUrl => '$bookingBaseUrl/api';
   static String get confirmBooking => '$bookingBaseUrl/api/bookings/confirm';
   static String get vendorGames => '$bookingBaseUrl/api/games/vendor';
   static String get createOffer => '$bookingBaseUrl/api/redeem-voucher';
@@ -34,7 +34,7 @@ class ApiEndpoints {
   // Payment related constants
   static String get razorpayKey => FlavorConfig.isProduction()
       ? 'rzp_test_viVAhwtbVdu1X4:PsxakTrbRvfQCbZ1vj2lQ1i5' // Replace with your live key
-      : 'rzp_test_viVAhwtbVdu1X4:PsxakTrbRvfQCbZ1vj2lQ1i5';
+      : 'rzp_test_viVAhwtbVdu1X4';
 
   // Address related endpoints (userOnboard)
   static String get addresses =>
@@ -75,4 +75,16 @@ class ApiEndpoints {
   // Get HashCoin For a User By User ID (userOnboard)
   static String get getHashCoin =>
       '$userOnboardBaseUrl/api/users/{userId}/hash-coins';
+
+
+  // Wallet core endpoints (dynamic by userId)
+  static String walletByUserId(String userId) =>
+      'https://hfg-user-onboard-3nzn.onrender.com/api/users/$userId/wallet';
+
+  static String addFundsByUserId(String userId) =>
+      'https://hfg-user-onboard-3nzn.onrender.com/api/users/$userId/wallet';
+
+  static String validateFundsByUserId(String userId) =>
+      'https://hfg-user-onboard-3nzn.onrender.com/api/users/$userId/wallet/validate';
+
 }
