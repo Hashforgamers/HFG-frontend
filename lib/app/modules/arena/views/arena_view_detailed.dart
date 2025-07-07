@@ -463,12 +463,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     final name = amenityName.toLowerCase();
 
     // Gaming related amenities
-    if (name.contains('ps5') || name.contains('playstation'))
+    if (name.contains('ps5') || name.contains('playstation')) {
       return Icons.games;
+    }
     if (name.contains('xbox')) return Icons.games;
     if (name.contains('pc') || name.contains('computer')) return Icons.computer;
-    if (name.contains('gaming') || name.contains('game'))
+    if (name.contains('gaming') || name.contains('game')) {
       return Icons.sports_esports;
+    }
 
     // Food & Beverage
     if (name.contains('food') ||
@@ -477,41 +479,49 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     if (name.contains('coffee') ||
         name.contains('tea') ||
         name.contains('drink')) return Icons.local_cafe;
-    if (name.contains('water') || name.contains('beverage'))
+    if (name.contains('water') || name.contains('beverage')) {
       return Icons.local_drink;
+    }
 
     // Comfort & Facilities
-    if (name.contains('ac') || name.contains('air conditioning'))
+    if (name.contains('ac') || name.contains('air conditioning')) {
       return Icons.ac_unit;
+    }
     if (name.contains('wifi') || name.contains('internet')) return Icons.wifi;
     if (name.contains('parking')) return Icons.local_parking;
     if (name.contains('toilet') ||
         name.contains('washroom') ||
         name.contains('bathroom')) return Icons.wc;
     if (name.contains('charging') || name.contains('power')) return Icons.power;
-    if (name.contains('headphone') || name.contains('audio'))
+    if (name.contains('headphone') || name.contains('audio')) {
       return Icons.headphones;
+    }
     if (name.contains('chair') || name.contains('seat')) return Icons.chair;
     if (name.contains('table')) return Icons.table_restaurant;
 
     // Entertainment
     if (name.contains('tv') || name.contains('television')) return Icons.tv;
-    if (name.contains('music') || name.contains('sound'))
+    if (name.contains('music') || name.contains('sound')) {
       return Icons.music_note;
-    if (name.contains('lighting') || name.contains('light'))
+    }
+    if (name.contains('lighting') || name.contains('light')) {
       return Icons.lightbulb;
+    }
 
     // Security & Safety
-    if (name.contains('security') || name.contains('cctv'))
+    if (name.contains('security') || name.contains('cctv')) {
       return Icons.security;
-    if (name.contains('first aid') || name.contains('medical'))
+    }
+    if (name.contains('first aid') || name.contains('medical')) {
       return Icons.medical_services;
+    }
 
     // General amenities
     if (name.contains('locker') || name.contains('storage')) return Icons.lock;
     if (name.contains('fan') || name.contains('ventilation')) return Icons.air;
-    if (name.contains('clean') || name.contains('hygiene'))
+    if (name.contains('clean') || name.contains('hygiene')) {
       return Icons.cleaning_services;
+    }
 
     // Default icon for unknown amenities
     return Icons.check;

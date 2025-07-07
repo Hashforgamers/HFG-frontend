@@ -768,6 +768,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         ),
       );
 
+      // Clear selected slots after successful booking
+      bookingController.clearSelectedSlots();
+
       // Navigate to past bookings first
       await Get.to(() => const PastBookingsScreen());
 
