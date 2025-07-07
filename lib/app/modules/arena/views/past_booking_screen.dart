@@ -18,6 +18,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     with SingleTickerProviderStateMixin {
   final BookingController ctr = Get.put(BookingController());
   late TabController _tabController;
+  String _sortOrder = 'newer'; // 'newer' or 'older'
 
   String _fmt(String? t) {
     if (t == null) return 'N/A';
@@ -26,6 +27,29 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     } catch (_) {
       return 'N/A';
     }
+  }
+
+  String _formatDate(String? date) {
+    if (date == null) return 'N/A';
+    try {
+      final parsedDate = DateFormat('yyyy-MM-dd').parse(date);
+      return DateFormat('dd MMM, yyyy').format(parsedDate);
+    } catch (_) {
+      return 'N/A';
+    }
+  }
+
+  List<Map<String, dynamic>> _getSortedBookings() {
+    final bookings = List<Map<String, dynamic>>.from(ctr.userBookings);
+    
+    // Sort by booking ID (assuming higher ID = newer booking)
+    if (_sortOrder == 'newer') {
+      bookings.sort((a, b) => (b['booking_id'] ?? 0).compareTo(a['booking_id'] ?? 0));
+    } else {
+      bookings.sort((a, b) => (a['booking_id'] ?? 0).compareTo(b['booking_id'] ?? 0));
+    }
+    
+    return bookings;
   }
 
   @override
@@ -52,13 +76,51 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
               const SizedBox(height: 24),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  'My Bookings',
-                  style: TextStyle(
-                    fontSize: 36,
-                    color: Colors.green,
-                    fontWeight: FontWeight.w400,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'My Bookings',
+                      style: TextStyle(
+                        fontSize: 28,
+                        color: Colors.green,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    // Filter Dropdown
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF18191A),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      ),
+                      child: DropdownButton<String>(
+                        value: _sortOrder,
+                        dropdownColor: const Color(0xFF18191A),
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        underline: const SizedBox(),
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.green, size: 20),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'newer',
+                            child: Text('Newer First', style: TextStyle(color: Colors.white, fontSize: 12)),
+                          ),
+                          DropdownMenuItem(
+                            value: 'older',
+                            child: Text('Older First', style: TextStyle(color: Colors.white, fontSize: 12)),
+                          ),
+                        ],
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              _sortOrder = newValue;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),
@@ -93,13 +155,16 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                         child: Text('No past bookings.',
                             style: TextStyle(color: Colors.white)));
                   }
+                  
+                  final sortedBookings = _getSortedBookings();
+                  
                   // For demo, show all bookings in all tabs
                   return ListView.separated(
                     padding: const EdgeInsets.all(16),
                     separatorBuilder: (_, __) => const SizedBox(height: 20),
-                    itemCount: ctr.userBookings.length,
+                    itemCount: sortedBookings.length,
                     itemBuilder: (_, i) {
-                      final d = ctr.userBookings[i];
+                      final d = sortedBookings[i];
                       return BookingTicketCard(
                         game: d['slot']?['gaming_type_id']?['game_name'] ??
                             'Unknown',
@@ -115,6 +180,8 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                         loc: d['slot']?['location'] ?? 'Mumbai',
                         id: d['booking_id'] ?? 0,
                         raw: d,
+                        accessCode: d['access_code'],
+                        bookDate: d['book_date'],
                       );
                     },
                   );
@@ -167,13 +234,18 @@ class BookingTicketCard extends StatelessWidget {
     required this.status,
     required this.id,
     required this.raw,
-    this.accessCode, required loc, required double price,
+    required this.loc,
+    required this.price,
+    this.accessCode,
+    this.bookDate,
   });
 
-  final String game, cafe, start, end, status;
+  final String game, cafe, start, end, status, loc;
   final int id;
+  final double price;
   final Map<String, dynamic> raw;
   final String? accessCode;
+  final String? bookDate;
 
   @override
   Widget build(BuildContext context) {
@@ -185,8 +257,19 @@ class BookingTicketCard extends StatelessWidget {
         : '')
         .join(' ');
 
-    final String finalAccessCode =
-        accessCode ?? (100000 + (id * 173) % 899999).toString();
+    // Handle access code display - show "---" if null
+    final String displayAccessCode = accessCode ?? '---';
+    
+    // Format the booking date
+    String formattedDate = 'N/A';
+    if (bookDate != null) {
+      try {
+        final parsedDate = DateFormat('yyyy-MM-dd').parse(bookDate!);
+        formattedDate = DateFormat('dd MMM, yyyy').format(parsedDate);
+      } catch (_) {
+        formattedDate = 'N/A';
+      }
+    }
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
@@ -213,7 +296,7 @@ class BookingTicketCard extends StatelessWidget {
                     '#$id',
                     style: const TextStyle(
                       color: Color(0xFF2ECC71),
-                      fontSize: 28,
+                      fontSize: 22, // Reduced from 28
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -222,10 +305,10 @@ class BookingTicketCard extends StatelessWidget {
                     'Booking ID',
                     style: TextStyle(
                       color: Colors.white70,
-                      fontSize: 12,
+                      fontSize: 10, // Reduced from 12
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8), // Reduced from 12
                   ElevatedButton(
                     onPressed: () {
                       // Define your scan QR logic here
@@ -234,29 +317,29 @@ class BookingTicketCard extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2ECC71),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
+                          horizontal: 12, vertical: 4), // Reduced padding
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6), // Reduced radius
                       ),
                       textStyle: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600),
+                          fontSize: 10, fontWeight: FontWeight.w600), // Reduced font size
                     ),
                     child: const Text('Scan QR'),
                   ),
                 ],
               ),
 
-              const SizedBox(width: 18),
+              const SizedBox(width: 12), // Reduced from 18
               SizedBox(
-                height: 100,
+                height: 80, // Reduced from 100
                 child: DottedLine(
                   direction: Axis.vertical,
                   dashColor: Colors.white12,
-                  dashLength: 4,
-                  dashGapLength: 4,
+                  dashLength: 3, // Reduced from 4
+                  dashGapLength: 3, // Reduced from 4
                 ),
               ),
-              const SizedBox(width: 18),
+              const SizedBox(width: 12), // Reduced from 18
 
               // Right Section
               Expanded(
@@ -268,15 +351,23 @@ class BookingTicketCard extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
-                        fontSize: 16,
+                        fontSize: 14, // Reduced from 16
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4), // Reduced from 6
                     Text(
                       '$start - $end',
                       style: const TextStyle(
                         color: Colors.white54,
-                        fontSize: 13,
+                        fontSize: 11, // Reduced from 13
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Date: $formattedDate',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11, // Reduced from 13
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -284,28 +375,28 @@ class BookingTicketCard extends StatelessWidget {
                       'Status: $formattedStatus',
                       style: const TextStyle(
                         color: Colors.white54,
-                        fontSize: 13,
+                        fontSize: 11, // Reduced from 13
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8), // Reduced from 12
                     bw.BarcodeWidget(
                       data: 'HASH-$id',
                       barcode: bw.Barcode.code128(),
                       drawText: false,
                       color: Colors.white,
                       width: double.infinity,
-                      height: 40,
+                      height: 30, // Reduced from 40
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6), // Reduced from 8
                     Row(
                       children: [
                         const Icon(Icons.lock_outline,
-                            size: 16, color: Colors.white38),
-                        const SizedBox(width: 6),
+                            size: 14, color: Colors.white38), // Reduced from 16
+                        const SizedBox(width: 4), // Reduced from 6
                         Text(
-                          'Access Code: $finalAccessCode',
+                          'Access Code: $displayAccessCode',
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 11, // Reduced from 13
                             color: Colors.white70,
                             letterSpacing: 1,
                           ),
