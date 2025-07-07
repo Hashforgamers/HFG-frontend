@@ -81,16 +81,16 @@ class _BookingScreenState extends State<BookingScreen> {
         elevation: 0,
         leading: IconButton(
             onPressed: () {
-              Get.back();
+              Navigator.pop(context);
             },
             icon: const Icon(
               Icons.arrow_back_ios_new_rounded,
-              color: Colors.green,
+              color: Colors.white,
             )),
         title: Text(
           widget.title,
           style: const TextStyle(
-              color: Colors.green, fontSize: 20, fontWeight: FontWeight.bold),
+              color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.black,
       ),

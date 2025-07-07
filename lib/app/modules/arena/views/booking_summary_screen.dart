@@ -12,6 +12,7 @@ import '../../../../core/repositories/model/get_voucher_model.dart';
 import '../../../../core/repositories/remote/remote_repo_interface.dart';
 import '../../../../core/service_locator.dart';
 import '../../home/controllers/home_controller.dart';
+import '../../../data/services/user_controller.dart';
 import 'past_booking_screen.dart';
 
 class BookingSummaryScreen extends StatefulWidget {
@@ -35,8 +36,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final RazorpayController razorpayController = Get.put(RazorpayController());
   final _remoteRepo = locator<RemoteRepoInterface>();
   final RxString _selectedPayment = 'wallet'.obs;  // 'wallet'  or  'gateway'
-
-  final String userName = "Shen";
+  final UserController userController = Get.find<UserController>();
 
   // Voucher related variables
   final TextEditingController _voucherController = TextEditingController();
@@ -262,9 +262,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               fontWeight: FontWeight.w500,
                               color: Colors.white70)),
                       const SizedBox(height: 4),
-                      Text(userName,
+                      Obx(() => Text(userController.user.value.name ?? 'User',
                           style: const TextStyle(
-                              fontSize: 16, color: Colors.white)),
+                              fontSize: 16, color: Colors.white))),
                     ],
                   ),
                   TextButton(
