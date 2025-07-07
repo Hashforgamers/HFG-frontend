@@ -36,6 +36,16 @@ class _BookingScreenState extends State<BookingScreen> {
     _fetchUserId();
     controller.fetchSlots(
         vendorId: widget.vendorId, gameId: widget.gameId, date: selectedDate);
+    
+    // Clear any previous selections when entering the screen
+    controller.clearSelectedSlots();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Clear selections when returning to this screen
+    controller.clearSelectedSlots();
   }
 
   Future<void> _fetchUserId() async {
@@ -59,6 +69,13 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Clear selections when building the widget (ensures fresh state)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (controller.selectedSlots.isNotEmpty) {
+        controller.clearSelectedSlots();
+      }
+    });
+    
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -133,11 +150,12 @@ class _BookingScreenState extends State<BookingScreen> {
             );
           }
 
-          // Check if there are any available slots
+          // Check if there are any available slots (both API availability and time-based)
           final availableSlots = controller.slots.where((slot) {
             final bool isAvailable =
                 slot['is_available'] ?? slot['isAvailable'] ?? true;
-            return isAvailable;
+            final bool isTimeAvailable = controller.isSlotAvailableNow(slot);
+            return isAvailable && isTimeAvailable;
           }).toList();
           if (availableSlots.isEmpty) {
             return Center(
@@ -202,7 +220,8 @@ class _BookingScreenState extends State<BookingScreen> {
                       final availableSlots = controller.slots.where((slot) {
                         final bool isAvailable =
                             slot['is_available'] ?? slot['isAvailable'] ?? true;
-                        return isAvailable;
+                        final bool isTimeAvailable = controller.isSlotAvailableNow(slot);
+                        return isAvailable && isTimeAvailable;
                       }).toList();
                       final totalAvailablePCs =
                           availableSlots.fold<int>(0, (sum, slot) {
@@ -260,10 +279,11 @@ class _BookingScreenState extends State<BookingScreen> {
             itemCount: controller.slots.length,
             itemBuilder: (context, index) {
               final slot = controller.slots[index];
-              // Check availability with fallback field names
+              // Check availability with fallback field names and time-based filtering
               final bool isAvailable =
                   slot['is_available'] ?? slot['isAvailable'] ?? true;
-              if (isAvailable) {
+              final bool isTimeAvailable = controller.isSlotAvailableNow(slot);
+              if (isAvailable && isTimeAvailable) {
                 return buildSlotItem(slot, index);
               } else {
                 return const SizedBox.shrink(); // Hide unavailable slots
@@ -292,14 +312,17 @@ class _BookingScreenState extends State<BookingScreen> {
         slot['availableSlot'] ??
         slot['available_slots'] ??
         0;
+    
+    // Check if slot is available based on time
+    final bool isTimeAvailable = controller.isSlotAvailableNow(slot);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1D),
+          color: isTimeAvailable ? const Color(0xFF1A1A1D) : const Color(0xFF0F0F0F),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xff2D2D2D)),
+          border: Border.all(color: isTimeAvailable ? const Color(0xff2D2D2D) : Colors.grey.shade800),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -311,7 +334,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 Text(
                   'Slot: ${formatTime(slot['start_time'])} - ${formatTime(slot['end_time'])}',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
+                    color: isTimeAvailable ? Colors.white.withOpacity(0.85) : Colors.grey.shade600,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -320,14 +343,16 @@ class _BookingScreenState extends State<BookingScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.2),
+                    color: isTimeAvailable ? Colors.green.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.withOpacity(0.5)),
+                    border: Border.all(color: isTimeAvailable ? Colors.green.withOpacity(0.5) : Colors.grey.withOpacity(0.5)),
                   ),
                   child: Text(
-                    '$availablePCs PC${availablePCs > 1 ? 's' : ''} Available',
-                    style: const TextStyle(
-                      color: Colors.green,
+                    isTimeAvailable 
+                        ? '$availablePCs PC${availablePCs > 1 ? 's' : ''} Available'
+                        : 'Time Expired',
+                    style: TextStyle(
+                      color: isTimeAvailable ? Colors.green : Colors.grey,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -336,7 +361,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            if (availablePCs > 0) ...[
+            if (availablePCs > 0 && isTimeAvailable) ...[
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -348,6 +373,29 @@ class _BookingScreenState extends State<BookingScreen> {
                       slotId: slot['slot_id'] ?? slot['id'],
                     ),
                   ),
+                ),
+              ),
+            ] else if (availablePCs > 0 && !isTimeAvailable) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.schedule, color: Colors.orange, size: 16),
+                    SizedBox(width: 8),
+                    Text(
+                      'Slot time has passed',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ] else ...[

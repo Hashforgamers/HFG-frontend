@@ -6,6 +6,7 @@ import 'package:hash/core/service_locator.dart';
 
 import '../arena/views/past_booking_screen.dart';
 import '../home/controllers/home_controller.dart';
+import '../arena/controllers/booking_controller.dart';
 
 class RazorpayController extends GetxController {
   late Razorpay _razorpay;
@@ -105,6 +106,10 @@ class RazorpayController extends GetxController {
       );
 
       print('✅ Booking confirmed!');
+
+      // Clear selected slots after successful payment
+      final bookingController = Get.find<BookingController>();
+      bookingController.clearSelectedSlots();
 
       _reset();
 

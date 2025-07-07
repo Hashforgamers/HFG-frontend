@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:share_plus/share_plus.dart';
 import '../controller/refferal_controller.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
@@ -18,7 +20,8 @@ class ReferralViewWithController extends StatefulWidget {
 class _ReferralViewWithControllerState
     extends State<ReferralViewWithController> {
   final controller = Get.put(ReferralController());
-  final Color _accent = const Color(0xffDE3A3A); // Keep for error, but use green for highlights
+  final Color _accent =
+      const Color(0xffDE3A3A); // Keep for error, but use green for highlights
   final Color _green = const Color(0xFF21C362); // Main green from screenshot
   final Color _darkCard = const Color(0xff181F1A); // Slightly lighter for cards
   final Color _cardBorder = const Color(0xFF263126);
@@ -28,8 +31,9 @@ class _ReferralViewWithControllerState
   @override
   void initState() {
     controller.getVoucher();
+    BlocProvider.of<HashCoinCubit>(context).getHashCoin();
     super.initState();
-    
+
     // Listen to error messages from controller
     ever(controller.errorMessage, (String error) {
       if (error.isNotEmpty) {
@@ -40,7 +44,8 @@ class _ReferralViewWithControllerState
             duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }
@@ -64,12 +69,34 @@ class _ReferralViewWithControllerState
               children: [
                 Icon(CupertinoIcons.hexagon, color: _green, size: 28),
                 const SizedBox(height: 8),
-                Text('Total Earnings', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
+                Text('Total Earnings',
+                    style:
+                        GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
                 const SizedBox(height: 4),
-                Obx(() => Text(
-                  controller.getReferralRewards().toString(),
-                  style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20),
-                )),
+                BlocProvider.value(
+                  value: BlocProvider.of<HashCoinCubit>(context),
+                  child: BlocBuilder<HashCoinCubit, HashCoinState>(
+                    builder: (context, state) {
+                      if (state is HashCoinLoading) {
+                        return const CircularProgressIndicator(
+                          color: Colors.green,
+                        );
+                      }
+                      if (state is HashCoinLoaded) {
+                        return Text(
+                          state.hashCoin.toString(),
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                          ),
+                        );
+                      } else {
+                        return const SizedBox.shrink();
+                      }
+                    },
+                  ),
+                ),
               ],
             ),
           ),
@@ -79,12 +106,17 @@ class _ReferralViewWithControllerState
               children: [
                 Icon(Icons.person_add_alt_1, color: _green, size: 28),
                 const SizedBox(height: 8),
-                Text('My Referrals', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
+                Text('My Referrals',
+                    style:
+                        GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
                 const SizedBox(height: 4),
                 Obx(() => Text(
-                  controller.getReferralRewards().toString(),
-                  style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20),
-                )),
+                      controller.getReferralRewards().toString(),
+                      style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 20),
+                    )),
               ],
             ),
           ),
@@ -107,7 +139,8 @@ class _ReferralViewWithControllerState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Your Referral Code', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
+          Text('Your Referral Code',
+              style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
           const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
@@ -119,20 +152,23 @@ class _ReferralViewWithControllerState
               children: [
                 Expanded(
                   child: Text(code,
-                    style: GoogleFonts.play(
-                      fontSize: 22,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2)),
+                      style: GoogleFonts.play(
+                          fontSize: 22,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 2)),
                 ),
                 GestureDetector(
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: code));
-                    ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Referral code copied!')));
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(content: Text('Referral code copied!')));
                   },
                   child: Row(
                     children: [
-                      Text('Copy', style: GoogleFonts.inter(color: _green, fontWeight: FontWeight.w600)),
+                      Text('Copy',
+                          style: GoogleFonts.inter(
+                              color: _green, fontWeight: FontWeight.w600)),
                       const SizedBox(width: 4),
                       Icon(Icons.copy, color: _green, size: 18),
                     ],
@@ -147,13 +183,19 @@ class _ReferralViewWithControllerState
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: _green,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               icon: const Icon(Icons.share, color: Colors.white),
-              label: Text('Share Referral Code', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+              label: Text('Share Referral Code',
+                  style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16)),
               onPressed: () {
-                Share.share('Join HashforGamers with my code 👉 $code (unlimited rewards!)');
+                Share.share(
+                    'Join HashforGamers with my code 👉 $code (unlimited rewards!)');
               },
             ),
           ),
@@ -177,38 +219,51 @@ class _ReferralViewWithControllerState
         children: [
           Text('How It Works', style: _heading),
           const SizedBox(height: 18),
-          _howItWorksStep('Step 1', 'Share your referral link/code with your friends', Icons.share),
-          _howItWorksStep('Step 2', 'Friends registers on HashforGamers using your link/code', Icons.person_add_alt_1),
-          _howItWorksStep('Step 3', 'You both earn rewards when your friend makes a booking', Icons.card_giftcard),
+          _howItWorksStep('Step 1',
+              'Share your referral link/code with your friends', Icons.share),
+          _howItWorksStep(
+              'Step 2',
+              'Friends registers on HashforGamers using your link/code',
+              Icons.person_add_alt_1),
+          _howItWorksStep(
+              'Step 3',
+              'You both earn rewards when your friend makes a booking',
+              Icons.card_giftcard),
         ],
       ),
     );
   }
 
   Widget _howItWorksStep(String step, String text, IconData icon) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: _green.withOpacity(0.15),
-          child: Icon(icon, color: _green, size: 18),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: _green.withOpacity(0.15),
+              child: Icon(icon, color: _green, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(step,
+                      style: GoogleFonts.inter(
+                          color: _green,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13)),
+                  const SizedBox(height: 2),
+                  Text(text,
+                      style: GoogleFonts.inter(
+                          color: Colors.white70, fontSize: 13)),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(step, style: GoogleFonts.inter(color: _green, fontWeight: FontWeight.w700, fontSize: 13)),
-              const SizedBox(height: 2),
-              Text(text, style: GoogleFonts.inter(color: Colors.white70, fontSize: 13)),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
+      );
 
   Widget _vouchersCard() {
     return Container(
@@ -228,11 +283,15 @@ class _ReferralViewWithControllerState
             children: [
               Text('Your Vouchers', style: _heading.copyWith(fontSize: 16)),
               Obx(() => controller.isLoadingVouchers.value
-                ? SizedBox(height: 16, width: 16, child: CircularProgressIndicator(color: _green, strokeWidth: 2))
-                : GestureDetector(
-                    onTap: () => controller.getVoucher(),
-                    child: Icon(Icons.refresh, color: _green, size: 20),
-                  )),
+                  ? SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(
+                          color: _green, strokeWidth: 2))
+                  : GestureDetector(
+                      onTap: () => controller.getVoucher(),
+                      child: Icon(Icons.refresh, color: _green, size: 20),
+                    )),
             ],
           ),
           Obx(() {
@@ -242,56 +301,75 @@ class _ReferralViewWithControllerState
                 alignment: Alignment.center,
                 child: Column(
                   children: [
-                    const Icon(Icons.card_giftcard_outlined, color: Colors.white54, size: 48),
+                    const Icon(Icons.card_giftcard_outlined,
+                        color: Colors.white54, size: 48),
                     const SizedBox(height: 16),
-                    Text('No vouchers yet', style: GoogleFonts.inter(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w500)),
+                    Text('No vouchers yet',
+                        style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500)),
                     const SizedBox(height: 8),
-                    Text('Create your first voucher to start earning!', style: GoogleFonts.inter(color: Colors.white54, fontSize: 14), textAlign: TextAlign.center),
+                    Text('Create your first voucher to start earning!',
+                        style: GoogleFonts.inter(
+                            color: Colors.white54, fontSize: 14),
+                        textAlign: TextAlign.center),
                   ],
                 ),
               );
             }
             // If vouchers exist, show them (not shown in screenshot, so keep as is)
             return Column(
-              children: controller.vouchers.map((voucher) => _voucherItem(voucher)).toList(),
+              children: controller.vouchers
+                  .map((voucher) => _voucherItem(voucher))
+                  .toList(),
             );
           }),
           const SizedBox(height: 18),
-          Obx(() => controller.isLoading.value
-            ? SizedBox(
-                width: double.infinity,
-                child: Center(child: CircularProgressIndicator(color: _green, strokeWidth: 2)),
-              )
-            : SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _green,
-                    side: BorderSide(color: _green, width: 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+          Obx(
+            () => controller.isLoading.value
+                ? SizedBox(
+                    width: double.infinity,
+                    child: Center(
+                        child: CircularProgressIndicator(
+                            color: _green, strokeWidth: 2)),
+                  )
+                : SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _green,
+                        side: BorderSide(color: _green, width: 2),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      icon: Icon(Icons.card_giftcard, color: _green),
+                      label: Text('Create Voucher',
+                          style: GoogleFonts.inter(
+                              color: _green,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16)),
+                      onPressed: () async {
+                        try {
+                          await controller.createVoucher();
+                        } catch (e) {
+                          // Fallback error handling in case controller doesn't show snackbar
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: ${e.toString()}'),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 4),
+                              behavior: SnackBarBehavior.floating,
+                              margin: const EdgeInsets.all(16),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                          );
+                        }
+                      },
+                    ),
                   ),
-                  icon: Icon(Icons.card_giftcard, color: _green),
-                  label: Text('Create Voucher', style: GoogleFonts.inter(color: _green, fontWeight: FontWeight.w700, fontSize: 16)),
-                  onPressed: () async {
-                    try {
-                      await controller.createVoucher();
-                    } catch (e) {
-                      // Fallback error handling in case controller doesn't show snackbar
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                          duration: const Duration(seconds: 4),
-                          behavior: SnackBarBehavior.floating,
-                          margin: const EdgeInsets.all(16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ),
           ),
         ],
       ),
@@ -469,11 +547,15 @@ class _ReferralViewWithControllerState
             children: [
               TextSpan(
                 text: 'Refer your friends &\n',
-                style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20),
+                style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20),
               ),
               TextSpan(
                 text: 'Hash Coins',
-                style: GoogleFonts.inter(color: _green, fontWeight: FontWeight.w700, fontSize: 20),
+                style: GoogleFonts.inter(
+                    color: _green, fontWeight: FontWeight.w700, fontSize: 20),
               ),
             ],
           ),
