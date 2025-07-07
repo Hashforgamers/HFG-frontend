@@ -95,8 +95,9 @@ class CafeSection extends StatelessWidget {
                       openingHours: '9 AM - 12 AM',
                       availableGames: const ['Game 1', 'Game 2'],
                       amenities: const ['Amenity 1', 'Amenity 2'],
-                      contactInfo: cafe['contact_number'] ??
-                          'Contact not available',
+                      phone: cafe['phone'] ?? cafe['contact_number'] ?? 'Phone not available',
+                      email: cafe['email'] ?? 'Email not available',
+                      ownerName: cafe['owner_name'] ?? 'Owner not available',
                       reviews: const ['Great place!', 'Loved it!'],
                       vendorId: cafe['vendor_id'],
                     ),

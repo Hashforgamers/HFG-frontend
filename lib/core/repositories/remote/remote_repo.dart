@@ -617,6 +617,25 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       debugPrint('Error creating voucher: $e');
+      
+      // Handle DioException specifically to extract error message
+      if (e is DioException && e.response != null) {
+        final statusCode = e.response!.statusCode;
+        final responseData = e.response!.data;
+        
+        if (statusCode == 400) {
+          // Extract error message from response data
+          String errorMessage = 'Failed to create voucher.';
+          if (responseData is Map<String, dynamic> && 
+              responseData.containsKey('error')) {
+            errorMessage = responseData['error'];
+          }
+          throw Exception(errorMessage);
+        } else {
+          throw Exception('Failed to create voucher. Status code: $statusCode');
+        }
+      }
+      
       rethrow;
     }
   }

@@ -7,6 +7,7 @@ class User {
   late String? gender;
   late String? referralCode;
   late int? referralRewards;
+  late int? referralCount;
 
   User({
     this.name,
@@ -17,6 +18,7 @@ class User {
     this.gender,
     this.referralCode,
     this.referralRewards,
+    this.referralCount,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class User {
       gender: json['gender'] as String?,
       referralCode: json['referralCode'] as String?,
       referralRewards: json['referralRewards'] as int?,
+      referralCount: json['referralCount'] as int?,
     );
   }
 
@@ -42,6 +45,7 @@ class User {
       'gender': gender,
       'referralCode': referralCode,
       'referralRewards': referralRewards,
+      'referralCount': referralCount,
     };
   }
 }

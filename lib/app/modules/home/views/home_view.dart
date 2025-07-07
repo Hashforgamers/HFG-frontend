@@ -6,7 +6,7 @@ class HomeView extends StatelessWidget {
   final HomeController controller = Get.find();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) { 
     return Scaffold(
       body: Center(
         child: Obx(() {
