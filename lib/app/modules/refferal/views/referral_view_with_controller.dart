@@ -29,6 +29,22 @@ class _ReferralViewWithControllerState
   void initState() {
     controller.getVoucher();
     super.initState();
+    
+    // Listen to error messages from controller
+    ever(controller.errorMessage, (String error) {
+      if (error.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    });
   }
 
   Widget _earningsCard() {
@@ -65,8 +81,10 @@ class _ReferralViewWithControllerState
                 const SizedBox(height: 8),
                 Text('My Referrals', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
                 const SizedBox(height: 4),
-                Text('10', // Placeholder
-                  style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20)),
+                Obx(() => Text(
+                  controller.getReferralRewards().toString(),
+                  style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20),
+                )),
               ],
             ),
           ),
@@ -224,7 +242,7 @@ class _ReferralViewWithControllerState
                 alignment: Alignment.center,
                 child: Column(
                   children: [
-                    Icon(Icons.card_giftcard_outlined, color: Colors.white54, size: 48),
+                    const Icon(Icons.card_giftcard_outlined, color: Colors.white54, size: 48),
                     const SizedBox(height: 16),
                     Text('No vouchers yet', style: GoogleFonts.inter(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w500)),
                     const SizedBox(height: 8),
@@ -255,7 +273,23 @@ class _ReferralViewWithControllerState
                   ),
                   icon: Icon(Icons.card_giftcard, color: _green),
                   label: Text('Create Voucher', style: GoogleFonts.inter(color: _green, fontWeight: FontWeight.w700, fontSize: 16)),
-                  onPressed: () => controller.createVoucher(),
+                  onPressed: () async {
+                    try {
+                      await controller.createVoucher();
+                    } catch (e) {
+                      // Fallback error handling in case controller doesn't show snackbar
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 4),
+                          behavior: SnackBarBehavior.floating,
+                          margin: const EdgeInsets.all(16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      );
+                    }
+                  },
                 ),
               ),
           ),

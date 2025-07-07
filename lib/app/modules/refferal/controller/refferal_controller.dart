@@ -18,13 +18,52 @@ class ReferralController extends GetxController {
   var vouchers = <Voucher>[].obs;
   var isLoadingVouchers = false.obs;
 
+  /// Show snackbar with fallback to ScaffoldMessenger
+  void _showSnackbar(String title, String message, Color backgroundColor) {
+    try {
+      // Try Get.snackbar first
+      Get.snackbar(
+        title,
+        message,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: backgroundColor,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+        margin: const EdgeInsets.all(16),
+        borderRadius: 8,
+        isDismissible: true,
+        dismissDirection: DismissDirection.horizontal,
+      );
+    } catch (e) {
+      // Fallback to ScaffoldMessenger if Get.snackbar fails
+      print('Get.snackbar failed, using ScaffoldMessenger: $e');
+      if (Get.context != null) {
+        ScaffoldMessenger.of(Get.context!).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: backgroundColor,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Clear error and success messages
+  void clearMessages() {
+    errorMessage.value = '';
+    successMessage.value = '';
+  }
+
   /// Create a voucher for the current user
   Future<void> createVoucher() async {
     if (isLoading.value) return; // Prevent multiple simultaneous calls
 
     isLoading(true);
-    errorMessage.value = '';
-    successMessage.value = '';
+    clearMessages(); // Clear any previous messages
 
     try {
       // Get user ID from user controller
@@ -53,38 +92,43 @@ class ReferralController extends GetxController {
       await getVoucher();
 
       // Show success message
-      Get.snackbar(
-        'Success',
-        'Voucher created successfully!',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xff4CAF50),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-      );
+      _showSnackbar('Success', 'Voucher created successfully!', const Color(0xff4CAF50));
     } catch (e) {
       errorMessage.value = 'Failed to create voucher: $e';
       voucherCreated(false);
 
+      // Extract the actual error message from the exception
+      String errorMsg = e.toString();
+      
+      // Remove "Exception: " prefix if present
+      if (errorMsg.contains('Exception: ')) {
+        errorMsg = errorMsg.replaceAll('Exception: ', '');
+      }
+      
+      print('=== VOUCHER CREATION ERROR ===');
+      print('Original error: $e');
+      print('Extracted error message: $errorMsg');
+      
       // Show error message with appropriate styling
       String errorTitle = 'Error';
       Color backgroundColor = const Color(0xffF44336);
 
-      if (e.toString().contains('network') ||
-          e.toString().contains('connection')) {
+      if (errorMsg.contains('network') || errorMsg.contains('connection')) {
         errorTitle = 'Network Error';
         backgroundColor = const Color(0xff2196F3); // Blue for network issues
+        errorMsg = 'Network error. Please check your internet connection and try again.';
+      } else if (errorMsg.contains('Not enough referral points')) {
+        errorTitle = 'Insufficient Points';
+        backgroundColor = const Color(0xffff9800); // Orange for insufficient points
+        errorMsg = 'You need more referral points to create a voucher. Share your referral code with friends to earn points!';
       }
 
-      Get.snackbar(
-        errorTitle,
-        e.toString().replaceAll('Exception: ', ''),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: backgroundColor,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 4),
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
-      );
+      print('Error title: $errorTitle');
+      print('Error message: $errorMsg');
+      print('Background color: $backgroundColor');
+
+      // Show the snackbar with the error message
+      _showSnackbar(errorTitle, errorMsg, backgroundColor);
 
       print('Error creating voucher: $e');
     } finally {
@@ -111,6 +155,12 @@ class ReferralController extends GetxController {
   int getReferralRewards() {
     final user = _userController.user.value;
     return user?.referralRewards ?? 0;
+  }
+
+  /// Get current user's referral count
+  int getReferralCount() {
+    final user = _userController.user.value;
+    return user?.referralCount ?? 0;
   }
 
   /// Check if user has referral code

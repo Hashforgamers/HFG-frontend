@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -21,7 +20,6 @@ import 'package:http/http.dart' as http;
 
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'arena_view_detailed.dart';
-import 'add_cafe_screen.dart';
 
 class ArenaView extends StatefulWidget {
   const ArenaView({Key? key}) : super(key: key);
@@ -190,6 +188,174 @@ class _ArenaViewState extends State<ArenaView> {
     final lat = double.tryParse('${locData['latitude']}') ?? 0.0;
     final lng = double.tryParse('${locData['longitude']}') ?? 0.0;
     return LatLng(lat, lng);
+  }
+
+  String _formatAddress(Map<String, dynamic> cafe) {
+    final address = cafe['address'];
+    if (address == null) return 'Address not available';
+    
+    final addressLine1 = address['addressLine1'] ?? '';
+    final addressLine2 = address['addressLine2'] ?? '';
+    final city = address['city'] ?? '';
+    final state = address['state'] ?? '';
+    final pincode = address['pincode'] ?? '';
+    
+    final parts = [addressLine1, addressLine2, city, state, pincode]
+        .where((part) => part.isNotEmpty)
+        .toList();
+    
+    return parts.join(', ');
+  }
+
+  String _formatOpeningHours(Map<String, dynamic> cafe) {
+    // Get opening and closing times from the API response
+    final openingTime = cafe['opening_time'] ?? '';
+    final closingTime = cafe['closing_time'] ?? '';
+    
+    if (openingTime.isNotEmpty && closingTime.isNotEmpty) {
+      // Format the times to be more readable (remove seconds)
+      final formattedOpening = _formatTimeForDisplay(openingTime);
+      final formattedClosing = _formatTimeForDisplay(closingTime);
+      return '$formattedOpening - $formattedClosing';
+    }
+    
+    // Fallback to status
+    final status = cafe['status'];
+    if (status == 'active' || status == 'verified') {
+      return 'Open';
+    } else if (status == 'pending_verification' || status == 'inactive') {
+      return 'Pending Verification';
+    }
+    
+    return 'Hours not available';
+  }
+
+  String _formatTimeForDisplay(String timeStr) {
+    try {
+      // Remove seconds from time format like "09:00:00" -> "09:00"
+      if (timeStr.contains(':')) {
+        final parts = timeStr.split(':');
+        if (parts.length >= 2) {
+          return '${parts[0]}:${parts[1]}';
+        }
+      }
+      return timeStr;
+    } catch (e) {
+      return timeStr;
+    }
+  }
+
+  bool _isShopOpen(Map<String, dynamic> cafe) {
+    // Check for shop_open field (most common)
+    final shopOpen = cafe['shop_open'];
+    if (shopOpen != null) {
+      return shopOpen == true || shopOpen == 'true' || shopOpen == 1;
+    }
+    
+    // Check for status field
+    final status = cafe['status'];
+    if (status != null) {
+      // For pending_verification status, determine based on opening hours
+      if (status == 'pending_verification') {
+        return _isCurrentlyOpen(cafe);
+      }
+      return status == 'active' || status == 'verified' || status == 'open' || status == 'operational';
+    }
+    
+    // Check for is_open field
+    final isOpen = cafe['is_open'];
+    if (isOpen != null) {
+      return isOpen == true || isOpen == 'true' || isOpen == 1;
+    }
+    
+    // Check for operating_status field
+    final operatingStatus = cafe['operating_status'];
+    if (operatingStatus != null) {
+      return operatingStatus == 'open' || operatingStatus == 'active';
+    }
+    
+    // Check for availability field
+    final availability = cafe['availability'];
+    if (availability != null) {
+      return availability == 'available' || availability == 'open';
+    }
+    
+    // Determine status based on opening/closing times
+    return _isCurrentlyOpen(cafe);
+  }
+
+  bool _isCurrentlyOpen(Map<String, dynamic> cafe) {
+    try {
+      // Get opening and closing times from the API response
+      final openingTime = cafe['opening_time'] ?? '';
+      final closingTime = cafe['closing_time'] ?? '';
+      
+      if (openingTime.isEmpty || closingTime.isEmpty) {
+        return false; // Can't determine without times
+      }
+      
+      // Parse current time
+      final now = DateTime.now();
+      final currentTime = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      
+      // Parse opening and closing times
+      final opening = _parseTime(openingTime);
+      final closing = _parseTime(closingTime);
+      final current = _parseTime(currentTime);
+      
+      if (opening == null || closing == null || current == null) {
+        return false;
+      }
+      
+      // Handle cases where closing time is on the next day (e.g., 23:00 - 02:00)
+      if (closing < opening) {
+        // Shop is open if current time is after opening OR before closing
+        return current >= opening || current <= closing;
+      } else {
+        // Normal case: opening time is before closing time
+        return current >= opening && current <= closing;
+      }
+    } catch (e) {
+      print('Error determining shop status: $e');
+      return false;
+    }
+  }
+
+  int? _parseTime(String timeStr) {
+    try {
+      // Handle various time formats: "09:00", "9:00", "9:00 AM", "09:00:00"
+      final cleanTime = timeStr.trim().toUpperCase();
+      
+      // Remove AM/PM and convert to 24-hour format
+      String time24 = cleanTime;
+      if (cleanTime.contains('AM') || cleanTime.contains('PM')) {
+        final parts = cleanTime.split(' ');
+        final time = parts[0];
+        final period = parts[1];
+        
+        final timeParts = time.split(':');
+        int hour = int.parse(timeParts[0]);
+        int minute = timeParts.length > 1 ? int.parse(timeParts[1]) : 0;
+        
+        if (period == 'PM' && hour != 12) {
+          hour += 12;
+        } else if (period == 'AM' && hour == 12) {
+          hour = 0;
+        }
+        
+        time24 = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+      }
+      
+      // Convert to minutes since midnight for easy comparison
+      final parts = time24.split(':');
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      
+      return hour * 60 + minute;
+    } catch (e) {
+      print('Error parsing time: $timeStr - $e');
+      return null;
+    }
   }
 
   void _addUserMarker() {
@@ -408,11 +574,13 @@ class _ArenaViewState extends State<ArenaView> {
         await Get.to(() => ArenaDetailView(
           images: img,
           title: cafe['cafe_name'] ?? 'Unknown Cafe',
-          address: 'Owner: ${cafe['owner_name']}',
-          openingHours: 'Created: ${cafe['created_at']}',
+          address: _formatAddress(cafe),
+          openingHours: _formatOpeningHours(cafe),
           availableGames: cafe['available_games'] ?? ['N/A'],
           amenities: cafe['amenities'] ?? [],
-          contactInfo: 'contact@domain.com',
+          phone: cafe['phone'] ?? 'Phone not available',
+          email: cafe['email'] ?? 'Email not available',
+          ownerName: cafe['owner_name'] ?? 'Owner not available',
           reviews: cafe['reviews'] ?? ['Great place!'],
           vendorId: cafe['vendor_id'] ?? 0,
         ));
@@ -477,13 +645,13 @@ class _ArenaViewState extends State<ArenaView> {
           Row(
             children: [
               Icon(Icons.circle,
-                  color: cafe['status'] == 'active' ? Colors.green : Colors.red,
+                  color: _isShopOpen(cafe) ? Colors.green : Colors.red,
                   size: 8),
               const SizedBox(width: 4),
               Text(
-                cafe['status'] == 'active' ? 'Open' : 'Closed',
+                _isShopOpen(cafe) ? 'Open' : 'Closed',
                 style: TextStyle(
-                    color: cafe['status'] == 'active' ? Colors.green : Colors.red),
+                    color: _isShopOpen(cafe) ? Colors.green : Colors.red),
               ),
               const SizedBox(width: 8),
               FutureBuilder<Map<String, String>>(

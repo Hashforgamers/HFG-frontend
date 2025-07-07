@@ -37,15 +37,30 @@ class _HomeContentViewState extends State<HomeContentView> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      bookingController.fetchUserBookings();
-      loginController.checkUserExistsInAPI();
-      BlocProvider.of<HashCoinCubit>(context).getHashCoin();
-
-      final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        userController.fetchUserData(currentUser.uid);
-      }
+      _refreshData();
     });
+  }
+
+  Future<void> _refreshData() async {
+    try {
+      // Call all APIs in parallel for better performance
+      await Future.wait([
+        bookingController.fetchUserBookings(),
+        loginController.checkUserExistsInAPI(),
+        BlocProvider.of<HashCoinCubit>(context).getHashCoin(),
+        _fetchUserDataIfNeeded(),
+      ]);
+    } catch (e) {
+      // Handle any errors during refresh
+      print('Error refreshing data: $e');
+    }
+  }
+
+  Future<void> _fetchUserDataIfNeeded() async {
+    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      await userController.fetchUserData(currentUser.uid);
+    }
   }
 
   @override
@@ -57,30 +72,35 @@ class _HomeContentViewState extends State<HomeContentView> {
         child: const Icon(Icons.support_agent_outlined, color: Colors.white),
       ),
       appBar: _buildAppBar(),
-      body: ListView(
-        padding: const EdgeInsets.all(10),
-        children: [
-          BlocBuilder<HashCoinCubit, HashCoinState>(
-            builder: (_, state) => RewardsSection(
-              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        color: const Color(0xFF338125),
+        backgroundColor: Colors.black,
+        child: ListView(
+          padding: const EdgeInsets.all(10),
+          children: [
+            BlocBuilder<HashCoinCubit, HashCoinState>(
+              builder: (_, state) => RewardsSection(
+                hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+              ),
             ),
-          ),
-          const SizedBox(height: 18),
-          RainbowLoadingBar(height: 0.5, width: Get.width),
-          const SizedBox(height: 18),
-          EventBanner(),
-          const SizedBox(height: 18),
-          CafeSection(),
-          const SizedBox(height: 18),
-          const GamerNewsSection(),
-          const SizedBox(height: 18),
-          ViralShotsSection(),
-          const SizedBox(height: 18),
-          ShopSection(),
-          const SizedBox(height: 18),
-          GamesSection(),
-          _buildGameOnIndiaBanner(),
-        ],
+            const SizedBox(height: 18),
+            RainbowLoadingBar(height: 0.5, width: Get.width),
+            const SizedBox(height: 18),
+            EventBanner(),
+            const SizedBox(height: 18),
+            CafeSection(),
+            const SizedBox(height: 18),
+            const GamerNewsSection(),
+            const SizedBox(height: 18),
+            ViralShotsSection(),
+            const SizedBox(height: 18),
+            ShopSection(),
+            const SizedBox(height: 18),
+            GamesSection(),
+            _buildGameOnIndiaBanner(),
+          ],
+        ),
       ),
     );
   }
