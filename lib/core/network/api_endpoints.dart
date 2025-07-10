@@ -21,6 +21,7 @@ class ApiEndpoints {
   static String get vendorBaseUrl => FlavorConfig.getBaseUrl('vendor');
   static String get getAllVendorsList =>
       '$vendorBaseUrl/api/vendor/getAllGamingCafe';
+  static String get scanQrCode => '$vendorBaseUrl/api/bookingQueue';
 
   // Dashboard Service
   static String get dashboardBaseUrl => FlavorConfig.getBaseUrl('dashboard');
@@ -76,15 +77,13 @@ class ApiEndpoints {
   static String get getHashCoin =>
       '$userOnboardBaseUrl/api/users/{userId}/hash-coins';
 
-
   // Wallet core endpoints (dynamic by userId)
   static String walletByUserId(String userId) =>
-      'https://hfg-user-onboard-3nzn.onrender.com/api/users/$userId/wallet';
+      '$userOnboardBaseUrl/api/users/$userId/wallet';
 
   static String addFundsByUserId(String userId) =>
-      'https://hfg-user-onboard-3nzn.onrender.com/api/users/$userId/wallet';
+      '$userOnboardBaseUrl/api/users/$userId/wallet';
 
   static String validateFundsByUserId(String userId) =>
-      'https://hfg-user-onboard-3nzn.onrender.com/api/users/$userId/wallet/validate';
-
+      '$userOnboardBaseUrl/api/users/$userId/wallet/validate';
 }

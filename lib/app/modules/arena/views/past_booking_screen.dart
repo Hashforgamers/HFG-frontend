@@ -2,11 +2,13 @@ import 'package:barcode_widget/barcode_widget.dart' as bw;
 import 'package:dotted_line/dotted_line.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen_detail.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
+import 'dart:convert';
 
 class PastBookingsScreen extends StatefulWidget {
   const PastBookingsScreen({super.key});
@@ -79,7 +81,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    const Text(
                       'My Bookings',
                       style: TextStyle(
                         fontSize: 28,
@@ -247,6 +249,67 @@ class BookingTicketCard extends StatelessWidget {
   final String? accessCode;
   final String? bookDate;
 
+  void _handleScannedCode(String scannedCode) async {
+    try {
+      // Parse the JSON from the QR code
+      final Map<String, dynamic> qrData = jsonDecode(scannedCode);
+      
+      // Extract the required fields from the QR code JSON
+      final consoleId = qrData['console_id']?.toString() ?? '';
+      final gameId = qrData['game_id']?.toString() ?? '';
+      final vendorId = qrData['vendor_id']?.toString() ?? '';
+      final bookingId = id.toString();
+      
+      // Validate that all required fields are present
+      if (consoleId.isEmpty || gameId.isEmpty || vendorId.isEmpty) {
+        Get.snackbar(
+          'Error',
+          'Invalid QR Code format. Missing required fields.',
+          backgroundColor: Colors.red.withOpacity(0.8),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+          snackPosition: SnackPosition.TOP,
+        );
+        return;
+      }
+      
+      // Call the scanQrCode API with the parsed data
+      final remoteRepo = locator<RemoteRepoInterface>();
+      final result = await remoteRepo.scanQrCode(
+        consoleId: consoleId,
+        gameId: gameId,
+        vendorId: vendorId,
+        bookingId: bookingId,
+      );
+      
+      Get.snackbar(
+        'Success',
+        result, // Use the API response message
+        backgroundColor: Colors.green.withOpacity(0.8),
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+        snackPosition: SnackPosition.TOP,
+      );
+    } catch (e) {
+      String errorMessage = 'Failed to process QR code';
+      
+      if (e is FormatException) {
+        errorMessage = 'Invalid QR Code format. Please scan a valid QR code.';
+      } else {
+        errorMessage = 'Failed to verify booking: ${e.toString()}';
+      }
+      
+      Get.snackbar(
+        'Error',
+        errorMessage,
+        backgroundColor: Colors.red.withOpacity(0.8),
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+        snackPosition: SnackPosition.TOP,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final String formattedStatus = status
@@ -310,9 +373,12 @@ class BookingTicketCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8), // Reduced from 12
                   ElevatedButton(
-                    onPressed: () {
-                      // Define your scan QR logic here
-                      Get.snackbar('QR Scan', 'QR scanner launched');
+                    onPressed: () async {
+                      final result = await Get.to(() => const QrScannerView());
+                      if (result != null) {
+                        // Handle the scanned QR code
+                        _handleScannedCode(result.toString());
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2ECC71),
@@ -431,7 +497,7 @@ class _TicketClipper extends CustomClipper<Path> {
       Offset(0, size.height / 2 + radius),
       radius: const Radius.circular(radius),
       clockwise: false,
-    );
+    ); 
 
     // Bottom-left to bottom
     path.lineTo(0, size.height);

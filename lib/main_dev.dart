@@ -12,6 +12,7 @@ import 'app/data/services/user_controller.dart';
 import 'app/modules/arena/controllers/booking_controller.dart';
 import 'app/modules/game/views/game_section_view.dart';
 import 'app/modules/payment/razorpay_controller.dart';
+import 'app/modules/wallet/controllers/wallet_controller.dart';
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import '/themes/app_theme.dart';
@@ -52,6 +53,7 @@ void main() async {
   Get.put(GamesController(), permanent: true);
   Get.put(NotificationController());
   Get.put(DeepLinkController());
+  Get.put(WalletController());
 
   runApp(const MyApp());
 }

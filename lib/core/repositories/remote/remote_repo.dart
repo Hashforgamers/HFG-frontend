@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:hash/core/network/api_endpoints.dart';
+import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
@@ -66,22 +67,16 @@ class RemoteRepo implements RemoteRepoInterface {
             'Signup failed with status code: ${response.statusCode}');
       }
     } catch (e) {
-      // Handle DioException specifically to extract error messages
-      if (e is DioException && e.response != null) {
-        final statusCode = e.response!.statusCode;
-        final responseData = e.response!.data;
-        
-        if (statusCode == 400) {
-          // Extract error message from response data
-          String errorMessage = 'Signup failed';
-          if (responseData is Map<String, dynamic> && 
-              responseData.containsKey('message')) {
-            errorMessage = responseData['message'];
-          }
-          throw Exception(errorMessage);
-        } else {
-          throw Exception('Signup failed with status code: $statusCode');
+      // Handle DioException specifically
+      if (e is DioException) {
+        // If it's a retryable error, let the interceptor handle it
+        if (ApiErrorHandler.shouldRetry(e)) {
+          rethrow; // Let the retry interceptor handle it
         }
+        
+        // For non-retryable errors, extract and throw user-friendly message
+        final errorMessage = ApiErrorHandler.extractErrorMessage(e);
+        throw Exception(errorMessage);
       }
       print('Error during signup: $e');
       rethrow;
@@ -190,6 +185,16 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       print('Error fetching bookings: $e');
+      if (e is DioException) {
+        // If it's a retryable error, let the interceptor handle it
+        if (ApiErrorHandler.shouldRetry(e)) {
+          rethrow; // Let the retry interceptor handle it
+        }
+        
+        // For non-retryable errors, extract and throw user-friendly message
+        final errorMessage = ApiErrorHandler.extractErrorMessage(e);
+        throw Exception(errorMessage);
+      }
       rethrow;
     }
   }
@@ -209,6 +214,16 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       print('Error fetching cybercafes: $e');
+      if (e is DioException) {
+        // If it's a retryable error, let the interceptor handle it
+        if (ApiErrorHandler.shouldRetry(e)) {
+          rethrow; // Let the retry interceptor handle it
+        }
+        
+        // For non-retryable errors, extract and throw user-friendly message
+        final errorMessage = ApiErrorHandler.extractErrorMessage(e);
+        throw Exception(errorMessage);
+      }
       rethrow;
     }
   }
@@ -266,7 +281,7 @@ class RemoteRepo implements RemoteRepoInterface {
     required List<int> bookingIds,
     required String paymentId,
     required String bookDate,
-    required String paymentMode,           // ✅ ADD THIS
+    required String paymentMode, // ✅ ADD THIS
 
     String? voucherCode,
   }) async {
@@ -276,8 +291,7 @@ class RemoteRepo implements RemoteRepoInterface {
         "booking_id": bookingIds,
         "payment_id": paymentId,
         "book_date": bookDate,
-        "payment_mode": paymentMode,   // ★ you missed this
-
+        "payment_mode": paymentMode, // ★ you missed this
       };
 
       // Add voucher code if provided
@@ -617,16 +631,16 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       debugPrint('Error creating voucher: $e');
-      
+
       // Handle DioException specifically to extract error message
       if (e is DioException && e.response != null) {
         final statusCode = e.response!.statusCode;
         final responseData = e.response!.data;
-        
+
         if (statusCode == 400) {
           // Extract error message from response data
           String errorMessage = 'Failed to create voucher.';
-          if (responseData is Map<String, dynamic> && 
+          if (responseData is Map<String, dynamic> &&
               responseData.containsKey('error')) {
             errorMessage = responseData['error'];
           }
@@ -635,7 +649,7 @@ class RemoteRepo implements RemoteRepoInterface {
           throw Exception('Failed to create voucher. Status code: $statusCode');
         }
       }
-      
+
       rethrow;
     }
   }
@@ -706,6 +720,58 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       debugPrint('Error creating offer: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String> scanQrCode(
+      {required String consoleId,
+      required String gameId,
+      required String vendorId,
+      required String bookingId}) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.post(ApiEndpoints.scanQrCode, data: {
+        'console_id': consoleId,
+        'game_id': gameId,
+        'vendor_id': vendorId,
+        'booking_id': bookingId,
+      });
+      if (response.statusCode == 201) {
+        return response.data['message'];
+      } else {
+        // Handle non-201 status codes
+        final responseData = response.data;
+        String errorMessage = 'Failed to scan QR code.';
+        if (responseData is Map<String, dynamic> &&
+            responseData.containsKey('error')) {
+          errorMessage = responseData['error'];
+        }
+        debugPrint('QR code scanning failed: $errorMessage');
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      debugPrint('Error scanning QR code: $e');
+
+      // Handle DioException specifically to extract error message
+      if (e is DioException && e.response != null) {
+        final statusCode = e.response!.statusCode;
+        final responseData = e.response!.data;
+
+        if (statusCode == 400) {
+          // Extract error message from response data
+          String errorMessage = 'Failed to scan QR code.';
+          if (responseData is Map<String, dynamic> &&
+              responseData.containsKey('error')) {
+            errorMessage = responseData['error'];
+          }
+          throw Exception(errorMessage);
+        } else {
+          throw Exception('Failed to scan QR code. Status code: $statusCode');
+        }
+      }
+
       rethrow;
     }
   }

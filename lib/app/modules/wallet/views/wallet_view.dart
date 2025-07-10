@@ -6,7 +6,7 @@ import '../controllers/razorpay_wallet_controller.dart';
 import '../controllers/wallet_controller.dart';
 
 class WalletScreen extends StatelessWidget {
-  final walletCtr   = Get.put(WalletController());
+  final walletCtr   = Get.find<WalletController>();
   final razorpayCtr = Get.put(RazorpayWalletController());
   final TextEditingController amountController = TextEditingController();
 

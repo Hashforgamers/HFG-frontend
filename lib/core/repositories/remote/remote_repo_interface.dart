@@ -83,4 +83,11 @@ abstract class RemoteRepoInterface {
     required int discountPercentage,
     required String userId,
   });
+
+  Future<String> scanQrCode({
+    required String consoleId,
+    required String gameId,
+    required String vendorId,
+    required String bookingId,
+  });
 }

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/interceptors/auth_interceptor.dart';
+import 'package:hash/core/network/interceptors/retry_interceptor.dart';
 import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
@@ -33,6 +34,9 @@ class NetworkConfig {
         maxWidth: 90,
       ),
     );
+
+    // Add retry interceptor for 500 errors
+    dio.interceptors.add(RetryInterceptor());
 
     dio.interceptors.add(AuthInterceptor(dio));
 
@@ -109,6 +113,9 @@ class NetworkProvider {
         maxWidth: 90,
       ),
     );
+
+    // Add retry interceptor for 500 errors
+    _dio.interceptors.add(RetryInterceptor());
   }
 
   Future<Dio> auth() async {

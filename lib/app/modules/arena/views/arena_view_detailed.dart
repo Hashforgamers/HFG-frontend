@@ -409,51 +409,64 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                 fontSize: 18,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 18,
-          runSpacing: 18,
-          children: filtered.map<Widget>((item) {
-            final name = item['name']?.toString() ?? '';
-            final displayName = name
-                .replaceAll('_', ' ')
-                .split(' ')
-                .map((w) => w.isNotEmpty
-                    ? '${w[0].toUpperCase()}${w.substring(1)}'
-                    : '')
-                .join(' ');
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: const Color(0xff181818),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    _getAmenityIcon(name),
-                    color: Colors.white,
-                    size: 30,
-                  ),
+        SizedBox(
+          height: 120,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: filtered.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 16),
+            itemBuilder: (context, index) {
+              final item = filtered[index];
+              final name = item['name']?.toString() ?? '';
+              final displayName = name
+                  .replaceAll('_', ' ')
+                  .split(' ')
+                  .map((w) => w.isNotEmpty
+                      ? '${w[0].toUpperCase()}${w.substring(1)}'
+                      : '')
+                  .join(' ');
+              return Container(
+                width: 90,
+                decoration: BoxDecoration(
+                  color: const Color(0xff181818),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xff2D2D2D)),
                 ),
-                const SizedBox(height: 6),
-                SizedBox(
-                  width: 70,
-                  child: Text(
-                    displayName,
-                    style: const TextStyle(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: const Color(0xff0E0E0E),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        _getAmenityIcon(name),
                         color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      child: Text(
+                        displayName,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            );
-          }).toList(),
+              );
+            },
+          ),
         ),
       ],
     );

@@ -13,7 +13,7 @@ class RewardsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final WalletController walletController = Get.put(WalletController());
+    final WalletController walletController = Get.find<WalletController>();
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -47,9 +47,11 @@ class RewardsSection extends StatelessWidget {
           },
           child: Obx(() {
             final walletBalance = walletController.balance.value;
+            final isLoading = walletController.isLoading.value;
+            
             return _buildRewardItem(
               CupertinoIcons.circle_bottomthird_split,
-              "₹$walletBalance",
+              isLoading ? "..." : "₹$walletBalance",
               "Wallet",
               Colors.yellow,
             );

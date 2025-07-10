@@ -119,78 +119,151 @@ class _BookingScreenState extends State<BookingScreen> {
           }
 
           if (controller.slots.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.schedule,
-                    size: 64,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No slots available',
-                    style: TextStyle(
-                      color: Colors.grey[400],
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
+            return Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          size: 64,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No slots available',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Try selecting a different date',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Try selecting a different date',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                buildCalendarButton(),
+              ],
             );
           }
 
           // Check if there are any available slots (both API availability and time-based)
+          // Only apply time-based filtering for current date
+          final isCurrentDate = selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
           final availableSlots = controller.slots.where((slot) {
             final bool isAvailable =
                 slot['is_available'] ?? slot['isAvailable'] ?? true;
-            final bool isTimeAvailable = controller.isSlotAvailableNow(slot);
+            final bool isTimeAvailable = isCurrentDate ? controller.isSlotAvailableNow(slot) : true;
             return isAvailable && isTimeAvailable;
           }).toList();
           if (availableSlots.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.computer,
-                    size: 64,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No available slots for this date',
-                    style: TextStyle(
-                      color: Colors.grey[400],
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
+            return Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.computer,
+                          size: 64,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No available slots for this date',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'All slots are currently booked',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'All slots are currently booked',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                buildCalendarButton(),
+              ],
             );
           }
 
           return buildSlotList();
         }),
+      ),
+    );
+  }
+
+  Widget buildCalendarButton() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+      decoration: const BoxDecoration(
+        color: Color(0xff121212),
+        border: Border(
+          top: BorderSide(color: Color(0xff2D2D2D), width: 1),
+        ),
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          DateTime? pickedDate = await showDatePicker(
+            context: context,
+            initialDate: DateTime.now(),
+            firstDate: DateTime.now(),
+            lastDate: DateTime.now().add(const Duration(days: 30)),
+            builder: (context, child) {
+              return Theme(
+                data: ThemeData.dark(),
+                child: child!,
+              );
+            },
+          );
+
+          if (pickedDate != null) {
+            setState(() {
+              selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
+              selectedDateText =
+                  DateFormat('dd MMM, yyyy').format(pickedDate);
+              controller.fetchSlots(
+                  vendorId: widget.vendorId,
+                  gameId: widget.gameId,
+                  date: selectedDate);
+            });
+          }
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xffDE3A3A),
+          minimumSize: const Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          elevation: 8,
+        ),
+        icon: const Icon(Icons.calendar_today, color: Colors.white),
+        label: const Text(
+          'SELECT DIFFERENT DATE',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
@@ -217,10 +290,11 @@ class _BookingScreenState extends State<BookingScreen> {
                     ),
                     const SizedBox(height: 4),
                     Obx(() {
+                      final isCurrentDate = selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
                       final availableSlots = controller.slots.where((slot) {
                         final bool isAvailable =
                             slot['is_available'] ?? slot['isAvailable'] ?? true;
-                        final bool isTimeAvailable = controller.isSlotAvailableNow(slot);
+                        final bool isTimeAvailable = isCurrentDate ? controller.isSlotAvailableNow(slot) : true;
                         return isAvailable && isTimeAvailable;
                       }).toList();
                       final totalAvailablePCs =
@@ -282,7 +356,9 @@ class _BookingScreenState extends State<BookingScreen> {
               // Check availability with fallback field names and time-based filtering
               final bool isAvailable =
                   slot['is_available'] ?? slot['isAvailable'] ?? true;
-              final bool isTimeAvailable = controller.isSlotAvailableNow(slot);
+              final bool isTimeAvailable = selectedDate == DateFormat('yyyyMMdd').format(DateTime.now()) 
+                  ? controller.isSlotAvailableNow(slot) 
+                  : true;
               if (isAvailable && isTimeAvailable) {
                 return buildSlotItem(slot, index);
               } else {
@@ -313,8 +389,9 @@ class _BookingScreenState extends State<BookingScreen> {
         slot['available_slots'] ??
         0;
     
-    // Check if slot is available based on time
-    final bool isTimeAvailable = controller.isSlotAvailableNow(slot);
+    // Check if slot is available based on time - only for current date
+    final bool isCurrentDate = selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
+    final bool isTimeAvailable = isCurrentDate ? controller.isSlotAvailableNow(slot) : true;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -350,9 +427,9 @@ class _BookingScreenState extends State<BookingScreen> {
                   child: Text(
                     isTimeAvailable 
                         ? '$availablePCs PC${availablePCs > 1 ? 's' : ''} Available'
-                        : 'Time Expired',
+                        : isCurrentDate ? 'Time Expired' : 'Available',
                     style: TextStyle(
-                      color: isTimeAvailable ? Colors.green : Colors.grey,
+                      color: isTimeAvailable ? Colors.green : (isCurrentDate ? Colors.grey : Colors.green),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -361,7 +438,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            if (availablePCs > 0 && isTimeAvailable) ...[
+            if (availablePCs > 0 && (isTimeAvailable || !isCurrentDate)) ...[
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -375,7 +452,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
               ),
-            ] else if (availablePCs > 0 && !isTimeAvailable) ...[
+            ] else if (availablePCs > 0 && !isTimeAvailable && isCurrentDate) ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
