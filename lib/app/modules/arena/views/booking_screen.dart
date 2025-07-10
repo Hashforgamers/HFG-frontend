@@ -10,12 +10,14 @@ import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'booking_summary_screen.dart';
 
 class BookingScreen extends StatefulWidget {
+  final String consoleType; 
   final String title;
   final int gameId;
   final int vendorId;
 
   const BookingScreen(
       {super.key,
+      required this.consoleType,
       required this.title,
       required this.gameId,
       required this.vendorId});
@@ -46,6 +48,17 @@ class _BookingScreenState extends State<BookingScreen> {
     super.didChangeDependencies();
     // Clear selections when returning to this screen
     controller.clearSelectedSlots();
+  }
+
+  /// Get the console type from the passed parameter
+  String getConsoleType() {
+    return widget.consoleType;
+  }
+
+  /// Get the console label for a specific index
+  String getConsoleLabel(int index) {
+    final consoleType = getConsoleType();
+    return '$consoleType${index + 1}';
   }
 
   Future<void> _fetchUserId() async {
@@ -297,16 +310,17 @@ class _BookingScreenState extends State<BookingScreen> {
                         final bool isTimeAvailable = isCurrentDate ? controller.isSlotAvailableNow(slot) : true;
                         return isAvailable && isTimeAvailable;
                       }).toList();
-                      final totalAvailablePCs =
+                      final totalAvailableConsoles =
                           availableSlots.fold<int>(0, (sum, slot) {
-                        final int availablePCs = slot['available_slot'] ??
+                        final int availableConsoles = slot['available_slot'] ??
                             slot['availableSlot'] ??
                             slot['available_slots'] ??
                             0;
-                        return sum + availablePCs;
+                        return sum + availableConsoles;
                       });
+                      final consoleType = getConsoleType();
                       return Text(
-                        '$totalAvailablePCs PCs available across ${availableSlots.length} time slots',
+                        '$totalAvailableConsoles ${consoleType == 'PC' ? 'PCs' : '${consoleType}s'} available across ${availableSlots.length} time slots',
                         style: TextStyle(
                           color: Colors.grey[400],
                           fontSize: 14,
@@ -426,7 +440,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                   child: Text(
                     isTimeAvailable 
-                        ? '$availablePCs PC${availablePCs > 1 ? 's' : ''} Available'
+                        ? '$availablePCs ${getConsoleType()}${availablePCs > 1 ? 's' : ''} Available'
                         : isCurrentDate ? 'Time Expired' : 'Available',
                     style: TextStyle(
                       color: isTimeAvailable ? Colors.green : (isCurrentDate ? Colors.grey : Colors.green),
@@ -483,13 +497,13 @@ class _BookingScreenState extends State<BookingScreen> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.red.withOpacity(0.3)),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.red, size: 16),
-                    SizedBox(width: 8),
+                    const Icon(Icons.info_outline, color: Colors.red, size: 16),
+                    const SizedBox(width: 8),
                     Text(
-                      'No PCs available for this slot',
-                      style: TextStyle(
+                      'No ${getConsoleType()}s available for this slot',
+                      style: const TextStyle(
                         color: Colors.red,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -522,12 +536,12 @@ class _BookingScreenState extends State<BookingScreen> {
             if (controller.selectedSlots[pcIndex]?.isEmpty ?? true) {
               controller.selectedSlots.remove(pcIndex);
             }
-            message = 'Slot deselected from PC $pcIndex';
+            message = 'Slot deselected from ${getConsoleLabel(pcIndex - 1)}';
           } else {
             controller.selectedSlots[pcIndex] =
                 controller.selectedSlots[pcIndex] ?? [];
             controller.selectedSlots[pcIndex]?.add(timeIndex);
-            message = 'Slot selected for PC $pcIndex';
+            message = 'Slot selected for ${getConsoleLabel(pcIndex - 1)}';
           }
 
           Fluttertoast.showToast(
@@ -552,7 +566,7 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
           ),
           child: Text(
-            'PC $pcIndex',
+            getConsoleLabel(pcIndex - 1),
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w600,
@@ -647,6 +661,7 @@ class _BookingScreenState extends State<BookingScreen> {
         final slot = controller.slots[timeIndex];
         selectedSlotDetails.add({
           "pc_index": pcIndex,
+          "console_label": getConsoleLabel(pcIndex - 1),
           "slot_id": slot['slot_id'] ?? slot['id'],
           "start_time": slot['start_time'],
           "end_time": slot['end_time'],
