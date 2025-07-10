@@ -19,6 +19,7 @@ import 'package:hash/utils/widgets/loader.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -38,6 +39,18 @@ class _HomeContentViewState extends State<HomeContentView> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
+      _ensureWalletFetched();
+    });
+  }
+
+  void _ensureWalletFetched() {
+    // Ensure wallet is fetched after a short delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      final walletController = Get.find<WalletController>();
+      if (walletController.isWalletReady && walletController.balance.value == 0) {
+        print('🔄 Ensuring wallet is fetched from home screen');
+        walletController.refreshWallet();
+      }
     });
   }
 
@@ -49,6 +62,7 @@ class _HomeContentViewState extends State<HomeContentView> {
         loginController.checkUserExistsInAPI(),
         BlocProvider.of<HashCoinCubit>(context).getHashCoin(),
         _fetchUserDataIfNeeded(),
+        _refreshWalletIfReady(),
       ]);
     } catch (e) {
       // Handle any errors during refresh
@@ -60,6 +74,28 @@ class _HomeContentViewState extends State<HomeContentView> {
     final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       await userController.fetchUserData(currentUser.uid);
+      
+      // Add a small delay to ensure user data is properly set
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Manually trigger wallet refresh after user data is loaded
+      final walletController = Get.find<WalletController>();
+      if (walletController.isWalletReady) {
+        await walletController.refreshWallet();
+      } else {
+        // If wallet is not ready, try again after a short delay
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (walletController.isWalletReady) {
+          await walletController.refreshWallet();
+        }
+      }
+    }
+  }
+
+  Future<void> _refreshWalletIfReady() async {
+    final walletController = Get.find<WalletController>();
+    if (walletController.isWalletReady) {
+      await walletController.refreshWallet();
     }
   }
 

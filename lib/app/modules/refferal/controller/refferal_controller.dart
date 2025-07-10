@@ -4,6 +4,7 @@ import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/core/network/error_handler.dart';
 
 class ReferralController extends GetxController {
   final _remoteRepo = locator<RemoteRepoInterface>();
@@ -97,37 +98,36 @@ class ReferralController extends GetxController {
       errorMessage.value = 'Failed to create voucher: $e';
       voucherCreated(false);
 
-      // Extract the actual error message from the exception
+      print('=== VOUCHER CREATION ERROR ===');
+      print('Original error: $e');
+      
+      // Extract user-friendly error message
       String errorMsg = e.toString();
+      String errorTitle = 'Error';
+      Color backgroundColor = const Color(0xffF44336);
       
       // Remove "Exception: " prefix if present
       if (errorMsg.contains('Exception: ')) {
         errorMsg = errorMsg.replaceAll('Exception: ', '');
       }
       
-      print('=== VOUCHER CREATION ERROR ===');
-      print('Original error: $e');
-      print('Extracted error message: $errorMsg');
-      
-      // Show error message with appropriate styling
-      String errorTitle = 'Error';
-      Color backgroundColor = const Color(0xffF44336);
-
-      if (errorMsg.contains('network') || errorMsg.contains('connection')) {
-        errorTitle = 'Network Error';
-        backgroundColor = const Color(0xff2196F3); // Blue for network issues
-        errorMsg = 'Network error. Please check your internet connection and try again.';
-      } else if (errorMsg.contains('Not enough referral points')) {
+      // Handle specific error cases
+      if (errorMsg.contains('Not enough referral points')) {
         errorTitle = 'Insufficient Points';
         backgroundColor = const Color(0xffff9800); // Orange for insufficient points
         errorMsg = 'You need more referral points to create a voucher. Share your referral code with friends to earn points!';
+      } else if (errorMsg.contains('network') || errorMsg.contains('connection')) {
+        errorTitle = 'Network Error';
+        backgroundColor = const Color(0xff2196F3); // Blue for network issues
+        errorMsg = 'Network error. Please check your internet connection and try again.';
       }
 
       print('Error title: $errorTitle');
       print('Error message: $errorMsg');
       print('Background color: $backgroundColor');
 
-      // Show the snackbar with the error message
+      // Only show snackbar for non-retryable errors
+      // Retryable errors (500, 502, 503, 504) will be handled by the retry interceptor
       _showSnackbar(errorTitle, errorMsg, backgroundColor);
 
       print('Error creating voucher: $e');
