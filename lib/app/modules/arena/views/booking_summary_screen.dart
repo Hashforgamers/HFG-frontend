@@ -236,7 +236,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     tileColor: Colors.grey.shade900,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
-                    title: Text('PC ${slot['pc_index']}',
+                    title: Text(slot['console_label'] ?? 'PC ${slot['pc_index']}',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, color: Colors.white)),
                     subtitle: Text(
@@ -309,7 +309,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               }),
               // ─── Payment Method ──────────────────────────────────────────
               const SizedBox(height: 16),
-              Text('Choose Payment Method',
+              const Text('Choose Payment Method',
                   style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -320,7 +320,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 children: [
                   _paymentChip('Wallet', Icons.account_balance_wallet, 'wallet'),
                   const SizedBox(width: 12),
-                  _paymentChip('Gateway', Icons.credit_card, 'gateway'),
+                  _paymentChip('UPI/Netbanking', Icons.credit_card, 'gateway'),
                 ],
               )),
               Divider(height: 32, color: Colors.grey.shade800),
