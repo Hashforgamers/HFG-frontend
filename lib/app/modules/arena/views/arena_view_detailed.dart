@@ -159,11 +159,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(widget.title,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold)),
+                    Text(
+                      widget.title,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -183,7 +186,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                 Expanded(
                                   child: Text(
                                     widget.address,
-                                    style: const TextStyle(color: Colors.white),
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -209,7 +215,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                 Expanded(
                                   child: Text(
                                     widget.openingHours,
-                                    style: const TextStyle(color: Colors.white),
+                                    style: GoogleFonts.inter(
+                                        color: Colors.white, fontSize: 12),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -221,11 +228,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    const Text("Available Consoles",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold)),
+                    Text(
+                      "Available Consoles",
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 70,
@@ -277,10 +286,11 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     amenitiesGrid(widget.amenities),
                     const SizedBox(height: 24),
                     Text("Reviews",
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(color: Colors.white)),
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),),
                     const SizedBox(height: 8),
                     ...widget.reviews.map((review) => Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
@@ -321,9 +331,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Book your slot',
-                    style: TextStyle(fontSize: 20, color: Colors.white),
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
@@ -643,8 +657,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             child: Image.asset(path),
           ),
           const SizedBox(height: 6),
-          Text(label,
-              style: const TextStyle(color: Colors.white, fontSize: 13)),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 11,
+            ),
+          ),
         ],
       ),
     );
@@ -782,11 +801,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Available Games",
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold)),
+        Text(
+          "Available Games",
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const SizedBox(height: 12),
         SizedBox(
           height: 160,
@@ -833,14 +855,17 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Facilities",
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
+        Text(
+          "Facilities",
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
         SizedBox(
-          height: 120,
+          height: 90,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: filtered.length,

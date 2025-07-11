@@ -7,6 +7,7 @@ import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
@@ -34,7 +35,7 @@ class _ArenaViewState extends State<ArenaView> {
   /* ────────────────────────────────────────────────────────────────────────── */
 
   final CybercafesController _cafeCtr =
-  Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
+      Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
 
   late GoogleMapController _mapCtr;
   final loc.Location _loc = loc.Location();
@@ -55,8 +56,8 @@ class _ArenaViewState extends State<ArenaView> {
 
   /// ⚠️  Replace with build-time env variable or secure storage
   static const _gmapsKey = 'AIzaSyAIeaszJ60ZcjL9hNYpsQ_JD8w8J2vnmuQ';
-  bool _mapReady = false;              // NEW
-  bool _playedZoom = false;            // NEW
+  bool _mapReady = false; // NEW
+  bool _playedZoom = false; // NEW
 
   BitmapDescriptor? _markerUser, _markerCafe, _markerCafeHighlighted;
 
@@ -116,7 +117,7 @@ class _ArenaViewState extends State<ArenaView> {
 
     final locData = await _loc.getLocation();
     _userLatLng = LatLng(locData.latitude!, locData.longitude!);
-    _tryPlayZoom();                    // attempt GTA zoom once coords ready
+    _tryPlayZoom(); // attempt GTA zoom once coords ready
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -160,8 +161,6 @@ class _ArenaViewState extends State<ArenaView> {
     }
   }
 
-
-
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  SEARCH                                                                   */
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -193,17 +192,17 @@ class _ArenaViewState extends State<ArenaView> {
   String _formatAddress(Map<String, dynamic> cafe) {
     final address = cafe['address'];
     if (address == null) return 'Address not available';
-    
+
     final addressLine1 = address['addressLine1'] ?? '';
     final addressLine2 = address['addressLine2'] ?? '';
     final city = address['city'] ?? '';
     final state = address['state'] ?? '';
     final pincode = address['pincode'] ?? '';
-    
+
     final parts = [addressLine1, addressLine2, city, state, pincode]
         .where((part) => part.isNotEmpty)
         .toList();
-    
+
     return parts.join(', ');
   }
 
@@ -211,14 +210,14 @@ class _ArenaViewState extends State<ArenaView> {
     // Get opening and closing times from the API response
     final openingTime = cafe['opening_time'] ?? '';
     final closingTime = cafe['closing_time'] ?? '';
-    
+
     if (openingTime.isNotEmpty && closingTime.isNotEmpty) {
       // Format the times to be more readable (remove seconds)
       final formattedOpening = _formatTimeForDisplay(openingTime);
       final formattedClosing = _formatTimeForDisplay(closingTime);
       return '$formattedOpening - $formattedClosing';
     }
-    
+
     // Fallback to status
     final status = cafe['status'];
     if (status == 'active' || status == 'verified') {
@@ -226,7 +225,7 @@ class _ArenaViewState extends State<ArenaView> {
     } else if (status == 'pending_verification' || status == 'inactive') {
       return 'Pending Verification';
     }
-    
+
     return 'Hours not available';
   }
 
@@ -251,7 +250,7 @@ class _ArenaViewState extends State<ArenaView> {
     if (shopOpen != null) {
       return shopOpen == true || shopOpen == 'true' || shopOpen == 1;
     }
-    
+
     // Check for status field
     final status = cafe['status'];
     if (status != null) {
@@ -259,27 +258,30 @@ class _ArenaViewState extends State<ArenaView> {
       if (status == 'pending_verification') {
         return _isCurrentlyOpen(cafe);
       }
-      return status == 'active' || status == 'verified' || status == 'open' || status == 'operational';
+      return status == 'active' ||
+          status == 'verified' ||
+          status == 'open' ||
+          status == 'operational';
     }
-    
+
     // Check for is_open field
     final isOpen = cafe['is_open'];
     if (isOpen != null) {
       return isOpen == true || isOpen == 'true' || isOpen == 1;
     }
-    
+
     // Check for operating_status field
     final operatingStatus = cafe['operating_status'];
     if (operatingStatus != null) {
       return operatingStatus == 'open' || operatingStatus == 'active';
     }
-    
+
     // Check for availability field
     final availability = cafe['availability'];
     if (availability != null) {
       return availability == 'available' || availability == 'open';
     }
-    
+
     // Determine status based on opening/closing times
     return _isCurrentlyOpen(cafe);
   }
@@ -289,24 +291,25 @@ class _ArenaViewState extends State<ArenaView> {
       // Get opening and closing times from the API response
       final openingTime = cafe['opening_time'] ?? '';
       final closingTime = cafe['closing_time'] ?? '';
-      
+
       if (openingTime.isEmpty || closingTime.isEmpty) {
         return false; // Can't determine without times
       }
-      
+
       // Parse current time
       final now = DateTime.now();
-      final currentTime = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-      
+      final currentTime =
+          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
       // Parse opening and closing times
       final opening = _parseTime(openingTime);
       final closing = _parseTime(closingTime);
       final current = _parseTime(currentTime);
-      
+
       if (opening == null || closing == null || current == null) {
         return false;
       }
-      
+
       // Handle cases where closing time is on the next day (e.g., 23:00 - 02:00)
       if (closing < opening) {
         // Shop is open if current time is after opening OR before closing
@@ -325,32 +328,33 @@ class _ArenaViewState extends State<ArenaView> {
     try {
       // Handle various time formats: "09:00", "9:00", "9:00 AM", "09:00:00"
       final cleanTime = timeStr.trim().toUpperCase();
-      
+
       // Remove AM/PM and convert to 24-hour format
       String time24 = cleanTime;
       if (cleanTime.contains('AM') || cleanTime.contains('PM')) {
         final parts = cleanTime.split(' ');
         final time = parts[0];
         final period = parts[1];
-        
+
         final timeParts = time.split(':');
         int hour = int.parse(timeParts[0]);
         int minute = timeParts.length > 1 ? int.parse(timeParts[1]) : 0;
-        
+
         if (period == 'PM' && hour != 12) {
           hour += 12;
         } else if (period == 'AM' && hour == 12) {
           hour = 0;
         }
-        
-        time24 = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+        time24 =
+            '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
       }
-      
+
       // Convert to minutes since midnight for easy comparison
       final parts = time24.split(':');
       final hour = int.parse(parts[0]);
       final minute = int.parse(parts[1]);
-      
+
       return hour * 60 + minute;
     } catch (e) {
       print('Error parsing time: $timeStr - $e');
@@ -396,12 +400,11 @@ class _ArenaViewState extends State<ArenaView> {
   Future<Map<String, String>> _distanceInfo(LatLng dest, String id) async {
     if (_userLatLng == null) return {'distance': '--', 'duration': '--'};
     if (_distanceCache.containsKey(id)) return _distanceCache[id]!;
-    final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/directions/json'
-            '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
-            '&destination=${dest.latitude},${dest.longitude}'
-            '&mode=driving'
-            '&key=$_gmapsKey');
+    final url = Uri.parse('https://maps.googleapis.com/maps/api/directions/json'
+        '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
+        '&destination=${dest.latitude},${dest.longitude}'
+        '&mode=driving'
+        '&key=$_gmapsKey');
     final res = await http.get(url);
     if (res.statusCode == 200) {
       final data = json.decode(res.body);
@@ -437,9 +440,8 @@ class _ArenaViewState extends State<ArenaView> {
       polylineId: const PolylineId('route'),
       color: const Color(0xff338125),
       width: 6,
-      points: result.points
-          .map((p) => LatLng(p.latitude, p.longitude))
-          .toList(),
+      points:
+          result.points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
     ));
   }
 
@@ -449,11 +451,10 @@ class _ArenaViewState extends State<ArenaView> {
 
   Future<void> _openExternalMaps(LatLng dest) async {
     if (_userLatLng == null) return;
-    final uri = Uri.parse(
-        'https://www.google.com/maps/dir/?api=1'
-            '&origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
-            '&destination=${dest.latitude},${dest.longitude}'
-            '&travelmode=driving');
+    final uri = Uri.parse('https://www.google.com/maps/dir/?api=1'
+        '&origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
+        '&destination=${dest.latitude},${dest.longitude}'
+        '&travelmode=driving');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
@@ -476,8 +477,7 @@ class _ArenaViewState extends State<ArenaView> {
           decoration: BoxDecoration(
             color: Colors.black.withOpacity(.15),
             borderRadius: BorderRadius.circular(25),
-            border:
-            Border.all(color: const Color(0xff338125).withOpacity(.2)),
+            border: Border.all(color: const Color(0xff338125).withOpacity(.2)),
           ),
           child: Row(children: [
             const Icon(Icons.search, color: Color(0xff338125)),
@@ -516,7 +516,7 @@ class _ArenaViewState extends State<ArenaView> {
         backgroundColor: const Color(0xff338125),
         child: const Icon(Icons.my_location, color: Colors.black),
         onPressed:
-        _userLatLng == null ? null : () => _smoothMoveCamera(_userLatLng!),
+            _userLatLng == null ? null : () => _smoothMoveCamera(_userLatLng!),
       ),
     );
   }
@@ -544,7 +544,7 @@ class _ArenaViewState extends State<ArenaView> {
       child: ListView.separated(
         physics: const BouncingScrollPhysics(),
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(left: 8,top: 10),
+        padding: const EdgeInsets.only(left: 8, top: 10),
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemCount: _cafeCtr.cybercafes.length,
         itemBuilder: (_, i) {
@@ -572,18 +572,18 @@ class _ArenaViewState extends State<ArenaView> {
         _refreshCafeMarkers();
         await Future.delayed(const Duration(milliseconds: 600));
         await Get.to(() => ArenaDetailView(
-          images: img,
-          title: cafe['cafe_name'] ?? 'Unknown Cafe',
-          address: _formatAddress(cafe),
-          openingHours: _formatOpeningHours(cafe),
-          availableGames: cafe['available_games'] ?? ['N/A'],
-          amenities: cafe['amenities'] ?? [],
-          phone: cafe['phone'] ?? 'Phone not available',
-          email: cafe['email'] ?? 'Email not available',
-          ownerName: cafe['owner_name'] ?? 'Owner not available',
-          reviews: cafe['reviews'] ?? ['Great place!'],
-          vendorId: cafe['vendor_id'] ?? 0,
-        ));
+              images: img,
+              title: cafe['cafe_name'] ?? 'Unknown Cafe',
+              address: _formatAddress(cafe),
+              openingHours: _formatOpeningHours(cafe),
+              availableGames: cafe['available_games'] ?? ['N/A'],
+              amenities: cafe['amenities'] ?? [],
+              phone: cafe['phone'] ?? 'Phone not available',
+              email: cafe['email'] ?? 'Email not available',
+              ownerName: cafe['owner_name'] ?? 'Owner not available',
+              reviews: cafe['reviews'] ?? ['Great place!'],
+              vendorId: cafe['vendor_id'] ?? 0,
+            ));
       },
       child: Container(
         width: 300,
@@ -600,9 +600,9 @@ class _ArenaViewState extends State<ArenaView> {
               height: 250,
               fit: BoxFit.cover,
               placeholder: (_, __) =>
-              const Center(child: RainbowGlowingLoader(size: 40)),
+                  const Center(child: RainbowGlowingLoader(size: 40)),
               errorWidget: (_, __, ___) =>
-              const Center(child: Icon(Icons.error, color: Colors.white)),
+                  const Center(child: Icon(Icons.error, color: Colors.white)),
             ),
             Positioned(
               bottom: 0,
@@ -610,7 +610,7 @@ class _ArenaViewState extends State<ArenaView> {
               right: 0,
               child: ClipRRect(
                 borderRadius:
-                const BorderRadius.vertical(bottom: Radius.circular(16)),
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: _cardFooter(cafe, pos, id),
@@ -694,34 +694,301 @@ class _ArenaViewState extends State<ArenaView> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size.height;
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Obx(() {
-
-          return Stack(
-            alignment: Alignment.bottomCenter,
+          return Column(
             children: [
-              GoogleMap(
-                initialCameraPosition:
-                const CameraPosition(target: LatLng(20, 77), zoom: 4),
-                myLocationEnabled: true,
-                markers: markers.toSet(),
-                polylines: polylines.toSet(),
-                onMapCreated: (ctrl) {
-                  _mapCtr = ctrl;
-                  _mapCtr.setMapStyle(_mapStyle);
-                  _mapReady = true;
-                  _tryPlayZoom();
-                },
-                zoomControlsEnabled: false,
+              // Map with rounded top corners
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                ),
+                child: SizedBox(
+                  height: size * 0.55,
+                  width: double.infinity,
+                  child: Stack(
+                    children: [
+                      GoogleMap(
+                        initialCameraPosition: const CameraPosition(
+                            target: LatLng(20, 77), zoom: 4),
+                        myLocationEnabled: true,
+                        markers: markers.toSet(),
+                        polylines: polylines.toSet(),
+                        onMapCreated: (ctrl) {
+                          _mapCtr = ctrl;
+                          _mapCtr.setMapStyle(_mapStyle);
+                          _mapReady = true;
+                          _tryPlayZoom();
+                        },
+                        zoomControlsEnabled: false,
+                      ),
+                      // Search bar
+                      Positioned(
+                        top: 20,
+                        left: 16,
+                        right: 16,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: TextField(
+                            controller: _searchCtl,
+                            style: const TextStyle(color: Colors.white),
+                            cursorColor: const Color(0xff338125),
+                            decoration: const InputDecoration(
+                              prefixIcon:
+                                  Icon(Icons.search, color: Colors.white70),
+                              hintText: 'Search location',
+                              hintStyle: TextStyle(color: Colors.white70),
+                              border: InputBorder.none,
+                              contentPadding:
+                                  EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            onSubmitted: (_) => _searchAndGo(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              Positioned(top: 16, left: 16, right: 16, child: _glassSearchBar()),
-              _locateMeBtn(),
-              Container(
-                color: Colors.black,
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _cafeCarousel(),
+              // Nearby Cafes Section
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      topRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 0, 8),
+                        child: Text(
+                          'Nearby Cafes',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: _cafeCtr.cybercafes.isEmpty
+                            ? const Center(
+                                child: Text('No cybercafes available',
+                                    style: TextStyle(color: Colors.white70)))
+                            : ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 16),
+                                itemCount: _cafeCtr.cybercafes.length,
+                                itemBuilder: (_, i) {
+                                  final cafe = _cafeCtr.cybercafes[i];
+                                  final img = [
+                                    'https://next-level.gg/assets/cafes/11.jpg',
+                                    'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
+                                    'https://media.assettype.com/afkgaming/2024-04/e11d1515-bb0d-48a5-9ad9-1ddfdef286ef/Untitled_design_117_.png',
+                                    'https://i.ytimg.com/vi/3ZPtQAKKado/maxresdefault.jpg',
+                                    'https://pvplayer.com/wp-content/uploads/2024/04/kafejka-gamingowa.jpg',
+                                  ][i % 5];
+                                  final pos = _latLngFromCafe(cafe);
+                                  final id = '${cafe['id'] ?? cafe.hashCode}';
+                                  return GestureDetector(
+                                    onTap: () async {
+                                      _selectedCafeId = id;
+                                      _smoothMoveCamera(pos, zoom: 16);
+                                      _refreshCafeMarkers();
+                                      await Future.delayed(
+                                          const Duration(milliseconds: 600));
+                                      await Get.to(() => ArenaDetailView(
+                                            images: img,
+                                            title: cafe['cafe_name'] ??
+                                                'Unknown Cafe',
+                                            address: _formatAddress(cafe),
+                                            openingHours:
+                                                _formatOpeningHours(cafe),
+                                            availableGames:
+                                                cafe['available_games'] ??
+                                                    ['N/A'],
+                                            amenities: cafe['amenities'] ?? [],
+                                            phone: cafe['phone'] ??
+                                                'Phone not available',
+                                            email: cafe['email'] ??
+                                                'Email not available',
+                                            ownerName: cafe['owner_name'] ??
+                                                'Owner not available',
+                                            reviews: cafe['reviews'] ??
+                                                ['Great place!'],
+                                            vendorId: cafe['vendor_id'] ?? 0,
+                                          ));
+                                    },
+                                    child: Container(
+                                      width: 320,
+                                      height: 150,
+                                      margin: const EdgeInsets.only(
+                                          bottom: 12, top: 4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.05),
+                                        ),
+                                        color: Colors.transparent,
+                                      ),
+                                      clipBehavior: Clip.hardEdge,
+                                      child: Stack(
+                                        children: [
+                                          CachedNetworkImage(
+                                            imageUrl: img,
+                                            width: 320,
+                                            height: 150,
+                                            fit: BoxFit.cover,
+                                          ),
+                                          // Glassmorphism overlay for bottom half
+                                          Positioned(
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            top: 70,
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  const BorderRadius.only(
+                                                bottomLeft: Radius.circular(22),
+                                                bottomRight:
+                                                    Radius.circular(22),
+                                              ),
+                                              child: Stack(
+                                                children: [
+                                                  BackdropFilter(
+                                                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                                    child: Container(color: Colors.transparent),
+                                                  ),
+                                                  Container(
+                                                    decoration: const BoxDecoration(
+                                                      gradient: LinearGradient(
+                                                        begin: Alignment.bottomCenter,
+                                                        end: Alignment.topCenter,
+                                                        colors: [
+                                                          Color.fromARGB(180, 0, 0, 0), // Strong black at bottom
+                                                          Color.fromARGB(80, 0, 0, 0),  // Faded black in middle
+                                                          Color.fromARGB(0, 0, 0, 0),   // Transparent at top
+                                                        ],
+                                                      ),
+                                                      borderRadius: BorderRadius.only(
+                                                        bottomLeft: Radius.circular(22),
+                                                        bottomRight: Radius.circular(22),
+                                                      ),
+                                                    ),
+                                                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 12),
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Text(
+                                                          cafe['cafe_name'] ?? 'Unknown',
+                                                          style: GoogleFonts.inter(
+                                                            color: Colors.white,
+                                                            fontSize: 16,
+                                                            fontWeight: FontWeight.w400,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(height: 4),
+                                                        Row(
+                                                          children: [
+                                                            Icon(Icons.circle, size: 8, color: _isShopOpen(cafe) ? Colors.green : Colors.red),
+                                                            const SizedBox(width: 6),
+                                                            Text(
+                                                              _isShopOpen(cafe) ? 'Open' : 'Closed',
+                                                              style: GoogleFonts.inter(
+                                                                color: _isShopOpen(cafe) ? Colors.green : Colors.red,
+                                                                fontWeight: FontWeight.w400,
+                                                                fontSize: 12,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(width: 8),
+                                                            Text('|', style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
+                                                            const SizedBox(width: 8),
+                                                            FutureBuilder<Map<String, String>>(
+                                                              future: _distanceInfo(pos, id),
+                                                              builder: (_, snap) {
+                                                                final dist = snap.data?['distance'] ?? '--';
+                                                                final dur = snap.data?['duration'] ?? '--';
+                                                                return Row(
+                                                                  children: [
+                                                                    Text(dist, style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
+                                                                    const SizedBox(width: 8),
+                                                                    Text('|', style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
+                                                                    const SizedBox(width: 8),
+                                                                    Text(dur, style: GoogleFonts.inter(color: Colors.grey, fontSize: 12)),
+                                                                  ],
+                                                                );
+                                                              },
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(height: 10),
+                                                        Row(
+                                                          children: [
+                                                            Expanded(
+                                                              child: ElevatedButton.icon(
+                                                                style: ElevatedButton.styleFrom(
+                                                                  backgroundColor: const Color(0xff338125),
+                                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                                                  elevation: 0,
+                                                                ),
+                                                                icon: const Icon(Icons.directions_outlined, color: Colors.white, size: 18),
+                                                                label: Text('Directions', style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w400)),
+                                                                onPressed: () => _drawRoute(pos),
+                                                              ),
+                                                            ),
+                                                            const SizedBox(width: 10),
+                                                            Expanded(
+                                                              child: ElevatedButton.icon(
+                                                                style: ElevatedButton.styleFrom(
+                                                                  backgroundColor: Colors.white.withOpacity(0.13),
+                                                                  shape: RoundedRectangleBorder(
+                                                                    borderRadius: BorderRadius.circular(16),
+                                                                    side: BorderSide(color: Colors.white.withOpacity(0.13)),
+                                                                  ),
+                                                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                                                  elevation: 0,
+                                                                ),
+                                                                icon: const Icon(Icons.map_outlined, color: Colors.white, size: 18),
+                                                                label: Text('View on maps', style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w400)),
+                                                                onPressed: () => _openExternalMaps(pos),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           );
