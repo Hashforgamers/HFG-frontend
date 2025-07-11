@@ -139,44 +139,21 @@ class _SignUpViewState extends State<SignUpView> {
   Widget _userNameField() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Obx(() {
-        return TextFormField(
-          controller: c.gameUserNameController,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            labelText: 'Game Username',
-            labelStyle: const TextStyle(color: Colors.white70),
-            contentPadding: _pad,
-            enabledBorder: _border(const Color(0x3FFFFFFF)),
-            focusedBorder: _border(const Color(0xFF3AFF6B)),
-
-          ),
-          validator: (v) {
-            if (v == null || v.trim().isEmpty) return 'Enter Game Username';
-            Widget _userNameField() {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: TextFormField(
-                  controller: c.gameUserNameController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Game Username',
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    contentPadding: _pad,
-                    enabledBorder: _border(const Color(0x3FFFFFFF)),
-                    focusedBorder: _border(const Color(0xFF3AFF6B)),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Enter Game Username';
-                    return null;
-                  },
-                ),
-              );
-            }
-            return null;
-          },
-        );
-      }),
+      child: TextFormField(
+        controller: c.gameUserNameController,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: 'Game Username',
+          labelStyle: const TextStyle(color: Colors.white70),
+          contentPadding: _pad,
+          enabledBorder: _border(const Color(0x3FFFFFFF)),
+          focusedBorder: _border(const Color(0xFF3AFF6B)),
+        ),
+        validator: (v) {
+          if (v == null || v.trim().isEmpty) return 'Enter Game Username';
+          return null;
+        },
+      ),
     );
   }
 
