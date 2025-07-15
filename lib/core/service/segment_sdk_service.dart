@@ -3,7 +3,7 @@ import 'package:segment_analytics/client.dart';
 import 'package:segment_analytics/state.dart';
 
 class SegmentSdkService {
-  static const writeKey = 'YasInkE3rAxlBFGID1yUeFaxtCWvWuz0';
+  static const writeKey = 'boSN3P9nWQGYQHyM7dK26w2Ef8p621uY';
   static final analytics = createClient(Configuration(writeKey, debug: true));
 
   // Event 1 - On App Launch

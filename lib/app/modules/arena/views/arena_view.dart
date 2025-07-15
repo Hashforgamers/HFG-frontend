@@ -572,56 +572,83 @@ class _ArenaViewState extends State<ArenaView> {
         _refreshCafeMarkers();
         await Future.delayed(const Duration(milliseconds: 600));
         await Get.to(() => ArenaDetailView(
-              images: img,
-              title: cafe['cafe_name'] ?? 'Unknown Cafe',
-              address: _formatAddress(cafe),
-              openingHours: _formatOpeningHours(cafe),
-              availableGames: cafe['available_games'] ?? ['N/A'],
-              amenities: cafe['amenities'] ?? [],
-              phone: cafe['phone'] ?? 'Phone not available',
-              email: cafe['email'] ?? 'Email not available',
-              ownerName: cafe['owner_name'] ?? 'Owner not available',
-              reviews: cafe['reviews'] ?? ['Great place!'],
-              vendorId: cafe['vendor_id'] ?? 0,
-            ));
+          images: img,
+          title: cafe['cafe_name'] ?? 'Unknown Cafe',
+          address: _formatAddress(cafe),
+          openingHours: _formatOpeningHours(cafe),
+          availableGames: cafe['available_games'] ?? ['N/A'],
+          amenities: cafe['amenities'] ?? [],
+          phone: cafe['phone'] ?? 'Phone not available',
+          email: cafe['email'] ?? 'Email not available',
+          ownerName: cafe['owner_name'] ?? 'Owner not available',
+          reviews: cafe['reviews'] ?? ['Great place!'],
+          vendorId: cafe['vendor_id'] ?? 0,
+        ));
       },
       child: Container(
         width: 300,
+        height: 230,
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
           color: const Color(0xff0E0E0E),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Stack(
           children: [
+            // Background Image
             CachedNetworkImage(
               imageUrl: img,
               width: 300,
-              height: 250,
+              height: 230,
               fit: BoxFit.cover,
               placeholder: (_, __) =>
-                  const Center(child: RainbowGlowingLoader(size: 40)),
+              const Center(child: RainbowGlowingLoader(size: 40)),
               errorWidget: (_, __, ___) =>
-                  const Center(child: Icon(Icons.error, color: Colors.white)),
+              const Center(child: Icon(Icons.error, color: Colors.white)),
             ),
+
+            // Blur + Gradient Footer
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
               child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(16)),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: _cardFooter(cafe, pos, id),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+                child: Container(
+                  height: 100,
+                  decoration: const BoxDecoration(
+                    // ⬇️ Smooth transparent-to-black gradient
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Color.fromARGB(50, 0, 0, 0),
+                        Color.fromARGB(120, 0, 0, 0),
+                        Color.fromARGB(200, 0, 0, 0),
+                      ],
+                    ),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: Container(
+                      // 👇 Transparent color here helps blend blur + gradient
+                      color: Colors.transparent,
+                      padding: const EdgeInsets.all(12),
+                      child: _cardFooter(cafe, pos, id),
+                    ),
+                  ),
                 ),
               ),
-            )
+            ),
+
+
           ],
         ),
       ),
     );
   }
+
 
   Widget _cardFooter(Map<String, dynamic> cafe, LatLng pos, String id) {
     return Container(
@@ -708,7 +735,7 @@ class _ArenaViewState extends State<ArenaView> {
                   topRight: Radius.circular(8),
                 ),
                 child: SizedBox(
-                  height: size * 0.55,
+                  height: size * 0.61,
                   width: double.infinity,
                   child: Stack(
                     children: [
@@ -734,7 +761,7 @@ class _ArenaViewState extends State<ArenaView> {
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: TextField(
                             controller: _searchCtl,
@@ -778,7 +805,7 @@ class _ArenaViewState extends State<ArenaView> {
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.normal,
                           ),
                         ),
                       ),
@@ -890,7 +917,7 @@ class _ArenaViewState extends State<ArenaView> {
                                                         bottomRight: Radius.circular(22),
                                                       ),
                                                     ),
-                                                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 12),
+                                                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                                                     child: Column(
                                                       crossAxisAlignment: CrossAxisAlignment.start,
                                                       mainAxisSize: MainAxisSize.min,
@@ -944,7 +971,7 @@ class _ArenaViewState extends State<ArenaView> {
                                                               child: ElevatedButton.icon(
                                                                 style: ElevatedButton.styleFrom(
                                                                   backgroundColor: const Color(0xff338125),
-                                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                                                   padding: const EdgeInsets.symmetric(vertical: 10),
                                                                   elevation: 0,
                                                                 ),
@@ -959,7 +986,7 @@ class _ArenaViewState extends State<ArenaView> {
                                                                 style: ElevatedButton.styleFrom(
                                                                   backgroundColor: Colors.white.withOpacity(0.13),
                                                                   shape: RoundedRectangleBorder(
-                                                                    borderRadius: BorderRadius.circular(16),
+                                                                    borderRadius: BorderRadius.circular(8),
                                                                     side: BorderSide(color: Colors.white.withOpacity(0.13)),
                                                                   ),
                                                                   padding: const EdgeInsets.symmetric(vertical: 10),
