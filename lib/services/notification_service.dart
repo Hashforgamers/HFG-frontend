@@ -1,10 +1,13 @@
 import 'package:get/get.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 class NotificationController extends GetxController {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final segmentService = locator<SegmentSdkService>();
 
   RxString fcmToken = ''.obs;
 
@@ -97,6 +100,12 @@ class NotificationController extends GetxController {
       }
     }
 
+    // Track push notification received event
+    segmentService.onPushNotificationReceived(
+      title: message.notification?.title ?? '',
+      campaignId: message.data['campaign_id'] ?? '',
+    );
+
     final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       channelId,
       channelId == 'contest_channel' ? 'Contest Notifications'
@@ -124,6 +133,13 @@ class NotificationController extends GetxController {
   Future<void> _onSelectNotification(String? payload) async {
     if (payload != null) {
       print('Notification payload: $payload');
+      
+      // Track push notification clicked event
+      segmentService.onPushNotificationClicked(
+        campaignId: '',
+        screenTarget: payload,
+      );
+      
       // Handle navigation based on payload
       // e.g., Get.toNamed(payload);
     }
@@ -132,6 +148,13 @@ class NotificationController extends GetxController {
   void _handleMessageNavigation(RemoteMessage message) {
     if (message.data.containsKey('route')) {
       String route = message.data['route'];
+      
+      // Track push notification clicked event
+      segmentService.onPushNotificationClicked(
+        campaignId: message.data['campaign_id'] ?? '',
+        screenTarget: route,
+      );
+      
       Get.toNamed(route);
     }
   }

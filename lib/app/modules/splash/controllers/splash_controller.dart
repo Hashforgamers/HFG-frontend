@@ -1,15 +1,20 @@
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 import '../../../routes/app_routes.dart';
 import '../../../data/services/user_controller.dart';
 
 class SplashController extends GetxController {
   final UserController userController = Get.find();
+  final segmentService = locator<SegmentSdkService>();
 
   @override
   void onReady() {
     super.onReady();
+    // Track app launch event
+    segmentService.onAppLaunch();
     Future.delayed(const Duration(seconds: 3), _checkLoginStatus);
   }
 

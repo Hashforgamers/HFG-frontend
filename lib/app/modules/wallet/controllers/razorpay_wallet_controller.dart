@@ -1,12 +1,15 @@
 import 'package:get/get.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/service/segment_sdk_service.dart';
+import '../../../../core/service_locator.dart';
 import 'wallet_controller.dart';
 
 class RazorpayWalletController extends GetxController {
   late Razorpay _razorpay;
   final isPaying = false.obs;
   int? _tempAmount;
+  final segmentService = locator<SegmentSdkService>();
 
   @override
   void onInit() {
@@ -59,6 +62,10 @@ class RazorpayWalletController extends GetxController {
   void pay(int amount) {
     _tempAmount = amount;
     print("[Razorpay] Starting payment for ₹$amount");
+    
+    // Track add money initiated event
+    segmentService.onAddMoneyInitiated(amountEntered: amount.toDouble());
+    
     openCheckout(amount);
   }
 
@@ -66,6 +73,12 @@ class RazorpayWalletController extends GetxController {
   void _handlePaymentSuccess(PaymentSuccessResponse response) {
     final paymentId = response.paymentId ?? 'Unknown';
     print("[Razorpay] ✅ Payment Success: $paymentId");
+
+    // Track add money success event
+    segmentService.onAddMoneySuccess(
+      amountAdded: _tempAmount?.toDouble() ?? 0.0,
+      txnId: paymentId,
+    );
 
     Get.find<WalletController>().confirmTopUp(
       amount: _tempAmount ?? 0,
