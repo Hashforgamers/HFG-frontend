@@ -1,118 +1,146 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 class ApiErrorHandler {
-  static const List<int> _retryableStatusCodes = [500, 502, 503, 504];
-  static const List<int> _showSnackbarStatusCodes = [400, 401, 403, 404, 409, 422];
-
-  /// Determines if an error should be retried automatically
   static bool shouldRetry(DioException error) {
-    // Retry on network errors
-    if (error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout ||
-        error.type == DioExceptionType.sendTimeout ||
-        error.type == DioExceptionType.connectionError) {
-      return true;
-    }
-    
-    // Retry on server errors (5xx)
-    if (error.response != null) {
-      return _retryableStatusCodes.contains(error.response!.statusCode);
-    }
-    
-    return false;
-  }
-
-  /// Determines if an error should show a snackbar
-  static bool shouldShowSnackbar(DioException error) {
-    // Don't show snackbar for retryable errors (they will be retried)
-    if (shouldRetry(error)) {
-      return false;
-    }
-    
-    // Show snackbar for client errors (4xx) except 401 (handled by auth interceptor)
-    if (error.response != null) {
-      final statusCode = error.response!.statusCode;
-      return _showSnackbarStatusCodes.contains(statusCode);
-    }
-    
-    // Show snackbar for other network errors
-    return true;
-  }
-
-  /// Extracts user-friendly error message from DioException
-  static String extractErrorMessage(DioException error) {
-    // Handle response errors
-    if (error.response != null) {
-      final statusCode = error.response!.statusCode;
-      final responseData = error.response!.data;
-      
-      // Try to extract message from response data
-      if (responseData is Map<String, dynamic>) {
-        if (responseData.containsKey('message')) {
-          return responseData['message'];
-        }
-        if (responseData.containsKey('error')) {
-          return responseData['error'];
-        }
-      }
-      
-      // Fallback to status code based messages
-      switch (statusCode) {
-        case 400:
-          return 'Bad request. Please check your input.';
-        case 401:
-          return 'Authentication failed. Please login again.';
-        case 403:
-          return 'Access denied. You don\'t have permission.';
-        case 404:
-          return 'Resource not found.';
-        case 409:
-          return 'Conflict. The resource already exists.';
-        case 422:
-          return 'Validation error. Please check your input.';
-        case 500:
-          return 'Server error. Please try again later.';
-        case 502:
-          return 'Bad gateway. Please try again later.';
-        case 503:
-          return 'Service unavailable. Please try again later.';
-        case 504:
-          return 'Gateway timeout. Please try again later.';
-        default:
-          return 'An error occurred. Please try again.';
-      }
-    }
-    
-    // Handle network errors
+    // Retry on network errors and server errors (5xx)
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
-        return 'Connection timeout. Please check your internet connection.';
-      case DioExceptionType.receiveTimeout:
-        return 'Request timeout. Please try again.';
       case DioExceptionType.sendTimeout:
-        return 'Request timeout. Please try again.';
+      case DioExceptionType.receiveTimeout:
       case DioExceptionType.connectionError:
-        return 'Connection error. Please check your internet connection.';
+        return true;
+      case DioExceptionType.badResponse:
+        final statusCode = error.response?.statusCode;
+        // Retry on server errors (5xx)
+        return statusCode != null && statusCode >= 500 && statusCode < 600;
       default:
-        return 'Network error. Please try again.';
+        return false;
     }
   }
 
-  /// Checks if error is a server error (5xx)
-  static bool isServerError(DioException error) {
-    if (error.response != null) {
-      final statusCode = error.response!.statusCode;
-      return statusCode != null && statusCode >= 500 && statusCode < 600;
+  static String extractErrorMessage(DioException error) {
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+        return 'Connection timeout. Please try again.';
+      case DioExceptionType.sendTimeout:
+        return 'Send timeout. Please try again.';
+      case DioExceptionType.receiveTimeout:
+        return 'Receive timeout. Please try again.';
+      case DioExceptionType.badResponse:
+        final statusCode = error.response?.statusCode;
+        if (statusCode == 401) {
+          return 'Unauthorized access. Please login again.';
+        } else if (statusCode == 403) {
+          return 'Forbidden access.';
+        } else if (statusCode == 404) {
+          return 'Resource not found.';
+        } else if (statusCode == 500) {
+          return 'Internal server error. Please try again later.';
+        } else if (statusCode != null && statusCode >= 500) {
+          return 'Server error. Please try again later.';
+        } else {
+          return 'Request failed. Please try again.';
+        }
+      case DioExceptionType.cancel:
+        return 'Request cancelled.';
+      case DioExceptionType.connectionError:
+        return 'No internet connection. Please check your network.';
+      case DioExceptionType.unknown:
+        return 'An unknown error occurred. Please try again.';
+      default:
+        return 'An error occurred. Please try again.';
     }
-    return false;
+  }
+}
+
+class ErrorHandler {
+  static final segmentService = locator<SegmentSdkService>();
+
+  static void handleError(DioException error) {
+    String errorMessage = 'An error occurred';
+    String endpoint = '';
+
+    if (error.requestOptions.uri != null) {
+      endpoint = error.requestOptions.uri.toString();
+    }
+
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+        errorMessage = 'Connection timeout';
+        break;
+      case DioExceptionType.sendTimeout:
+        errorMessage = 'Send timeout';
+        break;
+      case DioExceptionType.receiveTimeout:
+        errorMessage = 'Receive timeout';
+        break;
+      case DioExceptionType.badResponse:
+        final statusCode = error.response?.statusCode;
+        if (statusCode == 401) {
+          errorMessage = 'Unauthorized access';
+        } else if (statusCode == 403) {
+          errorMessage = 'Forbidden access';
+        } else if (statusCode == 404) {
+          errorMessage = 'Resource not found';
+        } else if (statusCode == 500) {
+          errorMessage = 'Internal server error';
+        } else {
+          errorMessage = 'Server error: $statusCode';
+        }
+        break;
+      case DioExceptionType.cancel:
+        errorMessage = 'Request cancelled';
+        break;
+      case DioExceptionType.connectionError:
+        errorMessage = 'No internet connection';
+        break;
+      case DioExceptionType.unknown:
+        errorMessage = 'Unknown error occurred';
+        break;
+      default:
+        errorMessage = 'An error occurred';
+    }
+
+    // Track API error event
+    segmentService.onApiError(
+      endpoint: endpoint,
+      errorMessage: errorMessage,
+    );
+
+    Get.snackbar(
+      'Error',
+      errorMessage,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.red,
+      colorText: Colors.white,
+    );
   }
 
-  /// Checks if error is a client error (4xx)
-  static bool isClientError(DioException error) {
-    if (error.response != null) {
-      final statusCode = error.response!.statusCode;
-      return statusCode != null && statusCode >= 400 && statusCode < 500;
+  static void handleGenericError(dynamic error) {
+    String errorMessage = 'An unexpected error occurred';
+    
+    if (error is String) {
+      errorMessage = error;
+    } else if (error is Exception) {
+      errorMessage = error.toString();
     }
-    return false;
+
+    // Track API error event for generic errors
+    segmentService.onApiError(
+      endpoint: 'unknown',
+      errorMessage: errorMessage,
+    );
+
+    Get.snackbar(
+      'Error',
+      errorMessage,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.red,
+      colorText: Colors.white,
+    );
   }
 } 

@@ -5,6 +5,7 @@ import 'package:hash/core/service_locator.dart';
 import 'package:hash/services/deeplink_service.dart';
 import 'package:hash/services/notification_service.dart';
 import 'package:hash/config/flavor_config.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 import 'app/data/services/user_controller.dart';
 import 'app/modules/arena/controllers/booking_controller.dart';
 import 'app/modules/game/views/game_section_view.dart';
@@ -41,6 +42,20 @@ void main() async {
   
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
+  
+  // Set up crash handling
+  final segmentService = locator<SegmentSdkService>();
+  
+  FlutterError.onError = (FlutterErrorDetails details) {
+    // Track app crash event
+    segmentService.onAppCrashLogged(
+      stacktrace: details.stack.toString(),
+      screen: 'main',
+    );
+    
+    // Log the error
+    FlutterError.presentError(details);
+  };
   
   Get.put(UserController()); // Initialize globally here
   Get.put(RazorpayController()); // Bind the controller
