@@ -38,6 +38,9 @@ class SignUpController extends GetxController {
       return;
     }
 
+    // Track signup started event
+    segmentService.onSignupStarted(referralCode: referralCodeController.text);
+
     isLoading.value = true;
     try {
       final userData = {
@@ -66,6 +69,14 @@ class SignUpController extends GetxController {
       };
 
       final response = await remoteRepo.signUp(userData);
+
+      // Track referral joined event if referral code was used
+      if (referralCodeController.text.isNotEmpty) {
+        segmentService.onReferralJoined(
+          referredBy: referralCodeController.text,
+          referralBonusEarned: true, // Assuming bonus is earned
+        );
+      }
 
       segmentService.onSignupCompleted(
         referralBy: '',
@@ -124,6 +135,13 @@ class SignUpController extends GetxController {
     var status = await Permission.location.request();
 
     if (status.isGranted) {
+      // Track permissions granted event
+      segmentService.onPermissionsGranted(
+        location: true,
+        notification: false, // We'll need to check notification permission separately
+        contacts: false, // We'll need to check contacts permission separately
+      );
+      
       Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
       List<Placemark> placemarks =

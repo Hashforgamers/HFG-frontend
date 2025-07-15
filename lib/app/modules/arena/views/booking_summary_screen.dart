@@ -1,20 +1,21 @@
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hash/core/network/api_endpoints.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
+import 'package:hash/app/modules/home/controllers/home_controller.dart';
+import 'package:hash/app/modules/payment/razorpay_controller.dart';
+import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
 import 'package:hash/config/flavor_config.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:http/http.dart' as http;
-import '../../../../config/flavor_config.dart';
-import '../../payment/razorpay_controller.dart';
-import '../controllers/booking_controller.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
-import '../../../../core/repositories/remote/remote_repo_interface.dart';
-import '../../../../core/service_locator.dart';
-import '../../home/controllers/home_controller.dart';
 import '../../../data/services/user_controller.dart';
-import 'past_booking_screen.dart';
 
 class BookingSummaryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> selectedSlots;
@@ -48,6 +49,8 @@ final RxString _errorMessage = ''.obs;
 class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final BookingController bookingController = Get.put(BookingController());
   final RazorpayController razorpayController = Get.put(RazorpayController());
+  final HomeController homeController = Get.find();
+  final segmentService = locator<SegmentSdkService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
   final RxString _selectedPayment = 'wallet'.obs;  // 'wallet'  or  'gateway'
   final UserController userController = Get.find<UserController>();
@@ -70,6 +73,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     _loadVouchers();
     // Listen to payment events
     _setupPaymentListeners();
+
+    // Track booking summary viewed event
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      segmentService.onBookingSummaryViewed(
+        bookingId: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        cafeId: 'cafe_${widget.gameId}',
+        amount: calculateTotalPrice(),
+      );
+    });
   }
 
   @override
@@ -752,6 +764,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       List<int> bookingIds = await createBooking(slotIds);
       print(slotIds);
+
+      // Track booking started event
+      if (bookingIds.isNotEmpty) {
+        final slotTime = widget.selectedSlots.first['time'] ?? 'Unknown';
+        segmentService.onBookingStarted(
+          cafeId: 'cafe_${widget.gameId}',
+          gameId: widget.gameId.toString(),
+          slotTime: slotTime,
+        );
+      }
+
       // a) WALLET route
       if (useWallet) {
         _stage.value = PaymentStage.debitingWallet;
@@ -817,6 +840,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         voucherCode: voucherCode,           // null unless a voucher really applied
       );
       print('payment mode : $paymentMode');
+
+      // Track booking confirmed event
+      if (bookingIds.isNotEmpty) {
+        final startTime = DateTime.now().toIso8601String();
+        final duration = '${widget.selectedSlots.length} hour(s)';
+        segmentService.onBookingConfirmed(
+          bookingId: bookingIds.first.toString(),
+          startTime: startTime,
+          duration: duration,
+        );
+      }
 
       print('✅ Booking confirmation with voucher successful!');
 

@@ -88,14 +88,43 @@ class GamesController extends GetxController {
     try {
       isLoading(true);
       final result = await _service.fetchGames(_colors);
-      segmentService.onGameStarted(gameId: 'COD', mode: '123', entryFee: 123);
+      
+      // Track game preferences set event when games are loaded
+      final selectedGames = result.take(5).map((game) => game.name).toList();
+      segmentService.onGamePreferencesSet(selectedGames: selectedGames);
+      
+      segmentService.onGameStarted(gameId: result[0].id.toString(), mode: 'paid' , entryFee: 123);
       games.assignAll(result);
     } catch (e) {
+      // Track game abandoned event on error
+      segmentService.onGameAbandoned(
+        gameId: 'general',
+        reason: 'Failed to fetch games: $e',
+      );
+      
       Get.snackbar('Error', 'Failed to fetch games',
           backgroundColor: Colors.red, colorText: Colors.white);
     } finally {
       isLoading(false);
     }
+  }
+
+  // Method to track game completion
+  void onGameCompleted(String gameId, String result, String duration, int pointsEarned) {
+    segmentService.onGameCompleted(
+      gameId: gameId,
+      result: result,
+      duration: duration,
+      pointsEarned: pointsEarned,
+    );
+  }
+
+  // Method to track game abandonment
+  void onGameAbandoned(String gameId, String reason) {
+    segmentService.onGameAbandoned(
+      gameId: gameId,
+      reason: reason,
+    );
   }
 }
 
@@ -141,56 +170,76 @@ class GamesSection extends StatelessWidget {
 class GameCard extends StatelessWidget {
   final Game game;
 
-  const GameCard({Key? key, required this.game}) : super(key: key);
+  GameCard({Key? key, required this.game}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 150,
-      decoration: BoxDecoration(
-        color: game.backgroundColor,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(8), topLeft: Radius.circular(8)),
-            child: CachedNetworkImage(
-              imageUrl: game.backgroundImage,
-              height: 100,
-              width: 150,
-              fit: BoxFit.cover,
-              placeholder: (context, url) =>
-                  const Center(child: RainbowGlowingLoader(size: 30)),
-              errorWidget: (context, url, error) =>
-                  const Icon(Icons.error, color: Colors.white),
+    final segmentService = locator<SegmentSdkService>();
+    
+    return GestureDetector(
+      onTap: () {
+        // Track game details viewed event
+        segmentService.onGameDetailsViewed(
+          gameId: game.id.toString(),
+          cafeId: 'general', // Since this is a general game view, not cafe-specific
+        );
+        
+        // Navigate to game details or show more info
+        Get.snackbar(
+          'Game Details',
+          'Viewing details for ${game.name}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      },
+      child: Container(
+        width: 150,
+        decoration: BoxDecoration(
+          color: game.backgroundColor,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(8), topLeft: Radius.circular(8)),
+              child: CachedNetworkImage(
+                imageUrl: game.backgroundImage,
+                height: 100,
+                width: 150,
+                fit: BoxFit.cover,
+                placeholder: (context, url) =>
+                    const Center(child: RainbowGlowingLoader(size: 30)),
+                errorWidget: (context, url, error) =>
+                    const Icon(Icons.error, color: Colors.white),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Column(
-              children: [
-                Text(game.name,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                Text(game.released,
-                    style: const TextStyle(color: Colors.white70),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                Text('✪ ${game.rating}',
-                    style: const TextStyle(color: Colors.amberAccent),
-                    maxLines: 1),
-                const Text('View More',
-                    style: TextStyle(color: Colors.white70)),
-              ],
-            ),
-          )
-        ],
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                children: [
+                  Text(game.name,
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  Text(game.released,
+                      style: const TextStyle(color: Colors.white70),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  Text('✪ ${game.rating}',
+                      style: const TextStyle(color: Colors.amberAccent),
+                      maxLines: 1),
+                  const Text('View More',
+                      style: TextStyle(color: Colors.white70)),
+                ],
+              ),
+            )
+          ],
+        ),
       ),
     );
   }

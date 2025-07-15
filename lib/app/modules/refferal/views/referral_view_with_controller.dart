@@ -8,6 +8,8 @@ import 'package:share_plus/share_plus.dart';
 import '../controller/refferal_controller.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:flutter/services.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 class ReferralViewWithController extends StatefulWidget {
   const ReferralViewWithController({Key? key}) : super(key: key);
@@ -20,6 +22,7 @@ class ReferralViewWithController extends StatefulWidget {
 class _ReferralViewWithControllerState
     extends State<ReferralViewWithController> {
   final controller = Get.put(ReferralController());
+  final segmentService = locator<SegmentSdkService>();
   final Color _accent =
       const Color(0xffDE3A3A); // Keep for error, but use green for highlights
   final Color _green = const Color(0xFF21C362); // Main green from screenshot
@@ -194,6 +197,13 @@ class _ReferralViewWithControllerState
                       fontWeight: FontWeight.w700,
                       fontSize: 16)),
               onPressed: () {
+                // Track referral sent event
+                final referralCode = controller.getReferralCode();
+                segmentService.onReferralSent(
+                  referralCode: referralCode,
+                  channel: 'share',
+                );
+                
                 Share.share(
                     'Join HashforGamers with my code 👉 $code (unlimited rewards!)');
               },

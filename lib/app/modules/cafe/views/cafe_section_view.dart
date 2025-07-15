@@ -9,13 +9,32 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 
-class CafeSection extends StatelessWidget {
+class CafeSection extends StatefulWidget {
+  CafeSection({super.key});
+
   final CybercafesController _cafeController =
   Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
+  final segmentService = locator<SegmentSdkService>();
 
-  CafeSection({super.key}) {
-    _cafeController.fetchCybercafes();
+  @override
+  State<CafeSection> createState() => _CafeSectionState();
+}
+
+class _CafeSectionState extends State<CafeSection> {
+  @override
+  void initState() {
+    super.initState();
+    widget._cafeController.fetchCybercafes();
+    
+    // Track cafe list viewed event
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.segmentService.onCafeListViewed(
+        sortType: 'distance',
+        filterType: 'all',
+      );
+    });
   }
 
   @override
@@ -32,7 +51,7 @@ class CafeSection extends StatelessWidget {
           ),
         ),
         Obx(() {
-          if (_cafeController.isLoading.value) {
+          if (widget._cafeController.isLoading.value) {
             return SizedBox(
               height: 230,
               child: ListView.separated(
@@ -59,7 +78,7 @@ class CafeSection extends StatelessWidget {
           }
 
 
-          if (_cafeController.cybercafes.isEmpty) {
+          if (widget._cafeController.cybercafes.isEmpty) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 24.0),
@@ -77,31 +96,44 @@ class CafeSection extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 10,vertical: 15),
-              itemCount: _cafeController.cybercafes.length,
+              itemCount: widget._cafeController.cybercafes.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
-                final cafe = _cafeController.cybercafes[index];
+                final cafe = widget._cafeController.cybercafes[index];
                 final imageUrl = cafe['cover'] ??
                     'https://next-level.gg/assets/cafes/11.jpg'; // Fallback
                 final isOpen = cafe['status'] == 'active';
 
                 return GestureDetector(
-                  onTap: () => Get.to(
-                        () => ArenaDetailView(
-                      images: imageUrl,
-                      title: cafe['cafe_name'] ?? 'Unknown Cafe',
-                      address: cafe['location']?['address'] ??
-                          'Address not available',
-                      openingHours: '9 AM - 12 AM',
-                      availableGames: const ['Game 1', 'Game 2'],
-                      amenities: const ['Amenity 1', 'Amenity 2'],
-                      phone: cafe['phone'] ?? cafe['contact_number'] ?? 'Phone not available',
-                      email: cafe['email'] ?? 'Email not available',
-                      ownerName: cafe['owner_name'] ?? 'Owner not available',
-                      reviews: const ['Great place!', 'Loved it!'],
-                      vendorId: cafe['vendor_id'],
-                    ),
-                  ),
+                  onTap: () {
+                    // Track gaming cafe viewed event
+                    final cafeId = cafe['vendor_id']?.toString() ?? '';
+                    final location = cafe['location']?['address'] ?? 'Unknown';
+                    final availableGames = cafe['games']?.cast<String>() ?? ['Unknown'];
+                    
+                    widget.segmentService.onGamingCafeViewed(
+                      cafeId: cafeId,
+                      location: location,
+                      availableGames: availableGames,
+                    );
+                    
+                    Get.to(
+                          () => ArenaDetailView(
+                        images: imageUrl,
+                        title: cafe['cafe_name'] ?? 'Unknown Cafe',
+                        address: cafe['location']?['address'] ??
+                            'Address not available',
+                        openingHours: '9 AM - 12 AM',
+                        availableGames: const ['Game 1', 'Game 2'],
+                        amenities: const ['Amenity 1', 'Amenity 2'],
+                        phone: cafe['phone'] ?? cafe['contact_number'] ?? 'Phone not available',
+                        email: cafe['email'] ?? 'Email not available',
+                        ownerName: cafe['owner_name'] ?? 'Owner not available',
+                        reviews: const ['Great place!', 'Loved it!'],
+                        vendorId: cafe['vendor_id'],
+                      ),
+                    );
+                  },
                   child: Container(
                     width: 300,
                     decoration: BoxDecoration(

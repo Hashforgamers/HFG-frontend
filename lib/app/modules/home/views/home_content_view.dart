@@ -20,6 +20,8 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -32,6 +34,7 @@ class _HomeContentViewState extends State<HomeContentView> {
   final BookingController bookingController = Get.find();
   final LoginController loginController = Get.find();
   final UserController userController = Get.find();
+  final segmentService = locator<SegmentSdkService>();
 
   @override
   void initState() {
@@ -40,7 +43,15 @@ class _HomeContentViewState extends State<HomeContentView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
       _ensureWalletFetched();
+      _trackHomeScreenViewed();
     });
+  }
+
+  void _trackHomeScreenViewed() {
+    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      segmentService.onHomeScreenViewed(userId: currentUser.uid);
+    }
   }
 
   void _ensureWalletFetched() {
@@ -203,10 +214,21 @@ class _HomeContentViewState extends State<HomeContentView> {
   }
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
-    await prefs.remove('user_data');
-    Get.offAllNamed(AppRoutes.LOGIN);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('token');
+      await prefs.remove('user_data');
+      
+      // Track unexpected logout event
+      segmentService.onUnexpectedLogout(reason: 'user_initiated');
+      
+      Get.offAllNamed(AppRoutes.LOGIN);
+    } catch (e) {
+      // Track unexpected logout event with error
+      segmentService.onUnexpectedLogout(reason: 'logout_error: $e');
+      
+      Get.offAllNamed(AppRoutes.LOGIN);
+    }
   }
 
   void _handleMenuSelection(String value) {
