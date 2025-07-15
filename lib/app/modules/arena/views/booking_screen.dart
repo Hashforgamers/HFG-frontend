@@ -561,7 +561,7 @@ class _BookingScreenState extends State<BookingScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             color:
-                isSelected ? const Color(0xffDE3A3A) : const Color(0xff2D2D2D),
+                isSelected ? const Color(0xFF338125) : const Color(0xff2D2D2D),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected ? Colors.greenAccent : Colors.grey.shade700,
@@ -621,7 +621,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 Text(
                   '₹${totalPrice.toInt()}',
                   style: const TextStyle(
-                    color: Colors.greenAccent,
+                    color: Colors.green,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
@@ -633,7 +633,7 @@ class _BookingScreenState extends State<BookingScreen> {
               onPressed: totalSelectedSlots > 0 ? onProceed : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: totalSelectedSlots > 0
-                    ? const Color(0xffDE3A3A)
+                    ? const Color(0xFF338125)
                     : Colors.grey,
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(
