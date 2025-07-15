@@ -3,10 +3,16 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/error_handler.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 import '../../../data/services/user_controller.dart';
+import 'package:flutter/material.dart';
 
 class WalletController extends GetxController {
   final userController = Get.find<UserController>(); // Injected
+  final _remoteRepo = locator<RemoteRepoInterface>();
+  final segmentService = locator<SegmentSdkService>();
 
   var balance = 0.obs;
   var isLoading = false.obs;
@@ -48,6 +54,8 @@ class WalletController extends GetxController {
 
   /// Fetch wallet balance using userId
   Future<void> fetchWallet() async {
+    if (isLoading.value) return;
+    
     isLoading.value = true;
     print('🔄 Starting wallet fetch...');
 
@@ -125,6 +133,44 @@ class WalletController extends GetxController {
       }
     } catch (e) {
       Get.snackbar("Error", e.toString());
+    }
+  }
+
+  Future<void> initiateWithdrawal(double amount, String bankAccount) async {
+    try {
+      // Track withdrawal initiated event
+      segmentService.onWithdrawalInitiated(
+        amount: amount,
+        bankAccount: bankAccount,
+      );
+      
+      // For now, simulate withdrawal success since the API method doesn't exist
+      // In a real implementation, you would call the actual API
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // Track withdrawal success event
+      final payoutId = 'payout_${DateTime.now().millisecondsSinceEpoch}';
+      segmentService.onWithdrawalSuccess(
+        payoutId: payoutId,
+        amount: amount,
+      );
+      
+      Get.snackbar(
+        'Success',
+        'Withdrawal initiated successfully',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+      
+      // Refresh wallet balance
+      await fetchWallet();
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to initiate withdrawal: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 }

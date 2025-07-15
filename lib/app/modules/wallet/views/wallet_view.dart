@@ -4,13 +4,34 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';   // <-- free neon-style icon set
 import '../controllers/razorpay_wallet_controller.dart';
 import '../controllers/wallet_controller.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
-class WalletScreen extends StatelessWidget {
+class WalletScreen extends StatefulWidget {
+  const WalletScreen({super.key});
+
+  @override
+  State<WalletScreen> createState() => _WalletScreenState();
+}
+
+class _WalletScreenState extends State<WalletScreen> {
   final walletCtr   = Get.find<WalletController>();
   final razorpayCtr = Get.put(RazorpayWalletController());
   final TextEditingController amountController = TextEditingController();
+  final segmentService = locator<SegmentSdkService>();
 
-  WalletScreen({super.key});
+  @override
+  void initState() {
+    super.initState();
+    // Track wallet viewed event
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        segmentService.onWalletViewed(userId: currentUser.uid);
+      }
+    });
+  }
 
   // ───────────────────────── UI BUILD ──────────────────────────
   @override

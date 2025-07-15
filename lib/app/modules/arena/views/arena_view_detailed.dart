@@ -6,6 +6,8 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/views/booking_screen.dart';
 import 'dart:ui';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 import '../controllers/games_controller.dart';
 
@@ -43,11 +45,19 @@ class ArenaDetailView extends StatefulWidget {
 
 class _ArenaDetailViewState extends State<ArenaDetailView> {
   final CafeGamesController _gamesController = Get.put(CafeGamesController());
+  final segmentService = locator<SegmentSdkService>();
 
   @override
   void initState() {
     super.initState();
     _gamesController.fetchGames(widget.vendorId);
+    
+    // Track cafe images viewed event
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      segmentService.onCafeImagesViewed(
+        cafeId: widget.vendorId.toString(),
+      );
+    });
   }
 
   @override

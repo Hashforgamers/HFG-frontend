@@ -3,6 +3,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 
 import '../arena/views/past_booking_screen.dart';
 import '../home/controllers/home_controller.dart';
@@ -11,6 +12,7 @@ import '../arena/controllers/booking_controller.dart';
 class RazorpayController extends GetxController {
   late Razorpay _razorpay;
   final _remoteRepo = locator<RemoteRepoInterface>();
+  final segmentService = locator<SegmentSdkService>();
 
   RxList<int> bookingIdList = <int>[].obs;
   RxBool  isPaymentInProgress = false.obs;
@@ -52,6 +54,14 @@ class RazorpayController extends GetxController {
     try {
       isPaymentInProgress(true);                   // ★ start spinner sooner
       paymentStatus.value = 'Opening payment gateway…';
+      
+      // Track payment initiated event
+      segmentService.onPaymentInitiated(
+        bookingId: orderId,
+        amount: amount,
+        paymentMethodSelected: 'razorpay',
+      );
+      
       _razorpay.open(options);
     } catch (e) {
       print('Error opening Razorpay: $e');
@@ -72,6 +82,13 @@ class RazorpayController extends GetxController {
       return;
     }
 
+    // Track payment success event
+    segmentService.onPaymentSuccess(
+      transactionId: r.paymentId ?? '',
+      bookingId: bookingIdList.first.toString(),
+      paymentGateway: 'razorpay',
+    );
+
     await _confirmBooking(
       bookingIds : bookingIdList.toList(),
       paymentId  : r.paymentId!,
@@ -81,6 +98,13 @@ class RazorpayController extends GetxController {
 
   void _handlePaymentError(PaymentFailureResponse r) {
     print('❌ Payment failed: ${r.code} - ${r.message}');
+    
+    // Track payment failed event
+    segmentService.onPaymentFailed(
+      reason: r.message ?? 'Unknown error',
+      paymentGateway: 'razorpay',
+    );
+    
     _reset();
     Get.snackbar('Payment Failed', r.message ?? 'Unknown error', snackPosition: SnackPosition.BOTTOM);
   }
