@@ -33,7 +33,7 @@ class RazorpayWalletController extends GetxController {
 
     final amountPaise = amountRupees * 100;
     final options = {
-      'key': ApiEndpoints.razorpayKey,
+      'key': ApiEndpoints.razorpayKeyWallet,
       'amount': amountPaise,
       'name': 'HashforGamers',
       'description': 'Wallet Top-up',
