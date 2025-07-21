@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
 import '../controllers/login_controller.dart';
@@ -10,6 +11,7 @@ class LoginView extends StatelessWidget {
   final LoginController controller = Get.put(LoginController());
   final _formKey = GlobalKey<FormState>();
   final segementService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +105,8 @@ class LoginView extends StatelessWidget {
                               onPressed: () {
                                 if (_formKey.currentState!.validate()) {
                                   segementService.onOtpRequested(
+                                      mobile: controller.phoneNumberController.text);
+                                  fbEventsService.onOtpRequested(
                                       mobile: controller.phoneNumberController.text);
                                   controller.isLoading.value = true;
                                   controller.signInWithPhoneNumber();

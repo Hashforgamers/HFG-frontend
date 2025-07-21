@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:http/http.dart' as http;
 
@@ -62,6 +63,7 @@ class GamesController extends GetxController {
   final isLoading = false.obs;
   final _service = GameService();
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
   final List<Color> _colors = [
     Colors.red[900]!,
@@ -92,12 +94,18 @@ class GamesController extends GetxController {
       // Track game preferences set event when games are loaded
       final selectedGames = result.take(5).map((game) => game.name).toList();
       segmentService.onGamePreferencesSet(selectedGames: selectedGames);
+      fbEventsService.onGamePreferencesSet(selectedGames: selectedGames);
       
       segmentService.onGameStarted(gameId: result[0].id.toString(), mode: 'paid' , entryFee: 123);
+      fbEventsService.onGameStarted(gameId: result[0].id.toString(), mode: 'paid' , entryFee: 123);
       games.assignAll(result);
     } catch (e) {
       // Track game abandoned event on error
       segmentService.onGameAbandoned(
+        gameId: 'general',
+        reason: 'Failed to fetch games: $e',
+      );
+      fbEventsService.onGameAbandoned(
         gameId: 'general',
         reason: 'Failed to fetch games: $e',
       );
@@ -117,11 +125,21 @@ class GamesController extends GetxController {
       duration: duration,
       pointsEarned: pointsEarned,
     );
+    fbEventsService.onGameCompleted(
+      gameId: gameId,
+      result: result,
+      duration: duration,
+      pointsEarned: pointsEarned,
+    );
   }
 
   // Method to track game abandonment
   void onGameAbandoned(String gameId, String reason) {
     segmentService.onGameAbandoned(
+      gameId: gameId,
+      reason: reason,
+    );
+    fbEventsService.onGameAbandoned(
       gameId: gameId,
       reason: reason,
     );
@@ -175,11 +193,16 @@ class GameCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final segmentService = locator<SegmentSdkService>();
+    final fbEventsService = locator<FbEventsService>();
     
     return GestureDetector(
       onTap: () {
         // Track game details viewed event
         segmentService.onGameDetailsViewed(
+          gameId: game.id.toString(),
+          cafeId: 'general', // Since this is a general game view, not cafe-specific
+        );
+        fbEventsService.onGameDetailsViewed(
           gameId: game.id.toString(),
           cafeId: 'general', // Since this is a general game view, not cafe-specific
         );

@@ -9,6 +9,7 @@ import '../controller/refferal_controller.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:flutter/services.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 
 class ReferralViewWithController extends StatefulWidget {
@@ -23,6 +24,7 @@ class _ReferralViewWithControllerState
     extends State<ReferralViewWithController> {
   final controller = Get.put(ReferralController());
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
   final Color _accent =
       const Color(0xffDE3A3A); // Keep for error, but use green for highlights
   final Color _green = const Color(0xFF21C362); // Main green from screenshot
@@ -200,6 +202,10 @@ class _ReferralViewWithControllerState
                 // Track referral sent event
                 final referralCode = controller.getReferralCode();
                 segmentService.onReferralSent(
+                  referralCode: referralCode,
+                  channel: 'share',
+                );
+                fbEventsService.onReferralSent(
                   referralCode: referralCode,
                   channel: 'share',
                 );

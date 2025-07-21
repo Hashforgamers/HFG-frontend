@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 
 import '../../../data/services/user_controller.dart' as userModel;
@@ -18,6 +19,7 @@ class LoginController extends GetxController {
   Get.put(userModel.UserController());
   final remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
   final isLoading = false.obs;
 
   String? _verificationId;
@@ -97,6 +99,11 @@ class LoginController extends GetxController {
 
       if (userData != null) {
         segmentService.onLoginSuccess(
+          userId: user.uid,
+          loginMethod: 'phone',
+          deviceId: '',
+        );
+        fbEventsService.onLoginSuccess(
           userId: user.uid,
           loginMethod: 'phone',
           deviceId: '',

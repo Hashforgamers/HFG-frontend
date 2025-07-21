@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 
@@ -20,6 +21,7 @@ class VerifyOtpView extends StatefulWidget {
 class _VerifyOtpViewState extends State<VerifyOtpView> {
   final TextEditingController _otpController = TextEditingController();
   final segmentService   = locator<SegmentSdkService>();
+  final fbEventsService  = locator<FbEventsService>();
   final LoginController  login = Get.find<LoginController>();
 
   @override
@@ -170,6 +172,7 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
     login.isLoading.value = true;
     login.verifyOtp(otp).then((_) {
       segmentService.onOtpVerified(mobile: login.phoneNumberController.text);
+      fbEventsService.onOtpVerified(mobile: login.phoneNumberController.text);
       login.isLoading.value = false;
     });
   }

@@ -9,6 +9,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'booking_summary_screen.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -659,7 +660,12 @@ class _BookingScreenState extends State<BookingScreen> {
   void onProceed() {
     // Track game details viewed event when user proceeds with console selection
     final segmentService = locator<SegmentSdkService>();
+    final fbEventsService = locator<FbEventsService>();
     segmentService.onGameDetailsViewed(
+      gameId: widget.gameId.toString(),
+      cafeId: widget.vendorId.toString(),
+    );
+    fbEventsService.onGameDetailsViewed(
       gameId: widget.gameId.toString(),
       cafeId: widget.vendorId.toString(),
     );
