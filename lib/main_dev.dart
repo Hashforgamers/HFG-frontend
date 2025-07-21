@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/services/deeplink_service.dart';
@@ -63,8 +64,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context)=> HashCoinCubit(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => HashCoinCubit(),
+        ),
+        BlocProvider(
+          create: (context) => FcmCubit(),
+        ),
+      ],
       child: ScrollConfiguration(
         behavior: NoGlowScrollBehavior(),
         child: GetMaterialApp(

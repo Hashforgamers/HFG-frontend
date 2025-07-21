@@ -90,4 +90,9 @@ abstract class RemoteRepoInterface {
     required String vendorId,
     required String bookingId,
   });
+
+  Future<String> registerFCMToken({
+    required String userId,
+    required String token,
+  });
 }
