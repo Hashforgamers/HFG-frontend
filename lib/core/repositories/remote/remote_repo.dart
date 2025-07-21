@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hash/core/network/api_endpoints.dart';
@@ -784,7 +785,7 @@ class RemoteRepo implements RemoteRepoInterface {
       final response =
           await dio.post(ApiEndpoints.registerFCMToken(userId), data: {
         "token": token,
-        "platform": "android",
+        "platform": Platform.isAndroid ? "android" : "ios",
       });
       if (response.statusCode == 200) {
         return response.data['message'];
