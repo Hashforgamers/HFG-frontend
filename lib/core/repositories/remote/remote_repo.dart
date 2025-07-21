@@ -73,7 +73,7 @@ class RemoteRepo implements RemoteRepoInterface {
         if (ApiErrorHandler.shouldRetry(e)) {
           rethrow; // Let the retry interceptor handle it
         }
-        
+
         // For non-retryable errors, extract and throw user-friendly message
         final errorMessage = ApiErrorHandler.extractErrorMessage(e);
         throw Exception(errorMessage);
@@ -190,7 +190,7 @@ class RemoteRepo implements RemoteRepoInterface {
         if (ApiErrorHandler.shouldRetry(e)) {
           rethrow; // Let the retry interceptor handle it
         }
-        
+
         // For non-retryable errors, extract and throw user-friendly message
         final errorMessage = ApiErrorHandler.extractErrorMessage(e);
         throw Exception(errorMessage);
@@ -219,7 +219,7 @@ class RemoteRepo implements RemoteRepoInterface {
         if (ApiErrorHandler.shouldRetry(e)) {
           rethrow; // Let the retry interceptor handle it
         }
-        
+
         // For non-retryable errors, extract and throw user-friendly message
         final errorMessage = ApiErrorHandler.extractErrorMessage(e);
         throw Exception(errorMessage);
@@ -772,6 +772,28 @@ class RemoteRepo implements RemoteRepoInterface {
         }
       }
 
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String> registerFCMToken(
+      {required String userId, required String token}) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response =
+          await dio.post(ApiEndpoints.registerFCMToken(userId), data: {
+        "token": token,
+        "platform": "android",
+      });
+      if (response.statusCode == 200) {
+        return response.data['message'];
+      } else {
+        throw Exception(
+            'Failed to register FCM token. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error registering FCM token: $e');
       rethrow;
     }
   }
