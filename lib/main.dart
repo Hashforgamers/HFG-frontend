@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:hash/core/service/deeplink_service.dart';
+import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
-import 'package:hash/services/deeplink_service.dart';
-import 'package:hash/services/notification_service.dart';
+
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'app/data/services/user_controller.dart';
@@ -18,7 +19,7 @@ import 'firebase_options.dart'; // Make sure to include your generated Firebase 
 void main() async {
   WidgetsFlutterBinding
       .ensureInitialized(); // Ensure binding for async operations
-  
+
   // Initialize flavor configuration (default to dev for safety)
   FlavorConfig(
     flavor: Flavor.dev,
@@ -39,24 +40,24 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
-  
+
   // Set up crash handling
   final segmentService = locator<SegmentSdkService>();
-  
+
   FlutterError.onError = (FlutterErrorDetails details) {
     // Track app crash event
     segmentService.onAppCrashLogged(
       stacktrace: details.stack.toString(),
       screen: 'main',
     );
-    
+
     // Log the error
     FlutterError.presentError(details);
   };
-  
+
   Get.put(UserController()); // Initialize globally here
   Get.put(RazorpayController()); // Bind the controller
   Get.put(BookingController());
