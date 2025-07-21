@@ -20,6 +20,10 @@ class FcmTokenLoading extends FcmState {
 }
 
 class FcmTokenError extends FcmState {
+  final String message;
+
+  const FcmTokenError({required this.message});
+
   @override
-  List<Object> get props => [];
+  List<Object> get props => [message];
 }

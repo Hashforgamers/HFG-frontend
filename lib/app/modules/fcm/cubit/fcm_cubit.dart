@@ -1,8 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:get/get.dart';
-import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 
@@ -12,17 +11,27 @@ class FcmCubit extends Cubit<FcmState> {
   FcmCubit() : super(FcmInitial());
 
   final remoteRepo = locator<RemoteRepoInterface>();
-  final UserController userController = Get.find();
 
   Future<void> registerFCMToken() async {
-    String token = await FirebaseMessaging.instance.getToken() ?? '';
-    String userId = userController.id.value;
     emit(FcmTokenLoading());
     try {
-      await remoteRepo.registerFCMToken(userId: userId, token: token);
-      emit(FcmTokenRegistered());
-    } catch (e) {
-      emit(FcmTokenError());
+      String token = await FirebaseMessaging.instance.getToken() ?? '';
+      final userData = await remoteRepo.getUserFromPreferences();
+      if (userData != null) {
+        final userId = userData['id'] ?? 0;
+        final response = await remoteRepo.registerFCMToken(
+          userId: userId.toString(),
+          token: token,
+        );
+        if (response == 'FCM token registered') {
+          emit(FcmTokenRegistered());
+        } else {
+          emit(FcmTokenError(message: response));
+        }
+      }
+    } catch (e, st) {
+      debugPrint('FCM Token Error: $st');
+      emit(FcmTokenError(message: e.toString()));
     }
   }
 }

@@ -71,7 +71,7 @@ class ApiEndpoints {
       '$userOnboardBaseUrl/api/users/{userId}/create-voucher';
 
   static String registerFCMToken(String userId) =>
-      '$userOnboardBaseUrl/users/$userId/register-fcm-token';
+      '$userOnboardBaseUrl/api/users/$userId/register-fcm-token';
 
   // Get Voucher (userOnboard)
   static String get getVoucher =>
