@@ -5,6 +5,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';   // <-- free neon-styl
 import '../controllers/razorpay_wallet_controller.dart';
 import '../controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
@@ -20,6 +21,7 @@ class _WalletScreenState extends State<WalletScreen> {
   final razorpayCtr = Get.put(RazorpayWalletController());
   final TextEditingController amountController = TextEditingController();
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
   @override
   void initState() {
@@ -29,6 +31,7 @@ class _WalletScreenState extends State<WalletScreen> {
       final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
         segmentService.onWalletViewed(userId: currentUser.uid);
+        fbEventsService.onWalletViewed(userId: currentUser.uid);
       }
     });
   }

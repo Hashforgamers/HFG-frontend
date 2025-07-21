@@ -10,6 +10,7 @@ import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 
 class CafeSection extends StatefulWidget {
   CafeSection({super.key});
@@ -17,6 +18,7 @@ class CafeSection extends StatefulWidget {
   final CybercafesController _cafeController =
   Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
   @override
   State<CafeSection> createState() => _CafeSectionState();
@@ -112,6 +114,11 @@ class _CafeSectionState extends State<CafeSection> {
                     final availableGames = cafe['games']?.cast<String>() ?? ['Unknown'];
                     
                     widget.segmentService.onGamingCafeViewed(
+                      cafeId: cafeId,
+                      location: location,
+                      availableGames: availableGames,
+                    );
+                    widget.fbEventsService.onGamingCafeViewed(
                       cafeId: cafeId,
                       location: location,
                       availableGames: availableGames,
