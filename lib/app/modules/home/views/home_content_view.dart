@@ -40,12 +40,11 @@ class _HomeContentViewState extends State<HomeContentView> {
   @override
   void initState() {
     super.initState();
-
+    BlocProvider.of<FcmCubit>(context).registerFCMToken();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
       _ensureWalletFetched();
       _trackHomeScreenViewed();
-      BlocProvider.of<FcmCubit>(context).registerFCMToken();
     });
   }
 
