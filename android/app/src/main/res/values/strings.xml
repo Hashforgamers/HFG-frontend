@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 <!-- Facebook SDK -->
-<string name="app_name">actual_app_name</string>
-<string name="facebook_app_id">actual_app_id</string>
-<string name="facebook_client_token">actual_client_token</string>
+<string name="app_name">hashforgamers</string>
+<string name="facebook_app_id">1755915261664066</string>
+<string name="facebook_client_token">ef176e72dcf69f0d3f9d791237249300</string>
 </resources>
