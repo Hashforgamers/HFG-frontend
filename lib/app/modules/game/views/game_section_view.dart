@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:http/http.dart' as http;
@@ -88,12 +89,13 @@ class GamesController extends GetxController {
     try {
       isLoading(true);
       final result = await _service.fetchGames(_colors);
-      
+
       // Track game preferences set event when games are loaded
       final selectedGames = result.take(5).map((game) => game.name).toList();
       segmentService.onGamePreferencesSet(selectedGames: selectedGames);
-      
-      segmentService.onGameStarted(gameId: result[0].id.toString(), mode: 'paid' , entryFee: 123);
+
+      segmentService.onGameStarted(
+          gameId: result[0].id.toString(), mode: 'paid', entryFee: 123);
       games.assignAll(result);
     } catch (e) {
       // Track game abandoned event on error
@@ -101,7 +103,7 @@ class GamesController extends GetxController {
         gameId: 'general',
         reason: 'Failed to fetch games: $e',
       );
-      
+
       Get.snackbar('Error', 'Failed to fetch games',
           backgroundColor: Colors.red, colorText: Colors.white);
     } finally {
@@ -110,7 +112,8 @@ class GamesController extends GetxController {
   }
 
   // Method to track game completion
-  void onGameCompleted(String gameId, String result, String duration, int pointsEarned) {
+  void onGameCompleted(
+      String gameId, String result, String duration, int pointsEarned) {
     segmentService.onGameCompleted(
       gameId: gameId,
       result: result,
@@ -134,9 +137,9 @@ class GamesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'GAMES BY DEVELOPERS',
-          style: TextStyle(
+          style: GoogleFonts.inter(
               color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
@@ -146,9 +149,9 @@ class GamesSection extends StatelessWidget {
               return const Center(child: RainbowGlowingLoader(size: 50));
             }
             if (controller.games.isEmpty) {
-              return const Center(
+              return Center(
                   child: Text('No games found',
-                      style: TextStyle(color: Colors.white)));
+                      style: GoogleFonts.inter(color: Colors.white)));
             }
             return SizedBox(
               height: 190,
@@ -175,15 +178,16 @@ class GameCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final segmentService = locator<SegmentSdkService>();
-    
+
     return GestureDetector(
       onTap: () {
         // Track game details viewed event
         segmentService.onGameDetailsViewed(
           gameId: game.id.toString(),
-          cafeId: 'general', // Since this is a general game view, not cafe-specific
+          cafeId:
+              'general', // Since this is a general game view, not cafe-specific
         );
-        
+
         // Navigate to game details or show more info
         Get.snackbar(
           'Game Details',
@@ -222,19 +226,19 @@ class GameCard extends StatelessWidget {
               child: Column(
                 children: [
                   Text(game.name,
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                           color: Colors.white, fontWeight: FontWeight.bold),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   Text(game.released,
-                      style: const TextStyle(color: Colors.white70),
+                      style: GoogleFonts.inter(color: Colors.white70),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   Text('✪ ${game.rating}',
-                      style: const TextStyle(color: Colors.amberAccent),
+                      style: GoogleFonts.inter(color: Colors.amberAccent),
                       maxLines: 1),
-                  const Text('View More',
-                      style: TextStyle(color: Colors.white70)),
+                  Text('View More',
+                      style: GoogleFonts.inter(color: Colors.white70)),
                 ],
               ),
             )

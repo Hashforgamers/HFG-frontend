@@ -51,7 +51,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   void initState() {
     super.initState();
     _gamesController.fetchGames(widget.vendorId);
-    
+
     // Track cafe images viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
       segmentService.onCafeImagesViewed(
@@ -295,12 +295,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     const SizedBox(height: 24),
                     amenitiesGrid(widget.amenities),
                     const SizedBox(height: 24),
-                    Text("Reviews",
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),),
+                    Text(
+                      "Reviews",
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     ...widget.reviews.map((review) => Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
@@ -313,7 +315,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                             leading:
                                 const Icon(Icons.person, color: Colors.white),
                             title: Text(review.toString(),
-                                style: const TextStyle(color: Colors.white)),
+                                style: GoogleFonts.inter(color: Colors.white)),
                           ),
                         )),
                     const SizedBox(height: 80),
@@ -684,7 +686,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           Icon(icon, size: 18, color: Colors.white70),
           const SizedBox(width: 8),
           Expanded(
-              child: Text(text, style: const TextStyle(color: Colors.white70))),
+              child:
+                  Text(text, style: GoogleFonts.inter(color: Colors.white70))),
         ],
       );
 
@@ -705,7 +708,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
-              style: const TextStyle(
+              style: GoogleFonts.inter(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w600)),
@@ -737,14 +740,15 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                     item is Map
                                         ? item['name']?.toString() ?? 'Unknown'
                                         : item.toString(),
-                                    style: const TextStyle(color: Colors.white))
+                                    style:
+                                        GoogleFonts.inter(color: Colors.white))
                               ],
                             )
                           : Text(
                               item is Map
                                   ? item['name']?.toString() ?? 'Unknown'
                                   : item.toString(),
-                              style: const TextStyle(color: Colors.white)),
+                              style: GoogleFonts.inter(color: Colors.white)),
                       backgroundColor: const Color(0xff0E0E0E),
                       side: const BorderSide(color: Color(0xff2D2D2D)),
                     ))
@@ -911,7 +915,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     padding: const EdgeInsets.symmetric(horizontal: 2.0),
                     child: Text(
                       displayName,
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

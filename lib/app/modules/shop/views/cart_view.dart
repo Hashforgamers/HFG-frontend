@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../controllers/cart_controller.dart';
@@ -34,7 +35,10 @@ class CartView extends StatelessWidget {
                 if (checkoutController.isLoading.value) {
                   return RainbowGlowingLoader(size: 50);
                 } else {
-                  return Text('Checkout', style: TextStyle(color: Colors.black));
+                  return Text(
+                    'Checkout',
+                    style: GoogleFonts.inter(color: Colors.black),
+                  );
                 }
               }),
             ),
@@ -43,26 +47,35 @@ class CartView extends StatelessWidget {
       ),
       appBar: AppBar(
         centerTitle: false,
-        title: const Text('Cart', style: TextStyle(color: Colors.white)),
+        title: Text('Cart', style: GoogleFonts.inter(color: Colors.white)),
         backgroundColor: Colors.black,
         leading: GestureDetector(
           onTap: () {
             Get.back();
           },
-          child: Icon(CupertinoIcons.back, color: Color(0xffDE3A3A),),
+          child: const Icon(
+            Icons.arrow_back,
+            color: Color(0xffDE3A3A),
+          ),
         ),
       ),
       body: Obx(() {
         if (cartController.isLoading.value) {
-          return Center(child: RainbowGlowingLoader(size: 50),);
+          return const Center(
+            child: RainbowGlowingLoader(size: 50),
+          );
         } else if (cartController.cartItems.isEmpty) {
-          return Center(child: Text('Cart is empty', style: TextStyle(color: Colors.white)));
+          return Center(
+              child: Text(
+            'Cart is empty',
+            style: GoogleFonts.inter(color: Colors.white),
+          ));
         } else {
           return Column(
             children: [
               Expanded(child: buildCartItemList(cartController)),
               buildPaymentOptionSection(checkoutController),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               buildDeliveryAddressSection(addressController),
             ],
           );
@@ -80,14 +93,17 @@ class CartView extends StatelessWidget {
           leading: Container(
             width: 60,
             decoration: ShapeDecoration(
-              shape: ContinuousRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: ContinuousRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               color: Color(0xff121212),
             ),
           ),
-          title: Text('Product ID: ${item.productId}', style: TextStyle(color: Colors.white)),
-          subtitle: Text('Quantity: ${item.quantity}', style: TextStyle(color: Colors.white70)),
+          title: Text('Product ID: ${item.productId}',
+              style: GoogleFonts.inter(color: Colors.white)),
+          subtitle: Text('Quantity: ${item.quantity}',
+              style: GoogleFonts.inter(color: Colors.white70)),
           trailing: IconButton(
-            icon: Icon(CupertinoIcons.delete, color: Colors.red),
+            icon: const Icon(CupertinoIcons.delete, color: Colors.red),
             onPressed: () {
               cartController.deleteCartItem(item.productId);
             },
@@ -98,16 +114,20 @@ class CartView extends StatelessWidget {
   }
 
   Widget buildPaymentOptionSection(CheckoutController checkoutController) {
-    return Container(margin: EdgeInsets.all(10),
+    return Container(
+      margin: EdgeInsets.all(10),
       padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Color(0xff121212),
+        color: const Color(0xff121212),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Payment Option', style: TextStyle(color: Colors.white)),
+          Text(
+            'Payment Option',
+            style: GoogleFonts.inter(color: Colors.white),
+          ),
           Obx(() {
             return Column(
               children: [
@@ -115,7 +135,8 @@ class CartView extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   contentPadding: EdgeInsets.symmetric(horizontal: 0),
                   activeColor: Color(0xffDE3A3A),
-                  title: Text('Wallet', style: TextStyle(color: Colors.white)),
+                  title: Text('Wallet',
+                      style: GoogleFonts.inter(color: Colors.white)),
                   value: 'wallet',
                   groupValue: checkoutController.paymentMethod.value,
                   onChanged: (value) {
@@ -126,7 +147,8 @@ class CartView extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   contentPadding: EdgeInsets.symmetric(horizontal: 0),
                   activeColor: Color(0xffDE3A3A),
-                  title: Text('Other', style: TextStyle(color: Colors.white)),
+                  title: Text('Other',
+                      style: GoogleFonts.inter(color: Colors.white)),
                   value: 'other',
                   groupValue: checkoutController.paymentMethod.value,
                   onChanged: (value) {
@@ -142,7 +164,8 @@ class CartView extends StatelessWidget {
   }
 
   Widget buildDeliveryAddressSection(AddressController addressController) {
-    return Container(margin: EdgeInsets.all(10),
+    return Container(
+      margin: EdgeInsets.all(10),
       width: Get.width,
       padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
@@ -152,24 +175,31 @@ class CartView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Delivery Address', style: TextStyle(color: Colors.white)),
+          Text(
+            'Delivery Address',
+            style: GoogleFonts.inter(color: Colors.white),
+          ),
           Obx(() {
             return DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: addressController.activeAddress.value['addressLine1'],
                 dropdownColor: Colors.black,
-                icon: Icon(Icons.arrow_drop_down_outlined, color: Color(0xffDE3A3A),),
+                icon: const Icon(
+                  Icons.arrow_drop_down_outlined,
+                  color: Color(0xffDE3A3A),
+                ),
                 iconSize: 24,
                 elevation: 16,
-                style: TextStyle(color: Colors.white),
+                style: GoogleFonts.inter(color: Colors.white),
                 isDense: true, // Remove the underline
                 isExpanded: true, // Use full width
                 onChanged: (String? newValue) {
-                  var selectedAddress =
-                  addressController.addresses.firstWhere((address) => address['addressLine1'] == newValue);
+                  var selectedAddress = addressController.addresses.firstWhere(
+                      (address) => address['addressLine1'] == newValue);
                   addressController.activeAddress.value = selectedAddress;
                 },
-                items: addressController.addresses.map<DropdownMenuItem<String>>((address) {
+                items: addressController.addresses
+                    .map<DropdownMenuItem<String>>((address) {
                   return DropdownMenuItem<String>(
                     value: address['addressLine1'],
                     child: Text(address['addressLine1']),
@@ -177,7 +207,6 @@ class CartView extends StatelessWidget {
                 }).toList(),
               ),
             );
-
           }),
         ],
       ),

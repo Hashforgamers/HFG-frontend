@@ -58,7 +58,8 @@ class _HomeContentViewState extends State<HomeContentView> {
     // Ensure wallet is fetched after a short delay
     Future.delayed(const Duration(milliseconds: 500), () {
       final walletController = Get.find<WalletController>();
-      if (walletController.isWalletReady && walletController.balance.value == 0) {
+      if (walletController.isWalletReady &&
+          walletController.balance.value == 0) {
         print('🔄 Ensuring wallet is fetched from home screen');
         walletController.refreshWallet();
       }
@@ -85,10 +86,10 @@ class _HomeContentViewState extends State<HomeContentView> {
     final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       await userController.fetchUserData(currentUser.uid);
-      
+
       // Add a small delay to ensure user data is properly set
       await Future.delayed(const Duration(milliseconds: 100));
-      
+
       // Manually trigger wallet refresh after user data is loaded
       final walletController = Get.find<WalletController>();
       if (walletController.isWalletReady) {
@@ -159,36 +160,44 @@ class _HomeContentViewState extends State<HomeContentView> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Obx(() => Text(
-            'Hey, ${userController.user.value.gameUserName}!',
-            style: const TextStyle(color: Colors.white),
-          )),
+                'Hey, ${userController.user.value.gameUserName}!',
+                style: GoogleFonts.inter(color: Colors.white),
+              )),
           Obx(() => PopupMenuButton<String>(
-            offset: const Offset(0, 40),
-            color: Colors.black87,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            onSelected: (value) => _handleMenuSelection(value),
-            itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'Profile',
-                child: Text('Profile', style: TextStyle(color: Color(0xffDE3A3A))),
-              ),
-              const PopupMenuItem(
-                value: 'Settings',
-                child: Text('Settings', style: TextStyle(color: Color(0xffDE3A3A))),
-              ),
-              PopupMenuItem(
-                value: 'Logout',
-                onTap: _logout,
-                child: const Text('Logout', style: TextStyle(color: Color(0xffDE3A3A))),
-              ),
-            ],
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              child: userController.isLoading.value
-                  ? _shimmerAvatar()
-                  : _userAvatar(userController.user.value.photoUrl),
-            ),
-          )),
+                offset: const Offset(0, 40),
+                color: Colors.black87,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                onSelected: (value) => _handleMenuSelection(value),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'Profile',
+                    child: Text(
+                      'Profile',
+                      style: GoogleFonts.inter(color: const Color(0xffDE3A3A)),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'Settings',
+                    child: Text('Settings',
+                        style:
+                            GoogleFonts.inter(color: const Color(0xffDE3A3A))),
+                  ),
+                  PopupMenuItem(
+                    value: 'Logout',
+                    onTap: _logout,
+                    child: Text('Logout',
+                        style:
+                            GoogleFonts.inter(color: const Color(0xffDE3A3A))),
+                  ),
+                ],
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 400),
+                  child: userController.isLoading.value
+                      ? _shimmerAvatar()
+                      : _userAvatar(userController.user.value.photoUrl),
+                ),
+              )),
         ],
       ),
     );
@@ -207,8 +216,9 @@ class _HomeContentViewState extends State<HomeContentView> {
       radius: 15,
       backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
           ? CachedNetworkImageProvider(photoUrl)
-          : const NetworkImage('https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg')
-      as ImageProvider,
+          : const NetworkImage(
+                  'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg')
+              as ImageProvider,
       backgroundColor: Colors.white,
     );
   }
@@ -218,15 +228,15 @@ class _HomeContentViewState extends State<HomeContentView> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('token');
       await prefs.remove('user_data');
-      
+
       // Track unexpected logout event
       segmentService.onUnexpectedLogout(reason: 'user_initiated');
-      
+
       Get.offAllNamed(AppRoutes.LOGIN);
     } catch (e) {
       // Track unexpected logout event with error
       segmentService.onUnexpectedLogout(reason: 'logout_error: $e');
-      
+
       Get.offAllNamed(AppRoutes.LOGIN);
     }
   }

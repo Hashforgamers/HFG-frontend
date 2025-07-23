@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -21,13 +22,13 @@ class ProfileView extends StatelessWidget {
       appBar: AppBar(
         centerTitle: false,
         title:
-            const Text('Edit Profile', style: TextStyle(color: Colors.white)),
+            Text('Edit Profile', style: GoogleFonts.inter(color: Colors.white)),
         backgroundColor: Colors.black,
         leading: GestureDetector(
           onTap: () {
             Get.back();
           },
-          child: const Icon(CupertinoIcons.back, color: Color(0xff00D701)),
+          child: const Icon(Icons.arrow_back, color: Color(0xff00D701)),
         ),
       ),
       body: Obx(() {
@@ -134,8 +135,10 @@ class ProfileView extends StatelessWidget {
                     ),
                     minimumSize: const Size(double.infinity, 50),
                   ),
-                  child: const Text('Update',
-                      style: TextStyle(color: Colors.white, fontSize: 18)),
+                  child: Text(
+                    'Update',
+                    style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
+                  ),
                 ),
               ],
             ),
@@ -158,13 +161,13 @@ class ProfileView extends StatelessWidget {
         const SizedBox(height: 20),
         Text(
           user.name!,
-          style: const TextStyle(
+          style: GoogleFonts.inter(
               color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         Text(
           user.contact?.electronicAddress?.emailId ?? '',
-          style: const TextStyle(color: Colors.white70, fontSize: 16),
+          style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
         ),
       ],
     );
@@ -193,7 +196,7 @@ class ProfileView extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
           ),
         ),
-        style: const TextStyle(color: Colors.white),
+        style: GoogleFonts.inter(color: Colors.white),
         validator: (value) {
           if (value == null || value.isEmpty) {
             return 'Please enter $labelText';

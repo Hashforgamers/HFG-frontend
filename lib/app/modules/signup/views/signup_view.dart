@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
 import '../../../routes/app_routes.dart';
 import '../controllers/signup_controller.dart';
@@ -25,17 +26,17 @@ class _SignUpViewState extends State<SignUpView> {
     final args = Get.arguments as Map<String, String>?;
 
     if (args != null) {
-      c.nameController.text        = args['name']        ?? '';
-      c.emailController.text       = args['email']       ?? '';
-      c.mobileNoController.text    = args['phoneNumber'] ?? '';
+      c.nameController.text = args['name'] ?? '';
+      c.emailController.text = args['email'] ?? '';
+      c.mobileNoController.text = args['phoneNumber'] ?? '';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final args        = Get.arguments as Map<String, String>?;
+    final args = Get.arguments as Map<String, String>?;
     final phoneFilled = (args?['phoneNumber']?.isNotEmpty ?? false);
-    final emailFilled = (args?['email']?.isNotEmpty       ?? false);
+    final emailFilled = (args?['email']?.isNotEmpty ?? false);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -54,46 +55,47 @@ class _SignUpViewState extends State<SignUpView> {
                   child: ListView(
                     children: [
                       const SizedBox(height: 12),
-                      const Text('Sign Up',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold)),
-
+                      Text(
+                        'Sign Up',
+                        style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 20),
                       _field(c.nameController, 'Name',
                           autofill: AutofillHints.name),
                       _userNameField(),
                       _dobPicker(),
                       _genderDrop(),
-
                       _field(c.emailController, 'Email',
-                          readOnly: emailFilled,
-                          autofill: AutofillHints.email),
+                          readOnly: emailFilled, autofill: AutofillHints.email),
                       _field(c.mobileNoController, 'Mobile Number',
                           readOnly: phoneFilled,
                           autofill: AutofillHints.telephoneNumber),
-                      _field(c.referralCodeController, 'Referral Code (Optional)', required: false),
+                      _field(
+                          c.referralCodeController, 'Referral Code (Optional)',
+                          required: false),
                       _locationBtn(),
-
                       _field(c.addressLine1Controller, 'Address Line 1',
-                          autofill: AutofillHints.streetAddressLine1, required: false),
+                          autofill: AutofillHints.streetAddressLine1,
+                          required: false),
                       _field(c.addressLine2Controller, 'Address Line 2',
-                          autofill: AutofillHints.streetAddressLine2, required: false),
-
-
+                          autofill: AutofillHints.streetAddressLine2,
+                          required: false),
                       const SizedBox(height: 20),
                       _signupBtn(),
-
                       TextButton(
                         onPressed: () => Get.offAllNamed(AppRoutes.LOGIN),
-                        child: const Text.rich(TextSpan(
+                        child: Text.rich(TextSpan(
                             text: 'Already have an account? ',
-                            style: TextStyle(color: Colors.white70),
+                            style: GoogleFonts.inter(color: Colors.white70),
                             children: [
                               TextSpan(
-                                  text: 'Login',
-                                  style: TextStyle(color: Color(0xFF3AFF6B)))
+                                text: 'Login',
+                                style: GoogleFonts.inter(
+                                    color: const Color(0xFF3AFF6B)),
+                              )
                             ])),
                       )
                     ],
@@ -116,11 +118,11 @@ class _SignUpViewState extends State<SignUpView> {
       child: TextFormField(
         controller: ctl,
         readOnly: readOnly,
-        style: const TextStyle(color: Colors.white),
+        style: GoogleFonts.inter(color: Colors.white),
         autofillHints: autofill != null ? [autofill] : null,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.white70),
+          labelStyle: GoogleFonts.inter(color: Colors.white70),
           contentPadding: _pad,
           enabledBorder: _border(const Color(0x3FFFFFFF)),
           focusedBorder: _border(const Color(0xFF3AFF6B)),
@@ -135,16 +137,15 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
-
   Widget _userNameField() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
         controller: c.gameUserNameController,
-        style: const TextStyle(color: Colors.white),
+        style: GoogleFonts.inter(color: Colors.white),
         decoration: InputDecoration(
           labelText: 'Game Username',
-          labelStyle: const TextStyle(color: Colors.white70),
+          labelStyle: GoogleFonts.inter(color: Colors.white70),
           contentPadding: _pad,
           enabledBorder: _border(const Color(0x3FFFFFFF)),
           focusedBorder: _border(const Color(0xFF3AFF6B)),
@@ -186,7 +187,7 @@ class _SignUpViewState extends State<SignUpView> {
         'DEC'
       ];
       c.dobController.text =
-      '${picked.day.toString().padLeft(2, "0")}-${m[picked.month - 1]}-${picked.year}';
+          '${picked.day.toString().padLeft(2, "0")}-${m[picked.month - 1]}-${picked.year}';
     }
   }
 
@@ -194,12 +195,13 @@ class _SignUpViewState extends State<SignUpView> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: DropdownButtonFormField<String>(
-        value: c.genderController.text.isNotEmpty ? c.genderController.text : null,
+        value:
+            c.genderController.text.isNotEmpty ? c.genderController.text : null,
         dropdownColor: Colors.black,
-        style: const TextStyle(color: Colors.white),
+        style: GoogleFonts.inter(color: Colors.white),
         decoration: InputDecoration(
           labelText: 'Gender',
-          labelStyle: const TextStyle(color: Colors.white70),
+          labelStyle: GoogleFonts.inter(color: Colors.white70),
           contentPadding: _pad,
           enabledBorder: _border(const Color(0x3FFFFFFF)),
           focusedBorder: _border(const Color(0xFF3AFF6B)),
@@ -224,12 +226,13 @@ class _SignUpViewState extends State<SignUpView> {
           RGBLightFrame(width: Get.width, height: 50, borderRadius: 100),
           InkWell(
             onTap: c.fetchLocation,
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(CupertinoIcons.location_solid, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Fetch Location', style: TextStyle(color: Colors.white)),
+                const Icon(CupertinoIcons.location_solid, color: Colors.white),
+                const SizedBox(width: 8),
+                Text('Fetch Location',
+                    style: GoogleFonts.inter(color: Colors.white)),
               ],
             ),
           ),
@@ -240,41 +243,44 @@ class _SignUpViewState extends State<SignUpView> {
 
   Widget _signupBtn() {
     return Obx(() => Stack(
-      children: [
-        RGBLightFrame(width: Get.width, height: 50, borderRadius: 10),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: c.isLoading.value
-                ? null
-                : () {
-              if (_formKey.currentState!.validate()) {
-                c.signUp();
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: c.isLoading.value
-                ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Sign Up',
-                style: TextStyle(color: Colors.white)),
-          ),
-        )
-      ],
-    ));
+          children: [
+            RGBLightFrame(width: Get.width, height: 50, borderRadius: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: c.isLoading.value
+                    ? null
+                    : () {
+                        if (_formKey.currentState!.validate()) {
+                          c.signUp();
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: c.isLoading.value
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(
+                        'Sign Up',
+                        style: GoogleFonts.inter(color: Colors.white),
+                      ),
+              ),
+            )
+          ],
+        ));
   }
 
   // helper
-  OutlineInputBorder _border(Color c) =>
-      OutlineInputBorder(borderSide: BorderSide(color: c), borderRadius: BorderRadius.circular(12));
+  OutlineInputBorder _border(Color c) => OutlineInputBorder(
+      borderSide: BorderSide(color: c),
+      borderRadius: BorderRadius.circular(12));
 }
 
 // ───────────────────────── Cupertino DOB picker widget ─────────────────────────
