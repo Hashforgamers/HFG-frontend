@@ -4,9 +4,10 @@ import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
+import 'package:hash/core/service/deeplink_service.dart';
+import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
-import 'package:hash/services/deeplink_service.dart';
-import 'package:hash/services/notification_service.dart';
+
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/utils/scroll_behaviour.dart';
 import 'app/data/services/user_controller.dart';

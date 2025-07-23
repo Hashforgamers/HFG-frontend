@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
@@ -14,6 +15,7 @@ class ProfileView extends StatelessWidget {
   final UserController userController = Get.put(UserController());
   final _formKey = GlobalKey<FormState>();
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
   @override
   Widget build(BuildContext context) {
@@ -120,6 +122,11 @@ class ProfileView extends StatelessWidget {
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
                       segmentService.onProfileUpdated(
+                        updatedFields: [
+                          'name',
+                        ],
+                      );
+                      fbEventsService.onProfileUpdated(
                         updatedFields: [
                           'name',
                         ],

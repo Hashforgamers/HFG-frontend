@@ -6,6 +6,7 @@ import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import '../../../data/services/user_controller.dart';
 import 'package:flutter/material.dart';
 
@@ -13,6 +14,7 @@ class WalletController extends GetxController {
   final userController = Get.find<UserController>(); // Injected
   final _remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
   var balance = 0.obs;
   var isLoading = false.obs;
@@ -143,6 +145,10 @@ class WalletController extends GetxController {
         amount: amount,
         bankAccount: bankAccount,
       );
+      fbEventsService.onWithdrawalInitiated(
+        amount: amount,
+        bankAccount: bankAccount,
+      );
       
       // For now, simulate withdrawal success since the API method doesn't exist
       // In a real implementation, you would call the actual API
@@ -151,6 +157,10 @@ class WalletController extends GetxController {
       // Track withdrawal success event
       final payoutId = 'payout_${DateTime.now().millisecondsSinceEpoch}';
       segmentService.onWithdrawalSuccess(
+        payoutId: payoutId,
+        amount: amount,
+      );
+      fbEventsService.onWithdrawalSuccess(
         payoutId: payoutId,
         amount: amount,
       );

@@ -11,6 +11,7 @@ import 'package:hash/config/flavor_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:http/http.dart' as http;
 import '../../../../core/repositories/model/get_voucher_model.dart';
@@ -37,6 +38,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final RazorpayController razorpayController = Get.put(RazorpayController());
   final HomeController homeController = Get.find();
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
   final RxString _selectedPayment = 'wallet'.obs;  // 'wallet'  or  'gateway'
   final UserController userController = Get.find<UserController>();
@@ -63,6 +65,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     // Track booking summary viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
       segmentService.onBookingSummaryViewed(
+        bookingId: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        cafeId: 'cafe_${widget.gameId}',
+        amount: calculateTotalPrice(),
+      );
+      fbEventsService.onBookingSummaryViewed(
         bookingId: 'temp_${DateTime.now().millisecondsSinceEpoch}',
         cafeId: 'cafe_${widget.gameId}',
         amount: calculateTotalPrice(),
@@ -709,6 +716,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           gameId: widget.gameId.toString(),
           slotTime: slotTime,
         );
+        fbEventsService.onBookingStarted(
+          cafeId: 'cafe_${widget.gameId}',
+          gameId: widget.gameId.toString(),
+          slotTime: slotTime,
+        );
       }
       
       // a) WALLET route
@@ -782,6 +794,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         final startTime = DateTime.now().toIso8601String();
         final duration = '${widget.selectedSlots.length} hour(s)';
         segmentService.onBookingConfirmed(
+          bookingId: bookingIds.first.toString(),
+          startTime: startTime,
+          duration: duration,
+        );
+        fbEventsService.onBookingConfirmed(
           bookingId: bookingIds.first.toString(),
           startTime: startTime,
           duration: duration,
