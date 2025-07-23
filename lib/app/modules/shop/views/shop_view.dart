@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/shop/controllers/cart_controller.dart';
 import 'package:lottie/lottie.dart';
 import '../products_model.dart';
@@ -107,7 +108,7 @@ class _ShopViewState extends State<ShopView> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: const Text('Shop', style: TextStyle(color: Colors.white)),
+        title: Text('Shop', style: GoogleFonts.inter(color: Colors.white)),
         backgroundColor: Colors.black,
         actions: [
           GestureDetector(
@@ -119,7 +120,8 @@ class _ShopViewState extends State<ShopView> {
               child: Obx(() => Badge(
                     label: Text(
                       '${cartController.cartItems.length}',
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                      style:
+                          GoogleFonts.inter(color: Colors.white, fontSize: 10),
                     ),
                     child: const Icon(CupertinoIcons.bag, color: Colors.white),
                   )),
@@ -131,7 +133,11 @@ class _ShopViewState extends State<ShopView> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : errorMessage.isNotEmpty
-              ? Center(child: Text(errorMessage, style: const TextStyle(color: Colors.white)))
+              ? Center(
+                  child: Text(
+                  errorMessage,
+                  style: GoogleFonts.inter(color: Colors.white),
+                ))
               : Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10.0),
                   child: SingleChildScrollView(
@@ -152,7 +158,7 @@ class _ShopViewState extends State<ShopView> {
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
             child: Text(
               title,
-              style: const TextStyle(
+              style: GoogleFonts.inter(
                   color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.bold),
@@ -198,7 +204,8 @@ class _ShopViewState extends State<ShopView> {
                 },
                 child: const Padding(
                   padding: EdgeInsets.only(top: 15.0, right: 15),
-                  child: Icon(CupertinoIcons.heart, size: 20, color: Colors.red),
+                  child:
+                      Icon(CupertinoIcons.heart, size: 20, color: Colors.red),
                 ),
               ),
               GestureDetector(
@@ -215,7 +222,7 @@ class _ShopViewState extends State<ShopView> {
                       Text(
                         product.name,
                         textAlign: TextAlign.end,
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -224,7 +231,7 @@ class _ShopViewState extends State<ShopView> {
                       const SizedBox(height: 5),
                       Text(
                         '₹${product.price}',
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                           color: Colors.greenAccent,
                           fontSize: 14,
                         ),
@@ -232,17 +239,16 @@ class _ShopViewState extends State<ShopView> {
                       const SizedBox(height: 5),
                       Text(
                         '${product.preRegisterCount} Pre-Registered',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
+                        style: GoogleFonts.inter(
+                            color: Colors.white70, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -269,17 +275,17 @@ class _ShopViewState extends State<ShopView> {
                           borderRadius: BorderRadius.circular(28),
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.lock,
                             color: Colors.black,
                             size: 16,
                           ),
-                          SizedBox(width: 5),
+                          const SizedBox(width: 5),
                           Text(
                             'Pre-Register',
-                            style: TextStyle(color: Colors.black),
+                            style: GoogleFonts.inter(color: Colors.black),
                           ),
                         ],
                       ),

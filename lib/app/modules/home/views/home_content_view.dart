@@ -162,7 +162,7 @@ class _HomeContentViewState extends State<HomeContentView> {
         children: [
           Obx(() => Text(
                 'Hey, ${userController.user.value.gameUserName}!',
-                style: const TextStyle(color: Colors.white),
+                style: GoogleFonts.inter(color: Colors.white),
               )),
           Obx(() => PopupMenuButton<String>(
                 offset: const Offset(0, 40),
@@ -171,21 +171,25 @@ class _HomeContentViewState extends State<HomeContentView> {
                     borderRadius: BorderRadius.circular(8)),
                 onSelected: (value) => _handleMenuSelection(value),
                 itemBuilder: (_) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'Profile',
-                    child: Text('Profile',
-                        style: TextStyle(color: Color(0xffDE3A3A))),
+                    child: Text(
+                      'Profile',
+                      style: GoogleFonts.inter(color: const Color(0xffDE3A3A)),
+                    ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'Settings',
                     child: Text('Settings',
-                        style: TextStyle(color: Color(0xffDE3A3A))),
+                        style:
+                            GoogleFonts.inter(color: const Color(0xffDE3A3A))),
                   ),
                   PopupMenuItem(
                     value: 'Logout',
                     onTap: _logout,
-                    child: const Text('Logout',
-                        style: TextStyle(color: Color(0xffDE3A3A))),
+                    child: Text('Logout',
+                        style:
+                            GoogleFonts.inter(color: const Color(0xffDE3A3A))),
                   ),
                 ],
                 child: AnimatedSwitcher(

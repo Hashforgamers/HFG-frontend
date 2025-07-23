@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
@@ -56,9 +57,9 @@ class CafeCarousel extends StatelessWidget {
                   height: 250,
                   fit: BoxFit.cover,
                   placeholder: (_, __) =>
-                  const Center(child: RainbowGlowingLoader(size: 40)),
-                  errorWidget: (_, __, ___) =>
-                  const Center(child: Icon(Icons.error, color: Colors.white)),
+                      const Center(child: RainbowGlowingLoader(size: 40)),
+                  errorWidget: (_, __, ___) => const Center(
+                      child: Icon(Icons.error, color: Colors.white)),
                 ),
                 Positioned(
                   bottom: 0,
@@ -73,7 +74,7 @@ class CafeCarousel extends StatelessWidget {
                     ),
                     child: Text(
                       cafe['cafe_name'] ?? 'Unnamed',
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

@@ -40,7 +40,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
-  final RxString _selectedPayment = 'wallet'.obs;  // 'wallet'  or  'gateway'
+  final RxString _selectedPayment = 'wallet'.obs; // 'wallet'  or  'gateway'
   final UserController userController = Get.find<UserController>();
 
   // Voucher related variables
@@ -61,7 +61,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     _loadVouchers();
     // Listen to payment events
     _setupPaymentListeners();
-    
+
     // Track booking summary viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
       segmentService.onBookingSummaryViewed(
@@ -224,8 +224,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
-        title: const Text('Booking Summary',
-            style: TextStyle(color: Colors.white)),
+        title: Text('Booking Summary',
+            style: GoogleFonts.inter(color: Colors.white)),
         backgroundColor: const Color(0xFF0F0F0F),
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -237,7 +237,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('${widget.selectedSlots.length} Slot(s) Selected',
-                  style: const TextStyle(
+                  style: GoogleFonts.inter(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
                       color: Colors.white)),
@@ -255,14 +255,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     tileColor: Colors.grey.shade900,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
-                    title: Text(slot['console_label'] ?? 'PC ${slot['pc_index']}',
-                        style: const TextStyle(
+                    title: Text(
+                        slot['console_label'] ?? 'PC ${slot['pc_index']}',
+                        style: GoogleFonts.inter(
                             fontWeight: FontWeight.bold, color: Colors.white)),
                     subtitle: Text(
                         'Time: ${slot['start_time']} - ${slot['end_time']}',
-                        style: const TextStyle(color: Colors.white70)),
+                        style: GoogleFonts.inter(color: Colors.white70)),
                     trailing: Text('₹${slotPrice.toStringAsFixed(2)}',
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
                             fontSize: 16)),
@@ -276,20 +277,20 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Booking User',
-                          style: TextStyle(
+                      Text('Booking User',
+                          style: GoogleFonts.inter(
                               fontWeight: FontWeight.w500,
                               color: Colors.white70)),
                       const SizedBox(height: 4),
                       Obx(() => Text(userController.user.value.name ?? 'User',
-                          style: const TextStyle(
+                          style: GoogleFonts.inter(
                               fontSize: 16, color: Colors.white))),
                     ],
                   ),
                   TextButton(
                       onPressed: () {},
-                      child: const Text('Change',
-                          style: TextStyle(color: Colors.deepOrange)))
+                      child: Text('Change',
+                          style: GoogleFonts.inter(color: Colors.deepOrange)))
                 ],
               ),
               Divider(height: 32, color: Colors.grey.shade800),
@@ -298,8 +299,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               _buildVoucherSection(),
               const SizedBox(height: 24),
 
-              const Text('Payment Summary',
-                  style: TextStyle(
+              Text('Payment Summary',
+                  style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Colors.white)),
@@ -328,22 +329,23 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               }),
               // ─── Payment Method ──────────────────────────────────────────
               const SizedBox(height: 16),
-              const Text('Choose Payment Method',
-                  style: TextStyle(
+              Text('Choose Payment Method',
+                  style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Colors.white)),
               const SizedBox(height: 12),
 
               Obx(() => Row(
-                children: [
-                  _paymentChip('Wallet', Icons.account_balance_wallet, 'wallet'),
-                  const SizedBox(width: 12),
-                  _paymentChip('UPI/Netbanking', Icons.credit_card, 'gateway'),
-                ],
-              )),
+                    children: [
+                      _paymentChip(
+                          'Wallet', Icons.account_balance_wallet, 'wallet'),
+                      const SizedBox(width: 12),
+                      _paymentChip(
+                          'UPI/Netbanking', Icons.credit_card, 'gateway'),
+                    ],
+                  )),
               Divider(height: 32, color: Colors.grey.shade800),
-
             ],
           ),
         ),
@@ -383,7 +385,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         Expanded(
                           child: Text(
                             _paymentStatus.value,
-                            style: const TextStyle(
+                            style: GoogleFonts.inter(
                               color: Colors.blue,
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -402,7 +404,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 children: [
                   Obx(() => Text(
                         '₹${calculateTotalPrice().toStringAsFixed(2)}',
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white),
@@ -412,10 +414,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         ? null
                         : // Normal button tap
                         () => handleBooking(
-                      context,
-                      isVoucherApplied: _appliedVoucher.value != null,
-                      useWallet: _selectedPayment.value == 'wallet',
-                    ),
+                              context,
+                              isVoucherApplied: _appliedVoucher.value != null,
+                              useWallet: _selectedPayment.value == 'wallet',
+                            ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xffDE3A3A),
                       foregroundColor: Colors.white,
@@ -432,8 +434,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                             child: CircularProgressIndicator(
                                 color: Colors.white, strokeWidth: 2));
                       }
-                      return const Text('PROCEED',
-                          style: TextStyle(
+                      return Text('PROCEED',
+                          style: GoogleFonts.inter(
                               fontSize: 16, fontWeight: FontWeight.bold));
                     }),
                   ),
@@ -460,8 +462,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Have a Voucher?',
-                  style: TextStyle(
+              Text('Have a Voucher?',
+                  style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: Colors.white)),
@@ -502,13 +504,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         children: [
                           Text(
                             'Voucher Applied: ${_appliedVoucher.value!.code}',
-                            style: const TextStyle(
+                            style: GoogleFonts.inter(
                                 color: Colors.green,
                                 fontWeight: FontWeight.w600),
                           ),
                           Text(
                             '${_appliedVoucher.value!.discountPercentage}% discount applied',
-                            style: TextStyle(
+                            style: GoogleFonts.inter(
                                 color: Colors.green.withOpacity(0.8),
                                 fontSize: 12),
                           ),
@@ -535,10 +537,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               Expanded(
                 child: TextField(
                   controller: _voucherController,
-                  style: const TextStyle(color: Colors.white),
+                  style: GoogleFonts.inter(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'Enter voucher code',
-                    hintStyle: TextStyle(color: Colors.grey.shade400),
+                    hintStyle: GoogleFonts.inter(color: Colors.grey.shade400),
                     filled: true,
                     fillColor: Colors.black.withOpacity(0.3),
                     border: OutlineInputBorder(
@@ -587,7 +589,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   _voucherError.value,
-                  style: TextStyle(color: Colors.red.shade300, fontSize: 12),
+                  style: GoogleFonts.inter(
+                      color: Colors.red.shade300, fontSize: 12),
                 ),
               );
             }
@@ -603,7 +606,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'Your Available Vouchers (${_availableVouchers.length})',
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                         color: Colors.grey.shade300,
                         fontSize: 14,
                         fontWeight: FontWeight.w500),
@@ -638,7 +641,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               children: [
                                 Text(
                                   voucher.code,
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     color: voucher.isActive
                                         ? Colors.deepOrange
                                         : Colors.grey,
@@ -649,7 +652,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   '${voucher.discountPercentage}% OFF',
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     color: voucher.isActive
                                         ? Colors.white
                                         : Colors.grey,
@@ -659,7 +662,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   voucher.isActive ? 'Active' : 'Inactive',
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     color: voucher.isActive
                                         ? Colors.green
                                         : Colors.red,
@@ -683,9 +686,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
-  Future<void> handleBooking(BuildContext context, 
+  Future<void> handleBooking(BuildContext context,
       {required bool isVoucherApplied, required bool useWallet}) async {
-
     if (widget.selectedSlots.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No slots selected!')),
@@ -707,7 +709,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       List<int> bookingIds = await createBooking(slotIds);
       print(slotIds);
-      
+
       // Track booking started event
       if (bookingIds.isNotEmpty) {
         final slotTime = widget.selectedSlots.first['time'] ?? 'Unknown';
@@ -722,7 +724,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           slotTime: slotTime,
         );
       }
-      
+
       // a) WALLET route
       if (useWallet) {
         _paymentStatus.value = 'Debiting wallet…';
@@ -752,10 +754,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           voucherCode: _appliedVoucher.value!.code,
         );
         return;
-      }
-
-
-      else {
+      } else {
         // Normal payment flow with Razorpay
         _paymentStatus.value = 'Initiating payment gateway...';
         razorpayController.bookingIdList.value = bookingIds;
@@ -777,15 +776,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   Future<void> confirmBooking(
       {required List<int> bookingIds,
-        required String paymentMode,     //  "wallet" | "voucher" | "gateway"
-        String? voucherCode}) async {
+      required String paymentMode, //  "wallet" | "voucher" | "gateway"
+      String? voucherCode}) async {
     try {
       await _remoteRepo.confirmBooking(
-        bookingIds : bookingIds,
-        paymentId  : "${paymentMode.toUpperCase()}_${DateTime.now().millisecondsSinceEpoch}",
-        bookDate   : DateTime.now().toIso8601String(),
-        paymentMode: paymentMode,           // <-- NEW field
-        voucherCode: voucherCode,           // null unless a voucher really applied
+        bookingIds: bookingIds,
+        paymentId:
+            "${paymentMode.toUpperCase()}_${DateTime.now().millisecondsSinceEpoch}",
+        bookDate: DateTime.now().toIso8601String(),
+        paymentMode: paymentMode, // <-- NEW field
+        voucherCode: voucherCode, // null unless a voucher really applied
       );
       print('payment mode : $paymentMode');
 
@@ -948,12 +948,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: TextStyle(
+              style: GoogleFonts.inter(
                   fontSize: fontSize,
                   fontWeight: bold ? FontWeight.bold : FontWeight.normal,
                   color: Colors.white)),
           Text(value,
-              style: TextStyle(
+              style: GoogleFonts.inter(
                   fontSize: fontSize,
                   fontWeight: bold ? FontWeight.bold : FontWeight.normal,
                   color: color ?? Colors.white)),
@@ -961,6 +961,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       ),
     );
   }
+
   Widget _paymentChip(String label, IconData icon, String value) {
     final bool isSelected = _selectedPayment.value == value;
 
@@ -980,13 +981,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 color: isSelected ? Colors.white : Colors.white70, size: 16),
             const SizedBox(width: 6),
             Text(label,
-                style: TextStyle(
-                    color:
-                    isSelected ? Colors.white : Colors.white70, fontSize: 13))
+                style: GoogleFonts.inter(
+                    color: isSelected ? Colors.white : Colors.white70,
+                    fontSize: 13))
           ],
         ),
       ),
     );
   }
-
 }

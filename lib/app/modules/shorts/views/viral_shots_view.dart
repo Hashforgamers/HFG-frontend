@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import '../controllers/viral_shorts_controller.dart';
 import 'short_video_player.dart';
@@ -13,14 +14,18 @@ class ViralShotsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('TRENDING SHORTS',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(
+          'TRENDING SHORTS',
+          style: GoogleFonts.inter(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 10),
-
         Obx(() {
           if (controller.isLoading.value) return _shimmerRow();
           if (controller.shorts.isEmpty) {
-            return const Center(child: Text('No shorts found', style: TextStyle(color: Colors.white)));
+            return Center(
+                child: Text('No shorts found',
+                    style: GoogleFonts.inter(color: Colors.white)));
           }
 
           return SizedBox(
@@ -48,7 +53,7 @@ class ViralShotsSection extends StatelessWidget {
         child: Row(
           children: List.generate(
             4,
-                (_) => Container(
+            (_) => Container(
               margin: const EdgeInsets.all(5),
               width: 120,
               height: 220,
@@ -65,7 +70,8 @@ class ViralShotsSection extends StatelessWidget {
 
   Widget _buildItem(YouTubeShort short, int index) {
     return GestureDetector(
-      onTap: () => Get.to(() => ShortVideoPlayer(shorts: controller.shorts, initialIndex: index)),
+      onTap: () => Get.to(() =>
+          ShortVideoPlayer(shorts: controller.shorts, initialIndex: index)),
       child: Container(
         margin: const EdgeInsets.all(5),
         width: 120,
@@ -84,8 +90,10 @@ class ViralShotsSection extends StatelessWidget {
                 height: 220,
                 width: 120,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Container(color: Colors.grey[800]),
-                errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
+                placeholder: (context, url) =>
+                    Container(color: Colors.grey[800]),
+                errorWidget: (context, url, error) =>
+                    const Icon(Icons.error, color: Colors.red),
               ),
             ),
             Container(
@@ -115,7 +123,8 @@ class ViralShotsSection extends StatelessWidget {
                       Expanded(
                         child: Text(
                           short.channelName,
-                          style: const TextStyle(color: Colors.white, fontSize: 11),
+                          style: GoogleFonts.inter(
+                              color: Colors.white, fontSize: 11),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -125,20 +134,29 @@ class ViralShotsSection extends StatelessWidget {
                   const Spacer(),
                   Text(
                     short.title,
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   ElevatedButton(
-                    onPressed: () => Get.to(() => ShortVideoPlayer(shorts: controller.shorts, initialIndex: index)),
+                    onPressed: () => Get.to(() => ShortVideoPlayer(
+                        shorts: controller.shorts, initialIndex: index)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xff00D701),
                       minimumSize: const Size(0, 26),
                       padding: const EdgeInsets.symmetric(horizontal: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
                     ),
-                    child: const Text('Watch', style: TextStyle(color: Colors.black, fontSize: 12)),
+                    child: Text(
+                      'Watch',
+                      style:
+                          GoogleFonts.inter(color: Colors.black, fontSize: 12),
+                    ),
                   ),
                 ],
               ),

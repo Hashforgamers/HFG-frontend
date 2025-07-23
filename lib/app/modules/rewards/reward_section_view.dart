@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/global_bottom_sheet_service.dart';
 
 import '../wallet/controllers/wallet_controller.dart';
@@ -48,7 +49,7 @@ class RewardsSection extends StatelessWidget {
           child: Obx(() {
             final walletBalance = walletController.balance.value;
             final isLoading = walletController.isLoading.value;
-            
+
             return _buildRewardItem(
               CupertinoIcons.circle_bottomthird_split,
               isLoading ? "..." : "₹$walletBalance",
@@ -72,7 +73,7 @@ class RewardsSection extends StatelessWidget {
               padding: const EdgeInsets.only(top: 3.0),
               child: Text(
                 label[0],
-                style: TextStyle(color: color, fontSize: 20),
+                style: GoogleFonts.inter(color: color, fontSize: 20),
               ),
             ),
             Icon(icon, color: color, size: 30),
@@ -81,12 +82,12 @@ class RewardsSection extends StatelessWidget {
         const SizedBox(height: 5),
         Text(
           amount,
-          style: const TextStyle(
+          style: GoogleFonts.inter(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
-        Text(label, style: const TextStyle(color: Colors.white)),
+        Text(label, style: GoogleFonts.inter(color: Colors.white)),
       ],
     );
   }
