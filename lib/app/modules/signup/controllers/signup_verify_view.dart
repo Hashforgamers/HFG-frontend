@@ -19,8 +19,8 @@ class VerifyOtpView extends StatefulWidget {
 
 class _VerifyOtpViewState extends State<VerifyOtpView> {
   final TextEditingController _otpController = TextEditingController();
-  final segmentService   = locator<SegmentSdkService>();
-  final LoginController  login = Get.find<LoginController>();
+  final segmentService = locator<SegmentSdkService>();
+  final LoginController login = Get.find<LoginController>();
 
   @override
   void dispose() {
@@ -39,7 +39,8 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -64,7 +65,8 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
                     // subtitle
                     Text(
                       'Enter the 6-digit code we just sent to your phone',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                      style: GoogleFonts.inter(
+                          color: Colors.white70, fontSize: 14),
                     ),
                     const SizedBox(height: 28),
 
@@ -73,7 +75,7 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
                       appContext: context,
                       length: 6,
                       controller: _otpController,
-                      textStyle: const TextStyle(color: Colors.white),
+                      textStyle: GoogleFonts.inter(color: Colors.white),
                       keyboardType: TextInputType.number,
                       animationType: AnimationType.fade,
                       enableActiveFill: true,
@@ -108,7 +110,8 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
                         ),
                         Positioned.fill(
                           child: ElevatedButton(
-                            onPressed: login.isLoading.value ? null : _verifyOtp,
+                            onPressed:
+                                login.isLoading.value ? null : _verifyOtp,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
@@ -118,9 +121,11 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
                             ),
                             child: Obx(() => login.isLoading.value
                                 ? const RainbowLoadingBar(width: 280, height: 2)
-                                : const Text('Verify OTP',
-                                style: TextStyle(
-                                    color: Colors.white, fontSize: 16))),
+                                : Text(
+                                    'Verify OTP',
+                                    style: GoogleFonts.inter(
+                                        color: Colors.white, fontSize: 16),
+                                  )),
                           ),
                         ),
                       ],
@@ -130,8 +135,10 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
                     // Resend
                     TextButton(
                       onPressed: login.isLoading.value ? null : _resendOtp,
-                      child: const Text('Resend OTP',
-                          style: TextStyle(color: Color(0xFF3AFF6B))),
+                      child: Text(
+                        'Resend OTP',
+                        style: GoogleFonts.inter(color: const Color(0xFF3AFF6B)),
+                      ),
                     ),
                   ],
                 ),
@@ -142,14 +149,14 @@ class _VerifyOtpViewState extends State<VerifyOtpView> {
           // ───── overlay loader ──────
           Obx(() => login.isLoading.value
               ? Container(
-            color: Colors.black.withOpacity(0.55),
-            child: const Center(
-              child: CircularProgressIndicator(
-                valueColor:
-                AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
-              ),
-            ),
-          )
+                  color: Colors.black.withOpacity(0.55),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
+                    ),
+                  ),
+                )
               : const SizedBox.shrink()),
         ],
       ),

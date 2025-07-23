@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../views/tournament_detail_view.dart';
@@ -33,7 +34,9 @@ class TournamentCard extends StatelessWidget {
               height: 150,
               width: double.infinity,
               fit: BoxFit.cover,
-              placeholder: (context, url) => const Center(child: RainbowGlowingLoader(size: 50),),
+              placeholder: (context, url) => const Center(
+                child: RainbowGlowingLoader(size: 50),
+              ),
               errorWidget: (context, url, error) => const Icon(Icons.error),
             ),
           ),
@@ -44,22 +47,31 @@ class TournamentCard extends StatelessWidget {
               children: [
                 Text(
                   tournament.title,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
                 ),
                 const SizedBox(height: 5),
                 Text(
                   tournament.description,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 15),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // ignore: prefer_const_constructors
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: const [
-                    _TournamentDetail(icon: Icons.group_work, text: 'Squad',),
+                    _TournamentDetail(
+                      icon: Icons.group_work,
+                      text: 'Squad',
+                    ),
                     SizedBox(width: 15),
-                    _TournamentDetail(icon: CupertinoIcons.money_dollar_circle, text: '20K'),
+                    _TournamentDetail(
+                        icon: CupertinoIcons.money_dollar_circle, text: '20K'),
                     SizedBox(width: 15),
-                    _TournamentDetail(icon: CupertinoIcons.group_solid, text: '10/100'),
+                    _TournamentDetail(
+                        icon: CupertinoIcons.group_solid, text: '10/100'),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -79,20 +91,26 @@ class TournamentCard extends StatelessWidget {
                       // Get.to(TournamentDetailView());
                       // Handle tournament button tap
                     },
-
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xff01ff00),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Row(mainAxisAlignment: MainAxisAlignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.lock,color: Colors.black,size: 16,),
-                        SizedBox(width: 5,),
-                        const Text(
+                        const Icon(
+                          Icons.lock,
+                          color: Colors.black,
+                          size: 16,
+                        ),
+                        const SizedBox(
+                          width: 5,
+                        ),
+                        Text(
                           'Coming Soon',
-                          style: TextStyle(color: Colors.black),
+                          style: GoogleFonts.inter(color: Colors.black),
                         ),
                       ],
                     ),
@@ -106,6 +124,7 @@ class TournamentCard extends StatelessWidget {
     );
   }
 }
+
 class _TournamentDetail extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -118,7 +137,10 @@ class _TournamentDetail extends StatelessWidget {
       children: [
         Icon(icon, color: Colors.yellow),
         const SizedBox(width: 5),
-        Text(text, style: const TextStyle(color: Colors.grey)),
+        Text(
+          text,
+          style: GoogleFonts.inter(color: Colors.grey),
+        ),
       ],
     );
   }

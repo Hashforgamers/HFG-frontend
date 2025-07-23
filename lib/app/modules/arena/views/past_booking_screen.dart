@@ -2,6 +2,7 @@ import 'package:barcode_widget/barcode_widget.dart' as bw;
 import 'package:dotted_line/dotted_line.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen_detail.dart';
@@ -43,14 +44,16 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
 
   List<Map<String, dynamic>> _getSortedBookings() {
     final bookings = List<Map<String, dynamic>>.from(ctr.userBookings);
-    
+
     // Sort by booking ID (assuming higher ID = newer booking)
     if (_sortOrder == 'newer') {
-      bookings.sort((a, b) => (b['booking_id'] ?? 0).compareTo(a['booking_id'] ?? 0));
+      bookings.sort(
+          (a, b) => (b['booking_id'] ?? 0).compareTo(a['booking_id'] ?? 0));
     } else {
-      bookings.sort((a, b) => (a['booking_id'] ?? 0).compareTo(b['booking_id'] ?? 0));
+      bookings.sort(
+          (a, b) => (a['booking_id'] ?? 0).compareTo(b['booking_id'] ?? 0));
     }
-    
+
     return bookings;
   }
 
@@ -81,9 +84,9 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'My Bookings',
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 28,
                         color: Colors.green,
                         fontWeight: FontWeight.w400,
@@ -91,26 +94,34 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                     ),
                     // Filter Dropdown
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: const Color(0xFF18191A),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                        border:
+                            Border.all(color: Colors.green.withOpacity(0.3)),
                       ),
                       child: DropdownButton<String>(
                         value: _sortOrder,
                         dropdownColor: const Color(0xFF18191A),
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        style: GoogleFonts.inter(
+                            color: Colors.white, fontSize: 12),
                         underline: const SizedBox(),
-                        icon: const Icon(Icons.arrow_drop_down, color: Colors.green, size: 20),
-                        items: const [
+                        icon: const Icon(Icons.arrow_drop_down,
+                            color: Colors.green, size: 20),
+                        items: [
                           DropdownMenuItem(
                             value: 'newer',
-                            child: Text('Newer First', style: TextStyle(color: Colors.white, fontSize: 12)),
+                            child: Text('Newer First',
+                                style: GoogleFonts.inter(
+                                    color: Colors.white, fontSize: 12)),
                           ),
                           DropdownMenuItem(
                             value: 'older',
-                            child: Text('Older First', style: TextStyle(color: Colors.white, fontSize: 12)),
+                            child: Text('Older First',
+                                style: GoogleFonts.inter(
+                                    color: Colors.white, fontSize: 12)),
                           ),
                         ],
                         onChanged: (String? newValue) {
@@ -134,14 +145,14 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
               //     labelPadding: const EdgeInsets.symmetric(horizontal: 16),
               //     labelColor: const Color(0xff338125),
               //     unselectedLabelColor: Colors.white70,
-              //     labelStyle: const TextStyle(
+              //     labelStyle:  GoogleFonts.inter(
               //         fontWeight: FontWeight.bold, fontSize: 18),
-              //     unselectedLabelStyle: const TextStyle(
+              //     unselectedLabelStyle:  GoogleFonts.inter(
               //         fontWeight: FontWeight.w500, fontSize: 18),
-              //     tabs: const [
-              //       Tab(child: Text('All',style: TextStyle(color: Colors.green),)),
-              //       Tab(child: Text('Upcoming',style: TextStyle(color: Colors.green),)),
-              //       Tab(child: Text('Completed',style: TextStyle(color: Colors.green),)),
+              //     tabs:  [
+              //       Tab(child: Text('All',style: GoogleFonts.inter(color: Colors.green),)),
+              //       Tab(child: Text('Upcoming',style: GoogleFonts.inter(color: Colors.green),)),
+              //       Tab(child: Text('Completed',style: GoogleFonts.inter(color: Colors.green),)),
               //     ],
               //   ),
               // ),
@@ -153,13 +164,13 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                         child: CircularProgressIndicator(color: Colors.white));
                   }
                   if (ctr.userBookings.isEmpty) {
-                    return const Center(
+                    return Center(
                         child: Text('No past bookings.',
-                            style: TextStyle(color: Colors.white)));
+                            style: GoogleFonts.inter(color: Colors.white)));
                   }
-                  
+
                   final sortedBookings = _getSortedBookings();
-                  
+
                   // For demo, show all bookings in all tabs
                   return ListView.separated(
                     padding: const EdgeInsets.all(16),
@@ -224,8 +235,6 @@ class TicketClipper extends CustomClipper<Path> {
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
-
-
 class BookingTicketCard extends StatelessWidget {
   const BookingTicketCard({
     super.key,
@@ -253,13 +262,13 @@ class BookingTicketCard extends StatelessWidget {
     try {
       // Parse the JSON from the QR code
       final Map<String, dynamic> qrData = jsonDecode(scannedCode);
-      
+
       // Extract the required fields from the QR code JSON
       final consoleId = qrData['console_id']?.toString() ?? '';
       final gameId = qrData['game_id']?.toString() ?? '';
       final vendorId = qrData['vendor_id']?.toString() ?? '';
       final bookingId = id.toString();
-      
+
       // Validate that all required fields are present
       if (consoleId.isEmpty || gameId.isEmpty || vendorId.isEmpty) {
         Get.snackbar(
@@ -272,7 +281,7 @@ class BookingTicketCard extends StatelessWidget {
         );
         return;
       }
-      
+
       // Call the scanQrCode API with the parsed data
       final remoteRepo = locator<RemoteRepoInterface>();
       final result = await remoteRepo.scanQrCode(
@@ -281,7 +290,7 @@ class BookingTicketCard extends StatelessWidget {
         vendorId: vendorId,
         bookingId: bookingId,
       );
-      
+
       Get.snackbar(
         'Success',
         result, // Use the API response message
@@ -292,13 +301,13 @@ class BookingTicketCard extends StatelessWidget {
       );
     } catch (e) {
       String errorMessage = 'Failed to process QR code';
-      
+
       if (e is FormatException) {
         errorMessage = 'Invalid QR Code format. Please scan a valid QR code.';
       } else {
         errorMessage = 'Failed to verify booking: ${e.toString()}';
       }
-      
+
       Get.snackbar(
         'Error',
         errorMessage,
@@ -316,13 +325,13 @@ class BookingTicketCard extends StatelessWidget {
         .replaceAll('_', ' ')
         .split(' ')
         .map((w) => w.isNotEmpty
-        ? w[0].toUpperCase() + w.substring(1).toLowerCase()
-        : '')
+            ? w[0].toUpperCase() + w.substring(1).toLowerCase()
+            : '')
         .join(' ');
 
     // Handle access code display - show "---" if null
     final String displayAccessCode = accessCode ?? '---';
-    
+
     // Format the booking date
     String formattedDate = 'N/A';
     if (bookDate != null) {
@@ -337,10 +346,10 @@ class BookingTicketCard extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () => Get.to(() => ViewDetailScreen(
-        booking: raw,
-        startTime: start,
-        endTime: end,
-      )),
+            booking: raw,
+            startTime: start,
+            endTime: end,
+          )),
       child: ClipPath(
         clipper: _TicketClipper(),
         child: Container(
@@ -357,16 +366,16 @@ class BookingTicketCard extends StatelessWidget {
                 children: [
                   Text(
                     '#$id',
-                    style: const TextStyle(
+                    style: GoogleFonts.inter(
                       color: Color(0xFF2ECC71),
                       fontSize: 22, // Reduced from 28
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  const Text(
+                  Text(
                     'Booking ID',
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       color: Colors.white70,
                       fontSize: 10, // Reduced from 12
                     ),
@@ -385,10 +394,12 @@ class BookingTicketCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4), // Reduced padding
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6), // Reduced radius
+                        borderRadius:
+                            BorderRadius.circular(6), // Reduced radius
                       ),
-                      textStyle: const TextStyle(
-                          fontSize: 10, fontWeight: FontWeight.w600), // Reduced font size
+                      textStyle: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600), // Reduced font size
                     ),
                     child: const Text('Scan QR'),
                   ),
@@ -414,7 +425,7 @@ class BookingTicketCard extends StatelessWidget {
                   children: [
                     Text(
                       '$cafe - $game',
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
                         fontSize: 14, // Reduced from 16
@@ -423,7 +434,7 @@ class BookingTicketCard extends StatelessWidget {
                     const SizedBox(height: 4), // Reduced from 6
                     Text(
                       '$start - $end',
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         color: Colors.white54,
                         fontSize: 11, // Reduced from 13
                       ),
@@ -431,7 +442,7 @@ class BookingTicketCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Date: $formattedDate',
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         color: Colors.white54,
                         fontSize: 11, // Reduced from 13
                       ),
@@ -439,7 +450,7 @@ class BookingTicketCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Status: $formattedStatus',
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         color: Colors.white54,
                         fontSize: 11, // Reduced from 13
                       ),
@@ -461,7 +472,7 @@ class BookingTicketCard extends StatelessWidget {
                         const SizedBox(width: 4), // Reduced from 6
                         Text(
                           'Access Code: $displayAccessCode',
-                          style: const TextStyle(
+                          style: GoogleFonts.inter(
                             fontSize: 11, // Reduced from 13
                             color: Colors.white70,
                             letterSpacing: 1,
@@ -480,7 +491,6 @@ class BookingTicketCard extends StatelessWidget {
   }
 }
 
-
 /*────────────────────  Ticket-style clipper  ────────────────────*/
 
 class _TicketClipper extends CustomClipper<Path> {
@@ -497,7 +507,7 @@ class _TicketClipper extends CustomClipper<Path> {
       Offset(0, size.height / 2 + radius),
       radius: const Radius.circular(radius),
       clockwise: false,
-    ); 
+    );
 
     // Bottom-left to bottom
     path.lineTo(0, size.height);
@@ -535,7 +545,8 @@ class _QrScannerViewState extends State<QrScannerView> {
   QRViewController? controller;
 
   @override
-  void reassemble() {              // hot reload fix
+  void reassemble() {
+    // hot reload fix
     super.reassemble();
     controller?.pauseCamera();
     controller?.resumeCamera();
@@ -585,5 +596,3 @@ class _QrScannerViewState extends State<QrScannerView> {
     super.dispose();
   }
 }
-
-

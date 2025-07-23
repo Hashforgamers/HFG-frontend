@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -12,7 +13,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'booking_summary_screen.dart';
 
 class BookingScreen extends StatefulWidget {
-  final String consoleType; 
+  final String consoleType;
   final String title;
   final int gameId;
   final int vendorId;
@@ -40,7 +41,7 @@ class _BookingScreenState extends State<BookingScreen> {
     _fetchUserId();
     controller.fetchSlots(
         vendorId: widget.vendorId, gameId: widget.gameId, date: selectedDate);
-    
+
     // Clear any previous selections when entering the screen
     controller.clearSelectedSlots();
   }
@@ -90,7 +91,7 @@ class _BookingScreenState extends State<BookingScreen> {
         controller.clearSelectedSlots();
       }
     });
-    
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -99,12 +100,12 @@ class _BookingScreenState extends State<BookingScreen> {
               Navigator.pop(context);
             },
             icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
+              Icons.arrow_back,
               color: Colors.white,
             )),
         title: Text(
           widget.title,
-          style: const TextStyle(
+          style: GoogleFonts.inter(
               color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.black,
@@ -149,7 +150,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         const SizedBox(height: 16),
                         Text(
                           'No slots available',
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             color: Colors.grey[400],
                             fontSize: 18,
                             fontWeight: FontWeight.w500,
@@ -158,7 +159,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'Try selecting a different date',
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             color: Colors.grey[600],
                             fontSize: 14,
                           ),
@@ -174,11 +175,13 @@ class _BookingScreenState extends State<BookingScreen> {
 
           // Check if there are any available slots (both API availability and time-based)
           // Only apply time-based filtering for current date
-          final isCurrentDate = selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
+          final isCurrentDate =
+              selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
           final availableSlots = controller.slots.where((slot) {
             final bool isAvailable =
                 slot['is_available'] ?? slot['isAvailable'] ?? true;
-            final bool isTimeAvailable = isCurrentDate ? controller.isSlotAvailableNow(slot) : true;
+            final bool isTimeAvailable =
+                isCurrentDate ? controller.isSlotAvailableNow(slot) : true;
             return isAvailable && isTimeAvailable;
           }).toList();
           if (availableSlots.isEmpty) {
@@ -197,7 +200,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         const SizedBox(height: 16),
                         Text(
                           'No available slots for this date',
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             color: Colors.grey[400],
                             fontSize: 18,
                             fontWeight: FontWeight.w500,
@@ -206,7 +209,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'All slots are currently booked',
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             color: Colors.grey[600],
                             fontSize: 14,
                           ),
@@ -253,8 +256,7 @@ class _BookingScreenState extends State<BookingScreen> {
           if (pickedDate != null) {
             setState(() {
               selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
-              selectedDateText =
-                  DateFormat('dd MMM, yyyy').format(pickedDate);
+              selectedDateText = DateFormat('dd MMM, yyyy').format(pickedDate);
               controller.fetchSlots(
                   vendorId: widget.vendorId,
                   gameId: widget.gameId,
@@ -271,9 +273,9 @@ class _BookingScreenState extends State<BookingScreen> {
           elevation: 8,
         ),
         icon: const Icon(Icons.calendar_today, color: Colors.white),
-        label: const Text(
+        label: Text(
           'SELECT DIFFERENT DATE',
-          style: TextStyle(
+          style: GoogleFonts.inter(
             fontSize: 16,
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -297,7 +299,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   children: [
                     Text(
                       '${widget.title} | $selectedDateText',
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -305,11 +307,14 @@ class _BookingScreenState extends State<BookingScreen> {
                     ),
                     const SizedBox(height: 4),
                     Obx(() {
-                      final isCurrentDate = selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
+                      final isCurrentDate = selectedDate ==
+                          DateFormat('yyyyMMdd').format(DateTime.now());
                       final availableSlots = controller.slots.where((slot) {
                         final bool isAvailable =
                             slot['is_available'] ?? slot['isAvailable'] ?? true;
-                        final bool isTimeAvailable = isCurrentDate ? controller.isSlotAvailableNow(slot) : true;
+                        final bool isTimeAvailable = isCurrentDate
+                            ? controller.isSlotAvailableNow(slot)
+                            : true;
                         return isAvailable && isTimeAvailable;
                       }).toList();
                       final totalAvailableConsoles =
@@ -323,7 +328,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       final consoleType = getConsoleType();
                       return Text(
                         '$totalAvailableConsoles ${consoleType == 'PC' ? 'PCs' : '${consoleType}s'} available across ${availableSlots.length} time slots',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           color: Colors.grey[400],
                           fontSize: 14,
                         ),
@@ -372,9 +377,10 @@ class _BookingScreenState extends State<BookingScreen> {
               // Check availability with fallback field names and time-based filtering
               final bool isAvailable =
                   slot['is_available'] ?? slot['isAvailable'] ?? true;
-              final bool isTimeAvailable = selectedDate == DateFormat('yyyyMMdd').format(DateTime.now()) 
-                  ? controller.isSlotAvailableNow(slot) 
-                  : true;
+              final bool isTimeAvailable =
+                  selectedDate == DateFormat('yyyyMMdd').format(DateTime.now())
+                      ? controller.isSlotAvailableNow(slot)
+                      : true;
               if (isAvailable && isTimeAvailable) {
                 return buildSlotItem(slot, index);
               } else {
@@ -404,18 +410,25 @@ class _BookingScreenState extends State<BookingScreen> {
         slot['availableSlot'] ??
         slot['available_slots'] ??
         0;
-    
+
     // Check if slot is available based on time - only for current date
-    final bool isCurrentDate = selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
-    final bool isTimeAvailable = isCurrentDate ? controller.isSlotAvailableNow(slot) : true;
+    final bool isCurrentDate =
+        selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
+    final bool isTimeAvailable =
+        isCurrentDate ? controller.isSlotAvailableNow(slot) : true;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Container(
         decoration: BoxDecoration(
-          color: isTimeAvailable ? const Color(0xFF1A1A1D) : const Color(0xFF0F0F0F),
+          color: isTimeAvailable
+              ? const Color(0xFF1A1A1D)
+              : const Color(0xFF0F0F0F),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: isTimeAvailable ? const Color(0xff2D2D2D) : Colors.grey.shade800),
+          border: Border.all(
+              color: isTimeAvailable
+                  ? const Color(0xff2D2D2D)
+                  : Colors.grey.shade800),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -426,8 +439,10 @@ class _BookingScreenState extends State<BookingScreen> {
               children: [
                 Text(
                   'Slot: ${formatTime(slot['start_time'])} - ${formatTime(slot['end_time'])}',
-                  style: TextStyle(
-                    color: isTimeAvailable ? Colors.white.withOpacity(0.85) : Colors.grey.shade600,
+                  style: GoogleFonts.inter(
+                    color: isTimeAvailable
+                        ? Colors.white.withOpacity(0.85)
+                        : Colors.grey.shade600,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -436,16 +451,25 @@ class _BookingScreenState extends State<BookingScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isTimeAvailable ? Colors.green.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
+                    color: isTimeAvailable
+                        ? Colors.green.withOpacity(0.2)
+                        : Colors.grey.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isTimeAvailable ? Colors.green.withOpacity(0.5) : Colors.grey.withOpacity(0.5)),
+                    border: Border.all(
+                        color: isTimeAvailable
+                            ? Colors.green.withOpacity(0.5)
+                            : Colors.grey.withOpacity(0.5)),
                   ),
                   child: Text(
-                    isTimeAvailable 
+                    isTimeAvailable
                         ? '$availablePCs ${getConsoleType()}${availablePCs > 1 ? 's' : ''} Available'
-                        : isCurrentDate ? 'Time Expired' : 'Available',
-                    style: TextStyle(
-                      color: isTimeAvailable ? Colors.green : (isCurrentDate ? Colors.grey : Colors.green),
+                        : isCurrentDate
+                            ? 'Time Expired'
+                            : 'Available',
+                    style: GoogleFonts.inter(
+                      color: isTimeAvailable
+                          ? Colors.green
+                          : (isCurrentDate ? Colors.grey : Colors.green),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -468,7 +492,9 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
               ),
-            ] else if (availablePCs > 0 && !isTimeAvailable && isCurrentDate) ...[
+            ] else if (availablePCs > 0 &&
+                !isTimeAvailable &&
+                isCurrentDate) ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -476,13 +502,13 @@ class _BookingScreenState extends State<BookingScreen> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.orange.withOpacity(0.3)),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.schedule, color: Colors.orange, size: 16),
-                    SizedBox(width: 8),
+                    const Icon(Icons.schedule, color: Colors.orange, size: 16),
+                    const SizedBox(width: 8),
                     Text(
                       'Slot time has passed',
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         color: Colors.orange,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -505,7 +531,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     const SizedBox(width: 8),
                     Text(
                       'No ${getConsoleType()}s available for this slot',
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         color: Colors.red,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -569,7 +595,7 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
           child: Text(
             getConsoleLabel(pcIndex - 1),
-            style: const TextStyle(
+            style: GoogleFonts.inter(
               color: Colors.white,
               fontWeight: FontWeight.w600,
               fontSize: 13,
@@ -612,7 +638,7 @@ class _BookingScreenState extends State<BookingScreen> {
               children: [
                 Text(
                   '$totalSelectedSlots Slot(s)',
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     color: Colors.white.withOpacity(0.95),
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -620,7 +646,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
                 Text(
                   '₹${totalPrice.toInt()}',
-                  style: const TextStyle(
+                  style: GoogleFonts.inter(
                     color: Colors.greenAccent,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -643,7 +669,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
               child: Text(
                 'PROCEED',
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 16,
                   color: totalSelectedSlots > 0 ? Colors.white : Colors.black,
                   fontWeight: FontWeight.bold,

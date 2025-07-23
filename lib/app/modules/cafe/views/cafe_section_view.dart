@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'package:hash/app/modules/arena/views/arena_view_detailed.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -15,7 +16,7 @@ class CafeSection extends StatefulWidget {
   CafeSection({super.key});
 
   final CybercafesController _cafeController =
-  Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
+      Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
   final segmentService = locator<SegmentSdkService>();
 
   @override
@@ -27,7 +28,7 @@ class _CafeSectionState extends State<CafeSection> {
   void initState() {
     super.initState();
     widget._cafeController.fetchCybercafes();
-    
+
     // Track cafe list viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.segmentService.onCafeListViewed(
@@ -42,9 +43,9 @@ class _CafeSectionState extends State<CafeSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Nearby Cafes',
-          style: TextStyle(
+          style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: Colors.white,
@@ -56,7 +57,8 @@ class _CafeSectionState extends State<CafeSection> {
               height: 230,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
                 itemCount: 3,
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
@@ -77,14 +79,13 @@ class _CafeSectionState extends State<CafeSection> {
             );
           }
 
-
           if (widget._cafeController.cybercafes.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 24.0),
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
                 child: Text(
                   'No cafes available nearby.',
-                  style: TextStyle(color: Colors.white54),
+                  style: GoogleFonts.inter(color: Colors.white54),
                 ),
               ),
             );
@@ -95,7 +96,7 @@ class _CafeSectionState extends State<CafeSection> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 10,vertical: 15),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
               itemCount: widget._cafeController.cybercafes.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
@@ -109,16 +110,17 @@ class _CafeSectionState extends State<CafeSection> {
                     // Track gaming cafe viewed event
                     final cafeId = cafe['vendor_id']?.toString() ?? '';
                     final location = cafe['location']?['address'] ?? 'Unknown';
-                    final availableGames = cafe['games']?.cast<String>() ?? ['Unknown'];
-                    
+                    final availableGames =
+                        cafe['games']?.cast<String>() ?? ['Unknown'];
+
                     widget.segmentService.onGamingCafeViewed(
                       cafeId: cafeId,
                       location: location,
                       availableGames: availableGames,
                     );
-                    
+
                     Get.to(
-                          () => ArenaDetailView(
+                      () => ArenaDetailView(
                         images: imageUrl,
                         title: cafe['cafe_name'] ?? 'Unknown Cafe',
                         address: cafe['location']?['address'] ??
@@ -126,7 +128,9 @@ class _CafeSectionState extends State<CafeSection> {
                         openingHours: '9 AM - 12 AM',
                         availableGames: const ['Game 1', 'Game 2'],
                         amenities: const ['Amenity 1', 'Amenity 2'],
-                        phone: cafe['phone'] ?? cafe['contact_number'] ?? 'Phone not available',
+                        phone: cafe['phone'] ??
+                            cafe['contact_number'] ??
+                            'Phone not available',
                         email: cafe['email'] ?? 'Email not available',
                         ownerName: cafe['owner_name'] ?? 'Owner not available',
                         reviews: const ['Great place!', 'Loved it!'],
@@ -138,7 +142,6 @@ class _CafeSectionState extends State<CafeSection> {
                     width: 300,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-
                       color: const Color(0xff0E0E0E),
                       boxShadow: [
                         BoxShadow(
@@ -158,8 +161,8 @@ class _CafeSectionState extends State<CafeSection> {
                             fit: BoxFit.cover,
                             width: 300,
                             height: 250,
-                            placeholder: (_, __) =>
-                            const Center(child: RainbowGlowingLoader(size: 40)),
+                            placeholder: (_, __) => const Center(
+                                child: RainbowGlowingLoader(size: 40)),
                             errorWidget: (_, __, ___) => Container(
                               color: Colors.grey,
                               alignment: Alignment.center,
@@ -197,7 +200,7 @@ class _CafeSectionState extends State<CafeSection> {
                                   children: [
                                     Text(
                                       cafe['cafe_name'] ?? 'Unknown Cafe',
-                                      style: const TextStyle(
+                                      style: GoogleFonts.inter(
                                           color: Colors.white,
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold),
@@ -208,7 +211,7 @@ class _CafeSectionState extends State<CafeSection> {
                                     Text(
                                       cafe['location']?['address'] ??
                                           'Address not available',
-                                      style: const TextStyle(
+                                      style: GoogleFonts.inter(
                                           color: Colors.white70, fontSize: 12),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -224,15 +227,15 @@ class _CafeSectionState extends State<CafeSection> {
                                         const SizedBox(width: 4),
                                         Text(
                                           isOpen ? 'Open' : 'Closed',
-                                          style: TextStyle(
+                                          style: GoogleFonts.inter(
                                               color: isOpen
                                                   ? Colors.greenAccent
                                                   : Colors.redAccent,
                                               fontSize: 12),
                                         ),
                                         const Spacer(),
-                                        const Text('2.3 km',
-                                            style: TextStyle(
+                                        Text('2.3 km',
+                                            style: GoogleFonts.inter(
                                                 color: Colors.white70,
                                                 fontSize: 12)),
                                       ],

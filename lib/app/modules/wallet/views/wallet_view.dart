@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';   // <-- free neon-style icon set
+import 'package:phosphor_flutter/phosphor_flutter.dart'; // <-- free neon-style icon set
 import '../controllers/razorpay_wallet_controller.dart';
 import '../controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -16,7 +16,7 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  final walletCtr   = Get.find<WalletController>();
+  final walletCtr = Get.find<WalletController>();
   final razorpayCtr = Get.put(RazorpayWalletController());
   final TextEditingController amountController = TextEditingController();
   final segmentService = locator<SegmentSdkService>();
@@ -40,7 +40,8 @@ class _WalletScreenState extends State<WalletScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      extendBodyBehindAppBar: true, // Important for gradient to cover AppBar too
+      extendBodyBehindAppBar:
+          true, // Important for gradient to cover AppBar too
       appBar: AppBar(
         title: const Text("Wallet"),
         backgroundColor: Colors.transparent,
@@ -59,7 +60,7 @@ class _WalletScreenState extends State<WalletScreen> {
             // ─────── Fullscreen Gradient Background ───────
             Positioned.fill(
               child: Container(
-                decoration:  BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -75,7 +76,7 @@ class _WalletScreenState extends State<WalletScreen> {
             Positioned.fill(
               child: IgnorePointer(
                 child: Container(
-                  decoration:  BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: RadialGradient(
                       radius: 1.5,
                       colors: [
@@ -118,17 +119,20 @@ class _WalletScreenState extends State<WalletScreen> {
           Container(
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color : Colors.black54,
+              color: Colors.black54,
             ),
             padding: const EdgeInsets.all(12),
-            child : const Icon(PhosphorIconsFill.wallet, color: Colors.greenAccent),
+            child:
+                const Icon(PhosphorIconsFill.wallet, color: Colors.greenAccent),
           ),
           const SizedBox(width: 14),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("WALLET BALANCE",
-                  style: TextStyle(color: Colors.white60, fontSize: 12)),
+              Text(
+                "WALLET BALANCE",
+                style: GoogleFonts.inter(color: Colors.white60, fontSize: 12),
+              ),
               const SizedBox(height: 4),
               Text(
                 "₹ ${walletCtr.balance}",
@@ -153,16 +157,18 @@ class _WalletScreenState extends State<WalletScreen> {
         children: [
           Text("Top-up Wallet",
               style: GoogleFonts.poppins(
-                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500)),
           const SizedBox(height: 14),
           TextField(
             controller: amountController,
             keyboardType: TextInputType.number,
-            style: const TextStyle(color: Colors.white),
+            style: GoogleFonts.inter(color: Colors.white),
             decoration: InputDecoration(
               hintText: "Enter amount (Min ₹50)",
-              hintStyle: const TextStyle(color: Colors.white38),
-              prefixIcon:  Icon(PhosphorIcons.currencyInr(),
+              hintStyle: GoogleFonts.inter(color: Colors.white38),
+              prefixIcon: Icon(PhosphorIcons.currencyInr(),
                   color: Colors.greenAccent, size: 20),
               filled: true,
               fillColor: Colors.white.withOpacity(0.05),
@@ -174,9 +180,10 @@ class _WalletScreenState extends State<WalletScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              icon : const Icon(Icons.flash_on, color: Colors.black),
-              label: const Text("TOP-UP NOW",
-                  style: TextStyle(color: Colors.black, letterSpacing: 0.5)),
+              icon: const Icon(Icons.flash_on, color: Colors.black),
+              label: Text("TOP-UP NOW",
+                  style: GoogleFonts.inter(
+                      color: Colors.black, letterSpacing: 0.5)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.greenAccent,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -188,8 +195,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 final amt = int.tryParse(amountController.text.trim());
                 if (amt == null || amt < 50) {
                   Get.snackbar("Invalid", "Minimum top-up is ₹50",
-                      backgroundColor: Colors.red,
-                      colorText: Colors.white);
+                      backgroundColor: Colors.red, colorText: Colors.white);
                   return;
                 }
                 razorpayCtr.pay(amt);
@@ -216,7 +222,7 @@ class _WalletScreenState extends State<WalletScreen> {
               onTap: () => razorpayCtr.pay(amt),
               child: Container(
                 padding:
-                const EdgeInsets.symmetric(vertical: 12, horizontal: 22),
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 22),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   gradient: const LinearGradient(

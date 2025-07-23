@@ -485,11 +485,11 @@ class _ArenaViewState extends State<ArenaView> {
             Expanded(
               child: TextField(
                 controller: _searchCtl,
-                style: const TextStyle(color: Colors.white),
+                style: GoogleFonts.inter(color: Colors.white),
                 cursorColor: const Color(0xff338125),
-                decoration: const InputDecoration(
+                decoration:  InputDecoration(
                   hintText: 'Search location',
-                  hintStyle: TextStyle(color: Colors.white70),
+                  hintStyle: GoogleFonts.inter(color: Colors.white70),
                   border: InputBorder.none,
                 ),
                 onSubmitted: (_) => _searchAndGo(),
@@ -638,7 +638,7 @@ class _ArenaViewState extends State<ArenaView> {
         children: [
           Text(
             cafe['cafe_name'] ?? 'Unknown',
-            style: const TextStyle(
+            style: GoogleFonts.inter(
                 color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
@@ -650,7 +650,7 @@ class _ArenaViewState extends State<ArenaView> {
               const SizedBox(width: 4),
               Text(
                 _isShopOpen(cafe) ? 'Open' : 'Closed',
-                style: TextStyle(
+                style: GoogleFonts.inter(
                     color: _isShopOpen(cafe) ? Colors.green : Colors.red),
               ),
               const SizedBox(width: 8),
@@ -660,7 +660,7 @@ class _ArenaViewState extends State<ArenaView> {
                   final dist = snap.data?['distance'] ?? '--';
                   final dur = snap.data?['duration'] ?? '--';
                   return Text('$dist · $dur',
-                      style: const TextStyle(color: Colors.white70));
+                      style: GoogleFonts.inter(color: Colors.white70));
                 },
               ),
               const Spacer(),
@@ -738,16 +738,16 @@ class _ArenaViewState extends State<ArenaView> {
                           ),
                           child: TextField(
                             controller: _searchCtl,
-                            style: const TextStyle(color: Colors.white),
+                            style: GoogleFonts.inter(color: Colors.white),
                             cursorColor: const Color(0xff338125),
-                            decoration: const InputDecoration(
+                            decoration:  InputDecoration(
                               prefixIcon:
-                                  Icon(Icons.search, color: Colors.white70),
+                                  const Icon(Icons.search, color: Colors.white70),
                               hintText: 'Search location',
-                              hintStyle: TextStyle(color: Colors.white70),
+                              hintStyle: GoogleFonts.inter(color: Colors.white70),
                               border: InputBorder.none,
                               contentPadding:
-                                  EdgeInsets.symmetric(vertical: 16),
+                                  const EdgeInsets.symmetric(vertical: 16),
                             ),
                             onSubmitted: (_) => _searchAndGo(),
                           ),
@@ -784,9 +784,9 @@ class _ArenaViewState extends State<ArenaView> {
                       ),
                       Expanded(
                         child: _cafeCtr.cybercafes.isEmpty
-                            ? const Center(
+                            ?  Center(
                                 child: Text('No cybercafes available',
-                                    style: TextStyle(color: Colors.white70)))
+                                    style: GoogleFonts.inter(color: Colors.white70)))
                             : ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 padding:

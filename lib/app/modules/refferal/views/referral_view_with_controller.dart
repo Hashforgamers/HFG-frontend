@@ -203,7 +203,7 @@ class _ReferralViewWithControllerState
                   referralCode: referralCode,
                   channel: 'share',
                 );
-                
+
                 Share.share(
                     'Join HashforGamers with my code 👉 $code (unlimited rewards!)');
               },
@@ -549,7 +549,7 @@ class _ReferralViewWithControllerState
         centerTitle: false,
         backgroundColor: Colors.black,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: RichText(

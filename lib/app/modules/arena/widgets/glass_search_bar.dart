@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class GlassSearchBar extends StatefulWidget {
@@ -50,11 +51,11 @@ class _GlassSearchBarState extends State<GlassSearchBar> {
             Expanded(
               child: TextField(
                 controller: _searchCtl,
-                style: const TextStyle(color: Colors.white),
+                style: GoogleFonts.inter(color: Colors.white),
                 cursorColor: const Color(0xff338125),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Search location',
-                  hintStyle: TextStyle(color: Colors.white70),
+                  hintStyle: GoogleFonts.inter(color: Colors.white70),
                   border: InputBorder.none,
                 ),
                 onSubmitted: (_) => _searchAndGo(),
