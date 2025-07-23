@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,6 +29,7 @@ class SignUpController extends GetxController {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
   final remoteRepo = locator<RemoteRepoInterface>();
 
   @override
@@ -40,6 +42,7 @@ class SignUpController extends GetxController {
 
     // Track signup started event
     segmentService.onSignupStarted(referralCode: referralCodeController.text);
+    fbEventsService.onSignupStarted(referralCode: referralCodeController.text);
 
     isLoading.value = true;
     try {
@@ -76,9 +79,17 @@ class SignUpController extends GetxController {
           referredBy: referralCodeController.text,
           referralBonusEarned: true, // Assuming bonus is earned
         );
+        fbEventsService.onReferralJoined(
+          referredBy: referralCodeController.text,
+          referralBonusEarned: true, // Assuming bonus is earned
+        );
       }
 
       segmentService.onSignupCompleted(
+        referralBy: '',
+        userId: currentUser.uid,
+      );
+      fbEventsService.onSignupCompleted(
         referralBy: '',
         userId: currentUser.uid,
       );
@@ -137,6 +148,11 @@ class SignUpController extends GetxController {
     if (status.isGranted) {
       // Track permissions granted event
       segmentService.onPermissionsGranted(
+        location: true,
+        notification: false, // We'll need to check notification permission separately
+        contacts: false, // We'll need to check contacts permission separately
+      );
+      fbEventsService.onPermissionsGranted(
         location: true,
         notification: false, // We'll need to check notification permission separately
         contacts: false, // We'll need to check contacts permission separately

@@ -4,6 +4,7 @@ import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 
 import '../arena/views/past_booking_screen.dart';
 import '../home/controllers/home_controller.dart';
@@ -13,6 +14,7 @@ class RazorpayController extends GetxController {
   late Razorpay _razorpay;
   final _remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
   RxList<int> bookingIdList = <int>[].obs;
   RxBool  isPaymentInProgress = false.obs;
@@ -61,6 +63,11 @@ class RazorpayController extends GetxController {
         amount: amount,
         paymentMethodSelected: 'razorpay',
       );
+      fbEventsService.onPaymentInitiated(
+        bookingId: orderId,
+        amount: amount,
+        paymentMethodSelected: 'razorpay',
+      );
       
       _razorpay.open(options);
     } catch (e) {
@@ -88,6 +95,11 @@ class RazorpayController extends GetxController {
       bookingId: bookingIdList.first.toString(),
       paymentGateway: 'razorpay',
     );
+    fbEventsService.onPaymentSuccess(
+      transactionId: r.paymentId ?? '',
+      bookingId: bookingIdList.first.toString(),
+      paymentGateway: 'razorpay',
+    );
 
     await _confirmBooking(
       bookingIds : bookingIdList.toList(),
@@ -101,6 +113,10 @@ class RazorpayController extends GetxController {
     
     // Track payment failed event
     segmentService.onPaymentFailed(
+      reason: r.message ?? 'Unknown error',
+      paymentGateway: 'razorpay',
+    );
+    fbEventsService.onPaymentFailed(
       reason: r.message ?? 'Unknown error',
       paymentGateway: 'razorpay',
     );

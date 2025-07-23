@@ -3,6 +3,7 @@ import 'package:carousel_slider/carousel_slider.dart' as carousel_slider;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 
 class EventBanner extends StatefulWidget {
@@ -14,6 +15,7 @@ class EventBanner extends StatefulWidget {
 
 class _EventBannerState extends State<EventBanner> {
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
   @override
   void initState() {
@@ -21,6 +23,10 @@ class _EventBannerState extends State<EventBanner> {
     // Track campaign viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
       segmentService.onCampaignViewed(
+        source: 'home_screen',
+        campaignId: 'event_banner_001',
+      );
+      fbEventsService.onCampaignViewed(
         source: 'home_screen',
         campaignId: 'event_banner_001',
       );
@@ -33,6 +39,10 @@ class _EventBannerState extends State<EventBanner> {
       onTap: () {
         // Track campaign conversion event
         segmentService.onCampaignConversion(
+          campaignId: 'event_banner_001',
+          action: 'banner_clicked',
+        );
+        fbEventsService.onCampaignConversion(
           campaignId: 'event_banner_001',
           action: 'banner_clicked',
         );
