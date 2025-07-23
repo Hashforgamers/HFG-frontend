@@ -38,36 +38,43 @@ class BookingCard extends StatelessWidget {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.black,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           content: Column(
-            mainAxisSize: MainAxisSize.min, // Ensures the dialog doesn't take unnecessary space
+            mainAxisSize: MainAxisSize
+                .min, // Ensures the dialog doesn't take unnecessary space
             children: [
               Text(
                 'Booking QR Code',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               // Ensure QrImageView has proper constraints
               SizedBox(
                 width: 200, // Set width for QR code
                 height: 200, // Set height for QR code
                 child: QrImageView(
                   data:
-                  'Booking ID: $bookingId\nGame: $gameName\nLocation: $location\nTime: $startTime - $endTime\nPrice: ₹${price.toStringAsFixed(2)}\nStatus: $status',
+                      'Booking ID: $bookingId\nGame: $gameName\nLocation: $location\nTime: $startTime - $endTime\nPrice: ₹${price.toStringAsFixed(2)}\nStatus: $status',
                   version: QrVersions.auto,
                   foregroundColor: Colors.white,
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pop();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.redAccent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
-                child: Text('Close', style: TextStyle(color: Colors.white)),
+                child: Text('Close',
+                    style: GoogleFonts.inter(color: Colors.white)),
               ),
             ],
           ),
@@ -80,14 +87,18 @@ class BookingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Get.to(() => ViewDetailScreen(booking: booking,startTime: startTime,endTime: endTime,));
+        Get.to(() => ViewDetailScreen(
+              booking: booking,
+              startTime: startTime,
+              endTime: endTime,
+            ));
       },
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+        margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
         height: 80,
         width: Get.width * 0.85,
         decoration: BoxDecoration(
-          color: Color(0xff1A1A1A),
+          color: const Color(0xff1A1A1A),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Padding(
@@ -105,47 +116,56 @@ class BookingCard extends StatelessWidget {
                       children: [
                         Text(
                           cafeName.toUpperCase(),
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xffDE3A3A)
-                          ),
+                              color: const Color(0xffDE3A3A)),
                           overflow: TextOverflow.ellipsis,
                         ),
-
-                        SizedBox(height: 6),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
                             Text(
                               '$startTime ----- ',
-                              style: GoogleFonts.tulpenOne(fontSize: 38, color: Colors.white,),
+                              style: GoogleFonts.tulpenOne(
+                                fontSize: 38,
+                                color: Colors.white,
+                              ),
                             ),
-                            Image.asset('assets/game-controller.png',scale: 15,color: Colors.white,),
-                            Text(
-                                ' ----- $endTime',
-                                style: GoogleFonts.tulpenOne(fontSize: 38, color: Colors.white,)
+                            Image.asset(
+                              'assets/game-controller.png',
+                              scale: 15,
+                              color: Colors.white,
                             ),
+                            Text(' ----- $endTime',
+                                style: GoogleFonts.tulpenOne(
+                                  fontSize: 38,
+                                  color: Colors.white,
+                                )),
                           ],
                         ),
-
                       ],
                     ),
                   ),
-                  DottedVerticalDivider(
+                  const DottedVerticalDivider(
                     height: 70,
                     dotSize: 1,
                     spacing: 3,
                     color: Colors.grey,
                   ),
-                  SizedBox(width: 15,),
+                  const SizedBox(width: 15),
                   Column(
                     children: [
                       GestureDetector(
-                        onTap: () =>
-                            Get.to(() => ViewDetailScreen(booking: booking,startTime: startTime,endTime: endTime,)),
+                        onTap: () => Get.to(() => ViewDetailScreen(
+                              booking: booking,
+                              startTime: startTime,
+                              endTime: endTime,
+                            )),
                         child: Container(
                           width: 80, // Set fixed width
-                          padding: EdgeInsets.symmetric(vertical: 8), // Padding for height
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8), // Padding for height
                           decoration: BoxDecoration(
                             color: Colors.black,
                             borderRadius: BorderRadius.circular(8),
@@ -153,21 +173,21 @@ class BookingCard extends StatelessWidget {
                           child: Center(
                             child: Text(
                               'VIEW DETAILS',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
                       ),
-                      SizedBox(height: 10), // Spacing between buttons
+                      const SizedBox(height: 10), // Spacing between buttons
                       GestureDetector(
                         onTap: () => _showQrCode(context),
                         child: Container(
                           width: 80, // Same width as the first button
-                          padding: EdgeInsets.symmetric(vertical: 8), // Padding for height
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8), // Padding for height
                           decoration: BoxDecoration(
                             color: Colors.black,
                             borderRadius: BorderRadius.circular(8),
@@ -175,19 +195,16 @@ class BookingCard extends StatelessWidget {
                           child: Center(
                             child: Text(
                               'SHOW QR',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
                       ),
                     ],
                   )
-
-
                 ],
               ),
             ],

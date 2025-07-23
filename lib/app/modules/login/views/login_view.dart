@@ -22,7 +22,8 @@ class LoginView extends StatelessWidget {
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -65,7 +66,8 @@ class LoginView extends StatelessWidget {
                         maxLength: 10,
                         decoration: InputDecoration(
                           labelText: 'Phone Number',
-                          prefix: const Text(' +91 ', style: TextStyle(color: Colors.white)),
+                          prefix: const Text(' +91 ',
+                              style: TextStyle(color: Colors.white)),
                           counterText: '',
                           labelStyle: const TextStyle(color: Colors.white70),
                           enabledBorder: OutlineInputBorder(
@@ -73,7 +75,8 @@ class LoginView extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Color(0xff3AFF6B)),
+                            borderSide:
+                                const BorderSide(color: Color(0xff3AFF6B)),
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
@@ -119,9 +122,10 @@ class LoginView extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Continue',
-                                style: TextStyle(color: Colors.white, fontSize: 16),
+                                style: GoogleFonts.inter(
+                                    color: Colors.white, fontSize: 16),
                               ),
                             ),
                           ),
@@ -139,13 +143,14 @@ class LoginView extends StatelessWidget {
           // ─── overlay loader ───────────────────────────────────────────────
           Obx(() => controller.isLoading.value
               ? Container(
-            color: Colors.black.withOpacity(0.5),
-            child: const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
-              ),
-            ),
-          )
+                  color: Colors.black.withOpacity(0.5),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
+                    ),
+                  ),
+                )
               : const SizedBox.shrink()),
         ],
       ),

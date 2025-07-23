@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../controllers/review_controller.dart';
 
@@ -28,18 +29,19 @@ class ReviewPage extends StatelessWidget {
         ),
         Obx(() {
           if (reviewController.isLoading.value) {
-            return Center(child: RainbowGlowingLoader(size: 50),);
+            return Center(
+              child: RainbowGlowingLoader(size: 50),
+            );
           }
           return ListView.builder(
             physics: NeverScrollableScrollPhysics(),
-
             shrinkWrap: true,
             itemCount: reviewController.reviews.length,
             itemBuilder: (context, index) {
               final review = reviewController.reviews[index];
               print('rev ${review['reviews'][index]['comment']}');
               return ListView.builder(
-                physics: NeverScrollableScrollPhysics(),
+                  physics: NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
                   itemCount: review['reviews'].length,
                   itemBuilder: (context, index) {
@@ -74,8 +76,8 @@ class ReviewWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 5),
-      padding: EdgeInsets.all(14),
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.all(14),
       decoration: ShapeDecoration(
         color: Colors.black26,
         shape: ContinuousRectangleBorder(
@@ -87,19 +89,23 @@ class ReviewWidget extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.star, color: Colors.yellow, size: 20),
-              SizedBox(width: 5),
-              Text(rating.toString(),
-                  style: TextStyle(color: Colors.white, fontSize: 16)),
-              SizedBox(width: 10),
-              Text('by $user',
-                  style: TextStyle(color: Colors.white70, fontSize: 15)),
+              const Icon(Icons.star, color: Colors.yellow, size: 20),
+              const SizedBox(width: 5),
+              Text(
+                rating.toString(),
+                style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'by $user',
+                style: GoogleFonts.inter(color: Colors.white70, fontSize: 15),
+              ),
             ],
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Text(
             comment,
-            style: TextStyle(color: Colors.white70, fontSize: 14),
+            style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
           ),
         ],
       ),

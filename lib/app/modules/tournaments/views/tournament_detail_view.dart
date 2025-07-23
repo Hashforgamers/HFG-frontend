@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class TournamentDetailView extends StatelessWidget {
   @override
@@ -10,12 +11,12 @@ class TournamentDetailView extends StatelessWidget {
           backgroundColor: Colors.black,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: Colors.white),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () {
               Navigator.of(context).pop();
             },
           ),
-          bottom: TabBar(
+          bottom: const TabBar(
             indicatorColor: Color(0xffDE3A3A),
             isScrollable: true,
             tabs: [
@@ -44,8 +45,8 @@ class TournamentDetailView extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, color: Colors.green),
-        SizedBox(width: 5),
-        Text(text, style: TextStyle(color: Colors.white)),
+        const SizedBox(width: 5),
+        Text(text, style: GoogleFonts.inter(color: Colors.white)),
       ],
     );
   }
@@ -55,12 +56,12 @@ class TournamentDetailView extends StatelessWidget {
       children: [
         Text(
           title,
-          style: TextStyle(color: Colors.grey, fontSize: 12),
+          style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
         ),
-        SizedBox(height: 5),
+        const SizedBox(height: 5),
         Text(
           detail,
-          style: TextStyle(color: Colors.white, fontSize: 14),
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
         ),
       ],
     );
@@ -74,11 +75,11 @@ class TournamentDetailView extends StatelessWidget {
           children: [
             TextSpan(
               text: '$title: ',
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.grey, fontSize: 14),
             ),
             TextSpan(
               text: detail,
-              style: TextStyle(color: Colors.white, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
           ],
         ),
@@ -94,17 +95,17 @@ class TournamentDetailView extends StatelessWidget {
           color: Colors.grey[800],
           borderRadius: BorderRadius.circular(10),
         ),
-        padding: EdgeInsets.all(10),
+        padding: const EdgeInsets.all(10),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               prize,
-              style: TextStyle(color: Colors.white, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
             Text(
               '₹ $amount',
-              style: TextStyle(color: Colors.yellow, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.yellow, fontSize: 14),
             ),
           ],
         ),
@@ -120,23 +121,23 @@ class TournamentDetailView extends StatelessWidget {
           color: Colors.grey[800],
           borderRadius: BorderRadius.circular(10),
         ),
-        padding: EdgeInsets.all(10),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               round,
-              style: TextStyle(color: Colors.white, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
-            SizedBox(height: 5),
+            const SizedBox(height: 5),
             Text(
               type,
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+              style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
             ),
-            SizedBox(height: 5),
+            const SizedBox(height: 5),
             Text(
               detail,
-              style: TextStyle(color: Colors.white, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
           ],
         ),
@@ -149,19 +150,20 @@ class OverviewTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(10),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             height: 200,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               image: DecorationImage(
-                image: NetworkImage('https://t4.ftcdn.net/jpg/05/57/61/79/360_F_557617905_iSt6BAH73qgXHULb0ZpHOwADFj7tX6q8.jpg'), // Replace with actual image URL
+                image: NetworkImage(
+                    'https://t4.ftcdn.net/jpg/05/57/61/79/360_F_557617905_iSt6BAH73qgXHULb0ZpHOwADFj7tX6q8.jpg'), // Replace with actual image URL
                 fit: BoxFit.cover,
               ),
             ),
-            child: Stack(
+            child: const Stack(
               children: [
                 Positioned(
                   top: 10,
@@ -171,17 +173,18 @@ class OverviewTab extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Text(
             'NOV 18 2023, 12:00AM  Registration ends in 4 days',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
           ),
-          SizedBox(height: 5),
+          const SizedBox(height: 5),
           Text(
             'Tournament Name Will Come Here',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            style: GoogleFonts.inter(
+                color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -190,7 +193,7 @@ class OverviewTab extends StatelessWidget {
               _buildInfoIcon(Icons.people, '120/2000'),
             ],
           ),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
@@ -201,27 +204,30 @@ class OverviewTab extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           Text(
             'Get ready to showcase your gaming prowess and experience thrilling team-based battles in the heart of Delhi. This is your chance to engage in epic showdowns, forge new strategies, and meet a gaming icon—all in one thrilling event.',
-            style: TextStyle(color: Colors.white, fontSize: 14),
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           _buildEventDetail('Date', 'WILL BE DISCLOSED SOON'),
           _buildEventDetail('Location', 'WILL BE DISCLOSED SOON'),
           _buildEventDetail('Time', 'WILL BE DISCLOSED SOON'),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Text(
             'PRIZE DISTRIBUTION',
-            style: TextStyle(color: Colors.grey, fontSize: 16),
+            style: GoogleFonts.inter(color: Colors.grey, fontSize: 16),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           _buildPrizeDistribution('1ST PRIZE', '30000'),
           _buildPrizeDistribution('2ND PRIZE', '20000'),
-          SizedBox(height: 20),
-          _buildRoundDetail('Round 1', 'Single Elimination', 'Top 1 Team Per Group'),
-          _buildRoundDetail('Round 2', 'Single Elimination', 'Top 1 Team Per Group'),
-          _buildRoundDetail('Round 3', 'Single Elimination', 'Top 1 Team Per Group'),
+          const SizedBox(height: 20),
+          _buildRoundDetail(
+              'Round 1', 'Single Elimination', 'Top 1 Team Per Group'),
+          _buildRoundDetail(
+              'Round 2', 'Single Elimination', 'Top 1 Team Per Group'),
+          _buildRoundDetail(
+              'Round 3', 'Single Elimination', 'Top 1 Team Per Group'),
           _buildRoundDetail('Round 4', 'Single Elimination', 'Winner'),
         ],
       ),
@@ -232,8 +238,8 @@ class OverviewTab extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, color: Colors.white),
-        SizedBox(width: 5),
-        Text(text, style: TextStyle(color: Colors.white)),
+        const SizedBox(width: 5),
+        Text(text, style: GoogleFonts.inter(color: Colors.white)),
       ],
     );
   }
@@ -243,12 +249,12 @@ class OverviewTab extends StatelessWidget {
       children: [
         Text(
           title,
-          style: TextStyle(color: Colors.grey, fontSize: 12),
+          style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
         ),
-        SizedBox(height: 5),
+        const SizedBox(height: 5),
         Text(
           detail,
-          style: TextStyle(color: Colors.white, fontSize: 14),
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
         ),
       ],
     );
@@ -262,11 +268,11 @@ class OverviewTab extends StatelessWidget {
           children: [
             TextSpan(
               text: '$title: ',
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.grey, fontSize: 14),
             ),
             TextSpan(
               text: detail,
-              style: TextStyle(color: Colors.white, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
           ],
         ),
@@ -282,17 +288,17 @@ class OverviewTab extends StatelessWidget {
           color: Colors.grey[800],
           borderRadius: BorderRadius.circular(10),
         ),
-        padding: EdgeInsets.all(10),
+        padding: const EdgeInsets.all(10),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               prize,
-              style: TextStyle(color: Colors.white, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
             Text(
               '₹ $amount',
-              style: TextStyle(color: Colors.yellow, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.yellow, fontSize: 14),
             ),
           ],
         ),
@@ -308,23 +314,23 @@ class OverviewTab extends StatelessWidget {
           color: Colors.grey[800],
           borderRadius: BorderRadius.circular(10),
         ),
-        padding: EdgeInsets.all(10),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               round,
-              style: TextStyle(color: Colors.white, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
-            SizedBox(height: 5),
+            const SizedBox(height: 5),
             Text(
               type,
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+              style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
             ),
-            SizedBox(height: 5),
+            const SizedBox(height: 5),
             Text(
               detail,
-              style: TextStyle(color: Colors.white, fontSize: 14),
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
           ],
         ),
@@ -337,7 +343,8 @@ class ScheduleTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text('Schedule Content', style: TextStyle(color: Colors.white)),
+      child: Text('Schedule Content',
+          style: GoogleFonts.inter(color: Colors.white)),
     );
   }
 }
@@ -346,7 +353,10 @@ class TeamsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text('Teams Content', style: TextStyle(color: Colors.white)),
+      child: Text(
+        'Teams Content',
+        style: GoogleFonts.inter(color: Colors.white),
+      ),
     );
   }
 }
@@ -355,7 +365,10 @@ class CredentialsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text('Credentials Content', style: TextStyle(color: Colors.white)),
+      child: Text(
+        'Credentials Content',
+        style: GoogleFonts.inter(color: Colors.white),
+      ),
     );
   }
 }
@@ -364,7 +377,10 @@ class ResultsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text('Results Content', style: TextStyle(color: Colors.white)),
+      child: Text(
+        'Results Content',
+        style: GoogleFonts.inter(color: Colors.white),
+      ),
     );
   }
 }

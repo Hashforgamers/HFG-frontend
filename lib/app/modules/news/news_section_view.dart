@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -34,6 +35,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     _animController.dispose();
     super.dispose();
   }
+
   Widget _newsShimmerCard() {
     return Shimmer.fromColors(
       baseColor: Colors.grey.shade800,
@@ -58,13 +60,12 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-            itemCount: 3,                                // 3 shimmer cards
+            itemCount: 3, // 3 shimmer cards
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (_, __) => _newsShimmerCard(),
           ),
         );
       }
-
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,14 +81,13 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                     width: 24,
                     frameRate: FrameRate(60), // Makes animation smoother
                   )),
-              const Text(
+              Text(
                 ' GAMER FIREWIRE',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1.5,
-                ),
+                style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.5),
               ),
             ],
           ),
@@ -194,24 +194,20 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                 children: [
                   Text(
                     title.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 16.5,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.1,
-                      height: 1.3,
-                    ),
+                    style: GoogleFonts.inter(
+                        fontSize: 16.5,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
+                        height: 1.3),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 10),
                   Text(
                     deck,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      color: Colors.white70,
-                      height: 1.5,
-                    ),
+                    style: GoogleFonts.inter(
+                        fontSize: 13.5, color: Colors.white70, height: 1.5),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -222,18 +218,17 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                     endIndent: 40,
                   ),
                   const SizedBox(height: 4),
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.play_arrow,
+                      const Icon(Icons.play_arrow,
                           size: 16, color: Colors.cyanAccent),
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Text(
                         "Read Article",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.cyanAccent,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: Colors.cyanAccent,
+                            fontWeight: FontWeight.bold),
                       )
                     ],
                   ),

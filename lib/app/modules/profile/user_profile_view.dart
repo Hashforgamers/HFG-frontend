@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/hash_coin/pages/hash_coin_page.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
@@ -21,7 +22,7 @@ class UserProfileView extends StatelessWidget {
       bottomNavigationBar: _buildLogoutButton(),
       appBar: AppBar(
         centerTitle: false,
-        title: const Text('Profile', style: TextStyle(color: Colors.white)),
+        title: Text('Profile', style: GoogleFonts.inter(color: Colors.white)),
         backgroundColor: Colors.black,
       ),
       body: Padding(
@@ -100,7 +101,7 @@ class UserProfileView extends StatelessWidget {
   Widget _buildProfileHeader(UserController userController) {
     return Obx(() {
       if (userController.isLoading.value) {
-        return Center(
+        return const Center(
           child: RainbowGlowingLoader(size: 50),
         );
       }
@@ -109,7 +110,7 @@ class UserProfileView extends StatelessWidget {
 
       return Column(
         children: [
-          CircleAvatar(
+          const CircleAvatar(
             radius: 50,
             backgroundImage: CachedNetworkImageProvider(
               'https://t4.ftcdn.net/jpg/03/20/70/67/360_F_320706748_9EHt2oP8NgekFXsM3INJtN7HhdRHOTJN.jpg', // Replace with actual profile image URL
@@ -118,13 +119,13 @@ class UserProfileView extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             user.name!,
-            style: TextStyle(
+            style: GoogleFonts.inter(
                 color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
           Text(
             user.contact?.electronicAddress?.emailId ?? "",
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+            style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
           ),
         ],
       );
@@ -139,7 +140,7 @@ class UserProfileView extends StatelessWidget {
       leading: Icon(icon, color: Colors.green),
       title: Text(
         title,
-        style: const TextStyle(color: Colors.white, fontSize: 18),
+        style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
       ),
       trailing: const Icon(CupertinoIcons.forward, color: Colors.white70),
       onTap: onTap,
@@ -166,8 +167,10 @@ class UserProfileView extends StatelessWidget {
           ),
           minimumSize: const Size(double.infinity, 50),
         ),
-        child: const Text('Logout',
-            style: TextStyle(color: Colors.white, fontSize: 18)),
+        child: Text(
+          'Logout',
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
+        ),
       ),
     );
   }

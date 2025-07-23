@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/firebase_service.dart';
 
 class AddCafeScreen extends StatefulWidget {
@@ -35,10 +36,11 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
 
     try {
       // First, get location from pincode
-      List<Location> locations = await locationFromAddress(_pincodeController.text);
+      List<Location> locations =
+          await locationFromAddress(_pincodeController.text);
       if (locations.isNotEmpty) {
         Location location = locations.first;
-        
+
         // Then, get address details from coordinates
         List<Placemark> placemarks = await placemarkFromCoordinates(
           location.latitude,
@@ -51,7 +53,8 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
             if (place.street?.isNotEmpty ?? false) place.street,
             if (place.subLocality?.isNotEmpty ?? false) place.subLocality,
             if (place.locality?.isNotEmpty ?? false) place.locality,
-            if (place.administrativeArea?.isNotEmpty ?? false) place.administrativeArea,
+            if (place.administrativeArea?.isNotEmpty ?? false)
+              place.administrativeArea,
             if (place.postalCode?.isNotEmpty ?? false) place.postalCode,
             if (place.country?.isNotEmpty ?? false) place.country,
           ].where((s) => s != null && s.isNotEmpty).join(', ');
@@ -117,9 +120,9 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: const Text(
+        title: Text(
           'Add New Cafe',
-          style: TextStyle(color: Colors.white),
+          style: GoogleFonts.inter(color: Colors.white),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -135,9 +138,9 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Cafe Details',
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -146,10 +149,10 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                   const SizedBox(height: 24),
                   TextFormField(
                     controller: _nameController,
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.inter(color: Colors.white),
                     decoration: InputDecoration(
                       labelText: 'Cafe Name',
-                      labelStyle: const TextStyle(color: Colors.white70),
+                      labelStyle: GoogleFonts.inter(color: Colors.white70),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(color: Colors.white24),
@@ -177,7 +180,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _pincodeController,
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.inter(color: Colors.white),
                     keyboardType: TextInputType.number,
                     maxLength: 6,
                     onChanged: (value) {
@@ -187,8 +190,8 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                     },
                     decoration: InputDecoration(
                       labelText: 'Cafe Pincode',
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      counterStyle: const TextStyle(color: Colors.white70),
+                      labelStyle: GoogleFonts.inter(color: Colors.white70),
+                      counterStyle: GoogleFonts.inter(color: Colors.white70),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(color: Colors.white24),
@@ -221,18 +224,19 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                     children: [
                       TextFormField(
                         controller: _addressController,
-                        style: const TextStyle(color: Colors.white),
+                        style: GoogleFonts.inter(color: Colors.white),
                         maxLines: 3,
                         decoration: InputDecoration(
                           labelText: 'Cafe Address',
-                          labelStyle: const TextStyle(color: Colors.white70),
+                          labelStyle: GoogleFonts.inter(color: Colors.white70),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: const BorderSide(color: Colors.white24),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xffDE3A3A)),
+                            borderSide:
+                                const BorderSide(color: Color(0xffDE3A3A)),
                           ),
                           errorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -290,9 +294,9 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                                 ),
                               ),
                             )
-                          : const Text(
+                          : Text(
                               'Submit',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -317,4 +321,4 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
       ),
     );
   }
-} 
+}
