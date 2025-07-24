@@ -648,7 +648,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 Text(
                   '₹${totalPrice.toInt()}',
                   style: GoogleFonts.inter(
-                    color: Colors.greenAccent,
+                    color: Colors.green,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),

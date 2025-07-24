@@ -113,11 +113,15 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                         items:  [
                           DropdownMenuItem(
                             value: 'newer',
-                            child: Text('Newer First', style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
+                            child: Text('Newer First',
+                                style: GoogleFonts.inter(
+                                    color: Colors.white, fontSize: 12)),
                           ),
                           DropdownMenuItem(
                             value: 'older',
-                            child: Text('Older First', style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
+                            child: Text('Older First',
+                                style: GoogleFonts.inter(
+                                    color: Colors.white, fontSize: 12)),
                           ),
                         ],
                         onChanged: (String? newValue) {
@@ -141,14 +145,14 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
               //     labelPadding: const EdgeInsets.symmetric(horizontal: 16),
               //     labelColor: const Color(0xff338125),
               //     unselectedLabelColor: Colors.white70,
-              //     labelStyle:  GoogleFonts.inter(
+              //     labelStyle: const TextStyle(
               //         fontWeight: FontWeight.bold, fontSize: 18),
-              //     unselectedLabelStyle:  GoogleFonts.inter(
+              //     unselectedLabelStyle: const TextStyle(
               //         fontWeight: FontWeight.w500, fontSize: 18),
-              //     tabs:  [
-              //       Tab(child: Text('All',style: GoogleFonts.inter(color: Colors.green),)),
-              //       Tab(child: Text('Upcoming',style: GoogleFonts.inter(color: Colors.green),)),
-              //       Tab(child: Text('Completed',style: GoogleFonts.inter(color: Colors.green),)),
+              //     tabs: const [
+              //       Tab(child: Text('All',style: TextStyle(color: Colors.green),)),
+              //       Tab(child: Text('Upcoming',style: TextStyle(color: Colors.green),)),
+              //       Tab(child: Text('Completed',style: TextStyle(color: Colors.green),)),
               //     ],
               //   ),
               // ),
@@ -384,9 +388,9 @@ class BookingTicketCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          const Text(
-                            'Booking ID',
-                            style: TextStyle(
+                          Text(
+                    'Booking ID',
+                    style: GoogleFonts.inter(
                               color: Colors.white70,
                               fontSize: 10, // Reduced from 12
                             ),
@@ -403,12 +407,13 @@ class BookingTicketCard extends StatelessWidget {
                               backgroundColor: const Color(0xFF338125),
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), // very slim
                               minimumSize: const Size(0, 28), // optional: control height
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(4),
                               ),
-                              textStyle: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w400,
+                              textStyle: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w400,
                               ),
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap, // avoid extra height
                               elevation: 0, // optional: keep it flat
@@ -419,17 +424,17 @@ class BookingTicketCard extends StatelessWidget {
                         ],
                       ),
 
-                      const SizedBox(width: 12), // Reduced from 18
-                      const SizedBox(
-                        height: 130, // Reduced from 100
-                        child: DottedLine(
-                          direction: Axis.vertical,
-                          dashColor: Colors.white12,
-                          dashLength: 7, // Reduced from 4
-                          dashGapLength: 7, // Reduced from 4
-                        ),
-                      ),
-                      const SizedBox(width: 12), // Reduced from 18
+              const SizedBox(width: 12), // Reduced from 18
+              SizedBox(
+                height: 80, // Reduced from 100
+                child: DottedLine(
+                  direction: Axis.vertical,
+                  dashColor: Colors.white12,
+                  dashLength: 3, // Reduced from 4
+                  dashGapLength: 3, // Reduced from 4
+                ),
+              ),
+              const SizedBox(width: 12), // Reduced from 18
 
                       // Right Section
                       Expanded(
@@ -438,7 +443,7 @@ class BookingTicketCard extends StatelessWidget {
                           children: [
                             Text(
                               '$cafe - $game',
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14, // Reduced from 16
@@ -447,7 +452,7 @@ class BookingTicketCard extends StatelessWidget {
                             const SizedBox(height: 4), // Reduced from 6
                             Text(
                               '$start - $end',
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white54,
                                 fontSize: 11, // Reduced from 13
                               ),
@@ -455,7 +460,7 @@ class BookingTicketCard extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               'Date: $formattedDate',
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white54,
                                 fontSize: 11, // Reduced from 13
                               ),
@@ -463,7 +468,7 @@ class BookingTicketCard extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               'Status: $formattedStatus',
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white54,
                                 fontSize: 11, // Reduced from 13
                               ),
@@ -485,7 +490,7 @@ class BookingTicketCard extends StatelessWidget {
                                 const SizedBox(width: 4), // Reduced from 6
                                 Text(
                                   'Access Code: $displayAccessCode',
-                                  style: const TextStyle(
+                                  style: GoogleFonts.inter(
                                     fontSize: 11, // Reduced from 13
                                     color: Colors.white70,
                                     letterSpacing: 1,

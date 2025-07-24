@@ -417,12 +417,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               const SizedBox(height: 12),
 
               Obx(() => Row(
-                children: [
-                  _paymentChip('Wallet', Icons.account_balance_wallet, 'wallet'),
-                  const SizedBox(width: 12),
-                  _paymentChip('UPI/CARD', Icons.credit_card, 'gateway'),
-                ],
-              )),
+                    children: [
+                      _paymentChip(
+                          'Wallet', Icons.account_balance_wallet, 'wallet'),
+                      const SizedBox(width: 12),
+                      _paymentChip(
+                          'UPI/CARD', Icons.credit_card, 'gateway'),
+                    ],
+                  )),
               Divider(height: 32, color: Colors.grey.shade800),
             ],
           ),
@@ -443,7 +445,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   children: [
                     Obx(() => Text(
                       '₹${calculateTotalPrice().toStringAsFixed(2)}',
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.white),
@@ -451,13 +453,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     ElevatedButton(
                       onPressed: _isProcessingPayment.value
                           ? null
-                          : () => handleBooking(
-                        context,
-                        isVoucherApplied: _appliedVoucher.value != null,
-                        useWallet: _selectedPayment.value == 'wallet',
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF338125),
+                          :
+                        () => handleBooking(
+                              context,
+                              isVoucherApplied: _appliedVoucher.value != null,
+                              useWallet: _selectedPayment.value == 'wallet',
+                            ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF338125),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                             vertical: 14, horizontal: 24),
@@ -472,8 +475,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               child: CircularProgressIndicator(
                                   color: Colors.white, strokeWidth: 2));
                         }
-                        return const Text('PROCEED',
-                            style: TextStyle(
+                        return Text('PROCEED',
+                          style: GoogleFonts.inter(
                                 fontSize: 16, fontWeight: FontWeight.bold));
                       }),
                     ),
@@ -483,7 +486,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             ),
           ),
         ),
-
     );
   }
 
@@ -502,9 +504,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Have a Voucher?',
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
@@ -552,14 +554,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         children: [
                           Text(
                             'Applied: ${applied.code}',
-                            style: const TextStyle(
+                            style: GoogleFonts.inter(
                               color: Colors.green,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
                             '${applied.discountPercentage}% discount active',
-                            style: TextStyle(
+                            style: GoogleFonts.inter(
                               color: Colors.green.withOpacity(0.8),
                               fontSize: 12,
                             ),
@@ -589,10 +591,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   height: 48,
                   child: TextField(
                     controller: _voucherController,
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.inter(color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Enter voucher code',
-                      hintStyle: TextStyle(
+                      hintStyle: GoogleFonts.inter(
                         color: Colors.grey.shade400,
                         fontSize: 14,
                       ),
@@ -671,9 +673,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   Text(
                     'Your Available Vouchers (${_availableVouchers.length})',
                     style: GoogleFonts.inter(
-                        color: Colors.grey.shade300,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500),
+                      color: Colors.grey.shade300,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
@@ -707,7 +710,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               children: [
                                 Text(
                                   voucher.code,
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     color: isActive
                                         ? Colors.deepOrange
                                         : Colors.grey.shade500,
@@ -718,7 +721,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   '${voucher.discountPercentage}% OFF',
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     color: isActive
                                         ? Colors.white
                                         : Colors.grey,
@@ -728,7 +731,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   isActive ? 'Active' : 'Inactive',
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     color: isActive ? Colors.green : Colors.red,
                                     fontSize: 10,
                                   ),
