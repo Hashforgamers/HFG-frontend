@@ -1017,7 +1017,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
         razorpayController.openCheckout(
           orderId: data['id'],
-          name: "HashForGamers",
+          name: userController.user.value.name ?? 'User',
           description: "Booking for selected slots",
           amount: amountInPaisa / 100,
           contact:
