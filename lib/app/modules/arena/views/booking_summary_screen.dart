@@ -34,6 +34,7 @@ class BookingSummaryScreen extends StatefulWidget {
   @override
   State<BookingSummaryScreen> createState() => _BookingSummaryScreenState();
 }
+
 enum PaymentStage {
   idle,
   creatingBooking,
@@ -236,8 +237,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       return sum + slotPrice;
     });
   }
+
   Widget _buildPaymentProgress() {
-    if (_stage.value == PaymentStage.idle || _stage.value == PaymentStage.done) {
+    if (_stage.value == PaymentStage.idle ||
+        _stage.value == PaymentStage.done) {
       return const SizedBox.shrink();
     }
 
@@ -270,7 +273,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         children: [
           Icon(
             _stage.value == PaymentStage.error ? Icons.error : Icons.sync,
-            color: _stage.value == PaymentStage.error ? Colors.red : Colors.blue,
+            color:
+                _stage.value == PaymentStage.error ? Colors.red : Colors.blue,
             size: 18,
           ),
           const SizedBox(width: 10),
@@ -421,8 +425,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       _paymentChip(
                           'Wallet', Icons.account_balance_wallet, 'wallet'),
                       const SizedBox(width: 12),
-                      _paymentChip(
-                          'UPI/CARD', Icons.credit_card, 'gateway'),
+                      _paymentChip('UPI/CARD', Icons.credit_card, 'gateway'),
                     ],
                   )),
               Divider(height: 32, color: Colors.grey.shade800),
@@ -430,73 +433,73 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           ),
         ),
       ),
-        bottomNavigationBar: BottomAppBar(
-          color: const Color(0xFF0F0F0F),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // New: Elegant Step Status Indicator
-                Obx(() => _buildPaymentProgress()),
+      bottomNavigationBar: BottomAppBar(
+        color: const Color(0xFF0F0F0F),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // New: Elegant Step Status Indicator
+              Obx(() => _buildPaymentProgress()),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Obx(() => Text(
-                      '₹${calculateTotalPrice().toStringAsFixed(2)}',
-                      style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
-                    )),
-                    ElevatedButton(
-                      onPressed: _isProcessingPayment.value
-                          ? null
-                          :
-                        () => handleBooking(
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Obx(() => Text(
+                        '₹${calculateTotalPrice().toStringAsFixed(2)}',
+                        style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      )),
+                  ElevatedButton(
+                    onPressed: _isProcessingPayment.value
+                        ? null
+                        : () => handleBooking(
                               context,
                               isVoucherApplied: _appliedVoucher.value != null,
                               useWallet: _selectedPayment.value == 'wallet',
                             ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF338125),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 14, horizontal: 24),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: Obx(() {
-                        if (_isProcessingPayment.value) {
-                          return const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2));
-                        }
-                        return Text('PROCEED',
-                          style: GoogleFonts.inter(
-                                fontSize: 16, fontWeight: FontWeight.bold));
-                      }),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
-                  ],
-                ),
-              ],
-            ),
+                    child: Obx(() {
+                      if (_isProcessingPayment.value) {
+                        return const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2));
+                      }
+                      return Text('PROCEED',
+                          style: GoogleFonts.inter(
+                              fontSize: 16, fontWeight: FontWeight.bold));
+                    }),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 
   Widget _buildVoucherSection() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12,horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.grey.shade900,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
@@ -512,20 +515,22 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: 20,
+              SizedBox(
+                height: 20,
                 child: Obx(() => _isLoadingVouchers.value
                     ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CupertinoActivityIndicator(
-
-                  ),
-                )
+                        height: 20,
+                        width: 20,
+                        child: CupertinoActivityIndicator(),
+                      )
                     : GestureDetector(
-                  onTap: _loadVouchers,
-                  child: const Icon(CupertinoIcons.refresh, color: Colors.green,size: 20,),
-
-                )),
+                        onTap: _loadVouchers,
+                        child: const Icon(
+                          CupertinoIcons.refresh,
+                          color: Colors.green,
+                          size: 20,
+                        ),
+                      )),
               ),
             ],
           ),
@@ -546,7 +551,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    const Icon(Icons.check_circle,
+                        color: Colors.green, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -571,7 +577,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     ),
                     IconButton(
                       onPressed: _removeVoucher,
-                      icon: const Icon(Icons.close, size: 18, color: Colors.green),
+                      icon: const Icon(Icons.close,
+                          size: 18, color: Colors.green),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       tooltip: 'Remove Voucher',
@@ -610,41 +617,44 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF338125), width: 1.5),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF338125), width: 1.5),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               Obx(() => SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _isApplyingVoucher.value ? null : _applyVoucher,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF338125),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed:
+                          _isApplyingVoucher.value ? null : _applyVoucher,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF338125),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: _isApplyingVoucher.value
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Apply',
+                              style: TextStyle(fontWeight: FontWeight.w500),
+                            ),
                     ),
-                  ),
-                  child: _isApplyingVoucher.value
-                      ? const SizedBox(
-                    height: 16,
-                    width: 16,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                      : const Text(
-                    'Apply',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                ),
-              )),
+                  )),
             ],
           ),
 
@@ -722,9 +732,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                 Text(
                                   '${voucher.discountPercentage}% OFF',
                                   style: GoogleFonts.inter(
-                                    color: isActive
-                                        ? Colors.white
-                                        : Colors.grey,
+                                    color:
+                                        isActive ? Colors.white : Colors.grey,
                                     fontSize: 11,
                                   ),
                                 ),
@@ -826,7 +835,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         return;
       } else {
         // Normal payment flow with Razorpay
-        _stage.value =PaymentStage.initiatingGateway;
+        _stage.value = PaymentStage.initiatingGateway;
         razorpayController.bookingIdList.value = bookingIds;
         await initiatePayment(context, amountInPaisa);
       }
@@ -1011,8 +1020,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           name: "HashForGamers",
           description: "Booking for selected slots",
           amount: amountInPaisa / 100,
-          contact: "9876543210",
-          email: "user@example.com",
+          contact:
+              userController.user.value.contact?.electronicAddress?.mobileNo ??
+                  '',
+          email:
+              userController.user.value.contact?.electronicAddress?.emailId ??
+                  '',
         );
       } else {
         print('Error creating Razorpay order: ${response.body}');
