@@ -31,24 +31,26 @@ class BookingController extends GetxController {
     try {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      
+
       // Parse slot start time
       final startTimeStr = slot['start_time'] ?? '';
       final startTimeParts = startTimeStr.split(':');
-      if (startTimeParts.length < 2) return true; // If can't parse, assume available
-      
+      if (startTimeParts.length < 2)
+        return true; // If can't parse, assume available
+
       final startHour = int.parse(startTimeParts[0]);
       final startMinute = int.parse(startTimeParts[1]);
-      final slotStartTime = today.add(Duration(hours: startHour, minutes: startMinute));
-      
+      final slotStartTime =
+          today.add(Duration(hours: startHour, minutes: startMinute));
+
       // Add a buffer of 15 minutes - slots within 15 minutes of current time are not available
       final bufferTime = now.add(const Duration(minutes: 15));
-      
+
       // If slot start time is in the past or within buffer time, it's not available
       if (slotStartTime.isBefore(bufferTime)) {
         return false;
       }
-      
+
       return true;
     } catch (e) {
       print('Error checking slot availability: $e');
@@ -68,13 +70,13 @@ class BookingController extends GetxController {
         gameId: gameId,
         date: date,
       );
-      
+
       // Debug logging to understand the slot structure
       print('Fetched ${slotList.length} slots');
       if (slotList.isNotEmpty) {
         print('First slot structure: ${slotList.first}');
       }
-      
+
       slots.assignAll(slotList);
     } catch (e) {
       _logError('Error fetching slots: $e');

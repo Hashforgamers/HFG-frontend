@@ -90,4 +90,6 @@ class ApiEndpoints {
 
   static String validateFundsByUserId(String userId) =>
       '$userOnboardBaseUrl/api/users/$userId/wallet/validate';
+
+  static String get releaseBooking => '$bookingBaseUrl/api/release_slot';
 }

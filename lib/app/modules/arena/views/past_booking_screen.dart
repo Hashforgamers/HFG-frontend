@@ -45,16 +45,22 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
   List<Map<String, dynamic>> _getSortedBookings() {
     final bookings = List<Map<String, dynamic>>.from(ctr.userBookings);
 
+    // Filter to only show bookings with status 'confirmed' or 'extra'
+    final filteredBookings = bookings.where((b) {
+      final status = (b['status'] ?? '').toString().toLowerCase();
+      return status == 'confirmed' || status == 'extra';
+    }).toList();
+
     // Sort by booking ID (assuming higher ID = newer booking)
     if (_sortOrder == 'newer') {
-      bookings.sort(
+      filteredBookings.sort(
           (a, b) => (b['booking_id'] ?? 0).compareTo(a['booking_id'] ?? 0));
     } else {
-      bookings.sort(
+      filteredBookings.sort(
           (a, b) => (a['booking_id'] ?? 0).compareTo(b['booking_id'] ?? 0));
     }
 
-    return bookings;
+    return filteredBookings;
   }
 
   @override

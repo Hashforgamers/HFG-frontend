@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
+import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -292,7 +293,7 @@ class RemoteRepo implements RemoteRepoInterface {
         "booking_id": bookingIds,
         "payment_id": paymentId,
         "book_date": bookDate,
-        "payment_mode": paymentMode, // ★ you missed this
+        "payment_mode": paymentMode,
       };
 
       // Add voucher code if provided
@@ -795,6 +796,26 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       debugPrint('Error registering FCM token: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String> releaseBooking({
+    required BookingModel bookings,
+  }) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response =
+          await dio.post(ApiEndpoints.releaseBooking, data: bookings.toJson());
+      if (response.statusCode == 200) {
+        return response.data['message'];
+      } else {
+        throw Exception(
+            'Failed to release booking. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error releasing booking: $e');
       rethrow;
     }
   }
