@@ -90,7 +90,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                     Text(
                       'My Bookings',
                       style: GoogleFonts.inter(
                         fontSize: 18,
