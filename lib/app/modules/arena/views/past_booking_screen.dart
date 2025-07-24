@@ -90,23 +90,18 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                     Text(
                       'My Bookings',
                       style: GoogleFonts.inter(
-                        fontSize: 28,
-                        color: Colors.green,
-                        fontWeight: FontWeight.w400,
+                        fontSize: 18,
+                        color: Colors.white,
                       ),
                     ),
                     // Filter Dropdown
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF18191A),
-                        borderRadius: BorderRadius.circular(6),
-                        border:
-                            Border.all(color: Colors.green.withOpacity(0.3)),
+                        // color: const Color(0xFF18191A),
                       ),
                       child: DropdownButton<String>(
                         value: _sortOrder,
@@ -114,20 +109,15 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                         style: GoogleFonts.inter(
                             color: Colors.white, fontSize: 12),
                         underline: const SizedBox(),
-                        icon: const Icon(Icons.arrow_drop_down,
-                            color: Colors.green, size: 20),
-                        items: [
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.green, size: 20),
+                        items:  [
                           DropdownMenuItem(
                             value: 'newer',
-                            child: Text('Newer First',
-                                style: GoogleFonts.inter(
-                                    color: Colors.white, fontSize: 12)),
+                            child: Text('Newer First', style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
                           ),
                           DropdownMenuItem(
                             value: 'older',
-                            child: Text('Older First',
-                                style: GoogleFonts.inter(
-                                    color: Colors.white, fontSize: 12)),
+                            child: Text('Older First', style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
                           ),
                         ],
                         onChanged: (String? newValue) {
@@ -142,7 +132,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
+              // const SizedBox(height: 8),
               // Padding(
               //   padding: const EdgeInsets.symmetric(horizontal: 8),
               //   child: TabBar(
@@ -360,133 +350,167 @@ class BookingTicketCard extends StatelessWidget {
         clipper: _TicketClipper(),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF181A20),
+            color: const Color(0xFF1D1D1F),
             borderRadius: BorderRadius.circular(20),
           ),
-          padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              // Left Section
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '#$id',
-                    style: GoogleFonts.inter(
-                      color: Color(0xFF2ECC71),
-                      fontSize: 22, // Reduced from 28
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Booking ID',
-                    style: GoogleFonts.inter(
-                      color: Colors.white70,
-                      fontSize: 10, // Reduced from 12
-                    ),
-                  ),
-                  const SizedBox(height: 8), // Reduced from 12
-                  ElevatedButton(
-                    onPressed: () async {
-                      final result = await Get.to(() => const QrScannerView());
-                      if (result != null) {
-                        // Handle the scanned QR code
-                        _handleScannedCode(result.toString());
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2ECC71),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4), // Reduced padding
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(6), // Reduced radius
-                      ),
-                      textStyle: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600), // Reduced font size
-                    ),
-                    child: const Text('Scan QR'),
-                  ),
-                ],
-              ),
-
-              const SizedBox(width: 12), // Reduced from 18
-              SizedBox(
-                height: 80, // Reduced from 100
-                child: DottedLine(
-                  direction: Axis.vertical,
-                  dashColor: Colors.white12,
-                  dashLength: 3, // Reduced from 4
-                  dashGapLength: 3, // Reduced from 4
+              Container(
+              width: 25,
+              height: 50,
+              decoration: const BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(100),
+                  bottomRight: Radius.circular(100),
                 ),
               ),
-              const SizedBox(width: 12), // Reduced from 18
+            ),
 
-              // Right Section
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$cafe - $game',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14, // Reduced from 16
-                      ),
-                    ),
-                    const SizedBox(height: 4), // Reduced from 6
-                    Text(
-                      '$start - $end',
-                      style: GoogleFonts.inter(
-                        color: Colors.white54,
-                        fontSize: 11, // Reduced from 13
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Date: $formattedDate',
-                      style: GoogleFonts.inter(
-                        color: Colors.white54,
-                        fontSize: 11, // Reduced from 13
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Status: $formattedStatus',
-                      style: GoogleFonts.inter(
-                        color: Colors.white54,
-                        fontSize: 11, // Reduced from 13
-                      ),
-                    ),
-                    const SizedBox(height: 8), // Reduced from 12
-                    bw.BarcodeWidget(
-                      data: 'HASH-$id',
-                      barcode: bw.Barcode.code128(),
-                      drawText: false,
-                      color: Colors.white,
-                      width: double.infinity,
-                      height: 30, // Reduced from 40
-                    ),
-                    const SizedBox(height: 6), // Reduced from 8
-                    Row(
-                      children: [
-                        const Icon(Icons.lock_outline,
-                            size: 14, color: Colors.white38), // Reduced from 16
-                        const SizedBox(width: 4), // Reduced from 6
-                        Text(
-                          'Access Code: $displayAccessCode',
-                          style: GoogleFonts.inter(
-                            fontSize: 11, // Reduced from 13
-                            color: Colors.white70,
-                            letterSpacing: 1,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12,horizontal: 8),
+                  child: Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '#$id',
+                            style:  GoogleFonts.inter(
+                              color: Color(0xFF338125),
+                              fontSize: 24, // Reduced from 28
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Booking ID',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10, // Reduced from 12
+                            ),
+                          ),
+                          const SizedBox(height: 8), // Reduced from 12
+                          ElevatedButton(
+                            onPressed: () async {
+                              final result = await Get.to(() => const QrScannerView());
+                              if (result != null) {
+                                _handleScannedCode(result.toString());
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF338125),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), // very slim
+                              minimumSize: const Size(0, 28), // optional: control height
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              textStyle: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap, // avoid extra height
+                              elevation: 0, // optional: keep it flat
+                            ),
+                            child: const Text('Scan QR'),
+                          ),
+
+                        ],
+                      ),
+
+                      const SizedBox(width: 12), // Reduced from 18
+                      const SizedBox(
+                        height: 130, // Reduced from 100
+                        child: DottedLine(
+                          direction: Axis.vertical,
+                          dashColor: Colors.white12,
+                          dashLength: 7, // Reduced from 4
+                          dashGapLength: 7, // Reduced from 4
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(width: 12), // Reduced from 18
+
+                      // Right Section
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$cafe - $game',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14, // Reduced from 16
+                              ),
+                            ),
+                            const SizedBox(height: 4), // Reduced from 6
+                            Text(
+                              '$start - $end',
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11, // Reduced from 13
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Date: $formattedDate',
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11, // Reduced from 13
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Status: $formattedStatus',
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11, // Reduced from 13
+                              ),
+                            ),
+                            const SizedBox(height: 8), // Reduced from 12
+                            bw.BarcodeWidget(
+                              data: 'HASH-$id',
+                              barcode: bw.Barcode.code128(),
+                              drawText: false,
+                              color: Colors.white,
+                              width: double.infinity,
+                              height: 30, // Reduced from 40
+                            ),
+                            const SizedBox(height: 6), // Reduced from 8
+                            Row(
+                              children: [
+                                const Icon(Icons.lock_outline,
+                                    size: 14, color: Colors.white38), // Reduced from 16
+                                const SizedBox(width: 4), // Reduced from 6
+                                Text(
+                                  'Access Code: $displayAccessCode',
+                                  style: const TextStyle(
+                                    fontSize: 11, // Reduced from 13
+                                    color: Colors.white70,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Left Section
+
+              Container(
+                width: 25,
+                height: 50,
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(100),
+                    bottomLeft: Radius.circular(100),
+                  ),
                 ),
               ),
             ],

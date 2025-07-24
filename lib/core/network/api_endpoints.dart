@@ -34,7 +34,10 @@ class ApiEndpoints {
 
   // Payment related constants
   static String get razorpayKey => FlavorConfig.isProduction()
-      ? 'rzp_test_viVAhwtbVdu1X4:PsxakTrbRvfQCbZ1vj2lQ1i5' // Replace with your live key
+      ? 'rzp_live_RmxaTWJdsdl8yy:rWVWrdImD3hcFkRnJoGM5MAg' // Replace with your live key
+      : 'rzp_test_viVAhwtbVdu1X4:PsxakTrbRvfQCbZ1vj2lQ1i5';
+  static String get razorpayKeyWallet => FlavorConfig.isProduction()
+      ? 'rzp_live_RmxaTWJdsdl8yy' // Replace with your live key
       : 'rzp_test_viVAhwtbVdu1X4';
 
   // Address related endpoints (userOnboard)
