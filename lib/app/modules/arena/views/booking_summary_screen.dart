@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -16,6 +15,7 @@ import 'package:hash/core/network/api_endpoints.dart';
 import 'package:http/http.dart' as http;
 import '../../../../core/repositories/model/get_voucher_model.dart';
 import '../../../data/services/user_controller.dart';
+import '../../../../core/repositories/model/booking_model.dart';
 
 class BookingSummaryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> selectedSlots;
@@ -54,6 +54,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   // Payment processing state
   final RxBool _isProcessingPayment = false.obs;
   final RxString _paymentStatus = ''.obs;
+
+  // Add this field to store the bookingId to slotId mapping
+  Map<int, int> _bookingIdToSlotId = {};
 
   @override
   void initState() {
@@ -707,7 +710,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       List<int> slotIds =
           widget.selectedSlots.map((slot) => slot['slot_id'] as int).toList();
 
-      List<int> bookingIds = await createBooking(slotIds);
+      // Use the new mapping function
+      _bookingIdToSlotId = await createBookingWithSlotMap(slotIds);
+      List<int> bookingIds = _bookingIdToSlotId.keys.toList();
       print(slotIds);
 
       // Track booking started event
@@ -833,6 +838,22 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     } catch (e) {
       print('🔥 Error confirming booking with voucher: $e');
 
+      // Release each booking if confirmation fails
+      for (final bookingId in bookingIds) {
+        try {
+          final slotId = _bookingIdToSlotId[bookingId] ?? bookingId;
+          await _remoteRepo.releaseBooking(
+            bookings: BookingModel(
+              slotId: slotId,
+              bookingId: bookingId,
+              bookDate: DateTime.now().toIso8601String(),
+            ),
+          );
+        } catch (releaseError) {
+          print('Error releasing booking $bookingId: $releaseError');
+        }
+      }
+
       // Stop loading
       _isProcessingPayment(false);
       _paymentStatus.value = '';
@@ -846,7 +867,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
   }
 
-  Future<List<int>> createBooking(List<int> slotIds) async {
+  Future<Map<int, int>> createBookingWithSlotMap(List<int> slotIds) async {
     final url = '${FlavorConfig.getBaseUrl('booking')}/api/bookings';
     final today = DateTime.now();
     final bookDate =
@@ -869,14 +890,28 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return List<int>.from(data['booking_ids']);
+        Map<int, int> map = {};
+        if (data['bookings'] != null) {
+          for (final b in data['bookings']) {
+            if (b['booking_id'] != null && b['slot_id'] != null) {
+              map[b['booking_id']] = b['slot_id'];
+            }
+          }
+        } else if (data['booking_ids'] != null) {
+          // fallback: assume 1:1 with slotIds order
+          final ids = List<int>.from(data['booking_ids']);
+          for (int i = 0; i < ids.length && i < slotIds.length; i++) {
+            map[ids[i]] = slotIds[i];
+          }
+        }
+        return map;
       } else {
         print('Failed to create booking. Response: ${response.body}');
-        return [];
+        return {};
       }
     } catch (e) {
       print('Exception during booking: $e');
-      return [];
+      return {};
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -17,8 +18,8 @@ class RazorpayController extends GetxController {
   final fbEventsService = locator<FbEventsService>();
 
   RxList<int> bookingIdList = <int>[].obs;
-  RxBool  isPaymentInProgress = false.obs;
-  RxString paymentStatus      = ''.obs;
+  RxBool isPaymentInProgress = false.obs;
+  RxString paymentStatus = ''.obs;
 
   @override
   void onInit() {
@@ -45,18 +46,18 @@ class RazorpayController extends GetxController {
     required String email,
   }) {
     final options = {
-      'key'       : ApiEndpoints.razorpayKey,
-      'amount'    : (amount * 100).toInt(),
-      'name'      : name,
+      'key': ApiEndpoints.razorpayKey,
+      'amount': (amount * 100).toInt(),
+      'name': name,
       'description': description,
-      'order_id'  : orderId,
-      'prefill'   : { 'contact': contact, 'email': email },
+      'order_id': orderId,
+      'prefill': {'contact': contact, 'email': email},
     };
 
     try {
-      isPaymentInProgress(true);                   // ★ start spinner sooner
+      isPaymentInProgress(true); // ★ start spinner sooner
       paymentStatus.value = 'Opening payment gateway…';
-      
+
       // Track payment initiated event
       segmentService.onPaymentInitiated(
         bookingId: orderId,
@@ -68,13 +69,14 @@ class RazorpayController extends GetxController {
         amount: amount,
         paymentMethodSelected: 'razorpay',
       );
-      
+
       _razorpay.open(options);
     } catch (e) {
       print('Error opening Razorpay: $e');
       isPaymentInProgress(false);
       paymentStatus.value = '';
-      Get.snackbar('Checkout Error', 'Failed to open Razorpay.', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Checkout Error', 'Failed to open Razorpay.',
+          snackPosition: SnackPosition.BOTTOM);
     }
   }
 
@@ -102,15 +104,15 @@ class RazorpayController extends GetxController {
     );
 
     await _confirmBooking(
-      bookingIds : bookingIdList.toList(),
-      paymentId  : r.paymentId!,
-      paymentMode: 'gateway',                      // ★
+      bookingIds: bookingIdList.toList(),
+      paymentId: r.paymentId!,
+      paymentMode: 'gateway', // ★
     );
   }
 
   void _handlePaymentError(PaymentFailureResponse r) {
     print('❌ Payment failed: ${r.code} - ${r.message}');
-    
+
     // Track payment failed event
     segmentService.onPaymentFailed(
       reason: r.message ?? 'Unknown error',
@@ -120,28 +122,30 @@ class RazorpayController extends GetxController {
       reason: r.message ?? 'Unknown error',
       paymentGateway: 'razorpay',
     );
-    
+
     _reset();
-    Get.snackbar('Payment Failed', r.message ?? 'Unknown error', snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar('Payment Failed', r.message ?? 'Unknown error',
+        snackPosition: SnackPosition.BOTTOM);
   }
 
   void _handleExternalWallet(ExternalWalletResponse r) {
     print('📦 External wallet: ${r.walletName}');
-    Get.snackbar('External Wallet', r.walletName ?? '', snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar('External Wallet', r.walletName ?? '',
+        snackPosition: SnackPosition.BOTTOM);
   }
 
   // ───────────────────────── Confirm booking ──────────────────────
   Future<void> _confirmBooking({
     required List<int> bookingIds,
     required String paymentId,
-    required String paymentMode,                   // ★ now required
+    required String paymentMode, // ★ now required
   }) async {
     try {
       await _remoteRepo.confirmBooking(
-        bookingIds : bookingIds,
-        paymentId  : paymentId,
-        bookDate   : DateTime.now().toIso8601String(),
-        paymentMode: paymentMode,                  // ★ pass it
+        bookingIds: bookingIds,
+        paymentId: paymentId,
+        bookDate: DateTime.now().toIso8601String(),
+        paymentMode: paymentMode, // ★ pass it
         voucherCode: null,
       );
 
@@ -160,9 +164,18 @@ class RazorpayController extends GetxController {
       Get.find<HomeController>().onItemTapped(1);
       Get.offAllNamed('/home');
     } catch (e) {
+      // here call the release booking api
+      await _remoteRepo.releaseBooking(
+        bookings: BookingModel(
+          slotId: bookingIds.first,
+          bookingId: bookingIds.first,
+          bookDate: DateTime.now().toIso8601String(),
+        ),
+      );
       print('🔥 Confirm booking error: $e');
       _reset();
-      Get.snackbar('Error', 'Failed to confirm booking: $e', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Error', 'Failed to confirm booking: $e',
+          snackPosition: SnackPosition.BOTTOM);
     }
   }
 

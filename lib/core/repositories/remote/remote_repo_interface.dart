@@ -1,3 +1,4 @@
+import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 
@@ -95,4 +96,6 @@ abstract class RemoteRepoInterface {
     required String userId,
     required String token,
   });
+
+  Future<String> releaseBooking({required BookingModel bookings});
 }
