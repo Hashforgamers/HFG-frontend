@@ -191,7 +191,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                 horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
                               color: const Color(0xff181818),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               children: [
@@ -220,7 +220,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                 horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
                               color: const Color(0xff181818),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               children: [
@@ -338,7 +338,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               padding: const EdgeInsets.all(20.0),
               child: SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 50,
                 child: ElevatedButton(
                   onPressed: () {
                     showBookSlotBottomSheet(context);
@@ -346,7 +346,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xff338125),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   child: Text(
                     'Book your slot',
@@ -407,13 +407,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            final double maxHeight = MediaQuery.of(context).size.height * 0.5;
+            final double maxHeight = MediaQuery.of(context).size.height * 0.45;
             return Padding(
               padding: MediaQuery.of(context).viewInsets,
               child: Container(
                 height: maxHeight,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -446,7 +446,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                           crossAxisCount: 2,
                           mainAxisSpacing: 10,
                           crossAxisSpacing: 10,
-                          childAspectRatio: 1.6,
+                          childAspectRatio: 1.7,
                         ),
                         itemCount: slots.length,
                         itemBuilder: (context, index) {
@@ -470,7 +470,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                         ? const Color(0xFF232323)
                                         : const Color(0xFF232323)
                                             .withOpacity(0.5)),
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(8),
                                 border: isSelected && isAvailable
                                     ? Border.all(
                                         color: const Color(0xFF338125),
@@ -548,7 +548,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                               color: isAvailable
                                                   ? Colors.white
                                                   : Colors.redAccent,
-                                              size: 11,
+                                              size: 8,
                                             ),
                                             const SizedBox(width: 2),
                                             Text(
@@ -572,7 +572,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                           );
                         },
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 25),
                       SizedBox(
                         width: double.infinity,
                         height: 48,
@@ -635,7 +635,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF338125),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             disabledBackgroundColor: Colors.grey.shade800,
                           ),
@@ -825,7 +825,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           style: GoogleFonts.inter(
             color: Colors.white,
             fontSize: 14,
-            fontWeight: FontWeight.w500,
           ),
         ),
         const SizedBox(height: 12),
@@ -834,28 +833,25 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: hardcodedGames.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            separatorBuilder: (_, __) => const SizedBox(width: 2),
             itemBuilder: (context, index) {
               final game = hardcodedGames[index];
 
               return Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 7.0, vertical: 8.0),
+                    const EdgeInsets.symmetric(horizontal: 5.0, vertical: 8.0),
                 child: Container(
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.18),
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
+
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(8),
                     child: Image.network(
                       game['image']!,
-                      width: 110,
-                      height: 144,
-                      fit: BoxFit.fill,
+                      width: 80,
+                      height: 112,
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
