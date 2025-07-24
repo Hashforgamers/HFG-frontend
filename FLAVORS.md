@@ -125,7 +125,7 @@ flutter build appbundle --flavor prod -t lib/main_prod.dart
 - Debug features enabled
 
 ### Production (prod)
-- App Name: "HFG"
+- App Name: "Hash"
 - Package ID: `com.hfg.hash`
 - Debug banner: Disabled
 - API Base URL: `https://api.hfg.com`

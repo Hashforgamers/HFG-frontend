@@ -46,9 +46,9 @@ class RazorpayController extends GetxController {
     required String email,
   }) {
     final options = {
-      'key': ApiEndpoints.razorpayKey,
-      'amount': (amount * 100).toInt(),
-      'name': name,
+      'key'       : ApiEndpoints.razorpayKeyWallet,
+      'amount'    : (amount * 100).toInt(),
+      'name'      : name,
       'description': description,
       'order_id': orderId,
       'prefill': {'contact': contact, 'email': email},
