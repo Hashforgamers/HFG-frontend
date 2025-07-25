@@ -281,7 +281,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 color: _stage.value == PaymentStage.error
                     ? Colors.red
                     : Colors.blue,
@@ -309,7 +309,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
         title: Text('Booking Summary',
-            style: GoogleFonts.inter(color: Colors.white)),
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
         backgroundColor: const Color(0xFF0F0F0F),
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -649,9 +649,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                 strokeWidth: 2,
                               ),
                             )
-                          : const Text(
+                          : Text(
                               'Apply',
-                              style: TextStyle(fontWeight: FontWeight.w500),
+                              style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w500),
                             ),
                     ),
                   )),

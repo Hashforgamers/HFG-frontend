@@ -56,10 +56,10 @@
 //                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
 //                       crossAxisAlignment: CrossAxisAlignment.start,
 //                       children: [
-//                         const Expanded(
+//                          Expanded(
 //                           child: Text(
 //                             'Wallet Balance',
-//                             style: TextStyle(
+//                             style: GoogleFonts.inter(
 //                               fontSize: 24,
 //                               fontWeight: FontWeight.bold,
 //                               color: Colors.white,
@@ -78,7 +78,7 @@
 //                     const SizedBox(height: 8),
 //                     Obx(() => Text(
 //                       '\₹${walletController.balance.value.toStringAsFixed(2)}',
-//                       style: const TextStyle(
+//                       style: GoogleFonts.inter(
 //                         fontFamily: 'Pricedown',
 //                         fontSize: 26,
 //                         color: Color(0xffDE3A3A),
@@ -87,10 +87,10 @@
 //                     const SizedBox(height: 20),
 //                     TextField(
 //                       keyboardType: TextInputType.number,
-//                       style: const TextStyle(color: Colors.white),
+//                       style: GoogleFonts.inter(color: Colors.white),
 //                       decoration: InputDecoration(
 //                         hintText: 'Add Amount',
-//                         hintStyle: const TextStyle(
+//                         hintStyle: GoogleFonts.inter(
 //                           color: Colors.grey,
 //                         ),
 //                         border: OutlineInputBorder(
@@ -149,7 +149,7 @@
 //                                 child: Center(
 //                                   child: Text(
 //                                     'Add ₹$amount',
-//                                     style: const TextStyle(
+//                                     style: GoogleFonts.inter(
 //                                       color: Colors.black,
 //                                       fontWeight: FontWeight.w600,
 //                                       fontSize: 12,
@@ -174,7 +174,7 @@
 //                         children: [
 //                           Text(
 //                             'Open Wallet',
-//                             style: TextStyle(
+//                             style: GoogleFonts.inter(
 //                               color: Colors.white,
 //                               fontSize: 16,
 //                             ),

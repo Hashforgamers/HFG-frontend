@@ -46,7 +46,8 @@ class _WalletScreenState extends State<WalletScreen> {
       extendBodyBehindAppBar:
           true, // Important for gradient to cover AppBar too
       appBar: AppBar(
-        title: const Text("Wallet"),
+        title: Text("Wallet",
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,

@@ -90,7 +90,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                     Text(
+                    Text(
                       'My Bookings',
                       style: GoogleFonts.inter(
                         fontSize: 18,
@@ -99,18 +99,20 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                     ),
                     // Filter Dropdown
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 0),
                       decoration: BoxDecoration(
-                        // color: const Color(0xFF18191A),
-                      ),
+                          // color: const Color(0xFF18191A),
+                          ),
                       child: DropdownButton<String>(
                         value: _sortOrder,
                         dropdownColor: const Color(0xFF18191A),
                         style: GoogleFonts.inter(
                             color: Colors.white, fontSize: 12),
                         underline: const SizedBox(),
-                        icon: const Icon(Icons.arrow_drop_down, color: Colors.green, size: 20),
-                        items:  [
+                        icon: const Icon(Icons.arrow_drop_down,
+                            color: Colors.green, size: 20),
+                        items: [
                           DropdownMenuItem(
                             value: 'newer',
                             child: Text('Newer First',
@@ -145,14 +147,14 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
               //     labelPadding: const EdgeInsets.symmetric(horizontal: 16),
               //     labelColor: const Color(0xff338125),
               //     unselectedLabelColor: Colors.white70,
-              //     labelStyle: const TextStyle(
+              //     labelStyle:  GoogleFonts.inter(
               //         fontWeight: FontWeight.bold, fontSize: 18),
-              //     unselectedLabelStyle: const TextStyle(
+              //     unselectedLabelStyle:  GoogleFonts.inter(
               //         fontWeight: FontWeight.w500, fontSize: 18),
-              //     tabs: const [
-              //       Tab(child: Text('All',style: TextStyle(color: Colors.green),)),
-              //       Tab(child: Text('Upcoming',style: TextStyle(color: Colors.green),)),
-              //       Tab(child: Text('Completed',style: TextStyle(color: Colors.green),)),
+              //     tabs:  [
+              //       Tab(child: Text('All',style: GoogleFonts.inter(color: Colors.green),)),
+              //       Tab(child: Text('Upcoming',style: GoogleFonts.inter(color: Colors.green),)),
+              //       Tab(child: Text('Completed',style: GoogleFonts.inter(color: Colors.green),)),
               //     ],
               //   ),
               // ),
@@ -360,20 +362,21 @@ class BookingTicketCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-              width: 25,
-              height: 50,
-              decoration: const BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(100),
-                  bottomRight: Radius.circular(100),
+                width: 25,
+                height: 50,
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.only(
+                    topRight: Radius.circular(100),
+                    bottomRight: Radius.circular(100),
+                  ),
                 ),
               ),
-            ),
 
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12,horizontal: 8),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                   child: Row(
                     children: [
                       Column(
@@ -381,7 +384,7 @@ class BookingTicketCard extends StatelessWidget {
                         children: [
                           Text(
                             '#$id',
-                            style:  GoogleFonts.inter(
+                            style: GoogleFonts.inter(
                               color: Color(0xFF338125),
                               fontSize: 24, // Reduced from 28
                               fontWeight: FontWeight.bold,
@@ -389,8 +392,8 @@ class BookingTicketCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                    'Booking ID',
-                    style: GoogleFonts.inter(
+                            'Booking ID',
+                            style: GoogleFonts.inter(
                               color: Colors.white70,
                               fontSize: 10, // Reduced from 12
                             ),
@@ -398,43 +401,45 @@ class BookingTicketCard extends StatelessWidget {
                           const SizedBox(height: 8), // Reduced from 12
                           ElevatedButton(
                             onPressed: () async {
-                              final result = await Get.to(() => const QrScannerView());
+                              final result =
+                                  await Get.to(() => const QrScannerView());
                               if (result != null) {
                                 _handleScannedCode(result.toString());
                               }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF338125),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), // very slim
-                              minimumSize: const Size(0, 28), // optional: control height
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2), // very slim
+                              minimumSize:
+                                  const Size(0, 28), // optional: control height
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
                               ),
                               textStyle: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w400,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w400,
                               ),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap, // avoid extra height
+                              tapTargetSize: MaterialTapTargetSize
+                                  .shrinkWrap, // avoid extra height
                               elevation: 0, // optional: keep it flat
                             ),
                             child: const Text('Scan QR'),
                           ),
-
                         ],
                       ),
 
-              const SizedBox(width: 12), // Reduced from 18
-              SizedBox(
-                height: 80, // Reduced from 100
-                child: DottedLine(
-                  direction: Axis.vertical,
-                  dashColor: Colors.white12,
-                  dashLength: 3, // Reduced from 4
-                  dashGapLength: 3, // Reduced from 4
-                ),
-              ),
-              const SizedBox(width: 12), // Reduced from 18
+                      const SizedBox(width: 12), // Reduced from 18
+                      SizedBox(
+                        height: 80, // Reduced from 100
+                        child: DottedLine(
+                          direction: Axis.vertical,
+                          dashColor: Colors.white12,
+                          dashLength: 3, // Reduced from 4
+                          dashGapLength: 3, // Reduced from 4
+                        ),
+                      ),
+                      const SizedBox(width: 12), // Reduced from 18
 
                       // Right Section
                       Expanded(
@@ -486,7 +491,8 @@ class BookingTicketCard extends StatelessWidget {
                             Row(
                               children: [
                                 const Icon(Icons.lock_outline,
-                                    size: 14, color: Colors.white38), // Reduced from 16
+                                    size: 14,
+                                    color: Colors.white38), // Reduced from 16
                                 const SizedBox(width: 4), // Reduced from 6
                                 Text(
                                   'Access Code: $displayAccessCode',

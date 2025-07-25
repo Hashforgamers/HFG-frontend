@@ -122,7 +122,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
         backgroundColor: Colors.black,
         title: Text(
           'Add New Cafe',
-          style: GoogleFonts.inter(color: Colors.white),
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),

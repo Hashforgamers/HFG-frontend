@@ -140,7 +140,10 @@ class TeamFormScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Text(
+          title,
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+        ),
         backgroundColor: Colors.black,
       ),
       body: Container(

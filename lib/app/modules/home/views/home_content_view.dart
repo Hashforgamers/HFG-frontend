@@ -162,7 +162,7 @@ class _HomeContentViewState extends State<HomeContentView> {
         children: [
           Obx(() => Text(
                 'Hey, ${userController.user.value.gameUserName}!',
-                style: GoogleFonts.inter(color: Colors.white),
+                style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
               )),
           Obx(() => PopupMenuButton<String>(
                 offset: const Offset(0, 40),
