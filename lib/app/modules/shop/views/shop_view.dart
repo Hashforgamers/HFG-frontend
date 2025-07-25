@@ -270,7 +270,7 @@ class _ShopViewState extends State<ShopView> {
                         _handlePreRegistration(product);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xffDE3A3A),
+                        backgroundColor: const Color(0xff338125),
                         shape: ContinuousRectangleBorder(
                           borderRadius: BorderRadius.circular(28),
                         ),

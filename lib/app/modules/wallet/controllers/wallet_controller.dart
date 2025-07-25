@@ -82,12 +82,12 @@ class WalletController extends GetxController {
       } else {
         print('❌ Wallet API Error: ${res.body}');
         // Only show snackbar for non-retryable errors
-        Get.snackbar("Error", "Failed to load wallet • ${res.body}");
+        // Get.snackbar("Error", "Failed to load wallet ");
       }
     } catch (e) {
       print('❌ Wallet Exception: $e');
       // Only show snackbar for non-retryable errors
-      Get.snackbar("Error", e.toString());
+      print("Error $e");
     } finally {
       isLoading.value = false;
       print('🏁 Wallet fetch completed');
