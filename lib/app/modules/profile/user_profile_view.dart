@@ -22,7 +22,8 @@ class UserProfileView extends StatelessWidget {
       bottomNavigationBar: _buildLogoutButton(),
       appBar: AppBar(
         centerTitle: false,
-        title: Text('Profile', style: GoogleFonts.inter(color: Colors.white)),
+        title: Text('Profile',
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
         backgroundColor: Colors.black,
       ),
       body: Padding(

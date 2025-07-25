@@ -54,7 +54,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       appBar: AppBar(
         centerTitle: false,
         title: Text('Product Details',
-            style: GoogleFonts.inter(color: Colors.white)),
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
         backgroundColor: Colors.black,
         leading: GestureDetector(
           onTap: () {

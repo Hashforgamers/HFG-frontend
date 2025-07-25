@@ -107,7 +107,7 @@ class _BookingScreenState extends State<BookingScreen> {
         title: Text(
           widget.title,
           style: GoogleFonts.inter(
-              color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.black,
       ),

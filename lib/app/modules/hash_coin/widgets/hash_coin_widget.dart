@@ -9,9 +9,9 @@ import 'package:hash/core/service/global_bottom_sheet_service.dart';
 class HashCoinWidget extends StatefulWidget {
   final int hashCoin;
   final CreateOfferCubit? createOfferCubit;
-  
+
   const HashCoinWidget({
-    super.key, 
+    super.key,
     required this.hashCoin,
     this.createOfferCubit,
   });
@@ -45,7 +45,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
   @override
   void initState() {
     super.initState();
-    
+
     // Pulse animation for the main container
     _pulseController = AnimationController(
       duration: const Duration(seconds: 3),
@@ -54,7 +54,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    
+
     // Glow animation for the neon effect
     _glowController = AnimationController(
       duration: const Duration(seconds: 4),
@@ -63,7 +63,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
     _glowAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
-    
+
     // Coin rotation animation
     _coinRotationController = AnimationController(
       duration: const Duration(seconds: 6),
@@ -72,7 +72,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
     _rotationAnimation = Tween<double>(begin: 0, end: 2 * math.pi).animate(
       CurvedAnimation(parent: _coinRotationController, curve: Curves.linear),
     );
-    
+
     // Floating animation
     _floatController = AnimationController(
       duration: const Duration(seconds: 2),
@@ -81,7 +81,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
     _floatAnimation = Tween<double>(begin: -5, end: 5).animate(
       CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
     );
-    
+
     // Particle animation
     _particleController = AnimationController(
       duration: const Duration(seconds: 8),
@@ -90,7 +90,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
     _particleAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _particleController, curve: Curves.linear),
     );
-    
+
     // Start animations
     _pulseController.repeat(reverse: true);
     _glowController.repeat(reverse: true);
@@ -122,7 +122,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
           style: GoogleFonts.inter(
             color: Colors.white,
             fontWeight: FontWeight.w700,
-            fontSize: 24,
+            fontSize: 16,
             letterSpacing: 1,
           ),
         ),
@@ -133,7 +133,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
         children: [
           // Animated background
           _buildAnimatedBackground(),
-          
+
           // Main content
           SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 100, 20, 40),
@@ -171,7 +171,8 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
 
   Widget _buildMainCoinCard() {
     return AnimatedBuilder(
-      animation: Listenable.merge([_pulseAnimation, _glowAnimation, _floatAnimation]),
+      animation:
+          Listenable.merge([_pulseAnimation, _glowAnimation, _floatAnimation]),
       builder: (context, child) {
         return Transform.translate(
           offset: Offset(0, _floatAnimation.value),
@@ -196,7 +197,8 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xffDE3A3A).withOpacity(_glowAnimation.value * 0.4),
+                    color: const Color(0xffDE3A3A)
+                        .withOpacity(_glowAnimation.value * 0.4),
                     blurRadius: 30,
                     spreadRadius: 5,
                   ),
@@ -786,9 +788,9 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
     );
   }
 
-    void _showRedeemBottomSheet(BuildContext context) {
+  void _showRedeemBottomSheet(BuildContext context) {
     final globalBottomSheetService = locator<GlobalBottomSheetService>();
-    
+
     globalBottomSheetService.showHashCoinRedemptionBottomSheet(
       context,
       hashCoin: widget.hashCoin,
@@ -803,8 +805,6 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
       },
     );
   }
-
-
 
   void _showSuccessSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -879,8 +879,7 @@ class ParticlePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.fill;
+    final paint = Paint()..style = PaintingStyle.fill;
 
     final random = math.Random(42);
     final particleCount = math.min(hashCoins ~/ 10, 50);
@@ -890,14 +889,14 @@ class ParticlePainter extends CustomPainter {
       final y = random.nextDouble() * size.height;
       final radius = random.nextDouble() * 2 + 1;
       final opacity = random.nextDouble() * 0.3 + 0.1;
-      
+
       paint.color = const Color(0xffDE3A3A).withOpacity(opacity);
-      
+
       final offset = Offset(
         x + math.sin(animation.value * 2 * math.pi + i) * 20,
         y + math.cos(animation.value * 2 * math.pi + i) * 20,
       );
-      
+
       canvas.drawCircle(offset, radius, paint);
     }
   }

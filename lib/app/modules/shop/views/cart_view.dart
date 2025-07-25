@@ -47,7 +47,8 @@ class CartView extends StatelessWidget {
       ),
       appBar: AppBar(
         centerTitle: false,
-        title: Text('Cart', style: GoogleFonts.inter(color: Colors.white)),
+        title: Text('Cart',
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
         backgroundColor: Colors.black,
         leading: GestureDetector(
           onTap: () {

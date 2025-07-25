@@ -209,7 +209,7 @@ class _ReferralViewWithControllerState
                   referralCode: referralCode,
                   channel: 'share',
                 );
-                
+
                 Share.share(
                     'Join HashforGamers with my code 👉 $code (unlimited rewards!)');
               },
@@ -566,12 +566,12 @@ class _ReferralViewWithControllerState
                 style: GoogleFonts.inter(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
-                    fontSize: 20),
+                    fontSize: 16),
               ),
               TextSpan(
                 text: 'Hash Coins',
                 style: GoogleFonts.inter(
-                    color: _green, fontWeight: FontWeight.w700, fontSize: 20),
+                    color: _green, fontWeight: FontWeight.w700, fontSize: 16),
               ),
             ],
           ),

@@ -75,7 +75,7 @@ class ViewDetailScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text('Booking Details',
-            style: GoogleFonts.inter(color: Colors.white)),
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
