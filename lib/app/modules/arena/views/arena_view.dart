@@ -50,6 +50,12 @@ class _ArenaViewState extends State<ArenaView> {
   LatLng? _userLatLng;
   String? _selectedCafeId;
   String _mapStyle = '';
+  
+  // Location-based filtering
+  String? _userState;
+  final RxList<Map<String, dynamic>> _filteredCafes = <Map<String, dynamic>>[].obs;
+  final RxBool _isLocationFiltering = false.obs;
+  final RxBool _showingAllCafes = false.obs;
 
   /// Directions API response cache  (cafeId  ->  distance / duration)
   final Map<String, Map<String, String>> _distanceCache = {};
@@ -72,6 +78,7 @@ class _ArenaViewState extends State<ArenaView> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _initLocation();
       await _cafeCtr.fetchCybercafes();
+      await _getUserStateAndFilterCafes();
       _addUserMarker();
       _refreshCafeMarkers();
     });
@@ -374,7 +381,7 @@ class _ArenaViewState extends State<ArenaView> {
   void _refreshCafeMarkers() {
     markers.removeWhere((m) => m.markerId.value.startsWith('cafe_'));
 
-    for (final cafe in _cafeCtr.cybercafes) {
+    for (final cafe in _filteredCafes) {
       final id = '${cafe['id'] ?? cafe.hashCode}';
       final pos = _latLngFromCafe(cafe);
       markers.add(Marker(
@@ -463,6 +470,68 @@ class _ArenaViewState extends State<ArenaView> {
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
+  /*  LOCATION-BASED FILTERING                                                 */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<void> _getUserStateAndFilterCafes() async {
+    if (_userLatLng == null) {
+      print('User location not available');
+      _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+      return;
+    }
+
+    try {
+      _isLocationFiltering.value = true;
+      
+      // Reset showing all cafes state when location changes
+      _showingAllCafes.value = false;
+      
+      // Get user's state from coordinates
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        _userLatLng!.latitude,
+        _userLatLng!.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        _userState = placemarks.first.administrativeArea;
+        print('User is in state: $_userState');
+        
+        // Filter cafes based on state
+        _filterCafesByState();
+      } else {
+        print('Could not determine user state');
+        _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+      }
+    } catch (e) {
+      print('Error getting user state: $e');
+      _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+    } finally {
+      _isLocationFiltering.value = false;
+    }
+  }
+
+  void _filterCafesByState() {
+    if (_userState == null) {
+      _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+      return;
+    }
+
+    final filteredList = _cafeCtr.cybercafes.where((cafe) {
+      final address = cafe['address'];
+      if (address == null) return false;
+      
+      final cafeState = address['state'];
+      if (cafeState == null) return false;
+      
+      // Case-insensitive comparison
+      return cafeState.toString().toLowerCase() == _userState!.toLowerCase();
+    }).toList();
+
+    _filteredCafes.assignAll(filteredList.cast<Map<String, dynamic>>());
+    print('Found ${_filteredCafes.length} cafes in $_userState out of ${_cafeCtr.cybercafes.length} total cafes');
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
   /*  UI HELPERS                                                               */
   /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -525,8 +594,33 @@ class _ArenaViewState extends State<ArenaView> {
     // if (_cafeCtr.isLoading.value) {
     //   return const Center(child: RainbowGlowingLoader(size: 50));
     // }
-    if (_cafeCtr.cybercafes.isEmpty) {
-      return const Center(child: Text('No cybercafes available'));
+    if (_filteredCafes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_userState != null)
+              Text(
+                'No cafes available in $_userState',
+                style: GoogleFonts.inter(color: Colors.white70),
+              )
+            else
+              const Text('No cybercafes available'),
+            const SizedBox(height: 8),
+                                                if (_userState != null)
+                                      TextButton(
+                                        onPressed: () {
+                                          _showingAllCafes.value = true;
+                                          _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+                                        },
+                                        child: Text(
+                                          'Show all cafes',
+                                          style: GoogleFonts.inter(color: const Color(0xff338125)),
+                                        ),
+                                      ),
+          ],
+        ),
+      );
     }
 
     _refreshCafeMarkers();
@@ -546,9 +640,9 @@ class _ArenaViewState extends State<ArenaView> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.only(left: 8, top: 10),
         separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemCount: _cafeCtr.cybercafes.length,
+        itemCount: _filteredCafes.length,
         itemBuilder: (_, i) {
-          final cafe = _cafeCtr.cybercafes[i];
+          final cafe = _filteredCafes[i];
           return _gradientCard(
             cafe: cafe,
             img: dummyImgs[i % dummyImgs.length],
@@ -798,31 +892,102 @@ class _ArenaViewState extends State<ArenaView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Padding(
+                      Obx(() => Padding(
                         padding: const EdgeInsets.fromLTRB(20, 20, 0, 8),
-                        child: Text(
-                          'Nearby Cafes',
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.normal,
-                          ),
+                        child: Row(
+                          children: [
+                            Text(
+                              _showingAllCafes.value 
+                                ? 'Showing All Cafes' 
+                                : (_userState != null ? 'Cafes in $_userState' : 'Nearby Cafes'),
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+                            if (_userState != null) ...[
+                              const SizedBox(width: 8),
+                              Obx(() => Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xff338125).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xff338125)),
+                                ),
+                                child: Text(
+                                  _showingAllCafes.value 
+                                    ? '${_filteredCafes.length} total' 
+                                    : '${_filteredCafes.length} found',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xff338125),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              )),
+                              const Spacer(),
+                              Obx(() => TextButton(
+                                onPressed: () {
+                                  if (_showingAllCafes.value) {
+                                    // Switch back to filtered view
+                                    _showingAllCafes.value = false;
+                                    _filterCafesByState();
+                                  } else {
+                                    // Show all cafes
+                                    _showingAllCafes.value = true;
+                                    _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+                                  }
+                                },
+                                child: Text(
+                                  _showingAllCafes.value ? 'Show local' : 'Show all',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xff338125),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              )),
+                            ],
+                          ],
                         ),
-                      ),
+                      )),
                       Expanded(
-                        child: _cafeCtr.cybercafes.isEmpty
+                        child: Obx(() => _filteredCafes.isEmpty
                             ?  Center(
-                                child: Text('No cybercafes available',
-                                    style: GoogleFonts.inter(color: Colors.white70)))
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (_userState != null)
+                                      Text(
+                                        'No cafes available in $_userState',
+                                        style: GoogleFonts.inter(color: Colors.white70),
+                                      )
+                                    else
+                                      Text('No cybercafes available',
+                                          style: GoogleFonts.inter(color: Colors.white70)),
+                                    const SizedBox(height: 8),
+                                    if (_userState != null)
+                                      TextButton(
+                                        onPressed: () {
+                                          _showingAllCafes.value = true;
+                                          _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+                                        },
+                                        child: Text(
+                                          'Show all cafes',
+                                          style: GoogleFonts.inter(color: const Color(0xff338125)),
+                                        ),
+                                      ),
+                                  ],
+                                ))
                             : ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 padding:
                                     const EdgeInsets.symmetric(horizontal: 16),
                                 separatorBuilder: (_, __) =>
                                     const SizedBox(width: 16),
-                                itemCount: _cafeCtr.cybercafes.length,
+                                itemCount: _filteredCafes.length,
                                 itemBuilder: (_, i) {
-                                  final cafe = _cafeCtr.cybercafes[i];
+                                  final cafe = _filteredCafes[i];
                                   final img = [
                                     'https://next-level.gg/assets/cafes/11.jpg',
                                     'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
@@ -1012,6 +1177,7 @@ class _ArenaViewState extends State<ArenaView> {
                                   );
                                 },
                               ),
+                            ),
                       ),
                     ],
                   ),
