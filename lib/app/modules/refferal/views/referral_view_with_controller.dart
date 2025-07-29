@@ -13,7 +13,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 
 class ReferralViewWithController extends StatefulWidget {
-  const ReferralViewWithController({Key? key}) : super(key: key);
+  const ReferralViewWithController({super.key});
 
   @override
   State<ReferralViewWithController> createState() =>

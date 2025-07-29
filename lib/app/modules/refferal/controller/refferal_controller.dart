@@ -4,7 +4,6 @@ import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/data/services/user_controller.dart';
-import 'package:hash/core/network/error_handler.dart';
 
 class ReferralController extends GetxController {
   final _remoteRepo = locator<RemoteRepoInterface>();
@@ -71,9 +70,6 @@ class ReferralController extends GetxController {
       final user = _userController.user.value;
       final prefUser = await _remoteRepo.getUserFromPreferences();
       final userId = prefUser?['id'].toString();
-      if (user == null) {
-        throw Exception('User data not available. Please refresh the app.');
-      }
 
       // Extract user ID from user data (assuming it's stored in user model)
       // You might need to adjust this based on how user ID is stored
@@ -148,25 +144,25 @@ class ReferralController extends GetxController {
   /// Get current user's referral code
   String getReferralCode() {
     final user = _userController.user.value;
-    return user?.referralCode ?? 'HASH1234'; // Default fallback
+    return user.referralCode ?? 'HASH1234'; // Default fallback
   }
 
   /// Get current user's referral rewards
   int getReferralRewards() {
     final user = _userController.user.value;
-    return user?.referralRewards ?? 0;
+    return user.referralRewards ?? 0;
   }
 
   /// Get current user's referral count
   int getReferralCount() {
     final user = _userController.user.value;
-    return user?.referralCount ?? 0;
+    return user.referralCount ?? 0;
   }
 
   /// Check if user has referral code
   bool hasReferralCode() {
     final user = _userController.user.value;
-    return user?.referralCode != null && user!.referralCode!.isNotEmpty;
+    return user.referralCode != null && user.referralCode!.isNotEmpty;
   }
 
   /// Share referral code

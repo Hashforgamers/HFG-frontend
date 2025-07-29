@@ -31,6 +31,8 @@ class TeamSection extends StatelessWidget {
     },
   ];
 
+   TeamSection({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -134,7 +136,7 @@ class TeamFormScreen extends StatelessWidget {
   final String title;
   final Color backgroundColor;
 
-  TeamFormScreen({required this.title, required this.backgroundColor});
+  const TeamFormScreen({super.key, required this.title, required this.backgroundColor});
 
   @override
   Widget build(BuildContext context) {

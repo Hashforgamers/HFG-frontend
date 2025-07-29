@@ -1,7 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 import '../widget/tournament_card.dart';
 
@@ -43,7 +40,7 @@ class TournamentView extends StatelessWidget {
 class TournamentsListView extends StatelessWidget {
   final String type;
 
-  const TournamentsListView({required this.type});
+  const TournamentsListView({super.key, required this.type});
 
   @override
   Widget build(BuildContext context) {

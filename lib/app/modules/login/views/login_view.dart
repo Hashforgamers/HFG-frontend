@@ -13,6 +13,8 @@ class LoginView extends StatelessWidget {
   final segementService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
 
+  LoginView({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
