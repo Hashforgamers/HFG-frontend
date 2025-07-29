@@ -383,7 +383,7 @@ class GlobalBottomSheetService {
   String _formatHashCoins(int coins) {
     if (coins >= 1000) {
       double kValue = coins / 1000.0;
-      return kValue.toStringAsFixed(kValue.truncateToDouble() == kValue ? 0 : 1) + 'K';
+      return '${kValue.toStringAsFixed(kValue.truncateToDouble() == kValue ? 0 : 1)}K';
     }
     return coins.toString();
   }

@@ -26,20 +26,9 @@ class AuthInterceptor extends QueuedInterceptorsWrapper {
     try {
       // final token = await locator<AuthDataRepository>().getAccessToken();
       final token = '';
-      if (token != null) {
-        options.headers['Authorization'] = 'Bearer $token';
-        return handler.next(options);
-      } else {
-        // No token available, reject the request
-        return handler.reject(
-          DioException(
-            requestOptions: options,
-            error: 'No access token available',
-            type: DioExceptionType.unknown,
-          ),
-        );
-      }
-    } catch (e) {
+      options.headers['Authorization'] = 'Bearer $token';
+      return handler.next(options);
+        } catch (e) {
       return handler.reject(
         DioException(
           requestOptions: options,

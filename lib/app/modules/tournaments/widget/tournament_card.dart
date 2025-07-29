@@ -6,13 +6,12 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../utils/widgets/glow_neon_loader.dart';
-import '../views/tournament_detail_view.dart';
 import '../views/tournament_view.dart';
 
 class TournamentCard extends StatelessWidget {
   final Tournament tournament;
 
-  const TournamentCard({required this.tournament});
+  const TournamentCard({super.key, required this.tournament});
 
   @override
   Widget build(BuildContext context) {

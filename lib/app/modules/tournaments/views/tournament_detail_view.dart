@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class TournamentDetailView extends StatelessWidget {
+  const TournamentDetailView({super.key});
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -147,6 +149,8 @@ class TournamentDetailView extends StatelessWidget {
 }
 
 class OverviewTab extends StatelessWidget {
+  const OverviewTab({super.key});
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -340,6 +344,8 @@ class OverviewTab extends StatelessWidget {
 }
 
 class ScheduleTab extends StatelessWidget {
+  const ScheduleTab({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -350,6 +356,8 @@ class ScheduleTab extends StatelessWidget {
 }
 
 class TeamsTab extends StatelessWidget {
+  const TeamsTab({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -362,6 +370,8 @@ class TeamsTab extends StatelessWidget {
 }
 
 class CredentialsTab extends StatelessWidget {
+  const CredentialsTab({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -374,6 +384,8 @@ class CredentialsTab extends StatelessWidget {
 }
 
 class ResultsTab extends StatelessWidget {
+  const ResultsTab({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Center(

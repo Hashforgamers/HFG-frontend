@@ -1,9 +1,11 @@
-import 'package:get/get.dart';
-import 'package:uni_links/uni_links.dart';
 import 'dart:async';
 
+import 'package:get/get.dart';
+import 'package:app_links/app_links.dart';
+
 class DeepLinkController extends GetxController {
-  StreamSubscription? _sub;
+  final AppLinks _appLinks = AppLinks();
+  late final StreamSubscription<Uri> _linkSub;
 
   @override
   void onInit() {
@@ -14,29 +16,28 @@ class DeepLinkController extends GetxController {
 
   Future<void> _handleInitialLink() async {
     try {
-      final initialLink = await getInitialLink();
-      if (initialLink != null) {
-        _navigateToDeepLink(initialLink);
+      final Uri? initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _navigateToDeepLink(initialUri);
       }
     } catch (e) {
-      print('Failed to get initial link: $e');
+      print('Failed to get initial app link: $e');
     }
   }
 
   void _handleIncomingLinks() {
-    _sub = uriLinkStream.listen((Uri? uri) {
-      if (uri != null) {
-        _navigateToDeepLink(uri.toString());
-      }
-    }, onError: (err) {
-      print('Error in deep link stream: $err');
-    });
+    _linkSub = _appLinks.uriLinkStream.listen(
+          (Uri uri) {
+        _navigateToDeepLink(uri);
+      },
+      onError: (err) {
+        print('Error in app link stream: $err');
+      },
+    );
   }
 
-  void _navigateToDeepLink(String link) {
-    print('Deep Link: $link');
-    // Parse the link and navigate
-    Uri uri = Uri.parse(link);
+  void _navigateToDeepLink(Uri uri) {
+    print('Deep Link: $uri');
     if (uri.pathSegments.contains('contest')) {
       Get.toNamed('/contestPage', arguments: {'id': uri.queryParameters['id']});
     } else if (uri.pathSegments.contains('offer')) {
@@ -48,7 +49,7 @@ class DeepLinkController extends GetxController {
 
   @override
   void onClose() {
-    _sub?.cancel();
+    _linkSub.cancel();
     super.onClose();
   }
 }

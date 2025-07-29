@@ -10,11 +10,10 @@ class ViewDetailScreen extends StatelessWidget {
   final String endTime;
   final String startTime;
   const ViewDetailScreen(
-      {Key? key,
+      {super.key,
       required this.booking,
       required this.startTime,
-      required this.endTime})
-      : super(key: key);
+      required this.endTime});
 
   // Dummy value methods for missing data
   String getDummyGameName() => 'Unknown Game';

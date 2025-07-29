@@ -4,6 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class TournamentsSection extends StatelessWidget {
+  const TournamentsSection({super.key});
+
   @override
   Widget build(BuildContext context) {
     final List<Tournament> tournaments = [
@@ -71,7 +73,7 @@ class Tournament {
 class TournamentCard extends StatelessWidget {
   final Tournament tournament;
 
-  const TournamentCard({Key? key, required this.tournament}) : super(key: key);
+  const TournamentCard({super.key, required this.tournament});
 
   @override
   Widget build(BuildContext context) {

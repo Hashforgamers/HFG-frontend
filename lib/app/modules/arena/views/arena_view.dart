@@ -23,7 +23,7 @@ import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'arena_view_detailed.dart';
 
 class ArenaView extends StatefulWidget {
-  const ArenaView({Key? key}) : super(key: key);
+  const ArenaView({super.key});
 
   @override
   State<ArenaView> createState() => _ArenaViewState();
@@ -42,7 +42,7 @@ class _ArenaViewState extends State<ArenaView> {
 
   final markers = <Marker>{}.obs;
   final polylines = <Polyline>{}.obs;
-  final _polylinePoints = PolylinePoints();
+  final _polylinePoints = PolylinePoints(apiKey: '');
 
   final TextEditingController _searchCtl = TextEditingController();
   Timer? _camDebounce;
@@ -432,11 +432,14 @@ class _ArenaViewState extends State<ArenaView> {
 
   Future<void> _drawRoute(LatLng dest) async {
     if (_userLatLng == null) return;
+
+    final request = PolylineRequest(
+      origin: PointLatLng(_userLatLng!.latitude, _userLatLng!.longitude),
+      destination: PointLatLng(dest.latitude, dest.longitude),
+      mode: TravelMode.driving,
+    );
     final result = await _polylinePoints.getRouteBetweenCoordinates(
-      _gmapsKey,
-      PointLatLng(_userLatLng!.latitude, _userLatLng!.longitude),
-      PointLatLng(dest.latitude, dest.longitude),
-      travelMode: TravelMode.driving,
+      request: request,
     );
     if (result.points.isEmpty) {
       Get.snackbar('Route', 'No route found');
@@ -448,7 +451,7 @@ class _ArenaViewState extends State<ArenaView> {
       color: const Color(0xff338125),
       width: 6,
       points:
-          result.points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
+      result.points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
     ));
   }
 
@@ -583,9 +586,9 @@ class _ArenaViewState extends State<ArenaView> {
         heroTag: 'locateMe',
         mini: true,
         backgroundColor: const Color(0xff338125),
-        child: const Icon(Icons.my_location, color: Colors.black),
         onPressed:
             _userLatLng == null ? null : () => _smoothMoveCamera(_userLatLng!),
+        child: const Icon(Icons.my_location, color: Colors.black),
       ),
     );
   }

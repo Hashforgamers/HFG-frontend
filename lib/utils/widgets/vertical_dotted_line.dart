@@ -7,12 +7,12 @@ class DottedVerticalDivider extends StatelessWidget {
   final Color color;
 
   const DottedVerticalDivider({
-    Key? key,
+    super.key,
     this.height = 100,
     this.dotSize = 4,
     this.spacing = 4,
     this.color = Colors.grey,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

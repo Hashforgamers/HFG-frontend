@@ -86,7 +86,15 @@ class LoginController extends GetxController {
   }
 
   Future<bool> checkUserExistsInAPI() async {
-    final firebase_auth.User? user = _auth.currentUser;
+    firebase_auth.User? user = _auth.currentUser;
+    int retries = 0;
+
+// wait up to 1 second for Firebase to update currentUser
+    while (user == null && retries < 5) {
+      await Future.delayed(Duration(milliseconds: 200));
+      user = _auth.currentUser;
+      retries++;
+    }
 
     if (user == null) {
       print('No authenticated user found!');

@@ -149,6 +149,8 @@ class GamesController extends GetxController {
 }
 
 class GamesSection extends StatelessWidget {
+  const GamesSection({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -190,7 +192,7 @@ class GamesSection extends StatelessWidget {
 class GameCard extends StatelessWidget {
   final Game game;
 
-  GameCard({Key? key, required this.game}) : super(key: key);
+  const GameCard({super.key, required this.game});
 
   @override
   Widget build(BuildContext context) {

@@ -1,7 +1,6 @@
 // early_access_card.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -19,7 +18,7 @@ class EarlyAccessCard extends StatefulWidget {
 }
 
 class _EarlyAccessCardState extends State<EarlyAccessCard> {
-  bool _hover = false;
+  final bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +31,7 @@ class _EarlyAccessCardState extends State<EarlyAccessCard> {
           Get.snackbar('Error', 'Could not launch article');
         }
       }, // mobile “hover”
-      child: Container(
+      child: SizedBox(
         width: Get.width * 0.85,
         child: CustomPaint(
           painter: _CardPainter(hover: _hover),

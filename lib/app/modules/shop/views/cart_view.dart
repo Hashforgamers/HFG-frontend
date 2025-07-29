@@ -9,6 +9,8 @@ import '../controllers/checkout_controller.dart';
 import '../controllers/address_controller.dart';
 
 class CartView extends StatelessWidget {
+  const CartView({super.key});
+
   @override
   Widget build(BuildContext context) {
     final CartController cartController = Get.put(CartController());
