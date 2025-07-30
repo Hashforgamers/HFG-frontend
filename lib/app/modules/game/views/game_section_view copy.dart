@@ -1,7 +1,6 @@
 // Optimized and polished GamesSection with efficient state handling and UI cleanup
 import 'dart:convert';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -97,11 +96,9 @@ class GamesController extends GetxController {
       final selectedGames = result.take(5).map((game) => game.name).toList();
       segmentService.onGamePreferencesSet(selectedGames: selectedGames);
       fbEventsService.onGamePreferencesSet(selectedGames: selectedGames);
-
-      segmentService.onGameStarted(
-          gameId: result[0].id.toString(), mode: 'paid', entryFee: 123);
-      fbEventsService.onGameStarted(
-          gameId: result[0].id.toString(), mode: 'paid', entryFee: 123);
+      
+      segmentService.onGameStarted(gameId: result[0].id.toString(), mode: 'paid' , entryFee: 123);
+      fbEventsService.onGameStarted(gameId: result[0].id.toString(), mode: 'paid' , entryFee: 123);
       games.assignAll(result);
     } catch (e) {
       // Track game abandoned event on error
@@ -113,7 +110,7 @@ class GamesController extends GetxController {
         gameId: 'general',
         reason: 'Failed to fetch games: $e',
       );
-
+      
       Get.snackbar('Error', 'Failed to fetch games',
           backgroundColor: Colors.red, colorText: Colors.white);
     } finally {
@@ -162,7 +159,7 @@ class GamesSection extends StatelessWidget {
           style: GoogleFonts.inter(
               color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
         GetX<GamesController>(
           builder: (controller) {
             if (controller.isLoading.value) {
@@ -199,7 +196,7 @@ class GameCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final segmentService = locator<SegmentSdkService>();
     final fbEventsService = locator<FbEventsService>();
-
+    
     return GestureDetector(
       onTap: () {
         // Track game details viewed event
@@ -210,10 +207,9 @@ class GameCard extends StatelessWidget {
         );
         fbEventsService.onGameDetailsViewed(
           gameId: game.id.toString(),
-          cafeId:
-              'general', // Since this is a general game view, not cafe-specific
+          cafeId: 'general', // Since this is a general game view, not cafe-specific
         );
-
+        
         // Navigate to game details or show more info
         Get.snackbar(
           'Game Details',
@@ -224,21 +220,21 @@ class GameCard extends StatelessWidget {
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(right: 12),
-        height: 150,
-        width: 115,
+        width: 150,
         decoration: BoxDecoration(
           color: game.backgroundColor,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(10),
         ),
-        child: Stack(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(8), topLeft: Radius.circular(8)),
               child: CachedNetworkImage(
                 imageUrl: game.backgroundImage,
-                height: 190,
-                width: 115,
+                height: 100,
+                width: 150,
                 fit: BoxFit.cover,
                 placeholder: (context, url) =>
                     const Center(child: RainbowGlowingLoader(size: 30)),
@@ -246,68 +242,28 @@ class GameCard extends StatelessWidget {
                     const Icon(Icons.error, color: Colors.white),
               ),
             ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(15), bottom: Radius.circular(20)),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.0),
-                          Colors.black.withOpacity(0.8),
-                        ],
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          game.name,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          game.released,
-                          style: GoogleFonts.inter(
-                              color: Colors.white70, fontSize: 12),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            4,
-                            (index) => const Icon(
-                              Icons.star,
-                              color: Color(0xFFE6D009),
-                              size: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                children: [
+                  Text(game.name,
+                      style: GoogleFonts.inter(
+                          color: Colors.white, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  Text(game.released,
+                      style: GoogleFonts.inter(color: Colors.white70),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  Text('✪ ${game.rating}',
+                      style: GoogleFonts.inter(color: Colors.amberAccent),
+                      maxLines: 1),
+                  Text('View More',
+                      style: GoogleFonts.inter(color: Colors.white70)),
+                ],
               ),
-            ),
+            )
           ],
         ),
       ),

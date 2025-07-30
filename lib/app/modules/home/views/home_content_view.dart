@@ -1,5 +1,7 @@
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,11 +14,9 @@ import 'package:hash/app/modules/game/views/game_section_view.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
-import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shop/views/shop_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:hash/app/routes/app_routes.dart';
-import 'package:hash/utils/widgets/loader.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
@@ -36,6 +36,29 @@ class _HomeContentViewState extends State<HomeContentView> {
   final LoginController loginController = Get.find();
   final UserController userController = Get.find();
   final segmentService = locator<SegmentSdkService>();
+
+  final List<Map<String, String>> gameNewsCards = [
+    {
+      'image': "assets/images/gameNews_1.png",
+      'title':
+          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...'
+    },
+    {
+      'image': "assets/images/gameNews_2.png",
+      'title':
+          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...'
+    },
+    {
+      'image': "assets/images/gameNews_3.png",
+      'title':
+          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...'
+    },
+    {
+      'image': "assets/images/gameNews_4.png",
+      'title':
+          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...'
+    },
+  ];
 
   @override
   void initState() {
@@ -115,39 +138,48 @@ class _HomeContentViewState extends State<HomeContentView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: const Color(0xFF338125),
-        child: const Icon(Icons.support_agent_outlined, color: Colors.white),
-      ),
       appBar: _buildAppBar(),
       body: RefreshIndicator(
         onRefresh: _refreshData,
-        color: const Color(0xFF338125),
         backgroundColor: Colors.black,
         child: ListView(
-          padding: const EdgeInsets.all(10),
           children: [
-            BlocBuilder<HashCoinCubit, HashCoinState>(
-              builder: (_, state) => RewardsSection(
-                hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
-              ),
+            const SizedBox(height: 30),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: _buildEventBanner(),
             ),
-            const SizedBox(height: 18),
-            RainbowLoadingBar(height: 0.5, width: Get.width),
-            const SizedBox(height: 18),
-            EventBanner(),
-            const SizedBox(height: 18),
-            CafeSection(),
-            const SizedBox(height: 18),
-            const GamerNewsSection(),
-            const SizedBox(height: 18),
-            ViralShotsSection(),
-            const SizedBox(height: 18),
-            ShopSection(),
-            const SizedBox(height: 18),
-            GamesSection(),
-            _buildGameOnIndiaBanner(),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: CafeSection(),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: _buildShopSection(),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: _buildGamerNewsSection(),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: GamesSection(),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: ViralShotsSection(),
+            ),
+            const SizedBox(height: 40),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: _buildGameOnIndiaBanner(),
+            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -155,50 +187,457 @@ class _HomeContentViewState extends State<HomeContentView> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.black,
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Obx(() => Text(
-                'Hey, ${userController.user.value.gameUserName}!',
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(85),
+      child: AppBar(
+        backgroundColor: Colors.transparent,
+        systemOverlayStyle:
+            const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x1AFFFFFF),
+                  Color(0x1A64BD55),
+                ]),
+            borderRadius: BorderRadius.circular(25),
+          ),
+        ),
+        leadingWidth: 65,
+        leading: Obx(() => Padding(
+              padding: const EdgeInsets.only(left: 10),
+              child: _userAvatar(userController.user.value.photoUrl),
+            )),
+        title: Obx(
+          () => Padding(
+            padding: const EdgeInsets.only(top: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Hey, ${userController.user.value.gameUserName}!',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Viman Nagar, Pune',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFB6B6B6),
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          Center(
+              child: _buildPillContainer(
+                  icon: "assets/icons/union.png", label: '4800')),
+          const SizedBox(width: 8),
+          Center(
+            child: Stack(
+              children: [
+                _buildPillContainer(
+                    icon: "assets/icons/coin.png", label: '₹200'),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Image.asset(
+                    "assets/icons/vector.png",
+                    height: 10,
+                    width: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+        ],
+      ),
+    );
+  }
+
+  Widget _userAvatar(String? photoUrl) {
+    return Container(
+      width: 55,
+      height: 55,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: const Color(0xFF6DFB60),
+          width: 2,
+        ),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: CircleAvatar(
+        radius: 20,
+        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+            ? CachedNetworkImageProvider(photoUrl)
+            : const NetworkImage(
+                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg')
+                as ImageProvider,
+        backgroundColor: Colors.white,
+      ),
+    );
+  }
+
+  Widget _buildPillContainer({required String icon, required String label}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            border: Border.all(color: Colors.white.withOpacity(0.15)),
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                icon,
+                height: 18,
+                width: 18,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
                 style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
-              )),
-          Obx(() => PopupMenuButton<String>(
-                offset: const Offset(0, 40),
-                color: Colors.black87,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                onSelected: (value) => _handleMenuSelection(value),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'Profile',
-                    child: Text(
-                      'Profile',
-                      style: GoogleFonts.inter(color: const Color(0xffDE3A3A)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventBanner() {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: Image.asset(
+              'assets/images/bannerBg.png',
+              height: 200,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+              child: Container(
+                height: 190,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 20,
+            top: 30,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Special Gaming Event',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Win prize upto 70,000*',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFB6B6B6),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 70),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    border:
+                        Border.all(color: const Color(0xFF75F94C), width: 2),
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: Text(
+                    'Join Now',
+                    style: GoogleFonts.inter(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: 10,
+            right: 62,
+            child: SizedBox(
+              height: 180,
+              child: Image.asset(
+                "assets/images/bannerHero.png",
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShopSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'HASH QUEST',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Container(
+          height: 200,
+          width: double.infinity,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(25)),
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(25),
+                child: Image.asset(
+                  'assets/images/hashQuestBg.png',
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                  child: Container(
+                    height: 190,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                      ),
                     ),
                   ),
-                  PopupMenuItem(
-                    value: 'Settings',
-                    child: Text('Settings',
-                        style:
-                            GoogleFonts.inter(color: const Color(0xffDE3A3A))),
-                  ),
-                  PopupMenuItem(
-                    value: 'Logout',
-                    onTap: _logout,
-                    child: Text('Logout',
-                        style:
-                            GoogleFonts.inter(color: const Color(0xffDE3A3A))),
-                  ),
-                ],
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  child: userController.isLoading.value
-                      ? _shimmerAvatar()
-                      : _userAvatar(userController.user.value.photoUrl),
                 ),
-              )),
+              ),
+              Positioned(
+                left: 20,
+                top: 30,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hash Headphones',
+                      style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'premium quality leather with foam \ncushion for maximum comfort.',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 50),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(
+                            color: const Color(0xFF75F94C), width: 2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Text(
+                        'Pre-Register',
+                        style: GoogleFonts.inter(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 20,
+                right: 30,
+                child: SizedBox(
+                  height: 160,
+                  child: Image.asset(
+                    "assets/images/headphone.png",
+                    height: 140,
+                    width: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 30,
+                right: 10,
+                child: Transform.rotate(
+                  angle: 170,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00DC00),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      '₹2499',
+                      style: GoogleFonts.inter(
+                        color: Colors.black,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGamerNewsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'GAMER FIREWIRE',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Center(
+          child: SizedBox(
+            height: 200,
+            width: 400,
+            child: Stack(
+              children: List.generate(
+                gameNewsCards.length,
+                (index) {
+                  final cards = gameNewsCards[index];
+                  return Positioned(
+                    top: ((cards.length - 1) - index) * 14 + 14,
+                    left: ((cards.length - 1) - index) * 12 + 12,
+                    right: ((cards.length - 1) - index) * 12 + 12,
+                    child: _buildGameNewsCard(
+                        image: cards['image']!, title: cards['title']!),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGameNewsCard({required String image, required String title}) {
+    return Container(
+      height: 150,
+      width: 400,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0x1AFFFFFF),
+              Color(0x1A64BD55),
+            ]),
+        border: Border.all(color: Colors.white.withOpacity(0.15)),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                height: 150,
+                width: 400,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 15,
+            bottom: 15,
+            left: 15,
+            right: 15,
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: Image.asset(
+                    image,
+                    height: 120,
+                    width: 150,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
+                    maxLines: 5,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -209,18 +648,6 @@ class _HomeContentViewState extends State<HomeContentView> {
       baseColor: Colors.grey.shade800,
       highlightColor: Colors.grey.shade600,
       child: const CircleAvatar(radius: 15, backgroundColor: Colors.grey),
-    );
-  }
-
-  Widget _userAvatar(String? photoUrl) {
-    return CircleAvatar(
-      radius: 15,
-      backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-          ? CachedNetworkImageProvider(photoUrl)
-          : const NetworkImage(
-                  'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg')
-              as ImageProvider,
-      backgroundColor: Colors.white,
     );
   }
 
@@ -251,23 +678,21 @@ class _HomeContentViewState extends State<HomeContentView> {
   }
 
   Widget _buildGameOnIndiaBanner() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 45.0),
-      child: Center(
-        child: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFFF9933), Colors.white, Color(0xFF138808)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ).createShader(bounds),
-          child: Text(
-            'Game On, India!',
-            style: GoogleFonts.tulpenOne(
-              fontSize: 100,
-              fontWeight: FontWeight.normal,
-              color: Colors.white,
-            ),
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      height: 60,
+      width: double.infinity,
+      decoration: BoxDecoration(
+          color: Colors.transparent,
+          border: Border.all(color: const Color(0xFF00DC00), width: 2),
+          borderRadius: BorderRadius.circular(50)),
+      child: Text(
+        'Game On, India!',
+        textAlign: TextAlign.center,
+        style: GoogleFonts.tulpenOne(
+          fontSize: 35,
+          fontWeight: FontWeight.bold,
+          color: const Color(0xFF75F94C),
         ),
       ),
     );
