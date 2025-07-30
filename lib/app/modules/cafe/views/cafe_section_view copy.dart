@@ -1,5 +1,4 @@
 import 'dart:ui';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -26,14 +25,6 @@ class CafeSection extends StatefulWidget {
 }
 
 class _CafeSectionState extends State<CafeSection> {
-  String selectedLabel = '';
-  final List<String> labels = [
-    'Location',
-    'Price Range',
-    'Distance',
-    'Favourtites',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -54,21 +45,13 @@ class _CafeSectionState extends State<CafeSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'BROWSE CAFES',
+          'Nearby Cafes',
           style: GoogleFonts.inter(
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: FontWeight.w700,
             color: Colors.white,
           ),
         ),
-        const SizedBox(height: 20),
-        Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: labels.map((label) {
-              return _buildCafeContainer(
-                  label: label, isSelected: selectedLabel == label);
-            }).toList()),
-        const SizedBox(height: 20),
         Obx(() {
           if (widget._cafeController.isLoading.value) {
             return SizedBox(
@@ -141,7 +124,7 @@ class _CafeSectionState extends State<CafeSection> {
                       location: location,
                       availableGames: availableGames,
                     );
-
+                    
                     Get.to(
                       () => ArenaDetailView(
                         images: imageUrl,
@@ -162,9 +145,9 @@ class _CafeSectionState extends State<CafeSection> {
                     );
                   },
                   child: Container(
-                    width: 360,
+                    width: 300,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(16),
                       color: const Color(0xff0E0E0E),
                       boxShadow: [
                         BoxShadow(
@@ -178,11 +161,11 @@ class _CafeSectionState extends State<CafeSection> {
                       children: [
                         /// Café image
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(25),
+                          borderRadius: BorderRadius.circular(16),
                           child: CachedNetworkImage(
                             imageUrl: imageUrl,
                             fit: BoxFit.cover,
-                            width: 360,
+                            width: 300,
                             height: 250,
                             placeholder: (_, __) => const Center(
                                 child: RainbowGlowingLoader(size: 40)),
@@ -199,13 +182,14 @@ class _CafeSectionState extends State<CafeSection> {
                         Positioned(
                           left: 0,
                           right: 0,
-                          top: 0,
+                          bottom: 0,
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(15),
+                            borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(16)),
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                               child: Container(
-                                padding: const EdgeInsets.all(20),
+                                padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     begin: Alignment.topCenter,
@@ -217,10 +201,28 @@ class _CafeSectionState extends State<CafeSection> {
                                   ),
                                 ),
                                 child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.start,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    Text(
+                                      cafe['cafe_name'] ?? 'Unknown Cafe',
+                                      style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      cafe['location']?['address'] ??
+                                          'Address not available',
+                                      style: GoogleFonts.inter(
+                                          color: Colors.white70, fontSize: 12),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 8),
                                     Row(
                                       children: [
                                         Icon(Icons.circle,
@@ -228,65 +230,20 @@ class _CafeSectionState extends State<CafeSection> {
                                             color: isOpen
                                                 ? Colors.greenAccent
                                                 : Colors.redAccent),
-                                        const SizedBox(width: 6),
+                                        const SizedBox(width: 4),
                                         Text(
-                                          cafe['cafe_name'] ?? 'Unknown Cafe',
+                                          isOpen ? 'Open' : 'Closed',
                                           style: GoogleFonts.inter(
-                                              color: Colors.white,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const Spacer(),
-                                        Image.asset(
-                                          "assets/icons/gaming-pad-02.png",
-                                          height: 16,
-                                          width: 16,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          '7 Slots',
-                                          style: GoogleFonts.inter(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w500),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        const SizedBox(width: 12),
-                                        Row(
-                                          children: List.generate(
-                                            4,
-                                            (index) => const Icon(
-                                              Icons.star,
-                                              color: Color(0xFFE6D009),
-                                              size: 13,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          '2.3 km',
-                                          style: GoogleFonts.inter(
-                                              color: Colors.white70,
+                                              color: isOpen
+                                                  ? Colors.greenAccent
+                                                  : Colors.redAccent,
                                               fontSize: 12),
                                         ),
-                                        const SizedBox(width: 8),
-                                        const Icon(Icons.arrow_forward,
-                                            size: 13),
                                         const Spacer(),
-                                        _buildPlatformIcon(
-                                            icon: "assets/icons/ps.png"),
-                                        const SizedBox(width: 8),
-                                        _buildPlatformIcon(
-                                            icon: "assets/icons/xbox.png"),
-                                        const SizedBox(width: 8),
-                                        _buildPlatformIcon(
-                                            icon: "assets/icons/pc_1.png"),
+                                        Text('2.3 km',
+                                            style: GoogleFonts.inter(
+                                                color: Colors.white70,
+                                                fontSize: 12)),
                                       ],
                                     )
                                   ],
@@ -304,40 +261,6 @@ class _CafeSectionState extends State<CafeSection> {
           );
         }),
       ],
-    );
-  }
-
-  Widget _buildPlatformIcon({required String icon}) {
-    return Image.asset(
-      icon,
-      height: 18,
-      width: 18,
-      fit: BoxFit.cover,
-    );
-  }
-
-  Widget _buildCafeContainer(
-      {required String label, required bool isSelected}) {
-    return GestureDetector(
-      onTap: () {
-        selectedLabel = label;
-        setState(() {});
-      },
-      child: IntrinsicWidth(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 13),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.white70,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-                color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
     );
   }
 }

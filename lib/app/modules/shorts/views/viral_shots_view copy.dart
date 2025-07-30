@@ -19,7 +19,7 @@ class ViralShotsSection extends StatelessWidget {
           style: GoogleFonts.inter(
               color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
         Obx(() {
           if (controller.isLoading.value) return _shimmerRow();
           if (controller.shorts.isEmpty) {
@@ -73,22 +73,22 @@ class ViralShotsSection extends StatelessWidget {
       onTap: () => Get.to(() =>
           ShortVideoPlayer(shorts: controller.shorts, initialIndex: index)),
       child: Container(
-        margin: const EdgeInsets.only(right: 18),
-        width: 125,
+        margin: const EdgeInsets.all(5),
+        width: 120,
         height: 220,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(10),
           color: const Color(0xff1E1E1E),
         ),
         child: Stack(
           alignment: Alignment.bottomCenter,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(8),
               child: CachedNetworkImage(
                 imageUrl: short.thumbnail,
                 height: 220,
-                width: 125,
+                width: 120,
                 fit: BoxFit.cover,
                 placeholder: (context, url) =>
                     Container(color: Colors.grey[800]),
@@ -146,24 +146,16 @@ class ViralShotsSection extends StatelessWidget {
                     onPressed: () => Get.to(() => ShortVideoPlayer(
                         shorts: controller.shorts, initialIndex: index)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xff75F94C),
+                      backgroundColor: const Color(0xff00D701),
                       minimumSize: const Size(0, 26),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 8, horizontal: 20),
-                      side: const BorderSide(
-                        color: Colors.white,
-                        width: 1.5,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25)),
+                          borderRadius: BorderRadius.circular(6)),
                     ),
                     child: Text(
                       'Watch',
-                      style: GoogleFonts.inter(
-                        color: Colors.black,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style:
+                          GoogleFonts.inter(color: Colors.black, fontSize: 12),
                     ),
                   ),
                 ],
