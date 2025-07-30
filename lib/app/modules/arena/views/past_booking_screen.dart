@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen_detail.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'dart:convert';
@@ -575,23 +575,8 @@ class _TicketClipper extends CustomClipper<Path> {
 }
 // qr_scanner_view.dart
 
-class QrScannerView extends StatefulWidget {
+class QrScannerView extends StatelessWidget {
   const QrScannerView({super.key});
-  @override
-  State<QrScannerView> createState() => _QrScannerViewState();
-}
-
-class _QrScannerViewState extends State<QrScannerView> {
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? controller;
-
-  @override
-  void reassemble() {
-    // hot reload fix
-    super.reassemble();
-    controller?.pauseCamera();
-    controller?.resumeCamera();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -599,16 +584,18 @@ class _QrScannerViewState extends State<QrScannerView> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          QRView(
-            key: qrKey,
-            onQRViewCreated: _onQRViewCreated,
-            overlay: QrScannerOverlayShape(
-              borderColor: Colors.green,
-              borderRadius: 10,
-              borderLength: 30,
-              borderWidth: 8,
-              cutOutSize: Get.width * 0.7,
+          MobileScanner(
+            controller: MobileScannerController(
+              detectionSpeed: DetectionSpeed.noDuplicates,
+              facing: CameraFacing.back,
+              torchEnabled: false,
             ),
+            onDetect: (capture) {
+              final barcode = capture.barcodes.first;
+              if (barcode.rawValue != null) {
+                Get.back(result: barcode.rawValue);
+              }
+            },
           ),
           Positioned(
             top: 48,
@@ -621,19 +608,5 @@ class _QrScannerViewState extends State<QrScannerView> {
         ],
       ),
     );
-  }
-
-  void _onQRViewCreated(QRViewController c) {
-    controller = c;
-    c.scannedDataStream.listen((scanData) {
-      controller?.pauseCamera();
-      Get.back(result: scanData.code); // return the scanned content
-    });
-  }
-
-  @override
-  void dispose() {
-    controller?.dispose();
-    super.dispose();
   }
 }

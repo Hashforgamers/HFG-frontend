@@ -7,26 +7,18 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:376797794992:android:755b419923e70edbd82175",
+        "mobilesdk_app_id": "1:376797794992:android:5bd85a3cefcc0db7d82175",
         "android_client_info": {
-          "package_name": "com.example.hash"
+          "package_name": "com.hfg.hash"
         }
       },
       "oauth_client": [
         {
-          "client_id": "376797794992-6n1pa1g8kmo87g98mknh7nlbj6br177f.apps.googleusercontent.com",
+          "client_id": "376797794992-c5ui8s5vshu8irre2ijjfc1i6oc7ug4f.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.hash",
-            "certificate_hash": "d73669347ddd5ea4209fdce4015c94be0d1c6698"
-          }
-        },
-        {
-          "client_id": "376797794992-gaupcihpsdtcq5f2u4riehjd7c0ltrrq.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.hash",
-            "certificate_hash": "0fd8d2ffa83baa7b6f863427731e70a53a4e3f9b"
+            "package_name": "com.hfg.hash",
+            "certificate_hash": "8c0159ac8550e8c212e661ee51d9b43af5a684a8"
           }
         },
         {
@@ -47,10 +39,10 @@
               "client_type": 3
             },
             {
-              "client_id": "376797794992-hh2ntm6s07o4j2kuv2jrh9rlgsnt5o6o.apps.googleusercontent.com",
+              "client_id": "376797794992-4q79jkq71knltuabht4jgc458857h8r4.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.hash"
+                "bundle_id": "com.hashforgamers.hash"
               }
             }
           ]

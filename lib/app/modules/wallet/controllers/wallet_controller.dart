@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:hash/core/network/api_endpoints.dart';
-import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -61,8 +60,8 @@ class WalletController extends GetxController {
     isLoading.value = true;
     print('🔄 Starting wallet fetch...');
 
-    final userId = userController.userId?.trim();
-    if (userId == null || userId.isEmpty) {
+    final userId = userController.userId.trim();
+    if (userId.isEmpty) {
       print('❌ User ID not available yet, skipping wallet fetch');
       isLoading.value = false;
       return;
@@ -82,12 +81,12 @@ class WalletController extends GetxController {
       } else {
         print('❌ Wallet API Error: ${res.body}');
         // Only show snackbar for non-retryable errors
-        Get.snackbar("Error", "Failed to load wallet • ${res.body}");
+        // Get.snackbar("Error", "Failed to load wallet ");
       }
     } catch (e) {
       print('❌ Wallet Exception: $e');
       // Only show snackbar for non-retryable errors
-      Get.snackbar("Error", e.toString());
+      print("Error $e");
     } finally {
       isLoading.value = false;
       print('🏁 Wallet fetch completed');
@@ -107,8 +106,8 @@ class WalletController extends GetxController {
     required int amount,
     required String paymentId,
   }) async {
-    final userId = userController.userId?.trim();
-    if (userId == null || userId.isEmpty) {
+    final userId = userController.userId.trim();
+    if (userId.isEmpty) {
       Get.snackbar('Error', 'User ID missing, cannot confirm top-up.');
       return;
     }

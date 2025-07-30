@@ -10,6 +10,8 @@ import 'package:lottie/lottie.dart';
 import '../products_model.dart';
 
 class ShopSection extends StatelessWidget {
+  const ShopSection({super.key});
+
   @override
   Widget build(BuildContext context) {
     final List<Product> products = [
@@ -112,8 +114,7 @@ class ProductCard extends StatelessWidget {
   final String productImage;
 
   const ProductCard(
-      {Key? key, required this.product, required this.productImage})
-      : super(key: key);
+      {super.key, required this.product, required this.productImage});
 
   @override
   Widget build(BuildContext context) {

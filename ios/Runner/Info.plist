@@ -26,28 +26,44 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+
+	<!-- ✅ Deeplinks, Firebase, Google Sign-In -->
 	<key>CFBundleURLTypes</key>
-    <array>
-      <dict>
-        <key>CFBundleURLName</key>
-        <string>hash</string>
-        <key>CFBundleURLSchemes</key>
-        <array>
-          <string>hash</string>
-        </array>
-      </dict>
-    </array>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>hash</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>hash</string> <!-- Deep Link -->
+				<string>com.googleusercontent.apps.376797794992-ikpq7h5o7flrhgmm53otlf1sm973489h</string> <!-- REVERSED_CLIENT_ID -->
+			</array>
+		</dict>
+	</array>
+
+	<!-- ✅ Required for Phone Auth via SMS -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>telprompt</string>
+	</array>
+
+	<!-- ✅ Flutter Platform Views -->
+	<key>io.flutter.embedded_views_preview</key>
+	<string>YES</string>
 
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
@@ -62,7 +78,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>io.flutter.embedded_views_preview</key>
-	<string>YES</string>
 </dict>
 </plist>

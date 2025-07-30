@@ -4,7 +4,7 @@ class RainbowLoadingBar extends StatefulWidget {
   final double? width;
   final double? height;
 
-  const RainbowLoadingBar({Key? key, this.width, this.height}) : super(key: key);
+  const RainbowLoadingBar({super.key, this.width, this.height});
 
   @override
   _RainbowLoadingBarState createState() => _RainbowLoadingBarState();

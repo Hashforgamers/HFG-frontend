@@ -1,7 +1,5 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class QuoteService {
   final String apiUrl = "https://ultima.rest/api/random";

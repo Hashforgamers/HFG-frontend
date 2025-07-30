@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
-import 'package:hash/app/modules/arena/models/slot_model.dart';
 
 class BookingController extends GetxController {
   final isLoading = false.obs;
@@ -35,8 +34,9 @@ class BookingController extends GetxController {
       // Parse slot start time
       final startTimeStr = slot['start_time'] ?? '';
       final startTimeParts = startTimeStr.split(':');
-      if (startTimeParts.length < 2)
+      if (startTimeParts.length < 2) {
         return true; // If can't parse, assume available
+      }
 
       final startHour = int.parse(startTimeParts[0]);
       final startMinute = int.parse(startTimeParts[1]);

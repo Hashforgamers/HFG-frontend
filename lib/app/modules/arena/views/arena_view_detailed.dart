@@ -1,5 +1,4 @@
 // Enhanced ArenaDetailView with full dark theme and polished UI
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
@@ -69,8 +68,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   Widget build(BuildContext context) {
     final List<String> imageUrls =
         widget.images.split(','); // Assuming images is a comma-separated string
-    int _currentPage = 0;
-    final PageController _pageController = PageController();
+    int currentPage = 0;
+    final PageController pageController = PageController();
 
     return Scaffold(
       backgroundColor: const Color(0xff0F0F0F),
@@ -84,11 +83,11 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                 child: Stack(
                   children: [
                     PageView.builder(
-                      controller: _pageController,
+                      controller: pageController,
                       itemCount: imageUrls.length,
                       onPageChanged: (index) {
                         setState(() {
-                          _currentPage = index;
+                          currentPage = index;
                         });
                       },
                       itemBuilder: (context, index) => Image.network(
@@ -156,7 +155,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                             width: 28,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: _currentPage == index
+                              color: currentPage == index
                                   ? const Color(0xff338125)
                                   : Colors.white24,
                               borderRadius: BorderRadius.circular(3),
@@ -951,10 +950,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     // Food & Beverage
     if (name.contains('food') ||
         name.contains('meal') ||
-        name.contains('snack')) return Icons.restaurant;
+        name.contains('snack')) {
+      return Icons.restaurant;
+    }
     if (name.contains('coffee') ||
         name.contains('tea') ||
-        name.contains('drink')) return Icons.local_cafe;
+        name.contains('drink')) {
+      return Icons.local_cafe;
+    }
     if (name.contains('water') || name.contains('beverage')) {
       return Icons.local_drink;
     }
@@ -963,23 +966,28 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     if (name.contains('ac') || name.contains('air_condition')) {
       return FontAwesomeIcons.snowflake;
     }
-    if (name.contains('wifi') || name.contains('internet'))
+    if (name.contains('wifi') || name.contains('internet')) {
       return FontAwesomeIcons.wifi;
+    }
     if (name.contains('parking')) return FontAwesomeIcons.parking;
     if (name.contains('toilet') ||
         name.contains('washroom') ||
-        name.contains('bathroom')) return Icons.wc;
+        name.contains('bathroom')) {
+      return Icons.wc;
+    }
     if (name.contains('charging') || name.contains('power')) return Icons.power;
     if (name.contains('headphone') || name.contains('audio')) {
       return FontAwesomeIcons.headphones;
     }
-    if (name.contains('chair') || name.contains('seat'))
+    if (name.contains('chair') || name.contains('seat')) {
       return FontAwesomeIcons.chair;
+    }
     if (name.contains('table')) return FontAwesomeIcons.table;
 
     // Entertainment
-    if (name.contains('tv') || name.contains('television'))
+    if (name.contains('tv') || name.contains('television')) {
       return FontAwesomeIcons.tv;
+    }
     if (name.contains('music') || name.contains('sound')) {
       return FontAwesomeIcons.music;
     }

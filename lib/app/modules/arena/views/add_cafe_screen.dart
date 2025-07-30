@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/firebase_service.dart';
 
 class AddCafeScreen extends StatefulWidget {
-  const AddCafeScreen({Key? key}) : super(key: key);
+  const AddCafeScreen({super.key});
 
   @override
   State<AddCafeScreen> createState() => _AddCafeScreenState();

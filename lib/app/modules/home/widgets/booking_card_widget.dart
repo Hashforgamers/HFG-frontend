@@ -19,7 +19,7 @@ class BookingCard extends StatelessWidget {
   final Map<String, dynamic> booking;
 
   const BookingCard({
-    Key? key,
+    super.key,
     required this.gameName,
     required this.cafeName,
     required this.startTime,
@@ -30,7 +30,7 @@ class BookingCard extends StatelessWidget {
     required this.bookingId,
     required this.additionalServices,
     required this.booking,
-  }) : super(key: key);
+  });
 
   void _showQrCode(BuildContext context) {
     showDialog(

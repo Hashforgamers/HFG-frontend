@@ -1,11 +1,9 @@
-import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class RainbowGlowingLoader extends StatefulWidget {
   final double size;
 
-  const RainbowGlowingLoader({Key? key, this.size = 80}) : super(key: key); // default size: 80
+  const RainbowGlowingLoader({super.key, this.size = 80}); // default size: 80
 
   @override
   State<RainbowGlowingLoader> createState() => _RainbowGlowingLoaderState();

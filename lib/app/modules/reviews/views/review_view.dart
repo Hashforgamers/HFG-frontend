@@ -7,6 +7,8 @@ import '../controllers/review_controller.dart';
 class ReviewPage extends StatelessWidget {
   final ReviewController reviewController = Get.put(ReviewController());
 
+   ReviewPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     // Fetch reviews when the page loads
@@ -67,11 +69,11 @@ class ReviewWidget extends StatelessWidget {
   final String user;
 
   const ReviewWidget({
-    Key? key,
+    super.key,
     required this.rating,
     required this.comment,
     required this.user,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
