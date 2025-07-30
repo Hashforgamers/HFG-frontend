@@ -64,10 +64,8 @@ class ErrorHandler {
     String errorMessage = 'An error occurred';
     String endpoint = '';
 
-    if (error.requestOptions.uri != null) {
-      endpoint = error.requestOptions.uri.toString();
-    }
-
+    endpoint = error.requestOptions.uri.toString();
+  
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
         errorMessage = 'Connection timeout';

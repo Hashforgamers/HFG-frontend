@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -17,6 +16,8 @@ class ProfileView extends StatelessWidget {
   final _formKey = GlobalKey<FormState>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+
+  ProfileView({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -21,8 +21,8 @@ class LocateMeButton extends StatelessWidget {
         heroTag: 'locateMe',
         mini: true,
         backgroundColor: const Color(0xff338125),
-        child: const Icon(Icons.my_location, color: Colors.black),
         onPressed: userLatLng == null ? null : moveCamera,
+        child: const Icon(Icons.my_location, color: Colors.black),
       ),
     );
   }

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hash/app/modules/shop/views/shop_view.dart';
 
 import '../../reviews/views/review_view.dart';
 import '../controllers/cart_controller.dart';
@@ -306,7 +305,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             style: GoogleFonts.inter(
                 color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          Container(
+          SizedBox(
             width: Get.width * 0.45,
             child: Text(value,
                 style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),

@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/global_bottom_sheet_service.dart';
 
 import '../wallet/controllers/wallet_controller.dart';
-import '../wallet/views/wallet_bottomsheet.dart';
 import '../wallet/views/wallet_view.dart';
 
 class RewardsSection extends StatelessWidget {

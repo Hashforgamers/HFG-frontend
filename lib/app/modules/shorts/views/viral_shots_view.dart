@@ -9,6 +9,8 @@ import 'short_video_player.dart';
 class ViralShotsSection extends StatelessWidget {
   final controller = Get.put(YouTubeShortsController());
 
+   ViralShotsSection({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Column(
