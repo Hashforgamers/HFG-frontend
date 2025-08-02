@@ -14,6 +14,7 @@ import 'package:hash/app/modules/game/views/game_section_view.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
+import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shop/views/shop_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:hash/app/routes/app_routes.dart';
@@ -36,29 +37,6 @@ class _HomeContentViewState extends State<HomeContentView> {
   final LoginController loginController = Get.find();
   final UserController userController = Get.find();
   final segmentService = locator<SegmentSdkService>();
-
-  final List<Map<String, String>> gameNewsCards = [
-    {
-      'image': "assets/images/gameNews_1.png",
-      'title':
-          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...'
-    },
-    {
-      'image': "assets/images/gameNews_2.png",
-      'title':
-          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...'
-    },
-    {
-      'image': "assets/images/gameNews_3.png",
-      'title':
-          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...'
-    },
-    {
-      'image': "assets/images/gameNews_4.png",
-      'title':
-          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...'
-    },
-  ];
 
   @override
   void initState() {
@@ -147,7 +125,7 @@ class _HomeContentViewState extends State<HomeContentView> {
             const SizedBox(height: 30),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: _buildEventBanner(),
+              child: EventBanner(),
             ),
             const SizedBox(height: 20),
             Padding(
@@ -157,12 +135,12 @@ class _HomeContentViewState extends State<HomeContentView> {
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: _buildShopSection(),
+              child: ShopSection(),
             ),
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: _buildGamerNewsSection(),
+              child: GamerNewsSection(),
             ),
             const SizedBox(height: 20),
             Padding(
@@ -191,26 +169,27 @@ class _HomeContentViewState extends State<HomeContentView> {
       preferredSize: const Size.fromHeight(85),
       child: AppBar(
         backgroundColor: Colors.transparent,
-        systemOverlayStyle:
-            const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+        ),
         elevation: 0,
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0x1AFFFFFF),
-                  Color(0x1A64BD55),
-                ]),
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x1AFFFFFF), Color(0x1A64BD55)],
+            ),
             borderRadius: BorderRadius.circular(25),
           ),
         ),
         leadingWidth: 65,
-        leading: Obx(() => Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: _userAvatar(userController.user.value.photoUrl),
-            )),
+        leading: Obx(
+          () => Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: _userAvatar(userController.user.value.photoUrl),
+          ),
+        ),
         title: Obx(
           () => Padding(
             padding: const EdgeInsets.only(top: 14),
@@ -243,28 +222,14 @@ class _HomeContentViewState extends State<HomeContentView> {
           ),
         ),
         actions: [
-          Center(
-              child: _buildPillContainer(
-                  icon: "assets/icons/union.png", label: '4800')),
-          const SizedBox(width: 8),
-          Center(
-            child: Stack(
-              children: [
-                _buildPillContainer(
-                    icon: "assets/icons/coin.png", label: '₹200'),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Image.asset(
-                    "assets/icons/vector.png",
-                    height: 10,
-                    width: 10,
-                  ),
-                ),
-              ],
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: BlocBuilder<HashCoinCubit, HashCoinState>(
+              builder: (_, state) => RewardsSection(
+                hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+              ),
             ),
           ),
-          const SizedBox(width: 10),
         ],
       ),
     );
@@ -275,10 +240,7 @@ class _HomeContentViewState extends State<HomeContentView> {
       width: 55,
       height: 55,
       decoration: BoxDecoration(
-        border: Border.all(
-          color: const Color(0xFF6DFB60),
-          width: 2,
-        ),
+        border: Border.all(color: const Color(0xFF6DFB60), width: 2),
         borderRadius: BorderRadius.circular(28),
       ),
       child: CircleAvatar(
@@ -286,359 +248,32 @@ class _HomeContentViewState extends State<HomeContentView> {
         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
             ? CachedNetworkImageProvider(photoUrl)
             : const NetworkImage(
-                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg')
-                as ImageProvider,
+                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
+                  )
+                  as ImageProvider,
         backgroundColor: Colors.white,
       ),
     );
   }
 
-  Widget _buildPillContainer({required String icon, required String label}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(25),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            border: Border.all(color: Colors.white.withOpacity(0.15)),
-            borderRadius: BorderRadius.circular(25),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                icon,
-                height: 18,
-                width: 18,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEventBanner() {
+  Widget _buildGameOnIndiaBanner() {
     return Container(
-      height: 200,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      height: 60,
       width: double.infinity,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: Image.asset(
-              'assets/images/bannerBg.png',
-              height: 200,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
-          ),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-              child: Container(
-                height: 190,
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 20,
-            top: 30,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Special Gaming Event',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Win prize upto 70,000*',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFB6B6B6),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 70),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    border:
-                        Border.all(color: const Color(0xFF75F94C), width: 2),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: Text(
-                    'Join Now',
-                    style: GoogleFonts.inter(fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            bottom: 10,
-            right: 62,
-            child: SizedBox(
-              height: 180,
-              child: Image.asset(
-                "assets/images/bannerHero.png",
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildShopSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'HASH QUEST',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          height: 200,
-          width: double.infinity,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(25)),
-          child: Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(25),
-                child: Image.asset(
-                  'assets/images/hashQuestBg.png',
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-                  child: Container(
-                    height: 190,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 20,
-                top: 30,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hash Headphones',
-                      style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'premium quality leather with foam \ncushion for maximum comfort.',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(height: 50),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 8, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.transparent,
-                        border: Border.all(
-                            color: const Color(0xFF75F94C), width: 2),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Text(
-                        'Pre-Register',
-                        style: GoogleFonts.inter(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 20,
-                right: 30,
-                child: SizedBox(
-                  height: 160,
-                  child: Image.asset(
-                    "assets/images/headphone.png",
-                    height: 140,
-                    width: 120,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 30,
-                right: 10,
-                child: Transform.rotate(
-                  angle: 170,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00DC00),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Text(
-                      '₹2499',
-                      style: GoogleFonts.inter(
-                        color: Colors.black,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGamerNewsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'GAMER FIREWIRE',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 20),
-        Center(
-          child: SizedBox(
-            height: 200,
-            width: 400,
-            child: Stack(
-              children: List.generate(
-                gameNewsCards.length,
-                (index) {
-                  final cards = gameNewsCards[index];
-                  return Positioned(
-                    top: ((cards.length - 1) - index) * 14 + 14,
-                    left: ((cards.length - 1) - index) * 12 + 12,
-                    right: ((cards.length - 1) - index) * 12 + 12,
-                    child: _buildGameNewsCard(
-                        image: cards['image']!, title: cards['title']!),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGameNewsCard({required String image, required String title}) {
-    return Container(
-      height: 150,
-      width: 400,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0x1AFFFFFF),
-              Color(0x1A64BD55),
-            ]),
-        border: Border.all(color: Colors.white.withOpacity(0.15)),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.transparent,
+        border: Border.all(color: const Color(0xFF00DC00), width: 2),
+        borderRadius: BorderRadius.circular(50),
       ),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(
-                height: 150,
-                width: 400,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 15,
-            bottom: 15,
-            left: 15,
-            right: 15,
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
-                  child: Image.asset(
-                    image,
-                    height: 120,
-                    width: 150,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Flexible(
-                  child: Text(
-                    title,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.white,
-                    ),
-                    maxLines: 5,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: Text(
+        'Game On, India!',
+        textAlign: TextAlign.center,
+        style: GoogleFonts.tulpenOne(
+          fontSize: 35,
+          fontWeight: FontWeight.bold,
+          color: const Color(0xFF75F94C),
+        ),
       ),
     );
   }
@@ -675,26 +310,5 @@ class _HomeContentViewState extends State<HomeContentView> {
     } else if (value == 'Settings') {
       // Handle settings tap
     }
-  }
-
-  Widget _buildGameOnIndiaBanner() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      height: 60,
-      width: double.infinity,
-      decoration: BoxDecoration(
-          color: Colors.transparent,
-          border: Border.all(color: const Color(0xFF00DC00), width: 2),
-          borderRadius: BorderRadius.circular(50)),
-      child: Text(
-        'Game On, India!',
-        textAlign: TextAlign.center,
-        style: GoogleFonts.tulpenOne(
-          fontSize: 35,
-          fontWeight: FontWeight.bold,
-          color: const Color(0xFF75F94C),
-        ),
-      ),
-    );
   }
 }
