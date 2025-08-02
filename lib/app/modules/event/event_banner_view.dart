@@ -108,7 +108,7 @@ class _EventBannerState extends State<EventBanner> {
                       fontSize: 12,
                     ),
                   ),
-                  const SizedBox(height: 70),
+                  const SizedBox(height: 60),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       vertical: 8,

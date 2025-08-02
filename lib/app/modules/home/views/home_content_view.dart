@@ -258,7 +258,7 @@ class _HomeContentViewState extends State<HomeContentView> {
 
   Widget _buildGameOnIndiaBanner() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       height: 60,
       width: double.infinity,
       decoration: BoxDecoration(
@@ -266,13 +266,14 @@ class _HomeContentViewState extends State<HomeContentView> {
         border: Border.all(color: const Color(0xFF00DC00), width: 2),
         borderRadius: BorderRadius.circular(50),
       ),
-      child: Text(
-        'Game On, India!',
-        textAlign: TextAlign.center,
-        style: GoogleFonts.tulpenOne(
-          fontSize: 35,
-          fontWeight: FontWeight.bold,
-          color: const Color(0xFF75F94C),
+      child: Center(
+        child: Text(
+          'Game On, India!',
+          style: GoogleFonts.tulpenOne(
+            fontSize: 35,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF75F94C),
+          ),
         ),
       ),
     );

@@ -157,7 +157,7 @@ class ShopSection extends StatelessWidget {
                         fontSize: 11,
                       ),
                     ),
-                    const SizedBox(height: 50),
+                    const SizedBox(height: 40),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         vertical: 8,
