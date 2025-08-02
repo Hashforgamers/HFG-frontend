@@ -47,6 +47,82 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   final CafeGamesController _gamesController = Get.put(CafeGamesController());
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  Future<void> showFoodOrderPrompt(BuildContext context, VoidCallback onYes) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: const Color(0xFF181818),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 35, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.network(
+                        'https://cdn-icons-png.flaticon.com/512/1046/1046784.png',
+                        width: 40, height: 40),
+                    const SizedBox(width: 8),
+                    Image.network(
+                        'https://cdn-icons-png.flaticon.com/512/3075/3075977.png',
+                        width: 40, height: 40),
+                    const SizedBox(width: 8),
+                    Image.network(
+                        'https://cdn-icons-png.flaticon.com/512/5343/5343915.png',
+                        width: 40, height: 40),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "Want to order ahead from the café?",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white24),
+                          foregroundColor: Colors.white70,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text("No, thanks"),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          onYes(); // Callback for "Yes"
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xff338125),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text("Yes, please"),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -299,6 +375,30 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     const SizedBox(height: 24),
                     amenitiesGrid(widget.amenities),
                     const SizedBox(height: 24),
+                    foodAndBeverageGrid([
+                      {
+                        'name': 'Cold Coffee',
+                        'image': 'https://cdn-icons-png.flaticon.com/512/924/924915.png'
+                      },
+                      {
+                        'name': 'Sandwich',
+                        'image': 'https://cdn-icons-png.flaticon.com/512/3130/3130341.png'
+                      },
+                      {
+                        'name': 'French Fries',
+                        'image': 'https://cdn-icons-png.flaticon.com/512/1046/1046784.png'
+                      },
+                      {
+                        'name': 'Soft Drink',
+                        'image': 'https://cdn-icons-png.flaticon.com/512/590/590685.png'
+                      },
+                      {
+                        'name': 'Maggi',
+                        'image': 'https://cdn-icons-png.flaticon.com/512/878/878052.png'
+                      },
+                    ]),
+                    const SizedBox(height: 24),
+
                     Text(
                       "Reviews",
                       style: GoogleFonts.inter(
@@ -340,8 +440,19 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () {
-                    showBookSlotBottomSheet(context);
+                    showFoodOrderPrompt(context, () {
+                      // Navigate to Menu Screen
+                      Get.toNamed('/menu', arguments: {
+                        'vendorId': widget.vendorId,
+                        'vendorName': widget.title,
+                      });
+                    }).then((_) {
+                      // If user tapped "No, thanks" we continue to booking
+                      // Wait for the dialog to close before showing booking bottom sheet
+                      showBookSlotBottomSheet(context);
+                    });
                   },
+
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xff338125),
                     shape: RoundedRectangleBorder(
@@ -854,6 +965,49 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     ),
                   ),
                 ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+  Widget foodAndBeverageGrid(List<Map<String, String>> items) {
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Food & Beverages",
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 90,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 16),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: Image.network(
+                      item['image']!,
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+
+                ],
               );
             },
           ),
