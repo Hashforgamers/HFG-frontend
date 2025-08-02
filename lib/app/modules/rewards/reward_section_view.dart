@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -15,8 +17,8 @@ class RewardsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final WalletController walletController = Get.find<WalletController>();
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+    return Wrap(
+      spacing: 8,
       children: [
         GestureDetector(
           onTap: () async {
@@ -34,60 +36,71 @@ class RewardsSection extends StatelessWidget {
               },
             );
           },
-          child: _buildRewardItem(
-            CupertinoIcons.hexagon,
-            "$hashCoin",
-            "Hash Coins",
-            const Color(0xff338125),
+          child: Center(
+            child: _buildPillContainer(
+              icon: "assets/icons/union.png",
+              amount: "$hashCoin",
+            ),
           ),
         ),
         GestureDetector(
-          onTap: () {
+          onTap: () async {
             Get.to(WalletScreen());
           },
-          child: Obx(() {
-            final walletBalance = walletController.balance.value;
-            final isLoading = walletController.isLoading.value;
-
-            return _buildRewardItem(
-              CupertinoIcons.circle_bottomthird_split,
-              isLoading ? "..." : "₹$walletBalance",
-              "Wallet",
-              Colors.yellow,
-            );
-          }),
+          child: Center(
+            child: Stack(
+              children: [
+                Obx(() {
+                  final walletBalance = walletController.balance.value;
+                  final isLoading = walletController.isLoading.value;
+                  return _buildPillContainer(
+                    icon: "assets/icons/coin.png",
+                    amount: isLoading ? "..." : "₹$walletBalance",
+                  );
+                }),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Image.asset(
+                    "assets/icons/vector.png",
+                    height: 10,
+                    width: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildRewardItem(
-      IconData icon, String amount, String label, Color color) {
-    return Column(
-      children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 3.0),
-              child: Text(
-                label[0],
-                style: GoogleFonts.inter(color: color, fontSize: 20),
+  Widget _buildPillContainer({required String icon, required String amount}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+          constraints: BoxConstraints(minWidth: 75),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            border: Border.all(color: Colors.white.withOpacity(0.15)),
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(icon, height: 18, width: 18),
+              const SizedBox(width: 6),
+              Text(
+                amount,
+                style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
               ),
-            ),
-            Icon(icon, color: color, size: 30),
-          ],
-        ),
-        const SizedBox(height: 5),
-        Text(
-          amount,
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+            ],
           ),
         ),
-        Text(label, style: GoogleFonts.inter(color: Colors.white)),
-      ],
+      ),
     );
   }
 }
