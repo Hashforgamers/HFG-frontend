@@ -19,19 +19,13 @@ import '../../../data/services/user_controller.dart';
 import '../../../../core/repositories/model/booking_model.dart';
 
 class BookingSummaryScreen extends StatefulWidget {
-  final String selectedCafeName;
-  final String consoleType;
   final List<Map<String, dynamic>> selectedSlots;
-  final List<Map<String, dynamic>> cartItems;
   final int gameId;
   final int userId;
 
   const BookingSummaryScreen({
     super.key,
-    required this.selectedCafeName,
-    required this.consoleType,
     required this.selectedSlots,
-    required this.cartItems,
     required this.gameId,
     required this.userId,
   });
@@ -334,23 +328,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${widget.selectedCafeName} - ${widget.consoleType}',
+                '${widget.selectedSlots.length} Slot(s) Selected',
                 style: GoogleFonts.inter(
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${widget.selectedSlots.length} Slot(s) Selected',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF8B8B8B),
-                ),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -361,93 +346,34 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   final slot = widget.selectedSlots[index];
                   final double slotPrice = (slot['price'] ?? 50.0).toDouble();
                   return ListTile(
-                    tileColor: Color(0xFF191919),
+                    tileColor: Colors.grey.shade900,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     title: Text(
                       slot['console_label'] ?? 'PC ${slot['pc_index']}',
                       style: GoogleFonts.inter(
-                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                     subtitle: Text(
                       'Time: ${slot['start_time']} - ${slot['end_time']}',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
+                      style: GoogleFonts.inter(color: Colors.white70),
                     ),
                     trailing: Text(
-                      'Rs. ${slotPrice.toStringAsFixed(2)}',
+                      '₹${slotPrice.toStringAsFixed(2)}',
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF6DFB60),
-                        fontSize: 12,
+                        color: Colors.green,
+                        fontSize: 16,
                       ),
                     ),
                   );
                 },
               ),
-              const SizedBox(height: 14),
-              widget.cartItems.isNotEmpty
-                  ? Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Color(0xFF191919),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Food',
-                            style: GoogleFonts.inter(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 10),
-                            itemCount: widget.cartItems.length,
-                            itemBuilder: (context, index) {
-                              final cartItem = widget.cartItems[index];
-                              return Row(
-                                children: [
-                                  Text(
-                                    '${cartItem['name']} (${cartItem['qty'] ?? 0})',
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    'Rs. ${cartItem['price'].toStringAsFixed(2)}',
-                                    style: GoogleFonts.inter(
-                                      color: Color(0xFF6DFB60),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    )
-                  : _buildMealButton(),
               const SizedBox(height: 24),
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Column(
@@ -457,8 +383,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         'Booking User',
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.w500,
-                          color: Color(0xFF8B8B8B),
-                          fontSize: 14,
+                          color: Colors.white70,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -466,32 +391,28 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         () => Text(
                           userController.user.value.name ?? 'User',
                           style: GoogleFonts.inter(
-                            fontSize: 14,
+                            fontSize: 16,
                             color: Colors.white,
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        'Change',
-                        style: GoogleFonts.inter(
-                          color: Colors.deepOrange,
-                          fontSize: 14,
-                        ),
-                      ),
+                  TextButton(
+                    onPressed: () {},
+                    child: Text(
+                      'Change',
+                      style: GoogleFonts.inter(color: Colors.deepOrange),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              Divider(height: 32, color: Colors.grey.shade800),
+
+              // Voucher Section
               _buildVoucherSection(),
               const SizedBox(height: 24),
+
               Text(
                 'Payment Summary',
                 style: GoogleFonts.inter(
@@ -510,7 +431,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   children: [
                     buildPaymentRow(
                       'Sub Total',
-                      'Rs. ${subtotal.toStringAsFixed(2)}',
+                      '₹${subtotal.toStringAsFixed(2)}',
                     ),
                     if (discount > 0) ...[
                       buildPaymentRow(
@@ -519,11 +440,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         color: Colors.green,
                       ),
                     ],
-                    buildPaymentRow('GST', 'Rs. 0.00'),
+                    buildPaymentRow('GST', '₹0.00'),
                     Divider(color: Colors.grey.shade800),
                     buildPaymentRow(
                       'GRAND TOTAL',
-                      'Rs. ${totalPrice.toStringAsFixed(2)}',
+                      '₹${totalPrice.toStringAsFixed(2)}',
                       bold: true,
                       fontSize: 16,
                     ),
@@ -563,7 +484,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       bottomNavigationBar: BottomAppBar(
         color: const Color(0xFF0F0F0F),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -575,7 +496,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 children: [
                   Obx(
                     () => Text(
-                      'Rs. ${calculateTotalPrice().toStringAsFixed(2)}',
+                      '₹${calculateTotalPrice().toStringAsFixed(2)}',
                       style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -631,38 +552,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
-  Widget _buildMealButton() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.pop(context);
-      },
-      child: Container(
-        height: 50,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
-          borderRadius: BorderRadius.circular(50),
-        ),
-        child: Center(
-          child: Text(
-            '+ Select your meal',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              color: const Color(0xFF75F94C),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildVoucherSection() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: Color(0xFF191919),
-        borderRadius: BorderRadius.circular(15),
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -676,7 +571,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               Text(
                 'Have a Voucher?',
                 style: GoogleFonts.inter(
-                  fontSize: 16,
+                  fontSize: 17,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
@@ -703,7 +598,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 20),
 
           // Applied Voucher Info
           Obx(() {
@@ -714,11 +609,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: Colors.green.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.green.withOpacity(0.3),
-                    width: 1,
-                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
@@ -772,7 +664,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 44,
+                  height: 48,
                   child: TextField(
                     controller: _voucherController,
                     style: GoogleFonts.inter(color: Colors.white),
@@ -785,24 +677,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       filled: true,
                       fillColor: Colors.black.withOpacity(0.3),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide(
-                          color: Color(0xFF505050),
-                          width: 1,
-                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade700),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide(
-                          color: Color(0xFF505050),
-                          width: 1,
-                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade700),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(8),
                         borderSide: const BorderSide(
                           color: Color(0xFF338125),
-                          width: 1,
+                          width: 1.5,
                         ),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
@@ -812,173 +698,143 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 24),
-              Obx(() {
-                return GestureDetector(
-                  onTap: _isApplyingVoucher.value ? null : _applyVoucher,
-                  child: Container(
-                    height: 44,
-                    width: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.transparent,
-                      border: Border.all(
-                        color: const Color(0xFF338125),
-                        width: 1,
-                      ),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'Apply',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: Colors.white,
-                        ),
+              const SizedBox(width: 8),
+              Obx(
+                () => SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isApplyingVoucher.value ? null : _applyVoucher,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF338125),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
+                    child: _isApplyingVoucher.value
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Apply',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                   ),
-                );
-              }),
-              //     Obx(
-              //       () => SizedBox(
-              //         height: 48,
-              //         child: ElevatedButton(
-              //           onPressed: _isApplyingVoucher.value ? null : _applyVoucher,
-              //           style: ElevatedButton.styleFrom(
-              //             backgroundColor: const Color(0xFF338125),
-              //             foregroundColor: Colors.white,
-              //             padding: const EdgeInsets.symmetric(horizontal: 20),
-              //             shape: RoundedRectangleBorder(
-              //               borderRadius: BorderRadius.circular(8),
-              //             ),
-              //           ),
-              //           child: _isApplyingVoucher.value
-              //               ? const SizedBox(
-              //                   height: 16,
-              //                   width: 16,
-              //                   child: CircularProgressIndicator(
-              //                     color: Colors.white,
-              //                     strokeWidth: 2,
-              //                   ),
-              //                 )
-              //               : Text(
-              //                   'Apply',
-              //                   style: GoogleFonts.inter(
-              //                     fontWeight: FontWeight.w500,
-              //                   ),
-              //                 ),
-              //         ),
-              //       ),
-              //     ),
-              //   ],
-              // ),
-
-              // Error Message
-              Obx(() {
-                if (_voucherError.value.isNotEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      _voucherError.value,
-                      style: GoogleFonts.inter(
-                        color: Colors.red.shade300,
-                        fontSize: 12,
-                      ),
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              }),
-
-              // Available Vouchers
-              Obx(() {
-                if (_availableVouchers.isNotEmpty) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 20),
-                      Text(
-                        'Your Available Vouchers (${_availableVouchers.length})',
-                        style: GoogleFonts.inter(
-                          color: Colors.grey.shade300,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 120,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _availableVouchers.length,
-                          itemBuilder: (context, index) {
-                            final voucher = _availableVouchers[index];
-                            final isActive = voucher.isActive;
-                            return GestureDetector(
-                              onTap: () => _selectVoucher(voucher),
-                              child: Container(
-                                width: 140,
-                                margin: const EdgeInsets.only(right: 10),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: isActive
-                                      ? Colors.deepOrange.withOpacity(0.08)
-                                      : Colors.grey.shade800,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: isActive
-                                        ? Colors.deepOrange.withOpacity(0.3)
-                                        : Colors.grey.withOpacity(0.2),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      voucher.code,
-                                      style: GoogleFonts.inter(
-                                        color: isActive
-                                            ? Colors.deepOrange
-                                            : Colors.grey.shade500,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${voucher.discountPercentage}% OFF',
-                                      style: GoogleFonts.inter(
-                                        color: isActive
-                                            ? Colors.white
-                                            : Colors.grey,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      isActive ? 'Active' : 'Inactive',
-                                      style: GoogleFonts.inter(
-                                        color: isActive
-                                            ? Colors.green
-                                            : Colors.red,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                }
-                return const SizedBox.shrink();
-              }),
+                ),
+              ),
             ],
           ),
+
+          // Error Message
+          Obx(() {
+            if (_voucherError.value.isNotEmpty) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _voucherError.value,
+                  style: GoogleFonts.inter(
+                    color: Colors.red.shade300,
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+
+          // Available Vouchers
+          Obx(() {
+            if (_availableVouchers.isNotEmpty) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  Text(
+                    'Your Available Vouchers (${_availableVouchers.length})',
+                    style: GoogleFonts.inter(
+                      color: Colors.grey.shade300,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _availableVouchers.length,
+                      itemBuilder: (context, index) {
+                        final voucher = _availableVouchers[index];
+                        final isActive = voucher.isActive;
+                        return GestureDetector(
+                          onTap: () => _selectVoucher(voucher),
+                          child: Container(
+                            width: 140,
+                            margin: const EdgeInsets.only(right: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? Colors.deepOrange.withOpacity(0.08)
+                                  : Colors.grey.shade800,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isActive
+                                    ? Colors.deepOrange.withOpacity(0.3)
+                                    : Colors.grey.withOpacity(0.2),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  voucher.code,
+                                  style: GoogleFonts.inter(
+                                    color: isActive
+                                        ? Colors.deepOrange
+                                        : Colors.grey.shade500,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${voucher.discountPercentage}% OFF',
+                                  style: GoogleFonts.inter(
+                                    color: isActive
+                                        ? Colors.white
+                                        : Colors.grey,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  isActive ? 'Active' : 'Inactive',
+                                  style: GoogleFonts.inter(
+                                    color: isActive ? Colors.green : Colors.red,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            }
+            return const SizedBox.shrink();
+          }),
         ],
       ),
     );

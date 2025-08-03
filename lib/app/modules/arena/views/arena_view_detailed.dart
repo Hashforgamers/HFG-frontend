@@ -49,125 +49,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
 
-  Future<void> showFoodOrderPrompt(
-    BuildContext context,
-    VoidCallback onYes,
-  ) async {
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: const Color(0xFF181818),
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.95,
-            height: MediaQuery.of(context).size.height * 0.5,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 35, horizontal: 16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset(
-                        'assets/images/menu1.png',
-                        width: 70,
-                        height: 70,
-                      ),
-                      const SizedBox(width: 4),
-                      Image.asset(
-                        'assets/images/menu2.png',
-                        width: 70,
-                        height: 70,
-                      ),
-                      const SizedBox(width: 4),
-                      Image.asset(
-                        'assets/images/menu3.png',
-                        width: 70,
-                        height: 70,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
-                  Text(
-                    "Want to order ahead \nfrom the café?",
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pop(context);
-                          onYes(); // Callback for "Yes
-                        },
-                        child: Container(
-                          height: 30,
-                          width: 100,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Color(0xFF6DFB60),
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "Yes, please",
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          height: 30,
-                          width: 100,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.white24,
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "No, thanks",
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -528,11 +409,20 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                   onPressed: () {
                     showFoodOrderPrompt(context, () {
                       // Navigate to Menu Screen
-                      Get.to(MenuView());
-                    }).then((_) {
+                      Get.to(
+                        MenuView(
+                          onContinue: (cartItems) {
+                            showBookSlotBottomSheet(
+                              context: context,
+                              cartItems: cartItems,
+                            );
+                          },
+                        ),
+                      );
+                    }).then((response) {
                       // If user tapped "No, thanks" we continue to booking
                       // Wait for the dialog to close before showing booking bottom sheet
-                      showBookSlotBottomSheet(context);
+                      showBookSlotBottomSheet(context: context);
                     });
                   },
 
@@ -559,7 +449,129 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     );
   }
 
-  Future<dynamic> showBookSlotBottomSheet(BuildContext context) {
+  Future<void> showFoodOrderPrompt(
+    BuildContext context,
+    VoidCallback onYes,
+  ) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          backgroundColor: const Color(0xFF181818),
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.95,
+            height: MediaQuery.of(context).size.height * 0.5,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 35, horizontal: 16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/menu1.png',
+                        width: 70,
+                        height: 70,
+                      ),
+                      const SizedBox(width: 4),
+                      Image.asset(
+                        'assets/images/menu2.png',
+                        width: 70,
+                        height: 70,
+                      ),
+                      const SizedBox(width: 4),
+                      Image.asset(
+                        'assets/images/menu3.png',
+                        width: 70,
+                        height: 70,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 40),
+                  Text(
+                    "Want to order ahead \nfrom the café?",
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          onYes(); // Callback for "Yes
+                        },
+                        child: Container(
+                          height: 30,
+                          width: 100,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Color(0xFF6DFB60),
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          child: Center(
+                            child: Text(
+                              "Yes, please",
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          height: 30,
+                          width: 100,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.white24,
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          child: Center(
+                            child: Text(
+                              "No, thanks",
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<dynamic> showBookSlotBottomSheet({
+    required BuildContext context,
+    List<Map<String, dynamic>>? cartItems,
+  }) {
     // Get console data from the controller (API response games = consoles)
     final List<dynamic> consoles = _gamesController.games.toList();
 
@@ -820,6 +832,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                           title: widget.title,
                                           gameId: consoleId,
                                           vendorId: widget.vendorId,
+                                          cartItems: cartItems!,
                                         ),
                                       );
                                     } catch (e) {
