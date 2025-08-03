@@ -116,124 +116,202 @@ class _HomeContentViewState extends State<HomeContentView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _buildAppBar(),
       body: RefreshIndicator(
         onRefresh: _refreshData,
         backgroundColor: Colors.black,
-        child: ListView(
-          children: [
-            const SizedBox(height: 30),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: EventBanner(),
+        child: CustomScrollView(
+          slivers: [
+            _buildAppBar(),
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  const SizedBox(height: 30),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: EventBanner(),
+                  ),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: CafeSection(),
+                  ),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: ShopSection(),
+                  ),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: GamerNewsSection(),
+                  ),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: GamesSection(),
+                  ),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: ViralShotsSection(),
+                  ),
+                  const SizedBox(height: 40),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: _buildGameOnIndiaBanner(),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: CafeSection(),
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: ShopSection(),
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: GamerNewsSection(),
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: GamesSection(),
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: ViralShotsSection(),
-            ),
-            const SizedBox(height: 40),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: _buildGameOnIndiaBanner(),
-            ),
-            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(85),
-      child: AppBar(
-        backgroundColor: Colors.transparent,
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-        ),
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0x1AFFFFFF), Color(0x1A64BD55)],
-            ),
-            borderRadius: BorderRadius.circular(25),
-          ),
-        ),
-        leadingWidth: 65,
-        leading: Obx(
-          () => Padding(
-            padding: const EdgeInsets.only(left: 10),
-            child: _userAvatar(userController.user.value.photoUrl),
-          ),
-        ),
-        title: Obx(
-          () => Padding(
-            padding: const EdgeInsets.only(top: 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Hey, ${userController.user.value.gameUserName}!',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Viman Nagar, Pune',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFB6B6B6),
-                    fontSize: 14,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: BlocBuilder<HashCoinCubit, HashCoinState>(
-              builder: (_, state) => RewardsSection(
-                hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
-              ),
-            ),
-          ),
-        ],
+  Widget _buildAppBar() {
+    return SliverAppBar(
+      backgroundColor: Colors.transparent,
+      systemOverlayStyle: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
       ),
+      elevation: 0,
+      pinned: false, // AppBar scrolls away
+      floating: false,
+      snap: false,
+      expandedHeight: 80,
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x1AFFFFFF), Color(0x1A64BD55)],
+          ),
+          borderRadius: BorderRadius.circular(25),
+        ),
+      ),
+      leadingWidth: 65,
+      leading: Obx(
+        () => Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: _userAvatar(userController.user.value.photoUrl),
+        ),
+      ),
+      title: Obx(
+        () => Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Hey, ${userController.user.value.gameUserName}!',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Viman Nagar, Pune',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFB6B6B6),
+                  fontSize: 14,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 10),
+          child: BlocBuilder<HashCoinCubit, HashCoinState>(
+            builder: (_, state) => RewardsSection(
+              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+            ),
+          ),
+        ),
+      ],
     );
   }
+
+  // PreferredSizeWidget _buildAppBar() {
+  //   return PreferredSize(
+  //     preferredSize: const Size.fromHeight(85),
+  //     child: AppBar(
+  //       backgroundColor: Colors.transparent,
+  //       systemOverlayStyle: const SystemUiOverlayStyle(
+  //         statusBarColor: Colors.transparent,
+  //       ),
+  //       elevation: 0,
+  //       flexibleSpace: Container(
+  //         decoration: BoxDecoration(
+  //           gradient: const LinearGradient(
+  //             begin: Alignment.topCenter,
+  //             end: Alignment.bottomCenter,
+  //             colors: [Color(0x1AFFFFFF), Color(0x1A64BD55)],
+  //           ),
+  //           borderRadius: BorderRadius.circular(25),
+  //         ),
+  //       ),
+  //       leadingWidth: 65,
+  //       leading: Obx(
+  //         () => Padding(
+  //           padding: const EdgeInsets.only(left: 10),
+  //           child: _userAvatar(userController.user.value.photoUrl),
+  //         ),
+  //       ),
+  //       title: Obx(
+  //         () => Padding(
+  //           padding: const EdgeInsets.only(top: 14),
+  //           child: Column(
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             mainAxisSize: MainAxisSize.min,
+  //             children: [
+  //               Text(
+  //                 'Hey, ${userController.user.value.gameUserName}!',
+  //                 style: GoogleFonts.inter(
+  //                   color: Colors.white,
+  //                   fontSize: 16,
+  //                   fontWeight: FontWeight.bold,
+  //                 ),
+  //                 overflow: TextOverflow.ellipsis,
+  //                 maxLines: 1,
+  //               ),
+  //               const SizedBox(height: 4),
+  //               Text(
+  //                 'Viman Nagar, Pune',
+  //                 style: GoogleFonts.inter(
+  //                   color: const Color(0xFFB6B6B6),
+  //                   fontSize: 14,
+  //                 ),
+  //                 overflow: TextOverflow.ellipsis,
+  //                 maxLines: 1,
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       ),
+  //       actions: [
+  //         Padding(
+  //           padding: const EdgeInsets.only(right: 10),
+  //           child: BlocBuilder<HashCoinCubit, HashCoinState>(
+  //             builder: (_, state) => RewardsSection(
+  //               hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+  //             ),
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _userAvatar(String? photoUrl) {
     return Container(
@@ -259,19 +337,18 @@ class _HomeContentViewState extends State<HomeContentView> {
   Widget _buildGameOnIndiaBanner() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      height: 60,
+      height: 50,
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.transparent,
-        border: Border.all(color: const Color(0xFF00DC00), width: 2),
+        border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
         borderRadius: BorderRadius.circular(50),
       ),
       child: Center(
         child: Text(
           'Game On, India!',
-          style: GoogleFonts.tulpenOne(
-            fontSize: 35,
-            fontWeight: FontWeight.bold,
+          style: GoogleFonts.inter(
+            fontSize: 16,
             color: const Color(0xFF75F94C),
           ),
         ),
