@@ -7,6 +7,7 @@ import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
+import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -816,6 +817,47 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       debugPrint('Error releasing booking: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<GetPassModel>> getGamePass({required String userId}) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.get(ApiEndpoints.gamePass(userId));
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = response.data;
+        return responseData
+            .map((e) => GetPassModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else {
+        throw Exception(
+            'Failed to get game pass. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error getting game pass: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<GetPassModel>> getUserActiveGamePass(
+      {required String userId}) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.get(ApiEndpoints.getActivePasses(userId));
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = response.data;
+        return responseData
+            .map((e) => GetPassModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else {
+        throw Exception(
+            'Failed to get game pass. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error getting game pass: $e');
       rethrow;
     }
   }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
+import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/core/service/deeplink_service.dart';
 import 'package:hash/core/service/notification_service.dart';
@@ -71,6 +72,9 @@ class MyApp extends StatelessWidget {
         ),
         BlocProvider(
           create: (context) => FcmCubit(),
+        ),
+        BlocProvider(
+          create: (context) =>  GamePassCubit(),
         ),
       ],
       child: ScrollConfiguration(
