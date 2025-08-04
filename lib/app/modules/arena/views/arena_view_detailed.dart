@@ -474,22 +474,43 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.asset(
-                        'assets/images/menu1.png',
+                      SizedBox(
                         width: 70,
-                        height: 70,
+                        height: 60,
+                        child: Center(
+                          child: Image.asset(
+                            'assets/images/menu1.png',
+                            width: 70,
+                            height: 60,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                      Image.asset(
-                        'assets/images/menu2.png',
+                      const SizedBox(width: 2),
+                      SizedBox(
                         width: 70,
-                        height: 70,
+                        height: 60,
+                        child: Center(
+                          child: Image.asset(
+                            'assets/images/menu2.png',
+                            width: 70,
+                            height: 60,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                      Image.asset(
-                        'assets/images/menu3.png',
+                      const SizedBox(width: 2),
+                      SizedBox(
                         width: 70,
-                        height: 70,
+                        height: 60,
+                        child: Center(
+                          child: Image.asset(
+                            'assets/images/menu3.png',
+                            width: 70,
+                            height: 60,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1126,18 +1147,19 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 6),
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               final item = items[index];
-              return Container(
-                padding: const EdgeInsets.all(4),
-                height: 50,
-                width: 76,
-                child: Image.asset(
-                  item['image']!,
-                  width: 46,
-                  height: 46,
-                  fit: BoxFit.contain,
+              return SizedBox(
+                height: 60,
+                width: 70,
+                child: Center(
+                  child: Image.asset(
+                    item['image']!,
+                    height: 60,
+                    width: 70,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               );
             },
