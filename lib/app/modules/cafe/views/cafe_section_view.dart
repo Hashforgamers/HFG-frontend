@@ -175,7 +175,7 @@ class _CafeSectionState extends State<CafeSection> {
                     );
                   },
                   child: Container(
-                    width: MediaQuery.of(context).size.width - 20,
+                    width: MediaQuery.of(context).size.width - 30,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       color: const Color(0xff0E0E0E),
@@ -195,7 +195,7 @@ class _CafeSectionState extends State<CafeSection> {
                           child: CachedNetworkImage(
                             imageUrl: imageUrl,
                             fit: BoxFit.cover,
-                            width: MediaQuery.of(context).size.width - 20,
+                            width: MediaQuery.of(context).size.width - 30,
                             height: 250,
                             placeholder: (_, __) => const Center(
                               child: RainbowGlowingLoader(size: 40),

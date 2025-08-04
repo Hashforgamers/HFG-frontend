@@ -74,7 +74,7 @@ class _EventBannerState extends State<EventBanner> {
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                 child: Container(
                   height: 160,
                   decoration: BoxDecoration(
