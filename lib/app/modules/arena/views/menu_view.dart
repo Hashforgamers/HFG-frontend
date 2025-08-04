@@ -222,7 +222,7 @@ class _MenuViewState extends State<MenuView> {
                   style: GoogleFonts.inter(
                     color: Color(0xFFC9C9C9),
                     fontSize: 8,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.normal,
                   ),
                 ),
                 trailing: Column(

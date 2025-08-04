@@ -112,6 +112,7 @@ class _HomeContentViewState extends State<HomeContentView> {
       await walletController.refreshWallet();
     }
   }
+   EdgeInsets screenPadding = EdgeInsets.symmetric(horizontal: 16.0);
 
   @override
   Widget build(BuildContext context) {
@@ -123,45 +124,28 @@ class _HomeContentViewState extends State<HomeContentView> {
           slivers: [
             _buildAppBar(),
             SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  const SizedBox(height: 30),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: EventBanner(),
-                  ),
-                  const SizedBox(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: CafeSection(),
-                  ),
-                  const SizedBox(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: ShopSection(),
-                  ),
-                  const SizedBox(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: GamerNewsSection(),
-                  ),
-                  const SizedBox(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: GamesSection(),
-                  ),
-                  const SizedBox(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: ViralShotsSection(),
-                  ),
-                  const SizedBox(height: 40),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: _buildGameOnIndiaBanner(),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 24),
+                    const EventBanner(),
+                    const SizedBox(height: 24),
+                     CafeSection(),
+                    const SizedBox(height: 24),
+                    const ShopSection(),
+                    const SizedBox(height: 24),
+                    const GamerNewsSection(),
+                    const SizedBox(height: 24),
+                    const GamesSection(),
+                    const SizedBox(height: 24),
+                     ViralShotsSection(),
+                    const SizedBox(height: 32),
+                    _buildGameOnIndiaBanner(),
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
             ),
           ],
@@ -180,18 +164,29 @@ class _HomeContentViewState extends State<HomeContentView> {
       pinned: false, // AppBar scrolls away
       floating: false,
       snap: false,
-      expandedHeight: 80,
-      flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0x1AFFFFFF), Color(0x1A64BD55)],
+      expandedHeight: 70,
+      flexibleSpace: ClipRRect(
+        borderRadius: BorderRadius.circular(25),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFFFFFFFF).withOpacity(0.15),
+                  const Color(0xFF64BD55).withOpacity(0.25),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(25),
+              // border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+            ),
           ),
-          borderRadius: BorderRadius.circular(25),
         ),
       ),
-      leadingWidth: 65,
+
+      leadingWidth: 55,
       leading: Obx(
         () => Padding(
           padding: const EdgeInsets.only(left: 10),
@@ -199,8 +194,8 @@ class _HomeContentViewState extends State<HomeContentView> {
         ),
       ),
       title: Obx(
-        () => Padding(
-          padding: const EdgeInsets.only(top: 14),
+            () => Padding(
+          padding: const EdgeInsets.only(top: 12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -209,18 +204,18 @@ class _HomeContentViewState extends State<HomeContentView> {
                 'Hey, ${userController.user.value.gameUserName}!',
                 style: GoogleFonts.inter(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 'Viman Nagar, Pune',
                 style: GoogleFonts.inter(
                   color: const Color(0xFFB6B6B6),
-                  fontSize: 14,
+                  fontSize: 11.5,
                 ),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
@@ -229,6 +224,7 @@ class _HomeContentViewState extends State<HomeContentView> {
           ),
         ),
       ),
+
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 10),
@@ -314,25 +310,27 @@ class _HomeContentViewState extends State<HomeContentView> {
   // }
 
   Widget _userAvatar(String? photoUrl) {
+    const double size = 40;
+
     return Container(
-      width: 55,
-      height: 55,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
+        shape: BoxShape.circle,
         border: Border.all(color: const Color(0xFF6DFB60), width: 2),
-        borderRadius: BorderRadius.circular(28),
       ),
       child: CircleAvatar(
-        radius: 20,
+        radius: size / 2,
         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
             ? CachedNetworkImageProvider(photoUrl)
             : const NetworkImage(
-                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-                  )
-                  as ImageProvider,
+          'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
+        ) as ImageProvider,
         backgroundColor: Colors.white,
       ),
     );
   }
+
 
   Widget _buildGameOnIndiaBanner() {
     return Container(
