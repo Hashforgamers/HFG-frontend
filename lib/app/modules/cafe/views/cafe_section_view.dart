@@ -51,6 +51,8 @@ class _CafeSectionState extends State<CafeSection> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -69,6 +71,7 @@ class _CafeSectionState extends State<CafeSection> {
             return _buildCafeContainer(
               label: label,
               isSelected: selectedLabel == label,
+              screenWidth: screenWidth,
             );
           }).toList(),
         ),
@@ -117,10 +120,11 @@ class _CafeSectionState extends State<CafeSection> {
 
           return SizedBox(
             height: 230,
+            width: MediaQuery.of(context).size.width,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+              padding: EdgeInsets.symmetric(vertical: 15),
               itemCount: widget._cafeController.cybercafes.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
@@ -171,13 +175,13 @@ class _CafeSectionState extends State<CafeSection> {
                     );
                   },
                   child: Container(
-                    width: 360,
+                    width: MediaQuery.of(context).size.width - 20,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(20),
                       color: const Color(0xff0E0E0E),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(.6),
+                          color: Colors.black.withOpacity(0.6),
                           blurRadius: 12,
                           offset: const Offset(0, 6),
                         ),
@@ -187,11 +191,11 @@ class _CafeSectionState extends State<CafeSection> {
                       children: [
                         /// Café image
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(25),
+                          borderRadius: BorderRadius.circular(20),
                           child: CachedNetworkImage(
                             imageUrl: imageUrl,
                             fit: BoxFit.cover,
-                            width: 360,
+                            width: MediaQuery.of(context).size.width - 20,
                             height: 250,
                             placeholder: (_, __) => const Center(
                               child: RainbowGlowingLoader(size: 40),
@@ -214,20 +218,13 @@ class _CafeSectionState extends State<CafeSection> {
                           right: 0,
                           top: 0,
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(15),
+                            borderRadius: BorderRadius.circular(20),
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                               child: Container(
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.black.withOpacity(0.0),
-                                      Colors.black.withOpacity(0.8),
-                                    ],
-                                  ),
+                                  color: Colors.white.withOpacity(0.1),
                                 ),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.start,
@@ -337,25 +334,27 @@ class _CafeSectionState extends State<CafeSection> {
   Widget _buildCafeContainer({
     required String label,
     required bool isSelected,
+    required double screenWidth,
   }) {
+    final totalSpacing = (4 - 1) * 16.0;
+    final itemWidth = (screenWidth - totalSpacing) / 4;
+
     return GestureDetector(
       onTap: () {
         selectedLabel = label;
         setState(() {});
       },
-      child: IntrinsicWidth(
-        child: Container(
-          height: 40,
-          width: 85,
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.white70,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: GoogleFonts.inter(color: Colors.black, fontSize: 12),
-            ),
+      child: Container(
+        height: 40,
+        width: itemWidth,
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.white70,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.inter(color: Colors.black, fontSize: 12),
           ),
         ),
       ),
