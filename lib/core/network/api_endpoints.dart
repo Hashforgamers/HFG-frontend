@@ -95,4 +95,15 @@ class ApiEndpoints {
       '$userOnboardBaseUrl/api/users/$userId/wallet/validate';
 
   static String get releaseBooking => '$bookingBaseUrl/api/release_slot';
+
+  // HFG Game Pass
+  static String gamePass(String userId) =>
+      '$userOnboardBaseUrl/api/user/$userId/available_passes';
+      // Get PAss Details
+  static String getGamePassDetails(String cafeId) =>
+      '$userOnboardBaseUrl/api/passes/$cafeId';
+
+  // Get Active passes for the user
+  static String getActivePasses(String userId) =>
+      '$userOnboardBaseUrl/api/user/$userId/passes';
 }
