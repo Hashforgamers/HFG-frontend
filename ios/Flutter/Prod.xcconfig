@@ -1,0 +1,3 @@
+#include "Generated.xcconfig"
+APP_NAME = HFG
+PRODUCT_BUNDLE_IDENTIFIER = com.hfg.hash 

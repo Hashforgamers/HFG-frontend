@@ -1,25 +1,33 @@
 import 'package:get/get.dart';
+import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 
 import '../arena/views/past_booking_screen.dart';
+import '../home/controllers/home_controller.dart';
+import '../arena/controllers/booking_controller.dart';
 
 class RazorpayController extends GetxController {
   late Razorpay _razorpay;
   final _remoteRepo = locator<RemoteRepoInterface>();
+  final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
-  // Store multiple booking IDs after booking API response
   RxList<int> bookingIdList = <int>[].obs;
+  RxBool isPaymentInProgress = false.obs;
+  RxString paymentStatus = ''.obs;
 
   @override
   void onInit() {
     super.onInit();
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    _razorpay = Razorpay()
+      ..on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess)
+      ..on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError)
+      ..on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
   @override
@@ -28,94 +36,152 @@ class RazorpayController extends GetxController {
     super.onClose();
   }
 
-  /// Open Razorpay Checkout
+  // ─────────────────────────── Checkout ───────────────────────────
   void openCheckout({
     required String orderId,
     required String name,
     required String description,
-    required double amount, // in rupees
+    required double amount, // in ₹
     required String contact,
     required String email,
   }) {
-    var options = {
-      'key': ApiEndpoints.razorpayKey,
-      'amount': (amount * 100).toInt(),
-      'name': name,
+    final options = {
+      'key'       : ApiEndpoints.razorpayKeyWallet,
+      'amount'    : (amount * 100).toInt(),
+      'name'      : name,
       'description': description,
       'order_id': orderId,
-      'prefill': {
-        'contact': contact,
-        'email': email,
-      },
+      'prefill': {'contact': contact, 'email': email},
     };
 
     try {
+      isPaymentInProgress(true); // ★ start spinner sooner
+      paymentStatus.value = 'Opening payment gateway…';
+
+      // Track payment initiated event
+      segmentService.onPaymentInitiated(
+        bookingId: orderId,
+        amount: amount,
+        paymentMethodSelected: 'razorpay',
+      );
+      fbEventsService.onPaymentInitiated(
+        bookingId: orderId,
+        amount: amount,
+        paymentMethodSelected: 'razorpay',
+      );
+
       _razorpay.open(options);
     } catch (e) {
-      print('Error while opening Razorpay Checkout: $e');
-      Get.snackbar(
-        'Checkout Error',
-        'Failed to open Razorpay Checkout.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      print('Error opening Razorpay: $e');
+      isPaymentInProgress(false);
+      paymentStatus.value = '';
+      Get.snackbar('Checkout Error', 'Failed to open Razorpay.',
+          snackPosition: SnackPosition.BOTTOM);
     }
   }
 
-  /// Handle Successful Payment
-  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    print("✅ Payment successful: ${response.paymentId}");
+  // ─────────────────────────── Handlers ───────────────────────────
+  void _handlePaymentSuccess(PaymentSuccessResponse r) async {
+    print("✅ Payment success: ${r.paymentId}");
+    paymentStatus.value = 'Payment successful! Confirming booking…';
 
     if (bookingIdList.isEmpty) {
-      print("⚠️ No booking IDs to confirm.");
+      print("⚠️  No booking IDs.");
+      _reset();
       return;
     }
 
-    await confirmBooking(
+    // Track payment success event
+    segmentService.onPaymentSuccess(
+      transactionId: r.paymentId ?? '',
+      bookingId: bookingIdList.first.toString(),
+      paymentGateway: 'razorpay',
+    );
+    fbEventsService.onPaymentSuccess(
+      transactionId: r.paymentId ?? '',
+      bookingId: bookingIdList.first.toString(),
+      paymentGateway: 'razorpay',
+    );
+
+    await _confirmBooking(
       bookingIds: bookingIdList.toList(),
-      paymentId: response.paymentId!,
+      paymentId: r.paymentId!,
+      paymentMode: 'gateway', // ★
     );
   }
 
-  /// Handle Payment Error
-  void _handlePaymentError(PaymentFailureResponse response) {
-    print('❌ Payment failed: ${response.code} - ${response.message}');
-    Get.snackbar(
-      'Payment Failed',
-      'Error: ${response.message}',
-      snackPosition: SnackPosition.BOTTOM,
+  void _handlePaymentError(PaymentFailureResponse r) {
+    print('❌ Payment failed: ${r.code} - ${r.message}');
+
+    // Track payment failed event
+    segmentService.onPaymentFailed(
+      reason: r.message ?? 'Unknown error',
+      paymentGateway: 'razorpay',
     );
+    fbEventsService.onPaymentFailed(
+      reason: r.message ?? 'Unknown error',
+      paymentGateway: 'razorpay',
+    );
+
+    _reset();
+    Get.snackbar('Payment Failed', r.message ?? 'Unknown error',
+        snackPosition: SnackPosition.BOTTOM);
   }
 
-  /// Handle External Wallet Selection
-  void _handleExternalWallet(ExternalWalletResponse response) {
-    print('📦 External wallet selected: ${response.walletName}');
-    Get.snackbar(
-      'External Wallet',
-      'Wallet: ${response.walletName}',
-      snackPosition: SnackPosition.BOTTOM,
-    );
+  void _handleExternalWallet(ExternalWalletResponse r) {
+    print('📦 External wallet: ${r.walletName}');
+    Get.snackbar('External Wallet', r.walletName ?? '',
+        snackPosition: SnackPosition.BOTTOM);
   }
 
-  /// Confirm Booking with Backend
-  Future<void> confirmBooking({
+  // ───────────────────────── Confirm booking ──────────────────────
+  Future<void> _confirmBooking({
     required List<int> bookingIds,
     required String paymentId,
+    required String paymentMode, // ★ now required
   }) async {
     try {
       await _remoteRepo.confirmBooking(
         bookingIds: bookingIds,
         paymentId: paymentId,
         bookDate: DateTime.now().toIso8601String(),
+        paymentMode: paymentMode, // ★ pass it
+        voucherCode: null,
       );
-      print('✅ Booking confirmation successful!');
-      Get.to(() => PastBookingsScreen());
+
+      print('✅ Booking confirmed!');
+
+      // Clear selected slots after successful payment
+      final bookingController = Get.find<BookingController>();
+      bookingController.clearSelectedSlots();
+
+      _reset();
+
+      // Navigate to past bookings
+      await Get.to(() => const PastBookingsScreen());
+
+      // Then home (arena tab)
+      Get.find<HomeController>().onItemTapped(1);
+      Get.offAllNamed('/home');
     } catch (e) {
-      print('🔥 Error confirming booking: $e');
-      Get.snackbar(
-        'Error',
-        'Failed to confirm booking: $e',
-        snackPosition: SnackPosition.BOTTOM,
+      // here call the release booking api
+      await _remoteRepo.releaseBooking(
+        bookings: BookingModel(
+          slotId: bookingIds.first,
+          bookingId: bookingIds.first,
+          bookDate: DateTime.now().toIso8601String(),
+        ),
       );
+      print('🔥 Confirm booking error: $e');
+      _reset();
+      Get.snackbar('Error', 'Failed to confirm booking: $e',
+          snackPosition: SnackPosition.BOTTOM);
     }
+  }
+
+  // ───────────────────────── helper ───────────────────────────────
+  void _reset() {
+    isPaymentInProgress(false);
+    paymentStatus.value = '';
   }
 }

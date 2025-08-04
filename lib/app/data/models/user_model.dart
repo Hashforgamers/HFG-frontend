@@ -5,6 +5,9 @@ class User {
   late String? dob;
   late String? gameUserName;
   late String? gender;
+  late String? referralCode;
+  late int? referralRewards;
+  late int? referralCount;
 
   User({
     this.name,
@@ -13,6 +16,9 @@ class User {
     this.dob,
     this.gameUserName,
     this.gender,
+    this.referralCode,
+    this.referralRewards,
+    this.referralCount,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -23,7 +29,24 @@ class User {
       dob: json['dob'] as String?,
       gameUserName: json['gameUserName'] as String?,
       gender: json['gender'] as String?,
+      referralCode: json['referralCode'] as String?,
+      referralRewards: json['referralRewards'] as int?,
+      referralCount: json['referralCount'] as int?,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'photoUrl': photoUrl,
+      'contact': contact?.toJson(),
+      'dob': dob,
+      'gameUserName': gameUserName,
+      'gender': gender,
+      'referralCode': referralCode,
+      'referralRewards': referralRewards,
+      'referralCount': referralCount,
+    };
   }
 }
 

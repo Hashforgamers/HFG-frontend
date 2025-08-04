@@ -1,332 +1,744 @@
+// ignore_for_file: avoid_print
+
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:location/location.dart' as loc;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:geocoding/geocoding.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../utils/service.dart';
-import '../controllers/cafe_controller.dart';
+import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'arena_view_detailed.dart';
 
 class ArenaView extends StatefulWidget {
-  const ArenaView({Key? key}) : super(key: key);
+  const ArenaView({super.key});
 
   @override
-  _ArenaViewState createState() => _ArenaViewState();
+  State<ArenaView> createState() => _ArenaViewState();
 }
 
 class _ArenaViewState extends State<ArenaView> {
-  late GoogleMapController mapController;
-  final loc.Location _location = loc.Location();
-  final RxSet<Marker> markers = RxSet<Marker>();
-  TextEditingController _searchController = TextEditingController();
-  BitmapDescriptor? _customMarker;
-  BitmapDescriptor? _customMarker2;
-  static const LatLng _initialPosition = LatLng(37.7749, -122.4194);
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  STATE                                                                    */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  final CybercafesController _cafeCtr =
+      Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
+
+  late GoogleMapController _mapCtr;
+  final loc.Location _loc = loc.Location();
+
+  final markers = <Marker>{}.obs;
+  final polylines = <Polyline>{}.obs;
+  final _polylinePoints = PolylinePoints(apiKey: '');
+
+  final TextEditingController _searchCtl = TextEditingController();
+  Timer? _camDebounce;
+
+  LatLng? _userLatLng;
+  String? _selectedCafeId;
   String _mapStyle = '';
-  final CybercafesController _cybercafesController = Get.put(CybercafesController());
+  
+  // Location-based filtering
+  String? _userState;
+  final RxList<Map<String, dynamic>> _filteredCafes = <Map<String, dynamic>>[].obs;
+  final RxBool _isLocationFiltering = false.obs;
+  final RxBool _showingAllCafes = false.obs;
 
-  List<String> images = [
-    'https://next-level.gg/assets/cafes/11.jpg',
-    'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
-    'https://media.assettype.com/afkgaming%2F2024-04%2Fe11d1515-bb0d-48a5-9ad9-1ddfdef286ef%2FUntitled_design_117_.png?auto=format%2Ccompress&dpr=1.0&w=1200',
-    'https://i.ytimg.com/vi/3ZPtQAKKado/maxresdefault.jpg',
-    'https://pvplayer.com/wp-content/uploads/2024/04/kafejka-gamingowa.jpg'
-  ];
-  Timer? debounce;
+  /// Directions API response cache  (cafeId  ->  distance / duration)
+  final Map<String, Map<String, String>> _distanceCache = {};
 
-  void _updateCameraPosition(LatLng position) {
-    debounce?.cancel();
-    debounce = Timer(const Duration(milliseconds: 300), () {
-      mapController.animateCamera(CameraUpdate.newLatLng(position));
-    });
-  }
+  /// ⚠️  Replace with build-time env variable or secure storage
+  static const _gmapsKey = 'AIzaSyAIeaszJ60ZcjL9hNYpsQ_JD8w8J2vnmuQ';
+  bool _mapReady = false; // NEW
+  bool _playedZoom = false; // NEW
+
+  BitmapDescriptor? _markerUser, _markerCafe, _markerCafeHighlighted;
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  LIFECYCLE                                                                */
+  /* ────────────────────────────────────────────────────────────────────────── */
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeLocation();
-      _cybercafesController.fetchCybercafes();
+    _loadAssets();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initLocation();
+      await _cafeCtr.fetchCybercafes();
+      await _getUserStateAndFilterCafes();
+      _addUserMarker();
+      _refreshCafeMarkers();
     });
-    _loadMapStyle();
-    _loadCustomMarker();
   }
 
-  Future<void> _loadMapStyle() async {
-    String style = await rootBundle.loadString('assets/map_style.json');
-    setState(() {
-      _mapStyle = style;
-    });
-  }
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Fetch cybercafes again when coming back to this page
-    _cybercafesController.fetchCybercafes();
+  void dispose() {
+    _searchCtl.dispose();
+    _camDebounce?.cancel();
+    super.dispose();
   }
-  void _loadCustomMarker() async {
-    _customMarker = await BitmapDescriptor.fromAssetImage(
-      ImageConfiguration(size: Size(48, 48), devicePixelRatio: 2),
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  ASSET & MARKER HELPERS                                                   */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<void> _loadAssets() async {
+    _mapStyle = await rootBundle.loadString('assets/map_style.json');
+
+    _markerUser = await BitmapDescriptor.fromAssetImage(
+      const ImageConfiguration(size: Size(48, 48)),
       'assets/custom_marker.png',
     );
-    _customMarker2 = await BitmapDescriptor.fromAssetImage(
-      ImageConfiguration(size: Size(48, 48), devicePixelRatio: 2),
+
+    _markerCafe = await BitmapDescriptor.fromAssetImage(
+      const ImageConfiguration(size: Size(48, 48)),
       'assets/custom_marker2.png',
     );
+
+    _markerCafeHighlighted =
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
   }
 
-  void _initializeLocation() async {
-    bool serviceEnabled = await _location.serviceEnabled();
-    if (!serviceEnabled) {
-      serviceEnabled = await _location.requestService();
-      if (!serviceEnabled) return;
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  LOCATION INIT                                                            */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<void> _initLocation() async {
+    if (!await _loc.serviceEnabled()) {
+      if (!await _loc.requestService()) return;
+    }
+    if (await _loc.requestPermission() != loc.PermissionStatus.granted) return;
+
+    final locData = await _loc.getLocation();
+    _userLatLng = LatLng(locData.latitude!, locData.longitude!);
+    _tryPlayZoom(); // attempt GTA zoom once coords ready
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  CAMERA & MOVEMENT                                                        */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  void _smoothMoveCamera(LatLng target, {double zoom = 15}) {
+    _camDebounce?.cancel();
+    _camDebounce = Timer(const Duration(milliseconds: 280), () {
+      _mapCtr.animateCamera(CameraUpdate.newCameraPosition(
+          CameraPosition(target: target, zoom: zoom)));
+    });
+  }
+/* ────────────────────────────────────────────────────────────────────────── */
+  /*  GTA-STYLE ZOOM LOGIC                                                    */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<void> _playZoomAnimation() async {
+    if (_userLatLng == null) return;
+    _playedZoom = true;
+
+    // start far away
+    await _mapCtr.moveCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: _userLatLng!, zoom: 4),
+      ),
+    );
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // zoom mid-range
+    await _mapCtr.animateCamera(CameraUpdate.zoomTo(9));
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // final close-up
+    await _mapCtr.animateCamera(CameraUpdate.zoomTo(15));
+  }
+
+  void _tryPlayZoom() {
+    if (_mapReady && _userLatLng != null && !_playedZoom) {
+      _playZoomAnimation();
+    }
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  SEARCH                                                                   */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<void> _searchAndGo() async {
+    final query = _searchCtl.text.trim();
+    if (query.isEmpty) return;
+    try {
+      final res = await locationFromAddress(query);
+      if (res.isNotEmpty) {
+        _smoothMoveCamera(LatLng(res[0].latitude, res[0].longitude));
+      }
+    } catch (_) {
+      Get.snackbar('Error', 'Location not found');
+    }
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  MARKERS                                                                  */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  LatLng _latLngFromCafe(Map<String, dynamic> cafe) {
+    final locData = cafe['address'] ?? cafe['location'] ?? {};
+    final lat = double.tryParse('${locData['latitude']}') ?? 0.0;
+    final lng = double.tryParse('${locData['longitude']}') ?? 0.0;
+    return LatLng(lat, lng);
+  }
+
+  String _formatAddress(Map<String, dynamic> cafe) {
+    final address = cafe['address'];
+    if (address == null) return 'Address not available';
+
+    final addressLine1 = address['addressLine1'] ?? '';
+    final addressLine2 = address['addressLine2'] ?? '';
+    final city = address['city'] ?? '';
+    final state = address['state'] ?? '';
+    final pincode = address['pincode'] ?? '';
+
+    final parts = [addressLine1, addressLine2, city, state, pincode]
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    return parts.join(', ');
+  }
+
+  String _formatOpeningHours(Map<String, dynamic> cafe) {
+    // Get opening and closing times from the API response
+    final openingTime = cafe['opening_time'] ?? '';
+    final closingTime = cafe['closing_time'] ?? '';
+
+    if (openingTime.isNotEmpty && closingTime.isNotEmpty) {
+      // Format the times to be more readable (remove seconds)
+      final formattedOpening = _formatTimeForDisplay(openingTime);
+      final formattedClosing = _formatTimeForDisplay(closingTime);
+      return '$formattedOpening - $formattedClosing';
     }
 
-    final permissionGranted = await _location.requestPermission();
-    if (permissionGranted != loc.PermissionStatus.granted) return;
+    // Fallback to status
+    final status = cafe['status'];
+    if (status == 'active' || status == 'verified') {
+      return 'Open';
+    } else if (status == 'pending_verification' || status == 'inactive') {
+      return 'Pending Verification';
+    }
 
-    final locationData = await _location.getLocation();
-    _updateCameraPosition(LatLng(locationData.latitude!, locationData.longitude!));
-
-
-    _addMarkers(locationData.latitude!, locationData.longitude!);
-    _fetchNearbyCybercafes(locationData.latitude!, locationData.longitude!);
+    return 'Hours not available';
   }
 
-  void _addMarkers(double latitude, double longitude) {
-    markers.add(
-      Marker(
-        markerId: MarkerId('current_location'),
-        position: LatLng(latitude, longitude),
-        icon: _customMarker ?? BitmapDescriptor.defaultMarker,
-        infoWindow: InfoWindow(title: 'Your Location'),
+  String _formatTimeForDisplay(String timeStr) {
+    try {
+      // Remove seconds from time format like "09:00:00" -> "09:00"
+      if (timeStr.contains(':')) {
+        final parts = timeStr.split(':');
+        if (parts.length >= 2) {
+          return '${parts[0]}:${parts[1]}';
+        }
+      }
+      return timeStr;
+    } catch (e) {
+      return timeStr;
+    }
+  }
+
+  bool _isShopOpen(Map<String, dynamic> cafe) {
+    // Check for shop_open field (most common)
+    final shopOpen = cafe['shop_open'];
+    if (shopOpen != null) {
+      return shopOpen == true || shopOpen == 'true' || shopOpen == 1;
+    }
+
+    // Check for status field
+    final status = cafe['status'];
+    if (status != null) {
+      // For pending_verification status, determine based on opening hours
+      if (status == 'pending_verification') {
+        return _isCurrentlyOpen(cafe);
+      }
+      return status == 'active' ||
+          status == 'verified' ||
+          status == 'open' ||
+          status == 'operational';
+    }
+
+    // Check for is_open field
+    final isOpen = cafe['is_open'];
+    if (isOpen != null) {
+      return isOpen == true || isOpen == 'true' || isOpen == 1;
+    }
+
+    // Check for operating_status field
+    final operatingStatus = cafe['operating_status'];
+    if (operatingStatus != null) {
+      return operatingStatus == 'open' || operatingStatus == 'active';
+    }
+
+    // Check for availability field
+    final availability = cafe['availability'];
+    if (availability != null) {
+      return availability == 'available' || availability == 'open';
+    }
+
+    // Determine status based on opening/closing times
+    return _isCurrentlyOpen(cafe);
+  }
+
+  bool _isCurrentlyOpen(Map<String, dynamic> cafe) {
+    try {
+      // Get opening and closing times from the API response
+      final openingTime = cafe['opening_time'] ?? '';
+      final closingTime = cafe['closing_time'] ?? '';
+
+      if (openingTime.isEmpty || closingTime.isEmpty) {
+        return false; // Can't determine without times
+      }
+
+      // Parse current time
+      final now = DateTime.now();
+      final currentTime =
+          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+      // Parse opening and closing times
+      final opening = _parseTime(openingTime);
+      final closing = _parseTime(closingTime);
+      final current = _parseTime(currentTime);
+
+      if (opening == null || closing == null || current == null) {
+        return false;
+      }
+
+      // Handle cases where closing time is on the next day (e.g., 23:00 - 02:00)
+      if (closing < opening) {
+        // Shop is open if current time is after opening OR before closing
+        return current >= opening || current <= closing;
+      } else {
+        // Normal case: opening time is before closing time
+        return current >= opening && current <= closing;
+      }
+    } catch (e) {
+      print('Error determining shop status: $e');
+      return false;
+    }
+  }
+
+  int? _parseTime(String timeStr) {
+    try {
+      // Handle various time formats: "09:00", "9:00", "9:00 AM", "09:00:00"
+      final cleanTime = timeStr.trim().toUpperCase();
+
+      // Remove AM/PM and convert to 24-hour format
+      String time24 = cleanTime;
+      if (cleanTime.contains('AM') || cleanTime.contains('PM')) {
+        final parts = cleanTime.split(' ');
+        final time = parts[0];
+        final period = parts[1];
+
+        final timeParts = time.split(':');
+        int hour = int.parse(timeParts[0]);
+        int minute = timeParts.length > 1 ? int.parse(timeParts[1]) : 0;
+
+        if (period == 'PM' && hour != 12) {
+          hour += 12;
+        } else if (period == 'AM' && hour == 12) {
+          hour = 0;
+        }
+
+        time24 =
+            '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+      }
+
+      // Convert to minutes since midnight for easy comparison
+      final parts = time24.split(':');
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+
+      return hour * 60 + minute;
+    } catch (e) {
+      print('Error parsing time: $timeStr - $e');
+      return null;
+    }
+  }
+
+  void _addUserMarker() {
+    if (_userLatLng == null) return;
+    markers.add(Marker(
+      markerId: const MarkerId('me'),
+      position: _userLatLng!,
+      icon: _markerUser ?? BitmapDescriptor.defaultMarker,
+    ));
+  }
+
+  void _refreshCafeMarkers() {
+    markers.removeWhere((m) => m.markerId.value.startsWith('cafe_'));
+
+    for (final cafe in _filteredCafes) {
+      final id = '${cafe['id'] ?? cafe.hashCode}';
+      final pos = _latLngFromCafe(cafe);
+      markers.add(Marker(
+        markerId: MarkerId('cafe_$id'),
+        position: pos,
+        icon: id == _selectedCafeId
+            ? (_markerCafeHighlighted ?? BitmapDescriptor.defaultMarker)
+            : (_markerCafe ?? BitmapDescriptor.defaultMarker),
+        infoWindow: InfoWindow(title: cafe['cafe_name'] ?? 'Cafe'),
+        onTap: () {
+          _selectedCafeId = id;
+          _smoothMoveCamera(pos, zoom: 16);
+          _refreshCafeMarkers();
+        },
+      ));
+    }
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  DISTANCE + DURATION (Directions API)                                     */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<Map<String, String>> _distanceInfo(LatLng dest, String id) async {
+    if (_userLatLng == null) return {'distance': '--', 'duration': '--'};
+    if (_distanceCache.containsKey(id)) return _distanceCache[id]!;
+    final url = Uri.parse('https://maps.googleapis.com/maps/api/directions/json'
+        '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
+        '&destination=${dest.latitude},${dest.longitude}'
+        '&mode=driving'
+        '&key=$_gmapsKey');
+    final res = await http.get(url);
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      if ((data['routes'] as List).isNotEmpty) {
+        final leg = data['routes'][0]['legs'][0];
+        _distanceCache[id] = {
+          'distance': leg['distance']['text'],
+          'duration': leg['duration']['text'],
+        };
+      }
+    }
+    return _distanceCache[id]!;
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  ROUTE DRAWING                                                            */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<void> _drawRoute(LatLng dest) async {
+    if (_userLatLng == null) return;
+
+    final request = PolylineRequest(
+      origin: PointLatLng(_userLatLng!.latitude, _userLatLng!.longitude),
+      destination: PointLatLng(dest.latitude, dest.longitude),
+      mode: TravelMode.driving,
+    );
+    final result = await _polylinePoints.getRouteBetweenCoordinates(
+      request: request,
+    );
+    if (result.points.isEmpty) {
+      Get.snackbar('Route', 'No route found');
+      return;
+    }
+    polylines.clear();
+    polylines.add(Polyline(
+      polylineId: const PolylineId('route'),
+      color: const Color(0xff338125),
+      width: 6,
+      points:
+      result.points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
+    ));
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  EXTERNAL MAP LAUNCH                                                      */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<void> _openExternalMaps(LatLng dest) async {
+    if (_userLatLng == null) return;
+    final uri = Uri.parse('https://www.google.com/maps/dir/?api=1'
+        '&origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
+        '&destination=${dest.latitude},${dest.longitude}'
+        '&travelmode=driving');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      Get.snackbar('Error', 'Could not open Google Maps');
+    }
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  LOCATION-BASED FILTERING                                                 */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Future<void> _getUserStateAndFilterCafes() async {
+    if (_userLatLng == null) {
+      print('User location not available');
+      _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+      return;
+    }
+
+    try {
+      _isLocationFiltering.value = true;
+      
+      // Reset showing all cafes state when location changes
+      _showingAllCafes.value = false;
+      
+      // Get user's state from coordinates
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        _userLatLng!.latitude,
+        _userLatLng!.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        _userState = placemarks.first.administrativeArea;
+        print('User is in state: $_userState');
+        
+        // Filter cafes based on state
+        _filterCafesByState();
+      } else {
+        print('Could not determine user state');
+        _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+      }
+    } catch (e) {
+      print('Error getting user state: $e');
+      _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+    } finally {
+      _isLocationFiltering.value = false;
+    }
+  }
+
+  void _filterCafesByState() {
+    if (_userState == null) {
+      _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+      return;
+    }
+
+    final filteredList = _cafeCtr.cybercafes.where((cafe) {
+      final address = cafe['address'];
+      if (address == null) return false;
+      
+      final cafeState = address['state'];
+      if (cafeState == null) return false;
+      
+      // Case-insensitive comparison
+      return cafeState.toString().toLowerCase() == _userState!.toLowerCase();
+    }).toList();
+
+    _filteredCafes.assignAll(filteredList.cast<Map<String, dynamic>>());
+    print('Found ${_filteredCafes.length} cafes in $_userState out of ${_cafeCtr.cybercafes.length} total cafes');
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  UI HELPERS                                                               */
+  /* ────────────────────────────────────────────────────────────────────────── */
+
+  Widget _glassSearchBar() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          height: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(.15),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: const Color(0xff338125).withOpacity(.2)),
+          ),
+          child: Row(children: [
+            const Icon(Icons.search, color: Color(0xff338125)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _searchCtl,
+                style: GoogleFonts.inter(color: Colors.white),
+                cursorColor: const Color(0xff338125),
+                decoration:  InputDecoration(
+                  hintText: 'Search location',
+                  hintStyle: GoogleFonts.inter(color: Colors.white70),
+                  border: InputBorder.none,
+                ),
+                onSubmitted: (_) => _searchAndGo(),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_forward_ios_rounded,
+                  size: 18, color: Color(0xff338125)),
+              onPressed: _searchAndGo,
+            )
+          ]),
+        ),
       ),
     );
   }
 
-
-  Future<void> _fetchNearbyCybercafes(double latitude, double longitude) async {
-    try {
-      if (_cybercafesController.cybercafes.isEmpty) return;
-
-      markers.addAll(
-        _cybercafesController.cybercafes.map((cafe) {
-          return Marker(
-            markerId: MarkerId(cafe['id'] ?? 'unknown'),
-            position: LatLng(
-              cafe['location']['latitude'] ?? 0.0,
-              cafe['location']['longitude'] ?? 0.0,
-            ),
-            icon: _customMarker2 ?? BitmapDescriptor.defaultMarker,
-            infoWindow: InfoWindow(title: cafe['name'] ?? 'Unknown'),
-          );
-        }),
-      );
-    } catch (e) {
-      print('Fetch Error: $e');
-    }
+  Widget _locateMeBtn() {
+    return Positioned(
+      bottom: 280,
+      right: 16,
+      child: FloatingActionButton(
+        heroTag: 'locateMe',
+        mini: true,
+        backgroundColor: const Color(0xff338125),
+        onPressed:
+            _userLatLng == null ? null : () => _smoothMoveCamera(_userLatLng!),
+        child: const Icon(Icons.my_location, color: Colors.black),
+      ),
+    );
   }
 
-
-  @override
-  Widget build(BuildContext context) {
-
-    return Scaffold(
-      floatingActionButton: GestureDetector(
-        onTap: () {
-          Get.to(PastBookingsScreen());
-        },
-        child: Container(
-          width: 108,
-          padding: EdgeInsets.symmetric(horizontal: 12,vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            color:Color(0xffDE3A3A)
-
-
-          ),
-
-          child:Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(Icons.qr_code_2,color: Colors.black,size: 15,),
-              Text('Bookings',style: TextStyle(color: Colors.black,fontSize: 15,fontWeight: FontWeight.bold),),
-            ],
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: Stack(alignment: Alignment.bottomCenter,
+  Widget _cafeCarousel() {
+    // if (_cafeCtr.isLoading.value) {
+    //   return const Center(child: RainbowGlowingLoader(size: 50));
+    // }
+    if (_filteredCafes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Obx(() => GoogleMap(
-              onMapCreated: (controller) {
-                mapController = controller;
-                mapController.setMapStyle(_mapStyle);
-              },
-              initialCameraPosition: CameraPosition(
-                target: _initialPosition,
-                zoom: 12,
-              ),
-              markers: markers.toSet(), // Convert RxSet to Set for GoogleMap
-              myLocationEnabled: true,
-            )),
-
-
-            Positioned(
-              top: 50,
-              left: 10,
-              right: 10,
-              child: _buildSearchBar(),
-            ),
-            Obx(() {
-              if (_cybercafesController.isLoading.value) {
-                return Center(child: RainbowGlowingLoader(size: 50),);
-              }
-
-              if (_cybercafesController.cybercafes.isEmpty) {
-                return Center(child: Text('No cybercafes available.'));
-              }
-
-              return RepaintBoundary(
-                child: Container(color: Colors.black,height: 250,alignment: Alignment.bottomCenter,
-                  child: ListView.builder(
-                    physics: BouncingScrollPhysics(),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _cybercafesController.cybercafes.length,
-                    itemBuilder: (context, index) {
-                      final cafe = _cybercafesController.cybercafes[index];
-                      return _buildGradientCard(
-                        cafe,
-                        images[index % images.length],
-                      );
-                    },
-                  ),
-                ),
-              );
-
-            }),
+            if (_userState != null)
+              Text(
+                'No cafes available in $_userState',
+                style: GoogleFonts.inter(color: Colors.white70),
+              )
+            else
+              const Text('No cybercafes available'),
+            const SizedBox(height: 8),
+                                                if (_userState != null)
+                                      TextButton(
+                                        onPressed: () {
+                                          _showingAllCafes.value = true;
+                                          _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+                                        },
+                                        child: Text(
+                                          'Show all cafes',
+                                          style: GoogleFonts.inter(color: const Color(0xff338125)),
+                                        ),
+                                      ),
           ],
         ),
+      );
+    }
+
+    _refreshCafeMarkers();
+
+    const dummyImgs = [
+      'https://next-level.gg/assets/cafes/11.jpg',
+      'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
+      'https://media.assettype.com/afkgaming/2024-04/e11d1515-bb0d-48a5-9ad9-1ddfdef286ef/Untitled_design_117_.png',
+      'https://i.ytimg.com/vi/3ZPtQAKKado/maxresdefault.jpg',
+      'https://pvplayer.com/wp-content/uploads/2024/04/kafejka-gamingowa.jpg',
+    ];
+
+    return SizedBox(
+      height: 230,
+      child: ListView.separated(
+        physics: const BouncingScrollPhysics(),
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(left: 8, top: 10),
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemCount: _filteredCafes.length,
+        itemBuilder: (_, i) {
+          final cafe = _filteredCafes[i];
+          return _gradientCard(
+            cafe: cafe,
+            img: dummyImgs[i % dummyImgs.length],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      height: 50,
-      padding: EdgeInsets.symmetric(horizontal: 15),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(25),
-      ),
-      child: TextField(
-        controller: _searchController,
+  Widget _gradientCard({
+    required Map<String, dynamic> cafe,
+    required String img,
+  }) {
+    final pos = _latLngFromCafe(cafe);
+    final id = '${cafe['id'] ?? cafe.hashCode}';
 
-        decoration: InputDecoration(
-          labelText: 'Search for a location',
-          border: InputBorder.none,
-          suffixIcon: IconButton(
-            icon: Icon(Icons.search, color: Color(0xffDE3A3A)),
-            onPressed: _searchAndNavigate,
-          ),
-        ),
-        style: TextStyle(color: Color(0xffDE3A3A)),
-      ),
-    );
-  }
-  Widget _buildGradientCard(Map<String, dynamic> cafe, String image) {
     return GestureDetector(
-      onTap: () async{
-        await Get.to(ArenaDetailView(
-          images: image,
+      onTap: () async {
+        _selectedCafeId = id;
+        _smoothMoveCamera(pos, zoom: 16);
+        _refreshCafeMarkers();
+        await Future.delayed(const Duration(milliseconds: 600));
+        await Get.to(() => ArenaDetailView(
+          images: img,
           title: cafe['cafe_name'] ?? 'Unknown Cafe',
-          address: 'Owner: ${cafe['owner_name']}',
-          openingHours: 'Created: ${cafe['created_at']}', // Example data
-          availableGames: ['Game 1', 'Game 2'], // Placeholder
-          amenities: ['Amenity 1', 'Amenity 2'], // Placeholder
-          contactInfo: 'Contact: contact@domain.com', // Placeholder
-          reviews: ['Great place!', 'Loved it!'],
-          vendorId:cafe['vendor_id']// Placeholder
+          address: _formatAddress(cafe),
+          openingHours: _formatOpeningHours(cafe),
+          availableGames: cafe['available_games'] ?? ['N/A'],
+          amenities: cafe['amenities'] ?? [],
+          phone: cafe['phone'] ?? 'Phone not available',
+          email: cafe['email'] ?? 'Email not available',
+          ownerName: cafe['owner_name'] ?? 'Owner not available',
+          reviews: cafe['reviews'] ?? ['Great place!'],
+          vendorId: cafe['vendor_id'] ?? 0,
         ));
       },
-      child: Container(width: 300,
-        margin: EdgeInsets.all(8),
+      child: Container(
+        width: 300,
+        height: 230,
+        clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
-          color: Color(0xff0E0E0E),
-          borderRadius: BorderRadius.circular(16),
+          color: const Color(0xff0E0E0E),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Stack(
-          alignment: Alignment.topCenter,
           children: [
-            ClipRRect(
-                borderRadius: BorderRadius.all(Radius.circular(16)),
-                child: CachedNetworkImage(
-                  imageUrl: image,
-                  fit: BoxFit.cover,
-                  height: 320,
-                  width: 400,
-                  placeholder: (context, url) => Center(child: RainbowGlowingLoader(size: 50),),
-                  errorWidget: (context, url, error) => Container(
-                    height: 320,
-                    width: 400,
-                    color: Colors.grey,
-                    child: Center(
-                      child: Text(
-                        'Image Not Available',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                )
-
-
+            // Background Image
+            CachedNetworkImage(
+              imageUrl: img,
+              width: 300,
+              height: 230,
+              fit: BoxFit.cover,
+              placeholder: (_, __) =>
+              const Center(child: RainbowGlowingLoader(size: 40)),
+              errorWidget: (_, __, ___) =>
+              const Center(child: Icon(Icons.error, color: Colors.white)),
             ),
-            ClipRRect(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: ListTile(
-                  title: Text(cafe['cafe_name'] ?? 'Unknown Cafe', style: TextStyle(color: Colors.white)),
-                  subtitle: Text('Mumbai | 9 - 12am', style: TextStyle(color: Colors.white70)),
-                  trailing: Container(width: 100,
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(crossAxisAlignment: CrossAxisAlignment.center,mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Row(crossAxisAlignment: CrossAxisAlignment.center,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Icon(Icons.circle,color: cafe['status'] == 'active' ? Colors.green : Colors.red,size: 8,),
-                                SizedBox(width: 3,),
-                                Text(cafe['status']== 'active' ?'Open':'Close', style: TextStyle(color: cafe['status'] == 'active' ? Colors.green : Colors.red)),
-                              ],
-                            ),
-                            SizedBox(height: 5,),
-                            Text('2.3KM', style: TextStyle(color: Colors.white70)),
-                          ],
-                        ),
-                        SizedBox(width: 10,),
-                        CircleAvatar(radius: 20,
-                          child: Icon(Icons.chevron_right),
-                        )
+
+            // Blur + Gradient Footer
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+                child: Container(
+                  height: 100,
+                  decoration: const BoxDecoration(
+                    // ⬇️ Smooth transparent-to-black gradient
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Color.fromARGB(50, 0, 0, 0),
+                        Color.fromARGB(120, 0, 0, 0),
+                        Color.fromARGB(200, 0, 0, 0),
                       ],
                     ),
                   ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: Container(
+                      // 👇 Transparent color here helps blend blur + gradient
+                      color: Colors.transparent,
+                      padding: const EdgeInsets.all(12),
+                      child: _cardFooter(cafe, pos, id),
+                    ),
+                  ),
                 ),
               ),
             ),
+
 
           ],
         ),
@@ -334,20 +746,450 @@ class _ArenaViewState extends State<ArenaView> {
     );
   }
 
-  Future<void> _searchAndNavigate() async {
-    String query = _searchController.text;
-    if (query.isNotEmpty) {
-      try {
-        List<Location> locations = await locationFromAddress(query);
-        if (locations.isNotEmpty) {
-          final location = locations.first;
-          mapController.animateCamera(CameraUpdate.newLatLng(
-            LatLng(location.latitude, location.longitude),
-          ));
-        }
-      } catch (e) {
-        Get.snackbar('Error', 'Location not found.');
-      }
-    }
+
+  Widget _cardFooter(Map<String, dynamic> cafe, LatLng pos, String id) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.black.withOpacity(0), Colors.black.withOpacity(.8)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            cafe['cafe_name'] ?? 'Unknown',
+            style: GoogleFonts.inter(
+                color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.circle,
+                  color: _isShopOpen(cafe) ? Colors.green : Colors.red,
+                  size: 8),
+              const SizedBox(width: 4),
+              Text(
+                _isShopOpen(cafe) ? 'Open' : 'Closed',
+                style: GoogleFonts.inter(
+                    color: _isShopOpen(cafe) ? Colors.green : Colors.red),
+              ),
+              const SizedBox(width: 8),
+              FutureBuilder<Map<String, String>>(
+                future: _distanceInfo(pos, id),
+                builder: (_, snap) {
+                  final dist = snap.data?['distance'] ?? '--';
+                  final dur = snap.data?['duration'] ?? '--';
+                  return Text('$dist · $dur',
+                      style: GoogleFonts.inter(color: Colors.white70));
+                },
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => _drawRoute(pos),
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                      color: const Color(0xff338125),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.route, size: 18, color: Colors.black),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _openExternalMaps(pos),
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                      color: const Color(0xff338125),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.map, size: 18, color: Colors.black),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size.height;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Obx(() {
+          return Column(
+            children: [
+              // Map with rounded top corners
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                ),
+                child: SizedBox(
+                  height: size * 0.61,
+                  width: double.infinity,
+                  child: Stack(
+                    children: [
+                      GoogleMap(
+                        initialCameraPosition: const CameraPosition(
+                            target: LatLng(20, 77), zoom: 4),
+                        myLocationEnabled: true,
+                        markers: markers.toSet(),
+                        polylines: polylines.toSet(),
+                        onMapCreated: (ctrl) {
+                          _mapCtr = ctrl;
+                          _mapCtr.setMapStyle(_mapStyle);
+                          _mapReady = true;
+                          _tryPlayZoom();
+                        },
+                        zoomControlsEnabled: false,
+                      ),
+                      // Search bar
+                      Positioned(
+                        top: 20,
+                        left: 16,
+                        right: 16,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: TextField(
+                            controller: _searchCtl,
+                            style: GoogleFonts.inter(color: Colors.white),
+                            cursorColor: const Color(0xff338125),
+                            decoration:  InputDecoration(
+                              prefixIcon:
+                                  const Icon(Icons.search, color: Colors.white70),
+                              hintText: 'Search location',
+                              hintStyle: GoogleFonts.inter(color: Colors.white70),
+                              border: InputBorder.none,
+                              contentPadding:
+                                  const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            onSubmitted: (_) => _searchAndGo(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Nearby Cafes Section
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      topRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Obx(() => Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 0, 8),
+                        child: Row(
+                          children: [
+                            Text(
+                              _showingAllCafes.value 
+                                ? 'Showing All Cafes' 
+                                : (_userState != null ? 'Cafes in $_userState' : 'Nearby Cafes'),
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+                            if (_userState != null) ...[
+                              const SizedBox(width: 8),
+                              Obx(() => Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xff338125).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xff338125)),
+                                ),
+                                child: Text(
+                                  _showingAllCafes.value 
+                                    ? '${_filteredCafes.length} total' 
+                                    : '${_filteredCafes.length} found',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xff338125),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              )),
+                              const Spacer(),
+                              Obx(() => TextButton(
+                                onPressed: () {
+                                  if (_showingAllCafes.value) {
+                                    // Switch back to filtered view
+                                    _showingAllCafes.value = false;
+                                    _filterCafesByState();
+                                  } else {
+                                    // Show all cafes
+                                    _showingAllCafes.value = true;
+                                    _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+                                  }
+                                },
+                                child: Text(
+                                  _showingAllCafes.value ? 'Show local' : 'Show all',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xff338125),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              )),
+                            ],
+                          ],
+                        ),
+                      )),
+                      Expanded(
+                        child: Obx(() => _filteredCafes.isEmpty
+                            ?  Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (_userState != null)
+                                      Text(
+                                        'No cafes available in $_userState',
+                                        style: GoogleFonts.inter(color: Colors.white70),
+                                      )
+                                    else
+                                      Text('No cybercafes available',
+                                          style: GoogleFonts.inter(color: Colors.white70)),
+                                    const SizedBox(height: 8),
+                                    if (_userState != null)
+                                      TextButton(
+                                        onPressed: () {
+                                          _showingAllCafes.value = true;
+                                          _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+                                        },
+                                        child: Text(
+                                          'Show all cafes',
+                                          style: GoogleFonts.inter(color: const Color(0xff338125)),
+                                        ),
+                                      ),
+                                  ],
+                                ))
+                            : ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 16),
+                                itemCount: _filteredCafes.length,
+                                itemBuilder: (_, i) {
+                                  final cafe = _filteredCafes[i];
+                                  final img = [
+                                    'https://next-level.gg/assets/cafes/11.jpg',
+                                    'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
+                                    'https://media.assettype.com/afkgaming/2024-04/e11d1515-bb0d-48a5-9ad9-1ddfdef286ef/Untitled_design_117_.png',
+                                    'https://i.ytimg.com/vi/3ZPtQAKKado/maxresdefault.jpg',
+                                    'https://pvplayer.com/wp-content/uploads/2024/04/kafejka-gamingowa.jpg',
+                                  ][i % 5];
+                                  final pos = _latLngFromCafe(cafe);
+                                  final id = '${cafe['id'] ?? cafe.hashCode}';
+                                  return GestureDetector(
+                                    onTap: () async {
+                                      _selectedCafeId = id;
+                                      _smoothMoveCamera(pos, zoom: 16);
+                                      _refreshCafeMarkers();
+                                      await Future.delayed(
+                                          const Duration(milliseconds: 600));
+                                      await Get.to(() => ArenaDetailView(
+                                            images: img,
+                                            title: cafe['cafe_name'] ??
+                                                'Unknown Cafe',
+                                            address: _formatAddress(cafe),
+                                            openingHours:
+                                                _formatOpeningHours(cafe),
+                                            availableGames:
+                                                cafe['available_games'] ??
+                                                    ['N/A'],
+                                            amenities: cafe['amenities'] ?? [],
+                                            phone: cafe['phone'] ??
+                                                'Phone not available',
+                                            email: cafe['email'] ??
+                                                'Email not available',
+                                            ownerName: cafe['owner_name'] ??
+                                                'Owner not available',
+                                            reviews: cafe['reviews'] ??
+                                                ['Great place!'],
+                                            vendorId: cafe['vendor_id'] ?? 0,
+                                          ));
+                                    },
+                                    child: Container(
+                                      width: 320,
+                                      height: 150,
+                                      margin: const EdgeInsets.only(
+                                          bottom: 12, top: 4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.05),
+                                        ),
+                                        color: Colors.transparent,
+                                      ),
+                                      clipBehavior: Clip.hardEdge,
+                                      child: Stack(
+                                        children: [
+                                          CachedNetworkImage(
+                                            imageUrl: img,
+                                            width: 320,
+                                            height: 150,
+                                            fit: BoxFit.cover,
+                                          ),
+                                          // Glassmorphism overlay for bottom half
+                                          Positioned(
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            top: 70,
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  const BorderRadius.only(
+                                                bottomLeft: Radius.circular(22),
+                                                bottomRight:
+                                                    Radius.circular(22),
+                                              ),
+                                              child: Stack(
+                                                children: [
+                                                  BackdropFilter(
+                                                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                                    child: Container(color: Colors.transparent),
+                                                  ),
+                                                  Container(
+                                                    decoration: const BoxDecoration(
+                                                      gradient: LinearGradient(
+                                                        begin: Alignment.bottomCenter,
+                                                        end: Alignment.topCenter,
+                                                        colors: [
+                                                          Color.fromARGB(180, 0, 0, 0), // Strong black at bottom
+                                                          Color.fromARGB(80, 0, 0, 0),  // Faded black in middle
+                                                          Color.fromARGB(0, 0, 0, 0),   // Transparent at top
+                                                        ],
+                                                      ),
+                                                      borderRadius: BorderRadius.only(
+                                                        bottomLeft: Radius.circular(22),
+                                                        bottomRight: Radius.circular(22),
+                                                      ),
+                                                    ),
+                                                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Text(
+                                                          cafe['cafe_name'] ?? 'Unknown',
+                                                          style: GoogleFonts.inter(
+                                                            color: Colors.white,
+                                                            fontSize: 16,
+                                                            fontWeight: FontWeight.w400,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(height: 4),
+                                                        Row(
+                                                          children: [
+                                                            Icon(Icons.circle, size: 8, color: _isShopOpen(cafe) ? Colors.green : Colors.red),
+                                                            const SizedBox(width: 6),
+                                                            Text(
+                                                              _isShopOpen(cafe) ? 'Open' : 'Closed',
+                                                              style: GoogleFonts.inter(
+                                                                color: _isShopOpen(cafe) ? Colors.green : Colors.red,
+                                                                fontWeight: FontWeight.w400,
+                                                                fontSize: 12,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(width: 8),
+                                                            Text('|', style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
+                                                            const SizedBox(width: 8),
+                                                            FutureBuilder<Map<String, String>>(
+                                                              future: _distanceInfo(pos, id),
+                                                              builder: (_, snap) {
+                                                                final dist = snap.data?['distance'] ?? '--';
+                                                                final dur = snap.data?['duration'] ?? '--';
+                                                                return Row(
+                                                                  children: [
+                                                                    Text(dist, style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
+                                                                    const SizedBox(width: 8),
+                                                                    Text('|', style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
+                                                                    const SizedBox(width: 8),
+                                                                    Text(dur, style: GoogleFonts.inter(color: Colors.grey, fontSize: 12)),
+                                                                  ],
+                                                                );
+                                                              },
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(height: 10),
+                                                        Row(
+                                                          children: [
+                                                            Expanded(
+                                                              child: ElevatedButton.icon(
+                                                                style: ElevatedButton.styleFrom(
+                                                                  backgroundColor: const Color(0xff338125),
+                                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                                                  elevation: 0,
+                                                                ),
+                                                                icon: const Icon(Icons.directions_outlined, color: Colors.white, size: 18),
+                                                                label: Text('Directions', style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w400)),
+                                                                onPressed: () => _drawRoute(pos),
+                                                              ),
+                                                            ),
+                                                            const SizedBox(width: 10),
+                                                            Expanded(
+                                                              child: ElevatedButton.icon(
+                                                                style: ElevatedButton.styleFrom(
+                                                                  backgroundColor: Colors.white.withOpacity(0.13),
+                                                                  shape: RoundedRectangleBorder(
+                                                                    borderRadius: BorderRadius.circular(8),
+                                                                    side: BorderSide(color: Colors.white.withOpacity(0.13)),
+                                                                  ),
+                                                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                                                  elevation: 0,
+                                                                ),
+                                                                icon: const Icon(Icons.map_outlined, color: Colors.white, size: 18),
+                                                                label: Text('View on maps', style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w400)),
+                                                                onPressed: () => _openExternalMaps(pos),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
   }
 }

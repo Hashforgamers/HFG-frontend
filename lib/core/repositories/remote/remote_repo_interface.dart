@@ -1,6 +1,8 @@
+import 'package:hash/core/repositories/model/booking_model.dart';
+import 'package:hash/core/repositories/model/create_voucher_response.dart';
+import 'package:hash/core/repositories/model/get_voucher_model.dart';
+
 abstract class RemoteRepoInterface {
-
-
   Future<Map<String, dynamic>?> checkUserExistsInAPI(String fid);
   Future<void> saveUserToPreferences(Map<String, dynamic> userData);
   Future<Map<String, dynamic>?> getUserFromPreferences();
@@ -13,13 +15,13 @@ abstract class RemoteRepoInterface {
     required int gameId,
     required String date,
   });
-  
+
   Future<Map<String, dynamic>> createBooking({
     required int slotId,
     required int userId,
     required int gameId,
   });
-  
+
   Future<List<Map<String, dynamic>>> fetchUserBookings(int userId);
 
   // Vendor related methods
@@ -34,6 +36,8 @@ abstract class RemoteRepoInterface {
     required List<int> bookingIds,
     required String paymentId,
     required String bookDate,
+    String? voucherCode,
+    required String paymentMode,
   });
 
   // Address related methods
@@ -69,4 +73,29 @@ abstract class RemoteRepoInterface {
     required String emailId,
   });
   Future<Map<String, dynamic>> validateFunds(String paymentLinkId);
+  Future<void> saveReferralCodeToPreferences(String referralCode);
+
+  Future<void> createVoucher({required String userId});
+  Future<List<GetVoucherModel>> getVoucher({required String userId});
+
+  Future<int> getHashCoin({required String userId});
+
+  Future<CreateVoucherResponse> createOffer({
+    required int discountPercentage,
+    required String userId,
+  });
+
+  Future<String> scanQrCode({
+    required String consoleId,
+    required String gameId,
+    required String vendorId,
+    required String bookingId,
+  });
+
+  Future<String> registerFCMToken({
+    required String userId,
+    required String token,
+  });
+
+  Future<String> releaseBooking({required BookingModel bookings});
 }

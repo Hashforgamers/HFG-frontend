@@ -1,14 +1,37 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class TeamSection extends StatelessWidget {
   final List<Map<String, String>> profiles = [
-    {'title': 'Backend Developer', 'description': 'Flask (Python)', 'buttonText': 'Apply'},
-    {'title': 'Frontend Developer', 'description': 'Flutter (Dart)', 'buttonText': 'Apply'},
-    {'title': 'AWS Specialist', 'description': 'Cloud Infrastructure', 'buttonText': 'Apply'},
-    {'title': 'Database Expert', 'description': 'PostgreSQL & Optimization', 'buttonText': 'Apply'},
-    {'title': 'UI/UX Designer', 'description': 'Figma & Prototyping', 'buttonText': 'Apply'},
+    {
+      'title': 'Backend Developer',
+      'description': 'Flask (Python)',
+      'buttonText': 'Apply'
+    },
+    {
+      'title': 'Frontend Developer',
+      'description': 'Flutter (Dart)',
+      'buttonText': 'Apply'
+    },
+    {
+      'title': 'AWS Specialist',
+      'description': 'Cloud Infrastructure',
+      'buttonText': 'Apply'
+    },
+    {
+      'title': 'Database Expert',
+      'description': 'PostgreSQL & Optimization',
+      'buttonText': 'Apply'
+    },
+    {
+      'title': 'UI/UX Designer',
+      'description': 'Figma & Prototyping',
+      'buttonText': 'Apply'
+    },
   ];
+
+   TeamSection({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -17,9 +40,10 @@ class TeamSection extends StatelessWidget {
       children: [
         Text(
           'CAREER OPPORTUNITIES',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: GoogleFonts.inter(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
         SizedBox(
           height: 110, // Fixed height for scrolling
           child: ListView.builder(
@@ -30,7 +54,8 @@ class TeamSection extends StatelessWidget {
               final cardColor = _getRandomColor();
               return GestureDetector(
                 onTap: () => _openForm(context, profile['title']!, cardColor),
-                child: _buildProfileCard(profile['title']!, profile['description']!, profile['buttonText']!, cardColor),
+                child: _buildProfileCard(profile['title']!,
+                    profile['description']!, profile['buttonText']!, cardColor),
               );
             },
           ),
@@ -39,12 +64,13 @@ class TeamSection extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileCard(String title, String description, String buttonText, Color color) {
+  Widget _buildProfileCard(
+      String title, String description, String buttonText, Color color) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 5),
+      margin: const EdgeInsets.symmetric(horizontal: 5),
       width: 130,
       height: 130,
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(10),
@@ -55,14 +81,14 @@ class TeamSection extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            style: GoogleFonts.inter(
+                color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
           ),
-
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           GestureDetector(
             onTap: () {}, // Add functionality if needed
             child: Container(
-              padding: EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
@@ -70,7 +96,8 @@ class TeamSection extends StatelessWidget {
               child: Center(
                 child: Text(
                   buttonText,
-                  style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.inter(
+                      color: color, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -84,7 +111,8 @@ class TeamSection extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TeamFormScreen(title: title, backgroundColor: backgroundColor),
+        builder: (context) =>
+            TeamFormScreen(title: title, backgroundColor: backgroundColor),
       ),
     );
   }
@@ -108,7 +136,7 @@ class TeamFormScreen extends StatelessWidget {
   final String title;
   final Color backgroundColor;
 
-  TeamFormScreen({required this.title, required this.backgroundColor});
+  const TeamFormScreen({super.key, required this.title, required this.backgroundColor});
 
   @override
   Widget build(BuildContext context) {
@@ -120,16 +148,19 @@ class TeamFormScreen extends StatelessWidget {
       body: Container(
         color: Colors.black,
         child: Padding(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Apply for $title',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
               ),
-              SizedBox(height: 20),
-              TextField(
+              const SizedBox(height: 20),
+              const TextField(
                 decoration: InputDecoration(
                   labelText: 'Your Name',
                   border: OutlineInputBorder(),
@@ -137,8 +168,8 @@ class TeamFormScreen extends StatelessWidget {
                   filled: true,
                 ),
               ),
-              SizedBox(height: 20),
-              TextField(
+              const SizedBox(height: 20),
+              const TextField(
                 decoration: InputDecoration(
                   labelText: 'Your Email',
                   border: OutlineInputBorder(),
@@ -146,8 +177,8 @@ class TeamFormScreen extends StatelessWidget {
                   filled: true,
                 ),
               ),
-              SizedBox(height: 20),
-              TextField(
+              const SizedBox(height: 20),
+              const TextField(
                 maxLines: 3,
                 decoration: InputDecoration(
                   labelText: 'Why are you a good fit?',
@@ -156,8 +187,9 @@ class TeamFormScreen extends StatelessWidget {
                   filled: true,
                 ),
               ),
-              SizedBox(height: 20),
-              SizedBox(width: double.infinity,
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
                     // Submit logic
@@ -169,7 +201,7 @@ class TeamFormScreen extends StatelessWidget {
                   ),
                   child: Text(
                     'Submit',
-                    style: TextStyle(color: Colors.black),
+                    style: GoogleFonts.inter(color: Colors.black),
                   ),
                 ),
               ),

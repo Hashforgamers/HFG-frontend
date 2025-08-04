@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:hash/app/modules/shop/views/shop_view.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../reviews/views/review_view.dart';
 import '../controllers/cart_controller.dart';
@@ -14,7 +14,8 @@ class ProductDetailView extends StatefulWidget {
   final String productId;
   final String productImages;
 
-  const ProductDetailView({super.key, required this.productId, required this.productImages});
+  const ProductDetailView(
+      {super.key, required this.productId, required this.productImages});
 
   @override
   _ProductDetailViewState createState() => _ProductDetailViewState();
@@ -23,7 +24,8 @@ class ProductDetailView extends StatefulWidget {
 class _ProductDetailViewState extends State<ProductDetailView> {
   final ScrollController _scrollController = ScrollController();
   double _imageHeight = 200.0;
-  final GetProductByIdController controller = Get.put(GetProductByIdController());
+  final GetProductByIdController controller =
+      Get.put(GetProductByIdController());
 
   @override
   void initState() {
@@ -50,13 +52,17 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: const Text('Product Details', style: TextStyle(color: Colors.white)),
+        title: Text('Product Details',
+            style: GoogleFonts.inter(color: Colors.white)),
         backgroundColor: Colors.black,
         leading: GestureDetector(
           onTap: () {
             Get.back();
           },
-          child: Icon(CupertinoIcons.back, color: Color(0xff00D701),),
+          child: const Icon(
+            Icons.arrow_back,
+            color: Color(0xff00D701),
+          ),
         ),
         actions: [
           GestureDetector(
@@ -66,20 +72,21 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: Obx(() => Badge(
-                label: Text(
-                  '${cartController.cartItems.length}',
-                  style: TextStyle(color: Colors.white, fontSize: 10),
-                ),
-                child: Icon(CupertinoIcons.bag, color: Colors.white),
-              )),
+                    label: Text(
+                      '${cartController.cartItems.length}',
+                      style:
+                          GoogleFonts.inter(color: Colors.white, fontSize: 10),
+                    ),
+                    child: const Icon(CupertinoIcons.bag, color: Colors.white),
+                  )),
             ),
           ),
-          SizedBox(width: 15),
+          const SizedBox(width: 15),
         ],
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
-          return Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator());
         } else if (controller.errorMessage.isNotEmpty) {
           return Center(child: Text(controller.errorMessage.value));
         } else if (controller.product.value != null) {
@@ -94,83 +101,111 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   controller: _scrollController,
                   child: Column(
                     children: [
-                      SizedBox(height: 160),
+                      const SizedBox(height: 160),
                       Container(
                         padding: const EdgeInsets.all(14.0),
-                        decoration: ShapeDecoration(
+                        decoration: const ShapeDecoration(
                           color: Colors.white10,
                           shape: ContinuousRectangleBorder(
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(104)),
+                            borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(104)),
                           ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(height: 50),
+                            const SizedBox(height: 50),
                             Text(
                               product!.name,
-                              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                              style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold),
                             ),
-                            SizedBox(height: 10),
-                            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            const SizedBox(height: 10),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(crossAxisAlignment: CrossAxisAlignment.center,
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     Text(
                                       '₹${(product.price + 122).toStringAsFixed(2)}',
-                                      style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.normal, decoration: TextDecoration.lineThrough),
+                                      style: GoogleFonts.inter(
+                                          color: Colors.grey,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.normal,
+                                          decoration:
+                                              TextDecoration.lineThrough),
                                     ),
-                                    SizedBox(width: 10,),
+                                    const SizedBox(
+                                      width: 10,
+                                    ),
                                     Text(
                                       '₹${product.price.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Color(0xff00D701), fontSize: 18, fontWeight: FontWeight.bold),
+                                      style: GoogleFonts.inter(
+                                          color: const Color(0xff00D701),
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold),
                                     ),
                                   ],
                                 ),
                                 Row(
                                   children: [
-                                    Icon(Icons.star, color: Colors.yellow, size: 18),
-                                    SizedBox(width: 5),
+                                    const Icon(Icons.star,
+                                        color: Colors.yellow, size: 18),
+                                    const SizedBox(width: 5),
                                     Text(
                                       '${product.rating.average} (${product.rating.count} reviews)',
-                                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                                      style: GoogleFonts.inter(
+                                          color: Colors.white70, fontSize: 13),
                                     ),
                                   ],
                                 ),
                               ],
                             ),
-                            SizedBox(height: 20),
-
-                            SizedBox(height: 20),
+                            const SizedBox(height: 20),
+                            const SizedBox(height: 20),
                             Text(
                               'Availability: ${product.availability.inStock ? "In Stock" : "Out of Stock"}',
-                              style: TextStyle(color: Color(0xff00D701), fontSize: 16),
+                              style: GoogleFonts.inter(
+                                  color: const Color(0xff00D701), fontSize: 16),
                             ),
-                            SizedBox(height: 20),
+                            const SizedBox(height: 20),
                             Text(
                               'Description',
-                              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                              style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold),
                             ),
-                            SizedBox(height: 10),
+                            const SizedBox(height: 10),
                             Text(
                               product.description,
-                              style: TextStyle(color: Colors.white70, fontSize: 16),
+                              style: GoogleFonts.inter(
+                                  color: Colors.white70, fontSize: 16),
                             ),
-                            SizedBox(height: 20),
+                            const SizedBox(height: 20),
                             Text(
                               'Specifications',
-                              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                              style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold),
                             ),
-                            SizedBox(height: 10),
+                            const SizedBox(height: 10),
                             _buildSpecifications(product),
-                            SizedBox(height: 30),
+                            const SizedBox(height: 30),
                             Text(
                               'Customer Reviews',
-                              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                              style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold),
                             ),
-                            SizedBox(height: 10),
-                          ReviewPage(),
-                            SizedBox(height: 30),
+                            const SizedBox(height: 10),
+                            ReviewPage(),
+                            const SizedBox(height: 30),
                           ],
                         ),
                       ),
@@ -181,22 +216,22 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   top: 0,
                   left: 0,
                   right: 0,
-
                   child: CachedNetworkImage(
                     imageUrl: widget.productImages,
                     height: _imageHeight,
                     width: double.infinity,
                     fit: BoxFit.contain,
-
-                    placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                    errorWidget: (context, url, error) => const Icon(Icons.error),
+                    placeholder: (context, url) =>
+                        const Center(child: CircularProgressIndicator()),
+                    errorWidget: (context, url, error) =>
+                        const Icon(Icons.error),
                   ),
                 ),
               ],
             ),
           );
         } else {
-          return Center(child: Text('No product found'));
+          return const Center(child: Text('No product found'));
         }
       }),
       bottomNavigationBar: BottomAppBar(
@@ -211,23 +246,24 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     // Handle product buy now tap
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:  Color(0xff00D701),
+                    backgroundColor: const Color(0xff00D701),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    minimumSize: Size(double.infinity, 50),
+                    minimumSize: const Size(double.infinity, 50),
                   ),
                   child: const Text('Buy Now'),
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Container(
-                padding: EdgeInsets.all(10),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   color: Colors.grey[850], // Match the background color
                 ),
-                child: Icon(CupertinoIcons.bag_badge_plus, color: Colors.white),
+                child: const Icon(CupertinoIcons.bag_badge_plus,
+                    color: Colors.white),
               ),
             ],
           ),
@@ -246,11 +282,15 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         _buildSpecificationRow('Color', product.nonElectronic.color),
         _buildSpecificationRow('Material', product.nonElectronic.material),
         _buildSpecificationRow('Size', product.nonElectronic.size),
-        _buildSpecificationRow('Compatibility', product.electronic.compatibility),
+        _buildSpecificationRow(
+            'Compatibility', product.electronic.compatibility),
         _buildSpecificationRow('Connectivity', product.electronic.connectivity),
-        _buildSpecificationRow('Power Consumption', product.electronic.powerConsumption),
-        _buildSpecificationRow('Dimensions (L x W x H)', '${product.dimensions.length} x ${product.dimensions.width} x ${product.dimensions.height} ${product.dimensions.unit}'),
-        _buildSpecificationRow('Weight', '${product.weight.value} ${product.weight.unit}'),
+        _buildSpecificationRow(
+            'Power Consumption', product.electronic.powerConsumption),
+        _buildSpecificationRow('Dimensions (L x W x H)',
+            '${product.dimensions.length} x ${product.dimensions.width} x ${product.dimensions.height} ${product.dimensions.unit}'),
+        _buildSpecificationRow(
+            'Weight', '${product.weight.value} ${product.weight.unit}'),
       ],
     );
   }
@@ -262,19 +302,17 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         children: [
           Text(
             '$key: ',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            style: GoogleFonts.inter(
+                color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          Container(
-            width: Get.width*0.45,
-            child: Text(
-
-              value,
-              style: TextStyle(color: Colors.white70, fontSize: 16,overflow: TextOverflow.ellipsis),
-            ),
+          SizedBox(
+            width: Get.width * 0.45,
+            child: Text(value,
+                style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
+                overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
     );
   }
-
 }

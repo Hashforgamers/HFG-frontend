@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math' as math;
 
+import '../../../utils/widgets/custom_card.dart';
 import 'game_news_controller.dart';
 
 class GamerNewsSection extends StatefulWidget {
@@ -33,16 +36,34 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     super.dispose();
   }
 
+  Widget _newsShimmerCard() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade800,
+      highlightColor: Colors.grey.shade700,
+      child: Container(
+        width: 320,
+        height: 190,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          color: Colors.grey.shade900,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       if (controller.isLoading.value) {
-        return const SizedBox(
-          height: 200,
-          child: Center(
-              child: CircularProgressIndicator(
-                color: Colors.cyanAccent,
-              )),
+        return SizedBox(
+          height: 190,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+            itemCount: 3, // 3 shimmer cards
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, __) => _newsShimmerCard(),
+          ),
         );
       }
 
@@ -60,14 +81,13 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                     width: 24,
                     frameRate: FrameRate(60), // Makes animation smoother
                   )),
-              const Text(
+              Text(
                 ' GAMER FIREWIRE',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1.5,
-                ),
+                style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.5),
               ),
             ],
           ),
@@ -83,11 +103,10 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                 return AnimatedBuilder(
                   animation: _animController,
                   builder: (_, __) {
-                    return _rainbowCard(
+                    return EarlyAccessCard(
                       title: article.title,
-                      deck: article.deck,
+                      subTitle: article.deck,
                       siteUrl: article.siteUrl,
-                      hueRotation: _animController.value,
                     );
                   },
                 );
@@ -108,7 +127,8 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     return GestureDetector(
       onTap: () async {
         if (await canLaunchUrl(Uri.parse(siteUrl))) {
-          await launchUrl(Uri.parse(siteUrl), mode: LaunchMode.externalApplication);
+          await launchUrl(Uri.parse(siteUrl),
+              mode: LaunchMode.externalApplication);
         } else {
           Get.snackbar('Error', 'Could not launch article');
         }
@@ -131,7 +151,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                   startAngle: 0,
                   endAngle: math.pi * 2,
                   tileMode: TileMode.repeated,
-                  colors: [
+                  colors: const [
                     Colors.red,
                     Colors.orange,
                     Colors.yellow,
@@ -174,24 +194,20 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                 children: [
                   Text(
                     title.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 16.5,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.1,
-                      height: 1.3,
-                    ),
+                    style: GoogleFonts.inter(
+                        fontSize: 16.5,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
+                        height: 1.3),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 10),
                   Text(
                     deck,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      color: Colors.white70,
-                      height: 1.5,
-                    ),
+                    style: GoogleFonts.inter(
+                        fontSize: 13.5, color: Colors.white70, height: 1.5),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -203,16 +219,16 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                   ),
                   const SizedBox(height: 4),
                   Row(
-                    children: const [
-                      Icon(Icons.play_arrow, size: 16, color: Colors.cyanAccent),
-                      SizedBox(width: 6),
+                    children: [
+                      const Icon(Icons.play_arrow,
+                          size: 16, color: Colors.cyanAccent),
+                      const SizedBox(width: 6),
                       Text(
                         "Read Article",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.cyanAccent,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: Colors.cyanAccent,
+                            fontWeight: FontWeight.bold),
                       )
                     ],
                   ),
@@ -224,5 +240,4 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       ),
     );
   }
-
 }

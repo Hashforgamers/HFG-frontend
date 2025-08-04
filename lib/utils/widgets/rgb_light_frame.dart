@@ -8,7 +8,7 @@ class RGBLightFrame extends StatefulWidget {
   final double borderRadius;
   final Duration duration;
 
-  RGBLightFrame({
+  const RGBLightFrame({super.key, 
     required this.width,
     required this.height,
     this.strokeWidth = 2.0,

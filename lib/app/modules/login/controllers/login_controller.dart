@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 
 import '../../../data/services/user_controller.dart' as userModel;
@@ -15,9 +16,10 @@ class LoginController extends GetxController {
   final phoneNumberController = TextEditingController();
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
   final userModel.UserController userController =
-      Get.put(userModel.UserController());
+  Get.put(userModel.UserController());
   final remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
   final isLoading = false.obs;
 
   String? _verificationId;
@@ -31,7 +33,6 @@ class LoginController extends GetxController {
         phoneNumber: '+91${phoneNumberController.text.trim()}',
         verificationCompleted:
             (firebase_auth.PhoneAuthCredential credential) async {
-          // Automatically sign in on successful verification
           await _auth.signInWithCredential(credential);
           await _handleUserNavigation();
         },
@@ -40,8 +41,11 @@ class LoginController extends GetxController {
         },
         codeSent: (String verificationId, int? resendToken) {
           _verificationId = verificationId;
-          // Navigate to OTP screen and pass verification ID
-          Get.to(VerifyOtpView(verificationId: verificationId));
+
+          // ✅ FIX: Prevent navigation during active frame
+          Future.microtask(() {
+            Get.to(() => VerifyOtpView(verificationId: verificationId));
+          });
         },
         codeAutoRetrievalTimeout: (String verificationId) {
           _verificationId = verificationId;
@@ -61,38 +65,36 @@ class LoginController extends GetxController {
         smsCode: otp.trim(),
       );
 
-      // Attempt to sign in with the provided credential
       final firebase_auth.UserCredential userCredential =
-          await _auth.signInWithCredential(credential);
+      await _auth.signInWithCredential(credential);
 
-      print('user creds : ${userCredential.user}');
-
-      // Check if the user is signed in successfully
       if (userCredential.user != null) {
-        // OTP is valid; proceed with navigation
         await _handleUserNavigation();
       } else {
-        // Handle unexpected scenarios
         _showErrorSnackbar('Error', 'Unable to sign in. Please try again.');
       }
     } on firebase_auth.FirebaseAuthException catch (e) {
       if (e.code == 'invalid-verification-code') {
-        // Handle invalid OTP
         _showErrorSnackbar('Invalid OTP',
             'The verification code is incorrect. Please try again.');
       } else {
-        // Handle other FirebaseAuth exceptions
         _showErrorSnackbar('Error', e.message ?? 'An unknown error occurred.');
       }
     } catch (e) {
-      // Catch any other errors
       _showErrorSnackbar('Error', 'Something went wrong. Please try again.');
     }
   }
 
-  /// Checks if the user exists in your API backend and updates the UserController
   Future<bool> checkUserExistsInAPI() async {
-    final firebase_auth.User? user = _auth.currentUser;
+    firebase_auth.User? user = _auth.currentUser;
+    int retries = 0;
+
+// wait up to 1 second for Firebase to update currentUser
+    while (user == null && retries < 5) {
+      await Future.delayed(Duration(milliseconds: 200));
+      user = _auth.currentUser;
+      retries++;
+    }
 
     if (user == null) {
       print('No authenticated user found!');
@@ -109,9 +111,13 @@ class LoginController extends GetxController {
           loginMethod: 'phone',
           deviceId: '',
         );
-        // Parse user data using your User model's fromJson method
+        fbEventsService.onLoginSuccess(
+          userId: user.uid,
+          loginMethod: 'phone',
+          deviceId: '',
+        );
+
         User fetchedUser = User.fromJson(userData);
-        // Update the UserController's user data
         userController.setUserData(fetchedUser);
         return true;
       }
@@ -128,34 +134,36 @@ class LoginController extends GetxController {
     }
   }
 
-  /// Handles navigation after successful authentication
   Future<void> _handleUserNavigation() async {
-    final userExists = await checkUserExistsInAPI();
+    final firebase_auth.User? user = _auth.currentUser;
 
-    if (userExists) {
-      // User exists, userController already updated
+    if (user == null) {
+      _showErrorSnackbar('Error', 'User not found!');
+      return;
+    }
+
+    final userExists = await remoteRepo.checkUserExistsInAPI(user.uid);
+
+    if (userExists != null) {
+      // ✅ Fetch and store full user data including ID
+      await userController.fetchUserData(user.uid);
+      print('uids ${user.uid}');
       Get.offAllNamed(AppRoutes.HOME);
     } else {
-      // User does not exist, navigate to Signup Screen
-      final firebase_auth.User? user = _auth.currentUser;
-
-      if (user == null) {
-        _showErrorSnackbar('Error', 'User not found!');
-        return;
-      }
-
-      Get.offAllNamed(
-        AppRoutes.SIGNUP,
-        arguments: {
-          'name': user.displayName ?? '',
-          'email': user.email ?? '',
-          'phone': user.phoneNumber ?? '',
-        },
-      );
+      Future.microtask(() {
+        Get.offAllNamed(
+          AppRoutes.SIGNUP,
+          arguments: {
+            'name': user.displayName ?? '',
+            'email': user.email ?? '',
+            'phoneNumber': user.phoneNumber ?? '', // ✅ corrected key
+          },
+        );
+      });
     }
   }
 
-  /// Utility to show error snackbar
+
   void _showErrorSnackbar(String title, String? message) {
     Get.snackbar(
       title,
@@ -166,7 +174,6 @@ class LoginController extends GetxController {
     );
   }
 
-  /// Initiates Google Sign-In
   Future<void> googleSignIn() async {
     isLoading.value = true;
 
@@ -177,15 +184,15 @@ class LoginController extends GetxController {
       if (googleUser == null) return;
 
       final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      await googleUser.authentication;
+
       final firebase_auth.AuthCredential credential =
-          firebase_auth.GoogleAuthProvider.credential(
+      firebase_auth.GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
       await _auth.signInWithCredential(credential);
-      // Check if user exists in the backend
       await _handleUserNavigation();
     } catch (e) {
       Get.snackbar(

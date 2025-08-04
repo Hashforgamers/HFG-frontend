@@ -1,41 +1,81 @@
 import 'package:flutter/material.dart';
-import 'package:carousel_slider/carousel_slider.dart' as carousel_slider;
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service_locator.dart';
 
-class EventBanner extends StatelessWidget {
-  final List<String> imgList = [
-    'https://i1.wp.com/roonby.com/wp-content/uploads/2022/07/afkgaming_2021-07_d1a5deab-9632-419f-a1a7-a7aa0411b5be_Aztral__17_.jpg?resize=1200%2C630&ssl=1',
-    'https://nosnerds.com.br/wp-content/uploads/2020/06/pubgmobilepmplloops-capa.jpg',
-    'https://mir-s3-cdn-cf.behance.net/project_modules/fs/fb8e63113195963.6022ecca5fa95.jpg',
-  ];
+class EventBanner extends StatefulWidget {
+  const EventBanner({super.key});
+
+  @override
+  State<EventBanner> createState() => _EventBannerState();
+}
+
+class _EventBannerState extends State<EventBanner> {
+  final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Track campaign viewed event
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      segmentService.onCampaignViewed(
+        source: 'home_screen',
+        campaignId: 'event_banner_001',
+      );
+      fbEventsService.onCampaignViewed(
+        source: 'home_screen',
+        campaignId: 'event_banner_001',
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 200,
-      margin: const EdgeInsets.symmetric(vertical: 20),
-      child: carousel_slider.CarouselSlider(
-        options: carousel_slider.CarouselOptions(
-          height: 190,
-          autoPlay: true,
-          enlargeCenterPage: true,
-          aspectRatio: 16 / 9,
-          viewportFraction: 1,
+    return GestureDetector(
+      onTap: () {
+        // Track campaign conversion event
+        segmentService.onCampaignConversion(
+          campaignId: 'event_banner_001',
+          action: 'banner_clicked',
+        );
+        fbEventsService.onCampaignConversion(
+          campaignId: 'event_banner_001',
+          action: 'banner_clicked',
+        );
+        
+        // Navigate to event details or perform action
+        Get.snackbar(
+          'Event',
+          'Event banner clicked!',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      },
+      child: Container(
+        height: 120,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF338125), Color(0xFF2E7D32)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
-        items: imgList.map((item) {
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 5.0),
-            decoration: ShapeDecoration(
-              image: DecorationImage(
-                image: CachedNetworkImageProvider(item), // Use CachedNetworkImageProvider here
-                fit: BoxFit.fill,
-              ),
-              shape: ContinuousRectangleBorder(
-                borderRadius: BorderRadius.circular(35),
-              ),
+        child: Center(
+          child: Text(
+            '🎮 Special Gaming Event!',
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
-          );
-        }).toList(),
+          ),
+        ),
       ),
     );
   }

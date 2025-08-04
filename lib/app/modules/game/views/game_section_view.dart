@@ -5,7 +5,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:http/http.dart' as http;
 
@@ -62,6 +64,7 @@ class GamesController extends GetxController {
   final isLoading = false.obs;
   final _service = GameService();
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
   final List<Color> _colors = [
     Colors.red[900]!,
@@ -88,26 +91,74 @@ class GamesController extends GetxController {
     try {
       isLoading(true);
       final result = await _service.fetchGames(_colors);
-      segmentService.onGameStarted(gameId: 'COD', mode: '123', entryFee: 123);
+
+      // Track game preferences set event when games are loaded
+      final selectedGames = result.take(5).map((game) => game.name).toList();
+      segmentService.onGamePreferencesSet(selectedGames: selectedGames);
+      fbEventsService.onGamePreferencesSet(selectedGames: selectedGames);
+      
+      segmentService.onGameStarted(gameId: result[0].id.toString(), mode: 'paid' , entryFee: 123);
+      fbEventsService.onGameStarted(gameId: result[0].id.toString(), mode: 'paid' , entryFee: 123);
       games.assignAll(result);
     } catch (e) {
+      // Track game abandoned event on error
+      segmentService.onGameAbandoned(
+        gameId: 'general',
+        reason: 'Failed to fetch games: $e',
+      );
+      fbEventsService.onGameAbandoned(
+        gameId: 'general',
+        reason: 'Failed to fetch games: $e',
+      );
+      
       Get.snackbar('Error', 'Failed to fetch games',
           backgroundColor: Colors.red, colorText: Colors.white);
     } finally {
       isLoading(false);
     }
   }
+
+  // Method to track game completion
+  void onGameCompleted(
+      String gameId, String result, String duration, int pointsEarned) {
+    segmentService.onGameCompleted(
+      gameId: gameId,
+      result: result,
+      duration: duration,
+      pointsEarned: pointsEarned,
+    );
+    fbEventsService.onGameCompleted(
+      gameId: gameId,
+      result: result,
+      duration: duration,
+      pointsEarned: pointsEarned,
+    );
+  }
+
+  // Method to track game abandonment
+  void onGameAbandoned(String gameId, String reason) {
+    segmentService.onGameAbandoned(
+      gameId: gameId,
+      reason: reason,
+    );
+    fbEventsService.onGameAbandoned(
+      gameId: gameId,
+      reason: reason,
+    );
+  }
 }
 
 class GamesSection extends StatelessWidget {
+  const GamesSection({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'GAMES BY DEVELOPERS',
-          style: TextStyle(
+          style: GoogleFonts.inter(
               color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
@@ -117,9 +168,9 @@ class GamesSection extends StatelessWidget {
               return const Center(child: RainbowGlowingLoader(size: 50));
             }
             if (controller.games.isEmpty) {
-              return const Center(
+              return Center(
                   child: Text('No games found',
-                      style: TextStyle(color: Colors.white)));
+                      style: GoogleFonts.inter(color: Colors.white)));
             }
             return SizedBox(
               height: 190,
@@ -141,56 +192,82 @@ class GamesSection extends StatelessWidget {
 class GameCard extends StatelessWidget {
   final Game game;
 
-  const GameCard({Key? key, required this.game}) : super(key: key);
+  const GameCard({super.key, required this.game});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 150,
-      decoration: BoxDecoration(
-        color: game.backgroundColor,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(8), topLeft: Radius.circular(8)),
-            child: CachedNetworkImage(
-              imageUrl: game.backgroundImage,
-              height: 100,
-              width: 150,
-              fit: BoxFit.cover,
-              placeholder: (context, url) =>
-                  const Center(child: RainbowGlowingLoader(size: 30)),
-              errorWidget: (context, url, error) =>
-                  const Icon(Icons.error, color: Colors.white),
+    final segmentService = locator<SegmentSdkService>();
+    final fbEventsService = locator<FbEventsService>();
+    
+    return GestureDetector(
+      onTap: () {
+        // Track game details viewed event
+        segmentService.onGameDetailsViewed(
+          gameId: game.id.toString(),
+          cafeId:
+              'general', // Since this is a general game view, not cafe-specific
+        );
+        fbEventsService.onGameDetailsViewed(
+          gameId: game.id.toString(),
+          cafeId: 'general', // Since this is a general game view, not cafe-specific
+        );
+        
+        // Navigate to game details or show more info
+        Get.snackbar(
+          'Game Details',
+          'Viewing details for ${game.name}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      },
+      child: Container(
+        width: 150,
+        decoration: BoxDecoration(
+          color: game.backgroundColor,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(8), topLeft: Radius.circular(8)),
+              child: CachedNetworkImage(
+                imageUrl: game.backgroundImage,
+                height: 100,
+                width: 150,
+                fit: BoxFit.cover,
+                placeholder: (context, url) =>
+                    const Center(child: RainbowGlowingLoader(size: 30)),
+                errorWidget: (context, url, error) =>
+                    const Icon(Icons.error, color: Colors.white),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Column(
-              children: [
-                Text(game.name,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                Text(game.released,
-                    style: const TextStyle(color: Colors.white70),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                Text('✪ ${game.rating}',
-                    style: const TextStyle(color: Colors.amberAccent),
-                    maxLines: 1),
-                const Text('View More',
-                    style: TextStyle(color: Colors.white70)),
-              ],
-            ),
-          )
-        ],
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                children: [
+                  Text(game.name,
+                      style: GoogleFonts.inter(
+                          color: Colors.white, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  Text(game.released,
+                      style: GoogleFonts.inter(color: Colors.white70),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  Text('✪ ${game.rating}',
+                      style: GoogleFonts.inter(color: Colors.amberAccent),
+                      maxLines: 1),
+                  Text('View More',
+                      style: GoogleFonts.inter(color: Colors.white70)),
+                ],
+              ),
+            )
+          ],
+        ),
       ),
     );
   }

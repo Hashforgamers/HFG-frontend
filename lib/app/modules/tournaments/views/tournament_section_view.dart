@@ -1,26 +1,32 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class TournamentsSection extends StatelessWidget {
+  const TournamentsSection({super.key});
+
   @override
   Widget build(BuildContext context) {
     final List<Tournament> tournaments = [
       Tournament(
         title: 'Game Time',
-        imageUrl: 'https://t4.ftcdn.net/jpg/05/57/61/79/360_F_557617905_iSt6BAH73qgXHULb0ZpHOwADFj7tX6q8.jpg',
+        imageUrl:
+            'https://t4.ftcdn.net/jpg/05/57/61/79/360_F_557617905_iSt6BAH73qgXHULb0ZpHOwADFj7tX6q8.jpg',
         description: 'Exciting Tournament!',
         prize: '20K',
       ),
       Tournament(
         title: '8 Ball Pool Tournament',
-        imageUrl: 'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
+        imageUrl:
+            'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
         description: 'Join Now!',
         prize: '50K',
       ),
       Tournament(
         title: 'Galactic Battle',
-        imageUrl: 'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
+        imageUrl:
+            'https://marketplace.canva.com/EAFptWmm4ww/1/0/1131w/canva-purple-modern-gradient-animated-esports-gaming-tournament-poster-DD4QH8VFKE0.jpg',
         description: 'Battle for Glory!',
         prize: '30K',
       ),
@@ -29,9 +35,10 @@ class TournamentsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'TOURNAMENTS',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: GoogleFonts.inter(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         SizedBox(
@@ -66,7 +73,7 @@ class Tournament {
 class TournamentCard extends StatelessWidget {
   final Tournament tournament;
 
-  const TournamentCard({Key? key, required this.tournament}) : super(key: key);
+  const TournamentCard({super.key, required this.tournament});
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +96,8 @@ class TournamentCard extends StatelessWidget {
               height: 130,
               width: double.infinity,
               fit: BoxFit.cover,
-              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+              placeholder: (context, url) =>
+                  const Center(child: CircularProgressIndicator()),
               errorWidget: (context, url, error) => const Icon(Icons.error),
             ),
           ),
@@ -100,7 +108,7 @@ class TournamentCard extends StatelessWidget {
               children: [
                 Text(
                   tournament.title,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
                 ),
                 const SizedBox(height: 5),
                 Row(
@@ -108,13 +116,15 @@ class TournamentCard extends StatelessWidget {
                   children: [
                     Text(
                       tournament.description,
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    _TournamentDetail(icon: CupertinoIcons.money_dollar_circle, text: tournament.prize),
+                    _TournamentDetail(
+                        icon: CupertinoIcons.money_dollar_circle,
+                        text: tournament.prize),
                   ],
                 ),
                 const SizedBox(height: 15),
@@ -130,14 +140,14 @@ class TournamentCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.lock, color: Colors.black, size: 16),
-                        SizedBox(width: 5),
+                        const Icon(Icons.lock, color: Colors.black, size: 16),
+                        const SizedBox(width: 5),
                         Text(
                           'Coming Soon',
-                          style: TextStyle(color: Colors.black),
+                          style: GoogleFonts.inter(color: Colors.black),
                         ),
                       ],
                     ),
@@ -164,7 +174,10 @@ class _TournamentDetail extends StatelessWidget {
       children: [
         Icon(icon, color: Colors.yellow, size: 16),
         const SizedBox(width: 5),
-        Text(text, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        Text(
+          text,
+          style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
+        ),
       ],
     );
   }

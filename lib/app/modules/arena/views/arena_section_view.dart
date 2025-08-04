@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ArenaSection extends StatelessWidget {
   final List<Map<String, String>> arenaItems = [
@@ -9,23 +10,28 @@ class ArenaSection extends StatelessWidget {
     },
     {
       'text': 'Fan Meet in\nBangalore',
-      'image': 'https://static.wixstatic.com/media/7ef39e_5e704881922a40f293a56f4602a9384c~mv2.jpeg/v1/fill/w_640,h_360,al_c,q_80,usm_0.66_1.00_0.01,enc_auto/7ef39e_5e704881922a40f293a56f4602a9384c~mv2.jpeg'
+      'image':
+          'https://static.wixstatic.com/media/7ef39e_5e704881922a40f293a56f4602a9384c~mv2.jpeg/v1/fill/w_640,h_360,al_c,q_80,usm_0.66_1.00_0.01,enc_auto/7ef39e_5e704881922a40f293a56f4602a9384c~mv2.jpeg'
     },
     {
       'text': 'Launching new\nGames',
-      'image': 'https://images.hindustantimes.com/tech/img/2021/07/07/960x540/youtube-screenshot-thelaunchpartybattlegroundsmobileindia_1625651911539_1625651921244.jpeg'
+      'image':
+          'https://images.hindustantimes.com/tech/img/2021/07/07/960x540/youtube-screenshot-thelaunchpartybattlegroundsmobileindia_1625651911539_1625651921244.jpeg'
     },
     // Add more items as needed
   ];
+
+   ArenaSection({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'IN THE ARENA',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: GoogleFonts.inter(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         SizedBox(
@@ -51,7 +57,8 @@ class ArenaSection extends StatelessWidget {
       height: 140,
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: CachedNetworkImageProvider(imageUrl), // CachedNetworkImage for performance
+          image: CachedNetworkImageProvider(
+              imageUrl), // CachedNetworkImage for performance
           fit: BoxFit.cover,
         ),
         borderRadius: BorderRadius.circular(10),
@@ -68,7 +75,7 @@ class ArenaSection extends StatelessWidget {
         ),
         child: Text(
           text,
-          style: const TextStyle(color: Colors.white, fontSize: 12),
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 12),
           textAlign: TextAlign.center,
         ),
       ),

@@ -1,312 +1,103 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hash/core/service/segment_sdk_service.dart';
-import 'package:hash/core/service_locator.dart';
-
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
 import '../../../routes/app_routes.dart';
 import '../controllers/signup_controller.dart';
 
+// ────────────────────────────────────────────────────────────────────────────────
+
 class SignUpView extends StatefulWidget {
+  const SignUpView({super.key});
   @override
   State<SignUpView> createState() => _SignUpViewState();
 }
 
 class _SignUpViewState extends State<SignUpView> {
-  final SignUpController controller = Get.put(SignUpController());
-  final segmentService = locator<SegmentSdkService>();
-
+  final SignUpController c = Get.put(SignUpController());
   final _formKey = GlobalKey<FormState>();
+  static const _pad = EdgeInsets.symmetric(horizontal: 16, vertical: 14);
 
   @override
   void initState() {
-    segmentService.onSignupStarted(referralCode: '');
     super.initState();
+
+    final args = Get.arguments as Map<String, String>?;
+
+    if (args != null) {
+      c.nameController.text = args['name'] ?? '';
+      c.emailController.text = args['email'] ?? '';
+      c.mobileNoController.text = args['phoneNumber'] ?? '';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Retrieve Google Sign-In data from arguments
-    final Map<String, String>? userData = Get.arguments as Map<String, String>?;
+    final args = Get.arguments as Map<String, String>?;
+    final phoneFilled = (args?['phoneNumber']?.isNotEmpty ?? false);
+    final emailFilled = (args?['email']?.isNotEmpty ?? false);
 
-    final String phoneNumber = userData?['phoneNumber'] ?? '';
-
-    final nameController = TextEditingController(
-      text: userData?['name'], // Prefill name if available
-    );
-    final emailController = TextEditingController(
-      text: userData?['email'], // Prefill email if available
-    );
-    // Prefill the phone number in the controller
-    if (phoneNumber.isNotEmpty) {
-      controller.mobileNoController.text = phoneNumber;
-    }
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: Container(
-          width: Get.width,
-          height: Get.height,
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-          ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 100),
-              const Align(
-                alignment: Alignment.center,
-                child: Text(
-                  'HASH.',
-                  style: TextStyle(
-                    color: Color(0xffDE3A3A),
-                    fontSize: 44,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              Container(
-                height: Get.height * 0.76,
+              IconButton(
+                  icon: const Icon(CupertinoIcons.back, color: Colors.white),
+                  onPressed: Get.back),
+              Expanded(
                 child: Form(
                   key: _formKey,
                   child: ListView(
-                    shrinkWrap: true,
                     children: [
-                      const SizedBox(height: 20),
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Sign Up',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 12),
+                      Text(
+                        'Sign Up',
+                        style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 20),
-                      // Name field
-                      TextFormField(
-                        controller: nameController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: 'Name',
-                          labelStyle: const TextStyle(color: Colors.white70),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white70),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your name';
-                          }
-                          return null;
-                        },
-                        autofillHints: const [AutofillHints.name],
-                      ),
+                      _field(c.nameController, 'Name',
+                          autofill: AutofillHints.name),
+                      _userNameField(),
+                      _dobPicker(),
+                      _genderDrop(),
+                      _field(c.emailController, 'Email',
+                          readOnly: emailFilled, autofill: AutofillHints.email),
+                      _field(c.mobileNoController, 'Mobile Number',
+                          readOnly: phoneFilled,
+                          autofill: AutofillHints.telephoneNumber),
+                      _field(
+                          c.referralCodeController, 'Referral Code (Optional)',
+                          required: false),
+                      _locationBtn(),
+                      _field(c.addressLine1Controller, 'Address Line 1',
+                          autofill: AutofillHints.streetAddressLine1,
+                          required: false),
+                      _field(c.addressLine2Controller, 'Address Line 2',
+                          autofill: AutofillHints.streetAddressLine2,
+                          required: false),
                       const SizedBox(height: 20),
-                      // Game Username field
-                      TextFormField(
-                        controller: controller.gameUserNameController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: 'Game Username',
-                          labelStyle: const TextStyle(color: Colors.white70),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white70),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your game username';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      // Email field (Prefilled with Google data)
-                      TextFormField(
-                        controller: emailController.text.isEmpty?controller.emailController:emailController,
-                        style: const TextStyle(color: Colors.white),
-                        readOnly: emailController.text.isEmpty?false:true, // Disable editing
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          labelStyle: const TextStyle(color: Colors.white70),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white70),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        autofillHints: const [AutofillHints.email],
-                      ),
-                      const SizedBox(height: 20),
-                      // Mobile Number field
-                      TextFormField(
-                        controller: controller.mobileNoController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: phoneNumber.isNotEmpty
-                              ? phoneNumber
-                              : 'Mobile Number',
-                          labelStyle: const TextStyle(color: Colors.white70),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white70),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your mobile number';
-                          } else if (!RegExp(r'^\d{10}$').hasMatch(value)) {
-                            return 'Please enter a valid 10-digit mobile number';
-                          }
-                          return null;
-                        },
-                        autofillHints: const [AutofillHints.telephoneNumber],
-                      ),
-                      const SizedBox(height: 20),
-                      // Fetch Location Button
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: Get.width,
-                            height: 55,
-                            child: RGBLightFrame(
-                              width: Get.width,
-                              height: Get.height,
-                              borderRadius: 100,
-                            ),
-                          ),
-                          InkWell(
-                            onTap: () {
-                              controller.fetchLocation();
-                            },
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(CupertinoIcons.location_circle,
-                                    size: 18, color: Colors.white),
-                                SizedBox(width: 5),
-                                Text(
-                                  'Fetch Location',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      // Other address fields
-                      TextFormField(
-                        controller: controller.addressLine1Controller,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: 'Address Line 1',
-                          labelStyle: const TextStyle(color: Colors.white70),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white70),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        autofillHints: const [AutofillHints.streetAddressLine1],
-                      ),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        controller: controller.addressLine2Controller,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: 'Address Line 2',
-                          labelStyle: const TextStyle(color: Colors.white70),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white70),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.white),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        autofillHints: const [AutofillHints.streetAddressLine2],
-                      ),
-                      const SizedBox(height: 20),
-                      // Submit button
-                      Stack(
-                        children: [
-                          Container(
-                            width: Get.width,
-                            height: 50,
-                            child: RGBLightFrame(
-                              width: Get.width,
-                              height: Get.height,
-                              borderRadius: 10,
-                            ),
-                          ),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                if (_formKey.currentState!.validate()) {
-                                  controller.signUp();
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: const Text('Sign Up',
-                                  style: TextStyle(color: Colors.white)),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
+                      _signupBtn(),
                       TextButton(
-                        onPressed: () {
-                          Get.offAllNamed(AppRoutes.LOGIN);
-                        },
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Already have an account? ',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                            Text(
-                              'Login',
-                              style: TextStyle(color: Color(0xFF3AFF6B)),
-                            ),
-                          ],
-                        ),
-                      ),
+                        onPressed: () => Get.offAllNamed(AppRoutes.LOGIN),
+                        child: Text.rich(TextSpan(
+                            text: 'Already have an account? ',
+                            style: GoogleFonts.inter(color: Colors.white70),
+                            children: [
+                              TextSpan(
+                                text: 'Login',
+                                style: GoogleFonts.inter(
+                                    color: const Color(0xFF3AFF6B)),
+                              )
+                            ])),
+                      )
                     ],
                   ),
                 ),
@@ -314,6 +105,221 @@ class _SignUpViewState extends State<SignUpView> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ───────────────────────── widgets ───────────────────────────────────────────
+
+  Widget _field(TextEditingController ctl, String label,
+      {String? autofill, bool readOnly = false, bool required = true}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: ctl,
+        readOnly: readOnly,
+        style: GoogleFonts.inter(color: Colors.white),
+        autofillHints: autofill != null ? [autofill] : null,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: GoogleFonts.inter(color: Colors.white70),
+          contentPadding: _pad,
+          enabledBorder: _border(const Color(0x3FFFFFFF)),
+          focusedBorder: _border(const Color(0xFF3AFF6B)),
+        ),
+        validator: (v) {
+          if (required && !readOnly && (v == null || v.trim().isEmpty)) {
+            return 'Enter $label';
+          }
+          return null;
+        },
+      ),
+    );
+  }
+
+  Widget _userNameField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: c.gameUserNameController,
+        style: GoogleFonts.inter(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: 'Game Username',
+          labelStyle: GoogleFonts.inter(color: Colors.white70),
+          contentPadding: _pad,
+          enabledBorder: _border(const Color(0x3FFFFFFF)),
+          focusedBorder: _border(const Color(0xFF3AFF6B)),
+        ),
+        validator: (v) {
+          if (v == null || v.trim().isEmpty) return 'Enter Game Username';
+          return null;
+        },
+      ),
+    );
+  }
+
+  Widget _dobPicker() {
+    return GestureDetector(
+      onTap: _pickDob,
+      child: AbsorbPointer(child: _field(c.dobController, 'Date of Birth')),
+    );
+  }
+
+  Future<void> _pickDob() async {
+    final picked = await showModalBottomSheet<DateTime>(
+      context: context,
+      backgroundColor: Colors.black,
+      builder: (_) => _CupertinoDobPicker(initial: c.dobController.text),
+    );
+    if (picked != null) {
+      final m = [
+        'JAN',
+        'FEB',
+        'MAR',
+        'APR',
+        'MAY',
+        'JUN',
+        'JUL',
+        'AUG',
+        'SEP',
+        'OCT',
+        'NOV',
+        'DEC'
+      ];
+      c.dobController.text =
+          '${picked.day.toString().padLeft(2, "0")}-${m[picked.month - 1]}-${picked.year}';
+    }
+  }
+
+  Widget _genderDrop() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: DropdownButtonFormField<String>(
+        value:
+            c.genderController.text.isNotEmpty ? c.genderController.text : null,
+        dropdownColor: Colors.black,
+        style: GoogleFonts.inter(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: 'Gender',
+          labelStyle: GoogleFonts.inter(color: Colors.white70),
+          contentPadding: _pad,
+          enabledBorder: _border(const Color(0x3FFFFFFF)),
+          focusedBorder: _border(const Color(0xFF3AFF6B)),
+        ),
+        items: const [
+          DropdownMenuItem(value: 'Male', child: Text('Male')),
+          DropdownMenuItem(value: 'Female', child: Text('Female')),
+          DropdownMenuItem(value: 'Other', child: Text('Other')),
+        ],
+        onChanged: (val) => c.genderController.text = val ?? '',
+        validator: (val) => val == null || val.isEmpty ? 'Select gender' : null,
+      ),
+    );
+  }
+
+  Widget _locationBtn() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          RGBLightFrame(width: Get.width, height: 50, borderRadius: 100),
+          InkWell(
+            onTap: c.fetchLocation,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(CupertinoIcons.location_solid, color: Colors.white),
+                const SizedBox(width: 8),
+                Text('Fetch Location',
+                    style: GoogleFonts.inter(color: Colors.white)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _signupBtn() {
+    return Obx(() => Stack(
+          children: [
+            RGBLightFrame(width: Get.width, height: 50, borderRadius: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: c.isLoading.value
+                    ? null
+                    : () {
+                        if (_formKey.currentState!.validate()) {
+                          c.signUp();
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: c.isLoading.value
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(
+                        'Sign Up',
+                        style: GoogleFonts.inter(color: Colors.white),
+                      ),
+              ),
+            )
+          ],
+        ));
+  }
+
+  // helper
+  OutlineInputBorder _border(Color c) => OutlineInputBorder(
+      borderSide: BorderSide(color: c),
+      borderRadius: BorderRadius.circular(12));
+}
+
+// ───────────────────────── Cupertino DOB picker widget ─────────────────────────
+class _CupertinoDobPicker extends StatefulWidget {
+  final String initial;
+  const _CupertinoDobPicker({required this.initial});
+  @override
+  State<_CupertinoDobPicker> createState() => _CupertinoDobPickerState();
+}
+
+class _CupertinoDobPickerState extends State<_CupertinoDobPicker> {
+  late DateTime _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = DateTime.tryParse(widget.initial) ?? DateTime(2000);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 250,
+      child: Column(
+        children: [
+          Expanded(
+            child: CupertinoDatePicker(
+              backgroundColor: Colors.black,
+              mode: CupertinoDatePickerMode.date,
+              initialDateTime: _selected,
+              maximumDate: DateTime.now(),
+              onDateTimeChanged: (d) => _selected = d,
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, _selected),
+            child: const Text('Done'),
+          )
+        ],
       ),
     );
   }
