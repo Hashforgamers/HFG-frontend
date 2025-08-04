@@ -1,5 +1,4 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,7 +20,6 @@ class _EventBannerState extends State<EventBanner> {
   @override
   void initState() {
     super.initState();
-    // Track campaign viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
       segmentService.onCampaignViewed(
         source: 'home_screen',
@@ -38,7 +36,6 @@ class _EventBannerState extends State<EventBanner> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // Track campaign conversion event
         segmentService.onCampaignConversion(
           campaignId: 'event_banner_001',
           action: 'banner_clicked',
@@ -48,7 +45,6 @@ class _EventBannerState extends State<EventBanner> {
           action: 'banner_clicked',
         );
 
-        // Navigate to event details or perform action
         Get.snackbar(
           'Event',
           'Event banner clicked!',
@@ -58,37 +54,51 @@ class _EventBannerState extends State<EventBanner> {
         );
       },
       child: Container(
-        height: 200,
+        height: 160,
         width: double.infinity,
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)),
         child: Stack(
           children: [
+            // Background Image
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
               child: Image.asset(
                 'assets/images/bannerBg.png',
-                height: 200,
+                height: 160,
                 width: double.infinity,
                 fit: BoxFit.cover,
               ),
             ),
+
+            // Glass layer
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                 child: Container(
-                  height: 190,
+                  height: 160,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.15),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.1),
+                        Colors.white.withOpacity(0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                    ),
                   ),
                 ),
               ),
             ),
+
+            // Text & Button
             Positioned(
               left: 20,
-              top: 30,
+              top: 25,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -96,45 +106,49 @@ class _EventBannerState extends State<EventBanner> {
                     'Special Gaming Event',
                     style: GoogleFonts.inter(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
-                    'Win prize upto 70,000*',
+                    'Win prize upto ₹70,000*',
                     style: GoogleFonts.inter(
                       color: const Color(0xFFB6B6B6),
                       fontSize: 12,
                     ),
                   ),
-                  const SizedBox(height: 60),
+                  const SizedBox(height: 32),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 16,
+                      vertical: 6,
+                      horizontal: 14,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.transparent,
                       border: Border.all(
                         color: const Color(0xFF75F94C),
-                        width: 2,
+                        width: 1.5,
                       ),
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: Text(
                       'Join Now',
-                      style: GoogleFonts.inter(fontSize: 12),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
+
+            // Hero image
             Positioned(
-              bottom: 10,
-              right: 62,
+              bottom: 0,
+              right: 48,
               child: SizedBox(
-                height: 180,
+                height: 150,
                 child: Image.asset(
                   "assets/images/bannerHero.png",
                   fit: BoxFit.cover,
