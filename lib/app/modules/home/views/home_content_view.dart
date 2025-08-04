@@ -112,7 +112,8 @@ class _HomeContentViewState extends State<HomeContentView> {
       await walletController.refreshWallet();
     }
   }
-   EdgeInsets screenPadding = EdgeInsets.symmetric(horizontal: 16.0);
+
+  EdgeInsets screenPadding = EdgeInsets.symmetric(horizontal: 16.0);
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +133,7 @@ class _HomeContentViewState extends State<HomeContentView> {
                     const SizedBox(height: 24),
                     const EventBanner(),
                     const SizedBox(height: 24),
-                     CafeSection(),
+                    CafeSection(),
                     const SizedBox(height: 24),
                     const ShopSection(),
                     const SizedBox(height: 24),
@@ -140,7 +141,7 @@ class _HomeContentViewState extends State<HomeContentView> {
                     const SizedBox(height: 24),
                     const GamesSection(),
                     const SizedBox(height: 24),
-                     ViralShotsSection(),
+                    ViralShotsSection(),
                     const SizedBox(height: 32),
                     _buildGameOnIndiaBanner(),
                     const SizedBox(height: 32),
@@ -194,7 +195,7 @@ class _HomeContentViewState extends State<HomeContentView> {
         ),
       ),
       title: Obx(
-            () => Padding(
+        () => Padding(
           padding: const EdgeInsets.only(top: 12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,13 +325,13 @@ class _HomeContentViewState extends State<HomeContentView> {
         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
             ? CachedNetworkImageProvider(photoUrl)
             : const NetworkImage(
-          'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-        ) as ImageProvider,
+                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
+                  )
+                  as ImageProvider,
         backgroundColor: Colors.white,
       ),
     );
   }
-
 
   Widget _buildGameOnIndiaBanner() {
     return Container(
