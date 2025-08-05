@@ -1,11 +1,11 @@
 class GetPassModel {
   final int daysValid;
   final String description;
-  final int id;
+  final String id;
   final String name;
   final String passType;
   final double price;
-  final int vendorId;
+  final String vendorId;
   final String vendorName;
 
   GetPassModel({

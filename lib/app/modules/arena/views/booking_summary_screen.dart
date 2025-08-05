@@ -988,6 +988,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
   }
 
+  // TODO:- Remove this function and call diffrent API to get the Order ID and then use that Order ID to create the payment order
   Future<void> initiatePayment(BuildContext context, int amountInPaisa) async {
     String receiptId = "order_rcpt_${DateTime.now().millisecondsSinceEpoch}";
     final url = Uri.parse("https://api.razorpay.com/v1/orders");
