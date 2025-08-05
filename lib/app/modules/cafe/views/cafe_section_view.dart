@@ -336,7 +336,7 @@ class _CafeSectionState extends State<CafeSection> {
     required bool isSelected,
     required double screenWidth,
   }) {
-    final totalSpacing = (4 - 1) * 16.0;
+    final totalSpacing = (4 - 1) * 18.0;
     final itemWidth = (screenWidth - totalSpacing) / 4;
 
     return GestureDetector(
