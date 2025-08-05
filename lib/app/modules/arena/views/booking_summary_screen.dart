@@ -19,13 +19,19 @@ import '../../../data/services/user_controller.dart';
 import '../../../../core/repositories/model/booking_model.dart';
 
 class BookingSummaryScreen extends StatefulWidget {
+  final String selectedCafeName;
+  final String consoleType;
   final List<Map<String, dynamic>> selectedSlots;
+  final List<Map<String, dynamic>> cartItems;
   final int gameId;
   final int userId;
 
   const BookingSummaryScreen({
     super.key,
+    required this.selectedCafeName,
+    required this.consoleType,
     required this.selectedSlots,
+    required this.cartItems,
     required this.gameId,
     required this.userId,
   });
@@ -130,8 +136,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   Future<void> _loadVouchers() async {
     _isLoadingVouchers(true);
     try {
-      final voucherResponse =
-          await _remoteRepo.getVoucher(userId: widget.userId.toString());
+      final voucherResponse = await _remoteRepo.getVoucher(
+        userId: widget.userId.toString(),
+      );
       if (voucherResponse.isNotEmpty) {
         _availableVouchers.value = voucherResponse.first.vouchers;
       } else {
@@ -156,8 +163,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
     try {
       // Find voucher in available vouchers
-      final voucher = _availableVouchers.firstWhereOrNull((v) =>
-          v.code.toLowerCase() == _voucherController.text.trim().toLowerCase());
+      final voucher = _availableVouchers.firstWhereOrNull(
+        (v) =>
+            v.code.toLowerCase() ==
+            _voucherController.text.trim().toLowerCase(),
+      );
 
       if (voucher != null) {
         if (voucher.isActive) {
@@ -166,7 +176,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Voucher applied! ${voucher.discountPercentage}% discount'),
+                'Voucher applied! ${voucher.discountPercentage}% discount',
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -250,7 +261,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       PaymentStage.confirmingVoucher => 'Confirming voucher...',
       PaymentStage.openingRazorpay => 'Opening Razorpay...',
       PaymentStage.error => _errorMessage.value,
-      _ => ''
+      _ => '',
     };
 
     return Container(
@@ -272,15 +283,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         children: [
           Icon(
             _stage.value == PaymentStage.error ? Icons.error : Icons.sync,
-            color:
-                _stage.value == PaymentStage.error ? Colors.red : Colors.blue,
+            color: _stage.value == PaymentStage.error
+                ? Colors.red
+                : Colors.blue,
             size: 18,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 color: _stage.value == PaymentStage.error
                     ? Colors.red
                     : Colors.blue,
@@ -296,7 +308,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 _stage.value = PaymentStage.idle;
                 _errorMessage.value = '';
               },
-            )
+            ),
         ],
       ),
     );
@@ -307,9 +319,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
-        title: Text('Booking Summary',
-            style: GoogleFonts.inter(color: Colors.white)),
-        backgroundColor: const Color(0xFF0F0F0F),
+        title: Text(
+          'Booking Summary',
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+        ),
+        backgroundColor: Colors.black,
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -319,12 +333,24 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${widget.selectedSlots.length} Slot(s) Selected',
-                  style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white)),
-              const SizedBox(height: 16),
+              Text(
+                '${widget.selectedCafeName} - ${widget.consoleType}',
+                style: GoogleFonts.inter(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${widget.selectedSlots.length} Slot(s) Selected',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF8B8B8B),
+                ),
+              ),
+              const SizedBox(height: 24),
               ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -335,58 +361,145 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   final slot = widget.selectedSlots[index];
                   final double slotPrice = (slot['price'] ?? 50.0).toDouble();
                   return ListTile(
-                    tileColor: Colors.grey.shade900,
+                    tileColor: Color(0xFF191919),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
                     title: Text(
-                        slot['console_label'] ?? 'PC ${slot['pc_index']}',
-                        style: GoogleFonts.inter(
-                            fontWeight: FontWeight.bold, color: Colors.white)),
+                      slot['console_label'] ?? 'PC ${slot['pc_index']}',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                     subtitle: Text(
-                        'Time: ${slot['start_time']} - ${slot['end_time']}',
-                        style: GoogleFonts.inter(color: Colors.white70)),
-                    trailing: Text('₹${slotPrice.toStringAsFixed(2)}',
-                        style: GoogleFonts.inter(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                            fontSize: 16)),
+                      'Time: ${slot['start_time']} - ${slot['end_time']}',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                    ),
+                    trailing: Text(
+                      'Rs. ${slotPrice.toStringAsFixed(2)}',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF6DFB60),
+                        fontSize: 12,
+                      ),
+                    ),
                   );
                 },
               ),
+              const SizedBox(height: 14),
+              widget.cartItems.isNotEmpty
+                  ? Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF191919),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Food',
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 10),
+                            itemCount: widget.cartItems.length,
+                            itemBuilder: (context, index) {
+                              final cartItem = widget.cartItems[index];
+                              return Row(
+                                children: [
+                                  Text(
+                                    '${cartItem['name']} (${cartItem['qty'] ?? 0})',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    'Rs. ${cartItem['price'].toStringAsFixed(2)}',
+                                    style: GoogleFonts.inter(
+                                      color: Color(0xFF6DFB60),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    )
+                  : _buildMealButton(),
               const SizedBox(height: 24),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Booking User',
-                          style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white70)),
+                      Text(
+                        'Booking User',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF8B8B8B),
+                          fontSize: 14,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Obx(() => Text(userController.user.value.name ?? 'User',
+                      Obx(
+                        () => Text(
+                          userController.user.value.name ?? 'User',
                           style: GoogleFonts.inter(
-                              fontSize: 16, color: Colors.white))),
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  TextButton(
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: TextButton(
                       onPressed: () {},
-                      child: Text('Change',
-                          style: GoogleFonts.inter(color: Colors.deepOrange)))
+                      child: Text(
+                        'Change',
+                        style: GoogleFonts.inter(
+                          color: Colors.deepOrange,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-              Divider(height: 32, color: Colors.grey.shade800),
-
-              // Voucher Section
+              const SizedBox(height: 10),
               _buildVoucherSection(),
               const SizedBox(height: 24),
-
-              Text('Payment Summary',
-                  style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white)),
+              Text(
+                'Payment Summary',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
               const SizedBox(height: 12),
               Obx(() {
                 double totalPrice = calculateTotalPrice();
@@ -396,37 +509,52 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 return Column(
                   children: [
                     buildPaymentRow(
-                        'Sub Total', '₹${subtotal.toStringAsFixed(2)}'),
+                      'Sub Total',
+                      'Rs. ${subtotal.toStringAsFixed(2)}',
+                    ),
                     if (discount > 0) ...[
                       buildPaymentRow(
-                          'Discount', '-₹${discount.toStringAsFixed(2)}',
-                          color: Colors.green),
+                        'Discount',
+                        '-₹${discount.toStringAsFixed(2)}',
+                        color: Colors.green,
+                      ),
                     ],
-                    buildPaymentRow('GST', '₹0.00'),
+                    buildPaymentRow('GST', 'Rs. 0.00'),
                     Divider(color: Colors.grey.shade800),
                     buildPaymentRow(
-                        'GRAND TOTAL', '₹${totalPrice.toStringAsFixed(2)}',
-                        bold: true, fontSize: 16),
+                      'GRAND TOTAL',
+                      'Rs. ${totalPrice.toStringAsFixed(2)}',
+                      bold: true,
+                      fontSize: 16,
+                    ),
                   ],
                 );
               }),
               // ─── Payment Method ──────────────────────────────────────────
               const SizedBox(height: 16),
-              Text('Choose Payment Method',
-                  style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white)),
+              Text(
+                'Choose Payment Method',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
               const SizedBox(height: 12),
 
-              Obx(() => Row(
-                    children: [
-                      _paymentChip(
-                          'Wallet', Icons.account_balance_wallet, 'wallet'),
-                      const SizedBox(width: 12),
-                      _paymentChip('UPI/CARD', Icons.credit_card, 'gateway'),
-                    ],
-                  )),
+              Obx(
+                () => Row(
+                  children: [
+                    _paymentChip(
+                      'Wallet',
+                      Icons.account_balance_wallet,
+                      'wallet',
+                    ),
+                    const SizedBox(width: 12),
+                    _paymentChip('UPI/CARD', Icons.credit_card, 'gateway'),
+                  ],
+                ),
+              ),
               Divider(height: 32, color: Colors.grey.shade800),
             ],
           ),
@@ -435,7 +563,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       bottomNavigationBar: BottomAppBar(
         color: const Color(0xFF0F0F0F),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -445,40 +573,53 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Obx(() => Text(
-                        '₹${calculateTotalPrice().toStringAsFixed(2)}',
-                        style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white),
-                      )),
+                  Obx(
+                    () => Text(
+                      'Rs. ${calculateTotalPrice().toStringAsFixed(2)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                   ElevatedButton(
                     onPressed: _isProcessingPayment.value
                         ? null
                         : () => handleBooking(
-                              context,
-                              isVoucherApplied: _appliedVoucher.value != null,
-                              useWallet: _selectedPayment.value == 'wallet',
-                            ),
+                            context,
+                            isVoucherApplied: _appliedVoucher.value != null,
+                            useWallet: _selectedPayment.value == 'wallet',
+                          ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF338125),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                          vertical: 14, horizontal: 24),
+                        vertical: 14,
+                        horizontal: 24,
+                      ),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: Obx(() {
                       if (_isProcessingPayment.value) {
                         return const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2));
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        );
                       }
-                      return Text('PROCEED',
-                          style: GoogleFonts.inter(
-                              fontSize: 16, fontWeight: FontWeight.bold));
+                      return Text(
+                        'PROCEED',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
                     }),
                   ),
                 ],
@@ -490,12 +631,38 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
+  Widget _buildMealButton() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pop(context);
+      },
+      child: Container(
+        height: 50,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
+          borderRadius: BorderRadius.circular(50),
+        ),
+        child: Center(
+          child: Text(
+            '+ Select your meal',
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              color: const Color(0xFF75F94C),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildVoucherSection() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade900,
-        borderRadius: BorderRadius.circular(12),
+        color: Color(0xFF191919),
+        borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -509,32 +676,34 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               Text(
                 'Have a Voucher?',
                 style: GoogleFonts.inter(
-                  fontSize: 17,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
               ),
               SizedBox(
                 height: 20,
-                child: Obx(() => _isLoadingVouchers.value
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CupertinoActivityIndicator(),
-                      )
-                    : GestureDetector(
-                        onTap: _loadVouchers,
-                        child: const Icon(
-                          CupertinoIcons.refresh,
-                          color: Colors.green,
-                          size: 20,
+                child: Obx(
+                  () => _isLoadingVouchers.value
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CupertinoActivityIndicator(),
+                        )
+                      : GestureDetector(
+                          onTap: _loadVouchers,
+                          child: const Icon(
+                            CupertinoIcons.refresh,
+                            color: Colors.green,
+                            size: 20,
+                          ),
                         ),
-                      )),
+                ),
               ),
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
 
           // Applied Voucher Info
           Obx(() {
@@ -545,13 +714,19 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: Colors.green.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.green.withOpacity(0.3),
+                    width: 1,
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle,
-                        color: Colors.green, size: 20),
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 20,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -576,12 +751,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     ),
                     IconButton(
                       onPressed: _removeVoucher,
-                      icon: const Icon(Icons.close,
-                          size: 18, color: Colors.green),
+                      icon: const Icon(
+                        Icons.close,
+                        size: 18,
+                        color: Colors.green,
+                      ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       tooltip: 'Remove Voucher',
-                    )
+                    ),
                   ],
                 ),
               );
@@ -594,7 +772,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 48,
+                  height: 44,
                   child: TextField(
                     controller: _voucherController,
                     style: GoogleFonts.inter(color: Colors.white),
@@ -607,166 +785,214 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       filled: true,
                       fillColor: Colors.black.withOpacity(0.3),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey.shade700),
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(
+                          color: Color(0xFF505050),
+                          width: 1,
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey.shade700),
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(
+                          color: Color(0xFF505050),
+                          width: 1,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(20),
                         borderSide: const BorderSide(
-                            color: Color(0xFF338125), width: 1.5),
+                          color: Color(0xFF338125),
+                          width: 1,
+                        ),
                       ),
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Obx(() => SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed:
-                          _isApplyingVoucher.value ? null : _applyVoucher,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF338125),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+              const SizedBox(width: 24),
+              Obx(() {
+                return GestureDetector(
+                  onTap: _isApplyingVoucher.value ? null : _applyVoucher,
+                  child: Container(
+                    height: 44,
+                    width: 100,
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      border: Border.all(
+                        color: const Color(0xFF338125),
+                        width: 1,
+                      ),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Apply',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Colors.white,
                         ),
                       ),
-                      child: _isApplyingVoucher.value
-                          ? const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Text(
-                              'Apply',
-                              style: TextStyle(fontWeight: FontWeight.w500),
-                            ),
                     ),
-                  )),
+                  ),
+                );
+              }),
+              //     Obx(
+              //       () => SizedBox(
+              //         height: 48,
+              //         child: ElevatedButton(
+              //           onPressed: _isApplyingVoucher.value ? null : _applyVoucher,
+              //           style: ElevatedButton.styleFrom(
+              //             backgroundColor: const Color(0xFF338125),
+              //             foregroundColor: Colors.white,
+              //             padding: const EdgeInsets.symmetric(horizontal: 20),
+              //             shape: RoundedRectangleBorder(
+              //               borderRadius: BorderRadius.circular(8),
+              //             ),
+              //           ),
+              //           child: _isApplyingVoucher.value
+              //               ? const SizedBox(
+              //                   height: 16,
+              //                   width: 16,
+              //                   child: CircularProgressIndicator(
+              //                     color: Colors.white,
+              //                     strokeWidth: 2,
+              //                   ),
+              //                 )
+              //               : Text(
+              //                   'Apply',
+              //                   style: GoogleFonts.inter(
+              //                     fontWeight: FontWeight.w500,
+              //                   ),
+              //                 ),
+              //         ),
+              //       ),
+              //     ),
+              //   ],
+              // ),
+
+              // Error Message
+              Obx(() {
+                if (_voucherError.value.isNotEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      _voucherError.value,
+                      style: GoogleFonts.inter(
+                        color: Colors.red.shade300,
+                        fontSize: 12,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
+
+              // Available Vouchers
+              Obx(() {
+                if (_availableVouchers.isNotEmpty) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 20),
+                      Text(
+                        'Your Available Vouchers (${_availableVouchers.length})',
+                        style: GoogleFonts.inter(
+                          color: Colors.grey.shade300,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 120,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _availableVouchers.length,
+                          itemBuilder: (context, index) {
+                            final voucher = _availableVouchers[index];
+                            final isActive = voucher.isActive;
+                            return GestureDetector(
+                              onTap: () => _selectVoucher(voucher),
+                              child: Container(
+                                width: 140,
+                                margin: const EdgeInsets.only(right: 10),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isActive
+                                      ? Colors.deepOrange.withOpacity(0.08)
+                                      : Colors.grey.shade800,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isActive
+                                        ? Colors.deepOrange.withOpacity(0.3)
+                                        : Colors.grey.withOpacity(0.2),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      voucher.code,
+                                      style: GoogleFonts.inter(
+                                        color: isActive
+                                            ? Colors.deepOrange
+                                            : Colors.grey.shade500,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${voucher.discountPercentage}% OFF',
+                                      style: GoogleFonts.inter(
+                                        color: isActive
+                                            ? Colors.white
+                                            : Colors.grey,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      isActive ? 'Active' : 'Inactive',
+                                      style: GoogleFonts.inter(
+                                        color: isActive
+                                            ? Colors.green
+                                            : Colors.red,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
             ],
           ),
-
-          // Error Message
-          Obx(() {
-            if (_voucherError.value.isNotEmpty) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  _voucherError.value,
-                  style: GoogleFonts.inter(
-                      color: Colors.red.shade300, fontSize: 12),
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          }),
-
-          // Available Vouchers
-          Obx(() {
-            if (_availableVouchers.isNotEmpty) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 20),
-                  Text(
-                    'Your Available Vouchers (${_availableVouchers.length})',
-                    style: GoogleFonts.inter(
-                      color: Colors.grey.shade300,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 120,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _availableVouchers.length,
-                      itemBuilder: (context, index) {
-                        final voucher = _availableVouchers[index];
-                        final isActive = voucher.isActive;
-                        return GestureDetector(
-                          onTap: () => _selectVoucher(voucher),
-                          child: Container(
-                            width: 140,
-                            margin: const EdgeInsets.only(right: 10),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? Colors.deepOrange.withOpacity(0.08)
-                                  : Colors.grey.shade800,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isActive
-                                    ? Colors.deepOrange.withOpacity(0.3)
-                                    : Colors.grey.withOpacity(0.2),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  voucher.code,
-                                  style: GoogleFonts.inter(
-                                    color: isActive
-                                        ? Colors.deepOrange
-                                        : Colors.grey.shade500,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${voucher.discountPercentage}% OFF',
-                                  style: GoogleFonts.inter(
-                                    color:
-                                        isActive ? Colors.white : Colors.grey,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  isActive ? 'Active' : 'Inactive',
-                                  style: GoogleFonts.inter(
-                                    color: isActive ? Colors.green : Colors.red,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              );
-            }
-            return const SizedBox.shrink();
-          }),
         ],
       ),
     );
   }
 
-  Future<void> handleBooking(BuildContext context,
-      {required bool isVoucherApplied, required bool useWallet}) async {
+  Future<void> handleBooking(
+    BuildContext context, {
+    required bool isVoucherApplied,
+    required bool useWallet,
+  }) async {
     if (widget.selectedSlots.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No slots selected!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No slots selected!')));
       return;
     }
 
@@ -780,8 +1006,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       double totalPrice = calculateTotalPrice();
       int amountInPaisa = (totalPrice * 100).toInt();
 
-      List<int> slotIds =
-          widget.selectedSlots.map((slot) => slot['slot_id'] as int).toList();
+      List<int> slotIds = widget.selectedSlots
+          .map((slot) => slot['slot_id'] as int)
+          .toList();
 
       // Use the new mapping function
       _bookingIdToSlotId = await createBookingWithSlotMap(slotIds);
@@ -814,7 +1041,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         return;
       }
 
-// ✅ Razorpay flow should be checked before voucher-only path
+      // ✅ Razorpay flow should be checked before voucher-only path
       if (_selectedPayment.value == 'gateway') {
         _stage.value = PaymentStage.initiatingGateway;
         razorpayController.bookingIdList.value = bookingIds;
@@ -822,7 +1049,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         return;
       }
 
-// Only if voucher is applied and not using Razorpay or Wallet
+      // Only if voucher is applied and not using Razorpay or Wallet
       if (isVoucherApplied && _appliedVoucher.value != null) {
         _stage.value = PaymentStage.confirmingVoucher;
         razorpayController.isPaymentInProgress(false);
@@ -852,10 +1079,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
   }
 
-  Future<void> confirmBooking(
-      {required List<int> bookingIds,
-      required String paymentMode, //  "wallet" | "voucher" | "gateway"
-      String? voucherCode}) async {
+  Future<void> confirmBooking({
+    required List<int> bookingIds,
+    required String paymentMode, //  "wallet" | "voucher" | "gateway"
+    String? voucherCode,
+  }) async {
     try {
       await _remoteRepo.confirmBooking(
         bookingIds: bookingIds,
@@ -950,7 +1178,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       "slot_id": slotIds,
       "user_id": widget.userId,
       "game_id": widget.gameId,
-      "book_date": bookDate
+      "book_date": bookDate,
     };
 
     try {
@@ -1004,12 +1232,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
     try {
       _paymentStatus.value = 'Creating payment order...';
-      final response = await http.post(url,
-          headers: {
-            "Authorization": basicAuth,
-            "Content-Type": "application/json"
-          },
-          body: jsonEncode(payload));
+      final response = await http.post(
+        url,
+        headers: {
+          "Authorization": basicAuth,
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode(payload),
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -1022,10 +1252,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           amount: amountInPaisa / 100,
           contact:
               userController.user.value.contact?.electronicAddress?.mobileNo ??
-                  '',
+              '',
           email:
               userController.user.value.contact?.electronicAddress?.emailId ??
-                  '',
+              '',
         );
       } else {
         print('Error creating Razorpay order: ${response.body}');
@@ -1053,23 +1283,34 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
   }
 
-  Widget buildPaymentRow(String label, String value,
-      {bool bold = false, double fontSize = 14, Color? color}) {
+  Widget buildPaymentRow(
+    String label,
+    String value, {
+    bool bold = false,
+    double fontSize = 14,
+    Color? color,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: GoogleFonts.inter(
-                  fontSize: fontSize,
-                  fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-                  color: Colors.white)),
-          Text(value,
-              style: GoogleFonts.inter(
-                  fontSize: fontSize,
-                  fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-                  color: color ?? Colors.white)),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: fontSize,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+              color: Colors.white,
+            ),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: fontSize,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+              color: color ?? Colors.white,
+            ),
+          ),
         ],
       ),
     );
@@ -1086,17 +1327,24 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           color: isSelected ? Color(0xFF338125) : Colors.grey.shade800,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: isSelected ? Color(0xFF338125) : Colors.grey.shade700),
+            color: isSelected ? Color(0xFF338125) : Colors.grey.shade700,
+          ),
         ),
         child: Row(
           children: [
-            Icon(icon,
-                color: isSelected ? Colors.white : Colors.white70, size: 16),
+            Icon(
+              icon,
+              color: isSelected ? Colors.white : Colors.white70,
+              size: 16,
+            ),
             const SizedBox(width: 6),
-            Text(label,
-                style: GoogleFonts.inter(
-                    color: isSelected ? Colors.white : Colors.white70,
-                    fontSize: 13))
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: isSelected ? Colors.white : Colors.white70,
+                fontSize: 13,
+              ),
+            ),
           ],
         ),
       ),

@@ -20,8 +20,12 @@ class ShopSection extends StatelessWidget {
         category: 'Gaming Accessories',
         currency: 'INR',
         description: 'High-quality gaming mouse with RGB lighting.',
-        dimensions:
-            Dimensions(height: 5.0, length: 12.0, width: 8.0, unit: 'cm'),
+        dimensions: Dimensions(
+          height: 5.0,
+          length: 12.0,
+          width: 8.0,
+          unit: 'cm',
+        ),
         electronic: Electronic(
           compatibility: 'PC, Mac',
           connectivity: 'Wireless',
@@ -34,12 +38,16 @@ class ShopSection extends StatelessWidget {
             altText: 'Gaming Mouse',
             url:
                 'https://www.pngkey.com/png/full/246-2463403_gaming-mice-razer-naga-razer-mouse.png',
-          )
+          ),
         ],
         manufacturer: 'Razer',
         name: 'Gaming Mouse 1',
         nonElectronic: NonElectronic(
-            color: 'Black', material: 'Plastic', size: 'Standard', item: null),
+          color: 'Black',
+          material: 'Plastic',
+          size: 'Standard',
+          item: null,
+        ),
         price: 1599.99,
         rating: Rating(average: 4.5, count: 120),
         sku: 'GM123',
@@ -51,8 +59,12 @@ class ShopSection extends StatelessWidget {
         currency: 'INR',
         description:
             'Mechanical gaming keyboard with customizable RGB lighting.',
-        dimensions:
-            Dimensions(height: 3.5, length: 45.0, width: 15.0, unit: 'cm'),
+        dimensions: Dimensions(
+          height: 3.5,
+          length: 45.0,
+          width: 15.0,
+          unit: 'cm',
+        ),
         electronic: Electronic(
           compatibility: 'PC',
           connectivity: 'Wired',
@@ -65,15 +77,16 @@ class ShopSection extends StatelessWidget {
             altText: 'Gaming Keyboard',
             url:
                 'https://assets.mspimages.in/wp-content/uploads/2017/03/pro-tenkeyless-gaming-keyboard-1.png',
-          )
+          ),
         ],
         manufacturer: 'Logitech',
         name: 'Gaming Keyboard Pro',
         nonElectronic: NonElectronic(
-            color: 'Black',
-            material: 'Aluminum',
-            size: 'Full Size',
-            item: null),
+          color: 'Black',
+          material: 'Aluminum',
+          size: 'Full Size',
+          item: null,
+        ),
         price: 3499.99,
         rating: Rating(average: 4.7, count: 85),
         sku: 'GK456',
@@ -87,21 +100,124 @@ class ShopSection extends StatelessWidget {
         Text(
           'HASH QUEST',
           style: GoogleFonts.inter(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 220, // Adjust height for product cards
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              final productImage = product.images.isNotEmpty
-                  ? product.images[0].url
-                  : 'https://via.placeholder.com/150';
-              return ProductCard(product: product, productImage: productImage);
-            },
+        const SizedBox(height: 20),
+        Container(
+          height: 200,
+          width: double.infinity,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(25)),
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(25),
+                child: Image.asset(
+                  'assets/images/hashQuestBg.png',
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                  child: Container(
+                    height: 190,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 20,
+                top: 30,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hash Headphones',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'premium quality leather with foam \ncushion for maximum comfort.',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(
+                          color: const Color(0xFF75F94C),
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Text(
+                        'Pre-Register',
+                        style: GoogleFonts.inter(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 20,
+                right: 30,
+                child: SizedBox(
+                  height: 160,
+                  child: Image.asset(
+                    "assets/images/headphone.png",
+                    height: 140,
+                    width: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 30,
+                right: 10,
+                child: Transform.rotate(
+                  angle: 170,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 6,
+                      horizontal: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00DC00),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      '₹2499',
+                      style: GoogleFonts.inter(
+                        color: Colors.black,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -113,8 +229,11 @@ class ProductCard extends StatelessWidget {
   final Product product;
   final String productImage;
 
-  const ProductCard(
-      {super.key, required this.product, required this.productImage});
+  const ProductCard({
+    super.key,
+    required this.product,
+    required this.productImage,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -176,10 +295,7 @@ class ProductCard extends StatelessWidget {
             const SizedBox(height: 5),
             Text(
               '₹${product.price}',
-              style: GoogleFonts.inter(
-                color: Colors.greenAccent,
-                fontSize: 14,
-              ),
+              style: GoogleFonts.inter(color: Colors.greenAccent, fontSize: 14),
             ),
           ],
         ),
@@ -195,8 +311,11 @@ class ProductCard extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: () => _showComingSoonToast(),
-            child: const Icon(CupertinoIcons.bag_badge_plus,
-                size: 24, color: Colors.white),
+            child: const Icon(
+              CupertinoIcons.bag_badge_plus,
+              size: 24,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(width: 10),
           ElevatedButton(
@@ -233,8 +352,10 @@ class ProductCard extends StatelessWidget {
             imageFilter: ImageFilter.blur(sigmaX: 33, sigmaY: 32),
             child: Transform.rotate(
               angle: 100,
-              child: Lottie.asset('assets/Animation - 1732554237164.json',
-                  height: 80),
+              child: Lottie.asset(
+                'assets/Animation - 1732554237164.json',
+                height: 80,
+              ),
             ),
           ),
           Container(

@@ -108,7 +108,8 @@ class _ShopViewState extends State<ShopView> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: Text('Shop', style: GoogleFonts.inter(color: Colors.white)),
+        title: Text('Shop',
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
         backgroundColor: Colors.black,
         actions: [
           GestureDetector(
