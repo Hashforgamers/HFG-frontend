@@ -11,6 +11,7 @@ import 'package:hash/app/modules/cafe/views/cafe_section_view.dart';
 import 'package:hash/app/modules/event/event_banner_view.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
+import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
@@ -162,9 +163,7 @@ class _HomeContentViewState extends State<HomeContentView> {
         statusBarColor: Colors.transparent,
       ),
       elevation: 0,
-      pinned: false, // AppBar scrolls away
-      floating: false,
-      snap: false,
+      pinned: false,
       expandedHeight: 70,
       flexibleSpace: ClipRRect(
         borderRadius: BorderRadius.circular(25),
@@ -176,8 +175,8 @@ class _HomeContentViewState extends State<HomeContentView> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0xFFFFFFFF).withOpacity(0.15),
-                  const Color(0xFF64BD55).withOpacity(0.25),
+                  const Color(0xFFFFFFFF).withOpacity(0.1),
+                  const Color(0xFF64BD55).withOpacity(0.2),
                 ],
               ),
               borderRadius: BorderRadius.circular(25),
@@ -239,77 +238,6 @@ class _HomeContentViewState extends State<HomeContentView> {
     );
   }
 
-  // PreferredSizeWidget _buildAppBar() {
-  //   return PreferredSize(
-  //     preferredSize: const Size.fromHeight(85),
-  //     child: AppBar(
-  //       backgroundColor: Colors.transparent,
-  //       systemOverlayStyle: const SystemUiOverlayStyle(
-  //         statusBarColor: Colors.transparent,
-  //       ),
-  //       elevation: 0,
-  //       flexibleSpace: Container(
-  //         decoration: BoxDecoration(
-  //           gradient: const LinearGradient(
-  //             begin: Alignment.topCenter,
-  //             end: Alignment.bottomCenter,
-  //             colors: [Color(0x1AFFFFFF), Color(0x1A64BD55)],
-  //           ),
-  //           borderRadius: BorderRadius.circular(25),
-  //         ),
-  //       ),
-  //       leadingWidth: 65,
-  //       leading: Obx(
-  //         () => Padding(
-  //           padding: const EdgeInsets.only(left: 10),
-  //           child: _userAvatar(userController.user.value.photoUrl),
-  //         ),
-  //       ),
-  //       title: Obx(
-  //         () => Padding(
-  //           padding: const EdgeInsets.only(top: 14),
-  //           child: Column(
-  //             crossAxisAlignment: CrossAxisAlignment.start,
-  //             mainAxisSize: MainAxisSize.min,
-  //             children: [
-  //               Text(
-  //                 'Hey, ${userController.user.value.gameUserName}!',
-  //                 style: GoogleFonts.inter(
-  //                   color: Colors.white,
-  //                   fontSize: 16,
-  //                   fontWeight: FontWeight.bold,
-  //                 ),
-  //                 overflow: TextOverflow.ellipsis,
-  //                 maxLines: 1,
-  //               ),
-  //               const SizedBox(height: 4),
-  //               Text(
-  //                 'Viman Nagar, Pune',
-  //                 style: GoogleFonts.inter(
-  //                   color: const Color(0xFFB6B6B6),
-  //                   fontSize: 14,
-  //                 ),
-  //                 overflow: TextOverflow.ellipsis,
-  //                 maxLines: 1,
-  //               ),
-  //             ],
-  //           ),
-  //         ),
-  //       ),
-  //       actions: [
-  //         Padding(
-  //           padding: const EdgeInsets.only(right: 10),
-  //           child: BlocBuilder<HashCoinCubit, HashCoinState>(
-  //             builder: (_, state) => RewardsSection(
-  //               hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
-  //             ),
-  //           ),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
   Widget _userAvatar(String? photoUrl) {
     const double size = 40;
 
@@ -334,21 +262,24 @@ class _HomeContentViewState extends State<HomeContentView> {
   }
 
   Widget _buildGameOnIndiaBanner() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      height: 50,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
-        borderRadius: BorderRadius.circular(50),
-      ),
-      child: Center(
-        child: Text(
-          'Game On, India!',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            color: const Color(0xFF75F94C),
+    return GestureDetector(
+      onTap: () => Get.to(GamePassView()),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        height: 50,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
+          borderRadius: BorderRadius.circular(50),
+        ),
+        child: Center(
+          child: Text(
+            'Game On, India!',
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              color: const Color(0xFF75F94C),
+            ),
           ),
         ),
       ),
