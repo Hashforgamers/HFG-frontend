@@ -33,6 +33,7 @@ class ApiEndpoints {
   static const String gameSpotArticles = '$gameSpotBaseUrl/articles';
 
   // Payment related constants
+  // TODO:- Remove this and use the new API to get the Order ID and then use that Order ID to create the payment order
   static String get razorpayKey => FlavorConfig.isProduction()
       ? 'rzp_live_RmxaTWJdsdl8yy:rWVWrdImD3hcFkRnJoGM5MAg' // Replace with your live key
       : 'rzp_test_viVAhwtbVdu1X4:PsxakTrbRvfQCbZ1vj2lQ1i5';
@@ -99,11 +100,19 @@ class ApiEndpoints {
   // HFG Game Pass
   static String gamePass(String userId) =>
       '$userOnboardBaseUrl/api/user/$userId/available_passes';
-      // Get PAss Details
+  // Get PAss Details
   static String getGamePassDetails(String cafeId) =>
       '$userOnboardBaseUrl/api/passes/$cafeId';
 
   // Get Active passes for the user
   static String getActivePasses(String userId) =>
       '$userOnboardBaseUrl/api/user/$userId/passes';
+
+  // Get Food Categories
+  static String getFoodCategories(String vendorId) =>
+      '$userOnboardBaseUrl/api/vendor/$vendorId/extras/categories';
+
+  // Get Food Items
+  static String getFoodItems(String vendorId, String categoryId) =>
+      '$userOnboardBaseUrl/api/vendor/$vendorId/extras/category/$categoryId/menus';
 }
