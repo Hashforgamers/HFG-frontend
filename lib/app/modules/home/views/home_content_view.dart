@@ -1,5 +1,7 @@
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,7 +12,7 @@ import 'package:hash/app/modules/event/event_banner_view.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
 import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
-import 'package:hash/core/repositories/model/get_pass_model.dart';
+import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
@@ -18,7 +20,6 @@ import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shop/views/shop_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:hash/app/routes/app_routes.dart';
-import 'package:hash/utils/widgets/loader.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
@@ -115,107 +116,174 @@ class _HomeContentViewState extends State<HomeContentView> {
     }
   }
 
+  EdgeInsets screenPadding = EdgeInsets.symmetric(horizontal: 16.0);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: const Color(0xFF338125),
-        child: const Icon(Icons.support_agent_outlined, color: Colors.white),
-      ),
-      appBar: _buildAppBar(),
       body: RefreshIndicator(
         onRefresh: _refreshData,
-        color: const Color(0xFF338125),
         backgroundColor: Colors.black,
-        child: ListView(
-          padding: const EdgeInsets.all(10),
-          children: [
-            BlocBuilder<HashCoinCubit, HashCoinState>(
-              builder: (_, state) => RewardsSection(
-                hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+        child: CustomScrollView(
+          slivers: [
+            _buildAppBar(),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 24),
+                    const EventBanner(),
+                    const SizedBox(height: 24),
+                    CafeSection(),
+                    const SizedBox(height: 24),
+                    const ShopSection(),
+                    const SizedBox(height: 24),
+                    const GamerNewsSection(),
+                    const SizedBox(height: 24),
+                    const GamesSection(),
+                    const SizedBox(height: 24),
+                    ViralShotsSection(),
+                    const SizedBox(height: 32),
+                    _buildGameOnIndiaBanner(),
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 18),
-            RainbowLoadingBar(height: 0.5, width: Get.width),
-            const SizedBox(height: 18),
-            EventBanner(),
-            const SizedBox(height: 18),
-            /// Here add the UI of Game Pass
-            BlocBuilder<GamePassCubit, GamePassState>(
-              builder: (context, state) {
-                if (state is GamePassLoading) {
-                  return _buildGamePassShimmer();
-                } else if (state is GamePassLoaded && state.gamePass.isNotEmpty) {
-                  return _buildGamePassCarousel(state.gamePass);
-                } else {
-                  return const SizedBox.shrink();
-                }
-              },
-            ),
-            const SizedBox(height: 18),
-            CafeSection(),
-            const SizedBox(height: 18),
-            const GamerNewsSection(),
-            const SizedBox(height: 18),
-            ViralShotsSection(),
-            const SizedBox(height: 18),
-            ShopSection(),
-            const SizedBox(height: 18),
-            GamesSection(),
-            _buildGameOnIndiaBanner(),
           ],
         ),
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.black,
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Obx(() => Text(
-                'Hey, ${userController.user.value.gameUserName}!',
-                style: GoogleFonts.inter(color: Colors.white),
-              )),
-          Obx(() => PopupMenuButton<String>(
-                offset: const Offset(0, 40),
-                color: Colors.black87,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                onSelected: (value) => _handleMenuSelection(value),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'Profile',
-                    child: Text(
-                      'Profile',
-                      style: GoogleFonts.inter(color: const Color(0xffDE3A3A)),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'Settings',
-                    child: Text('Settings',
-                        style:
-                            GoogleFonts.inter(color: const Color(0xffDE3A3A))),
-                  ),
-                  PopupMenuItem(
-                    value: 'Logout',
-                    onTap: _logout,
-                    child: Text('Logout',
-                        style:
-                            GoogleFonts.inter(color: const Color(0xffDE3A3A))),
-                  ),
+  Widget _buildAppBar() {
+    return SliverAppBar(
+      backgroundColor: Colors.transparent,
+      systemOverlayStyle: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+      ),
+      elevation: 0,
+      pinned: false,
+      expandedHeight: 70,
+      flexibleSpace: ClipRRect(
+        borderRadius: BorderRadius.circular(25),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFFFFFFFF).withOpacity(0.1),
+                  const Color(0xFF64BD55).withOpacity(0.2),
                 ],
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  child: userController.isLoading.value
-                      ? _shimmerAvatar()
-                      : _userAvatar(userController.user.value.photoUrl),
+              ),
+              borderRadius: BorderRadius.circular(25),
+              // border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+            ),
+          ),
+        ),
+      ),
+
+      leadingWidth: 55,
+      leading: Obx(
+        () => Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: _userAvatar(userController.user.value.photoUrl),
+        ),
+      ),
+      title: Obx(
+        () => Padding(
+          padding: const EdgeInsets.only(top: 12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Hey, ${userController.user.value.gameUserName}!',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
                 ),
-              )),
-        ],
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Viman Nagar, Pune',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFB6B6B6),
+                  fontSize: 11.5,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ],
+          ),
+        ),
+      ),
+
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 10),
+          child: BlocBuilder<HashCoinCubit, HashCoinState>(
+            builder: (_, state) => RewardsSection(
+              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _userAvatar(String? photoUrl) {
+    const double size = 40;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFF6DFB60), width: 2),
+      ),
+      child: CircleAvatar(
+        radius: size / 2,
+        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+            ? CachedNetworkImageProvider(photoUrl)
+            : const NetworkImage(
+                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
+                  )
+                  as ImageProvider,
+        backgroundColor: Colors.white,
+      ),
+    );
+  }
+
+  Widget _buildGameOnIndiaBanner() {
+    return GestureDetector(
+      onTap: () => Get.to(GamePassView()),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        height: 50,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
+          borderRadius: BorderRadius.circular(50),
+        ),
+        child: Center(
+          child: Text(
+            'Game On, India!',
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              color: const Color(0xFF75F94C),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -225,18 +293,6 @@ class _HomeContentViewState extends State<HomeContentView> {
       baseColor: Colors.grey.shade800,
       highlightColor: Colors.grey.shade600,
       child: const CircleAvatar(radius: 15, backgroundColor: Colors.grey),
-    );
-  }
-
-  Widget _userAvatar(String? photoUrl) {
-    return CircleAvatar(
-      radius: 15,
-      backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-          ? CachedNetworkImageProvider(photoUrl)
-          : const NetworkImage(
-                  'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg')
-              as ImageProvider,
-      backgroundColor: Colors.white,
     );
   }
 
@@ -264,230 +320,5 @@ class _HomeContentViewState extends State<HomeContentView> {
     } else if (value == 'Settings') {
       // Handle settings tap
     }
-  }
-
-  Widget _buildGameOnIndiaBanner() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 45.0),
-      child: Center(
-        child: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFFF9933), Colors.white, Color(0xFF138808)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ).createShader(bounds),
-          child: Text(
-            'Game On, India!',
-            style: GoogleFonts.tulpenOne(
-              fontSize: 100,
-              fontWeight: FontWeight.normal,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ),
-    );
-    
-  }
-
-  Widget _buildGamePassShimmer() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Shimmer.fromColors(
-            baseColor: Colors.grey.shade800,
-            highlightColor: Colors.grey.shade600,
-            child: Container(
-              height: 20,
-              width: 120,
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 140,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            itemCount: 3,
-            itemBuilder: (context, index) {
-              return Shimmer.fromColors(
-                baseColor: Colors.grey.shade800,
-                highlightColor: Colors.grey.shade600,
-                child: Container(
-                  width: 200,
-                  margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                  decoration: BoxDecoration(
-                    color: Colors.grey,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGamePassCarousel(List<GetPassModel> gamePasses) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Text(
-            'Game Passes',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 140,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            itemCount: gamePasses.length,
-            itemBuilder: (context, index) {
-              final gamePass = gamePasses[index];
-              return _buildGamePassCard(gamePass);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGamePassCard(GetPassModel gamePass) {
-    return Container(
-      width: 200,
-      margin: const EdgeInsets.symmetric(horizontal: 8.0),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF1E1E1E),
-            const Color(0xFF2D2D2D),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFDE3A3A).withOpacity(0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFDE3A3A).withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    gamePass.name,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDE3A3A),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    gamePass.passType,
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              gamePass.description,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: Colors.grey[400],
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '₹${gamePass.price.toStringAsFixed(0)}',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFDE3A3A),
-                      ),
-                    ),
-                    Text(
-                      '${gamePass.daysValid} days',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: Colors.grey[400],
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFFDE3A3A),
-                        const Color(0xFFB91C1C),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Buy Now',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

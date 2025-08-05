@@ -24,8 +24,8 @@ class ProfileView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title:
-            Text('Edit Profile', style: GoogleFonts.inter(color: Colors.white)),
+        title: Text('Edit Profile',
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
         backgroundColor: Colors.black,
         leading: GestureDetector(
           onTap: () {
@@ -193,7 +193,7 @@ class ProfileView extends StatelessWidget {
         initialValue: initialValue,
         decoration: InputDecoration(
           labelText: labelText,
-          labelStyle: const TextStyle(color: Colors.white70),
+          labelStyle: GoogleFonts.inter(color: Colors.white70),
           prefixIcon: Icon(icon, color: const Color(0xff00D701)),
           enabledBorder: OutlineInputBorder(
             borderSide: const BorderSide(color: Colors.white70),

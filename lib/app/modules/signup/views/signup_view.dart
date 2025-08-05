@@ -47,7 +47,7 @@ class _SignUpViewState extends State<SignUpView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               IconButton(
-                  icon: const Icon(CupertinoIcons.back, color: Colors.white),
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: Get.back),
               Expanded(
                 child: Form(

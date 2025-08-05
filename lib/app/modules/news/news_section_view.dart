@@ -1,12 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'dart:math' as math;
-
-import '../../../utils/widgets/custom_card.dart';
 import 'game_news_controller.dart';
 
 class GamerNewsSection extends StatefulWidget {
@@ -19,20 +15,90 @@ class GamerNewsSection extends StatefulWidget {
 class _GamerNewsSectionState extends State<GamerNewsSection>
     with SingleTickerProviderStateMixin {
   final NewsController controller = Get.put(NewsController());
-  late AnimationController _animController;
+
+  int currentIndex = 0;
+  double dragOffset = 0.0;
+  int? slidingOutIndex;
+  late AnimationController _slideDownController;
+
+  final List<Map<String, String>> gameNewsCards = [
+    {
+      'image': "assets/images/gameNews_1.png",
+      'title':
+          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...',
+    },
+    {
+      'image': "assets/images/gameNews_2.png",
+      'title':
+          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...',
+    },
+    {
+      'image': "assets/images/gameNews_3.png",
+      'title':
+          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...',
+    },
+    {
+      'image': "assets/images/gameNews_4.png",
+      'title':
+          'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...',
+    },
+  ];
+
+  void _handleDragUpdate(DragUpdateDetails details) {
+    setState(() {
+      dragOffset += details.delta.dy;
+    });
+  }
+
+  void _handleDragEnd(DragEndDetails details) {
+    if (dragOffset.abs() > 50) {
+      if (dragOffset < 0 && currentIndex < gameNewsCards.length - 1) {
+        setState(() => slidingOutIndex = currentIndex);
+        Future.delayed(const Duration(milliseconds: 160), () {
+          setState(() {
+            currentIndex++;
+            slidingOutIndex = null;
+          });
+        });
+      } else if (dragOffset > 0 && currentIndex > 0) {
+        _slideDownController.forward(from: 1.0);
+        setState(() => currentIndex--);
+      }
+    }
+    setState(() => dragOffset = 0.0);
+  }
+
+  double _getTopOffset(int relativeIndex) {
+    double dragEffect = 0.0;
+    if (dragOffset > 0 && relativeIndex >= 0) {
+      dragEffect = dragOffset / 30;
+    } else if (dragOffset < 0) {
+      if (relativeIndex == 0) {
+        dragEffect = dragOffset / 5;
+      } else if (relativeIndex >= 1) {
+        dragEffect = dragOffset / 10;
+      }
+    }
+    return 20.0 * relativeIndex + dragEffect;
+  }
+
+  double _getHorizontalOffset(int relativeIndex) {
+    double cardWidth = 400.0 - (relativeIndex * 30).clamp(0, 80);
+    return (400 - cardWidth) / 2;
+  }
 
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
+    _slideDownController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 12),
-    )..repeat();
+      duration: const Duration(milliseconds: 200),
+    );
   }
 
   @override
   void dispose() {
-    _animController.dispose();
+    _slideDownController.dispose();
     super.dispose();
   }
 
@@ -70,47 +136,78 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: LottieBuilder.asset(
-                    'assets/fire.json',
-                    height: 24,
-                    width: 24,
-                    frameRate: FrameRate(60), // Makes animation smoother
-                  )),
-              Text(
-                ' GAMER FIREWIRE',
-                style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.5),
-              ),
-            ],
+          Text(
+            'GAMER FIREWIRE',
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 190,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: controller.newsList.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                final article = controller.newsList[index];
-                return AnimatedBuilder(
-                  animation: _animController,
-                  builder: (_, __) {
-                    return EarlyAccessCard(
-                      title: article.title,
-                      subTitle: article.deck,
-                      siteUrl: article.siteUrl,
+          const SizedBox(height: 20),
+          Center(
+            child: GestureDetector(
+              onVerticalDragUpdate: _handleDragUpdate,
+              onVerticalDragEnd: _handleDragEnd,
+              child: SizedBox(
+                width: 400,
+                height: 170,
+                child: AnimatedBuilder(
+                  animation: _slideDownController,
+                  builder: (context, _) {
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: List.generate(gameNewsCards.length, (i) {
+                        int relativeIndex = i - currentIndex;
+
+                        // Only show current and next 2 cards
+                        if (relativeIndex < 0 || relativeIndex > 2)
+                          return const SizedBox();
+
+                        double topOffset = _getTopOffset(relativeIndex);
+                        double horizontalOffset = _getHorizontalOffset(
+                          relativeIndex,
+                        );
+                        double opacity = (1.0 - 0.25 * relativeIndex).clamp(
+                          0.0,
+                          1.0,
+                        );
+
+                        // Smooth slide down effect
+                        if (_slideDownController.isAnimating &&
+                            relativeIndex == 0) {
+                          topOffset -= 30.0 * _slideDownController.value;
+                        }
+
+                        Widget card = _buildStackedCard(
+                          gameNewsCards[i]['image']!,
+                          gameNewsCards[i]['title']!,
+                          relativeIndex,
+                        );
+
+                        // If it's the one sliding out, wrap in AnimatedSlide
+                        if (i == slidingOutIndex) {
+                          card = AnimatedSlide(
+                            duration: const Duration(milliseconds: 160),
+                            offset: const Offset(0, -0.76),
+                            child: card,
+                          );
+                        }
+
+                        return Positioned(
+                          top: topOffset,
+                          left: horizontalOffset,
+                          right: horizontalOffset,
+                          child: Opacity(
+                            opacity: opacity.clamp(0.0, 1.0),
+                            child: card,
+                          ),
+                        );
+                      }).reversed.toList(),
                     );
                   },
-                );
-              },
+                ),
+              ),
             ),
           ),
         ],
@@ -118,124 +215,84 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     });
   }
 
-  Widget _rainbowCard({
-    required String title,
-    required String deck,
-    required String siteUrl,
-    required double hueRotation,
-  }) {
-    return GestureDetector(
-      onTap: () async {
-        if (await canLaunchUrl(Uri.parse(siteUrl))) {
-          await launchUrl(Uri.parse(siteUrl),
-              mode: LaunchMode.externalApplication);
-        } else {
-          Get.snackbar('Error', 'Could not launch article');
-        }
-      },
+  Widget _buildStackedCard(String image, String title, int relativeIndex) {
+    double baseHeight = 150;
+    double baseWidth = 400;
+    double height = baseHeight - (relativeIndex * 6).clamp(0, 40);
+    double width = baseWidth - (relativeIndex * 30).clamp(0, 80);
+
+    // Scale with drag effect
+    double scale = 1.0;
+    if (relativeIndex == 0 && dragOffset > 0) {
+      scale = 1.02 - (dragOffset / 1000).clamp(0, 0.02);
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+      height: height,
+      width: width,
+      transform: Matrix4.identity()..scale(scale),
+      child: _buildGameNewsCard(image: image, title: title),
+    );
+  }
+
+  Widget _buildGameNewsCard({required String image, required String title}) {
+    return Container(
+      height: 150,
+      width: 400,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x1AFFFFFF), Color(0x1A64BD55)],
+        ),
+        border: Border.all(color: Colors.white.withOpacity(0.15)),
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Stack(
         children: [
-          // Glowing rotating shader layer
-          Container(
-            width: 320,
-            height: 190,
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: ShaderMask(
-              blendMode: BlendMode.srcATop,
-              shaderCallback: (rect) {
-                return SweepGradient(
-                  center: Alignment.center,
-                  startAngle: 0,
-                  endAngle: math.pi * 2,
-                  tileMode: TileMode.repeated,
-                  colors: const [
-                    Colors.red,
-                    Colors.orange,
-                    Colors.yellow,
-                    Colors.green,
-                    Colors.cyan,
-                    Colors.blue,
-                    Colors.purple,
-                    Colors.red,
-                  ],
-                  transform: GradientRotation(hueRotation * math.pi * 2),
-                ).createShader(rect);
-              },
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
               child: Container(
+                height: 150,
+                width: 400,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
             ),
           ),
-
-          // Foreground card content
-          Positioned.fill(
-            child: Container(
-              margin: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.cyanAccent.withOpacity(0.1),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
+          Positioned(
+            top: 15,
+            bottom: 15,
+            left: 15,
+            right: 15,
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: Image.asset(
+                    image,
+                    height: 120,
+                    width: 150,
+                    fit: BoxFit.cover,
                   ),
-                ],
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title.toUpperCase(),
-                    style: GoogleFonts.inter(
-                        fontSize: 16.5,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.1,
-                        height: 1.3),
-                    maxLines: 2,
+                ),
+                const SizedBox(width: 14),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+                    maxLines: 5,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    deck,
-                    style: GoogleFonts.inter(
-                        fontSize: 13.5, color: Colors.white70, height: 1.5),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const Spacer(),
-                  const Divider(
-                    color: Colors.cyanAccent,
-                    thickness: 0.6,
-                    endIndent: 40,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.play_arrow,
-                          size: 16, color: Colors.cyanAccent),
-                      const SizedBox(width: 6),
-                      Text(
-                        "Read Article",
-                        style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: Colors.cyanAccent,
-                            fontWeight: FontWeight.bold),
-                      )
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          )
+          ),
         ],
       ),
     );

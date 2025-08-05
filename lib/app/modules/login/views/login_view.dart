@@ -63,15 +63,15 @@ class LoginView extends StatelessWidget {
                       // ─── phone input ──────────────────────────────────────
                       TextFormField(
                         controller: controller.phoneNumberController,
-                        style: const TextStyle(color: Colors.white),
+                        style: GoogleFonts.inter(color: Colors.white),
                         keyboardType: TextInputType.number,
                         maxLength: 10,
                         decoration: InputDecoration(
                           labelText: 'Phone Number',
-                          prefix: const Text(' +91 ',
-                              style: TextStyle(color: Colors.white)),
+                          prefix: Text(' +91 ',
+                              style: GoogleFonts.inter(color: Colors.white)),
                           counterText: '',
-                          labelStyle: const TextStyle(color: Colors.white70),
+                          labelStyle: GoogleFonts.inter(color: Colors.white70),
                           enabledBorder: OutlineInputBorder(
                             borderSide: const BorderSide(color: Colors.white24),
                             borderRadius: BorderRadius.circular(12),
@@ -110,9 +110,11 @@ class LoginView extends StatelessWidget {
                               onPressed: () {
                                 if (_formKey.currentState!.validate()) {
                                   segementService.onOtpRequested(
-                                      mobile: controller.phoneNumberController.text);
+                                      mobile: controller
+                                          .phoneNumberController.text);
                                   fbEventsService.onOtpRequested(
-                                      mobile: controller.phoneNumberController.text);
+                                      mobile: controller
+                                          .phoneNumberController.text);
                                   controller.isLoading.value = true;
                                   controller.signInWithPhoneNumber();
                                 }
