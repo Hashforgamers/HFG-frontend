@@ -1,14 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
-import 'package:hash/app/modules/game_pass/widgets/game_pass_tab_bar.dart';
 
 enum GlobalPassCardType { rightImage, leftImage }
 
 class GlobalPassView extends StatefulWidget {
-  const GlobalPassView({super.key});
+  final TabController tabController;
+  const GlobalPassView({super.key, required this.tabController});
 
   @override
   State<GlobalPassView> createState() => _GlobalPassViewState();
@@ -17,54 +15,38 @@ class GlobalPassView extends StatefulWidget {
 class _GlobalPassViewState extends State<GlobalPassView> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
-                  GamePassTabBar(currentPage: 'global'),
-                  const SizedBox(height: 30),
-                  _buildLabel(),
-                  const SizedBox(height: 50),
-                  _buildGlobalPassCard(
-                    image: 'assets/images/globalpass1.png',
-                    icon: 'assets/icons/crown.png',
-                    title: 'Daily Hash Pass',
-                    info: '24 Hours @ Rs.500',
-                    color: Color(0xFFE6D009),
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 20),
-                  _buildGlobalPassCard(
-                    type: GlobalPassCardType.rightImage,
-                    image: 'assets/images/globalpass2.png',
-                    icon: 'assets/icons/crown.png',
-                    title: 'Monthly Hash Pass',
-                    info: '30 Days @ Rs.1500',
-                    color: Color(0xFF6DFB60),
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 20),
-                  _buildGlobalPassCard(
-                    image: 'assets/images/globalpass3.png',
-                    icon: 'assets/icons/crown.png',
-                    title: 'Yearly Hash Pass',
-                    info: '365 Days @Rs.4500',
-                    color: Color(0xFF09E6C5),
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+    return ListView(
+      children: [
+        _buildLabel(),
+        const SizedBox(height: 30),
+        _buildGlobalPassCard(
+          image: 'assets/images/globalpass1.png',
+          icon: 'assets/icons/crown.png',
+          title: 'Daily Hash Pass',
+          info: '24 Hours @ Rs.500',
+          color: Color(0xFFE6D009),
+          onTap: () {},
+        ),
+        const SizedBox(height: 20),
+        _buildGlobalPassCard(
+          type: GlobalPassCardType.rightImage,
+          image: 'assets/images/globalpass2.png',
+          icon: 'assets/icons/crown.png',
+          title: 'Monthly Hash Pass',
+          info: '30 Days @ Rs.1500',
+          color: Color(0xFF6DFB60),
+          onTap: () {},
+        ),
+        const SizedBox(height: 20),
+        _buildGlobalPassCard(
+          image: 'assets/images/globalpass3.png',
+          icon: 'assets/icons/crown.png',
+          title: 'Yearly Hash Pass',
+          info: '365 Days @Rs.4500',
+          color: Color(0xFF09E6C5),
+          onTap: () {},
+        ),
+      ],
     );
   }
 
@@ -166,24 +148,6 @@ class _GlobalPassViewState extends State<GlobalPassView> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      backgroundColor: Colors.black,
-      elevation: 0,
-      pinned: false,
-      leading: GestureDetector(
-        onTap: () {
-          Get.to(GamePassView());
-        },
-        child: const Icon(Icons.arrow_back, color: Colors.white),
-      ),
-      title: Text(
-        'Global Pass',
-        style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
       ),
     );
   }
