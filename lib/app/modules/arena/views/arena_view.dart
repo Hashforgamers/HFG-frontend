@@ -34,8 +34,9 @@ class _ArenaViewState extends State<ArenaView> {
   /*  STATE                                                                    */
   /* ────────────────────────────────────────────────────────────────────────── */
 
-  final CybercafesController _cafeCtr =
-      Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
+  final CybercafesController _cafeCtr = Get.put(
+    CybercafesController(remoteRepo: locator<RemoteRepoInterface>()),
+  );
 
   late GoogleMapController _mapCtr;
   final loc.Location _loc = loc.Location();
@@ -50,10 +51,11 @@ class _ArenaViewState extends State<ArenaView> {
   LatLng? _userLatLng;
   String? _selectedCafeId;
   String _mapStyle = '';
-  
+
   // Location-based filtering
   String? _userState;
-  final RxList<Map<String, dynamic>> _filteredCafes = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> _filteredCafes =
+      <Map<String, dynamic>>[].obs;
   final RxBool _isLocationFiltering = false.obs;
   final RxBool _showingAllCafes = false.obs;
 
@@ -108,8 +110,9 @@ class _ArenaViewState extends State<ArenaView> {
       'assets/custom_marker2.png',
     );
 
-    _markerCafeHighlighted =
-        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+    _markerCafeHighlighted = BitmapDescriptor.defaultMarkerWithHue(
+      BitmapDescriptor.hueRed,
+    );
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -134,11 +137,14 @@ class _ArenaViewState extends State<ArenaView> {
   void _smoothMoveCamera(LatLng target, {double zoom = 15}) {
     _camDebounce?.cancel();
     _camDebounce = Timer(const Duration(milliseconds: 280), () {
-      _mapCtr.animateCamera(CameraUpdate.newCameraPosition(
-          CameraPosition(target: target, zoom: zoom)));
+      _mapCtr.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: target, zoom: zoom),
+        ),
+      );
     });
   }
-/* ────────────────────────────────────────────────────────────────────────── */
+  /* ────────────────────────────────────────────────────────────────────────── */
   /*  GTA-STYLE ZOOM LOGIC                                                    */
   /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -206,9 +212,13 @@ class _ArenaViewState extends State<ArenaView> {
     final state = address['state'] ?? '';
     final pincode = address['pincode'] ?? '';
 
-    final parts = [addressLine1, addressLine2, city, state, pincode]
-        .where((part) => part.isNotEmpty)
-        .toList();
+    final parts = [
+      addressLine1,
+      addressLine2,
+      city,
+      state,
+      pincode,
+    ].where((part) => part.isNotEmpty).toList();
 
     return parts.join(', ');
   }
@@ -371,11 +381,13 @@ class _ArenaViewState extends State<ArenaView> {
 
   void _addUserMarker() {
     if (_userLatLng == null) return;
-    markers.add(Marker(
-      markerId: const MarkerId('me'),
-      position: _userLatLng!,
-      icon: _markerUser ?? BitmapDescriptor.defaultMarker,
-    ));
+    markers.add(
+      Marker(
+        markerId: const MarkerId('me'),
+        position: _userLatLng!,
+        icon: _markerUser ?? BitmapDescriptor.defaultMarker,
+      ),
+    );
   }
 
   void _refreshCafeMarkers() {
@@ -384,19 +396,21 @@ class _ArenaViewState extends State<ArenaView> {
     for (final cafe in _filteredCafes) {
       final id = '${cafe['id'] ?? cafe.hashCode}';
       final pos = _latLngFromCafe(cafe);
-      markers.add(Marker(
-        markerId: MarkerId('cafe_$id'),
-        position: pos,
-        icon: id == _selectedCafeId
-            ? (_markerCafeHighlighted ?? BitmapDescriptor.defaultMarker)
-            : (_markerCafe ?? BitmapDescriptor.defaultMarker),
-        infoWindow: InfoWindow(title: cafe['cafe_name'] ?? 'Cafe'),
-        onTap: () {
-          _selectedCafeId = id;
-          _smoothMoveCamera(pos, zoom: 16);
-          _refreshCafeMarkers();
-        },
-      ));
+      markers.add(
+        Marker(
+          markerId: MarkerId('cafe_$id'),
+          position: pos,
+          icon: id == _selectedCafeId
+              ? (_markerCafeHighlighted ?? BitmapDescriptor.defaultMarker)
+              : (_markerCafe ?? BitmapDescriptor.defaultMarker),
+          infoWindow: InfoWindow(title: cafe['cafe_name'] ?? 'Cafe'),
+          onTap: () {
+            _selectedCafeId = id;
+            _smoothMoveCamera(pos, zoom: 16);
+            _refreshCafeMarkers();
+          },
+        ),
+      );
     }
   }
 
@@ -407,11 +421,13 @@ class _ArenaViewState extends State<ArenaView> {
   Future<Map<String, String>> _distanceInfo(LatLng dest, String id) async {
     if (_userLatLng == null) return {'distance': '--', 'duration': '--'};
     if (_distanceCache.containsKey(id)) return _distanceCache[id]!;
-    final url = Uri.parse('https://maps.googleapis.com/maps/api/directions/json'
-        '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
-        '&destination=${dest.latitude},${dest.longitude}'
-        '&mode=driving'
-        '&key=$_gmapsKey');
+    final url = Uri.parse(
+      'https://maps.googleapis.com/maps/api/directions/json'
+      '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
+      '&destination=${dest.latitude},${dest.longitude}'
+      '&mode=driving'
+      '&key=$_gmapsKey',
+    );
     final res = await http.get(url);
     if (res.statusCode == 200) {
       final data = json.decode(res.body);
@@ -446,13 +462,16 @@ class _ArenaViewState extends State<ArenaView> {
       return;
     }
     polylines.clear();
-    polylines.add(Polyline(
-      polylineId: const PolylineId('route'),
-      color: const Color(0xff338125),
-      width: 6,
-      points:
-      result.points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
-    ));
+    polylines.add(
+      Polyline(
+        polylineId: const PolylineId('route'),
+        color: const Color(0xff338125),
+        width: 6,
+        points: result.points
+            .map((p) => LatLng(p.latitude, p.longitude))
+            .toList(),
+      ),
+    );
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -461,10 +480,12 @@ class _ArenaViewState extends State<ArenaView> {
 
   Future<void> _openExternalMaps(LatLng dest) async {
     if (_userLatLng == null) return;
-    final uri = Uri.parse('https://www.google.com/maps/dir/?api=1'
-        '&origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
-        '&destination=${dest.latitude},${dest.longitude}'
-        '&travelmode=driving');
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
+      '&destination=${dest.latitude},${dest.longitude}'
+      '&travelmode=driving',
+    );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
@@ -479,16 +500,18 @@ class _ArenaViewState extends State<ArenaView> {
   Future<void> _getUserStateAndFilterCafes() async {
     if (_userLatLng == null) {
       print('User location not available');
-      _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+      _filteredCafes.assignAll(
+        _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
+      );
       return;
     }
 
     try {
       _isLocationFiltering.value = true;
-      
+
       // Reset showing all cafes state when location changes
       _showingAllCafes.value = false;
-      
+
       // Get user's state from coordinates
       List<Placemark> placemarks = await placemarkFromCoordinates(
         _userLatLng!.latitude,
@@ -498,16 +521,20 @@ class _ArenaViewState extends State<ArenaView> {
       if (placemarks.isNotEmpty) {
         _userState = placemarks.first.administrativeArea;
         print('User is in state: $_userState');
-        
+
         // Filter cafes based on state
         _filterCafesByState();
       } else {
         print('Could not determine user state');
-        _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+        _filteredCafes.assignAll(
+          _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
+        );
       }
     } catch (e) {
       print('Error getting user state: $e');
-      _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+      _filteredCafes.assignAll(
+        _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
+      );
     } finally {
       _isLocationFiltering.value = false;
     }
@@ -515,23 +542,27 @@ class _ArenaViewState extends State<ArenaView> {
 
   void _filterCafesByState() {
     if (_userState == null) {
-      _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+      _filteredCafes.assignAll(
+        _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
+      );
       return;
     }
 
     final filteredList = _cafeCtr.cybercafes.where((cafe) {
       final address = cafe['address'];
       if (address == null) return false;
-      
+
       final cafeState = address['state'];
       if (cafeState == null) return false;
-      
+
       // Case-insensitive comparison
       return cafeState.toString().toLowerCase() == _userState!.toLowerCase();
     }).toList();
 
     _filteredCafes.assignAll(filteredList.cast<Map<String, dynamic>>());
-    print('Found ${_filteredCafes.length} cafes in $_userState out of ${_cafeCtr.cybercafes.length} total cafes');
+    print(
+      'Found ${_filteredCafes.length} cafes in $_userState out of ${_cafeCtr.cybercafes.length} total cafes',
+    );
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -551,28 +582,33 @@ class _ArenaViewState extends State<ArenaView> {
             borderRadius: BorderRadius.circular(25),
             border: Border.all(color: const Color(0xff338125).withOpacity(.2)),
           ),
-          child: Row(children: [
-            const Icon(Icons.search, color: Color(0xff338125)),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: _searchCtl,
-                style: GoogleFonts.inter(color: Colors.white),
-                cursorColor: const Color(0xff338125),
-                decoration:  InputDecoration(
-                  hintText: 'Search location',
-                  hintStyle: GoogleFonts.inter(color: Colors.white70),
-                  border: InputBorder.none,
+          child: Row(
+            children: [
+              const Icon(Icons.search, color: Color(0xff338125)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _searchCtl,
+                  style: GoogleFonts.inter(color: Colors.white),
+                  cursorColor: const Color(0xff338125),
+                  decoration: InputDecoration(
+                    hintText: 'Search location',
+                    hintStyle: GoogleFonts.inter(color: Colors.white70),
+                    border: InputBorder.none,
+                  ),
+                  onSubmitted: (_) => _searchAndGo(),
                 ),
-                onSubmitted: (_) => _searchAndGo(),
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.arrow_forward_ios_rounded,
-                  size: 18, color: Color(0xff338125)),
-              onPressed: _searchAndGo,
-            )
-          ]),
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 18,
+                  color: Color(0xff338125),
+                ),
+                onPressed: _searchAndGo,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -586,8 +622,9 @@ class _ArenaViewState extends State<ArenaView> {
         heroTag: 'locateMe',
         mini: true,
         backgroundColor: const Color(0xff338125),
-        onPressed:
-            _userLatLng == null ? null : () => _smoothMoveCamera(_userLatLng!),
+        onPressed: _userLatLng == null
+            ? null
+            : () => _smoothMoveCamera(_userLatLng!),
         child: const Icon(Icons.my_location, color: Colors.black),
       ),
     );
@@ -610,17 +647,19 @@ class _ArenaViewState extends State<ArenaView> {
             else
               const Text('No cybercafes available'),
             const SizedBox(height: 8),
-                                                if (_userState != null)
-                                      TextButton(
-                                        onPressed: () {
-                                          _showingAllCafes.value = true;
-                                          _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
-                                        },
-                                        child: Text(
-                                          'Show all cafes',
-                                          style: GoogleFonts.inter(color: const Color(0xff338125)),
-                                        ),
-                                      ),
+            if (_userState != null)
+              TextButton(
+                onPressed: () {
+                  _showingAllCafes.value = true;
+                  _filteredCafes.assignAll(
+                    _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
+                  );
+                },
+                child: Text(
+                  'Show all cafes',
+                  style: GoogleFonts.inter(color: const Color(0xff338125)),
+                ),
+              ),
           ],
         ),
       );
@@ -668,19 +707,21 @@ class _ArenaViewState extends State<ArenaView> {
         _smoothMoveCamera(pos, zoom: 16);
         _refreshCafeMarkers();
         await Future.delayed(const Duration(milliseconds: 600));
-        await Get.to(() => ArenaDetailView(
-          images: img,
-          title: cafe['cafe_name'] ?? 'Unknown Cafe',
-          address: _formatAddress(cafe),
-          openingHours: _formatOpeningHours(cafe),
-          availableGames: cafe['available_games'] ?? ['N/A'],
-          amenities: cafe['amenities'] ?? [],
-          phone: cafe['phone'] ?? 'Phone not available',
-          email: cafe['email'] ?? 'Email not available',
-          ownerName: cafe['owner_name'] ?? 'Owner not available',
-          reviews: cafe['reviews'] ?? ['Great place!'],
-          vendorId: cafe['vendor_id'] ?? 0,
-        ));
+        await Get.to(
+          () => ArenaDetailView(
+            images: img,
+            title: cafe['cafe_name'] ?? 'Unknown Cafe',
+            address: _formatAddress(cafe),
+            openingHours: _formatOpeningHours(cafe),
+            availableGames: cafe['available_games'] ?? ['N/A'],
+            amenities: cafe['amenities'] ?? [],
+            phone: cafe['phone'] ?? 'Phone not available',
+            email: cafe['email'] ?? 'Email not available',
+            ownerName: cafe['owner_name'] ?? 'Owner not available',
+            reviews: cafe['reviews'] ?? ['Great place!'],
+            vendorId: cafe['vendor_id'] ?? 0,
+          ),
+        );
       },
       child: Container(
         width: 300,
@@ -699,9 +740,9 @@ class _ArenaViewState extends State<ArenaView> {
               height: 230,
               fit: BoxFit.cover,
               placeholder: (_, __) =>
-              const Center(child: RainbowGlowingLoader(size: 40)),
+                  const Center(child: RainbowGlowingLoader(size: 40)),
               errorWidget: (_, __, ___) =>
-              const Center(child: Icon(Icons.error, color: Colors.white)),
+                  const Center(child: Icon(Icons.error, color: Colors.white)),
             ),
 
             // Blur + Gradient Footer
@@ -710,7 +751,9 @@ class _ArenaViewState extends State<ArenaView> {
               left: 0,
               right: 0,
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(8),
+                ),
                 child: Container(
                   height: 100,
                   decoration: const BoxDecoration(
@@ -738,14 +781,11 @@ class _ArenaViewState extends State<ArenaView> {
                 ),
               ),
             ),
-
-
           ],
         ),
       ),
     );
   }
-
 
   Widget _cardFooter(Map<String, dynamic> cafe, LatLng pos, String id) {
     return Container(
@@ -763,19 +803,25 @@ class _ArenaViewState extends State<ArenaView> {
           Text(
             cafe['cafe_name'] ?? 'Unknown',
             style: GoogleFonts.inter(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 4),
           Row(
             children: [
-              Icon(Icons.circle,
-                  color: _isShopOpen(cafe) ? Colors.green : Colors.red,
-                  size: 8),
+              Icon(
+                Icons.circle,
+                color: _isShopOpen(cafe) ? Colors.green : Colors.red,
+                size: 8,
+              ),
               const SizedBox(width: 4),
               Text(
                 _isShopOpen(cafe) ? 'Open' : 'Closed',
                 style: GoogleFonts.inter(
-                    color: _isShopOpen(cafe) ? Colors.green : Colors.red),
+                  color: _isShopOpen(cafe) ? Colors.green : Colors.red,
+                ),
               ),
               const SizedBox(width: 8),
               FutureBuilder<Map<String, String>>(
@@ -783,8 +829,10 @@ class _ArenaViewState extends State<ArenaView> {
                 builder: (_, snap) {
                   final dist = snap.data?['distance'] ?? '--';
                   final dur = snap.data?['duration'] ?? '--';
-                  return Text('$dist · $dur',
-                      style: GoogleFonts.inter(color: Colors.white70));
+                  return Text(
+                    '$dist · $dur',
+                    style: GoogleFonts.inter(color: Colors.white70),
+                  );
                 },
               ),
               const Spacer(),
@@ -793,8 +841,9 @@ class _ArenaViewState extends State<ArenaView> {
                 child: Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
-                      color: const Color(0xff338125),
-                      borderRadius: BorderRadius.circular(10)),
+                    color: const Color(0xff338125),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   child: const Icon(Icons.route, size: 18, color: Colors.black),
                 ),
               ),
@@ -804,8 +853,9 @@ class _ArenaViewState extends State<ArenaView> {
                 child: Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
-                      color: const Color(0xff338125),
-                      borderRadius: BorderRadius.circular(10)),
+                    color: const Color(0xff338125),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   child: const Icon(Icons.map, size: 18, color: Colors.black),
                 ),
               ),
@@ -832,13 +882,15 @@ class _ArenaViewState extends State<ArenaView> {
                   topRight: Radius.circular(8),
                 ),
                 child: SizedBox(
-                  height: size * 0.61,
+                  height: size * 0.51,
                   width: double.infinity,
                   child: Stack(
                     children: [
                       GoogleMap(
                         initialCameraPosition: const CameraPosition(
-                            target: LatLng(20, 77), zoom: 4),
+                          target: LatLng(20, 77),
+                          zoom: 4,
+                        ),
                         myLocationEnabled: true,
                         markers: markers.toSet(),
                         polylines: polylines.toSet(),
@@ -864,14 +916,19 @@ class _ArenaViewState extends State<ArenaView> {
                             controller: _searchCtl,
                             style: GoogleFonts.inter(color: Colors.white),
                             cursorColor: const Color(0xff338125),
-                            decoration:  InputDecoration(
-                              prefixIcon:
-                                  const Icon(Icons.search, color: Colors.white70),
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: Colors.white70,
+                              ),
                               hintText: 'Search location',
-                              hintStyle: GoogleFonts.inter(color: Colors.white70),
+                              hintStyle: GoogleFonts.inter(
+                                color: Colors.white70,
+                              ),
                               border: InputBorder.none,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 16),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                              ),
                             ),
                             onSubmitted: (_) => _searchAndGo(),
                           ),
@@ -895,292 +952,543 @@ class _ArenaViewState extends State<ArenaView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Obx(() => Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 0, 8),
-                        child: Row(
-                          children: [
-                            Text(
-                              _showingAllCafes.value 
-                                ? 'Showing All Cafes' 
-                                : (_userState != null ? 'Cafes in $_userState' : 'Nearby Cafes'),
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.normal,
+                      Obx(
+                        () => Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 0, 8),
+                          child: Row(
+                            children: [
+                              Text(
+                                _showingAllCafes.value
+                                    ? 'Showing All Cafes'
+                                    : (_userState != null
+                                          ? 'Cafes in $_userState'
+                                          : 'Nearby Cafes'),
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.normal,
+                                ),
                               ),
-                            ),
-                            if (_userState != null) ...[
-                              const SizedBox(width: 8),
-                              Obx(() => Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xff338125).withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xff338125)),
-                                ),
-                                child: Text(
-                                  _showingAllCafes.value 
-                                    ? '${_filteredCafes.length} total' 
-                                    : '${_filteredCafes.length} found',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xff338125),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              )),
-                              const Spacer(),
-                              Obx(() => TextButton(
-                                onPressed: () {
-                                  if (_showingAllCafes.value) {
-                                    // Switch back to filtered view
-                                    _showingAllCafes.value = false;
-                                    _filterCafesByState();
-                                  } else {
-                                    // Show all cafes
-                                    _showingAllCafes.value = true;
-                                    _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
-                                  }
-                                },
-                                child: Text(
-                                  _showingAllCafes.value ? 'Show local' : 'Show all',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xff338125),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              )),
-                            ],
-                          ],
-                        ),
-                      )),
-                      Expanded(
-                        child: Obx(() => _filteredCafes.isEmpty
-                            ?  Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    if (_userState != null)
-                                      Text(
-                                        'No cafes available in $_userState',
-                                        style: GoogleFonts.inter(color: Colors.white70),
-                                      )
-                                    else
-                                      Text('No cybercafes available',
-                                          style: GoogleFonts.inter(color: Colors.white70)),
-                                    const SizedBox(height: 8),
-                                    if (_userState != null)
-                                      TextButton(
-                                        onPressed: () {
-                                          _showingAllCafes.value = true;
-                                          _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
-                                        },
-                                        child: Text(
-                                          'Show all cafes',
-                                          style: GoogleFonts.inter(color: const Color(0xff338125)),
-                                        ),
-                                      ),
-                                  ],
-                                ))
-                            : ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(width: 16),
-                                itemCount: _filteredCafes.length,
-                                itemBuilder: (_, i) {
-                                  final cafe = _filteredCafes[i];
-                                  final img = [
-                                    'https://next-level.gg/assets/cafes/11.jpg',
-                                    'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
-                                    'https://media.assettype.com/afkgaming/2024-04/e11d1515-bb0d-48a5-9ad9-1ddfdef286ef/Untitled_design_117_.png',
-                                    'https://i.ytimg.com/vi/3ZPtQAKKado/maxresdefault.jpg',
-                                    'https://pvplayer.com/wp-content/uploads/2024/04/kafejka-gamingowa.jpg',
-                                  ][i % 5];
-                                  final pos = _latLngFromCafe(cafe);
-                                  final id = '${cafe['id'] ?? cafe.hashCode}';
-                                  return GestureDetector(
-                                    onTap: () async {
-                                      _selectedCafeId = id;
-                                      _smoothMoveCamera(pos, zoom: 16);
-                                      _refreshCafeMarkers();
-                                      await Future.delayed(
-                                          const Duration(milliseconds: 600));
-                                      await Get.to(() => ArenaDetailView(
-                                            images: img,
-                                            title: cafe['cafe_name'] ??
-                                                'Unknown Cafe',
-                                            address: _formatAddress(cafe),
-                                            openingHours:
-                                                _formatOpeningHours(cafe),
-                                            availableGames:
-                                                cafe['available_games'] ??
-                                                    ['N/A'],
-                                            amenities: cafe['amenities'] ?? [],
-                                            phone: cafe['phone'] ??
-                                                'Phone not available',
-                                            email: cafe['email'] ??
-                                                'Email not available',
-                                            ownerName: cafe['owner_name'] ??
-                                                'Owner not available',
-                                            reviews: cafe['reviews'] ??
-                                                ['Great place!'],
-                                            vendorId: cafe['vendor_id'] ?? 0,
-                                          ));
-                                    },
-                                    child: Container(
-                                      width: 320,
-                                      height: 150,
-                                      margin: const EdgeInsets.only(
-                                          bottom: 12, top: 4),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.05),
-                                        ),
-                                        color: Colors.transparent,
-                                      ),
-                                      clipBehavior: Clip.hardEdge,
-                                      child: Stack(
-                                        children: [
-                                          CachedNetworkImage(
-                                            imageUrl: img,
-                                            width: 320,
-                                            height: 150,
-                                            fit: BoxFit.cover,
-                                          ),
-                                          // Glassmorphism overlay for bottom half
-                                          Positioned(
-                                            left: 0,
-                                            right: 0,
-                                            bottom: 0,
-                                            top: 70,
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  const BorderRadius.only(
-                                                bottomLeft: Radius.circular(22),
-                                                bottomRight:
-                                                    Radius.circular(22),
-                                              ),
-                                              child: Stack(
-                                                children: [
-                                                  BackdropFilter(
-                                                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                                    child: Container(color: Colors.transparent),
-                                                  ),
-                                                  Container(
-                                                    decoration: const BoxDecoration(
-                                                      gradient: LinearGradient(
-                                                        begin: Alignment.bottomCenter,
-                                                        end: Alignment.topCenter,
-                                                        colors: [
-                                                          Color.fromARGB(180, 0, 0, 0), // Strong black at bottom
-                                                          Color.fromARGB(80, 0, 0, 0),  // Faded black in middle
-                                                          Color.fromARGB(0, 0, 0, 0),   // Transparent at top
-                                                        ],
-                                                      ),
-                                                      borderRadius: BorderRadius.only(
-                                                        bottomLeft: Radius.circular(22),
-                                                        bottomRight: Radius.circular(22),
-                                                      ),
-                                                    ),
-                                                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-                                                    child: Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                      mainAxisSize: MainAxisSize.min,
-                                                      children: [
-                                                        Text(
-                                                          cafe['cafe_name'] ?? 'Unknown',
-                                                          style: GoogleFonts.inter(
-                                                            color: Colors.white,
-                                                            fontSize: 16,
-                                                            fontWeight: FontWeight.w400,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(height: 4),
-                                                        Row(
-                                                          children: [
-                                                            Icon(Icons.circle, size: 8, color: _isShopOpen(cafe) ? Colors.green : Colors.red),
-                                                            const SizedBox(width: 6),
-                                                            Text(
-                                                              _isShopOpen(cafe) ? 'Open' : 'Closed',
-                                                              style: GoogleFonts.inter(
-                                                                color: _isShopOpen(cafe) ? Colors.green : Colors.red,
-                                                                fontWeight: FontWeight.w400,
-                                                                fontSize: 12,
-                                                              ),
-                                                            ),
-                                                            const SizedBox(width: 8),
-                                                            Text('|', style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
-                                                            const SizedBox(width: 8),
-                                                            FutureBuilder<Map<String, String>>(
-                                                              future: _distanceInfo(pos, id),
-                                                              builder: (_, snap) {
-                                                                final dist = snap.data?['distance'] ?? '--';
-                                                                final dur = snap.data?['duration'] ?? '--';
-                                                                return Row(
-                                                                  children: [
-                                                                    Text(dist, style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
-                                                                    const SizedBox(width: 8),
-                                                                    Text('|', style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
-                                                                    const SizedBox(width: 8),
-                                                                    Text(dur, style: GoogleFonts.inter(color: Colors.grey, fontSize: 12)),
-                                                                  ],
-                                                                );
-                                                              },
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        const SizedBox(height: 10),
-                                                        Row(
-                                                          children: [
-                                                            Expanded(
-                                                              child: ElevatedButton.icon(
-                                                                style: ElevatedButton.styleFrom(
-                                                                  backgroundColor: const Color(0xff338125),
-                                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                                                  elevation: 0,
-                                                                ),
-                                                                icon: const Icon(Icons.directions_outlined, color: Colors.white, size: 18),
-                                                                label: Text('Directions', style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w400)),
-                                                                onPressed: () => _drawRoute(pos),
-                                                              ),
-                                                            ),
-                                                            const SizedBox(width: 10),
-                                                            Expanded(
-                                                              child: ElevatedButton.icon(
-                                                                style: ElevatedButton.styleFrom(
-                                                                  backgroundColor: Colors.white.withOpacity(0.13),
-                                                                  shape: RoundedRectangleBorder(
-                                                                    borderRadius: BorderRadius.circular(8),
-                                                                    side: BorderSide(color: Colors.white.withOpacity(0.13)),
-                                                                  ),
-                                                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                                                  elevation: 0,
-                                                                ),
-                                                                icon: const Icon(Icons.map_outlined, color: Colors.white, size: 18),
-                                                                label: Text('View on maps', style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w400)),
-                                                                onPressed: () => _openExternalMaps(pos),
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                              if (_userState != null) ...[
+                                const SizedBox(width: 8),
+                                Obx(
+                                  () => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xff338125,
+                                      ).withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: const Color(0xff338125),
                                       ),
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
+                                    child: Text(
+                                      _showingAllCafes.value
+                                          ? '${_filteredCafes.length} total'
+                                          : '${_filteredCafes.length} found',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xff338125),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Obx(
+                                  () => TextButton(
+                                    onPressed: () {
+                                      if (_showingAllCafes.value) {
+                                        // Switch back to filtered view
+                                        _showingAllCafes.value = false;
+                                        _filterCafesByState();
+                                      } else {
+                                        // Show all cafes
+                                        _showingAllCafes.value = true;
+                                        _filteredCafes.assignAll(
+                                          _cafeCtr.cybercafes
+                                              .cast<Map<String, dynamic>>(),
+                                        );
+                                      }
+                                    },
+                                    child: Text(
+                                      _showingAllCafes.value
+                                          ? 'Show local'
+                                          : 'Show all',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xff338125),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Obx(
+                          () => _filteredCafes.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (_userState != null)
+                                        Text(
+                                          'No cafes available in $_userState',
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white70,
+                                          ),
+                                        )
+                                      else
+                                        Text(
+                                          'No cybercafes available',
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      const SizedBox(height: 8),
+                                      if (_userState != null)
+                                        TextButton(
+                                          onPressed: () {
+                                            _showingAllCafes.value = true;
+                                            _filteredCafes.assignAll(
+                                              _cafeCtr.cybercafes
+                                                  .cast<Map<String, dynamic>>(),
+                                            );
+                                          },
+                                          child: Text(
+                                            'Show all cafes',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xff338125),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                )
+                              : ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(width: 16),
+                                  itemCount: _filteredCafes.length,
+                                  itemBuilder: (_, i) {
+                                    final cafe = _filteredCafes[i];
+                                    final img = [
+                                      'https://next-level.gg/assets/cafes/11.jpg',
+                                      'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
+                                      'https://media.assettype.com/afkgaming/2024-04/e11d1515-bb0d-48a5-9ad9-1ddfdef286ef/Untitled_design_117_.png',
+                                      'https://i.ytimg.com/vi/3ZPtQAKKado/maxresdefault.jpg',
+                                      'https://pvplayer.com/wp-content/uploads/2024/04/kafejka-gamingowa.jpg',
+                                    ][i % 5];
+                                    final pos = _latLngFromCafe(cafe);
+                                    final id = '${cafe['id'] ?? cafe.hashCode}';
+                                    return GestureDetector(
+                                      onTap: () async {
+                                        _selectedCafeId = id;
+                                        _smoothMoveCamera(pos, zoom: 16);
+                                        _refreshCafeMarkers();
+                                        await Future.delayed(
+                                          const Duration(milliseconds: 600),
+                                        );
+                                        await Get.to(
+                                          () => ArenaDetailView(
+                                            images: img,
+                                            title:
+                                                cafe['cafe_name'] ??
+                                                'Unknown Cafe',
+                                            address: _formatAddress(cafe),
+                                            openingHours: _formatOpeningHours(
+                                              cafe,
+                                            ),
+                                            availableGames:
+                                                cafe['available_games'] ??
+                                                ['N/A'],
+                                            amenities: cafe['amenities'] ?? [],
+                                            phone:
+                                                cafe['phone'] ??
+                                                'Phone not available',
+                                            email:
+                                                cafe['email'] ??
+                                                'Email not available',
+                                            ownerName:
+                                                cafe['owner_name'] ??
+                                                'Owner not available',
+                                            reviews:
+                                                cafe['reviews'] ??
+                                                ['Great place!'],
+                                            vendorId: cafe['vendor_id'] ?? 0,
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
+                                        width: 320,
+                                        height: 150,
+                                        margin: const EdgeInsets.only(
+                                          bottom: 12,
+                                          top: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            25,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(
+                                              0.05,
+                                            ),
+                                          ),
+                                          color: Colors.transparent,
+                                        ),
+                                        clipBehavior: Clip.hardEdge,
+                                        child: Stack(
+                                          children: [
+                                            CachedNetworkImage(
+                                              imageUrl: img,
+                                              width: 320,
+                                              height: 150,
+                                              fit: BoxFit.cover,
+                                            ),
+                                            // Glassmorphism overlay for bottom half
+                                            Positioned(
+                                              left: 0,
+                                              right: 0,
+                                              bottom: 0,
+                                              // top: 70,
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    const BorderRadius.only(
+                                                      bottomLeft:
+                                                          Radius.circular(18),
+                                                      bottomRight:
+                                                          Radius.circular(18),
+                                                    ),
+                                                child: Stack(
+                                                  children: [
+                                                    BackdropFilter(
+                                                      filter: ImageFilter.blur(
+                                                        sigmaX: 10,
+                                                        sigmaY: 10,
+                                                      ),
+                                                      child: Container(
+                                                        color:
+                                                            Colors.transparent,
+                                                      ),
+                                                    ),
+                                                    Container(
+                                                      decoration: const BoxDecoration(
+                                                        gradient: LinearGradient(
+                                                          begin: Alignment
+                                                              .bottomCenter,
+                                                          end: Alignment
+                                                              .topCenter,
+                                                          colors: [
+                                                            Color.fromARGB(
+                                                              180,
+                                                              0,
+                                                              0,
+                                                              0,
+                                                            ), // Strong black at bottom
+                                                            Color.fromARGB(
+                                                              80,
+                                                              0,
+                                                              0,
+                                                              0,
+                                                            ), // Faded black in middle
+                                                            Color.fromARGB(
+                                                              0,
+                                                              0,
+                                                              0,
+                                                              0,
+                                                            ), // Transparent at top
+                                                          ],
+                                                        ),
+                                                        borderRadius:
+                                                            BorderRadius.only(
+                                                              bottomLeft:
+                                                                  Radius.circular(
+                                                                    22,
+                                                                  ),
+                                                              bottomRight:
+                                                                  Radius.circular(
+                                                                    22,
+                                                                  ),
+                                                            ),
+                                                      ),
+                                                      padding:
+                                                          const EdgeInsets.fromLTRB(
+                                                            12,
+                                                            12,
+                                                            12,
+                                                            12,
+                                                          ),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Text(
+                                                            cafe['cafe_name'] ??
+                                                                'Unknown',
+                                                            style:
+                                                                GoogleFonts.inter(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize: 16,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w400,
+                                                                ),
+                                                          ),
+                                                          const SizedBox(
+                                                            height: 4,
+                                                          ),
+                                                          Row(
+                                                            children: [
+                                                              Icon(
+                                                                Icons.circle,
+                                                                size: 8,
+                                                                color:
+                                                                    _isShopOpen(
+                                                                      cafe,
+                                                                    )
+                                                                    ? Colors
+                                                                          .green
+                                                                    : Colors
+                                                                          .red,
+                                                              ),
+                                                              const SizedBox(
+                                                                width: 6,
+                                                              ),
+                                                              Text(
+                                                                _isShopOpen(
+                                                                      cafe,
+                                                                    )
+                                                                    ? 'Open'
+                                                                    : 'Closed',
+                                                                style: GoogleFonts.inter(
+                                                                  color:
+                                                                      _isShopOpen(
+                                                                        cafe,
+                                                                      )
+                                                                      ? Colors
+                                                                            .green
+                                                                      : Colors
+                                                                            .red,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w400,
+                                                                  fontSize: 12,
+                                                                ),
+                                                              ),
+                                                              const SizedBox(
+                                                                width: 8,
+                                                              ),
+                                                              Text(
+                                                                '|',
+                                                                style: GoogleFonts.inter(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize: 12,
+                                                                ),
+                                                              ),
+                                                              const SizedBox(
+                                                                width: 8,
+                                                              ),
+                                                              FutureBuilder<
+                                                                Map<
+                                                                  String,
+                                                                  String
+                                                                >
+                                                              >(
+                                                                future:
+                                                                    _distanceInfo(
+                                                                      pos,
+                                                                      id,
+                                                                    ),
+                                                                builder: (_, snap) {
+                                                                  final dist =
+                                                                      snap.data?['distance'] ??
+                                                                      '--';
+                                                                  final dur =
+                                                                      snap.data?['duration'] ??
+                                                                      '--';
+                                                                  return Row(
+                                                                    children: [
+                                                                      Text(
+                                                                        dist,
+                                                                        style: GoogleFonts.inter(
+                                                                          color:
+                                                                              Colors.white,
+                                                                          fontSize:
+                                                                              12,
+                                                                        ),
+                                                                      ),
+                                                                      const SizedBox(
+                                                                        width:
+                                                                            8,
+                                                                      ),
+                                                                      Text(
+                                                                        '|',
+                                                                        style: GoogleFonts.inter(
+                                                                          color:
+                                                                              Colors.white,
+                                                                          fontSize:
+                                                                              12,
+                                                                        ),
+                                                                      ),
+                                                                      const SizedBox(
+                                                                        width:
+                                                                            8,
+                                                                      ),
+                                                                      Text(
+                                                                        dur,
+                                                                        style: GoogleFonts.inter(
+                                                                          color:
+                                                                              Colors.grey,
+                                                                          fontSize:
+                                                                              12,
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  );
+                                                                },
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          const SizedBox(
+                                                            height: 10,
+                                                          ),
+                                                          Row(
+                                                            children: [
+                                                              Expanded(
+                                                                child: ElevatedButton.icon(
+                                                                  style: ElevatedButton.styleFrom(
+                                                                    backgroundColor:
+                                                                        const Color(
+                                                                          0xff338125,
+                                                                        ),
+                                                                    shape: RoundedRectangleBorder(
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                            8,
+                                                                          ),
+                                                                    ),
+                                                                    padding:
+                                                                        const EdgeInsets.symmetric(
+                                                                          vertical:
+                                                                              10,
+                                                                        ),
+                                                                    elevation:
+                                                                        0,
+                                                                  ),
+                                                                  icon: const Icon(
+                                                                    Icons
+                                                                        .directions_outlined,
+                                                                    color: Colors
+                                                                        .white,
+                                                                    size: 18,
+                                                                  ),
+                                                                  label: Text(
+                                                                    'Directions',
+                                                                    style: GoogleFonts.inter(
+                                                                      color: Colors
+                                                                          .white,
+                                                                      fontSize:
+                                                                          12,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w400,
+                                                                    ),
+                                                                  ),
+                                                                  onPressed: () =>
+                                                                      _drawRoute(
+                                                                        pos,
+                                                                      ),
+                                                                ),
+                                                              ),
+                                                              const SizedBox(
+                                                                width: 10,
+                                                              ),
+                                                              Expanded(
+                                                                child: ElevatedButton.icon(
+                                                                  style: ElevatedButton.styleFrom(
+                                                                    backgroundColor: Colors
+                                                                        .white
+                                                                        .withOpacity(
+                                                                          0.13,
+                                                                        ),
+                                                                    shape: RoundedRectangleBorder(
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                            8,
+                                                                          ),
+                                                                      side: BorderSide(
+                                                                        color: Colors
+                                                                            .white
+                                                                            .withOpacity(
+                                                                              0.13,
+                                                                            ),
+                                                                      ),
+                                                                    ),
+                                                                    padding:
+                                                                        const EdgeInsets.symmetric(
+                                                                          vertical:
+                                                                              10,
+                                                                        ),
+                                                                    elevation:
+                                                                        0,
+                                                                  ),
+                                                                  icon: const Icon(
+                                                                    Icons
+                                                                        .map_outlined,
+                                                                    color: Colors
+                                                                        .white,
+                                                                    size: 18,
+                                                                  ),
+                                                                  label: Text(
+                                                                    'View on maps',
+                                                                    style: GoogleFonts.inter(
+                                                                      color: Colors
+                                                                          .white,
+                                                                      fontSize:
+                                                                          12,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w400,
+                                                                    ),
+                                                                  ),
+                                                                  onPressed: () =>
+                                                                      _openExternalMaps(
+                                                                        pos,
+                                                                      ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
                       ),
                     ],
                   ),
