@@ -8,8 +8,9 @@ class BookingController extends GetxController {
   final slots = <Map<String, dynamic>>[].obs; // Holds fetched slots
   final userBookings = <Map<String, dynamic>>[].obs; // Holds user bookings
   final userId = 0.obs; // Holds user ID
-  final selectedSlots =
-      RxMap<int, List<int>>({}); // Holds selected slots per PC
+  final selectedSlots = RxMap<int, List<int>>(
+    {},
+  ); // Holds selected slots per PC
 
   final _remoteRepo = locator<RemoteRepoInterface>();
 
@@ -17,7 +18,8 @@ class BookingController extends GetxController {
   void onInit() {
     super.onInit();
     fetchUserId().then(
-        (_) => fetchUserBookings()); // Fetch bookings after fetching user ID
+      (_) => fetchUserBookings(),
+    ); // Fetch bookings after fetching user ID
   }
 
   /// Clear all selected slots
@@ -40,8 +42,9 @@ class BookingController extends GetxController {
 
       final startHour = int.parse(startTimeParts[0]);
       final startMinute = int.parse(startTimeParts[1]);
-      final slotStartTime =
-          today.add(Duration(hours: startHour, minutes: startMinute));
+      final slotStartTime = today.add(
+        Duration(hours: startHour, minutes: startMinute),
+      );
 
       // Add a buffer of 15 minutes - slots within 15 minutes of current time are not available
       final bufferTime = now.add(const Duration(minutes: 15));
@@ -53,7 +56,6 @@ class BookingController extends GetxController {
 
       return true;
     } catch (e) {
-      print('Error checking slot availability: $e');
       return true; // Default to available if error
     }
   }
@@ -70,12 +72,6 @@ class BookingController extends GetxController {
         gameId: gameId,
         date: date,
       );
-
-      // Debug logging to understand the slot structure
-      print('Fetched ${slotList.length} slots');
-      if (slotList.isNotEmpty) {
-        print('First slot structure: ${slotList.first}');
-      }
 
       slots.assignAll(slotList);
     } catch (e) {
@@ -113,7 +109,6 @@ class BookingController extends GetxController {
       final userData = await _remoteRepo.getUserFromPreferences();
       if (userData != null) {
         userId.value = userData['id'] ?? 0;
-        print('User ID: ${userId.value}');
       } else {
         _logError('User data not found in preferences!');
       }

@@ -38,16 +38,12 @@ class UserController extends GetxController {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final fetchedUser = User.fromJson(data['user']); // ✅ RIGHT
-        print('fetched user $data');
-        id.value = data['user']['id'].toString();         // ✅ Ensure ID is stored correctly
+        id.value = data['user']['id']
+            .toString(); // ✅ Ensure ID is stored correctly
 
         setUserData(fetchedUser);
-        print("ID set: $idValue");
-      } else {
-        print('Failed to load user data: ${response.statusCode}');
-      }
+      } else {}
     } catch (e) {
-      print('Error fetching user data: $e');
     } finally {
       isLoading.value = false;
     }
@@ -56,7 +52,6 @@ class UserController extends GetxController {
   /// ✅ Replace entire user object
   void setUserData(User fetchedUser) {
     user.value = fetchedUser;
-    print("User data updated - Name: ${user.value.name}");
   }
 
   /// ✅ Update Google-auth fields only
@@ -65,7 +60,6 @@ class UserController extends GetxController {
       val?.name = name;
       val?.photoUrl = photoUrl;
     });
-    print("Google User Data set - Name: ${user.value.name}, PhotoURL: $photoUrl");
   }
 
   /// 👤 Getter for current User ID

@@ -125,9 +125,9 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
           height: 190,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
             itemCount: 3, // 3 shimmer cards
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) => const SizedBox(width: 20),
             itemBuilder: (_, __) => _newsShimmerCard(),
           ),
         );

@@ -129,28 +129,22 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       itemCount: historyList.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, __) => const SizedBox(height: 20),
       itemBuilder: (context, index) {
         final item = flattenedList[index];
         if (item['isHeader']) {
           final month = item['month'];
           final displayMonth = _formatMonthYear(month); // e.g., "August 2025"
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Text(
-              displayMonth,
-              style: GoogleFonts.inter(
-                color: Color(0xFF505050),
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+          return Text(
+            displayMonth,
+            style: GoogleFonts.inter(
+              color: Color(0xFF505050),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
             ),
           );
         } else {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _buildHistoryPassCard(context, item['data']),
-          );
+          return _buildHistoryPassCard(context, item['data']);
         }
       },
     );
@@ -195,8 +189,8 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
             ),
             Positioned(
               top: 24,
-              left: 40,
-              right: 40,
+              left: 20,
+              right: 20,
               child: Column(
                 crossAxisAlignment:
                     history['type'] == HistoryPassCardType.rightImage
@@ -224,7 +218,7 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
                   ),
                   const SizedBox(height: 30),
                   SizedBox(
-                    width: 300,
+                    width: 400,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(5),
                       child: LinearProgressIndicator(

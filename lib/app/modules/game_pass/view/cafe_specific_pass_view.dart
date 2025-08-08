@@ -46,6 +46,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
             return _buildCafePassCard(context, cafe);
           },
         ),
+        const SizedBox(height: 20),
       ],
     );
   }

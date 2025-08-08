@@ -191,7 +191,7 @@ class _MenuViewState extends State<MenuView> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ListView.builder(
           itemCount: menuItems.length,
           itemBuilder: (context, index) {
@@ -200,7 +200,7 @@ class _MenuViewState extends State<MenuView> {
               padding: const EdgeInsets.only(bottom: 14),
               child: ListTile(
                 leading: SizedBox(
-                  width: 70,
+                  width: 50,
                   height: 50,
                   child: Image.asset(
                     menuItem['image']!,

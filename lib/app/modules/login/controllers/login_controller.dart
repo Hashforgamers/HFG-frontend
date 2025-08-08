@@ -15,8 +15,9 @@ import '../../signup/controllers/signup_verify_view.dart';
 class LoginController extends GetxController {
   final phoneNumberController = TextEditingController();
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
-  final userModel.UserController userController =
-  Get.put(userModel.UserController());
+  final userModel.UserController userController = Get.put(
+    userModel.UserController(),
+  );
   final remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
@@ -33,9 +34,9 @@ class LoginController extends GetxController {
         phoneNumber: '+91${phoneNumberController.text.trim()}',
         verificationCompleted:
             (firebase_auth.PhoneAuthCredential credential) async {
-          await _auth.signInWithCredential(credential);
-          await _handleUserNavigation();
-        },
+              await _auth.signInWithCredential(credential);
+              await _handleUserNavigation();
+            },
         verificationFailed: (firebase_auth.FirebaseAuthException e) {
           _showErrorSnackbar('Verification failed', e.message);
         },
@@ -65,8 +66,8 @@ class LoginController extends GetxController {
         smsCode: otp.trim(),
       );
 
-      final firebase_auth.UserCredential userCredential =
-      await _auth.signInWithCredential(credential);
+      final firebase_auth.UserCredential userCredential = await _auth
+          .signInWithCredential(credential);
 
       if (userCredential.user != null) {
         await _handleUserNavigation();
@@ -75,8 +76,10 @@ class LoginController extends GetxController {
       }
     } on firebase_auth.FirebaseAuthException catch (e) {
       if (e.code == 'invalid-verification-code') {
-        _showErrorSnackbar('Invalid OTP',
-            'The verification code is incorrect. Please try again.');
+        _showErrorSnackbar(
+          'Invalid OTP',
+          'The verification code is incorrect. Please try again.',
+        );
       } else {
         _showErrorSnackbar('Error', e.message ?? 'An unknown error occurred.');
       }
@@ -89,7 +92,7 @@ class LoginController extends GetxController {
     firebase_auth.User? user = _auth.currentUser;
     int retries = 0;
 
-// wait up to 1 second for Firebase to update currentUser
+    // wait up to 1 second for Firebase to update currentUser
     while (user == null && retries < 5) {
       await Future.delayed(Duration(milliseconds: 200));
       user = _auth.currentUser;
@@ -97,7 +100,6 @@ class LoginController extends GetxController {
     }
 
     if (user == null) {
-      print('No authenticated user found!');
       Get.offAllNamed(AppRoutes.LOGIN);
       return false;
     }
@@ -123,7 +125,6 @@ class LoginController extends GetxController {
       }
       return false;
     } catch (e) {
-      print('Error checking user existence: $e');
       Get.snackbar(
         'Error',
         'Something went wrong: $e',
@@ -147,7 +148,6 @@ class LoginController extends GetxController {
     if (userExists != null) {
       // ✅ Fetch and store full user data including ID
       await userController.fetchUserData(user.uid);
-      print('uids ${user.uid}');
       Get.offAllNamed(AppRoutes.HOME);
     } else {
       Future.microtask(() {
@@ -162,7 +162,6 @@ class LoginController extends GetxController {
       });
     }
   }
-
 
   void _showErrorSnackbar(String title, String? message) {
     Get.snackbar(
@@ -184,13 +183,13 @@ class LoginController extends GetxController {
       if (googleUser == null) return;
 
       final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+          await googleUser.authentication;
 
       final firebase_auth.AuthCredential credential =
-      firebase_auth.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+          firebase_auth.GoogleAuthProvider.credential(
+            accessToken: googleAuth.accessToken,
+            idToken: googleAuth.idToken,
+          );
 
       await _auth.signInWithCredential(credential);
       await _handleUserNavigation();

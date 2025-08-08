@@ -73,11 +73,8 @@ class _ShopViewState extends State<ShopView> {
       final preRegistrationService = PreRegistrationService();
 
       // Check if already registered
-      final bool isRegistered =
-          await preRegistrationService.isAlreadyRegistered(
-        user.uid,
-        product.id,
-      );
+      final bool isRegistered = await preRegistrationService
+          .isAlreadyRegistered(user.uid, product.id);
 
       if (isRegistered) {
         _showToast("You have already pre-registered for this product");
@@ -108,8 +105,10 @@ class _ShopViewState extends State<ShopView> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: Text('Shop',
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
+        title: Text(
+          'Shop',
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+        ),
         backgroundColor: Colors.black,
         actions: [
           GestureDetector(
@@ -117,15 +116,16 @@ class _ShopViewState extends State<ShopView> {
               Get.to(CartView());
             },
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Obx(() => Badge(
-                    label: Text(
-                      '${cartController.cartItems.length}',
-                      style:
-                          GoogleFonts.inter(color: Colors.white, fontSize: 10),
-                    ),
-                    child: const Icon(CupertinoIcons.bag, color: Colors.white),
-                  )),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Obx(
+                () => Badge(
+                  label: Text(
+                    '${cartController.cartItems.length}',
+                    style: GoogleFonts.inter(color: Colors.white, fontSize: 10),
+                  ),
+                  child: const Icon(CupertinoIcons.bag, color: Colors.white),
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 15),
@@ -134,51 +134,53 @@ class _ShopViewState extends State<ShopView> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : errorMessage.isNotEmpty
-              ? Center(
-                  child: Text(
-                  errorMessage,
-                  style: GoogleFonts.inter(color: Colors.white),
-                ))
-              : Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10.0),
-                  child: SingleChildScrollView(
-                    child: _buildSection('Products', products),
-                  ),
-                ),
+          ? Center(
+              child: Text(
+                errorMessage,
+                style: GoogleFonts.inter(color: Colors.white),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: 10.0,
+                horizontal: 16.0,
+              ),
+              child: SingleChildScrollView(
+                child: _buildSection('Products', products),
+              ),
+            ),
     );
   }
 
   Widget _buildSection(String title, List<Product> products) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 0.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 50,
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-            child: Text(
-              title,
-              style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 50,
+          child: Text(
+            title,
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              final productImage = product.images.isNotEmpty
-                  ? product.images[0].url
-                  : 'https://via.placeholder.com/150';
-              return _buildProductCard(product, productImage);
-            },
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            final product = products[index];
+            final productImage = product.images.isNotEmpty
+                ? product.images[0].url
+                : 'https://via.placeholder.com/150';
+            return _buildProductCard(product, productImage);
+          },
+        ),
+      ],
     );
   }
 
@@ -188,7 +190,7 @@ class _ShopViewState extends State<ShopView> {
       children: [
         Container(
           width: Get.width * 0.83,
-          margin: const EdgeInsets.only(right: 10, left: 55, bottom: 20),
+          margin: const EdgeInsets.only(left: 45, bottom: 20),
           decoration: ShapeDecoration(
             color: Colors.white12,
             shape: ContinuousRectangleBorder(
@@ -204,19 +206,26 @@ class _ShopViewState extends State<ShopView> {
                   _showToast("Coming Soon");
                 },
                 child: const Padding(
-                  padding: EdgeInsets.only(top: 15.0, right: 15),
-                  child:
-                      Icon(CupertinoIcons.heart, size: 20, color: Colors.red),
+                  padding: EdgeInsets.only(top: 15.0, right: 20),
+                  child: Icon(
+                    CupertinoIcons.heart,
+                    size: 20,
+                    color: Colors.red,
+                  ),
                 ),
               ),
               GestureDetector(
                 onTap: () {
-                  Get.to(ProductDetailView(
-                      productId: product.id, productImages: productImage));
+                  Get.to(
+                    ProductDetailView(
+                      productId: product.id,
+                      productImages: productImage,
+                    ),
+                  );
                 },
                 child: Container(
                   width: Get.width * 0.57,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -241,15 +250,19 @@ class _ShopViewState extends State<ShopView> {
                       Text(
                         '${product.preRegisterCount} Pre-Registered',
                         style: GoogleFonts.inter(
-                            color: Colors.white70, fontSize: 12),
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 10,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -278,11 +291,7 @@ class _ShopViewState extends State<ShopView> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.lock,
-                            color: Colors.black,
-                            size: 16,
-                          ),
+                          const Icon(Icons.lock, color: Colors.black, size: 16),
                           const SizedBox(width: 5),
                           Text(
                             'Pre-Register',

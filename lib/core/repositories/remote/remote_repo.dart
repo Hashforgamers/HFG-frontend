@@ -610,7 +610,6 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<void> saveReferralCodeToPreferences(String referralCode) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('referralCode', referralCode);
-    print('Referral code saved to preferences.');
   }
 
   @override
@@ -628,11 +627,9 @@ class RemoteRepo implements RemoteRepoInterface {
             responseData.containsKey('error')) {
           errorMessage = responseData['error'];
         }
-        debugPrint('Voucher creation failed: $errorMessage');
         throw Exception(errorMessage);
       }
     } catch (e) {
-      debugPrint('Error creating voucher: $e');
 
       // Handle DioException specifically to extract error message
       if (e is DioException && e.response != null) {
@@ -750,11 +747,9 @@ class RemoteRepo implements RemoteRepoInterface {
             responseData.containsKey('error')) {
           errorMessage = responseData['error'];
         }
-        debugPrint('QR code scanning failed: $errorMessage');
         throw Exception(errorMessage);
       }
     } catch (e) {
-      debugPrint('Error scanning QR code: $e');
 
       // Handle DioException specifically to extract error message
       if (e is DioException && e.response != null) {

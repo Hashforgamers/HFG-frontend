@@ -46,9 +46,9 @@ class RazorpayController extends GetxController {
     required String email,
   }) {
     final options = {
-      'key'       : ApiEndpoints.razorpayKeyWallet,
-      'amount'    : (amount * 100).toInt(),
-      'name'      : name,
+      'key': ApiEndpoints.razorpayKeyWallet,
+      'amount': (amount * 100).toInt(),
+      'name': name,
       'description': description,
       'order_id': orderId,
       'prefill': {'contact': contact, 'email': email},
@@ -72,21 +72,21 @@ class RazorpayController extends GetxController {
 
       _razorpay.open(options);
     } catch (e) {
-      print('Error opening Razorpay: $e');
       isPaymentInProgress(false);
       paymentStatus.value = '';
-      Get.snackbar('Checkout Error', 'Failed to open Razorpay.',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Checkout Error',
+        'Failed to open Razorpay.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
   // ─────────────────────────── Handlers ───────────────────────────
   void _handlePaymentSuccess(PaymentSuccessResponse r) async {
-    print("✅ Payment success: ${r.paymentId}");
     paymentStatus.value = 'Payment successful! Confirming booking…';
 
     if (bookingIdList.isEmpty) {
-      print("⚠️  No booking IDs.");
       _reset();
       return;
     }
@@ -111,8 +111,6 @@ class RazorpayController extends GetxController {
   }
 
   void _handlePaymentError(PaymentFailureResponse r) {
-    print('❌ Payment failed: ${r.code} - ${r.message}');
-
     // Track payment failed event
     segmentService.onPaymentFailed(
       reason: r.message ?? 'Unknown error',
@@ -124,14 +122,19 @@ class RazorpayController extends GetxController {
     );
 
     _reset();
-    Get.snackbar('Payment Failed', r.message ?? 'Unknown error',
-        snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar(
+      'Payment Failed',
+      r.message ?? 'Unknown error',
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   void _handleExternalWallet(ExternalWalletResponse r) {
-    print('📦 External wallet: ${r.walletName}');
-    Get.snackbar('External Wallet', r.walletName ?? '',
-        snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar(
+      'External Wallet',
+      r.walletName ?? '',
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   // ───────────────────────── Confirm booking ──────────────────────
@@ -148,8 +151,6 @@ class RazorpayController extends GetxController {
         paymentMode: paymentMode, // ★ pass it
         voucherCode: null,
       );
-
-      print('✅ Booking confirmed!');
 
       // Clear selected slots after successful payment
       final bookingController = Get.find<BookingController>();
@@ -172,10 +173,12 @@ class RazorpayController extends GetxController {
           bookDate: DateTime.now().toIso8601String(),
         ),
       );
-      print('🔥 Confirm booking error: $e');
       _reset();
-      Get.snackbar('Error', 'Failed to confirm booking: $e',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        'Failed to confirm booking: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
