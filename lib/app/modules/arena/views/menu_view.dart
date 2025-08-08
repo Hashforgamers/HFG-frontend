@@ -103,7 +103,7 @@ class _MenuViewState extends State<MenuView> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ListView.builder(
           itemCount: widget.foodMenuList.length,
           itemBuilder: (context, categoryIndex) {

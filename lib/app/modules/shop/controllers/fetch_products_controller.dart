@@ -21,7 +21,6 @@ class ProductsController extends GetxController {
       final responseData = await _remoteRepo.fetchProducts();
       products.value = responseData.map((json) => Product.fromJson(json)).toList();
     } catch (e) {
-      print(e);
       errorMessage.value = 'Error: $e';
     } finally {
       isLoading.value = false;

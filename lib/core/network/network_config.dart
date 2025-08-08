@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/interceptors/auth_interceptor.dart';
 import 'package:hash/core/network/interceptors/retry_interceptor.dart';
@@ -122,18 +121,15 @@ class NetworkProvider {
     try {
       final token = await _authDataRepo.getAccessToken();
       if (token == null) {
-        debugPrint('Error: No auth token available');
         throw Exception('No auth token available');
       }
 
-      debugPrint('Initializing authenticated Dio instance with token');
       _dio.options.headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       };
       return _dio;
     } catch (e) {
-      debugPrint('Error initializing authenticated Dio instance: $e');
       throw Exception('Failed to initialize authenticated network: $e');
     }
   }

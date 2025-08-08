@@ -401,7 +401,6 @@ class _BookingScreenState extends State<BookingScreen> {
       final DateTime parsedTime = DateFormat('HH:mm:ss').parse(rawTime);
       return DateFormat('HH:mm').format(parsedTime);
     } catch (e) {
-      print('Error formatting time: $e');
       return rawTime;
     }
   }
@@ -435,7 +434,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 : Colors.grey.shade800,
           ),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

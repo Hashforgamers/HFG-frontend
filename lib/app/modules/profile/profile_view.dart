@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,8 +23,10 @@ class ProfileView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: Text('Edit Profile',
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
+        title: Text(
+          'Edit Profile',
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+        ),
         backgroundColor: Colors.black,
         leading: GestureDetector(
           onTap: () {
@@ -36,14 +37,12 @@ class ProfileView extends StatelessWidget {
       ),
       body: Obx(() {
         if (userController.isLoading.value) {
-          return const Center(
-            child: RainbowGlowingLoader(size: 50),
-          );
+          return const Center(child: RainbowGlowingLoader(size: 50));
         }
 
         final user = userController.user.value;
         return Padding(
-          padding: const EdgeInsets.all(10.0),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
           child: Form(
             key: _formKey,
             child: ListView(
@@ -123,16 +122,8 @@ class ProfileView extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
-                      segmentService.onProfileUpdated(
-                        updatedFields: [
-                          'name',
-                        ],
-                      );
-                      fbEventsService.onProfileUpdated(
-                        updatedFields: [
-                          'name',
-                        ],
-                      );
+                      segmentService.onProfileUpdated(updatedFields: ['name']);
+                      fbEventsService.onProfileUpdated(updatedFields: ['name']);
                       // userController.updateUserData(user);
                     }
                   },
@@ -164,13 +155,16 @@ class ProfileView extends StatelessWidget {
           backgroundImage: user.photoUrl != null
               ? CachedNetworkImageProvider(user.photoUrl!)
               : const AssetImage('assets/default_profile.png')
-                  as ImageProvider, // Fallback to a local asset if no photoUrl
+                    as ImageProvider, // Fallback to a local asset if no photoUrl
         ),
         const SizedBox(height: 20),
         Text(
           user.name!,
           style: GoogleFonts.inter(
-              color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 10),
         Text(

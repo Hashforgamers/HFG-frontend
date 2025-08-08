@@ -82,12 +82,9 @@ class _CafeSectionState extends State<CafeSection> {
               height: 230,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 15,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 itemCount: 3,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                separatorBuilder: (_, __) => const SizedBox(width: 20),
                 itemBuilder: (context, index) {
                   return Shimmer.fromColors(
                     baseColor: Colors.grey.shade800,
@@ -124,9 +121,9 @@ class _CafeSectionState extends State<CafeSection> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.symmetric(vertical: 15),
+              padding: EdgeInsets.symmetric(vertical: 16),
               itemCount: widget._cafeController.cybercafes.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              separatorBuilder: (_, __) => const SizedBox(width: 20),
               itemBuilder: (context, index) {
                 final cafe = widget._cafeController.cybercafes[index];
                 final imageUrl =

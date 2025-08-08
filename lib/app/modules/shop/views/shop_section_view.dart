@@ -194,7 +194,7 @@ class ShopSection extends StatelessWidget {
               ),
               Positioned(
                 top: 30,
-                right: 10,
+                right: 20,
                 child: Transform.rotate(
                   angle: 170,
                   child: Container(

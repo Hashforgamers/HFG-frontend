@@ -1,13 +1,10 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
-import 'package:hash/app/modules/game_pass/widgets/game_pass_tab_bar.dart';
 
 class CafeSpecificPassView extends StatefulWidget {
-  const CafeSpecificPassView({super.key});
+  final TabController tabController;
+  const CafeSpecificPassView({super.key, required this.tabController});
 
   @override
   State<CafeSpecificPassView> createState() => _CafeSpecificPassViewState();
@@ -34,37 +31,23 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
-                  GamePassTabBar(currentPage: 'cafe'),
-                  const SizedBox(height: 30),
-                  _buildLabel(),
-                  ListView.separated(
-                    scrollDirection: Axis.vertical,
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: cafeList.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 20),
-                    itemBuilder: (context, index) {
-                      final cafe = cafeList[index];
-                      return _buildCafePassCard(context, cafe);
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+    return ListView(
+      children: [
+        _buildLabel(),
+        const SizedBox(height: 30),
+        ListView.separated(
+          scrollDirection: Axis.vertical,
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          itemCount: cafeList.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 20),
+          itemBuilder: (context, index) {
+            final cafe = cafeList[index];
+            return _buildCafePassCard(context, cafe);
+          },
+        ),
+        const SizedBox(height: 20),
+      ],
     );
   }
 
@@ -191,24 +174,6 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      backgroundColor: Colors.black,
-      elevation: 0,
-      pinned: false,
-      leading: GestureDetector(
-        onTap: () {
-          Get.to(GamePassView());
-        },
-        child: const Icon(Icons.arrow_back, color: Colors.white),
-      ),
-      title: Text(
-        'Cafe-Specific Pass',
-        style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
       ),
     );
   }

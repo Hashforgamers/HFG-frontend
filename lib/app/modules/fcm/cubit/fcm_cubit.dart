@@ -30,7 +30,6 @@ class FcmCubit extends Cubit<FcmState> {
         }
       }
     } catch (e, st) {
-      debugPrint('FCM Token Error: $st');
       emit(FcmTokenError(message: e.toString()));
     }
   }

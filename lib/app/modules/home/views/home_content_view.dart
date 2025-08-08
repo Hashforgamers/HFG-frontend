@@ -65,7 +65,6 @@ class _HomeContentViewState extends State<HomeContentView> {
       final walletController = Get.find<WalletController>();
       if (walletController.isWalletReady &&
           walletController.balance.value == 0) {
-        print('🔄 Ensuring wallet is fetched from home screen');
         walletController.refreshWallet();
       }
     });
@@ -116,8 +115,6 @@ class _HomeContentViewState extends State<HomeContentView> {
     }
   }
 
-  EdgeInsets screenPadding = EdgeInsets.symmetric(horizontal: 16.0);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,6 +135,8 @@ class _HomeContentViewState extends State<HomeContentView> {
                     const SizedBox(height: 24),
                     CafeSection(),
                     const SizedBox(height: 24),
+                    _buildGamePassContainer(),
+                    const SizedBox(height: 24),
                     const ShopSection(),
                     const SizedBox(height: 24),
                     const GamerNewsSection(),
@@ -150,6 +149,76 @@ class _HomeContentViewState extends State<HomeContentView> {
                     const SizedBox(height: 32),
                   ],
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGamePassContainer() {
+    return GestureDetector(
+      onTap: () => Get.to(GamePassView()),
+      child: Container(
+        height: 200,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          border: Border.all(color: Color(0xFF6DFB60), width: 1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset(
+                'assets/images/gamepassbg.png',
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+            Positioned(
+              left: 20,
+              top: 40,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pay with Hash Pass',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Get the digital membership card now.\nUse at any participating gaming cafe.',
+                    style: GoogleFonts.inter(color: Colors.white, fontSize: 10),
+                  ),
+                  const SizedBox(height: 32),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 6,
+                      horizontal: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: const Color(0xFF75F94C),
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Text(
+                      'Know More',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -192,7 +261,9 @@ class _HomeContentViewState extends State<HomeContentView> {
       leading: Obx(
         () => Padding(
           padding: const EdgeInsets.only(left: 10),
-          child: _userAvatar(userController.user.value.photoUrl),
+          child: userController.isLoading.value
+              ? _shimmerAvatar()
+              : _userAvatar(userController.user.value.photoUrl),
         ),
       ),
       title: Obx(
@@ -265,7 +336,7 @@ class _HomeContentViewState extends State<HomeContentView> {
 
   Widget _buildGameOnIndiaBanner() {
     return GestureDetector(
-      onTap: () => Get.to(GamePassView()),
+      onTap: () {},
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 4),
         height: 50,
