@@ -14,6 +14,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
 import '../../../data/services/user_controller.dart';
 import '../../../../core/repositories/model/booking_model.dart';
@@ -1081,7 +1082,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   Future<void> confirmBooking({
     required List<int> bookingIds,
-    required String paymentMode, //  "wallet" | "voucher" | "gateway"
+    required String paymentMode,
     String? voucherCode,
   }) async {
     try {
@@ -1089,9 +1090,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         bookingIds: bookingIds,
         paymentId:
             "${paymentMode.toUpperCase()}_${DateTime.now().millisecondsSinceEpoch}",
-        bookDate: DateTime.now().toIso8601String(),
-        paymentMode: paymentMode, // <-- NEW field
-        voucherCode: voucherCode, // null unless a voucher really applied
+        bookDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        paymentMode: paymentMode,
+        voucherCode: voucherCode,
       );
       print('payment mode : $paymentMode');
 
@@ -1219,29 +1220,23 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   // TODO:- Remove this function and call diffrent API to get the Order ID and then use that Order ID to create the payment order
   Future<void> initiatePayment(BuildContext context, int amountInPaisa) async {
     String receiptId = "order_rcpt_${DateTime.now().millisecondsSinceEpoch}";
-    final url = Uri.parse("https://api.razorpay.com/v1/orders");
-    String basicAuth =
-        'Basic ${base64Encode(utf8.encode(ApiEndpoints.razorpayKey))}';
-
-    Map<String, dynamic> payload = {
+    final url = '${FlavorConfig.getBaseUrl('booking')}/api/create_order';
+    final payload = {
       "amount": amountInPaisa,
       "currency": "INR",
       "receipt": receiptId,
-      "payment_capture": 1,
     };
 
     try {
       _paymentStatus.value = 'Creating payment order...';
       final response = await http.post(
-        url,
-        headers: {
-          "Authorization": basicAuth,
-          "Content-Type": "application/json",
-        },
+        Uri.parse(url),
+        headers: {"Content-Type": "application/json"},
         body: jsonEncode(payload),
       );
 
       if (response.statusCode == 200) {
+        debugPrint('Payment order created successfully ${response.body}');
         final data = jsonDecode(response.body);
         _paymentStatus.value = 'Opening payment gateway...';
 
@@ -1249,7 +1244,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           orderId: data['id'],
           name: userController.user.value.name ?? 'User',
           description: "Booking for selected slots",
-          amount: amountInPaisa / 100,
+          amount: data['amount'] / 100,
           contact:
               userController.user.value.contact?.electronicAddress?.mobileNo ??
               '',

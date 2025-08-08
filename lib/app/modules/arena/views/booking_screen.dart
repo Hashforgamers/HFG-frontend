@@ -18,7 +18,7 @@ class BookingScreen extends StatefulWidget {
   final String title;
   final int gameId;
   final int vendorId;
-  final List<Map<String, dynamic>> cartItems;
+  final List<Map<String, dynamic>>? cartItems;
 
   const BookingScreen({
     super.key,
@@ -724,7 +724,7 @@ class _BookingScreenState extends State<BookingScreen> {
         selectedCafeName: widget.title,
         consoleType: widget.consoleType,
         selectedSlots: selectedSlotDetails,
-        cartItems: widget.cartItems,
+        cartItems: widget.cartItems ?? [],
         gameId: widget.gameId,
         userId: userId,
       ),

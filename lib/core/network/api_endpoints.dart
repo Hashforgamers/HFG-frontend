@@ -34,9 +34,6 @@ class ApiEndpoints {
 
   // Payment related constants
   // TODO:- Remove this and use the new API to get the Order ID and then use that Order ID to create the payment order
-  static String get razorpayKey => FlavorConfig.isProduction()
-      ? 'rzp_live_RmxaTWJdsdl8yy:rWVWrdImD3hcFkRnJoGM5MAg' // Replace with your live key
-      : 'rzp_test_viVAhwtbVdu1X4:PsxakTrbRvfQCbZ1vj2lQ1i5';
   static String get razorpayKeyWallet => FlavorConfig.isProduction()
       ? 'rzp_live_RmxaTWJdsdl8yy' // Replace with your live key
       : 'rzp_test_viVAhwtbVdu1X4';
@@ -115,4 +112,8 @@ class ApiEndpoints {
   // Get Food Items
   static String getFoodItems(String vendorId, String categoryId) =>
       '$userOnboardBaseUrl/api/vendor/$vendorId/extras/category/$categoryId/menus';
+
+  // Get Extra Service
+  static String getExtraService(String vendorId) =>
+      '$userOnboardBaseUrl/api/vendor/$vendorId/extraService';
 }

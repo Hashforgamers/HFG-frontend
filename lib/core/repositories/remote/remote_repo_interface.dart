@@ -1,7 +1,6 @@
 import 'package:hash/core/repositories/model/booking_model.dart';
-import 'package:hash/core/repositories/model/categories_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
-import 'package:hash/core/repositories/model/food_menu_model.dart';
+import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 
@@ -106,10 +105,5 @@ abstract class RemoteRepoInterface {
 
   Future<List<GetPassModel>> getUserActiveGamePass({required String userId});
 
-  Future<List<CategoriesModel>> getFoodCategories({required String vendorId});
-
-  Future<List<FoodMenuModel>> getFoodItems({
-    required String vendorId,
-    required String categoryId,
-  });
+  Future<GetFoodMenuModel> getFoodMenu({required String vendorId});
 }

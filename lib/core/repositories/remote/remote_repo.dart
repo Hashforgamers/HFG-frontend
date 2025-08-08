@@ -6,9 +6,8 @@ import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
-import 'package:hash/core/repositories/model/categories_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
-import 'package:hash/core/repositories/model/food_menu_model.dart';
+import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -886,50 +885,20 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<List<CategoriesModel>> getFoodCategories({
-    required String vendorId,
-  }) async {
+  Future<GetFoodMenuModel> getFoodMenu({required String vendorId}) async {
     final dio = networkProvider.noAuth();
     try {
-      final response = await dio.get(ApiEndpoints.getFoodCategories(vendorId));
+      final response = await dio.get(ApiEndpoints.getExtraService(vendorId));
       if (response.statusCode == 200) {
-        final List<dynamic> responseData = response.data;
-        return responseData
-            .map((e) => CategoriesModel.fromJson(e as Map<String, dynamic>))
-            .toList();
+        final responseData = response.data;
+        return GetFoodMenuModel.fromJson(responseData as Map<String, dynamic>);
       } else {
         throw Exception(
-          'Failed to get food categories. Status code: ${response.statusCode}',
+          'Failed to get food menu. Status code: ${response.statusCode}',
         );
       }
     } catch (e) {
-      debugPrint('Error getting food categories: $e');
-      rethrow;
-    }
-  }
-
-  @override
-  Future<List<FoodMenuModel>> getFoodItems({
-    required String vendorId,
-    required String categoryId,
-  }) async {
-    final dio = networkProvider.noAuth();
-    try {
-      final response = await dio.get(
-        ApiEndpoints.getFoodItems(vendorId, categoryId),
-      );
-      if (response.statusCode == 200) {
-        final List<dynamic> responseData = response.data;
-        return responseData
-            .map((e) => FoodMenuModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-      } else {
-        throw Exception(
-          'Failed to get food items. Status code: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      debugPrint('Error getting food items: $e');
+      debugPrint('Error getting food menu: $e');
       rethrow;
     }
   }
