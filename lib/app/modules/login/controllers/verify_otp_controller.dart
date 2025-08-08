@@ -7,7 +7,6 @@ import '../../../../core/service/fb_events_service.dart';
 import '../../../../core/service/segment_sdk_service.dart';
 import '../../../../core/service_locator.dart';
 import '../../../data/services/user_controller.dart' as userModel;
-
 import '../../../routes/app_routes.dart';
 
 class VerifyOtpController extends GetxController {
@@ -17,8 +16,9 @@ class VerifyOtpController extends GetxController {
   final otpController = TextEditingController();
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
 
-  final userModel.UserController userController =
-  Get.put(userModel.UserController());
+  final userModel.UserController userController = Get.put(
+    userModel.UserController(),
+  );
   final remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
@@ -48,13 +48,14 @@ class VerifyOtpController extends GetxController {
     isLoading.value = true;
 
     try {
-      final firebase_auth.PhoneAuthCredential credential = firebase_auth.PhoneAuthProvider.credential(
-        verificationId: verificationId,
-        smsCode: otp,
-      );
+      final firebase_auth.PhoneAuthCredential credential =
+          firebase_auth.PhoneAuthProvider.credential(
+            verificationId: verificationId,
+            smsCode: otp,
+          );
 
-      final firebase_auth.UserCredential userCredential =
-      await _auth.signInWithCredential(credential);
+      final firebase_auth.UserCredential userCredential = await _auth
+          .signInWithCredential(credential);
 
       firebase_auth.User? user = userCredential.user;
 
@@ -98,11 +99,14 @@ class VerifyOtpController extends GetxController {
 
         Get.offAllNamed(AppRoutes.HOME);
       } else {
-        Get.offAllNamed(AppRoutes.SIGNUP, arguments: {
-          'phoneNumber': user.phoneNumber ?? phoneNumber,
-          'name': user.displayName ?? '',
-          'email': user.email ?? '',
-        });
+        Get.offAllNamed(
+          AppRoutes.SIGNUP,
+          arguments: {
+            'phoneNumber': user.phoneNumber ?? phoneNumber,
+            'name': user.displayName ?? '',
+            'email': user.email ?? '',
+          },
+        );
       }
     } catch (e) {
       Get.snackbar(
@@ -112,7 +116,6 @@ class VerifyOtpController extends GetxController {
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
-      print('OTP Verification Error: $e');
     } finally {
       isLoading.value = false;
     }

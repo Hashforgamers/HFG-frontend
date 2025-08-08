@@ -41,7 +41,6 @@ class ReviewPage extends StatelessWidget {
             itemCount: reviewController.reviews.length,
             itemBuilder: (context, index) {
               final review = reviewController.reviews[index];
-              print('rev ${review['reviews'][index]['comment']}');
               return ListView.builder(
                   physics: NeverScrollableScrollPhysics(),
                   shrinkWrap: true,

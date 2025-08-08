@@ -1,15 +1,13 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
-import 'package:hash/app/modules/game_pass/widgets/game_pass_tab_bar.dart';
 import 'package:intl/intl.dart';
 
 enum HistoryPassCardType { rightImage, leftImage }
 
 class HashPassHistoryView extends StatefulWidget {
-  const HashPassHistoryView({super.key});
+  final TabController tabController;
+  const HashPassHistoryView({super.key, required this.tabController});
 
   @override
   State<HashPassHistoryView> createState() => _HashPassHistoryViewState();
@@ -126,71 +124,29 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
       );
     });
 
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
-                  GamePassTabBar(currentPage: 'history'),
-                  ListView.separated(
-                    scrollDirection: Axis.vertical,
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: historyList.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 20),
-                    itemBuilder: (context, index) {
-                      final item = flattenedList[index];
-                      if (item['isHeader']) {
-                        final month = item['month'];
-                        final displayMonth = _formatMonthYear(
-                          month,
-                        ); // e.g., "August 2025"
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Text(
-                            displayMonth,
-                            style: GoogleFonts.inter(
-                              color: Color(0xFF505050),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        );
-                      } else {
-                        return _buildHistoryPassCard(context, item['data']);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
+    return ListView.separated(
+      scrollDirection: Axis.vertical,
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      itemCount: historyList.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 20),
+      itemBuilder: (context, index) {
+        final item = flattenedList[index];
+        if (item['isHeader']) {
+          final month = item['month'];
+          final displayMonth = _formatMonthYear(month); // e.g., "August 2025"
+          return Text(
+            displayMonth,
+            style: GoogleFonts.inter(
+              color: Color(0xFF505050),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      backgroundColor: Colors.black,
-      elevation: 0,
-      pinned: false,
-      leading: GestureDetector(
-        onTap: () {
-          Get.to(GamePassView());
-        },
-        child: const Icon(Icons.arrow_back, color: Colors.white),
-      ),
-      title: Text(
-        'Hash Pass History',
-        style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
-      ),
+          );
+        } else {
+          return _buildHistoryPassCard(context, item['data']);
+        }
+      },
     );
   }
 
@@ -233,8 +189,8 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
             ),
             Positioned(
               top: 24,
-              left: 40,
-              right: 40,
+              left: 20,
+              right: 20,
               child: Column(
                 crossAxisAlignment:
                     history['type'] == HistoryPassCardType.rightImage
@@ -262,7 +218,7 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
                   ),
                   const SizedBox(height: 30),
                   SizedBox(
-                    width: 300,
+                    width: 400,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(5),
                       child: LinearProgressIndicator(

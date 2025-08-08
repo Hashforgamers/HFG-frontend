@@ -39,7 +39,6 @@ class SplashController extends GetxController {
     if (currentUser != null) {
       try {
         await userController.fetchUserData(currentUser.uid);
-        print('✅ User data fetched in splash screen');
       } catch (e) {
         print('❌ Error fetching user data in splash: $e');
       }
