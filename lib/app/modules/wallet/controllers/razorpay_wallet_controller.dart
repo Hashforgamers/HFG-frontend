@@ -21,7 +21,6 @@ class RazorpayWalletController extends GetxController {
 
     // 🔍 Optional: Set log level for debugging (only in dev builds)
     // _razorpay.setLogLevel(Razorpay.Loglevel.verbose); // Uncomment if needed
-    print("[Razorpay] Initialized");
   }
 
   /// Opens the Razorpay checkout with provided amount
@@ -30,7 +29,6 @@ class RazorpayWalletController extends GetxController {
 
     if (ApiEndpoints.razorpayKey.isEmpty) {
       Get.snackbar("Error", "Razorpay key is missing");
-      print("[Razorpay] Missing Razorpay Key");
       return;
     }
 
@@ -42,17 +40,15 @@ class RazorpayWalletController extends GetxController {
       'description': 'Wallet Top-up',
       'prefill': {
         'contact': '9137757935', // Optional: populate if available
-        'email': 'zeyanansari10@gmail.com'
+        'email': 'zeyanansari10@gmail.com',
       },
       'theme': {'color': '#1E88E5'},
     };
 
     try {
-      print("[Razorpay] Opening checkout with options: $options");
       _razorpay.open(options);
       isPaying.value = true;
     } catch (e) {
-      print("[Razorpay] Error during openCheckout: $e");
       Get.snackbar("Error", e.toString());
       isPaying.value = false;
     }
@@ -61,18 +57,16 @@ class RazorpayWalletController extends GetxController {
   /// Safe method to start payment with stored amount
   void pay(int amount) {
     _tempAmount = amount;
-    print("[Razorpay] Starting payment for ₹$amount");
-    
+
     // Track add money initiated event
     segmentService.onAddMoneyInitiated(amountEntered: amount.toDouble());
-    
+
     openCheckout(amount);
   }
 
   /// Called when payment is successful
   void _handlePaymentSuccess(PaymentSuccessResponse response) {
     final paymentId = response.paymentId ?? 'Unknown';
-    print("[Razorpay] ✅ Payment Success: $paymentId");
 
     // Track add money success event
     segmentService.onAddMoneySuccess(
@@ -90,22 +84,18 @@ class RazorpayWalletController extends GetxController {
 
   /// Called when payment fails
   void _handlePaymentError(PaymentFailureResponse response) {
-    print(
-        "[Razorpay] ❌ Payment Failed → Code: ${response.code}, Message: ${response.message}");
     Get.snackbar("Payment Failed", response.message ?? "Try again later");
     isPaying.value = false;
   }
 
   /// Called when user selects external wallet like Paytm
   void _handleExternalWallet(ExternalWalletResponse response) {
-    print("[Razorpay] 👜 External Wallet Selected: ${response.walletName}");
     Get.snackbar("Wallet", response.walletName ?? "External Wallet");
     isPaying.value = false;
   }
 
   @override
   void onClose() {
-    print("[Razorpay] Disposing & clearing event listeners");
     _razorpay.clear();
     super.onClose();
   }

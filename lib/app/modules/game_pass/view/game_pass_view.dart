@@ -40,7 +40,7 @@ class _GamePassViewState extends State<GamePassView>
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [_buildAppBar()],
         body: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: TabBarView(
             controller: tabController,
             physics: const NeverScrollableScrollPhysics(),

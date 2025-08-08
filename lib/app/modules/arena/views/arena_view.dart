@@ -1,9 +1,7 @@
 // ignore_for_file: avoid_print
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -18,7 +16,6 @@ import 'package:geocoding/geocoding.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
-
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'arena_view_detailed.dart';
 
@@ -336,7 +333,6 @@ class _ArenaViewState extends State<ArenaView> {
         return current >= opening && current <= closing;
       }
     } catch (e) {
-      print('Error determining shop status: $e');
       return false;
     }
   }
@@ -374,7 +370,6 @@ class _ArenaViewState extends State<ArenaView> {
 
       return hour * 60 + minute;
     } catch (e) {
-      print('Error parsing time: $timeStr - $e');
       return null;
     }
   }
@@ -499,7 +494,6 @@ class _ArenaViewState extends State<ArenaView> {
 
   Future<void> _getUserStateAndFilterCafes() async {
     if (_userLatLng == null) {
-      print('User location not available');
       _filteredCafes.assignAll(
         _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
       );
@@ -520,21 +514,11 @@ class _ArenaViewState extends State<ArenaView> {
 
       if (placemarks.isNotEmpty) {
         _userState = placemarks.first.administrativeArea;
-        print('User is in state: $_userState');
 
         // Filter cafes based on state
         _filterCafesByState();
-      } else {
-        print('Could not determine user state');
-        _filteredCafes.assignAll(
-          _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
-        );
-      }
+      } else {}
     } catch (e) {
-      print('Error getting user state: $e');
-      _filteredCafes.assignAll(
-        _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
-      );
     } finally {
       _isLocationFiltering.value = false;
     }
@@ -560,9 +544,6 @@ class _ArenaViewState extends State<ArenaView> {
     }).toList();
 
     _filteredCafes.assignAll(filteredList.cast<Map<String, dynamic>>());
-    print(
-      'Found ${_filteredCafes.length} cafes in $_userState out of ${_cafeCtr.cybercafes.length} total cafes',
-    );
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -870,6 +851,7 @@ class _ArenaViewState extends State<ArenaView> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size.height;
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Obx(() {
@@ -954,7 +936,7 @@ class _ArenaViewState extends State<ArenaView> {
                     children: [
                       Obx(
                         () => Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 20, 0, 8),
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
                           child: Row(
                             children: [
                               Text(

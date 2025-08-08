@@ -22,30 +22,25 @@ class RetryInterceptor extends QueuedInterceptorsWrapper {
     if (_shouldRetry(err)) {
       final requestOptions = err.requestOptions;
       final retryCount = _getRetryCount(requestOptions);
-      
+
       if (retryCount < maxRetries) {
         // Increment retry count
         requestOptions.extra['retryCount'] = retryCount + 1;
-        
-        print('🔄 Retrying request (${retryCount + 1}/$maxRetries): ${requestOptions.path}');
-        
+
         // Wait before retrying
         await Future.delayed(retryDelay * (retryCount + 1));
-        
+
         try {
           // Retry the request
           final response = await _retryRequest(requestOptions);
           return handler.resolve(response);
         } catch (retryError) {
           // If retry also fails, continue with the original error
-          print('❌ Retry failed: $retryError');
           return handler.next(err);
         }
-      } else {
-        print('❌ Max retries reached for: ${requestOptions.path}');
-      }
+      } else {}
     }
-    
+
     // Continue with normal error handling for non-retryable errors
     return handler.next(err);
   }
@@ -60,7 +55,7 @@ class RetryInterceptor extends QueuedInterceptorsWrapper {
 
   Future<Response> _retryRequest(RequestOptions options) async {
     final dio = Dio();
-    
+
     // Copy the original request options
     final retryOptions = Options(
       method: options.method,
@@ -84,4 +79,4 @@ class RetryInterceptor extends QueuedInterceptorsWrapper {
       options: retryOptions,
     );
   }
-} 
+}

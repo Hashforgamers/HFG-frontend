@@ -78,7 +78,7 @@ class GamesController extends GetxController {
     const Color(0xff37ebf3),
     const Color(0xffcb1dcd),
     const Color(0xff710000),
-    const Color(0xff0e213f)
+    const Color(0xff0e213f),
   ];
 
   @override
@@ -99,9 +99,15 @@ class GamesController extends GetxController {
       fbEventsService.onGamePreferencesSet(selectedGames: selectedGames);
 
       segmentService.onGameStarted(
-          gameId: result[0].id.toString(), mode: 'paid', entryFee: 123);
+        gameId: result[0].id.toString(),
+        mode: 'paid',
+        entryFee: 123,
+      );
       fbEventsService.onGameStarted(
-          gameId: result[0].id.toString(), mode: 'paid', entryFee: 123);
+        gameId: result[0].id.toString(),
+        mode: 'paid',
+        entryFee: 123,
+      );
       games.assignAll(result);
     } catch (e) {
       // Track game abandoned event on error
@@ -114,8 +120,12 @@ class GamesController extends GetxController {
         reason: 'Failed to fetch games: $e',
       );
 
-      Get.snackbar('Error', 'Failed to fetch games',
-          backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar(
+        'Error',
+        'Failed to fetch games',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     } finally {
       isLoading(false);
     }
@@ -123,7 +133,11 @@ class GamesController extends GetxController {
 
   // Method to track game completion
   void onGameCompleted(
-      String gameId, String result, String duration, int pointsEarned) {
+    String gameId,
+    String result,
+    String duration,
+    int pointsEarned,
+  ) {
     segmentService.onGameCompleted(
       gameId: gameId,
       result: result,
@@ -140,14 +154,8 @@ class GamesController extends GetxController {
 
   // Method to track game abandonment
   void onGameAbandoned(String gameId, String reason) {
-    segmentService.onGameAbandoned(
-      gameId: gameId,
-      reason: reason,
-    );
-    fbEventsService.onGameAbandoned(
-      gameId: gameId,
-      reason: reason,
-    );
+    segmentService.onGameAbandoned(gameId: gameId, reason: reason);
+    fbEventsService.onGameAbandoned(gameId: gameId, reason: reason);
   }
 }
 
@@ -162,7 +170,10 @@ class GamesSection extends StatelessWidget {
         Text(
           'GAMES BY DEVELOPERS',
           style: GoogleFonts.inter(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 20),
         GetX<GamesController>(
@@ -172,8 +183,11 @@ class GamesSection extends StatelessWidget {
             }
             if (controller.games.isEmpty) {
               return Center(
-                  child: Text('No games found',
-                      style: GoogleFonts.inter(color: Colors.white)));
+                child: Text(
+                  'No games found',
+                  style: GoogleFonts.inter(color: Colors.white),
+                ),
+              );
             }
             return SizedBox(
               height: 190,
@@ -182,11 +196,11 @@ class GamesSection extends StatelessWidget {
                 itemCount: controller.games.length,
                 itemBuilder: (context, index) =>
                     GameCard(game: controller.games[index]),
-                separatorBuilder: (_, __) => SizedBox(width: 8),
+                separatorBuilder: (_, __) => SizedBox(width: 20),
               ),
             );
           },
-        )
+        ),
       ],
     );
   }
@@ -226,7 +240,6 @@ class GameCard extends StatelessWidget {
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(right: 12),
         height: 150,
         width: 115,
         decoration: BoxDecoration(
@@ -254,7 +267,9 @@ class GameCard extends StatelessWidget {
               bottom: 0,
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(15), bottom: Radius.circular(20)),
+                  top: Radius.circular(15),
+                  bottom: Radius.circular(20),
+                ),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
@@ -288,7 +303,9 @@ class GameCard extends StatelessWidget {
                         Text(
                           game.released,
                           style: GoogleFonts.inter(
-                              color: Colors.white70, fontSize: 12),
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

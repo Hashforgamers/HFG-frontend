@@ -63,7 +63,6 @@ class _HomeContentViewState extends State<HomeContentView> {
       final walletController = Get.find<WalletController>();
       if (walletController.isWalletReady &&
           walletController.balance.value == 0) {
-        print('🔄 Ensuring wallet is fetched from home screen');
         walletController.refreshWallet();
       }
     });
@@ -113,8 +112,6 @@ class _HomeContentViewState extends State<HomeContentView> {
       await walletController.refreshWallet();
     }
   }
-
-  EdgeInsets screenPadding = EdgeInsets.symmetric(horizontal: 16.0);
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +177,7 @@ class _HomeContentViewState extends State<HomeContentView> {
               ),
             ),
             Positioned(
-              left: 30,
+              left: 20,
               top: 40,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,7 +259,9 @@ class _HomeContentViewState extends State<HomeContentView> {
       leading: Obx(
         () => Padding(
           padding: const EdgeInsets.only(left: 10),
-          child: _userAvatar(userController.user.value.photoUrl),
+          child: userController.isLoading.value
+              ? _shimmerAvatar()
+              : _userAvatar(userController.user.value.photoUrl),
         ),
       ),
       title: Obx(

@@ -9,7 +9,7 @@ import 'short_video_player.dart';
 class ViralShotsSection extends StatelessWidget {
   final controller = Get.put(YouTubeShortsController());
 
-   ViralShotsSection({super.key});
+  ViralShotsSection({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -19,22 +19,29 @@ class ViralShotsSection extends StatelessWidget {
         Text(
           'TRENDING SHORTS',
           style: GoogleFonts.inter(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 20),
         Obx(() {
           if (controller.isLoading.value) return _shimmerRow();
           if (controller.shorts.isEmpty) {
             return Center(
-                child: Text('No shorts found',
-                    style: GoogleFonts.inter(color: Colors.white)));
+              child: Text(
+                'No shorts found',
+                style: GoogleFonts.inter(color: Colors.white),
+              ),
+            );
           }
 
           return SizedBox(
             height: 220,
-            child: ListView.builder(
+            child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: controller.shorts.length,
+              separatorBuilder: (_, __) => SizedBox(width: 20),
               itemBuilder: (context, index) {
                 final short = controller.shorts[index];
                 return _buildItem(short, index);
@@ -72,10 +79,10 @@ class ViralShotsSection extends StatelessWidget {
 
   Widget _buildItem(YouTubeShort short, int index) {
     return GestureDetector(
-      onTap: () => Get.to(() =>
-          ShortVideoPlayer(shorts: controller.shorts, initialIndex: index)),
+      onTap: () => Get.to(
+        () => ShortVideoPlayer(shorts: controller.shorts, initialIndex: index),
+      ),
       child: Container(
-        margin: const EdgeInsets.only(right: 18),
         width: 125,
         height: 220,
         decoration: BoxDecoration(
@@ -126,7 +133,9 @@ class ViralShotsSection extends StatelessWidget {
                         child: Text(
                           short.channelName,
                           style: GoogleFonts.inter(
-                              color: Colors.white, fontSize: 11),
+                            color: Colors.white,
+                            fontSize: 11,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -137,27 +146,32 @@ class ViralShotsSection extends StatelessWidget {
                   Text(
                     short.title,
                     style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold),
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   ElevatedButton(
-                    onPressed: () => Get.to(() => ShortVideoPlayer(
-                        shorts: controller.shorts, initialIndex: index)),
+                    onPressed: () => Get.to(
+                      () => ShortVideoPlayer(
+                        shorts: controller.shorts,
+                        initialIndex: index,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xff75F94C),
                       minimumSize: const Size(0, 26),
                       padding: const EdgeInsets.symmetric(
-                          vertical: 8, horizontal: 20),
-                      side: const BorderSide(
-                        color: Colors.white,
-                        width: 1.5,
+                        vertical: 8,
+                        horizontal: 20,
                       ),
+                      side: const BorderSide(color: Colors.white, width: 1.5),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25)),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
                     ),
                     child: Text(
                       'Watch',
