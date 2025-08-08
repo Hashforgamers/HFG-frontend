@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
+import 'package:intl/intl.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -144,7 +145,7 @@ class RazorpayController extends GetxController {
       await _remoteRepo.confirmBooking(
         bookingIds: bookingIds,
         paymentId: paymentId,
-        bookDate: DateTime.now().toIso8601String(),
+        bookDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
         paymentMode: paymentMode, // ★ pass it
         voucherCode: null,
       );
