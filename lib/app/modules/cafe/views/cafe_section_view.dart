@@ -176,13 +176,6 @@ class _CafeSectionState extends State<CafeSection> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       color: const Color(0xff0E0E0E),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.6),
-                          blurRadius: 12,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
                     ),
                     child: Stack(
                       children: [
