@@ -21,6 +21,7 @@ class LoginController extends GetxController {
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
   final isLoading = false.obs;
+  String? _cachedPhoneNumber;
 
   String? _verificationId;
 
@@ -29,10 +30,14 @@ class LoginController extends GetxController {
     isLoading.value = true;
 
     try {
+      _cachedPhoneNumber = phoneNumberController.text.trim();
+
+      bool codeSentFlag = false;
+
       await _auth.verifyPhoneNumber(
-        phoneNumber: '+91${phoneNumberController.text.trim()}',
-        verificationCompleted:
-            (firebase_auth.PhoneAuthCredential credential) async {
+        phoneNumber: '+91$_cachedPhoneNumber',
+        timeout: const Duration(seconds: 60), // set timeout
+        verificationCompleted: (firebase_auth.PhoneAuthCredential credential) async {
           await _auth.signInWithCredential(credential);
           await _handleUserNavigation();
         },
@@ -41,14 +46,20 @@ class LoginController extends GetxController {
         },
         codeSent: (String verificationId, int? resendToken) {
           _verificationId = verificationId;
+          codeSentFlag = true;
 
-          // ✅ FIX: Prevent navigation during active frame
           Future.microtask(() {
             Get.to(() => VerifyOtpView(verificationId: verificationId));
           });
         },
         codeAutoRetrievalTimeout: (String verificationId) {
           _verificationId = verificationId;
+
+          // Fallback: If codeSent never fired, force retry
+          if (!codeSentFlag) {
+            _showErrorSnackbar("Timeout", "Verification timed out. Please try again.");
+            Get.offAllNamed(AppRoutes.LOGIN);
+          }
         },
       );
     } catch (e) {
@@ -57,6 +68,7 @@ class LoginController extends GetxController {
       isLoading.value = false;
     }
   }
+
 
   Future<void> verifyOtp(String otp) async {
     try {
