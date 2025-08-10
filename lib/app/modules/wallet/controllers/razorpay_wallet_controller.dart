@@ -27,11 +27,6 @@ class RazorpayWalletController extends GetxController {
   void openCheckout(int amountRupees) {
     if (isPaying.value) return;
 
-    if (ApiEndpoints.razorpayKey.isEmpty) {
-      Get.snackbar("Error", "Razorpay key is missing");
-      return;
-    }
-
     final amountPaise = amountRupees * 100;
     final options = {
       'key': ApiEndpoints.razorpayKeyWallet,

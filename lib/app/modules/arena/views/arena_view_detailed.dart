@@ -410,14 +410,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     showFoodOrderPrompt(context, () {
                       // Navigate to Menu Screen
                       Get.to(
-                        MenuView(
-                          onContinue: (cartItems) {
-                            showBookSlotBottomSheet(
-                              context: context,
-                              cartItems: cartItems,
-                            );
-                          },
-                        ),
+                        MenuViewPage(vendorId: widget.vendorId.toString()),
                       );
                     }).then((response) {
                       // If user tapped "No, thanks" we continue to booking
@@ -839,7 +832,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                           title: widget.title,
                                           gameId: consoleId,
                                           vendorId: widget.vendorId,
-                                          cartItems: cartItems!,
+                                          cartItems: cartItems ?? [],
                                         ),
                                       );
                                     } catch (e) {

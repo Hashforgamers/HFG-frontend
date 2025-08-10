@@ -11,6 +11,7 @@ import 'package:hash/app/modules/cafe/views/cafe_section_view.dart';
 import 'package:hash/app/modules/event/event_banner_view.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
+import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
@@ -43,6 +44,7 @@ class _HomeContentViewState extends State<HomeContentView> {
   void initState() {
     super.initState();
     BlocProvider.of<FcmCubit>(context).registerFCMToken();
+    BlocProvider.of<GamePassCubit>(context).getGamePass();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
       _ensureWalletFetched();
