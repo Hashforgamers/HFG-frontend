@@ -136,7 +136,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
 
           // Main content
           SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 100, 20, 40),
+            padding: const EdgeInsets.fromLTRB(16, 100, 16, 40),
             child: Column(
               children: [
                 _buildMainCoinCard(),
@@ -180,7 +180,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
             scale: _pulseAnimation.value,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(32),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -368,7 +368,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
   Widget _buildStatsCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -510,7 +510,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
   Widget _buildHowToEarnCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -686,7 +686,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
   Widget _buildRedeemCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,

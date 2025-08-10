@@ -1,5 +1,8 @@
+import 'package:device_preview/device_preview.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
@@ -41,9 +44,7 @@ void main() async {
     accentColor: Colors.purpleAccent,
   );
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
@@ -56,7 +57,7 @@ void main() async {
   Get.put(DeepLinkController());
   Get.put(WalletController());
 
-  runApp(const MyApp());
+  runApp(DevicePreview(enabled: !kReleaseMode, builder: (context) => MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -64,25 +65,28 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (context) => HashCoinCubit(),
-        ),
-        BlocProvider(
-          create: (context) => FcmCubit(),
-        ),
-      ],
-      child: ScrollConfiguration(
-        behavior: NoGlowScrollBehavior(),
-        child: GetMaterialApp(
-          debugShowCheckedModeBanner: false, // Hide debug banner for prod
-          title: FlavorConfig.instance.appName,
-          theme: AppTheme.dark,
-          initialRoute: AppRoutes.SPLASH,
-          getPages: AppPages.pages,
-        ),
-      ),
+    return ScreenUtilInit(
+      designSize: const Size(390, 844),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      builder: (context, child) {
+        return MultiBlocProvider(
+          providers: [
+            BlocProvider(create: (context) => HashCoinCubit()),
+            BlocProvider(create: (context) => FcmCubit()),
+          ],
+          child: ScrollConfiguration(
+            behavior: NoGlowScrollBehavior(),
+            child: GetMaterialApp(
+              debugShowCheckedModeBanner: false, // Hide debug banner for prod
+              title: FlavorConfig.instance.appName,
+              theme: AppTheme.dark,
+              initialRoute: AppRoutes.SPLASH,
+              getPages: AppPages.pages,
+            ),
+          ),
+        );
+      },
     );
   }
 }

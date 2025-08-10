@@ -145,7 +145,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         _availableVouchers.value = [];
       }
     } catch (e) {
-      print('Error loading vouchers: $e');
       _availableVouchers.value = [];
     } finally {
       _isLoadingVouchers(false);
@@ -394,7 +393,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               const SizedBox(height: 14),
               widget.cartItems.isNotEmpty
                   ? Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 20,
+                      ),
                       decoration: BoxDecoration(
                         color: Color(0xFF191919),
                         borderRadius: BorderRadius.circular(15),
@@ -563,7 +565,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       bottomNavigationBar: BottomAppBar(
         color: const Color(0xFF0F0F0F),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -659,7 +661,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   Widget _buildVoucherSection() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       decoration: BoxDecoration(
         color: Color(0xFF191919),
         borderRadius: BorderRadius.circular(15),
@@ -1013,7 +1015,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       // Use the new mapping function
       _bookingIdToSlotId = await createBookingWithSlotMap(slotIds);
       List<int> bookingIds = _bookingIdToSlotId.keys.toList();
-      print(slotIds);
 
       // Track booking started event
       if (bookingIds.isNotEmpty) {
@@ -1066,7 +1067,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         await initiatePayment(context, amountInPaisa);
       }
     } catch (e) {
-      print('Error in handleBooking: $e');
       _isProcessingPayment(false);
       _paymentStatus.value = '';
       razorpayController.isPaymentInProgress(false);
@@ -1093,7 +1093,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         paymentMode: paymentMode, // <-- NEW field
         voucherCode: voucherCode, // null unless a voucher really applied
       );
-      print('payment mode : $paymentMode');
 
       // Track booking confirmed event
       if (bookingIds.isNotEmpty) {
@@ -1110,8 +1109,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           duration: duration,
         );
       }
-
-      print('✅ Booking confirmation with voucher successful!');
 
       // Stop loading
       _isProcessingPayment(false);
@@ -1137,8 +1134,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       homeController.onItemTapped(1); // Select arena/cafe tab
       Get.offAllNamed('/home'); // Replace all routes with home
     } catch (e) {
-      print('🔥 Error confirming booking with voucher: $e');
-
       // Release each booking if confirmation fails
       for (final bookingId in bookingIds) {
         try {
@@ -1187,7 +1182,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(payload),
       );
-      print(response.body);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -1207,11 +1201,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         }
         return map;
       } else {
-        print('Failed to create booking. Response: ${response.body}');
         return {};
       }
     } catch (e) {
-      print('Exception during booking: $e');
       return {};
     }
   }
@@ -1257,7 +1249,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               '',
         );
       } else {
-        print('Error creating Razorpay order: ${response.body}');
         _isProcessingPayment(false);
         _paymentStatus.value = '';
         razorpayController.isPaymentInProgress(false);
@@ -1269,7 +1260,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         );
       }
     } catch (e) {
-      print('Payment error: $e');
       _isProcessingPayment(false);
       _paymentStatus.value = '';
       razorpayController.isPaymentInProgress(false);

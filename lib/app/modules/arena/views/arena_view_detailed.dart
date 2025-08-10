@@ -173,8 +173,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
+                  horizontal: 16,
+                  vertical: 20,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,7 +401,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             right: 0,
             bottom: 0,
             child: Padding(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               child: SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -641,7 +641,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               child: Container(
                 height: maxHeight,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
+                  horizontal: 16,
                   vertical: 10,
                 ),
                 child: SingleChildScrollView(
@@ -827,22 +827,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                         child: ElevatedButton(
                           onPressed: slots[selectedIndex]['available'] > 0
                               ? () {
-                                  // Handle proceed action
-                                  debugPrint('Selected index: $selectedIndex');
-                                  debugPrint('Total slots: ${slots.length}');
-                                  debugPrint(
-                                    'Selected slot data: ${slots[selectedIndex]}',
-                                  );
-
                                   final consoleId =
                                       slots[selectedIndex]['console_id'];
-                                  debugPrint(
-                                    'Console ID for booking: $consoleId',
-                                  );
-                                  debugPrint(
-                                    'Console ID type: ${consoleId.runtimeType}',
-                                  );
-
                                   if (consoleId != null && consoleId is int) {
                                     try {
                                       Get.to(
@@ -857,9 +843,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                         ),
                                       );
                                     } catch (e) {
-                                      debugPrint(
-                                        'Error navigating to booking: $e',
-                                      );
                                       Get.snackbar(
                                         'Error',
                                         'Failed to open booking screen',
@@ -869,9 +852,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                       );
                                     }
                                   } else {
-                                    debugPrint(
-                                      'Console ID is null or not int: $consoleId, type: ${consoleId.runtimeType}',
-                                    );
                                     Get.snackbar(
                                       'Error',
                                       'Console ID not found or invalid',
@@ -880,13 +860,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                       colorText: Colors.white,
                                     );
                                   }
-                                  debugPrint(
-                                    'Console ID: ${slots[selectedIndex]['console_id']}',
-                                  );
-                                  debugPrint(
-                                    'Console ID type: ${slots[selectedIndex]['console_id'].runtimeType}',
-                                  );
-                                  debugPrint('Vendor ID: ${widget.vendorId}');
                                 }
                               : null,
                           style: ElevatedButton.styleFrom(

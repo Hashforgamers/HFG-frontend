@@ -46,6 +46,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
           color: Color(0xFF09E6C5),
           onTap: () {},
         ),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -94,8 +95,8 @@ class _GlobalPassViewState extends State<GlobalPassView> {
             ),
             Positioned(
               top: 24,
-              left: type == GlobalPassCardType.rightImage ? 0 : 24,
-              right: type == GlobalPassCardType.rightImage ? 24 : 0,
+              left: type == GlobalPassCardType.rightImage ? 0 : 20,
+              right: type == GlobalPassCardType.rightImage ? 20 : 0,
               child: Column(
                 crossAxisAlignment: type == GlobalPassCardType.rightImage
                     ? CrossAxisAlignment.end

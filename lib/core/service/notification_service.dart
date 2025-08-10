@@ -80,7 +80,6 @@ class NotificationController extends GetxController {
 
   Future<void> _getFCMToken() async {
     fcmToken.value = await _firebaseMessaging.getToken() ?? '';
-    print('FCM Token: ${fcmToken.value}');
     // TODO: Send this token to your backend server for targeted notifications
   }
 
@@ -132,7 +131,6 @@ class NotificationController extends GetxController {
 
   Future<void> _onSelectNotification(String? payload) async {
     if (payload != null) {
-      print('Notification payload: $payload');
       
       // Track push notification clicked event
       segmentService.onPushNotificationClicked(

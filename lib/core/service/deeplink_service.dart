@@ -37,7 +37,6 @@ class DeepLinkController extends GetxController {
   }
 
   void _navigateToDeepLink(Uri uri) {
-    print('Deep Link: $uri');
     if (uri.pathSegments.contains('contest')) {
       Get.toNamed('/contestPage', arguments: {'id': uri.queryParameters['id']});
     } else if (uri.pathSegments.contains('offer')) {
