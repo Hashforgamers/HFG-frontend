@@ -101,7 +101,7 @@ abstract class RemoteRepoInterface {
 
   Future<String> releaseBooking({required BookingModel bookings});
 
-  Future<List<GetPassModel>> getGamePass({required String userId});
+  Future<List<GetPassModel>> getGamePass({required String userId , required String type});
 
   Future<List<GetPassModel>> getUserActiveGamePass({required String userId});
 

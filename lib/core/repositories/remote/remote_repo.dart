@@ -634,7 +634,6 @@ class RemoteRepo implements RemoteRepoInterface {
         throw Exception(errorMessage);
       }
     } catch (e) {
-
       // Handle DioException specifically to extract error message
       if (e is DioException && e.response != null) {
         final statusCode = e.response!.statusCode;
@@ -764,7 +763,6 @@ class RemoteRepo implements RemoteRepoInterface {
         throw Exception(errorMessage);
       }
     } catch (e) {
-
       // Handle DioException specifically to extract error message
       if (e is DioException && e.response != null) {
         final statusCode = e.response!.statusCode;
@@ -836,10 +834,16 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<List<GetPassModel>> getGamePass({required String userId}) async {
+  Future<List<GetPassModel>> getGamePass({
+    required String userId,
+    required String type,
+  }) async {
     final dio = networkProvider.noAuth();
     try {
-      final response = await dio.get(ApiEndpoints.gamePass(userId));
+      final response = await dio.get(
+        ApiEndpoints.gamePass(userId),
+        queryParameters: {'type': type},
+      );
       if (response.statusCode == 200) {
         final List<dynamic> responseData = response.data;
         return responseData

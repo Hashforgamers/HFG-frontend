@@ -1,9 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/app/modules/game_pass/view/cafe_specific_pass_view.dart';
 import 'package:hash/app/modules/game_pass/view/global_pass_view.dart';
 import 'package:hash/app/modules/game_pass/view/hash_pass_history_view.dart';
+
+class GamePassViewPage extends StatelessWidget {
+  const GamePassViewPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => GamePassCubit(),
+      child: const _GamePassViewPage(),
+    );
+  }
+}
+
+class _GamePassViewPage extends StatefulWidget {
+  const _GamePassViewPage();
+
+  @override
+  State<_GamePassViewPage> createState() => __GamePassViewPageState();
+}
+
+class __GamePassViewPageState extends State<_GamePassViewPage> {
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const GamePassView();
+  }
+}
 
 class GamePassView extends StatefulWidget {
   const GamePassView({super.key});
@@ -24,7 +57,20 @@ class _GamePassViewState extends State<GamePassView>
     tabController.addListener(() {
       if (tabController.indexIsChanging == false) {
         tabIndexNotifier.value = tabController.index;
+        // Trigger API call based on selected tab
+        if (tabController.index == 0) {
+          // Global tab
+          context.read<GamePassCubit>().getGamePass(type: 'hash');
+        } else if (tabController.index == 1) {
+          // Cafe-Specific tab
+          context.read<GamePassCubit>().getGamePass(type: 'vendor');
+        }
       }
+    });
+
+    // Initial load for Global tab
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<GamePassCubit>().getGamePass(type: 'hash');
     });
   }
 
@@ -45,8 +91,8 @@ class _GamePassViewState extends State<GamePassView>
             controller: tabController,
             physics: const NeverScrollableScrollPhysics(),
             children: [
-              GlobalPassView(tabController: tabController),
-              CafeSpecificPassView(tabController: tabController),
+              GlobalPassView(tabController: tabController, type: 'hash'),
+              CafeSpecificPassView(tabController: tabController, type: 'vendor'),
               HashPassHistoryView(tabController: tabController),
             ],
           ),

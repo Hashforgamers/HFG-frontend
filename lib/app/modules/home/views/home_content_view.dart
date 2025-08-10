@@ -11,21 +11,20 @@ import 'package:hash/app/modules/cafe/views/cafe_section_view.dart';
 import 'package:hash/app/modules/event/event_banner_view.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
-import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
+import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shop/views/shop_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
-import 'package:hash/app/routes/app_routes.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/app/modules/home/widgets/refer_friend_modal.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -44,7 +43,6 @@ class _HomeContentViewState extends State<HomeContentView> {
   void initState() {
     super.initState();
     BlocProvider.of<FcmCubit>(context).registerFCMToken();
-    BlocProvider.of<GamePassCubit>(context).getGamePass();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
       _ensureWalletFetched();
@@ -115,6 +113,18 @@ class _HomeContentViewState extends State<HomeContentView> {
     }
   }
 
+  void buildReferPop() {
+    showReferFriendModal(
+      context,
+      onReferNow: () {
+        Get.to(const ReferralViewWithController());
+      },
+      onNoThanks: () {
+        Navigator.pop(context);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,7 +169,7 @@ class _HomeContentViewState extends State<HomeContentView> {
 
   Widget _buildGamePassContainer() {
     return GestureDetector(
-      onTap: () => Get.to(GamePassView()),
+      onTap: () => Get.to(GamePassViewPage()),
       child: Container(
         height: 200,
         width: double.infinity,
@@ -365,31 +375,5 @@ class _HomeContentViewState extends State<HomeContentView> {
       highlightColor: Colors.grey.shade600,
       child: const CircleAvatar(radius: 15, backgroundColor: Colors.grey),
     );
-  }
-
-  Future<void> _logout() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('token');
-      await prefs.remove('user_data');
-
-      // Track unexpected logout event
-      segmentService.onUnexpectedLogout(reason: 'user_initiated');
-
-      Get.offAllNamed(AppRoutes.LOGIN);
-    } catch (e) {
-      // Track unexpected logout event with error
-      segmentService.onUnexpectedLogout(reason: 'logout_error: $e');
-
-      Get.offAllNamed(AppRoutes.LOGIN);
-    }
-  }
-
-  void _handleMenuSelection(String value) {
-    if (value == 'Profile') {
-      // Handle profile tap
-    } else if (value == 'Settings') {
-      // Handle settings tap
-    }
   }
 }

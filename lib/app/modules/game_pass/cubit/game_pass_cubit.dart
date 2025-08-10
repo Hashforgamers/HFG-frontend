@@ -11,13 +11,16 @@ class GamePassCubit extends Cubit<GamePassState> {
 
   final remoteRepo = locator<RemoteRepoInterface>();
 
-  Future<void> getGamePass() async {
+  Future<void> getGamePass({required String type}) async {
     emit(GamePassLoading());
 
     final userData = await remoteRepo.getUserFromPreferences();
     if (userData != null) {
       final userId = userData['id'] ?? 0;
-      final response = await remoteRepo.getGamePass(userId: userId.toString());
+      final response = await remoteRepo.getGamePass(
+        userId: userId.toString(),
+        type: type,
+      );
       if (response.isNotEmpty) {
         emit(GamePassLoaded(gamePass: response));
       } else {

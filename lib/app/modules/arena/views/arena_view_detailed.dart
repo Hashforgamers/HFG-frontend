@@ -406,17 +406,35 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () {
-                    showFoodOrderPrompt(context, () {
-                      // Navigate to Menu Screen
+                  onPressed: () async {
+                    final response = await showFoodOrderPrompt(context, () {
                       Get.to(
-                        MenuViewPage(vendorId: widget.vendorId.toString()),
+                        MenuViewPage(
+                          vendorId: widget.vendorId.toString(),
+                          onContinue: (cartItems) {
+                            showBookSlotBottomSheet(
+                              context: context,
+                              cartItems: cartItems,
+                            );
+                          },
+                        ),
                       );
-                    }).then((response) {
-                      // If user tapped "No, thanks" we continue to booking
-                      // Wait for the dialog to close before showing booking bottom sheet
-                      showBookSlotBottomSheet(context: context);
                     });
+                    
+                    // If user chose "No, thanks" or dialog was dismissed, show booking directly
+                    if (context.mounted && response == false) {
+                      showBookSlotBottomSheet(
+                        context: context,
+                        cartItems: null,
+                      );
+                    }
+                    // If response is null (dialog dismissed), also show booking directly
+                    else if (context.mounted && response == null) {
+                      showBookSlotBottomSheet(
+                        context: context,
+                        cartItems: null,
+                      );
+                    }
                   },
 
                   style: ElevatedButton.styleFrom(
@@ -426,7 +444,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     ),
                   ),
                   child: Text(
-                    'Book your slot',
+                    'Continue Booking',
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       color: Colors.white,
@@ -442,11 +460,11 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     );
   }
 
-  Future<void> showFoodOrderPrompt(
+  Future<bool?> showFoodOrderPrompt(
     BuildContext context,
     VoidCallback onYes,
   ) async {
-    await showDialog(
+    return await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) {
@@ -523,8 +541,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          Navigator.pop(context);
-                          onYes(); // Callback for "Yes
+                          Navigator.pop(context, true); // Return true for "Yes"
+                          onYes(); // Callback for "Yes"
                         },
                         child: Container(
                           height: 30,
@@ -549,7 +567,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                       ),
                       SizedBox(width: 10),
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () => Navigator.pop(context, false), // Return false for "No"
                         child: Container(
                           height: 30,
                           width: 100,
@@ -586,10 +604,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     required BuildContext context,
     List<Map<String, dynamic>>? cartItems,
   }) {
-    // Get console data from the controller (API response games = consoles)
     final List<dynamic> consoles = _gamesController.games.toList();
 
-    // Transform API console data to slot format
     final List<Map<String, dynamic>> slots = consoles.map((console) {
       final Map<String, dynamic> consoleMap = console as Map<String, dynamic>;
 
@@ -601,11 +617,11 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         'icon': _getConsoleIcon(consoleName),
         'price': consoleMap['single_slot_price'] ?? 0,
         'available': consoleMap['total_slots'] ?? 0,
-        'console_id': consoleId, // This should be the correct field from API
+        'console_id': consoleId,
         'console_name': consoleName,
         'game_label': _getConsoleType(
           consoleName,
-        ), // Add console type for booking screen
+        ),
         'opening_days': consoleMap['opening_days'] ?? [],
       };
     }).toList();
@@ -863,7 +879,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                             disabledBackgroundColor: Colors.grey.shade800,
                           ),
                           child: Text(
-                            'Proceed',
+                            'Continue to Booking',
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               color: Colors.white,

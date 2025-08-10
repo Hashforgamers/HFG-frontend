@@ -12,7 +12,6 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
-import 'package:hash/core/network/api_endpoints.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
@@ -52,9 +51,6 @@ enum PaymentStage {
   error,
 }
 
-final Rx<PaymentStage> _stage = PaymentStage.idle.obs;
-final RxString _errorMessage = ''.obs;
-
 class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final BookingController bookingController = Get.put(BookingController());
   final RazorpayController razorpayController = Get.put(RazorpayController());
@@ -79,6 +75,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   // Add this field to store the bookingId to slotId mapping
   Map<int, int> _bookingIdToSlotId = {};
+
+  // Payment stage management
+  final Rx<PaymentStage> _stage = PaymentStage.idle.obs;
+  final RxString _errorMessage = ''.obs;
 
   @override
   void initState() {
@@ -105,6 +105,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   @override
   void dispose() {
     _voucherController.dispose();
+    _resetPaymentState();
     super.dispose();
   }
 
@@ -114,6 +115,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       if (!loading && _isProcessingPayment.value) {
         // Booking creation completed, payment will be initiated
         _paymentStatus.value = 'Initiating payment...';
+        _stage.value = PaymentStage.initiatingGateway;
       }
     });
 
@@ -121,6 +123,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     ever(razorpayController.paymentStatus, (String status) {
       if (status.isNotEmpty) {
         _paymentStatus.value = status;
+        if (status.toLowerCase().contains('success')) {
+          _stage.value = PaymentStage.done;
+          _isProcessingPayment(false);
+        } else if (status.toLowerCase().contains('failed') || 
+                   status.toLowerCase().contains('error')) {
+          _stage.value = PaymentStage.error;
+          _errorMessage.value = status;
+          _isProcessingPayment(false);
+        }
       }
     });
 
@@ -128,8 +139,27 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     ever(razorpayController.isPaymentInProgress, (bool inProgress) {
       if (!inProgress && _isProcessingPayment.value) {
         // Payment completed (success or failure)
+        if (_stage.value != PaymentStage.done && _stage.value != PaymentStage.error) {
+          _stage.value = PaymentStage.idle;
+        }
         _isProcessingPayment(false);
         _paymentStatus.value = '';
+      }
+    });
+
+    // Listen to Razorpay payment status changes
+    ever(razorpayController.paymentStatus, (String status) {
+      if (status.isNotEmpty) {
+        _paymentStatus.value = status;
+        if (status.toLowerCase().contains('successful')) {
+          _stage.value = PaymentStage.done;
+          _isProcessingPayment(false);
+        } else if (status.toLowerCase().contains('failed') || 
+                   status.toLowerCase().contains('error')) {
+          _stage.value = PaymentStage.error;
+          _errorMessage.value = status;
+          _isProcessingPayment(false);
+        }
       }
     });
   }
@@ -215,16 +245,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   }
 
   double calculateTotalPrice() {
-    // Calculate subtotal using actual prices from selected slots
-    double subtotal = widget.selectedSlots.fold(0.0, (sum, slot) {
-      double slotPrice = (slot['price'] ?? 50.0).toDouble();
-      return sum + slotPrice;
-    });
+    // Calculate subtotal including slots and cart items
+    double subtotal = calculateSubtotal();
 
     if (_appliedVoucher.value != null) {
-      double discount =
-          subtotal * (_appliedVoucher.value!.discountPercentage / 100);
-      return subtotal - discount;
+      double discount = subtotal * (_appliedVoucher.value!.discountPercentage / 100);
+      double total = subtotal - discount;
+      // Ensure total is not negative
+      return total < 0 ? 0.0 : total;
     }
 
     return subtotal;
@@ -232,36 +260,99 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   double calculateDiscount() {
     if (_appliedVoucher.value != null) {
-      double subtotal = widget.selectedSlots.fold(0.0, (sum, slot) {
-        double slotPrice = (slot['price'] ?? 50.0).toDouble();
-        return sum + slotPrice;
-      });
-      return subtotal * (_appliedVoucher.value!.discountPercentage / 100);
+      double subtotal = calculateSubtotal();
+      double discount = subtotal * (_appliedVoucher.value!.discountPercentage / 100);
+      // Ensure discount doesn't exceed subtotal
+      return discount > subtotal ? subtotal : discount;
     }
     return 0.0;
   }
 
   double calculateSubtotal() {
+    // Calculate slots subtotal with validation
+    double slotsSubtotal = widget.selectedSlots.fold(0.0, (sum, slot) {
+      double slotPrice = (slot['price'] ?? 50.0).toDouble();
+      // Ensure price is not negative
+      slotPrice = slotPrice < 0 ? 0.0 : slotPrice;
+      return sum + slotPrice;
+    });
+
+    // Calculate cart items subtotal with validation
+    double cartSubtotal = _getValidatedCartItems().fold(0.0, (sum, item) {
+      double itemPrice = (item['price'] ?? 0.0).toDouble();
+      int quantity = (item['qty'] ?? 1) as int;
+      
+      // Ensure price and quantity are not negative
+      itemPrice = itemPrice < 0 ? 0.0 : itemPrice;
+      quantity = quantity < 0 ? 0 : quantity;
+      
+      return sum + (itemPrice * quantity);
+    });
+
+    return slotsSubtotal + cartSubtotal;
+  }
+
+  double calculateSlotsSubtotal() {
     return widget.selectedSlots.fold(0.0, (sum, slot) {
       double slotPrice = (slot['price'] ?? 50.0).toDouble();
+      // Ensure price is not negative
+      slotPrice = slotPrice < 0 ? 0.0 : slotPrice;
       return sum + slotPrice;
     });
   }
 
+  double calculateCartSubtotal() {
+    return _getValidatedCartItems().fold(0.0, (sum, item) {
+      double itemPrice = (item['price'] ?? 0.0).toDouble();
+      int quantity = (item['qty'] ?? 1) as int;
+      
+      // Ensure price and quantity are not negative
+      itemPrice = itemPrice < 0 ? 0.0 : itemPrice;
+      itemPrice = itemPrice.isNaN ? 0.0 : itemPrice;
+      quantity = quantity < 0 ? 0 : quantity;
+      
+      return sum + (itemPrice * quantity);
+    });
+  }
+
   Widget _buildPaymentProgress() {
-    if (_stage.value == PaymentStage.idle ||
-        _stage.value == PaymentStage.done) {
+    if (_stage.value == PaymentStage.idle) {
       return const SizedBox.shrink();
     }
 
     String label = switch (_stage.value) {
       PaymentStage.creatingBooking => 'Creating your booking...',
       PaymentStage.debitingWallet => 'Processing wallet payment...',
-      PaymentStage.initiatingGateway => 'Initiating Razorpay...',
+      PaymentStage.initiatingGateway => 'Initiating payment gateway...',
       PaymentStage.confirmingVoucher => 'Confirming voucher...',
-      PaymentStage.openingRazorpay => 'Opening Razorpay...',
+      PaymentStage.openingRazorpay => 'Opening payment gateway...',
+      PaymentStage.done => 'Payment completed successfully!',
       PaymentStage.error => _errorMessage.value,
       _ => '',
+    };
+
+    Color backgroundColor = switch (_stage.value) {
+      PaymentStage.error => Colors.red.withOpacity(0.08),
+      PaymentStage.done => Colors.green.withOpacity(0.08),
+      _ => Colors.blue.withOpacity(0.08),
+    };
+
+    Color borderColor = switch (_stage.value) {
+      PaymentStage.error => Colors.red.withOpacity(0.4),
+      PaymentStage.done => Colors.green.withOpacity(0.4),
+      _ => Colors.blue.withOpacity(0.4),
+    };
+
+    Color textColor = switch (_stage.value) {
+      PaymentStage.error => Colors.red,
+      PaymentStage.done => Colors.green,
+      _ => Colors.blue,
+    };
+
+    IconData icon = switch (_stage.value) {
+      PaymentStage.error => Icons.error,
+      PaymentStage.done => Icons.check_circle,
+      _ => Icons.sync,
     };
 
     return Container(
@@ -269,23 +360,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: _stage.value == PaymentStage.error
-            ? Colors.red.withOpacity(0.08)
-            : Colors.blue.withOpacity(0.08),
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: _stage.value == PaymentStage.error
-              ? Colors.red.withOpacity(0.4)
-              : Colors.blue.withOpacity(0.4),
-        ),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         children: [
           Icon(
-            _stage.value == PaymentStage.error ? Icons.error : Icons.sync,
-            color: _stage.value == PaymentStage.error
-                ? Colors.red
-                : Colors.blue,
+            icon,
+            color: textColor,
             size: 18,
           ),
           const SizedBox(width: 10),
@@ -293,9 +376,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             child: Text(
               label,
               style: GoogleFonts.inter(
-                color: _stage.value == PaymentStage.error
-                    ? Colors.red
-                    : Colors.blue,
+                color: textColor,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -392,7 +473,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 },
               ),
               const SizedBox(height: 14),
-              widget.cartItems.isNotEmpty
+              _getValidatedCartItems().isNotEmpty
                   ? Container(
                       padding: const EdgeInsets.symmetric(
                         vertical: 16,
@@ -405,13 +486,36 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Food',
-                            style: GoogleFonts.inter(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                'Food & Beverages',
+                                style: GoogleFonts.inter(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Color(0xFF338125).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  _getCartItemsSummary(),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Color(0xFF6DFB60),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 6),
                           ListView.separated(
@@ -419,21 +523,42 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                             physics: const NeverScrollableScrollPhysics(),
                             separatorBuilder: (context, index) =>
                                 const SizedBox(height: 10),
-                            itemCount: widget.cartItems.length,
+                            itemCount: _getValidatedCartItems().length,
                             itemBuilder: (context, index) {
-                              final cartItem = widget.cartItems[index];
+                              final cartItem = _getValidatedCartItems()[index];
+                              final int quantity = (cartItem['qty'] ?? 1) as int;
+                              final double itemPrice = (cartItem['price'] ?? 0.0).toDouble();
+                              final double totalItemPrice = itemPrice * quantity;
+                              
                               return Row(
                                 children: [
-                                  Text(
-                                    '${cartItem['name']} (${cartItem['qty'] ?? 0})',
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 14,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          cartItem['name'] ?? 'Unknown Item',
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        if (quantity > 1) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Qty: $quantity × Rs. ${itemPrice.toStringAsFixed(2)}',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.grey.shade400,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                   ),
-                                  const Spacer(),
                                   Text(
-                                    'Rs. ${cartItem['price'].toStringAsFixed(2)}',
+                                    'Rs. ${totalItemPrice.toStringAsFixed(2)}',
                                     style: GoogleFonts.inter(
                                       color: Color(0xFF6DFB60),
                                       fontSize: 12,
@@ -508,9 +633,25 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 double totalPrice = calculateTotalPrice();
                 double discount = calculateDiscount();
                 double subtotal = calculateSubtotal();
+                double slotsSubtotal = calculateSlotsSubtotal();
+                double cartSubtotal = calculateCartSubtotal();
 
                 return Column(
                   children: [
+                    // Show slots subtotal if there are slots
+                    if (widget.selectedSlots.isNotEmpty) ...[
+                      buildPaymentRow(
+                        'Slots',
+                        'Rs. ${slotsSubtotal.toStringAsFixed(2)}',
+                      ),
+                    ],
+                    // Show cart subtotal if there are validated cart items
+                    if (_getValidatedCartItems().isNotEmpty) ...[
+                      buildPaymentRow(
+                        'Food & Beverages',
+                        'Rs. ${cartSubtotal.toStringAsFixed(2)}',
+                      ),
+                    ],
                     buildPaymentRow(
                       'Sub Total',
                       'Rs. ${subtotal.toStringAsFixed(2)}',
@@ -587,7 +728,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: _isProcessingPayment.value
+                    onPressed: (_isProcessingPayment.value || _stage.value != PaymentStage.idle)
                         ? null
                         : () => handleBooking(
                             context,
@@ -606,7 +747,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       ),
                     ),
                     child: Obx(() {
-                      if (_isProcessingPayment.value) {
+                      if (_isProcessingPayment.value || _stage.value != PaymentStage.idle) {
                         return const SizedBox(
                           height: 20,
                           width: 20,
@@ -987,23 +1128,95 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
+  bool _validateBooking() {
+    // Check if slots are selected
+    if (widget.selectedSlots.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No slots selected!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    // Check if total price is valid
+    double totalPrice = calculateTotalPrice();
+    if (totalPrice <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid total price!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    // Check if cart items have valid data
+    final validatedItems = _getValidatedCartItems();
+    if (validatedItems.length != widget.cartItems.length) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Some cart items have invalid data and will be excluded'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+
+    return true;
+  }
+
+  void _resetPaymentState() {
+    _stage.value = PaymentStage.idle;
+    _errorMessage.value = '';
+    _isProcessingPayment(false);
+    _paymentStatus.value = '';
+    razorpayController.isPaymentInProgress(false);
+  }
+
+  String _getCartItemsSummary() {
+    if (widget.cartItems.isEmpty) return '';
+    
+    int totalItems = _getValidatedCartItems().fold(0, (sum, item) {
+      int quantity = (item['qty'] ?? 1) as int;
+      // Ensure quantity is not negative
+      quantity = quantity < 0 ? 0 : quantity;
+      return sum + quantity;
+    });
+    
+    return '$totalItems Item${totalItems > 1 ? 's' : ''}';
+  }
+
+  List<Map<String, dynamic>> _getValidatedCartItems() {
+    return widget.cartItems.where((item) {
+      // Filter out items with invalid data
+      if (item['name'] == null || item['name'].toString().isEmpty) {
+        return false;
+      }
+      
+      double itemPrice = (item['price'] ?? 0.0).toDouble();
+      int quantity = (item['qty'] ?? 1) as int;
+      
+      return itemPrice >= 0 && quantity > 0;
+    }).toList();
+  }
+
   Future<void> handleBooking(
     BuildContext context, {
     required bool isVoucherApplied,
     required bool useWallet,
   }) async {
-    if (widget.selectedSlots.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No slots selected!')));
+    if (!_validateBooking()) {
       return;
     }
+
+    // Reset any previous error states
+    _stage.value = PaymentStage.idle;
+    _errorMessage.value = '';
 
     // Start loading state
     _isProcessingPayment(true);
     _stage.value = PaymentStage.creatingBooking;
-
-    razorpayController.isPaymentInProgress(true);
 
     try {
       double totalPrice = calculateTotalPrice();
@@ -1017,20 +1230,22 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       _bookingIdToSlotId = await createBookingWithSlotMap(slotIds);
       List<int> bookingIds = _bookingIdToSlotId.keys.toList();
 
-      // Track booking started event
-      if (bookingIds.isNotEmpty) {
-        final slotTime = widget.selectedSlots.first['time'] ?? 'Unknown';
-        segmentService.onBookingStarted(
-          cafeId: 'cafe_${widget.gameId}',
-          gameId: widget.gameId.toString(),
-          slotTime: slotTime,
-        );
-        fbEventsService.onBookingStarted(
-          cafeId: 'cafe_${widget.gameId}',
-          gameId: widget.gameId.toString(),
-          slotTime: slotTime,
-        );
+      if (bookingIds.isEmpty) {
+        throw Exception('Failed to create bookings');
       }
+
+      // Track booking started event
+      final slotTime = widget.selectedSlots.first['time'] ?? 'Unknown';
+      segmentService.onBookingStarted(
+        cafeId: 'cafe_${widget.gameId}',
+        gameId: widget.gameId.toString(),
+        slotTime: slotTime,
+      );
+      fbEventsService.onBookingStarted(
+        cafeId: 'cafe_${widget.gameId}',
+        gameId: widget.gameId.toString(),
+        slotTime: slotTime,
+      );
 
       // a) WALLET route
       if (useWallet) {
@@ -1043,33 +1258,26 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         return;
       }
 
-      // ✅ Razorpay flow should be checked before voucher-only path
-      if (_selectedPayment.value == 'gateway') {
-        _stage.value = PaymentStage.initiatingGateway;
-        razorpayController.bookingIdList.value = bookingIds;
-        await initiatePayment(context, amountInPaisa);
-        return;
-      }
-
-      // Only if voucher is applied and not using Razorpay or Wallet
+      // b) VOUCHER route (if voucher is applied and not using Razorpay or Wallet)
       if (isVoucherApplied && _appliedVoucher.value != null) {
         _stage.value = PaymentStage.confirmingVoucher;
-        razorpayController.isPaymentInProgress(false);
         await confirmBooking(
           bookingIds: bookingIds,
           paymentMode: 'voucher',
           voucherCode: _appliedVoucher.value!.code,
         );
         return;
-      } else {
-        // Normal payment flow with Razorpay
-        _stage.value = PaymentStage.initiatingGateway;
-        razorpayController.bookingIdList.value = bookingIds;
-        await initiatePayment(context, amountInPaisa);
       }
+
+      // c) RAZORPAY route (default)
+      _stage.value = PaymentStage.initiatingGateway;
+      razorpayController.bookingIdList.value = bookingIds;
+      await initiatePayment(context, amountInPaisa);
+      
     } catch (e) {
+      _stage.value = PaymentStage.error;
+      _errorMessage.value = e.toString();
       _isProcessingPayment(false);
-      _paymentStatus.value = '';
       razorpayController.isPaymentInProgress(false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1096,29 +1304,33 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       );
 
       // Track booking confirmed event
-      if (bookingIds.isNotEmpty) {
-        final startTime = DateTime.now().toIso8601String();
-        final duration = '${widget.selectedSlots.length} hour(s)';
-        segmentService.onBookingConfirmed(
-          bookingId: bookingIds.first.toString(),
-          startTime: startTime,
-          duration: duration,
-        );
-        fbEventsService.onBookingConfirmed(
-          bookingId: bookingIds.first.toString(),
-          startTime: startTime,
-          duration: duration,
-        );
-      }
+      final startTime = DateTime.now().toIso8601String();
+      final duration = '${widget.selectedSlots.length} hour(s)';
+      segmentService.onBookingConfirmed(
+        bookingId: bookingIds.first.toString(),
+        startTime: startTime,
+        duration: duration,
+      );
+      fbEventsService.onBookingConfirmed(
+        bookingId: bookingIds.first.toString(),
+        startTime: startTime,
+        duration: duration,
+      );
 
-      // Stop loading
+      // Update payment stage to done
+      _stage.value = PaymentStage.done;
       _isProcessingPayment(false);
-      _paymentStatus.value = '';
+      _paymentStatus.value = 'Booking confirmed successfully!';
 
       // Show success message
+      String successMessage = 'Booking confirmed successfully!';
+      if (voucherCode != null) {
+        successMessage = 'Booking confirmed with voucher $voucherCode!';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Booking confirmed with voucher $voucherCode!'),
+          content: Text(successMessage),
           backgroundColor: Colors.green,
         ),
       );
@@ -1134,6 +1346,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       final homeController = Get.find<HomeController>();
       homeController.onItemTapped(1); // Select arena/cafe tab
       Get.offAllNamed('/home'); // Replace all routes with home
+      
     } catch (e) {
       // Release each booking if confirmation fails
       for (final bookingId in bookingIds) {
@@ -1151,9 +1364,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         }
       }
 
-      // Stop loading
+      // Update payment stage to error
+      _stage.value = PaymentStage.error;
+      _errorMessage.value = e.toString();
       _isProcessingPayment(false);
-      _paymentStatus.value = '';
+      _paymentStatus.value = 'Failed to confirm booking';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1220,7 +1435,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     };
 
     try {
+      _stage.value = PaymentStage.openingRazorpay;
       _paymentStatus.value = 'Creating payment order...';
+      
       final response = await http.post(
         Uri.parse(url),
         headers: {"Content-Type": "application/json"},
@@ -1245,8 +1462,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               '',
         );
       } else {
+        _stage.value = PaymentStage.error;
+        _errorMessage.value = 'Failed to create payment order';
         _isProcessingPayment(false);
-        _paymentStatus.value = '';
+        _paymentStatus.value = 'Payment order creation failed';
         razorpayController.isPaymentInProgress(false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1256,8 +1475,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         );
       }
     } catch (e) {
+      _stage.value = PaymentStage.error;
+      _errorMessage.value = e.toString();
       _isProcessingPayment(false);
-      _paymentStatus.value = '';
+      _paymentStatus.value = 'Payment initialization failed';
       razorpayController.isPaymentInProgress(false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

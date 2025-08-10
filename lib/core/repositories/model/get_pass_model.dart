@@ -21,14 +21,14 @@ class GetPassModel {
 
   factory GetPassModel.fromJson(Map<String, dynamic> json) {
     return GetPassModel(
-      daysValid: json['days_valid'],
-      description: json['description'],
-      id: json['id'],
-      name: json['name'],
-      passType: json['pass_type'],
-      price: json['price'],
-      vendorId: json['vendor_id'],
-      vendorName: json['vendor_name'],
+      daysValid: (json['days_valid'] as num).toInt(),
+      description: (json['description'] ?? '').toString(),
+      id: json['id'].toString(),
+      name: (json['name'] ?? '').toString(),
+      passType: (json['pass_type'] ?? '').toString(),
+      price: (json['price'] as num).toDouble(),
+      vendorId: json['vendor_id'].toString(),
+      vendorName: (json['vendor_name'] ?? '').toString(),
     );
   }
 }

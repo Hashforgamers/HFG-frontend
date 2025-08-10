@@ -8,20 +8,26 @@ import 'package:hash/core/repositories/model/food_menu_model.dart';
 
 class MenuViewPage extends StatelessWidget {
   final String vendorId;
-  const MenuViewPage({super.key, required this.vendorId});
+  final void Function(List<Map<String, dynamic>> cartItems) onContinue;
+  const MenuViewPage({
+    super.key,
+    required this.vendorId,
+    required this.onContinue,
+  });
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => GetFoodMenuCubit(),
-      child: _MenuViewPage(vendorId: vendorId),
+      child: _MenuViewPage(vendorId: vendorId, onContinue: onContinue),
     );
   }
 }
 
 class _MenuViewPage extends StatefulWidget {
   final String vendorId;
-  const _MenuViewPage({required this.vendorId});
+  final void Function(List<Map<String, dynamic>> cartItems) onContinue;
+  const _MenuViewPage({required this.vendorId, required this.onContinue});
 
   @override
   State<_MenuViewPage> createState() => __MenuViewPageState();
@@ -47,9 +53,7 @@ class __MenuViewPageState extends State<_MenuViewPage> {
         if (state is GetFoodMenuLoaded) {
           return MenuView(
             foodMenuList: state.foodMenu,
-            onContinue: (List<Map<String, dynamic>> cartItems) {
-              print(cartItems);
-            },
+            onContinue: widget.onContinue,
           );
         }
         return const SizedBox.shrink();
@@ -90,6 +94,43 @@ class _MenuViewState extends State<MenuView> {
     });
   }
 
+  void removeFromCart(Map<String, dynamic> item) {
+    int index = cartItems.indexWhere(
+      (cartItem) => cartItem['name'] == item['name'],
+    );
+
+    setState(() {
+      if (index != -1) {
+        if (cartItems[index]['qty'] > 1) {
+          cartItems[index]['qty'] = cartItems[index]['qty'] - 1;
+        } else {
+          cartItems.removeAt(index);
+        }
+      }
+    });
+  }
+
+  bool isItemInCart(String itemName) {
+    return cartItems.any((cartItem) => cartItem['name'] == itemName);
+  }
+
+  int getItemQuantity(String itemName) {
+    int index = cartItems.indexWhere(
+      (cartItem) => cartItem['name'] == itemName,
+    );
+    return index != -1 ? (cartItems[index]['qty'] ?? 0) : 0;
+  }
+
+  double getTotalPrice() {
+    double total = 0.0;
+    for (var item in cartItems) {
+      double price = (item['price'] ?? 0.0).toDouble();
+      int qty = (item['qty'] ?? 1).toInt();
+      total += price * qty;
+    }
+    return total;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -105,126 +146,172 @@ class _MenuViewState extends State<MenuView> {
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ListView.builder(
-          itemCount: widget.foodMenuList.length,
-          itemBuilder: (context, categoryIndex) {
-            final category = widget.foodMenuList[categoryIndex];
-            
-            // Skip categories with no menu items
-            if (category.menus == null || category.menus!.isEmpty) {
-              return const SizedBox.shrink();
-            }
+          itemCount: widget.foodMenuList
+              .expand((category) => category.menus ?? [])
+              .length,
+          itemBuilder: (context, itemIndex) {
+            // Flatten all menu items from all categories
+            final allMenuItems = widget.foodMenuList
+                .expand((category) => category.menus ?? [])
+                .toList();
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Category Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                  child: Text(
-                    category.name ?? 'Category',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                // Menu Items in this category
-                ...category.menus!.map((menuItem) => Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: ListTile(
-                    leading: SizedBox(
-                      width: 70,
-                      height: 50,
-                      child: menuItem.imageUrl != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                menuItem.imageUrl!,
+            final menuItem = allMenuItems[itemIndex];
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: ListTile(
+                leading: SizedBox(
+                  width: 70,
+                  height: 50,
+                  child: menuItem.imageUrl != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            menuItem.imageUrl!,
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
                                 width: 50,
                                 height: 50,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 50,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[800],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(
-                                      Icons.fastfood,
-                                      color: Colors.white,
-                                      size: 24,
-                                    ),
-                                  );
-                                },
-                              ),
-                            )
-                          : Container(
-                              width: 50,
-                              height: 50,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[800],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.fastfood,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[800],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.fastfood,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                ),
+                title: Text(
+                  menuItem.name ?? 'Unknown Item',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: Text(
+                  menuItem.description ?? 'No description available',
+                  style: GoogleFonts.inter(
+                    color: Color(0xFFC9C9C9),
+                    fontSize: 8,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Rs. ${menuItem.price?.toStringAsFixed(0) ?? '0'}',
+                      style: GoogleFonts.inter(
+                        color: Color(0xFF6DFB60),
+                        fontSize: 10,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (isItemInCart(menuItem.name ?? ''))
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () => removeFromCart({
+                              'name': menuItem.name,
+                              'description': menuItem.description,
+                              'price': menuItem.price,
+                              'imageUrl': menuItem.imageUrl,
+                              'id': menuItem.id,
+                              'qty': 1,
+                            }),
+                            child: Container(
+                              width: 20,
+                              height: 20,
                               decoration: BoxDecoration(
-                                color: Colors.grey[800],
-                                borderRadius: BorderRadius.circular(8),
+                                color: Color(0xFF6A6969),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Icon(
-                                Icons.fastfood,
+                                Icons.remove,
                                 color: Colors.white,
-                                size: 24,
+                                size: 14,
                               ),
                             ),
-                    ),
-                    title: Text(
-                      menuItem.name ?? 'Unknown Item',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      menuItem.description ?? 'No description available',
-                      style: GoogleFonts.inter(
-                        color: Color(0xFFC9C9C9),
-                        fontSize: 8,
-                        fontWeight: FontWeight.normal,
-                      ),
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Rs. ${menuItem.price?.toStringAsFixed(0) ?? '0'}',
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${getItemQuantity(menuItem.name ?? '')}',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => addToCart({
+                              'name': menuItem.name,
+                              'description': menuItem.description,
+                              'price': menuItem.price,
+                              'imageUrl': menuItem.imageUrl,
+                              'id': menuItem.id,
+                              'qty': 1,
+                            }),
+                            child: Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: Color(0xFF6DFB60),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.add,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      GestureDetector(
+                        onTap: () => addToCart({
+                          'name': menuItem.name,
+                          'description': menuItem.description,
+                          'price': menuItem.price,
+                          'imageUrl': menuItem.imageUrl,
+                          'id': menuItem.id,
+                          'qty': 1,
+                        }),
+                        child: Text(
+                          '+ Add',
                           style: GoogleFonts.inter(
-                            color: Color(0xFF6DFB60),
+                            color: Color(0xFF6A6969),
                             fontSize: 10,
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        GestureDetector(
-                          onTap: () => addToCart({
-                            'name': menuItem.name,
-                            'description': menuItem.description,
-                            'price': menuItem.price,
-                            'imageUrl': menuItem.imageUrl,
-                            'id': menuItem.id,
-                            'qty': 1,
-                          }),
-                          child: Text(
-                            '+ Add',
-                            style: GoogleFonts.inter(
-                              color: Color(0xFF6A6969),
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )).toList(),
-                const SizedBox(height: 8),
-              ],
+                      ),
+                  ],
+                ),
+              ),
             );
           },
         ),
@@ -270,6 +357,15 @@ class _MenuViewState extends State<MenuView> {
                     style: GoogleFonts.inter(
                       color: Color(0xFFA09F9F),
                       fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Rs. ${getTotalPrice().toStringAsFixed(0)}',
+                    style: GoogleFonts.inter(
+                      color: Color(0xFF6DFB60),
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -359,7 +455,7 @@ class _MenuViewState extends State<MenuView> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Rs. ${cartItem['price']?.toStringAsFixed(0) ?? '0'}',
+                        'Rs. ${((cartItem['price'] ?? 0.0) * (cartItem['qty'] ?? 1)).toStringAsFixed(0)}',
                         style: GoogleFonts.inter(
                           color: Color(0xFF6DFB60),
                           fontSize: 12,

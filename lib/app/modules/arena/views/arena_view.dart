@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:hash/app/modules/arena/views/search_result.dart';
+import 'package:hash/app/modules/arena/widgets/glass_search_bar.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
@@ -518,7 +520,6 @@ class _ArenaViewState extends State<ArenaView> {
         // Filter cafes based on state
         _filterCafesByState();
       } else {}
-    } catch (e) {
     } finally {
       _isLocationFiltering.value = false;
     }
@@ -544,307 +545,6 @@ class _ArenaViewState extends State<ArenaView> {
     }).toList();
 
     _filteredCafes.assignAll(filteredList.cast<Map<String, dynamic>>());
-  }
-
-  /* ────────────────────────────────────────────────────────────────────────── */
-  /*  UI HELPERS                                                               */
-  /* ────────────────────────────────────────────────────────────────────────── */
-
-  Widget _glassSearchBar() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(25),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          height: 50,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(.15),
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: const Color(0xff338125).withOpacity(.2)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.search, color: Color(0xff338125)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  controller: _searchCtl,
-                  style: GoogleFonts.inter(color: Colors.white),
-                  cursorColor: const Color(0xff338125),
-                  decoration: InputDecoration(
-                    hintText: 'Search location',
-                    hintStyle: GoogleFonts.inter(color: Colors.white70),
-                    border: InputBorder.none,
-                  ),
-                  onSubmitted: (_) => _searchAndGo(),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 18,
-                  color: Color(0xff338125),
-                ),
-                onPressed: _searchAndGo,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _locateMeBtn() {
-    return Positioned(
-      bottom: 280,
-      right: 16,
-      child: FloatingActionButton(
-        heroTag: 'locateMe',
-        mini: true,
-        backgroundColor: const Color(0xff338125),
-        onPressed: _userLatLng == null
-            ? null
-            : () => _smoothMoveCamera(_userLatLng!),
-        child: const Icon(Icons.my_location, color: Colors.black),
-      ),
-    );
-  }
-
-  Widget _cafeCarousel() {
-    // if (_cafeCtr.isLoading.value) {
-    //   return const Center(child: RainbowGlowingLoader(size: 50));
-    // }
-    if (_filteredCafes.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (_userState != null)
-              Text(
-                'No cafes available in $_userState',
-                style: GoogleFonts.inter(color: Colors.white70),
-              )
-            else
-              const Text('No cybercafes available'),
-            const SizedBox(height: 8),
-            if (_userState != null)
-              TextButton(
-                onPressed: () {
-                  _showingAllCafes.value = true;
-                  _filteredCafes.assignAll(
-                    _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
-                  );
-                },
-                child: Text(
-                  'Show all cafes',
-                  style: GoogleFonts.inter(color: const Color(0xff338125)),
-                ),
-              ),
-          ],
-        ),
-      );
-    }
-
-    _refreshCafeMarkers();
-
-    const dummyImgs = [
-      'https://next-level.gg/assets/cafes/11.jpg',
-      'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
-      'https://media.assettype.com/afkgaming/2024-04/e11d1515-bb0d-48a5-9ad9-1ddfdef286ef/Untitled_design_117_.png',
-      'https://i.ytimg.com/vi/3ZPtQAKKado/maxresdefault.jpg',
-      'https://pvplayer.com/wp-content/uploads/2024/04/kafejka-gamingowa.jpg',
-    ];
-
-    return SizedBox(
-      height: 230,
-      child: ListView.separated(
-        physics: const BouncingScrollPhysics(),
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(left: 8, top: 10),
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemCount: _filteredCafes.length,
-        itemBuilder: (_, i) {
-          final cafe = _filteredCafes[i];
-          return _gradientCard(
-            cafe: cafe,
-            img: dummyImgs[i % dummyImgs.length],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _gradientCard({
-    required Map<String, dynamic> cafe,
-    required String img,
-  }) {
-    final pos = _latLngFromCafe(cafe);
-    final id = '${cafe['id'] ?? cafe.hashCode}';
-
-    return GestureDetector(
-      onTap: () async {
-        _selectedCafeId = id;
-        _smoothMoveCamera(pos, zoom: 16);
-        _refreshCafeMarkers();
-        await Future.delayed(const Duration(milliseconds: 600));
-        await Get.to(
-          () => ArenaDetailView(
-            images: img,
-            title: cafe['cafe_name'] ?? 'Unknown Cafe',
-            address: _formatAddress(cafe),
-            openingHours: _formatOpeningHours(cafe),
-            availableGames: cafe['available_games'] ?? ['N/A'],
-            amenities: cafe['amenities'] ?? [],
-            phone: cafe['phone'] ?? 'Phone not available',
-            email: cafe['email'] ?? 'Email not available',
-            ownerName: cafe['owner_name'] ?? 'Owner not available',
-            reviews: cafe['reviews'] ?? ['Great place!'],
-            vendorId: cafe['vendor_id'] ?? 0,
-          ),
-        );
-      },
-      child: Container(
-        width: 300,
-        height: 230,
-        clipBehavior: Clip.hardEdge,
-        decoration: BoxDecoration(
-          color: const Color(0xff0E0E0E),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Stack(
-          children: [
-            // Background Image
-            CachedNetworkImage(
-              imageUrl: img,
-              width: 300,
-              height: 230,
-              fit: BoxFit.cover,
-              placeholder: (_, __) =>
-                  const Center(child: RainbowGlowingLoader(size: 40)),
-              errorWidget: (_, __, ___) =>
-                  const Center(child: Icon(Icons.error, color: Colors.white)),
-            ),
-
-            // Blur + Gradient Footer
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(8),
-                ),
-                child: Container(
-                  height: 100,
-                  decoration: const BoxDecoration(
-                    // ⬇️ Smooth transparent-to-black gradient
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Color.fromARGB(50, 0, 0, 0),
-                        Color.fromARGB(120, 0, 0, 0),
-                        Color.fromARGB(200, 0, 0, 0),
-                      ],
-                    ),
-                  ),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                    child: Container(
-                      // 👇 Transparent color here helps blend blur + gradient
-                      color: Colors.transparent,
-                      padding: const EdgeInsets.all(12),
-                      child: _cardFooter(cafe, pos, id),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _cardFooter(Map<String, dynamic> cafe, LatLng pos, String id) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.black.withOpacity(0), Colors.black.withOpacity(.8)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            cafe['cafe_name'] ?? 'Unknown',
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(
-                Icons.circle,
-                color: _isShopOpen(cafe) ? Colors.green : Colors.red,
-                size: 8,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                _isShopOpen(cafe) ? 'Open' : 'Closed',
-                style: GoogleFonts.inter(
-                  color: _isShopOpen(cafe) ? Colors.green : Colors.red,
-                ),
-              ),
-              const SizedBox(width: 8),
-              FutureBuilder<Map<String, String>>(
-                future: _distanceInfo(pos, id),
-                builder: (_, snap) {
-                  final dist = snap.data?['distance'] ?? '--';
-                  final dur = snap.data?['duration'] ?? '--';
-                  return Text(
-                    '$dist · $dur',
-                    style: GoogleFonts.inter(color: Colors.white70),
-                  );
-                },
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => _drawRoute(pos),
-                child: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xff338125),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.route, size: 18, color: Colors.black),
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => _openExternalMaps(pos),
-                child: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xff338125),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.map, size: 18, color: Colors.black),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -912,7 +612,10 @@ class _ArenaViewState extends State<ArenaView> {
                                 vertical: 16,
                               ),
                             ),
-                            onSubmitted: (_) => _searchAndGo(),
+                            // onSubmitted: (_) => _searchAndGo(),
+                            onTap: () {
+                              Get.to(SearchResult());
+                            },
                           ),
                         ),
                       ),
