@@ -1,5 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
+import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:intl/intl.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:hash/core/network/api_endpoints.dart';
@@ -12,15 +15,20 @@ import '../arena/views/past_booking_screen.dart';
 import '../home/controllers/home_controller.dart';
 import '../arena/controllers/booking_controller.dart';
 
+enum PaymentType { slotBooking, passPurchase }
+
 class RazorpayController extends GetxController {
   late Razorpay _razorpay;
   final _remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final userController = Get.find<UserController>();
 
   RxList<int> bookingIdList = <int>[].obs;
+  RxList<int> slotIdsList = <int>[].obs; // Add this line to store slot IDs
   RxBool isPaymentInProgress = false.obs;
   RxString paymentStatus = ''.obs;
+  PaymentType? _currentPaymentType;
 
   @override
   void onInit() {
@@ -45,6 +53,8 @@ class RazorpayController extends GetxController {
     required double amount, // in ₹
     required String contact,
     required String email,
+    PaymentType paymentType =
+        PaymentType.slotBooking, // Default to slot booking
   }) {
     final options = {
       'key': ApiEndpoints.razorpayKeyWallet,
@@ -58,6 +68,7 @@ class RazorpayController extends GetxController {
     try {
       isPaymentInProgress(true); // ★ start spinner sooner
       paymentStatus.value = 'Opening payment gateway…';
+      _currentPaymentType = paymentType; // Store the payment type
 
       // Track payment initiated event
       segmentService.onPaymentInitiated(
@@ -75,6 +86,7 @@ class RazorpayController extends GetxController {
     } catch (e) {
       isPaymentInProgress(false);
       paymentStatus.value = '';
+      _currentPaymentType = null;
       Get.snackbar(
         'Checkout Error',
         'Failed to open Razorpay.',
@@ -104,11 +116,36 @@ class RazorpayController extends GetxController {
       paymentGateway: 'razorpay',
     );
 
-    await _confirmBooking(
-      bookingIds: bookingIdList.toList(),
-      paymentId: r.paymentId!,
-      paymentMode: 'gateway', // ★
-    );
+    // Handle different payment types
+    if (_currentPaymentType == PaymentType.slotBooking) {
+      // Call confirm booking only for slot bookings
+      await _confirmBooking(
+        bookingIds: bookingIdList.toList(),
+        paymentId: r.paymentId!,
+        paymentMode: 'gateway',
+        slotIds: slotIdsList.toList(),
+      );
+    } else if (_currentPaymentType == PaymentType.passPurchase) {
+      final user = await _remoteRepo.getUserFromPreferences();
+
+      await _remoteRepo.purchasePass(
+        userId: user?['id'].toString() ?? '',
+        passModel: PurchasePassModel(
+          cafePassId: bookingIdList.first.toString(),
+          paymentId: r.paymentId!,
+          paymentMode: 'gateway',
+        ),
+      );
+      paymentStatus.value = 'Payment successful! Pass purchased successfully!';
+      _reset();
+      Get.snackbar(
+        'Success!',
+        'Pass purchased successfully!',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+    }
   }
 
   void _handlePaymentError(PaymentFailureResponse r) {
@@ -142,7 +179,8 @@ class RazorpayController extends GetxController {
   Future<void> _confirmBooking({
     required List<int> bookingIds,
     required String paymentId,
-    required String paymentMode, // ★ now required
+    required String paymentMode,
+    required List<int> slotIds,
   }) async {
     try {
       await _remoteRepo.confirmBooking(
@@ -169,7 +207,7 @@ class RazorpayController extends GetxController {
       // here call the release booking api
       await _remoteRepo.releaseBooking(
         bookings: BookingModel(
-          slotId: bookingIds.first,
+          slotId: slotIds.first,
           bookingId: bookingIds.first,
           bookDate: DateTime.now().toIso8601String(),
         ),
@@ -187,5 +225,8 @@ class RazorpayController extends GetxController {
   void _reset() {
     isPaymentInProgress(false);
     paymentStatus.value = '';
+    _currentPaymentType = null;
+    bookingIdList.clear();
+    slotIdsList.clear();
   }
 }

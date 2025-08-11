@@ -10,6 +10,7 @@ import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
+import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
@@ -818,7 +819,7 @@ class RemoteRepo implements RemoteRepoInterface {
     try {
       final response = await dio.post(
         ApiEndpoints.releaseBooking,
-        data: bookings.toJson(),
+        data: {'bookings': bookings},
       );
       if (response.statusCode == 200) {
         return response.data['message'];
@@ -898,6 +899,30 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       debugPrint('Error getting food menu: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String> purchasePass({
+    required String userId,
+    required PurchasePassModel passModel,
+  }) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.purchasePass(userId),
+        data: passModel.toJson(),
+      );
+      if (response.statusCode == 200) {
+        return response.data['message'];
+      } else {
+        throw Exception(
+          'Failed to purchase pass. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error purchasing pass: $e');
       rethrow;
     }
   }

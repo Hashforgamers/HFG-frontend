@@ -22,18 +22,25 @@ class WalletController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // Listen to changes in user ID and fetch wallet when it becomes available
-    ever(userController.id, (String userId) {
-      if (userId.isNotEmpty) {
-        fetchWallet();
-      }
-    });
+    // Ensure UserController is available before proceeding
+    try {
+      // Listen to changes in user ID and fetch wallet when it becomes available
+      ever(userController.id, (String userId) {
+        if (userId.isNotEmpty) {
+          fetchWallet();
+        }
+      });
 
-    // Also try to fetch wallet immediately if user ID is already available
-    if (userController.userId.isNotEmpty) {
-      fetchWallet();
-    } else {
-      // Set up a retry mechanism
+      // Also try to fetch wallet immediately if user ID is already available
+      if (userController.userId.isNotEmpty) {
+        fetchWallet();
+      } else {
+        // Set up a retry mechanism
+        _setupRetryMechanism();
+      }
+    } catch (e) {
+      print('❌ WalletController initialization error: $e');
+      // Set up a retry mechanism if UserController is not available yet
       _setupRetryMechanism();
     }
   }
@@ -41,8 +48,22 @@ class WalletController extends GetxController {
   void _setupRetryMechanism() {
     // Retry wallet fetch after a delay if user ID becomes available
     Future.delayed(const Duration(seconds: 2), () {
-      if (userController.userId.isNotEmpty && balance.value == 0) {
-        fetchWallet();
+      try {
+        if (userController.userId.isNotEmpty && balance.value == 0) {
+          fetchWallet();
+        }
+      } catch (e) {
+        print('❌ WalletController retry error: $e');
+        // Retry again after another delay
+        Future.delayed(const Duration(seconds: 3), () {
+          try {
+            if (userController.userId.isNotEmpty && balance.value == 0) {
+              fetchWallet();
+            }
+          } catch (e) {
+            print('❌ WalletController final retry error: $e');
+          }
+        });
       }
     });
   }

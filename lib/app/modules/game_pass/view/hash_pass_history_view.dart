@@ -1,6 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/game_pass/cubit/get_game_pass_cubit.dart';
+import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:intl/intl.dart';
 
 enum HistoryPassCardType { rightImage, leftImage }
@@ -14,81 +17,27 @@ class HashPassHistoryView extends StatefulWidget {
 }
 
 class _HashPassHistoryViewState extends State<HashPassHistoryView> {
-  final List<Map<String, dynamic>> historyList = [
-    {
-      'image': 'assets/images/globalpass2.png',
-      'title': 'Monthly Hash Pass',
-      'info': '30 Days @ Rs.1500',
-      'progress': 0.6,
-      'subtitle': 'Expires 5/08/25',
-      'color': Color(0xFF6DFB60),
-      'type': HistoryPassCardType.rightImage,
-      'timestamp': DateTime(2025, 8, 5),
-    },
-    {
-      'image': 'assets/images/historypass1.png',
-      'title': 'Dragon Cafe Hash Pass',
-      'info': '24 Hours @ Rs.500',
-      'progress': 0.4,
-      'subtitle': 'Expires 5/08/25',
-      'color': Color(0xFF6DFB60),
-      'type': HistoryPassCardType.leftImage,
-      'timestamp': DateTime(2025, 8, 5),
-    },
-    {
-      'image': 'assets/images/historypass2.png',
-      'title': 'Retro Gaming Studio Pass',
-      'info': '24 Hours @ Rs.500',
-      'progress': 1.0,
-      'subtitle': 'Expired on 27/07/25',
-      'color': Color(0xFFFBA544),
-      'type': HistoryPassCardType.leftImage,
-      'timestamp': DateTime(2025, 7, 27),
-    },
-    {
-      'image': 'assets/images/historypass1.png',
-      'title': 'Dragon Cafe Hash Pass',
-      'info': '24 Hours @ Rs.500',
-      'progress': 1.0,
-      'subtitle': 'Expired on 27/07/25',
-      'color': Color(0xFF6DFB60),
-      'type': HistoryPassCardType.leftImage,
-      'timestamp': DateTime(2025, 7, 27),
-    },
-    {
-      'image': 'assets/images/globalpass1.png',
-      'title': 'Daily Hash Pass',
-      'info': '24 Hours @ Rs.500',
-      'progress': 1.0,
-      'subtitle': 'Expired on 27/07/25',
-      'color': Color(0xFFE6D009),
-      'type': HistoryPassCardType.leftImage,
-      'timestamp': DateTime(2025, 7, 27),
-    },
-    {
-      'image': 'assets/images/historypass1.png',
-      'title': 'Dragon Cafe Hash Pass',
-      'info': '24 Hours @ Rs.500',
-      'progress': 0.0,
-      'subtitle': 'Expired on 27/07/25',
-      'color': Color(0xFF6DFB60),
-      'type': HistoryPassCardType.leftImage,
-      'timestamp': DateTime(2025, 7, 27),
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // Load history data when the view is initialized
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<GetGamePassCubit>().getGamePassHistory();
+    });
+  }
 
-  Map<String, List<Map<String, dynamic>>> getGroupedHistory() {
-    Map<String, List<Map<String, dynamic>>> grouped = {};
+  Map<String, List<GetPassModel>> getGroupedHistory(List<GetPassModel> passes) {
+    Map<String, List<GetPassModel>> grouped = {};
 
-    for (var item in historyList) {
-      DateTime timestamp = item['timestamp'];
+    for (var pass in passes) {
+      DateTime timestamp = pass.timestamp;
       String monthYear =
           '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}';
 
       if (!grouped.containsKey(monthYear)) {
         grouped[monthYear] = [];
       }
-      grouped[monthYear]!.add(item);
+      grouped[monthYear]!.add(pass);
     }
 
     return grouped;
@@ -114,53 +63,145 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
 
   @override
   Widget build(BuildContext context) {
-    final groupedHistory = getGroupedHistory();
-    final flattenedList = <Map<String, dynamic>>[];
-
-    groupedHistory.forEach((monthYear, items) {
-      flattenedList.add({'isHeader': true, 'month': monthYear});
-      flattenedList.addAll(
-        items.map((item) => {'isHeader': false, 'data': item}),
-      );
-    });
-
-    return ListView.separated(
-      scrollDirection: Axis.vertical,
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
-      itemCount: historyList.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 20),
-      itemBuilder: (context, index) {
-        final item = flattenedList[index];
-        if (item['isHeader']) {
-          final month = item['month'];
-          final displayMonth = _formatMonthYear(month); // e.g., "August 2025"
-          return Text(
-            displayMonth,
-            style: GoogleFonts.inter(
-              color: Color(0xFF505050),
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+    return BlocBuilder<GetGamePassCubit, GetGamePassState>(
+      builder: (context, state) {
+        if (state is GetGamePassLoading) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        } else if (state is GetGamePassError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Error',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  state.message,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    context.read<GetGamePassCubit>().getGamePassHistory();
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
             ),
           );
-        } else {
-          return _buildHistoryPassCard(context, item['data']);
+        } else if (state is GetGamePassLoaded) {
+          final passes = state.gamePass;
+          if (passes.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.history,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No Game Pass History',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'You haven\'t purchased any game passes yet.',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey[500],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final groupedHistory = getGroupedHistory(passes);
+          final flattenedList = <dynamic>[];
+
+          groupedHistory.forEach((monthYear, items) {
+            flattenedList.add({'isHeader': true, 'month': monthYear});
+            flattenedList.addAll(
+              items.map((item) => {'isHeader': false, 'data': item}),
+            );
+          });
+
+          return ListView.separated(
+            scrollDirection: Axis.vertical,
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            itemCount: flattenedList.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 20),
+            itemBuilder: (context, index) {
+              final item = flattenedList[index];
+              if (item['isHeader']) {
+                final month = item['month'];
+                final displayMonth = _formatMonthYear(month);
+                return Text(
+                  displayMonth,
+                  style: GoogleFonts.inter(
+                    color: Color(0xFF505050),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              } else {
+                return _buildHistoryPassCard(context, item['data']);
+              }
+            },
+          );
         }
+
+        return const Center(
+          child: Text('No data available'),
+        );
       },
     );
   }
 
   GestureDetector _buildHistoryPassCard(
     BuildContext context,
-    Map<String, dynamic> history,
+    GetPassModel pass,
   ) {
+    final cardType = pass.id.hashCode % 2 == 0 
+        ? HistoryPassCardType.rightImage 
+        : HistoryPassCardType.leftImage;
+
     return GestureDetector(
-      onTap: () {},
+      onTap: () {
+        // Handle tap on pass card
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${pass.name} - ${pass.vendorName}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
       child: Container(
         height: 190,
         width: MediaQuery.of(context).size.width,
         decoration: BoxDecoration(
-          border: Border.all(color: history['color'], width: 1.5),
+          border: Border.all(color: Color(pass.statusColor), width: 1.5),
           borderRadius: BorderRadius.circular(25),
         ),
         child: Stack(
@@ -168,10 +209,22 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
             ClipRRect(
               borderRadius: BorderRadius.circular(25),
               child: Image.asset(
-                history['image'],
+                pass.displayImage,
                 height: 190,
                 width: MediaQuery.of(context).size.width,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 190,
+                    width: MediaQuery.of(context).size.width,
+                    color: Colors.grey[300],
+                    child: Icon(
+                      Icons.games,
+                      size: 48,
+                      color: Colors.grey[600],
+                    ),
+                  );
+                },
               ),
             ),
             ClipRRect(
@@ -193,25 +246,27 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
               right: 20,
               child: Column(
                 crossAxisAlignment:
-                    history['type'] == HistoryPassCardType.rightImage
+                    cardType == HistoryPassCardType.rightImage
                     ? CrossAxisAlignment.end
                     : CrossAxisAlignment.start,
                 children: [
                   Image.asset('assets/icons/crown.png', height: 26, width: 26),
                   const SizedBox(height: 4),
                   Text(
-                    history['title'],
+                    pass.name,
                     style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    history['info'],
+                    pass.infoText,
                     style: GoogleFonts.inter(
-                      color: history['color'],
+                      color: Color(pass.statusColor),
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
@@ -222,11 +277,11 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(5),
                       child: LinearProgressIndicator(
-                        value: history['progress'],
+                        value: pass.progressValue,
                         minHeight: 4,
                         backgroundColor: Colors.white,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          history['color'],
+                          Color(pass.statusColor),
                         ),
                       ),
                     ),
@@ -236,10 +291,12 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       (() {
-                        DateTime now = DateTime.now();
-                        bool isActive =
-                            (now.year == history['timestamp'].year) &&
-                            (now.month == history['timestamp'].month);
+                        final now = DateTime.now();
+                        final passDate = pass.timestamp;
+                        bool isActive = (now.year == passDate.year) &&
+                            (now.month == passDate.month) &&
+                            pass.progressValue > 0.0 &&
+                            pass.progressValue < 1.0;
                         return isActive
                             ? Text(
                                 'Active',
@@ -251,7 +308,7 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
                             : SizedBox.shrink();
                       })(),
                       Text(
-                        history['subtitle'],
+                        pass.expiryText,
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 10,

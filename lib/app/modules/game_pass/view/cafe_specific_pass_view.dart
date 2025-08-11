@@ -47,11 +47,11 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
         _paymentStatus.value = status;
         if (status.toLowerCase().contains('successful')) {
           _clearAllProcessingStates();
-          _showSuccessMessage();
+          // Success message is already handled by RazorpayController
         } else if (status.toLowerCase().contains('failed') || 
                    status.toLowerCase().contains('error')) {
           _clearAllProcessingStates();
-          _showErrorMessage(status);
+          // Error message is already handled by RazorpayController
         }
       }
     });
@@ -68,25 +68,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
     _processingPasses.clear();
   }
 
-  void _showSuccessMessage() {
-    Get.snackbar(
-      'Success!',
-      'Cafe pass purchased successfully!',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.green,
-      colorText: Colors.white,
-    );
-  }
 
-  void _showErrorMessage(String message) {
-    Get.snackbar(
-      'Payment Failed',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.red,
-      colorText: Colors.white,
-    );
-  }
 
   Future<void> _purchaseCafePass(GetPassModel pass) async {
     final passId = pass.id;
@@ -130,20 +112,29 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
         amount: pass.price,
         contact: _userController.user.value.contact?.electronicAddress?.mobileNo ?? '',
         email: _userController.user.value.contact?.electronicAddress?.emailId ?? '',
+        paymentType: PaymentType.passPurchase,
       );
 
       // Store pass info for payment success handling
       _razorpayController.bookingIdList.value = [int.parse(pass.id)];
+      // Clear slot IDs for pass purchases since passes don't have slots
+      _razorpayController.slotIdsList.clear();
 
     } catch (e) {
       _processingPasses[passId] = false;
-      _showErrorMessage('Failed to initiate payment: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to initiate payment: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 
   Future<String> _createRazorpayOrder(double amount) async {
     final amountInPaisa = (amount * 100).toInt();
-    final receiptId = "cafe_pass_order_${DateTime.now().millisecondsSinceEpoch}";
+    final receiptId = "pass_rcpt_${DateTime.now().millisecondsSinceEpoch}";
     
     final url = '${FlavorConfig.getBaseUrl('booking')}/api/create_order';
     final payload = {

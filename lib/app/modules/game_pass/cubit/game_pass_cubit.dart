@@ -13,19 +13,24 @@ class GamePassCubit extends Cubit<GamePassState> {
 
   Future<void> getGamePass({required String type}) async {
     emit(GamePassLoading());
-
-    final userData = await remoteRepo.getUserFromPreferences();
-    if (userData != null) {
-      final userId = userData['id'] ?? 0;
-      final response = await remoteRepo.getGamePass(
-        userId: userId.toString(),
-        type: type,
-      );
-      if (response.isNotEmpty) {
-        emit(GamePassLoaded(gamePass: response));
+    try {
+      final userData = await remoteRepo.getUserFromPreferences();
+      if (userData != null) {
+        final userId = userData['id']?.toString() ?? '0';
+        final response = await remoteRepo.getGamePass(
+          userId: userId,
+          type: type,
+        );
+        if (response.isNotEmpty) {
+          emit(GamePassLoaded(gamePass: response));
+        } else {
+          emit(GamePassError(message: 'No game pass found for $type'));
+        }
       } else {
-        emit(GamePassError(message: 'No game pass found'));
+        emit(GamePassError(message: 'User not found'));
       }
+    } catch (e) {
+      emit(GamePassError(message: 'Failed to load game passes: $e'));
     }
   }
 }

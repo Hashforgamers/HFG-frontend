@@ -3,6 +3,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/service/segment_sdk_service.dart';
 import '../../../../core/service_locator.dart';
+import '../../../data/services/user_controller.dart';
 import 'wallet_controller.dart';
 
 class RazorpayWalletController extends GetxController {
@@ -10,6 +11,7 @@ class RazorpayWalletController extends GetxController {
   final isPaying = false.obs;
   int? _tempAmount;
   final segmentService = locator<SegmentSdkService>();
+  final userController = Get.find<UserController>();
 
   @override
   void onInit() {
@@ -28,14 +30,20 @@ class RazorpayWalletController extends GetxController {
     if (isPaying.value) return;
 
     final amountPaise = amountRupees * 100;
+    
+    // Get dynamic user data
+    final userName = userController.user.value.name ?? 'User';
+    final userEmail = userController.user.value.contact?.electronicAddress?.emailId ?? '';
+    final userPhone = userController.user.value.contact?.electronicAddress?.mobileNo ?? '';
+    
     final options = {
       'key': ApiEndpoints.razorpayKeyWallet,
       'amount': amountPaise,
-      'name': 'HashforGamers',
+      'name': userName,
       'description': 'Wallet Top-up',
       'prefill': {
-        'contact': '9137757935', // Optional: populate if available
-        'email': 'zeyanansari10@gmail.com',
+        'contact': userPhone.isNotEmpty ? userPhone : null,
+        'email': userEmail.isNotEmpty ? userEmail : null,
       },
       'theme': {'color': '#1E88E5'},
     };

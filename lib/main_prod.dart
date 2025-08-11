@@ -56,6 +56,7 @@ void main() async {
   Get.put(GamesController(), permanent: true);
   Get.put(NotificationController());
   Get.put(DeepLinkController());
+  // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
 
   runApp(DevicePreview(enabled: !kReleaseMode, builder: (context) => MyApp()));

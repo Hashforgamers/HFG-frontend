@@ -25,7 +25,7 @@ class _GamePassPage extends StatefulWidget {
 class __GamePassPageState extends State<_GamePassPage> {
   @override
   void initState() {
-    BlocProvider.of<GetGamePassCubit>(context).getGamePass();
+    BlocProvider.of<GetGamePassCubit>(context).getActiveGamePass();
     super.initState();
   }
 

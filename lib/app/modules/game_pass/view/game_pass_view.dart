@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
+import 'package:hash/app/modules/game_pass/cubit/get_game_pass_cubit.dart';
 import 'package:hash/app/modules/game_pass/view/cafe_specific_pass_view.dart';
 import 'package:hash/app/modules/game_pass/view/global_pass_view.dart';
 import 'package:hash/app/modules/game_pass/view/hash_pass_history_view.dart';
@@ -12,8 +13,11 @@ class GamePassViewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => GamePassCubit(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (context) => GamePassCubit()),
+        BlocProvider(create: (context) => GetGamePassCubit()),
+      ],
       child: const _GamePassViewPage(),
     );
   }
@@ -64,6 +68,9 @@ class _GamePassViewState extends State<GamePassView>
         } else if (tabController.index == 1) {
           // Cafe-Specific tab
           context.read<GamePassCubit>().getGamePass(type: 'vendor');
+        } else if (tabController.index == 2) {
+          // History tab
+          context.read<GetGamePassCubit>().getGamePassHistory();
         }
       }
     });

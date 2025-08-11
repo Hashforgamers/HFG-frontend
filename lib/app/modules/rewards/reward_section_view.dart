@@ -19,7 +19,7 @@ class RewardsSection extends StatelessWidget {
       children: [
         GestureDetector(
           onTap: () => _onRedeemPressed(context),
-          child: _buildPill(icon: "assets/icons/union.png", amount: "$hashCoin"),
+          child: _buildPill(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_loog_kze6kr.png", amount: "$hashCoin"),
         ),
         GestureDetector(
           onTap: () => Get.to(WalletScreen()),
@@ -29,7 +29,7 @@ class RewardsSection extends StatelessWidget {
             return Stack(
               children: [
                 _buildPill(
-                  icon: "assets/icons/coin.png",
+                  icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_coin_logo_hy62ou.png",
                   amount: isLoading ? "..." : "₹$walletBalance",
                 ),
                 Positioned(
@@ -85,7 +85,7 @@ class RewardsSection extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset(icon, height: 18, width: 18),
+              Image.network(icon, height: 18, width: 18),
               const SizedBox(width: 8),
               Text(
                 amount,
