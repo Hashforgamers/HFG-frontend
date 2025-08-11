@@ -334,17 +334,19 @@ class _CafeSectionState extends State<CafeSection> {
         selectedLabel = label;
         setState(() {});
       },
-      child: Container(
-        height: 40,
-        width: itemWidth,
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white70,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: GoogleFonts.inter(color: Colors.black, fontSize: 12),
+      child: Expanded(
+        child: Container(padding: EdgeInsets.symmetric(horizontal: 8),
+          height: 30,
+          // width: itemWidth,
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.white70,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(color: Colors.black, fontSize: 12),
+            ),
           ),
         ),
       ),

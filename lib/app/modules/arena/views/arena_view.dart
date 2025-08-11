@@ -1011,11 +1011,11 @@ class _ArenaViewState extends State<ArenaView> {
               left: 0,
               right: 0,
               bottom: 0,
-              top: 77.h,
+              top: 100.h,
               child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(25),
-                  bottomRight: Radius.circular(25),
+                borderRadius: const BorderRadius.all(
+                 Radius.circular(25),
+
                 ),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
