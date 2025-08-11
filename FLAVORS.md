@@ -113,6 +113,26 @@ flutter build appbundle --flavor dev -t lib/main_dev.dart
 # Production App Bundle
 flutter build appbundle --flavor prod -t lib/main_prod.dart
 ```
+# Android (AAB - Recommended)
+shorebird release android --flavor prod -t lib/main_prod.dart
+
+# iOS (on macOS)
+shorebird release ios --flavor prod -t lib/main_prod.dart
+
+# Android Patch
+shorebird patch android --flavor prod -t lib/main_prod.dart
+
+# iOS Patch
+shorebird patch ios --flavor prod -t lib/main_prod.dart
+
+# APK build
+shorebird build apk --flavor prod -t lib/main_prod.dart
+
+# AAB build
+shorebird build appbundle --flavor prod -t lib/main_prod.dart
+
+# IPA build (macOS only)
+shorebird build ios --flavor prod -t lib/main_prod.dart
 
 ## Flavor Differences
 

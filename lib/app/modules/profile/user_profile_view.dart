@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/game_pass/page/game_pass_page.dart';
 import 'package:hash/app/modules/hash_coin/pages/hash_coin_page.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
@@ -45,6 +46,7 @@ class UserProfileView extends StatelessWidget {
               icon: CupertinoIcons.bag,
               title: 'My Orders',
               onTap: () {
+                Get.to(const GamePassPage());
               },
             ),
             _buildProfileOption(
