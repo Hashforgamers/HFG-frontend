@@ -1,4 +1,5 @@
 // Enhanced ArenaDetailView with full dark theme and polished UI
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
@@ -9,6 +10,7 @@ import 'dart:ui';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 import '../controllers/games_controller.dart';
 
@@ -88,12 +90,24 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                           currentPage = index;
                         });
                       },
-                      itemBuilder: (context, index) => Image.network(
-                        imageUrls[index],
+                      itemBuilder: (context, index) => CachedNetworkImage(
+                        imageUrl: imageUrls[index],
                         width: double.infinity,
                         fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            const Center(child: RainbowGlowingLoader(size: 40)),
+                        errorWidget: (_, _, _) => Container(
+                          color: Colors.grey,
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.image_not_supported,
+                            size: 40,
+                            color: Colors.white54,
+                          ),
+                        ),
                       ),
                     ),
+
                     Positioned(
                       top: 40,
                       left: 16,

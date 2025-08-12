@@ -995,7 +995,7 @@ class _ArenaViewState extends State<ArenaView> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(25),
           border: Border.all(color: Colors.white.withOpacity(0.05)),
-          color: Colors.transparent,
+          color: Colors.red,
         ),
         clipBehavior: Clip.hardEdge,
         child: Stack(
@@ -1005,13 +1005,24 @@ class _ArenaViewState extends State<ArenaView> {
               width: 330.w,
               height: 150.h,
               fit: BoxFit.cover,
+              placeholder: (_, _) =>
+                  Center(child: RainbowGlowingLoader(size: 40)),
+              errorWidget: (_, _, _) => Container(
+                color: Colors.grey,
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.image_not_supported,
+                  color: Colors.white54,
+                  size: 40,
+                ),
+              ),
             ),
             // Glassmorphism overlay for bottom half
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              top: 77.h,
+              top: 80,
               child: ClipRRect(
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(25),

@@ -187,10 +187,10 @@ class _CafeSectionState extends State<CafeSection> {
                             fit: BoxFit.cover,
                             width: MediaQuery.of(context).size.width - 30,
                             height: 250,
-                            placeholder: (_, __) => const Center(
+                            placeholder: (_, _) => const Center(
                               child: RainbowGlowingLoader(size: 40),
                             ),
-                            errorWidget: (_, __, ___) => Container(
+                            errorWidget: (_, _, _) => Container(
                               color: Colors.grey,
                               alignment: Alignment.center,
                               child: const Icon(
