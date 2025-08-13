@@ -23,7 +23,7 @@ class ArenaDetailView extends StatefulWidget {
   final String phone;
   final String email;
   final String ownerName;
-  final String images;
+  final List<dynamic> images; 
   final int vendorId;
   final List<dynamic> reviews;
 
@@ -38,8 +38,8 @@ class ArenaDetailView extends StatefulWidget {
     required this.email,
     required this.ownerName,
     required this.reviews,
-    required this.images,
     required this.vendorId,
+    required this.images,
   });
 
   @override
@@ -65,9 +65,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> imageUrls = widget.images.split(
-      ',',
-    ); // Assuming images is a comma-separated string
+    final List<String> imageUrls = widget.images.map((image) => image['url']?.toString() ?? '').toList().cast<String>();
     int currentPage = 0;
     final PageController pageController = PageController();
 
@@ -455,7 +453,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                         ),
                       );
                     });
-                    
+
                     // If user chose "No, thanks" or dialog was dismissed, show booking directly
                     if (context.mounted && response == false) {
                       showBookSlotBottomSheet(
@@ -524,8 +522,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                         width: 70,
                         height: 60,
                         child: Center(
-                          child: Image.asset(
-                            'assets/images/menu1.png',
+                          child: CachedNetworkImage(
+                            imageUrl:
+                                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
                             width: 70,
                             height: 60,
                             fit: BoxFit.contain,
@@ -537,8 +536,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                         width: 70,
                         height: 60,
                         child: Center(
-                          child: Image.asset(
-                            'assets/images/menu2.png',
+                          child: CachedNetworkImage(
+                            imageUrl:
+                                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
                             width: 70,
                             height: 60,
                             fit: BoxFit.contain,
@@ -550,8 +550,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                         width: 70,
                         height: 60,
                         child: Center(
-                          child: Image.asset(
-                            'assets/images/menu3.png',
+                          child: CachedNetworkImage(
+                            imageUrl:
+                                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
                             width: 70,
                             height: 60,
                             fit: BoxFit.contain,
@@ -602,7 +603,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                       ),
                       SizedBox(width: 10),
                       GestureDetector(
-                        onTap: () => Navigator.pop(context, false), // Return false for "No"
+                        onTap: () => Navigator.pop(
+                          context,
+                          false,
+                        ), // Return false for "No"
                         child: Container(
                           height: 30,
                           width: 100,
@@ -654,9 +658,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         'available': consoleMap['total_slots'] ?? 0,
         'console_id': consoleId,
         'console_name': consoleName,
-        'game_label': _getConsoleType(
-          consoleName,
-        ),
+        'game_label': _getConsoleType(consoleName),
         'opening_days': consoleMap['opening_days'] ?? [],
       };
     }).toList();

@@ -1,5 +1,6 @@
 import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
+import 'package:hash/core/repositories/model/extra_services_model.dart';
 import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
@@ -42,6 +43,7 @@ abstract class RemoteRepoInterface {
     String? voucherCode,
     required String paymentMode,
     bool isGamePass = false,
+    List<ExtraServiceItem>? extraServices,
   });
 
   // Address related methods

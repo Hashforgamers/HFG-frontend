@@ -8,7 +8,6 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hash/app/modules/arena/views/search_result.dart';
-import 'package:hash/app/modules/arena/widgets/glass_search_bar.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
@@ -173,24 +172,6 @@ class _ArenaViewState extends State<ArenaView> {
       _playZoomAnimation();
     }
   }
-
-  /* ────────────────────────────────────────────────────────────────────────── */
-  /*  SEARCH                                                                   */
-  /* ────────────────────────────────────────────────────────────────────────── */
-
-  Future<void> _searchAndGo() async {
-    final query = _searchCtl.text.trim();
-    if (query.isEmpty) return;
-    try {
-      final res = await locationFromAddress(query);
-      if (res.isNotEmpty) {
-        _smoothMoveCamera(LatLng(res[0].latitude, res[0].longitude));
-      }
-    } catch (_) {
-      Get.snackbar('Error', 'Location not found');
-    }
-  }
-
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  MARKERS                                                                  */
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -700,16 +681,12 @@ class _ArenaViewState extends State<ArenaView> {
                                   itemCount: _filteredCafes.length,
                                   itemBuilder: (_, i) {
                                     final cafe = _filteredCafes[i];
-                                    final img = [
-                                      'https://next-level.gg/assets/cafes/11.jpg',
-                                      'https://sm.ign.com/ign_in/screenshot/default/mobile-gaming-3_gsmk.jpg',
-                                      'https://media.assettype.com/afkgaming/2024-04/e11d1515-bb0d-48a5-9ad9-1ddfdef286ef/Untitled_design_117_.png',
-                                      'https://i.ytimg.com/vi/3ZPtQAKKado/maxresdefault.jpg',
-                                      'https://pvplayer.com/wp-content/uploads/2024/04/kafejka-gamingowa.jpg',
-                                    ][i % 5];
+                                    final img = cafe['images'].length == 0
+                                        ? 'https://next-level.gg/assets/cafes/11.jpg'
+                                        : cafe['images'][0]['url'];
                                     final pos = _latLngFromCafe(cafe);
                                     final id = '${cafe['id'] ?? cafe.hashCode}';
-                                    return _buildCafeCard(id, pos, img, cafe);
+                                    return _buildCafeCard(id, pos, img, cafe, cafe['images'] as List<dynamic>);
                                   },
                                 ),
                         ),
@@ -730,6 +707,7 @@ class _ArenaViewState extends State<ArenaView> {
     LatLng pos,
     String img,
     Map<String, dynamic> cafe,
+    List<dynamic> images,
   ) {
     return GestureDetector(
       onTap: () async {
@@ -739,7 +717,7 @@ class _ArenaViewState extends State<ArenaView> {
         await Future.delayed(const Duration(milliseconds: 600));
         await Get.to(
           () => ArenaDetailView(
-            images: img,
+            images: images,
             title: cafe['cafe_name'] ?? 'Unknown Cafe',
             address: _formatAddress(cafe),
             openingHours: _formatOpeningHours(cafe),

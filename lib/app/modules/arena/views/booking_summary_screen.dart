@@ -15,6 +15,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
+import '../../../../core/repositories/model/extra_services_model.dart';
 import '../../../data/services/user_controller.dart';
 import '../../../../core/repositories/model/booking_model.dart';
 
@@ -1324,6 +1325,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       razorpayController.slotIdsList.value = widget.selectedSlots
           .map((slot) => slot['slot_id'] as int)
           .toList();
+      // Set the cart items for the razorpay controller
+      razorpayController.cartItemsList.value = _getValidatedCartItems();
       await initiatePayment(context, amountInPaisa);
     } catch (e) {
       _stage.value = PaymentStage.error;
@@ -1346,6 +1349,20 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     bool isGamePass = false,
   }) async {
     try {
+      // Parse cart items to ExtraServiceItem format
+      List<ExtraServiceItem> extraServices = [];
+      final validatedCartItems = _getValidatedCartItems();
+      
+      if (validatedCartItems.isNotEmpty) {
+        extraServices = validatedCartItems.map((item) {
+          return ExtraServiceItem(
+            categoryId: (item['category_id'] ?? 0) as int,
+            itemId: (item['id'] ?? 0) as int,
+            quantity: (item['qty'] ?? 1) as int,
+          );
+        }).toList();
+      }
+
       await _remoteRepo.confirmBooking(
         bookingIds: bookingIds,
         paymentId:
@@ -1354,6 +1371,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         paymentMode: paymentMode,
         voucherCode: voucherCode,
         isGamePass: isGamePass,
+        extraServices: extraServices,
       );
 
       // Track booking confirmed event

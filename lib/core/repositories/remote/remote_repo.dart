@@ -7,6 +7,7 @@ import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
+import 'package:hash/core/repositories/model/extra_services_model.dart';
 import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
@@ -286,6 +287,7 @@ class RemoteRepo implements RemoteRepoInterface {
     required String paymentMode, // ✅ ADD THIS
     String? voucherCode,
     bool isGamePass = false,
+    List<ExtraServiceItem>? extraServices,
   }) async {
     final dio = networkProvider.noAuth();
     try {
@@ -300,6 +302,11 @@ class RemoteRepo implements RemoteRepoInterface {
       // Add voucher code if provided
       if (voucherCode != null && voucherCode.isNotEmpty) {
         requestData["voucher_code"] = voucherCode;
+      }
+
+      // Add extra services if provided
+      if (extraServices != null && extraServices.isNotEmpty) {
+        requestData["extra_services"] = extraServices.map((item) => item.toJson()).toList();
       }
 
       final response = await dio.post(

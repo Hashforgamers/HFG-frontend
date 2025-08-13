@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
-import 'package:hash/app/modules/game_pass/cubit/get_game_pass_cubit.dart';
+import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:http/http.dart' as http;
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -168,17 +168,17 @@ class _GlobalPassViewState extends State<GlobalPassView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<GetGamePassCubit, GetGamePassState>(
+    return BlocBuilder<GamePassCubit, GamePassState>(
       builder: (context, state) {
-        if (state is GetGamePassLoading) {
+        if (state is GamePassLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (state is GetGamePassError) {
+        if (state is GamePassError) {
           return _buildError(context, state.message);
         }
 
-        if (state is GetGamePassLoaded) {
+        if (state is GamePassLoaded) {
           final passes = state.gamePass;
           if (passes.isEmpty) {
             return _buildEmpty(context);
@@ -405,7 +405,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
           const SizedBox(height: 12),
           ElevatedButton(
             onPressed: () {
-              context.read<GetGamePassCubit>().getActiveGamePass();
+              context.read<GamePassCubit>().getGamePass(type: widget.type);
             },
             child: const Text('Retry'),
           ),

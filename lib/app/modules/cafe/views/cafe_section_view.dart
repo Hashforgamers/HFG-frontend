@@ -32,7 +32,7 @@ class _CafeSectionState extends State<CafeSection> {
     'Location',
     'Price Range',
     'Distance',
-    'Favourtites',
+    'Favorites',
   ];
 
   @override
@@ -51,8 +51,6 @@ class _CafeSectionState extends State<CafeSection> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -126,11 +124,11 @@ class _CafeSectionState extends State<CafeSection> {
               separatorBuilder: (_, __) => const SizedBox(width: 20),
               itemBuilder: (context, index) {
                 final cafe = widget._cafeController.cybercafes[index];
-                final imageUrl =
-                    cafe['cover'] ??
-                    'https://next-level.gg/assets/cafes/11.jpg'; // Fallback
+                final imageUrl = cafe['images'].length == 0
+                    ? 'https://next-level.gg/assets/cafes/11.jpg'
+                    : cafe['images'][0]['url'] ??
+                          'https://next-level.gg/assets/cafes/11.jpg';
                 final isOpen = cafe['status'] == 'active';
-
                 return GestureDetector(
                   onTap: () {
                     // Track gaming cafe viewed event
@@ -260,7 +258,7 @@ class _CafeSectionState extends State<CafeSection> {
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
-                                          '7 Slots',
+                                          'Consoles',
                                           style: GoogleFonts.inter(
                                             color: Colors.white,
                                             fontSize: 11,
@@ -339,36 +337,6 @@ class _CafeSectionState extends State<CafeSection> {
       placeholder: (_, _) =>
           const Center(child: RainbowGlowingLoader(size: 10)),
       errorWidget: (_, _, _) => const Icon(Icons.error, color: Colors.red),
-    );
-  }
-
-  Widget _buildCafeContainer({
-    required String label,
-    required bool isSelected,
-    required double screenWidth,
-  }) {
-    final totalSpacing = (4 - 1) * 18.0;
-    final itemWidth = (screenWidth - totalSpacing) / 4;
-
-    return GestureDetector(
-      onTap: () {
-        selectedLabel = label;
-        setState(() {});
-      },
-      child: Container(
-        height: 40,
-        width: itemWidth,
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white70,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: GoogleFonts.inter(color: Colors.black, fontSize: 12),
-          ),
-        ),
-      ),
     );
   }
 }
