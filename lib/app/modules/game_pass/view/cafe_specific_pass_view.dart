@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,6 +15,7 @@ import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/payment/razorpay_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 class CafeSpecificPassView extends StatefulWidget {
   final TabController tabController;
@@ -190,7 +192,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
     );
   }
 
-  GestureDetector _buildCafePassCard(
+  Widget _buildCafePassCard(
     BuildContext context,
     GetPassModel pass,
   ) {
@@ -206,11 +208,22 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(25),
-              child: Image.asset(
-                'assets/images/cafepass1.png',
+              child: CachedNetworkImage(
+                imageUrl: pass.imageUrl ?? '',
                 height: 200,
                 width: MediaQuery.of(context).size.width,
                 fit: BoxFit.cover,
+                placeholder: (_, _) =>
+                    const Center(child: RainbowGlowingLoader(size: 40)),
+                errorWidget: (_, _, _) => Container(
+                  color: Colors.grey,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.white54,
+                    size: 40,
+                  ),
+                ),
               ),
             ),
             Positioned(
@@ -340,7 +353,23 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
   Widget _buildLabel() {
     return Column(
       children: [
-        Image.asset('assets/icons/cafePassIcon.png', height: 50, width: 50),
+        CachedNetworkImage(
+          imageUrl:
+              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/cafePassIcon_qps6te.png',
+          height: 70,
+          width: 70,
+          placeholder: (_, _) =>
+              const Center(child: RainbowGlowingLoader(size: 40)),
+          errorWidget: (_, _, _) => Container(
+            color: Colors.grey,
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.image_not_supported,
+              color: Colors.white54,
+              size: 40,
+            ),
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
           'All Participating Cafes',

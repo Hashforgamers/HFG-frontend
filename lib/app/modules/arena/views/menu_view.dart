@@ -1,10 +1,12 @@
 import 'dart:math';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/cubit/get_food_menu_cubit.dart';
 import 'package:hash/core/repositories/model/food_menu_model.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 class MenuViewPage extends StatelessWidget {
   final String vendorId;
@@ -146,126 +148,136 @@ class _MenuViewState extends State<MenuView> {
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ListView.builder(
-          itemCount: widget.foodMenuList
-              .expand((category) => category.menus ?? [])
-              .length,
-          itemBuilder: (context, itemIndex) {
-            // Flatten all menu items from all categories
-            final allMenuItems = widget.foodMenuList
-                .expand((category) => category.menus ?? [])
-                .toList();
-
-            final menuItem = allMenuItems[itemIndex];
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: ListTile(
-                leading: SizedBox(
-                  width: 70,
-                  height: 50,
-                  child: menuItem.imageUrl != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            menuItem.imageUrl!,
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.fastfood,
-                                  color: Colors.white,
-                                  size: 24,
-                                ),
-                              );
-                            },
-                          ),
-                        )
-                      : Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[800],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.fastfood,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                ),
-                title: Text(
-                  menuItem.name ?? 'Unknown Item',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+          itemCount: widget.foodMenuList.length,
+          itemBuilder: (context, categoryIndex) {
+            final category = widget.foodMenuList[categoryIndex];
+            final categoryId = category.id;
+            final categoryName = category.name;
+            
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Category header
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    categoryName ?? 'Unknown Category',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                subtitle: Text(
-                  menuItem.description ?? 'No description available',
-                  style: GoogleFonts.inter(
-                    color: Color(0xFFC9C9C9),
-                    fontSize: 8,
-                    fontWeight: FontWeight.normal,
-                  ),
-                ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Rs. ${menuItem.price?.toStringAsFixed(0) ?? '0'}',
-                      style: GoogleFonts.inter(
-                        color: Color(0xFF6DFB60),
-                        fontSize: 10,
+                // Items in this category
+                ...(category.menus ?? []).map((menuItem) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: ListTile(
+                    leading: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: CachedNetworkImage(
+                        imageUrl: menuItem.imageUrl ?? '',
+                        height: 50,
+                        width: 50,
+                        fit: BoxFit.contain,
+                        placeholder: (_, _) =>
+                            const Center(child: RainbowGlowingLoader(size: 10)),
+                        errorWidget: (_, _, _) =>
+                            const Icon(Icons.error, color: Colors.red),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    if (isItemInCart(menuItem.name ?? ''))
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          GestureDetector(
-                            onTap: () => removeFromCart({
-                              'name': menuItem.name,
-                              'description': menuItem.description,
-                              'price': menuItem.price,
-                              'imageUrl': menuItem.imageUrl,
-                              'id': menuItem.id,
-                              'qty': 1,
-                            }),
-                            child: Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                color: Color(0xFF6A6969),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(
-                                Icons.remove,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                            ),
+                    title: Text(
+                      menuItem.name ?? 'Unknown Item',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      menuItem.description ?? 'No description available',
+                      style: GoogleFonts.inter(
+                        color: Color(0xFFC9C9C9),
+                        fontSize: 10,
+                        fontWeight: FontWeight.normal,
+                      ),
+                    ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Rs. ${menuItem.price?.toStringAsFixed(0) ?? '0'}',
+                          style: GoogleFonts.inter(
+                            color: Color(0xFF6DFB60),
+                            fontSize: 10,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${getItemQuantity(menuItem.name ?? '')}',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
+                        ),
+                        const SizedBox(height: 10),
+                        if (isItemInCart(menuItem.name ?? ''))
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                onTap: () => removeFromCart({
+                                  'name': menuItem.name,
+                                  'description': menuItem.description,
+                                  'price': menuItem.price,
+                                  'imageUrl': menuItem.imageUrl,
+                                  'id': menuItem.id,
+                                  'category_id': categoryId,
+                                  'qty': 1,
+                                }),
+                                child: Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: Color(0xFF6A6969),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.remove,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${getItemQuantity(menuItem.name ?? '')}',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => addToCart({
+                                  'name': menuItem.name,
+                                  'description': menuItem.description,
+                                  'price': menuItem.price,
+                                  'imageUrl': menuItem.imageUrl,
+                                  'id': menuItem.id,
+                                  'category_id': categoryId,
+                                  'qty': 1,
+                                }),
+                                child: Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: Color(0xFF6DFB60),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.add,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
                           GestureDetector(
                             onTap: () => addToCart({
                               'name': menuItem.name,
@@ -273,45 +285,22 @@ class _MenuViewState extends State<MenuView> {
                               'price': menuItem.price,
                               'imageUrl': menuItem.imageUrl,
                               'id': menuItem.id,
+                              'category_id': categoryId,
                               'qty': 1,
                             }),
-                            child: Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                color: Color(0xFF6DFB60),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(
-                                Icons.add,
-                                color: Colors.white,
-                                size: 14,
+                            child: Text(
+                              '+ Add',
+                              style: GoogleFonts.inter(
+                                color: Color(0xFF6A6969),
+                                fontSize: 10,
                               ),
                             ),
                           ),
-                        ],
-                      )
-                    else
-                      GestureDetector(
-                        onTap: () => addToCart({
-                          'name': menuItem.name,
-                          'description': menuItem.description,
-                          'price': menuItem.price,
-                          'imageUrl': menuItem.imageUrl,
-                          'id': menuItem.id,
-                          'qty': 1,
-                        }),
-                        child: Text(
-                          '+ Add',
-                          style: GoogleFonts.inter(
-                            color: Color(0xFF6A6969),
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+                      ],
+                    ),
+                  ),
+                )).toList(),
+              ],
             );
           },
         ),

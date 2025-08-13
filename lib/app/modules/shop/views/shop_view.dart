@@ -1,11 +1,13 @@
 import 'dart:ui';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/shop/controllers/cart_controller.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:lottie/lottie.dart';
 import '../products_model.dart';
 import 'cart_view.dart';
@@ -225,7 +227,10 @@ class _ShopViewState extends State<ShopView> {
                 },
                 child: Container(
                   width: Get.width * 0.57,
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 20,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -325,11 +330,15 @@ class _ShopViewState extends State<ShopView> {
               ),
               Container(
                 margin: const EdgeInsets.only(top: 20),
-                child: Image.network(
-                  productImage,
+                child: CachedNetworkImage(
+                  imageUrl: productImage,
                   fit: BoxFit.fitWidth,
                   width: Get.width * 0.48,
                   height: 125,
+                  placeholder: (_, _) =>
+                      const Center(child: RainbowGlowingLoader(size: 40)),
+                  errorWidget: (_, _, _) =>
+                      const Icon(Icons.error, color: Colors.red),
                 ),
               ),
             ],

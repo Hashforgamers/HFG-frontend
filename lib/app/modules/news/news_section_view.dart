@@ -1,7 +1,9 @@
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shimmer/shimmer.dart';
 import 'game_news_controller.dart';
 
@@ -23,22 +25,26 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
 
   final List<Map<String, String>> gameNewsCards = [
     {
-      'image': "assets/images/gameNews_1.png",
+      'image':
+          "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075172/gameNews_1_cmgnce.png",
       'title':
           'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...',
     },
     {
-      'image': "assets/images/gameNews_2.png",
+      'image':
+          "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075173/gameNews_2_oc4yqx.png",
       'title':
           'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...',
     },
     {
-      'image': "assets/images/gameNews_3.png",
+      'image':
+          "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075174/gameNews_3_ftdzha.png",
       'title':
           'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...',
     },
     {
-      'image': "assets/images/gameNews_4.png",
+      'image':
+          "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075175/gameNews_4_ldixrz.png",
       'title':
           'The Season 4 outro cutscene for Black Ops 6 and Warzone has players once again speculati...',
     },
@@ -273,12 +279,23 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
             child: Row(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
-                  child: Image.asset(
-                    image,
+                  borderRadius: BorderRadius.circular(20),
+                  child: CachedNetworkImage(
+                    imageUrl: image,
                     height: 120,
                     width: 150,
                     fit: BoxFit.cover,
+                    placeholder: (_, _) =>
+                        const Center(child: RainbowGlowingLoader(size: 40)),
+                    errorWidget: (_, _, _) => Container(
+                      color: Colors.grey,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.image_not_supported,
+                        color: Colors.white54,
+                        size: 40,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),

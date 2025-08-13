@@ -252,13 +252,13 @@ class GameCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               child: CachedNetworkImage(
                 imageUrl: game.backgroundImage,
-                height: 190,
+                height: 150,
                 width: 115,
                 fit: BoxFit.cover,
-                placeholder: (context, url) =>
-                    const Center(child: RainbowGlowingLoader(size: 30)),
-                errorWidget: (context, url, error) =>
-                    const Icon(Icons.error, color: Colors.white),
+                placeholder: (_, _) =>
+                    const Center(child: RainbowGlowingLoader(size: 40)),
+                errorWidget: (_, _, _) =>
+                    const Icon(Icons.error, color: Colors.red),
               ),
             ),
             Positioned(

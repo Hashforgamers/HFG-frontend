@@ -1,9 +1,11 @@
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/game_pass/cubit/get_game_pass_cubit.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:intl/intl.dart';
 
 enum HistoryPassCardType { rightImage, leftImage }
@@ -179,7 +181,7 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
     );
   }
 
-  GestureDetector _buildHistoryPassCard(
+  Widget _buildHistoryPassCard(
     BuildContext context,
     GetPassModel pass,
   ) {
@@ -198,7 +200,7 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
         );
       },
       child: Container(
-        height: 190,
+        height: 200,
         width: MediaQuery.of(context).size.width,
         decoration: BoxDecoration(
           border: Border.all(color: Color(pass.statusColor), width: 1.5),
@@ -232,7 +234,7 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
                 child: Container(
-                  height: 190,
+                  height: 200,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(25),
@@ -250,7 +252,16 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
                     ? CrossAxisAlignment.end
                     : CrossAxisAlignment.start,
                 children: [
-                  Image.asset('assets/icons/crown.png', height: 26, width: 26),
+                  CachedNetworkImage(
+                    imageUrl:
+                        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/crown_mzzqhy.png',
+                    height: 26,
+                    width: 26,
+                    placeholder: (_, _) =>
+                        const Center(child: RainbowGlowingLoader(size: 20)),
+                    errorWidget: (_, _, _) =>
+                        const Icon(Icons.error, color: Colors.red),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     pass.name,
