@@ -249,7 +249,6 @@ class _HomeContentViewState extends State<HomeContentView> {
                 ],
               ),
               borderRadius: BorderRadius.circular(25),
-              // border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
             ),
           ),
         ),
