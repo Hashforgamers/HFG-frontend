@@ -20,6 +20,8 @@ import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shop/views/shop_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -392,12 +394,24 @@ class _HomeContentViewState extends State<HomeContentView>
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: Image.asset(
-                'assets/images/gamepassbg.png',
+              child: CachedNetworkImage(
+                imageUrl:
+                    'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075177/gamepassbg_jkkq7b.png',
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
                 cacheWidth: 400, // Optimize memory usage
+                placeholder: (_, _) =>
+                    const Center(child: RainbowGlowingLoader(size: 40)),
+                errorWidget: (_, _, _) => Container(
+                  color: Colors.grey,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.white54,
+                    size: 40,
+                  ),
+                ),
               ),
             ),
             Positioned(
@@ -449,6 +463,112 @@ class _HomeContentViewState extends State<HomeContentView>
     );
     
     return _cachedGamePassContainer!;
+  }
+
+  Widget _buildAppBar() {
+    return SliverAppBar(
+      backgroundColor: Colors.transparent,
+      systemOverlayStyle: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+      ),
+      elevation: 0,
+      pinned: false,
+      expandedHeight: 70,
+      flexibleSpace: ClipRRect(
+        borderRadius: BorderRadius.circular(25),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFFFFFFFF).withOpacity(0.1),
+                  const Color(0xFF64BD55).withOpacity(0.2),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(25),
+            ),
+          ),
+        ),
+      ),
+
+      leadingWidth: 55,
+      leading: Obx(
+        () => Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: userController.isLoading.value
+              ? _shimmerAvatar()
+              : _userAvatar(userController.user.value.photoUrl),
+        ),
+      ),
+      title: Obx(
+        () => Padding(
+          padding: const EdgeInsets.only(top: 12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Hey, ${userController.user.value.gameUserName}!',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Viman Nagar, Pune',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFB6B6B6),
+                  fontSize: 11.5,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ],
+          ),
+        ),
+      ),
+
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 10),
+          child: BlocBuilder<HashCoinCubit, HashCoinState>(
+            builder: (_, state) => RewardsSection(
+              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _userAvatar(String? photoUrl) {
+    const double size = 40;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFF6DFB60), width: 2),
+      ),
+      child: CircleAvatar(
+        radius: size / 2,
+        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+            ? CachedNetworkImageProvider(photoUrl)
+            : const NetworkImage(
+                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
+                  )
+                  as ImageProvider,
+        backgroundColor: Colors.white,
+      ),
+    );
   }
 
   Widget _buildGameOnIndiaBanner() {

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shimmer/shimmer.dart';
 import '../controllers/viral_shorts_controller.dart';
 import 'short_video_player.dart';
@@ -83,8 +84,8 @@ class ViralShotsSection extends StatelessWidget {
         () => ShortVideoPlayer(shorts: controller.shorts, initialIndex: index),
       ),
       child: Container(
-        width: 125,
         height: 220,
+        width: 125,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
           color: const Color(0xff1E1E1E),
@@ -99,9 +100,9 @@ class ViralShotsSection extends StatelessWidget {
                 height: 220,
                 width: 125,
                 fit: BoxFit.cover,
-                placeholder: (context, url) =>
-                    Container(color: Colors.grey[800]),
-                errorWidget: (context, url, error) =>
+                placeholder: (_, _) =>
+                    const Center(child: RainbowGlowingLoader(size: 40)),
+                errorWidget: (_, _, _) =>
                     const Icon(Icons.error, color: Colors.red),
               ),
             ),

@@ -1,5 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import '../controllers/home_controller.dart';
 
 class HomeView extends StatelessWidget {

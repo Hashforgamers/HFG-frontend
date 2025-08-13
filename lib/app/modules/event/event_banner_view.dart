@@ -1,10 +1,12 @@
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 class EventBanner extends StatefulWidget {
   const EventBanner({super.key});
@@ -62,11 +64,22 @@ class _EventBannerState extends State<EventBanner> {
             // Background Image
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
-              child: Image.asset(
-                'assets/images/bannerBg.png',
+              child: CachedNetworkImage(
+                imageUrl:
+                    'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075169/bannerBg_fdptob.png',
                 height: 160,
                 width: double.infinity,
-                fit: BoxFit.cover,
+                placeholder: (_, _) =>
+                    const Center(child: RainbowGlowingLoader(size: 40)),
+                errorWidget: (_, _, _) => Container(
+                  color: Colors.grey,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.white54,
+                    size: 40,
+                  ),
+                ),
               ),
             ),
 
@@ -87,9 +100,7 @@ class _EventBannerState extends State<EventBanner> {
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(15),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.2)),
                   ),
                 ),
               ),
@@ -147,11 +158,20 @@ class _EventBannerState extends State<EventBanner> {
             Positioned(
               bottom: 0,
               right: 48,
-              child: SizedBox(
+              child: CachedNetworkImage(
+                imageUrl:
+                    'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075169/bannerHero_yslfl9.png',
                 height: 150,
-                child: Image.asset(
-                  "assets/images/bannerHero.png",
-                  fit: BoxFit.cover,
+                placeholder: (_, _) =>
+                    const Center(child: RainbowGlowingLoader(size: 40)),
+                errorWidget: (_, _, _) => Container(
+                  color: Colors.grey,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.white54,
+                    size: 40,
+                  ),
                 ),
               ),
             ),

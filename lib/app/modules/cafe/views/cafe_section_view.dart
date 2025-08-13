@@ -176,13 +176,6 @@ class _CafeSectionState extends State<CafeSection> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       color: const Color(0xff0E0E0E),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.6),
-                          blurRadius: 12,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
                     ),
                     child: Stack(
                       children: [
@@ -194,10 +187,10 @@ class _CafeSectionState extends State<CafeSection> {
                             fit: BoxFit.cover,
                             width: MediaQuery.of(context).size.width - 30,
                             height: 250,
-                            placeholder: (_, __) => const Center(
+                            placeholder: (_, _) => const Center(
                               child: RainbowGlowingLoader(size: 40),
                             ),
-                            errorWidget: (_, __, ___) => Container(
+                            errorWidget: (_, _, _) => Container(
                               color: Colors.grey,
                               alignment: Alignment.center,
                               child: const Icon(
@@ -249,10 +242,21 @@ class _CafeSectionState extends State<CafeSection> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                         const Spacer(),
-                                        Image.asset(
-                                          "assets/icons/gaming-pad-02.png",
+                                        CachedNetworkImage(
+                                          imageUrl:
+                                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-02_hvvehr.png',
                                           height: 16,
                                           width: 16,
+                                          fit: BoxFit.cover,
+                                          placeholder: (_, _) => const Center(
+                                            child: RainbowGlowingLoader(
+                                              size: 4,
+                                            ),
+                                          ),
+                                          errorWidget: (_, _, _) => const Icon(
+                                            Icons.error,
+                                            color: Colors.red,
+                                          ),
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
@@ -294,15 +298,18 @@ class _CafeSectionState extends State<CafeSection> {
                                         ),
                                         const Spacer(),
                                         _buildPlatformIcon(
-                                          icon: "assets/icons/ps.png",
+                                          icon:
+                                              "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png",
                                         ),
                                         const SizedBox(width: 8),
                                         _buildPlatformIcon(
-                                          icon: "assets/icons/xbox.png",
+                                          icon:
+                                              "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png",
                                         ),
                                         const SizedBox(width: 8),
                                         _buildPlatformIcon(
-                                          icon: "assets/icons/pc_1.png",
+                                          icon:
+                                              "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png",
                                         ),
                                       ],
                                     ),
@@ -325,7 +332,14 @@ class _CafeSectionState extends State<CafeSection> {
   }
 
   Widget _buildPlatformIcon({required String icon}) {
-    return Image.asset(icon, height: 18, width: 18, fit: BoxFit.cover);
+    return CachedNetworkImage(
+      imageUrl: icon,
+      height: 18,
+      width: 18,
+      placeholder: (_, _) =>
+          const Center(child: RainbowGlowingLoader(size: 10)),
+      errorWidget: (_, _, _) => const Icon(Icons.error, color: Colors.red),
+    );
   }
 
   Widget _buildCafeContainer({

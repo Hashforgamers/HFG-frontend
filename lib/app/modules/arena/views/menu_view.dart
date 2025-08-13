@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -160,47 +161,15 @@ class _MenuViewState extends State<MenuView> {
             return Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: ListTile(
-                leading: SizedBox(
-                  width: 70,
+                leading: CachedNetworkImage(
+                  imageUrl: menuItem['image']!,
                   height: 50,
-                  child: menuItem.imageUrl != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            menuItem.imageUrl!,
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.fastfood,
-                                  color: Colors.white,
-                                  size: 24,
-                                ),
-                              );
-                            },
-                          ),
-                        )
-                      : Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[800],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.fastfood,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
+                  width: 50,
+                  fit: BoxFit.contain,
+                  placeholder: (_, _) =>
+                      const Center(child: RainbowGlowingLoader(size: 10)),
+                  errorWidget: (_, _, _) =>
+                      const Icon(Icons.error, color: Colors.red),
                 ),
                 title: Text(
                   menuItem.name ?? 'Unknown Item',

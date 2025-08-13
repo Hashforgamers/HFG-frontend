@@ -135,8 +135,6 @@ flutter:
   assets:
     - assets/
     - assets/fire.json
-    - assets/images/
-    - assets/icons/
     - assets/map_style.json
     - assets/custom_marker.png
     - assets/custom_marker2.png
