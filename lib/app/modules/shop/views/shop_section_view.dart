@@ -5,6 +5,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:lottie/lottie.dart';
 
 import '../products_model.dart';
@@ -114,11 +115,23 @@ class ShopSection extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(25),
-                child: Image.asset(
-                  'assets/images/hashQuestBg.png',
+                child: CachedNetworkImage(
+                  imageUrl:
+                      'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075181/hashQuestBg_mkuqee.png',
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,
+                  placeholder: (_, _) =>
+                      const Center(child: RainbowGlowingLoader(size: 40)),
+                  errorWidget: (_, _, _) => Container(
+                    color: Colors.grey,
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      color: Colors.white54,
+                      size: 40,
+                    ),
+                  ),
                 ),
               ),
               ClipRRect(
@@ -149,7 +162,7 @@ class ShopSection extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 6),
                     Text(
                       'premium quality leather with foam \ncushion for maximum comfort.',
                       style: GoogleFonts.inter(
@@ -157,7 +170,7 @@ class ShopSection extends StatelessWidget {
                         fontSize: 11,
                       ),
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 30),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         vertical: 8,
@@ -173,28 +186,36 @@ class ShopSection extends StatelessWidget {
                       ),
                       child: Text(
                         'Pre-Register',
-                        style: GoogleFonts.inter(fontSize: 12),
+                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
               ),
               Positioned(
-                top: 20,
-                right: 30,
-                child: SizedBox(
-                  height: 160,
-                  child: Image.asset(
-                    "assets/images/headphone.png",
-                    height: 140,
-                    width: 120,
-                    fit: BoxFit.cover,
+                top: 10,
+                right: 16,
+                child: CachedNetworkImage(
+                  imageUrl:
+                      'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075181/headphone_ruavro.png',
+                  height: 180,
+                  width: 140,
+                  placeholder: (_, _) =>
+                      const Center(child: RainbowGlowingLoader(size: 40)),
+                  errorWidget: (_, _, _) => Container(
+                    color: Colors.grey,
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      color: Colors.white54,
+                      size: 40,
+                    ),
                   ),
                 ),
               ),
               Positioned(
                 top: 30,
-                right: 20,
+                right: 16,
                 child: Transform.rotate(
                   angle: 170,
                   child: Container(

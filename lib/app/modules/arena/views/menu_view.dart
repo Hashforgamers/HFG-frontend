@@ -1,7 +1,9 @@
 import 'dart:math';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 class MenuView extends StatefulWidget {
   final void Function(List<Map<String, dynamic>> cartItems) onContinue;
@@ -18,7 +20,8 @@ class _MenuViewState extends State<MenuView> {
   final List<Map<String, dynamic>> menuItems = [
     {
       'name': 'Crispy Fries',
-      'image': 'assets/images/menu1.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075186/menu1_ar0hbe.png',
       'desc':
           'Cooked in pure olive oil, garnished with a himalayan salt and served with garlic sauce',
       'price': 125,
@@ -26,7 +29,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Veggie Burger',
-      'image': 'assets/images/menu2.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
       'desc':
           'Plant-based burger with a hearty veggie patty, fresh lettuce, tomato, pickles, and creamy sauce on a toasted bun.',
       'price': 155,
@@ -34,7 +38,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Red Sauce Pasta',
-      'image': 'assets/images/menu3.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075188/menu3_o2c0zy.png',
       'desc':
           'Pasta with red tomato sauce, made from blended tomatoes, garlic, onions, and herbs.',
       'price': 175,
@@ -42,7 +47,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Protein Sandwich',
-      'image': 'assets/images/menu4.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
       'desc':
           'Freshly baked bread filled with sliced vegetables, cheese, sauces, and your choice of deli-style meats.',
       'price': 225,
@@ -50,7 +56,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Hot Coffee',
-      'image': 'assets/images/menu5.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu5_f3t2l0.png',
       'desc':
           'Hot brewed coffee made from roasted ground beans, served fresh in a cup with milk or sugar.',
       'price': 225,
@@ -58,7 +65,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Coca Cola with Ice',
-      'image': 'assets/images/menu6.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu6_qhoalw.png',
       'desc':
           'Chilled Coca-Cola served cold in a glass or bottle, fizzy, dark, and carbonated with a sweet taste.',
       'price': 55,
@@ -66,7 +74,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Blue Lagoon',
-      'image': 'assets/images/menu7.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075191/menu7_tj4lp1.png',
       'desc':
           'Bright blue mocktail made with lemon juice, blue curaçao syrup, and soda, served chilled over ice.',
       'price': 125,
@@ -74,7 +83,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Choco Pastry',
-      'image': 'assets/images/menu8.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075192/menu8_na7k6n.png',
       'desc':
           'Flaky, baked pastry filled with rich chocolate, topped with a glossy glaze & dusting of cocoa powder.',
       'price': 125,
@@ -82,7 +92,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Classic Donut',
-      'image': 'assets/images/menu9.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
       'desc':
           'Soft, round donut coated in chocolate glaze, sometimes filled with chocolate cream, topped with sprinkles.',
       'price': 125,
@@ -90,7 +101,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Crispy Fries',
-      'image': 'assets/images/menu1.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075186/menu1_ar0hbe.png',
       'desc':
           'Cooked in pure olive oil, garnished with a himalayan salt and served with garlic sauce',
       'price': 125,
@@ -98,7 +110,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Veggie Burger',
-      'image': 'assets/images/menu2.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
       'desc':
           'Plant-based burger with a hearty veggie patty, fresh lettuce, tomato, pickles, and creamy sauce on a toasted bun.',
       'price': 155,
@@ -106,7 +119,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Red Sauce Pasta',
-      'image': 'assets/images/menu3.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075188/menu3_o2c0zy.png',
       'desc':
           'Pasta with red tomato sauce, made from blended tomatoes, garlic, onions, and herbs.',
       'price': 175,
@@ -114,7 +128,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Protein Sandwich',
-      'image': 'assets/images/menu4.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
       'desc':
           'Freshly baked bread filled with sliced vegetables, cheese, sauces, and your choice of deli-style meats.',
       'price': 225,
@@ -122,7 +137,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Hot Coffee',
-      'image': 'assets/images/menu5.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu5_f3t2l0.png',
       'desc':
           'Hot brewed coffee made from roasted ground beans, served fresh in a cup with milk or sugar.',
       'price': 225,
@@ -130,7 +146,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Coca Cola with Ice',
-      'image': 'assets/images/menu6.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu6_qhoalw.png',
       'desc':
           'Chilled Coca-Cola served cold in a glass or bottle, fizzy, dark, and carbonated with a sweet taste.',
       'price': 55,
@@ -138,7 +155,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Blue Lagoon',
-      'image': 'assets/images/menu7.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075191/menu7_tj4lp1.png',
       'desc':
           'Bright blue mocktail made with lemon juice, blue curaçao syrup, and soda, served chilled over ice.',
       'price': 125,
@@ -146,7 +164,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Choco Pastry',
-      'image': 'assets/images/menu8.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075192/menu8_na7k6n.png',
       'desc':
           'Flaky, baked pastry filled with rich chocolate, topped with a glossy glaze & dusting of cocoa powder.',
       'price': 125,
@@ -154,7 +173,8 @@ class _MenuViewState extends State<MenuView> {
     },
     {
       'name': 'Classic Donut',
-      'image': 'assets/images/menu9.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
       'desc':
           'Soft, round donut coated in chocolate glaze, sometimes filled with chocolate cream, topped with sprinkles.',
       'price': 125,
@@ -199,15 +219,15 @@ class _MenuViewState extends State<MenuView> {
             return Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: ListTile(
-                leading: SizedBox(
-                  width: 50,
+                leading: CachedNetworkImage(
+                  imageUrl: menuItem['image']!,
                   height: 50,
-                  child: Image.asset(
-                    menuItem['image']!,
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.contain,
-                  ),
+                  width: 50,
+                  fit: BoxFit.contain,
+                  placeholder: (_, _) =>
+                      const Center(child: RainbowGlowingLoader(size: 10)),
+                  errorWidget: (_, _, _) =>
+                      const Icon(Icons.error, color: Colors.red),
                 ),
                 title: Text(
                   menuItem['name']!,

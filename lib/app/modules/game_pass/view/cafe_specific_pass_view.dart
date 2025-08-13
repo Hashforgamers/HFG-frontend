@@ -1,6 +1,8 @@
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 class CafeSpecificPassView extends StatefulWidget {
   final TabController tabController;
@@ -13,17 +15,20 @@ class CafeSpecificPassView extends StatefulWidget {
 class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
   final List<Map<String, String>> cafeList = [
     {
-      'image': 'assets/images/cafepass1.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075170/cafepass1_ifyn2b.png',
       'title': 'Retro Gaming Studio',
       'distance': '1.3 km',
     },
     {
-      'image': 'assets/images/cafepass2.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075171/cafepass2_eb2zny.png',
       'title': 'Dragon Gaming Cafe',
       'distance': '1.3 km',
     },
     {
-      'image': 'assets/images/cafepass3.png',
+      'image':
+          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075171/cafepass3_on04c0.png',
       'title': 'Retro Gaming Studio',
       'distance': '1.3 km',
     },
@@ -51,7 +56,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
     );
   }
 
-  GestureDetector _buildCafePassCard(
+  Widget _buildCafePassCard(
     BuildContext context,
     Map<String, String> cafe,
   ) {
@@ -65,11 +70,22 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(25),
-              child: Image.asset(
-                cafe['image']!,
+              child: CachedNetworkImage(
+                imageUrl: cafe['image']!,
                 height: 200,
                 width: MediaQuery.of(context).size.width,
                 fit: BoxFit.cover,
+                placeholder: (_, _) =>
+                    const Center(child: RainbowGlowingLoader(size: 40)),
+                errorWidget: (_, _, _) => Container(
+                  color: Colors.grey,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.white54,
+                    size: 40,
+                  ),
+                ),
               ),
             ),
             Positioned(
@@ -181,7 +197,23 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
   Widget _buildLabel() {
     return Column(
       children: [
-        Image.asset('assets/icons/cafePassIcon.png', height: 50, width: 50),
+        CachedNetworkImage(
+          imageUrl:
+              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/cafePassIcon_qps6te.png',
+          height: 70,
+          width: 70,
+          placeholder: (_, _) =>
+              const Center(child: RainbowGlowingLoader(size: 40)),
+          errorWidget: (_, _, _) => Container(
+            color: Colors.grey,
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.image_not_supported,
+              color: Colors.white54,
+              size: 40,
+            ),
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
           'All Participating Cafes',

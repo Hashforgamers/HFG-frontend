@@ -302,10 +302,22 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                             return ListView(
                               scrollDirection: Axis.horizontal,
                               children: [
-                                _consoleIcon('assets/icons/pc.png', "PC"),
-                                _consoleIcon('assets/icons/xbox.png', "XBOX"),
-                                _consoleIcon('assets/icons/ps.png', "PS5"),
-                                _consoleIcon('assets/icons/vr.png', "VR"),
+                                _consoleIcon(
+                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png',
+                                  "PC",
+                                ),
+                                _consoleIcon(
+                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png',
+                                  "XBOX",
+                                ),
+                                _consoleIcon(
+                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png',
+                                  "PS5",
+                                ),
+                                _consoleIcon(
+                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/vr_rzqkbq.png',
+                                  "VR",
+                                ),
                               ],
                             );
                           }
@@ -337,39 +349,48 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     foodAndBeverageGrid([
                       {
                         'name': 'Crispy Fries',
-                        'image': 'assets/images/menu1.png',
+                        'image':
+                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075186/menu1_ar0hbe.png',
                       },
                       {
                         'name': 'Veggie Burger',
-                        'image': 'assets/images/menu2.png',
+                        'image':
+                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
                       },
                       {
                         'name': 'Red Sauce Pasta',
-                        'image': 'assets/images/menu3.png',
+                        'image':
+                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075188/menu3_o2c0zy.png',
                       },
                       {
                         'name': 'Protein Sandwich',
-                        'image': 'assets/images/menu4.png',
+                        'image':
+                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
                       },
                       {
                         'name': 'Hot Coffee',
-                        'image': 'assets/images/menu5.png',
+                        'image':
+                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu5_f3t2l0.png',
                       },
                       {
                         'name': 'Coca Cola with Ice',
-                        'image': 'assets/images/menu6.png',
+                        'image':
+                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu6_qhoalw.png',
                       },
                       {
                         'name': 'Blue Lagoon',
-                        'image': 'assets/images/menu7.png',
+                        'image':
+                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075191/menu7_tj4lp1.png',
                       },
                       {
                         'name': 'Choco Pastry',
-                        'image': 'assets/images/menu8.png',
+                        'image':
+                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075192/menu8_na7k6n.png',
                       },
                       {
                         'name': 'Classic Donut',
-                        'image': 'assets/images/menu9.png',
+                        'image':
+                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
                       },
                     ]),
                     const SizedBox(height: 24),
@@ -741,11 +762,19 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.center,
                                     children: [
-                                      Image.asset(
-                                        slot['icon'],
-                                        width: 22,
+                                      CachedNetworkImage(
+                                        imageUrl: slot['icon'],
                                         height: 22,
+                                        width: 22,
+                                        placeholder: (_, _) => const Center(
+                                          child: RainbowGlowingLoader(size: 10),
+                                        ),
+                                        errorWidget: (_, _, _) => const Icon(
+                                          Icons.error,
+                                          color: Colors.red,
+                                        ),
                                       ),
+
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
@@ -834,7 +863,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                           );
                         },
                       ),
-                      const SizedBox(height: 25),
+                      const SizedBox(height: 10),
                       SizedBox(
                         width: double.infinity,
                         height: 48,
@@ -909,14 +938,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       padding: const EdgeInsets.only(right: 24.0),
       child: Column(
         children: [
-          Container(
-            width: 48,
+          CachedNetworkImage(
+            imageUrl: path,
             height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xff181818),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Image.asset(path),
+            width: 48,
+            placeholder: (_, _) =>
+                const Center(child: RainbowGlowingLoader(size: 20)),
+            errorWidget: (_, _, _) =>
+                const Icon(Icons.error, color: Colors.red),
           ),
           const SizedBox(height: 6),
           Text(
@@ -1134,19 +1163,20 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final item = items[index];
-              return SizedBox(
-                height: 60,
-                width: 70,
-                child: Center(
-                  child: Image.asset(
-                    item['image']!,
-                    height: 60,
-                    width: 70,
-                    fit: BoxFit.contain,
-                  ),
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: CachedNetworkImage(
+                  imageUrl: item['image']!,
+                  height: 60,
+                  width: 70,
+                  fit: BoxFit.contain,
+                  placeholder: (_, _) =>
+                      const Center(child: RainbowGlowingLoader(size: 10)),
+                  errorWidget: (_, _, _) =>
+                      const Icon(Icons.error, color: Colors.red),
                 ),
               );
             },
@@ -1317,25 +1347,25 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
     // Map console names to icon assets based on API response
     if (name.contains('pc') || name.contains('computer')) {
-      return 'assets/icons/pc.png';
+      return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png';
     }
     if (name.contains('xbox') || name.contains('x-box')) {
-      return 'assets/icons/xbox.png';
+      return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png';
     }
     if (name.contains('ps5') ||
         name.contains('ps') ||
         name.contains('playstation')) {
-      return 'assets/icons/ps.png';
+      return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png';
     }
     if (name.contains('vr') || name.contains('virtual reality')) {
-      return 'assets/icons/vr.png';
+      return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/vr_rzqkbq.png';
     }
     if (name.contains('nintendo') || name.contains('switch')) {
-      return 'assets/icons/gaming-pad-01.png';
+      return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-01_byibeu.png';
     }
 
     // Default icon
-    return 'assets/icons/pc.png';
+    return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png';
   }
 
   String _getConsoleType(String consoleName) {
