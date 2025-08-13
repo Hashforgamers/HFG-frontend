@@ -129,11 +129,10 @@ class _HomeContentViewState extends State<HomeContentView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 24),
-                    const EventBanner(),
+                    _buildGamePassContainer(),
+                    // const EventBanner(),
                     const SizedBox(height: 24),
                     CafeSection(),
-                    const SizedBox(height: 24),
-                    _buildGamePassContainer(),
                     const SizedBox(height: 24),
                     const ShopSection(),
                     const SizedBox(height: 24),
