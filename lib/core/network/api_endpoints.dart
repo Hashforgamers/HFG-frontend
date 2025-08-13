@@ -35,7 +35,8 @@ class ApiEndpoints {
   // Payment related constants
   // TODO:- Remove this and use the new API to get the Order ID and then use that Order ID to create the payment order
   static String get razorpayKeyWallet => FlavorConfig.isProduction()
-      ? 'rzp_test_viVAhwtbVdu1X4' // Replace with your live key
+      // ? 'rzp_live_RmxaTWJdsdl8yy' // Replace with your live key
+      ?'rzp_test_viVAhwtbVdu1X4'
       : 'rzp_test_viVAhwtbVdu1X4';
 
   // Address related endpoints (userOnboard)

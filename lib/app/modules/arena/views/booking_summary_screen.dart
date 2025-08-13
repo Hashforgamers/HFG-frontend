@@ -742,7 +742,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // New: Elegant Step Status Indicator
-              Obx(() => _buildPaymentProgress()),
+              // Obx(() => _buildPaymentProgress()),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1530,6 +1530,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       _isProcessingPayment(false);
       _paymentStatus.value = 'Payment initialization failed';
       razorpayController.isPaymentInProgress(false);
+      print(e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Payment error: $e'),

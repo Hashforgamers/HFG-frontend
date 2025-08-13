@@ -100,8 +100,6 @@ class _HomeContentViewState extends State<HomeContentView>
   void _initializeData() {
     // Register FCM token immediately
     BlocProvider.of<FcmCubit>(context).registerFCMToken();
-    
-    // Use post frame callback for non-critical initializations
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
       _trackHomeScreenViewed();
