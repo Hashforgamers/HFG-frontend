@@ -36,27 +36,35 @@ class LoginController extends GetxController {
             (firebase_auth.PhoneAuthCredential credential) async {
               await _auth.signInWithCredential(credential);
               await _handleUserNavigation();
+              isLoading.value = false;
             },
         verificationFailed: (firebase_auth.FirebaseAuthException e) {
           _showErrorSnackbar('Verification failed', e.message);
+          isLoading.value = false;
         },
         codeSent: (String verificationId, int? resendToken) {
           _verificationId = verificationId;
 
+          isLoading.value = false;
+          Get.to(() => VerifyOtpView(verificationId: verificationId));
+
           // ✅ FIX: Prevent navigation during active frame
-          Future.microtask(() {
-            Get.to(() => VerifyOtpView(verificationId: verificationId));
-          });
+          // Future.microtask(() {
+          //   Get.to(() => VerifyOtpView(verificationId: verificationId));
+          // });
         },
         codeAutoRetrievalTimeout: (String verificationId) {
           _verificationId = verificationId;
+          isLoading.value = false;
         },
       );
     } catch (e) {
       _showErrorSnackbar('Error sending OTP', e.toString());
-    } finally {
       isLoading.value = false;
     }
+    // finally {
+    //   isLoading.value = false;
+    // }
   }
 
   Future<void> verifyOtp(String otp) async {
