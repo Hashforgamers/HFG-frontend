@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
+import 'package:hash/app/modules/game_pass/cubit/get_game_pass_cubit.dart';
 import 'package:http/http.dart' as http;
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -17,10 +18,15 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 enum GlobalPassCardType { rightImage, leftImage }
+
 class GlobalPassView extends StatefulWidget {
   final TabController tabController;
   final String type; // 'hash'
-  const GlobalPassView({super.key, required this.tabController, required this.type});
+  const GlobalPassView({
+    super.key,
+    required this.tabController,
+    required this.type,
+  });
 
   @override
   State<GlobalPassView> createState() => _GlobalPassViewState();
@@ -32,7 +38,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
   final _remoteRepo = locator<RemoteRepoInterface>();
   final _segmentService = locator<SegmentSdkService>();
   final _fbEventsService = locator<FbEventsService>();
-  
+
   final RxMap<String, bool> _processingPasses = <String, bool>{}.obs;
   final RxString _paymentStatus = ''.obs;
 
@@ -50,8 +56,8 @@ class _GlobalPassViewState extends State<GlobalPassView> {
         if (status.toLowerCase().contains('successful')) {
           _clearAllProcessingStates();
           // Success message is already handled by RazorpayController
-        } else if (status.toLowerCase().contains('failed') || 
-                   status.toLowerCase().contains('error')) {
+        } else if (status.toLowerCase().contains('failed') ||
+            status.toLowerCase().contains('error')) {
           _clearAllProcessingStates();
           // Error message is already handled by RazorpayController
         }
@@ -69,8 +75,6 @@ class _GlobalPassViewState extends State<GlobalPassView> {
   void _clearAllProcessingStates() {
     _processingPasses.clear();
   }
-
-
 
   Future<void> _purchaseGamePass(GetPassModel pass) async {
     final passId = pass.id;
@@ -93,7 +97,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
 
       // Create Razorpay order
       final orderId = await _createRazorpayOrder(pass.price);
-      
+
       // Track purchase initiated event
       _segmentService.onPaymentInitiated(
         bookingId: 'pass_${pass.id}',
@@ -112,8 +116,12 @@ class _GlobalPassViewState extends State<GlobalPassView> {
         name: _userController.user.value.name ?? 'User',
         description: 'Game Pass: ${pass.name}',
         amount: pass.price,
-        contact: _userController.user.value.contact?.electronicAddress?.mobileNo ?? '',
-        email: _userController.user.value.contact?.electronicAddress?.emailId ?? '',
+        contact:
+            _userController.user.value.contact?.electronicAddress?.mobileNo ??
+            '',
+        email:
+            _userController.user.value.contact?.electronicAddress?.emailId ??
+            '',
         paymentType: PaymentType.passPurchase,
       );
 
@@ -121,7 +129,6 @@ class _GlobalPassViewState extends State<GlobalPassView> {
       _razorpayController.bookingIdList.value = [int.parse(pass.id)];
       // Clear slot IDs for pass purchases since passes don't have slots
       _razorpayController.slotIdsList.clear();
-
     } catch (e) {
       _processingPasses[passId] = false;
       Get.snackbar(
@@ -137,7 +144,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
   Future<String> _createRazorpayOrder(double amount) async {
     final amountInPaisa = (amount * 100).toInt();
     final receiptId = "pass_rcpt_${DateTime.now().millisecondsSinceEpoch}";
-    
+
     final url = '${FlavorConfig.getBaseUrl('booking')}/api/create_order';
     final payload = {
       "amount": amountInPaisa,
@@ -161,17 +168,17 @@ class _GlobalPassViewState extends State<GlobalPassView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<GamePassCubit, GamePassState>(
+    return BlocBuilder<GetGamePassCubit, GetGamePassState>(
       builder: (context, state) {
-        if (state is GamePassLoading) {
+        if (state is GetGamePassLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (state is GamePassError) {
+        if (state is GetGamePassError) {
           return _buildError(context, state.message);
         }
 
-        if (state is GamePassLoaded) {
+        if (state is GetGamePassLoaded) {
           final passes = state.gamePass;
           if (passes.isEmpty) {
             return _buildEmpty(context);
@@ -192,7 +199,6 @@ class _GlobalPassViewState extends State<GlobalPassView> {
               return _buildGlobalPassCard(
                 pass: pass,
                 image: 'assets/images/globalpass1.png',
-                icon: 'assets/icons/crown.png',
                 title: title,
                 info: info,
                 color: const Color(0xFFE6D009),
@@ -212,8 +218,8 @@ class _GlobalPassViewState extends State<GlobalPassView> {
     final durationPart = pass.passType.toLowerCase() == 'daily'
         ? '24 Hours'
         : pass.passType.toLowerCase() == 'monthly'
-            ? '${pass.daysValid} Days'
-            : '${pass.daysValid} Days';
+        ? '${pass.daysValid} Days'
+        : '${pass.daysValid} Days';
     final pricePart = 'Rs.${pass.price.toStringAsFixed(0)}';
     return '$durationPart @ $pricePart';
   }
@@ -313,38 +319,44 @@ class _GlobalPassViewState extends State<GlobalPassView> {
                     style: GoogleFonts.inter(color: Colors.white, fontSize: 10),
                   ),
                   const SizedBox(height: 20),
-                  Obx(() => GestureDetector(
-                    onTap: _processingPasses[pass.id] == true 
-                        ? null 
-                        : () => _purchaseGamePass(pass),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 16,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _processingPasses[pass.id] == true ? Colors.grey : color,
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: _processingPasses[pass.id] == true
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  Obx(
+                    () => GestureDetector(
+                      onTap: _processingPasses[pass.id] == true
+                          ? null
+                          : () => _purchaseGamePass(pass),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _processingPasses[pass.id] == true
+                              ? Colors.grey
+                              : color,
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: _processingPasses[pass.id] == true
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                'Buy Pass',
+                                style: GoogleFonts.inter(
+                                  color: Colors.black,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            )
-                          : Text(
-                              'Buy Pass',
-                              style: GoogleFonts.inter(
-                                color: Colors.black,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                      ),
                     ),
-                  )),
+                  ),
                 ],
               ),
             ),
@@ -393,10 +405,10 @@ class _GlobalPassViewState extends State<GlobalPassView> {
           const SizedBox(height: 12),
           ElevatedButton(
             onPressed: () {
-              context.read<GamePassCubit>().getGamePass(type: widget.type);
+              context.read<GetGamePassCubit>().getActiveGamePass();
             },
             child: const Text('Retry'),
-          )
+          ),
         ],
       ),
     );

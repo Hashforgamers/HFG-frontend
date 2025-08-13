@@ -755,7 +755,7 @@ class _ArenaViewState extends State<ArenaView> {
       },
       child: Container(
         width: 330.w,
-        height: 150.h,
+        height: 120.h,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(25),
           border: Border.all(color: Colors.white.withOpacity(0.05)),

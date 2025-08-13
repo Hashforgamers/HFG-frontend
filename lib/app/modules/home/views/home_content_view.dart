@@ -21,7 +21,6 @@ import 'package:hash/app/modules/shop/views/shop_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -400,7 +399,7 @@ class _HomeContentViewState extends State<HomeContentView>
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                cacheWidth: 400, // Optimize memory usage
+                // cacheWidth: 400, // Optimize memory usage
                 placeholder: (_, _) =>
                     const Center(child: RainbowGlowingLoader(size: 40)),
                 errorWidget: (_, _, _) => Container(
@@ -499,7 +498,7 @@ class _HomeContentViewState extends State<HomeContentView>
         () => Padding(
           padding: const EdgeInsets.only(left: 10),
           child: userController.isLoading.value
-              ? _shimmerAvatar()
+                ? _buildShimmerAvatar()
               : _userAvatar(userController.user.value.photoUrl),
         ),
       ),

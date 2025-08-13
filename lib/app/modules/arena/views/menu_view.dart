@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/cubit/get_food_menu_cubit.dart';
 import 'package:hash/core/repositories/model/food_menu_model.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 class MenuViewPage extends StatelessWidget {
   final String vendorId;

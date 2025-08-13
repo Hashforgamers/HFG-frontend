@@ -50,24 +50,24 @@ class HomeView extends StatelessWidget {
             unselectedItemColor: Colors.grey[800],
             items: <BottomNavigationBarItem>[
               _buildNavigationItem(
-                'assets/icons/home-02.png',
+                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/home-02_z5zoia.png',
                 isSelected: controller.selectedIndex.value == 0,
               ),
               _buildNavigationItem(
-                'assets/icons/gaming-pad-01.png',
+                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-01_byibeu.png',
                 isSelected: controller.selectedIndex.value == 1,
               ),
               _buildNavigationItem(
-                'assets/icons/bookings.png',
+                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/bookings_rlxzgf.png',
                 isSelected: controller.selectedIndex.value == 2,
                 isSpecial: true,
               ),
               _buildNavigationItem(
-                'assets/icons/shopping-bag-01.png',
+                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075083/shopping-bag-01_fma4hs.png',
                 isSelected: controller.selectedIndex.value == 3,
               ),
               _buildNavigationItem(
-                'assets/icons/settings-02.png',
+                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075083/settings-02_uoux0w.png',
                 isSelected: controller.selectedIndex.value == 4,
               ),
             ],
@@ -89,9 +89,13 @@ class HomeView extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           height: isSelected ? 27 : 25,
           width: isSelected ? 27 : 25,
-          child: Image.asset(
-            iconPath,
+          child: CachedNetworkImage(
             color: isSelected ? const Color(0xff338125) : Colors.grey[800],
+            imageUrl: iconPath,
+            placeholder: (_, _) =>
+                const Center(child: RainbowGlowingLoader(size: 10)),
+            errorWidget: (_, _, _) =>
+                const Icon(Icons.error, color: Colors.red),
           ),
         ),
         label: '',
@@ -103,10 +107,14 @@ class HomeView extends StatelessWidget {
       icon: AnimatedScale(
         scale: isSelected ? 0.83 : 1.0,
         duration: const Duration(milliseconds: 200),
-        child: Image.asset(
-          iconPath,
+        child: CachedNetworkImage(
+          imageUrl: iconPath,
           scale: isSelected ? 2.5 : 3,
           color: isSelected ? const Color(0xff338125) : Colors.grey[800],
+          placeholder: (_, _) =>
+              const Center(child: RainbowGlowingLoader(size: 10)),
+          errorWidget: (_, _, _) =>
+              const Icon(Icons.error, color: Colors.red),
         ),
       ),
       label: '',

@@ -209,7 +209,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
             ClipRRect(
               borderRadius: BorderRadius.circular(25),
               child: CachedNetworkImage(
-                imageUrl: cafe['image']!,
+                imageUrl: pass.imageUrl ?? '',
                 height: 200,
                 width: MediaQuery.of(context).size.width,
                 fit: BoxFit.cover,
