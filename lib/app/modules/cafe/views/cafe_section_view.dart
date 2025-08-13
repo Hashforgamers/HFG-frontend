@@ -64,18 +64,18 @@ class _CafeSectionState extends State<CafeSection> {
             color: Colors.white,
           ),
         ),
-        const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: labels.map((label) {
-            return _buildCafeContainer(
-              label: label,
-              isSelected: selectedLabel == label,
-              screenWidth: screenWidth,
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 5),
+        // Row(
+        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        //   children: labels.map((label) {
+        //     return _buildCafeContainer(
+        //       label: label,
+        //       isSelected: selectedLabel == label,
+        //       screenWidth: screenWidth,
+        //     );
+        //   }).toList(),
+        // ),
+        // const SizedBox(height: 20),
         Obx(() {
           if (widget._cafeController.isLoading.value) {
             return SizedBox(

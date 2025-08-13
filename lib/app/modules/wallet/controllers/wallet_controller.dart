@@ -129,7 +129,8 @@ class WalletController extends GetxController {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({"amount": amount, "reference_id": paymentId}),
       );
-
+      print(res.body);
+      print(res.statusCode);
       if (res.statusCode == 200) {
         Get.snackbar("Success", "Wallet credited");
         await fetchWallet();
