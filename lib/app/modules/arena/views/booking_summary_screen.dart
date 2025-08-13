@@ -46,6 +46,7 @@ enum PaymentStage {
   debitingWallet,
   initiatingGateway,
   confirmingVoucher,
+  confirmingGamePass,
   openingRazorpay,
   done,
   error,
@@ -58,7 +59,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
-  final RxString _selectedPayment = 'wallet'.obs; // 'wallet'  or  'gateway'
+  final RxString _selectedPayment =
+      'wallet'.obs; // 'wallet', 'gateway' or 'none'
   final UserController userController = Get.find<UserController>();
 
   // Voucher related variables
@@ -690,15 +692,40 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               const SizedBox(height: 12),
 
               Obx(
-                () => Row(
+                () => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _paymentChip(
-                      'Wallet',
-                      Icons.account_balance_wallet,
-                      'wallet',
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _paymentChip(
+                            'Wallet',
+                            Icons.account_balance_wallet,
+                            'wallet',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _paymentChip(
+                            'Hash Game Pass',
+                            Icons.gamepad,
+                            'none',
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    _paymentChip('UPI/CARD', Icons.credit_card, 'gateway'),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: SizedBox(
+                        width: 200,
+                        child: _paymentChip(
+                          'UPI/CARD',
+                          Icons.credit_card,
+                          'gateway',
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -739,6 +766,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                             context,
                             isVoucherApplied: _appliedVoucher.value != null,
                             useWallet: _selectedPayment.value == 'wallet',
+                            isGamePass: _selectedPayment.value == 'none',
                           ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF338125),
@@ -1213,6 +1241,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     BuildContext context, {
     required bool isVoucherApplied,
     required bool useWallet,
+    required bool isGamePass,
   }) async {
     if (!_validateBooking()) {
       return;
@@ -1277,7 +1306,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         return;
       }
 
-      // c) RAZORPAY route (default)
+      //c) GAME PASS route
+      if (isGamePass) {
+        _stage.value = PaymentStage.confirmingGamePass;
+        await confirmBooking(
+          bookingIds: bookingIds,
+          paymentMode: 'none',
+          isGamePass: isGamePass,
+        );
+        return;
+      }
+
+      // d) RAZORPAY route (default)
       _stage.value = PaymentStage.initiatingGateway;
       razorpayController.bookingIdList.value = bookingIds;
       // Set the slot IDs for the razorpay controller
@@ -1303,6 +1343,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     required List<int> bookingIds,
     required String paymentMode,
     String? voucherCode,
+    bool isGamePass = false,
   }) async {
     try {
       await _remoteRepo.confirmBooking(
@@ -1312,6 +1353,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         bookDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
         paymentMode: paymentMode,
         voucherCode: voucherCode,
+        isGamePass: isGamePass,
       );
 
       // Track booking confirmed event
@@ -1536,7 +1578,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return GestureDetector(
       onTap: () => _selectedPayment(value),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 18),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
         decoration: BoxDecoration(
           color: isSelected ? Color(0xFF338125) : Colors.grey.shade800,
           borderRadius: BorderRadius.circular(20),
@@ -1545,6 +1587,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           ),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
@@ -1552,11 +1596,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               size: 16,
             ),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                color: isSelected ? Colors.white : Colors.white70,
-                fontSize: 13,
+            Flexible(
+              child: Text(
+                label,
+                style: GoogleFonts.inter(
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontSize: 13,
+                ),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
             ),
           ],

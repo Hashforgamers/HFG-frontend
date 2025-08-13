@@ -33,21 +33,99 @@ class HomeContentView extends StatefulWidget {
   State<HomeContentView> createState() => _HomeContentViewState();
 }
 
-class _HomeContentViewState extends State<HomeContentView> {
-  final BookingController bookingController = Get.find();
-  final LoginController loginController = Get.find();
-  final UserController userController = Get.find();
-  final segmentService = locator<SegmentSdkService>();
+class _HomeContentViewState extends State<HomeContentView>
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
+  // Controllers
+  late final BookingController bookingController;
+  late final LoginController loginController;
+  late final UserController userController;
+  late final SegmentSdkService segmentService;
+  
+  // Animation controllers
+  late final AnimationController _fadeController;
+  late final AnimationController _slideController;
+  
+  // Scroll controller for optimization
+  late final ScrollController _scrollController;
+  
+  // State variables
+  bool _isInitialized = false;
+  bool _isRefreshing = false;
+  bool _showReferModal = false;
+  
+  // Cached widgets for better performance
+  Widget? _cachedAppBar;
+  Widget? _cachedGamePassContainer;
+  Widget? _cachedGameOnIndiaBanner;
+  
+  // Visibility tracking for lazy loading
+  final Map<String, bool> _sectionVisibility = {};
+  
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
+    _initializeControllers();
+    _initializeAnimations();
+    _initializeScrollController();
+    _initializeData();
+  }
+
+  void _initializeControllers() {
+    bookingController = Get.find<BookingController>();
+    loginController = Get.find<LoginController>();
+    userController = Get.find<UserController>();
+    segmentService = locator<SegmentSdkService>();
+  }
+
+  void _initializeAnimations() {
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+  }
+
+  void _initializeScrollController() {
+    _scrollController = ScrollController()
+      ..addListener(_onScrollChanged);
+  }
+
+  void _initializeData() {
+    // Register FCM token immediately
     BlocProvider.of<FcmCubit>(context).registerFCMToken();
+    
+    // Use post frame callback for non-critical initializations
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
-      _ensureWalletFetched();
       _trackHomeScreenViewed();
+      _startAnimations();
     });
+  }
+
+  void _startAnimations() {
+    _fadeController.forward();
+    _slideController.forward();
+  }
+
+  void _onScrollChanged() {
+    // Implement intersection observer logic for lazy loading
+    if (_scrollController.hasClients) {
+      final position = _scrollController.position;
+      final maxScroll = position.maxScrollExtent;
+      final currentScroll = position.pixels;
+      
+      // Trigger lazy loading when user scrolls to certain sections
+      if (currentScroll > maxScroll * 0.7 && !_sectionVisibility['shorts']!) {
+        _sectionVisibility['shorts'] = true;
+        setState(() {});
+      }
+    }
   }
 
   void _trackHomeScreenViewed() {
@@ -57,30 +135,32 @@ class _HomeContentViewState extends State<HomeContentView> {
     }
   }
 
-  void _ensureWalletFetched() {
-    // Ensure wallet is fetched after a short delay
-    Future.delayed(const Duration(milliseconds: 500), () {
-      final walletController = Get.find<WalletController>();
-      if (walletController.isWalletReady &&
-          walletController.balance.value == 0) {
-        walletController.refreshWallet();
-      }
-    });
-  }
-
   Future<void> _refreshData() async {
+    if (_isRefreshing) return;
+    
+    setState(() => _isRefreshing = true);
+    
     try {
-      // Call all APIs in parallel for better performance
+      // Optimized parallel API calls with proper error handling
       await Future.wait([
+        _fetchUserDataIfNeeded(),
+        _refreshWalletIfReady(),
         bookingController.fetchUserBookings(),
         loginController.checkUserExistsInAPI(),
         BlocProvider.of<HashCoinCubit>(context).getHashCoin(),
-        _fetchUserDataIfNeeded(),
-        _refreshWalletIfReady(),
-      ]);
+      ], eagerError: false).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('Data refresh timeout');
+          return [];
+        },
+      );
+      
+      setState(() => _isInitialized = true);
     } catch (e) {
-      // Handle any errors during refresh
       print('Error refreshing data: $e');
+    } finally {
+      setState(() => _isRefreshing = false);
     }
   }
 
@@ -88,21 +168,7 @@ class _HomeContentViewState extends State<HomeContentView> {
     final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       await userController.fetchUserData(currentUser.uid);
-
-      // Add a small delay to ensure user data is properly set
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // Manually trigger wallet refresh after user data is loaded
-      final walletController = Get.find<WalletController>();
-      if (walletController.isWalletReady) {
-        await walletController.refreshWallet();
-      } else {
-        // If wallet is not ready, try again after a short delay
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (walletController.isWalletReady) {
-          await walletController.refreshWallet();
-        }
-      }
+      await _refreshWalletIfReady();
     }
   }
 
@@ -113,51 +179,70 @@ class _HomeContentViewState extends State<HomeContentView> {
     }
   }
 
-  void buildReferPop() {
+  void _showReferFriendModal() {
+    if (_showReferModal) return;
+    
+    setState(() => _showReferModal = true);
+    
     showReferFriendModal(
       context,
       onReferNow: () {
-        Get.to(const ReferralViewWithController());
+        Get.to(() => const ReferralViewWithController());
+        setState(() => _showReferModal = false);
       },
       onNoThanks: () {
         Navigator.pop(context);
+        setState(() => _showReferModal = false);
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+    
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _refreshData,
         backgroundColor: Colors.black,
         child: CustomScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(),
           slivers: [
-            _buildAppBar(),
+            _buildOptimizedAppBar(),
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 24),
-                    const EventBanner(),
-                    const SizedBox(height: 24),
-                    CafeSection(),
-                    const SizedBox(height: 24),
-                    _buildGamePassContainer(),
-                    const SizedBox(height: 24),
-                    const ShopSection(),
-                    const SizedBox(height: 24),
-                    const GamerNewsSection(),
-                    const SizedBox(height: 24),
-                    const GamesSection(),
-                    const SizedBox(height: 24),
-                    ViralShotsSection(),
-                    const SizedBox(height: 32),
-                    _buildGameOnIndiaBanner(),
-                    const SizedBox(height: 32),
-                  ],
+              child: FadeTransition(
+                opacity: _fadeController,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.1),
+                    end: Offset.zero,
+                  ).animate(_slideController),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 24),
+                        _buildLazyLoadedSection('event', const EventBanner()),
+                        const SizedBox(height: 24),
+                        _buildLazyLoadedSection('cafe', CafeSection()),
+                        const SizedBox(height: 24),
+                        _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+                        const SizedBox(height: 24),
+                        _buildLazyLoadedSection('shop', const ShopSection()),
+                        const SizedBox(height: 24),
+                        _buildLazyLoadedSection('news', const GamerNewsSection()),
+                        const SizedBox(height: 24),
+                        _buildLazyLoadedSection('games', const GamesSection()),
+                        const SizedBox(height: 24),
+                        _buildLazyLoadedSection('shorts', ViralShotsSection()),
+                        const SizedBox(height: 32),
+                        _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -167,14 +252,140 @@ class _HomeContentViewState extends State<HomeContentView> {
     );
   }
 
+  Widget _buildLazyLoadedSection(String sectionKey, Widget child) {
+    // Initialize visibility map if not exists
+    _sectionVisibility[sectionKey] ??= true;
+    
+    if (!_sectionVisibility[sectionKey]!) {
+      return const SizedBox.shrink();
+    }
+    
+    return RepaintBoundary(
+      child: child,
+    );
+  }
+
+  Widget _buildOptimizedAppBar() {
+    if (_cachedAppBar != null) return _cachedAppBar!;
+    
+    _cachedAppBar = SliverAppBar(
+      backgroundColor: Colors.transparent,
+      systemOverlayStyle: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+      ),
+      elevation: 0,
+      pinned: false,
+      expandedHeight: 70,
+      flexibleSpace: ClipRRect(
+        borderRadius: BorderRadius.circular(25),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFFFFFFFF).withOpacity(0.1),
+                  const Color(0xFF64BD55).withOpacity(0.2),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(25),
+            ),
+          ),
+        ),
+      ),
+      leadingWidth: 55,
+      leading: Obx(
+        () => Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: userController.isLoading.value
+              ? _buildShimmerAvatar()
+              : _buildOptimizedUserAvatar(userController.user.value.photoUrl),
+        ),
+      ),
+      title: Obx(
+        () => Padding(
+          padding: const EdgeInsets.only(top: 12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Hey, ${userController.user.value.gameUserName}!',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Viman Nagar, Pune',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFB6B6B6),
+                  fontSize: 11.5,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 10),
+          child: BlocBuilder<HashCoinCubit, HashCoinState>(
+            builder: (_, state) => RewardsSection(
+              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+            ),
+          ),
+        ),
+      ],
+    );
+    
+    return _cachedAppBar!;
+  }
+
+  Widget _buildOptimizedUserAvatar(String? photoUrl) {
+    const double size = 40;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFF6DFB60), width: 2),
+      ),
+      child: CircleAvatar(
+        radius: size / 2,
+        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+            ? CachedNetworkImageProvider(
+                photoUrl,
+                errorListener: (error) => print('Avatar image error: $error'),
+              )
+            : const NetworkImage(
+                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
+                  )
+                  as ImageProvider,
+        backgroundColor: Colors.white,
+      ),
+    );
+  }
+
   Widget _buildGamePassContainer() {
-    return GestureDetector(
-      onTap: () => Get.to(GamePassViewPage()),
+    if (_cachedGamePassContainer != null) return _cachedGamePassContainer!;
+    
+    _cachedGamePassContainer = GestureDetector(
+      onTap: () => Get.to(() => GamePassViewPage()),
       child: Container(
         height: 200,
         width: double.infinity,
         decoration: BoxDecoration(
-          border: Border.all(color: Color(0xFF6DFB60), width: 1),
+          border: Border.all(color: const Color(0xFF6DFB60), width: 1),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Stack(
@@ -186,6 +397,7 @@ class _HomeContentViewState extends State<HomeContentView> {
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                cacheWidth: 400, // Optimize memory usage
               ),
             ),
             Positioned(
@@ -235,117 +447,14 @@ class _HomeContentViewState extends State<HomeContentView> {
         ),
       ),
     );
-  }
-
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      backgroundColor: Colors.transparent,
-      systemOverlayStyle: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-      ),
-      elevation: 0,
-      pinned: false,
-      expandedHeight: 70,
-      flexibleSpace: ClipRRect(
-        borderRadius: BorderRadius.circular(25),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFFFFFFFF).withOpacity(0.1),
-                  const Color(0xFF64BD55).withOpacity(0.2),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(25),
-              // border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
-            ),
-          ),
-        ),
-      ),
-
-      leadingWidth: 55,
-      leading: Obx(
-        () => Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: userController.isLoading.value
-              ? _shimmerAvatar()
-              : _userAvatar(userController.user.value.photoUrl),
-        ),
-      ),
-      title: Obx(
-        () => Padding(
-          padding: const EdgeInsets.only(top: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Hey, ${userController.user.value.gameUserName}!',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Viman Nagar, Pune',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFB6B6B6),
-                  fontSize: 11.5,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ],
-          ),
-        ),
-      ),
-
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 10),
-          child: BlocBuilder<HashCoinCubit, HashCoinState>(
-            builder: (_, state) => RewardsSection(
-              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _userAvatar(String? photoUrl) {
-    const double size = 40;
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF6DFB60), width: 2),
-      ),
-      child: CircleAvatar(
-        radius: size / 2,
-        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-            ? CachedNetworkImageProvider(photoUrl)
-            : const NetworkImage(
-                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-                  )
-                  as ImageProvider,
-        backgroundColor: Colors.white,
-      ),
-    );
+    
+    return _cachedGamePassContainer!;
   }
 
   Widget _buildGameOnIndiaBanner() {
-    return GestureDetector(
+    if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
+    
+    _cachedGameOnIndiaBanner = GestureDetector(
       onTap: () {},
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -367,13 +476,23 @@ class _HomeContentViewState extends State<HomeContentView> {
         ),
       ),
     );
+    
+    return _cachedGameOnIndiaBanner!;
   }
 
-  Widget _shimmerAvatar() {
+  Widget _buildShimmerAvatar() {
     return Shimmer.fromColors(
       baseColor: Colors.grey.shade800,
       highlightColor: Colors.grey.shade600,
       child: const CircleAvatar(radius: 15, backgroundColor: Colors.grey),
     );
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _slideController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 }

@@ -41,6 +41,7 @@ abstract class RemoteRepoInterface {
     required String bookDate,
     String? voucherCode,
     required String paymentMode,
+    bool isGamePass = false,
   });
 
   // Address related methods

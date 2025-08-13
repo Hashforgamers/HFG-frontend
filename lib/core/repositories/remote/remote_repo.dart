@@ -284,8 +284,8 @@ class RemoteRepo implements RemoteRepoInterface {
     required String paymentId,
     required String bookDate,
     required String paymentMode, // ✅ ADD THIS
-
     String? voucherCode,
+    bool isGamePass = false,
   }) async {
     final dio = networkProvider.noAuth();
     try {
@@ -294,6 +294,7 @@ class RemoteRepo implements RemoteRepoInterface {
         "payment_id": paymentId,
         "book_date": bookDate,
         "payment_mode": paymentMode,
+        "use_pass": isGamePass,
       };
 
       // Add voucher code if provided
