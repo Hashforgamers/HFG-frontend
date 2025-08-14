@@ -23,8 +23,10 @@ class UserProfileView extends StatelessWidget {
       bottomNavigationBar: _buildLogoutButton(),
       appBar: AppBar(
         centerTitle: false,
-        title: Text('Profile',
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
+        title: Text(
+          'Profile',
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+        ),
         backgroundColor: Colors.black,
       ),
       body: Padding(
@@ -46,7 +48,7 @@ class UserProfileView extends StatelessWidget {
               icon: CupertinoIcons.bag,
               title: 'My Orders',
               onTap: () {
-                Get.to(const GamePassPage());
+                // Get.to(const GamePassPage());
               },
             ),
             _buildProfileOption(
@@ -103,9 +105,7 @@ class UserProfileView extends StatelessWidget {
   Widget _buildProfileHeader(UserController userController) {
     return Obx(() {
       if (userController.isLoading.value) {
-        return const Center(
-          child: RainbowGlowingLoader(size: 50),
-        );
+        return const Center(child: RainbowGlowingLoader(size: 50));
       }
 
       final user = userController.user.value;
@@ -122,7 +122,10 @@ class UserProfileView extends StatelessWidget {
           Text(
             user.name!,
             style: GoogleFonts.inter(
-                color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 10),
           Text(
@@ -134,10 +137,11 @@ class UserProfileView extends StatelessWidget {
     });
   }
 
-  Widget _buildProfileOption(
-      {required IconData icon,
-      required String title,
-      required VoidCallback onTap}) {
+  Widget _buildProfileOption({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
     return ListTile(
       leading: Icon(icon, color: Colors.green),
       title: Text(
@@ -159,14 +163,13 @@ class UserProfileView extends StatelessWidget {
           await prefs.remove('token');
           await prefs.remove('user_data');
 
-          Get.offAllNamed(AppRoutes
-              .LOGIN); // Navigates to the login screen and removes all previous routes
+          Get.offAllNamed(
+            AppRoutes.LOGIN,
+          ); // Navigates to the login screen and removes all previous routes
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           minimumSize: const Size(double.infinity, 50),
         ),
         child: Text(
