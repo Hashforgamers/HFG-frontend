@@ -16,6 +16,7 @@ class GetPassModel {
   final String? validFrom;
   final String? validTo;
   final int? cafePassId;
+  final bool? isBought;
 
   GetPassModel({
     required this.daysValid,
@@ -35,6 +36,7 @@ class GetPassModel {
     this.validFrom,
     this.validTo,
     this.cafePassId,
+    this.isBought,
   });
 
   factory GetPassModel.fromJson(Map<String, dynamic> json) {
@@ -59,6 +61,7 @@ class GetPassModel {
       validFrom: json['valid_from']?.toString(),
       validTo: json['valid_to']?.toString(),
       cafePassId: json['cafe_pass_id'] as int?,
+      isBought: json['is_bought'] as bool?,
     );
   }
 

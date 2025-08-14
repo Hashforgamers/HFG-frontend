@@ -121,4 +121,8 @@ class ApiEndpoints {
   // Get Extra Service
   static String getExtraService(String vendorId) =>
       '$userOnboardBaseUrl/api/vendor/$vendorId/extraService';
+  
+  // Get Transaction History
+  static String getTransactionHistory(String userId) =>
+      '$userOnboardBaseUrl/api/users/$userId/transactions';
 }

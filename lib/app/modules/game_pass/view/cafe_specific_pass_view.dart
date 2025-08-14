@@ -197,7 +197,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
     GetPassModel pass,
   ) {
     return GestureDetector(
-      onTap: () {
+      onTap: pass.isBought == true ? null : () {
         _purchaseCafePass(pass);
       },
       child: Container(
@@ -299,18 +299,18 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                         ),
                         const Spacer(),
                         Obx(() => GestureDetector(
-                          onTap: _processingPasses[pass.id] == true 
+                          onTap: (pass.isBought == true || _processingPasses[pass.id] == true) 
                               ? null 
                               : () => _purchaseCafePass(pass),
                           child: Container(
                             height: 36,
                             width: 100,
                             decoration: BoxDecoration(
-                              color: _processingPasses[pass.id] == true 
+                              color: (pass.isBought == true || _processingPasses[pass.id] == true) 
                                   ? Colors.grey.withOpacity(0.3)
                                   : Colors.transparent,
                               border: Border.all(
-                                color: _processingPasses[pass.id] == true 
+                                color: (pass.isBought == true || _processingPasses[pass.id] == true) 
                                     ? Colors.grey 
                                     : const Color(0xFFDADADA),
                                 width: 1.5,
@@ -328,9 +328,9 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                                       ),
                                     )
                                   : Text(
-                                      'Buy Pass',
+                                      pass.isBought == true ? 'Already Bought' : 'Buy Pass',
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFFDADADA),
+                                        color: pass.isBought == true ? Colors.white : const Color(0xFFDADADA),
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                       ),

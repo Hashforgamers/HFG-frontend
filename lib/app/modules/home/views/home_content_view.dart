@@ -8,7 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/cafe/views/cafe_section_view.dart';
-import 'package:hash/app/modules/event/event_banner_view.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
@@ -17,7 +16,6 @@ import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
-import 'package:hash/app/modules/shop/views/shop_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
@@ -50,10 +48,10 @@ class _HomeContentViewState extends State<HomeContentView>
   late final ScrollController _scrollController;
   
   // State variables
-  bool _isInitialized = false;
+  bool isInitialized = false;
   bool _isRefreshing = false;
-  bool _showReferModal = false;
-  
+  bool showReferModal = false;
+
   // Cached widgets for better performance
   Widget? _cachedAppBar;
   Widget? _cachedGamePassContainer;
@@ -101,8 +99,7 @@ class _HomeContentViewState extends State<HomeContentView>
   }
 
   void _initializeScrollController() {
-    _scrollController = ScrollController()
-      ..addListener(_onScrollChanged);
+    _scrollController = ScrollController()..addListener(_onScrollChanged);
   }
 
   void _initializeData() {
@@ -148,6 +145,7 @@ class _HomeContentViewState extends State<HomeContentView>
     setState(() => _isRefreshing = true);
 
     try {
+      // Optimized parallel API calls with proper error handling
       await Future.wait([
         _fetchUserDataIfNeeded(),
         _refreshWalletIfReady(),
@@ -157,13 +155,12 @@ class _HomeContentViewState extends State<HomeContentView>
       ], eagerError: false).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          debugPrint('Data refresh timeout');
           return [];
         },
       );
-
       if (!mounted) return;
-      setState(() => _isInitialized = true);
+
+      setState(() => isInitialized = true);
     } catch (e) {
       debugPrint('Error refreshing data: $e');
     } finally {
@@ -171,7 +168,6 @@ class _HomeContentViewState extends State<HomeContentView>
       setState(() => _isRefreshing = false);
     }
   }
-
 
   Future<void> _fetchUserDataIfNeeded() async {
     final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
@@ -188,32 +184,33 @@ class _HomeContentViewState extends State<HomeContentView>
     }
   }
 
-  // void _showReferFriendModal() {
-  //   if (_showReferModal) return;
-  //
-  //   if (!mounted) return;
-  //   setState(() => _showReferModal = true);
-  //
-  //   showReferFriendModal(
-  //     context,
-  //     onReferNow: () {
-  //       if (!mounted) return;
-  //       Get.to(() => const ReferralViewWithController());
-  //       if (!mounted) return;
-  //       setState(() => _showReferModal = false);
-  //     },
-  //     onNoThanks: () {
-  //       if (mounted) Navigator.pop(context);
-  //       if (!mounted) return;
-  //       setState(() => _showReferModal = false);
-  //     },
-  //   );
-  // }
+  Widget _buildReferFriendModal() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'REFER TO A FRIEND',
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ReferFriendModal(
+          isDialog: false,
+          onReferNow: () {
+            Get.to(() => const ReferralViewWithController());
+          },
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    
+
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _refreshData,
@@ -238,19 +235,31 @@ class _HomeContentViewState extends State<HomeContentView>
                       children: [
                         const SizedBox(height: 24),
                         // _buildLazyLoadedSection('event', const EventBanner()),
-                        _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+                        _buildLazyLoadedSection(
+                          'gamePass',
+                          _buildGamePassContainer(),
+                        ),
                         const SizedBox(height: 24),
                         _buildLazyLoadedSection('cafe', CafeSection()),
+                        // const SizedBox(height: 24),
+                        _buildLazyLoadedSection(
+                          'referral',
+                          _buildReferFriendModal(),
+                        ),
                         const SizedBox(height: 24),
-                        _buildLazyLoadedSection('shop', const ShopSection()),
-                        const SizedBox(height: 24),
-                        _buildLazyLoadedSection('news', const GamerNewsSection()),
+                        _buildLazyLoadedSection(
+                          'news',
+                          const GamerNewsSection(),
+                        ),
                         const SizedBox(height: 24),
                         _buildLazyLoadedSection('games', const GamesSection()),
                         const SizedBox(height: 24),
                         _buildLazyLoadedSection('shorts', ViralShotsSection()),
                         const SizedBox(height: 32),
-                        _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
+                        _buildLazyLoadedSection(
+                          'gameOnIndia',
+                          _buildGameOnIndiaBanner(),
+                        ),
                         const SizedBox(height: 32),
                       ],
                     ),
@@ -267,19 +276,17 @@ class _HomeContentViewState extends State<HomeContentView>
   Widget _buildLazyLoadedSection(String sectionKey, Widget child) {
     // Initialize visibility map if not exists
     _sectionVisibility[sectionKey] ??= true;
-    
+
     if (!_sectionVisibility[sectionKey]!) {
       return const SizedBox.shrink();
     }
-    
-    return RepaintBoundary(
-      child: child,
-    );
+
+    return RepaintBoundary(child: child);
   }
 
   Widget _buildOptimizedAppBar() {
     if (_cachedAppBar != null) return _cachedAppBar!;
-    
+
     _cachedAppBar = SliverAppBar(
       backgroundColor: Colors.transparent,
       systemOverlayStyle: const SystemUiOverlayStyle(
@@ -358,7 +365,7 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       ],
     );
-    
+
     return _cachedAppBar!;
   }
 
@@ -390,7 +397,7 @@ class _HomeContentViewState extends State<HomeContentView>
 
   Widget _buildGamePassContainer() {
     if (_cachedGamePassContainer != null) return _cachedGamePassContainer!;
-    
+
     _cachedGamePassContainer = GestureDetector(
       onTap: () => Get.to(() => GamePassViewPage()),
       child: Container(
@@ -471,7 +478,7 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       ),
     );
-    
+
     return _cachedGamePassContainer!;
   }
 
@@ -583,7 +590,6 @@ class _HomeContentViewState extends State<HomeContentView>
 
   Widget _buildGameOnIndiaBanner() {
     if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
-    
     _cachedGameOnIndiaBanner = GestureDetector(
       onTap: () {},
       child: Container(
@@ -606,7 +612,6 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       ),
     );
-    
     return _cachedGameOnIndiaBanner!;
   }
 
