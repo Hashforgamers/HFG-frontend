@@ -737,7 +737,7 @@ class _ArenaViewState extends State<ArenaView> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(25),
           border: Border.all(color: Colors.white.withOpacity(0.05)),
-          color: Colors.red,
+          color: Colors.transparent,
         ),
         clipBehavior: Clip.hardEdge,
         child: Stack(

@@ -267,6 +267,8 @@ class _HomeContentViewState extends State<HomeContentView>
     if (_cachedAppBar != null) return _cachedAppBar!;
     
     _cachedAppBar = SliverAppBar(
+      centerTitle: false,
+      titleSpacing: 14,
       backgroundColor: Colors.transparent,
       systemOverlayStyle: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
