@@ -130,10 +130,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           _stage.value = PaymentStage.done;
           _isProcessingPayment(false);
         } else if (status.toLowerCase().contains('failed') ||
-            status.toLowerCase().contains('error')) {
+            status.toLowerCase().contains('error') ||
+            status.toLowerCase().contains('cancelled')) {
           _stage.value = PaymentStage.error;
           _errorMessage.value = status;
           _isProcessingPayment(false);
+          razorpayController.isPaymentInProgress(false);
         }
       }
     });
@@ -159,10 +161,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           _stage.value = PaymentStage.done;
           _isProcessingPayment(false);
         } else if (status.toLowerCase().contains('failed') ||
-            status.toLowerCase().contains('error')) {
+            status.toLowerCase().contains('error') ||
+            status.toLowerCase().contains('cancelled')) {
           _stage.value = PaymentStage.error;
           _errorMessage.value = status;
           _isProcessingPayment(false);
+          razorpayController.isPaymentInProgress(false);
         }
       }
     });
@@ -742,9 +746,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // New: Elegant Step Status Indicator
-              // Obx(() => _buildPaymentProgress()),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -761,7 +762,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   ElevatedButton(
                     onPressed:
                         (_isProcessingPayment.value ||
-                            _stage.value != PaymentStage.idle)
+                            _stage.value == PaymentStage.creatingBooking ||
+                            _stage.value == PaymentStage.debitingWallet ||
+                            _stage.value == PaymentStage.initiatingGateway ||
+                            _stage.value == PaymentStage.confirmingVoucher ||
+                            _stage.value == PaymentStage.confirmingGamePass ||
+                            _stage.value == PaymentStage.openingRazorpay)
                         ? null
                         : () => handleBooking(
                             context,
@@ -782,7 +788,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     ),
                     child: Obx(() {
                       if (_isProcessingPayment.value ||
-                          _stage.value != PaymentStage.idle) {
+                          _stage.value == PaymentStage.creatingBooking ||
+                          _stage.value == PaymentStage.debitingWallet ||
+                          _stage.value == PaymentStage.initiatingGateway ||
+                          _stage.value == PaymentStage.confirmingVoucher ||
+                          _stage.value == PaymentStage.confirmingGamePass ||
+                          _stage.value == PaymentStage.openingRazorpay) {
                         return const SizedBox(
                           height: 20,
                           width: 20,
@@ -1209,6 +1220,23 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     _isProcessingPayment(false);
     _paymentStatus.value = '';
     razorpayController.isPaymentInProgress(false);
+    // Also reset any error states that might be lingering
+    razorpayController.paymentStatus.value = '';
+  }
+
+  void _resetButtonState() {
+    _isProcessingPayment(false);
+    razorpayController.isPaymentInProgress(false);
+    // Keep the error stage for display purposes, but ensure button is enabled
+    if (_stage.value == PaymentStage.error) {
+      // Don't change the stage, just ensure processing is false
+    }
+  }
+
+  void _clearErrorState() {
+    _stage.value = PaymentStage.idle;
+    _errorMessage.value = '';
+    _paymentStatus.value = '';
   }
 
   String _getCartItemsSummary() {
@@ -1238,6 +1266,44 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }).toList();
   }
 
+  String _parseErrorMessage(dynamic error) {
+    String errorMessage = 'An error occurred';
+    
+    if (error.toString().contains('DioError') || error.toString().contains('DioException')) {
+      try {
+        if (error.toString().contains('"error"')) {
+          // Try to extract the error message from the response body
+          final errorMatch = RegExp(r'"error":\s*"([^"]+)"').firstMatch(error.toString());
+          if (errorMatch != null) {
+            errorMessage = errorMatch.group(1) ?? errorMessage;
+          }
+        } else if (error.toString().contains('Insufficient wallet balance')) {
+          errorMessage = 'Insufficient wallet balance. Please add money to your wallet or choose a different payment method.';
+        } else if (error.toString().contains('500')) {
+          errorMessage = 'Server error occurred. Please try again later.';
+        } else if (error.toString().contains('400')) {
+          errorMessage = 'Invalid request. Please check your details.';
+        } else if (error.toString().contains('401')) {
+          errorMessage = 'Authentication failed. Please login again.';
+        } else if (error.toString().contains('403')) {
+          errorMessage = 'Access denied. Please check your permissions.';
+        } else if (error.toString().contains('404')) {
+          errorMessage = 'Service not found. Please try again later.';
+        } else if (error.toString().contains('422')) {
+          errorMessage = 'Invalid data. Please check your selections.';
+        }
+      } catch (parseError) {
+        print('Error parsing DioError: $parseError');
+        errorMessage = 'An unexpected error occurred. Please try again.';
+      }
+    } else {
+      // For non-Dio errors, use the original error message
+      errorMessage = error.toString().replaceAll('Exception: ', '').replaceAll('Error: ', '');
+    }
+    
+    return errorMessage;
+  }
+
   Future<void> handleBooking(
     BuildContext context, {
     required bool isVoucherApplied,
@@ -1249,8 +1315,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
 
     // Reset any previous error states
-    _stage.value = PaymentStage.idle;
-    _errorMessage.value = '';
+    _clearErrorState();
 
     // Start loading state
     _isProcessingPayment(true);
@@ -1329,14 +1394,57 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       razorpayController.cartItemsList.value = _getValidatedCartItems();
       await initiatePayment(context, amountInPaisa);
     } catch (e) {
+      // Parse error message properly
+      String errorMessage = _parseErrorMessage(e);
+
       _stage.value = PaymentStage.error;
-      _errorMessage.value = e.toString();
-      _isProcessingPayment(false);
-      razorpayController.isPaymentInProgress(false);
+      _errorMessage.value = errorMessage;
+      _resetButtonState();
+      
+      // Show error message with better styling and action button for wallet errors
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('An error occurred: $e'),
-          backgroundColor: Colors.red,
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  errorMessage,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red.shade600,
+          duration: const Duration(seconds: 8),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          margin: const EdgeInsets.all(16),
+          action: errorMessage.contains('Insufficient wallet balance') 
+            ? SnackBarAction(
+                label: 'Add Money',
+                textColor: Colors.white,
+                onPressed: () {
+                  // Navigate to wallet/add money screen
+                  // You can implement this navigation based on your app structure
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  // Example: Get.toNamed('/wallet');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Navigate to wallet to add money'),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+                },
+              )
+            : null,
         ),
       );
     }
@@ -1431,16 +1539,59 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         }
       }
 
+      // Parse error message properly
+      String errorMessage = _parseErrorMessage(e);
+
       // Update payment stage to error
       _stage.value = PaymentStage.error;
-      _errorMessage.value = e.toString();
-      _isProcessingPayment(false);
+      _errorMessage.value = errorMessage;
+      _resetButtonState();
       _paymentStatus.value = 'Failed to confirm booking';
 
+      // Show error message with better styling and action button for wallet errors
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to confirm booking: $e'),
-          backgroundColor: Colors.red,
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  errorMessage,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red.shade600,
+          duration: const Duration(seconds: 8),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          margin: const EdgeInsets.all(16),
+          action: errorMessage.contains('Insufficient wallet balance') 
+            ? SnackBarAction(
+                label: 'Add Money',
+                textColor: Colors.white,
+                onPressed: () {
+                  // Navigate to wallet/add money screen
+                  // You can implement this navigation based on your app structure
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  // Example: Get.toNamed('/wallet');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Navigate to wallet to add money'),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+                },
+              )
+            : null,
         ),
       );
     }
@@ -1543,16 +1694,59 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         );
       }
     } catch (e) {
+      // Parse error message properly
+      String errorMessage = _parseErrorMessage(e);
+
       _stage.value = PaymentStage.error;
-      _errorMessage.value = e.toString();
-      _isProcessingPayment(false);
+      _errorMessage.value = errorMessage;
+      _resetButtonState();
       _paymentStatus.value = 'Payment initialization failed';
-      razorpayController.isPaymentInProgress(false);
-      print(e);
+      print('Payment error: $e');
+      
+      // Show error message with better styling and action button for wallet errors
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Payment error: $e'),
-          backgroundColor: Colors.red,
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  errorMessage,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red.shade600,
+          duration: const Duration(seconds: 8),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          margin: const EdgeInsets.all(16),
+          action: errorMessage.contains('Insufficient wallet balance') 
+            ? SnackBarAction(
+                label: 'Add Money',
+                textColor: Colors.white,
+                onPressed: () {
+                  // Navigate to wallet/add money screen
+                  // You can implement this navigation based on your app structure
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  // Example: Get.toNamed('/wallet');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Navigate to wallet to add money'),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+                },
+              )
+            : null,
         ),
       );
     }

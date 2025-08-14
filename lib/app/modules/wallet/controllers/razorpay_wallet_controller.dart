@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../../core/network/api_endpoints.dart';
@@ -68,7 +69,7 @@ class RazorpayWalletController extends GetxController {
   }
 
   /// Called when payment is successful
-  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
     final paymentId = response.paymentId ?? 'Unknown';
 
     // Track add money success event
@@ -77,10 +78,19 @@ class RazorpayWalletController extends GetxController {
       txnId: paymentId,
     );
 
-    Get.find<WalletController>().confirmTopUp(
-      amount: _tempAmount ?? 0,
+    final success = await Get.find<WalletController>().confirmTopUp(
+      amount: (_tempAmount ?? 0).toDouble(),
       paymentId: paymentId,
     );
+
+    if (!success) {
+      Get.snackbar(
+        "Error",
+        "Failed to credit wallet. Please contact support.",
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
 
     isPaying.value = false;
   }

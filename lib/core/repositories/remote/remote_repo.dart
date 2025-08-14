@@ -542,10 +542,10 @@ class RemoteRepo implements RemoteRepoInterface {
 
   // Wallet related methods
   @override
-  Future<Map<String, dynamic>> fetchWallet() async {
-    final dio = await networkProvider.auth();
+  Future<Map<String, dynamic>> fetchWallet({required String userId}) async {
+    final dio = networkProvider.noAuth();
     try {
-      final response = await dio.get(ApiEndpoints.wallet);
+      final response = await dio.get(ApiEndpoints.wallet(userId));
 
       if (response.statusCode == 200) {
         return response.data;
@@ -562,22 +562,17 @@ class RemoteRepo implements RemoteRepoInterface {
 
   @override
   Future<Map<String, dynamic>> addFunds({
-    required double amount,
-    required String description,
-    required String name,
-    required String contact,
-    required String emailId,
+    required String userId,
+    required String paymentId,
+    required int amount,
   }) async {
-    final dio = await networkProvider.auth();
+    final dio = networkProvider.noAuth();
     try {
       final response = await dio.post(
-        ApiEndpoints.addFunds,
+        ApiEndpoints.wallet(userId),
         data: {
           'amount': amount,
-          'description': description,
-          'name': name,
-          'contact': contact,
-          'email_id': emailId,
+          'reference_id': paymentId,
         },
       );
 

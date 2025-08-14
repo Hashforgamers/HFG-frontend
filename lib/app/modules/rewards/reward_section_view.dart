@@ -26,8 +26,8 @@ class RewardsSection extends StatelessWidget {
         GestureDetector(
           onTap: () => Get.to(WalletScreen()),
           child: Obx(() {
-            final isLoading = walletController.isLoading.value;
-            final walletBalance = walletController.balance.value;
+            final isLoading = walletController.isLoading; 
+            final walletBalance = walletController.balance;
             return Stack(
               children: [
                 _buildPill(
