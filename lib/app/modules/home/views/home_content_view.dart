@@ -73,7 +73,15 @@ class _HomeContentViewState extends State<HomeContentView>
     _initializeScrollController();
     _initializeData();
   }
-
+  @override
+  void dispose() {
+    // remove listeners before disposing controller
+    _scrollController.removeListener(_onScrollChanged);
+    _fadeController.dispose();
+    _slideController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
   void _initializeControllers() {
     bookingController = Get.find<BookingController>();
     loginController = Get.find<LoginController>();
@@ -113,17 +121,16 @@ class _HomeContentViewState extends State<HomeContentView>
   }
 
   void _onScrollChanged() {
-    // Implement intersection observer logic for lazy loading
-    if (_scrollController.hasClients) {
-      final position = _scrollController.position;
-      final maxScroll = position.maxScrollExtent;
-      final currentScroll = position.pixels;
-      
-      // Trigger lazy loading when user scrolls to certain sections
-      if (currentScroll > maxScroll * 0.7 && !_sectionVisibility['shorts']!) {
-        _sectionVisibility['shorts'] = true;
-        setState(() {});
-      }
+    if (!mounted || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final maxScroll = position.maxScrollExtent;
+    final currentScroll = position.pixels;
+
+    final wasSeen = _sectionVisibility['shorts'] ?? false;
+    if (currentScroll > maxScroll * 0.7 && !wasSeen) {
+      _sectionVisibility['shorts'] = true;
+      if (!mounted) return;
+      setState(() {}); // guarded
     }
   }
 
@@ -136,11 +143,11 @@ class _HomeContentViewState extends State<HomeContentView>
 
   Future<void> _refreshData() async {
     if (_isRefreshing) return;
-    
+
+    if (!mounted) return;
     setState(() => _isRefreshing = true);
-    
+
     try {
-      // Optimized parallel API calls with proper error handling
       await Future.wait([
         _fetchUserDataIfNeeded(),
         _refreshWalletIfReady(),
@@ -150,18 +157,21 @@ class _HomeContentViewState extends State<HomeContentView>
       ], eagerError: false).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          print('Data refresh timeout');
+          debugPrint('Data refresh timeout');
           return [];
         },
       );
-      
+
+      if (!mounted) return;
       setState(() => _isInitialized = true);
     } catch (e) {
-      print('Error refreshing data: $e');
+      debugPrint('Error refreshing data: $e');
     } finally {
+      if (!mounted) return;
       setState(() => _isRefreshing = false);
     }
   }
+
 
   Future<void> _fetchUserDataIfNeeded() async {
     final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
@@ -178,23 +188,27 @@ class _HomeContentViewState extends State<HomeContentView>
     }
   }
 
-  void _showReferFriendModal() {
-    if (_showReferModal) return;
-    
-    setState(() => _showReferModal = true);
-    
-    showReferFriendModal(
-      context,
-      onReferNow: () {
-        Get.to(() => const ReferralViewWithController());
-        setState(() => _showReferModal = false);
-      },
-      onNoThanks: () {
-        Navigator.pop(context);
-        setState(() => _showReferModal = false);
-      },
-    );
-  }
+  // void _showReferFriendModal() {
+  //   if (_showReferModal) return;
+  //
+  //   if (!mounted) return;
+  //   setState(() => _showReferModal = true);
+  //
+  //   showReferFriendModal(
+  //     context,
+  //     onReferNow: () {
+  //       if (!mounted) return;
+  //       Get.to(() => const ReferralViewWithController());
+  //       if (!mounted) return;
+  //       setState(() => _showReferModal = false);
+  //     },
+  //     onNoThanks: () {
+  //       if (mounted) Navigator.pop(context);
+  //       if (!mounted) return;
+  //       setState(() => _showReferModal = false);
+  //     },
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -321,7 +335,7 @@ class _HomeContentViewState extends State<HomeContentView>
               ),
               const SizedBox(height: 2),
               Text(
-                'Viman Nagar, Pune',
+                '${userController.user.value.contact?.physicalAddress?.addressLine1}',
                 style: GoogleFonts.inter(
                   color: const Color(0xFFB6B6B6),
                   fontSize: 11.5,
@@ -461,111 +475,111 @@ class _HomeContentViewState extends State<HomeContentView>
     return _cachedGamePassContainer!;
   }
 
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      backgroundColor: Colors.transparent,
-      systemOverlayStyle: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-      ),
-      elevation: 0,
-      pinned: false,
-      expandedHeight: 70,
-      flexibleSpace: ClipRRect(
-        borderRadius: BorderRadius.circular(25),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFFFFFFFF).withOpacity(0.1),
-                  const Color(0xFF64BD55).withOpacity(0.2),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(25),
-            ),
-          ),
-        ),
-      ),
+  // Widget _buildAppBar() {
+  //   return SliverAppBar(
+  //     backgroundColor: Colors.transparent,
+  //     systemOverlayStyle: const SystemUiOverlayStyle(
+  //       statusBarColor: Colors.transparent,
+  //     ),
+  //     elevation: 0,
+  //     pinned: false,
+  //     expandedHeight: 70,
+  //     flexibleSpace: ClipRRect(
+  //       borderRadius: BorderRadius.circular(25),
+  //       child: BackdropFilter(
+  //         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+  //         child: Container(
+  //           decoration: BoxDecoration(
+  //             gradient: LinearGradient(
+  //               begin: Alignment.topCenter,
+  //               end: Alignment.bottomCenter,
+  //               colors: [
+  //                 const Color(0xFFFFFFFF).withOpacity(0.1),
+  //                 const Color(0xFF64BD55).withOpacity(0.2),
+  //               ],
+  //             ),
+  //             borderRadius: BorderRadius.circular(25),
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //
+  //     leadingWidth: 55,
+  //     leading: Obx(
+  //       () => Padding(
+  //         padding: const EdgeInsets.only(left: 10),
+  //         child: userController.isLoading.value
+  //               ? _buildShimmerAvatar()
+  //             : _userAvatar(userController.user.value.photoUrl),
+  //       ),
+  //     ),
+  //     title: Obx(
+  //       () => Padding(
+  //         padding: const EdgeInsets.only(top: 12.0),
+  //         child: Column(
+  //           crossAxisAlignment: CrossAxisAlignment.start,
+  //           mainAxisSize: MainAxisSize.min,
+  //           children: [
+  //             Text(
+  //               'Hey, ${userController.user.value.gameUserName}!',
+  //               style: GoogleFonts.inter(
+  //                 color: Colors.white,
+  //                 fontSize: 14,
+  //                 fontWeight: FontWeight.bold,
+  //               ),
+  //               overflow: TextOverflow.ellipsis,
+  //               maxLines: 1,
+  //             ),
+  //             const SizedBox(height: 2),
+  //             Text(
+  //               'Viman Nagar, Pune',
+  //               style: GoogleFonts.inter(
+  //                 color: const Color(0xFFB6B6B6),
+  //                 fontSize: 11.5,
+  //               ),
+  //               overflow: TextOverflow.ellipsis,
+  //               maxLines: 1,
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //
+  //     actions: [
+  //       Padding(
+  //         padding: const EdgeInsets.only(right: 10),
+  //         child: BlocBuilder<HashCoinCubit, HashCoinState>(
+  //           builder: (_, state) => RewardsSection(
+  //             hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+  //           ),
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
-      leadingWidth: 55,
-      leading: Obx(
-        () => Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: userController.isLoading.value
-                ? _buildShimmerAvatar()
-              : _userAvatar(userController.user.value.photoUrl),
-        ),
-      ),
-      title: Obx(
-        () => Padding(
-          padding: const EdgeInsets.only(top: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Hey, ${userController.user.value.gameUserName}!',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Viman Nagar, Pune',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFB6B6B6),
-                  fontSize: 11.5,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ],
-          ),
-        ),
-      ),
-
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 10),
-          child: BlocBuilder<HashCoinCubit, HashCoinState>(
-            builder: (_, state) => RewardsSection(
-              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _userAvatar(String? photoUrl) {
-    const double size = 40;
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF6DFB60), width: 2),
-      ),
-      child: CircleAvatar(
-        radius: size / 2,
-        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-            ? CachedNetworkImageProvider(photoUrl)
-            : const NetworkImage(
-                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-                  )
-                  as ImageProvider,
-        backgroundColor: Colors.white,
-      ),
-    );
-  }
+  // Widget _userAvatar(String? photoUrl) {
+  //   const double size = 40;
+  //
+  //   return Container(
+  //     width: size,
+  //     height: size,
+  //     decoration: BoxDecoration(
+  //       shape: BoxShape.circle,
+  //       border: Border.all(color: const Color(0xFF6DFB60), width: 2),
+  //     ),
+  //     child: CircleAvatar(
+  //       radius: size / 2,
+  //       backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+  //           ? CachedNetworkImageProvider(photoUrl)
+  //           : const NetworkImage(
+  //                   'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
+  //                 )
+  //                 as ImageProvider,
+  //       backgroundColor: Colors.white,
+  //     ),
+  //   );
+  // }
 
   Widget _buildGameOnIndiaBanner() {
     if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
@@ -604,11 +618,5 @@ class _HomeContentViewState extends State<HomeContentView>
     );
   }
 
-  @override
-  void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
+
 }

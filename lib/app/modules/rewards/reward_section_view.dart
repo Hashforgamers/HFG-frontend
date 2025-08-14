@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/global_bottom_sheet_service.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import '../wallet/controllers/wallet_controller.dart';
-import '../wallet/views/wallet_view.dart';
+import '../wallet/views/wallet_view copy.dart';
 
 class RewardsSection extends StatelessWidget {
   final int hashCoin;
@@ -39,9 +39,9 @@ class RewardsSection extends StatelessWidget {
                   right: 0,
                   child: CachedNetworkImage(
                     imageUrl:
-                        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075085/vector_gq1qzh.png',
-                    height: 10,
-                    width: 10,
+                        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755197537/Vector_g5eapj.png',
+                    height: 12,
+                    width: 12,
                     placeholder: (_, _) =>
                         const Center(child: RainbowGlowingLoader(size: 4)),
                     errorWidget: (_, _, _) =>

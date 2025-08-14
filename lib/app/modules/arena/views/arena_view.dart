@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -39,10 +40,12 @@ class _ArenaViewState extends State<ArenaView> {
 
   late GoogleMapController _mapCtr;
   final loc.Location _loc = loc.Location();
+  bool _hasLocationPermission = false; // add
 
   final markers = <Marker>{}.obs;
   final polylines = <Polyline>{}.obs;
-  final _polylinePoints = PolylinePoints(apiKey: '');
+  final _polylinePoints = PolylinePoints(apiKey: _gmapsKey); // was ''
+
 
   final TextEditingController _searchCtl = TextEditingController();
   Timer? _camDebounce;
@@ -97,37 +100,65 @@ class _ArenaViewState extends State<ArenaView> {
   /* ────────────────────────────────────────────────────────────────────────── */
 
   Future<void> _loadAssets() async {
-    _mapStyle = await rootBundle.loadString('assets/map_style.json');
+    try {
+      _mapStyle = await rootBundle.loadString('assets/map_style.json');
+    } catch (_) {
+      _mapStyle = ''; // fallback
+    }
 
-    _markerUser = await BitmapDescriptor.fromAssetImage(
-      const ImageConfiguration(size: Size(48, 48)),
-      'assets/custom_marker.png',
-    );
+    try {
+      _markerUser = await BitmapDescriptor.fromAssetImage(
+        const ImageConfiguration(size: Size(48, 48)),
+        'assets/custom_marker.png',
+      );
+    } catch (_) {
+      _markerUser = BitmapDescriptor.defaultMarker;
+    }
 
-    _markerCafe = await BitmapDescriptor.fromAssetImage(
-      const ImageConfiguration(size: Size(48, 48)),
-      'assets/custom_marker2.png',
-    );
+    try {
+      _markerCafe = await BitmapDescriptor.fromAssetImage(
+        const ImageConfiguration(size: Size(48, 48)),
+        'assets/custom_marker2.png',
+      );
+    } catch (_) {
+      _markerCafe = BitmapDescriptor.defaultMarker;
+    }
 
     _markerCafeHighlighted = BitmapDescriptor.defaultMarkerWithHue(
       BitmapDescriptor.hueRed,
     );
   }
 
+
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  LOCATION INIT                                                            */
   /* ────────────────────────────────────────────────────────────────────────── */
 
   Future<void> _initLocation() async {
-    if (!await _loc.serviceEnabled()) {
-      if (!await _loc.requestService()) return;
-    }
-    if (await _loc.requestPermission() != loc.PermissionStatus.granted) return;
+    try {
+      bool service = await _loc.serviceEnabled();
+      if (!service) service = await _loc.requestService();
+      if (!service) return;
 
-    final locData = await _loc.getLocation();
-    _userLatLng = LatLng(locData.latitude!, locData.longitude!);
-    _tryPlayZoom(); // attempt GTA zoom once coords ready
+      var perm = await _loc.hasPermission();
+      if (perm == loc.PermissionStatus.denied) {
+        perm = await _loc.requestPermission();
+      }
+      if (perm != loc.PermissionStatus.granted &&
+          perm != loc.PermissionStatus.grantedLimited) {
+        return; // don't enable myLocation
+      }
+
+      setState(() => _hasLocationPermission = true);
+
+      final locData = await _loc.getLocation();
+      _userLatLng = LatLng(locData.latitude!, locData.longitude!);
+      _tryPlayZoom();
+    } catch (_) {
+      // swallow; never crash map init
+    }
   }
+
 
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  CAMERA & MOVEMENT                                                        */
@@ -551,21 +582,33 @@ class _ArenaViewState extends State<ArenaView> {
                   child: Stack(
                     children: [
                       GoogleMap(
-                        initialCameraPosition: const CameraPosition(
-                          target: LatLng(20, 77),
-                          zoom: 4,
-                        ),
-                        myLocationEnabled: true,
+                        initialCameraPosition: const CameraPosition(target: LatLng(20, 77), zoom: 4),
+                        myLocationEnabled: _hasLocationPermission,        // was: true
+                        myLocationButtonEnabled: _hasLocationPermission,  // add this
                         markers: markers.toSet(),
                         polylines: polylines.toSet(),
-                        onMapCreated: (ctrl) {
+                        onMapCreated: (ctrl) async {
                           _mapCtr = ctrl;
-                          _mapCtr.setMapStyle(_mapStyle);
                           _mapReady = true;
+
+                          // iOS: give the renderer a moment before styling
+                          if (defaultTargetPlatform == TargetPlatform.iOS) {
+                            await Future.delayed(const Duration(milliseconds: 200));
+                          }
+
+                          try {
+                            if (_mapStyle.isNotEmpty) {
+                              await _mapCtr.setMapStyle(_mapStyle);
+                            }
+                          } catch (e) {
+                            debugPrint('setMapStyle error: $e'); // helps catch invalid JSON
+                          }
+
                           _tryPlayZoom();
                         },
                         zoomControlsEnabled: false,
                       ),
+
                       // Search bar
                       Positioned(
                         top: 20,
@@ -635,7 +678,7 @@ class _ArenaViewState extends State<ArenaView> {
                                           Text(
                                             'No cafes available in $_userState',
                                             style: GoogleFonts.inter(
-                                              fontSize: 14.sp,
+                                              fontSize: 14,
                                               color: Colors.white70,
                                             ),
                                           )
@@ -643,7 +686,7 @@ class _ArenaViewState extends State<ArenaView> {
                                           Text(
                                             'No cybercafes available',
                                             style: GoogleFonts.inter(
-                                              fontSize: 14.sp,
+                                              fontSize: 14,
                                               color: Colors.white70,
                                             ),
                                           ),
@@ -662,7 +705,7 @@ class _ArenaViewState extends State<ArenaView> {
                                             child: Text(
                                               'Show all cafes',
                                               style: GoogleFonts.inter(
-                                                fontSize: 14.sp,
+                                                fontSize: 14,
                                                 color: const Color(0xff338125),
                                               ),
                                             ),
@@ -732,8 +775,8 @@ class _ArenaViewState extends State<ArenaView> {
         );
       },
       child: Container(
-        width: 330.w,
-        height: 120.h,
+        width: 330,
+        height: 120,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(25),
           border: Border.all(color: Colors.white.withOpacity(0.05)),
@@ -744,8 +787,8 @@ class _ArenaViewState extends State<ArenaView> {
           children: [
             CachedNetworkImage(
               imageUrl: img,
-              width: 330.w,
-              height: 150.h,
+              width: 330,
+              height: 150,
               fit: BoxFit.cover,
               placeholder: (_, _) =>
                   Center(child: RainbowGlowingLoader(size: 40)),
@@ -803,7 +846,7 @@ class _ArenaViewState extends State<ArenaView> {
                           cafe['cafe_name'] ?? 'Unknown',
                           style: GoogleFonts.inter(
                             color: Colors.white,
-                            fontSize: 16.sp,
+                            fontSize: 16,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
@@ -811,7 +854,7 @@ class _ArenaViewState extends State<ArenaView> {
                           children: [
                             Icon(
                               Icons.circle,
-                              size: 8.sp,
+                              size: 8,
                               color: _isShopOpen(cafe)
                                   ? Colors.green
                                   : Colors.red,
@@ -824,7 +867,7 @@ class _ArenaViewState extends State<ArenaView> {
                                     ? Colors.green
                                     : Colors.red,
                                 fontWeight: FontWeight.w400,
-                                fontSize: 12.sp,
+                                fontSize: 12,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -832,7 +875,7 @@ class _ArenaViewState extends State<ArenaView> {
                               '|',
                               style: GoogleFonts.inter(
                                 color: Colors.white,
-                                fontSize: 12.sp,
+                                fontSize: 12,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -847,7 +890,7 @@ class _ArenaViewState extends State<ArenaView> {
                                       dist,
                                       style: GoogleFonts.inter(
                                         color: Colors.white,
-                                        fontSize: 12.sp,
+                                        fontSize: 12,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -855,7 +898,7 @@ class _ArenaViewState extends State<ArenaView> {
                                       '|',
                                       style: GoogleFonts.inter(
                                         color: Colors.white,
-                                        fontSize: 12.sp,
+                                        fontSize: 12,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -863,7 +906,7 @@ class _ArenaViewState extends State<ArenaView> {
                                       dur,
                                       style: GoogleFonts.inter(
                                         color: Colors.grey,
-                                        fontSize: 12.sp,
+                                        fontSize: 12,
                                       ),
                                     ),
                                   ],
@@ -892,13 +935,13 @@ class _ArenaViewState extends State<ArenaView> {
                                   icon: Icon(
                                     Icons.directions_outlined,
                                     color: Colors.white,
-                                    size: 18.sp,
+                                    size: 18,
                                   ),
                                   label: Text(
                                     'Directions',
                                     style: GoogleFonts.inter(
                                       color: Colors.white,
-                                      fontSize: 12.sp,
+                                      fontSize: 12,
                                       fontWeight: FontWeight.w400,
                                     ),
                                   ),
@@ -929,13 +972,13 @@ class _ArenaViewState extends State<ArenaView> {
                                   icon: Icon(
                                     Icons.map_outlined,
                                     color: Colors.white,
-                                    size: 18.sp,
+                                    size: 18,
                                   ),
                                   label: Text(
                                     'View on maps',
                                     style: GoogleFonts.inter(
                                       color: Colors.white,
-                                      fontSize: 12.sp,
+                                      fontSize: 12,
                                       fontWeight: FontWeight.w400,
                                     ),
                                   ),
@@ -971,7 +1014,7 @@ class _ArenaViewState extends State<ArenaView> {
                         : 'Nearby Cafes'),
               style: GoogleFonts.inter(
                 color: Colors.white,
-                fontSize: 16.sp,
+                fontSize: 16,
                 fontWeight: FontWeight.normal,
               ),
             ),
@@ -994,7 +1037,7 @@ class _ArenaViewState extends State<ArenaView> {
                         : '${_filteredCafes.length} found',
                     style: GoogleFonts.inter(
                       color: const Color(0xff338125),
-                      fontSize: 12.sp,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -1021,7 +1064,7 @@ class _ArenaViewState extends State<ArenaView> {
                     _showingAllCafes.value ? 'Show local' : 'Show all',
                     style: GoogleFonts.inter(
                       color: const Color(0xff338125),
-                      fontSize: 12.sp,
+                      fontSize: 12,
                     ),
                   ),
                 ),

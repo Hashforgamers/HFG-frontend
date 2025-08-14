@@ -25,6 +25,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ScreenUtil.ensureScreenSize(); // optional but prevents early access
 
   // Initialize flavor configuration for production
   FlavorConfig(
