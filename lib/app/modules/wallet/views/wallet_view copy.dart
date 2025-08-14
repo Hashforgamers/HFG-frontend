@@ -23,13 +23,6 @@ class _WalletScreenState extends State<WalletScreen> {
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
 
-  final List<Map<String, dynamic>> recentTrans = [
-    {'title': 'Coffee Shop', 'category': 'Payment', 'cost': 5.75},
-    {'title': 'To Lucas', 'category': 'Transfer', 'cost': 20.00},
-    {'title': 'From Bank', 'category': 'Deposit', 'cost': 100.00},
-    {'title': 'Grocery Store', 'category': 'Payment', 'cost': 45.00},
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -50,210 +43,77 @@ class _WalletScreenState extends State<WalletScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBodyBehindAppBar:
+          true, // Important for gradient to cover AppBar too
       appBar: AppBar(
         centerTitle: true,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: GestureDetector(
-          onTap: () {
-            Get.back();
-          },
-          child: const Icon(Icons.arrow_back, color: Color(0xff00D701)),
-        ),
         title: Text(
           "Wallet",
           style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: GestureDetector(
-              onTap: () {},
-              child: Icon(Icons.add, color: Colors.white, size: 30),
-            ),
-          ),
-        ],
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: Obx(() {
+        if (walletCtr.isLoading.value) {
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.greenAccent),
+          );
+        }
+
+        return Stack(
           children: [
-            Center(
-              child: Text(
-                '\$0',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Quick Actions',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildButton(label: 'Add Funds', onTap: () {}),
-                _buildButton(label: 'View Passes', onTap: () {}),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: TextField(
-                style: GoogleFonts.inter(color: Colors.white),
-                cursorColor: Colors.white70,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    color: Colors.white70,
-                    size: 30,
+            // ─────── Fullscreen Gradient Background ───────
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF001b11).withOpacity(0.2), // Deep greenish-black
+                      Color(0xFF020a1f).withOpacity(0.2), // Bluish-black
+                    ],
                   ),
-                  hintText: 'Search Transactions',
-                  hintStyle: GoogleFonts.inter(color: Colors.white70),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                _buildDropDownButton(label: 'All', onTap: () {}),
-                const SizedBox(width: 10),
-                _buildDropDownButton(label: 'Payments', onTap: () {}),
-                const SizedBox(width: 10),
-                _buildDropDownButton(label: 'Transfers', onTap: () {}),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Recent Transactions',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      radius: 1.5,
+                      colors: [
+                        Color(0x4400FFAA).withOpacity(0.2),
+                        Colors.transparent,
+                      ],
+                      center: Alignment.topLeft,
+                    ),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ListView.separated(
-                separatorBuilder: (_, _) => const SizedBox(height: 20),
-                itemCount: recentTrans.length,
-                itemBuilder: (context, index) {
-                  final recentTran = recentTrans[index];
-                  return _buildTransCard(recentTran: recentTran);
-                },
+
+            // ─────── Scrollable Foreground ───────
+            SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 100, 18, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _balanceCard(),
+                  const SizedBox(height: 28),
+                  _topUpPanel(context),
+                  const SizedBox(height: 30),
+                  _quickTopUp(),
+                ],
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTransCard({required Map<String, dynamic> recentTran}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            recentTran['category'] == 'Payment' &&
-                    recentTran['title'] == 'Coffee Shop'
-                ? Icons.coffee
-                      : recentTran['category'] == 'Payment' ?Icons.shopping_cart
-                : recentTran['category'] == 'Transfer'
-                ? Icons.arrow_upward_rounded
-                : Icons.arrow_downward_rounded,
-            size: 30,
-          ),
-        ),
-        const SizedBox(width: 20),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              recentTran['title'],
-              style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
-            ),
-            Text(
-              recentTran['category'],
-              style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
-            ),
-          ],
-        ),
-        const Spacer(),
-        Text(
-          '${recentTran['category'] == 'Deposit' ? '+' : '-'}\$${recentTran['cost']}',
-          style: GoogleFonts.inter(color: Colors.white70, fontSize: 18),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDropDownButton({
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-            ),
-            const SizedBox(width: 6),
-            Icon(Icons.keyboard_arrow_down_rounded, size: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildButton({required String label, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-        decoration: BoxDecoration(
-          color: Color(0xFF191919),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
+        );
+      }),
     );
   }
 

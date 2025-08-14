@@ -615,7 +615,7 @@ class _SearchResultState extends State<SearchResult> {
                           // Navigate to cafe details
                           Get.to(
                             () => ArenaDetailView(
-                              images: imageUrl,
+                              images: cafe['images'] ?? [],
                               title: (cafe['cafe_name'] ?? 'Unknown Cafe').toString(),
                               address: address,
                               openingHours: '9 AM - 12 AM',

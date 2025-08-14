@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hash/app/data/services/user_controller.dart';
-import 'package:hash/core/repositories/model/booking_model.dart';
-import 'package:hash/core/repositories/model/purchase_pass_model.dart';
-import 'package:intl/intl.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
-import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
-
-import '../arena/views/past_booking_screen.dart';
-import '../home/controllers/home_controller.dart';
-import '../arena/controllers/booking_controller.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
+import 'package:hash/app/modules/home/controllers/home_controller.dart';
+import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
+import 'package:hash/core/repositories/model/purchase_pass_model.dart';
+import 'package:hash/core/repositories/model/booking_model.dart';
+import 'package:hash/core/repositories/model/extra_services_model.dart';
+import 'package:hash/app/data/services/user_controller.dart';
+import 'package:intl/intl.dart';
 
 enum PaymentType { slotBooking, passPurchase }
 
@@ -26,6 +26,7 @@ class RazorpayController extends GetxController {
 
   RxList<int> bookingIdList = <int>[].obs;
   RxList<int> slotIdsList = <int>[].obs; // Add this line to store slot IDs
+  RxList<Map<String, dynamic>> cartItemsList = <Map<String, dynamic>>[].obs; // Add this line to store cart items
   RxBool isPaymentInProgress = false.obs;
   RxString paymentStatus = ''.obs;
   PaymentType? _currentPaymentType;
@@ -183,12 +184,25 @@ class RazorpayController extends GetxController {
     required List<int> slotIds,
   }) async {
     try {
+      // Parse cart items to ExtraServiceItem format
+      List<ExtraServiceItem> extraServices = [];
+      if (cartItemsList.isNotEmpty) {
+        extraServices = cartItemsList.map((item) {
+          return ExtraServiceItem(
+            categoryId: (item['category_id'] ?? 0) as int,
+            itemId: (item['id'] ?? 0) as int,
+            quantity: (item['qty'] ?? 1) as int,
+          );
+        }).toList();
+      }
+
       await _remoteRepo.confirmBooking(
         bookingIds: bookingIds,
         paymentId: paymentId,
         bookDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
         paymentMode: paymentMode, // ★ pass it
         voucherCode: null,
+        extraServices: extraServices.isNotEmpty ? extraServices : null,
       );
 
       // Clear selected slots after successful payment
@@ -228,5 +242,6 @@ class RazorpayController extends GetxController {
     _currentPaymentType = null;
     bookingIdList.clear();
     slotIdsList.clear();
+    cartItemsList.clear();
   }
 }
