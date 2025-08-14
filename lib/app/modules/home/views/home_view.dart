@@ -40,8 +40,8 @@ class HomeView extends StatelessWidget {
             type: BottomNavigationBarType.fixed,
             enableFeedback: true,
             currentIndex: controller.selectedIndex.value,
-            onTap: controller.isScreenTransitioning.value 
-                ? null 
+            onTap: controller.isScreenTransitioning.value
+                ? null
                 : controller.onItemTapped,
             selectedFontSize: 0,
             unselectedFontSize: 0,
@@ -77,11 +77,13 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  BottomNavigationBarItem _buildNavigationItem(
-    String iconPath, {
+  BottomNavigationBarItem _buildNavigationItem(String iconPath, {
     required bool isSelected,
     bool isSpecial = false,
   }) {
+    const selected = Color(0xff338125);
+    final unselected = Colors.grey[800];
+
     if (isSpecial) {
       return BottomNavigationBarItem(
         backgroundColor: Colors.black,
@@ -89,7 +91,12 @@ class HomeView extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           height: isSelected ? 27 : 25,
           width: isSelected ? 27 : 25,
-          child: Image.asset(iconPath,height: 12,),
+          child: Image.asset(
+            iconPath,
+            height: 12,
+            color: isSelected ? selected : unselected,
+            colorBlendMode: BlendMode.srcIn,
+          ),
         ),
         label: '',
       );
@@ -100,7 +107,12 @@ class HomeView extends StatelessWidget {
       icon: AnimatedScale(
         scale: isSelected ? 0.83 : 1.0,
         duration: const Duration(milliseconds: 200),
-        child: Image.asset(iconPath,height: 22,),
+        child: Image.asset(
+          iconPath,
+          height: 22,
+          color: isSelected ? selected : unselected,
+          colorBlendMode: BlendMode.srcIn,
+        ),
       ),
       label: '',
     );

@@ -30,6 +30,7 @@ class ArenaView extends StatefulWidget {
 }
 
 class _ArenaViewState extends State<ArenaView> {
+
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  STATE                                                                    */
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -42,8 +43,9 @@ class _ArenaViewState extends State<ArenaView> {
   final loc.Location _loc = loc.Location();
   bool _hasLocationPermission = false; // add
 
-  final markers = <Marker>{}.obs;
-  final polylines = <Polyline>{}.obs;
+  final RxSet<Marker> markers = <Marker>{}.obs;
+  final RxSet<Polyline> polylines = <Polyline>{}.obs;
+
   final _polylinePoints = PolylinePoints(apiKey: _gmapsKey); // was ''
 
 
@@ -70,6 +72,25 @@ class _ArenaViewState extends State<ArenaView> {
   bool _playedZoom = false; // NEW
 
   BitmapDescriptor? _markerUser, _markerCafe, _markerCafeHighlighted;
+  String _normState(String? s) {
+    if (s == null) return '';
+    final t = s.trim().toLowerCase();
+    if (t == 'mh' || t == 'maharastra') return 'maharashtra';
+    return t;
+  }
+
+  void _filterCafesByState() {
+    final user = _normState(_userState);
+    if (user.isEmpty) {
+      _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+      return;
+    }
+    final filtered = _cafeCtr.cybercafes.where((c) {
+      final cafeState = _normState(c['address']?['state']);
+      return cafeState == user;
+    }).toList();
+    _filteredCafes.assignAll(filtered.cast<Map<String, dynamic>>());
+  }
 
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  LIFECYCLE                                                                */
@@ -116,9 +137,9 @@ class _ArenaViewState extends State<ArenaView> {
     }
 
     try {
-      _markerCafe = await BitmapDescriptor.fromAssetImage(
+      _markerCafe = await BitmapDescriptor.asset(
         const ImageConfiguration(size: Size(48, 48)),
-        'assets/custom_marker2.png',
+        'assets/logo2.png',
       );
     } catch (_) {
       _markerCafe = BitmapDescriptor.defaultMarker;
@@ -149,15 +170,34 @@ class _ArenaViewState extends State<ArenaView> {
         return; // don't enable myLocation
       }
 
+      if (!mounted) return;
       setState(() => _hasLocationPermission = true);
 
       final locData = await _loc.getLocation();
-      _userLatLng = LatLng(locData.latitude!, locData.longitude!);
+      final lat = locData.latitude;
+      final lng = locData.longitude;
+
+      // Guard: plugin may return null or (0,0) initially
+      if (lat == null || lng == null) return;
+      if (lat.abs() < 0.0001 && lng.abs() < 0.0001) return;
+
+      _userLatLng = LatLng(lat, lng);
       _tryPlayZoom();
-    } catch (_) {
-      // swallow; never crash map init
-    }
+
+      // Optional: first valid update via stream
+      _loc.onLocationChanged.listen((d) {
+        final la = d.latitude, lo = d.longitude;
+        if (la != null && lo != null) {
+          if (_userLatLng == null) {
+            _userLatLng = LatLng(la, lo);
+            _addUserMarker();
+            _tryPlayZoom();
+          }
+        }
+      });
+    } catch (_) {/* swallow */}
   }
+
 
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -165,15 +205,15 @@ class _ArenaViewState extends State<ArenaView> {
   /* ────────────────────────────────────────────────────────────────────────── */
 
   void _smoothMoveCamera(LatLng target, {double zoom = 15}) {
+    if (!_mapReady) return;           // add this
     _camDebounce?.cancel();
     _camDebounce = Timer(const Duration(milliseconds: 280), () {
       _mapCtr.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: target, zoom: zoom),
-        ),
+        CameraUpdate.newCameraPosition(CameraPosition(target: target, zoom: zoom)),
       );
     });
   }
+
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  GTA-STYLE ZOOM LOGIC                                                    */
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -207,10 +247,12 @@ class _ArenaViewState extends State<ArenaView> {
   /*  MARKERS                                                                  */
   /* ────────────────────────────────────────────────────────────────────────── */
 
-  LatLng _latLngFromCafe(Map<String, dynamic> cafe) {
+  LatLng? _latLngFromCafe(Map<String, dynamic> cafe) {
     final locData = cafe['address'] ?? cafe['location'] ?? {};
-    final lat = double.tryParse('${locData['latitude']}') ?? 0.0;
-    final lng = double.tryParse('${locData['longitude']}') ?? 0.0;
+    final lat = double.tryParse('${locData['latitude']}');
+    final lng = double.tryParse('${locData['longitude']}');
+    if (lat == null || lng == null) return null;
+    if (lat.abs() < 0.0001 && lng.abs() < 0.0001) return null;
     return LatLng(lat, lng);
   }
 
@@ -402,10 +444,10 @@ class _ArenaViewState extends State<ArenaView> {
 
   void _refreshCafeMarkers() {
     markers.removeWhere((m) => m.markerId.value.startsWith('cafe_'));
-
     for (final cafe in _filteredCafes) {
       final id = '${cafe['id'] ?? cafe.hashCode}';
       final pos = _latLngFromCafe(cafe);
+      if (pos == null) continue; // skip invalid
       markers.add(
         Marker(
           markerId: MarkerId('cafe_$id'),
@@ -429,28 +471,42 @@ class _ArenaViewState extends State<ArenaView> {
   /* ────────────────────────────────────────────────────────────────────────── */
 
   Future<Map<String, String>> _distanceInfo(LatLng dest, String id) async {
-    if (_userLatLng == null) return {'distance': '--', 'duration': '--'};
-    if (_distanceCache.containsKey(id)) return _distanceCache[id]!;
-    final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/directions/json'
-      '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
-      '&destination=${dest.latitude},${dest.longitude}'
-      '&mode=driving'
-      '&key=$_gmapsKey',
-    );
-    final res = await http.get(url);
-    if (res.statusCode == 200) {
-      final data = json.decode(res.body);
-      if ((data['routes'] as List).isNotEmpty) {
-        final leg = data['routes'][0]['legs'][0];
-        _distanceCache[id] = {
-          'distance': leg['distance']['text'],
-          'duration': leg['duration']['text'],
-        };
+    const fallback = {'distance': '--', 'duration': '--'};
+
+    if (_userLatLng == null) return fallback;
+
+    final cached = _distanceCache[id];
+    if (cached != null) return cached;
+
+    try {
+      final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/directions/json'
+            '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
+            '&destination=${dest.latitude},${dest.longitude}'
+            '&mode=driving'
+            '&key=$_gmapsKey',
+      );
+      final res = await http.get(url);
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body) as Map<String, dynamic>;
+        final routes = (data['routes'] as List?) ?? const [];
+        if (routes.isNotEmpty) {
+          final leg = routes[0]['legs'][0];
+          return _distanceCache[id] = {
+            'distance': leg['distance']?['text'] ?? '--',
+            'duration': leg['duration']?['text'] ?? '--',
+          };
+        }
       }
+    } catch (_) {
+      // ignore and fall back
     }
-    return _distanceCache[id]!;
+
+    return _distanceCache[id] = Map<String, String>.from(fallback);
   }
+
+
 
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  ROUTE DRAWING                                                            */
@@ -464,25 +520,39 @@ class _ArenaViewState extends State<ArenaView> {
       destination: PointLatLng(dest.latitude, dest.longitude),
       mode: TravelMode.driving,
     );
-    final result = await _polylinePoints.getRouteBetweenCoordinates(
-      request: request,
-    );
+
+    final result = await _polylinePoints.getRouteBetweenCoordinates(request: request);
     if (result.points.isEmpty) {
       Get.snackbar('Route', 'No route found');
       return;
     }
-    polylines.clear();
-    polylines.add(
-      Polyline(
+
+    final pts = result.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+    polylines
+      ..clear()
+      ..add(Polyline(
         polylineId: const PolylineId('route'),
         color: const Color(0xff338125),
         width: 6,
-        points: result.points
-            .map((p) => LatLng(p.latitude, p.longitude))
-            .toList(),
-      ),
+        points: pts,
+      ));
+
+    // Fit bounds
+    double minLat = pts.first.latitude, maxLat = pts.first.latitude;
+    double minLng = pts.first.longitude, maxLng = pts.first.longitude;
+    for (final p in pts) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+    final bounds = LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
     );
+    await _mapCtr.animateCamera(CameraUpdate.newLatLngBounds(bounds, 48));
   }
+
 
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  EXTERNAL MAP LAUNCH                                                      */
@@ -538,27 +608,6 @@ class _ArenaViewState extends State<ArenaView> {
     }
   }
 
-  void _filterCafesByState() {
-    if (_userState == null) {
-      _filteredCafes.assignAll(
-        _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
-      );
-      return;
-    }
-
-    final filteredList = _cafeCtr.cybercafes.where((cafe) {
-      final address = cafe['address'];
-      if (address == null) return false;
-
-      final cafeState = address['state'];
-      if (cafeState == null) return false;
-
-      // Case-insensitive comparison
-      return cafeState.toString().toLowerCase() == _userState!.toLowerCase();
-    }).toList();
-
-    _filteredCafes.assignAll(filteredList.cast<Map<String, dynamic>>());
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -724,12 +773,15 @@ class _ArenaViewState extends State<ArenaView> {
                                   itemCount: _filteredCafes.length,
                                   itemBuilder: (_, i) {
                                     final cafe = _filteredCafes[i];
-                                    final img = cafe['images'].length == 0
+                                    final imgs = (cafe['images'] as List?) ?? const [];
+                                    final img = imgs.isEmpty
                                         ? 'https://next-level.gg/assets/cafes/11.jpg'
-                                        : cafe['images'][0]['url'];
-                                    final pos = _latLngFromCafe(cafe);
+                                        : (imgs.first is Map && (imgs.first as Map)['url'] != null
+                                        ? (imgs.first as Map)['url'] as String
+                                        : 'https://next-level.gg/assets/cafes/11.jpg');
+                                    final pos = _latLngFromCafe(cafe); // safe now
                                     final id = '${cafe['id'] ?? cafe.hashCode}';
-                                    return _buildCafeCard(id, pos, img, cafe, cafe['images'] as List<dynamic>);
+                                    return _buildCafeCard(id, pos, img, cafe, imgs);
                                   },
                                 ),
                         ),
@@ -747,7 +799,7 @@ class _ArenaViewState extends State<ArenaView> {
 
   Widget _buildCafeCard(
     String id,
-    LatLng pos,
+      LatLng? pos, // <- nullable now
     String img,
     Map<String, dynamic> cafe,
     List<dynamic> images,
@@ -755,7 +807,7 @@ class _ArenaViewState extends State<ArenaView> {
     return GestureDetector(
       onTap: () async {
         _selectedCafeId = id;
-        _smoothMoveCamera(pos, zoom: 16);
+        _smoothMoveCamera(pos!, zoom: 16);
         _refreshCafeMarkers();
         await Future.delayed(const Duration(milliseconds: 600));
         await Get.to(
@@ -780,7 +832,7 @@ class _ArenaViewState extends State<ArenaView> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(25),
           border: Border.all(color: Colors.white.withOpacity(0.05)),
-          color: Colors.red,
+          color: Colors.black,
         ),
         clipBehavior: Clip.hardEdge,
         child: Stack(
@@ -809,9 +861,9 @@ class _ArenaViewState extends State<ArenaView> {
               bottom: 0,
               top: 80,
               child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(25),
-                  bottomRight: Radius.circular(25),
+                borderRadius: const BorderRadius.all(
+                   Radius.circular(25),
+
                 ),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
@@ -880,7 +932,7 @@ class _ArenaViewState extends State<ArenaView> {
                             ),
                             const SizedBox(width: 8),
                             FutureBuilder<Map<String, String>>(
-                              future: _distanceInfo(pos, id),
+                              future: pos == null ? Future.value({'distance': '--', 'duration': '--'}) : _distanceInfo(pos, id),
                               builder: (_, snap) {
                                 final dist = snap.data?['distance'] ?? '--';
                                 final dur = snap.data?['duration'] ?? '--';
@@ -945,7 +997,7 @@ class _ArenaViewState extends State<ArenaView> {
                                       fontWeight: FontWeight.w400,
                                     ),
                                   ),
-                                  onPressed: () => _drawRoute(pos),
+                                  onPressed: () => _drawRoute(pos!),
                                 ),
                               ),
                             ),
@@ -982,7 +1034,7 @@ class _ArenaViewState extends State<ArenaView> {
                                       fontWeight: FontWeight.w400,
                                     ),
                                   ),
-                                  onPressed: () => _openExternalMaps(pos),
+                                  onPressed: () => _openExternalMaps(pos!),
                                 ),
                               ),
                             ),
