@@ -124,18 +124,43 @@ class _CafeSectionState extends State<CafeSection> {
               separatorBuilder: (_, __) => const SizedBox(width: 20),
               itemBuilder: (context, index) {
                 final cafe = widget._cafeController.cybercafes[index];
-                final imageUrl = cafe['images'].length == 0
-                    ? 'https://next-level.gg/assets/cafes/11.jpg'
-                    : cafe['images'][0]['url'] ??
-                          'https://next-level.gg/assets/cafes/11.jpg';
+                final images = cafe['images'];
+                String imageUrl = 'https://next-level.gg/assets/cafes/11.jpg'; // Fallback image
+                
+                if (images != null) {
+                  if (images is List && images.isNotEmpty) {
+                    // If images is a list, get the first image URL
+                    final firstImage = images[0];
+                    if (firstImage is Map && firstImage['url'] != null && firstImage['url'].toString().isNotEmpty) {
+                      imageUrl = firstImage['url'];
+                    }
+                  } else if (images is String && images.isNotEmpty) {
+                    // If images is a string (URL), use it directly
+                    imageUrl = images;
+                  }
+                }
+                
+                // Additional fallback check - if the URL is empty or invalid, use default
+                if (imageUrl.isEmpty || imageUrl == 'null' || imageUrl == 'undefined') {
+                  imageUrl = 'https://next-level.gg/assets/cafes/11.jpg';
+                }
                 final isOpen = cafe['status'] == 'active';
                 return GestureDetector(
                   onTap: () {
                     // Track gaming cafe viewed event
                     final cafeId = cafe['vendor_id']?.toString() ?? '';
                     final location = cafe['location']?['address'] ?? 'Unknown';
-                    final availableGames =
-                        cafe['games']?.cast<String>() ?? ['Unknown'];
+                    
+                    // Handle availableGames field safely
+                    List<String> availableGames = ['Unknown'];
+                    final games = cafe['games'];
+                    if (games != null) {
+                      if (games is List) {
+                        availableGames = games.map((game) => game.toString()).toList();
+                      } else if (games is String) {
+                        availableGames = [games];
+                      }
+                    }
 
                     widget.segmentService.onGamingCafeViewed(
                       cafeId: cafeId,
@@ -148,15 +173,31 @@ class _CafeSectionState extends State<CafeSection> {
                       availableGames: availableGames,
                     );
 
+                    // Prepare images list for ArenaDetailView
+                    List<dynamic> imagesList = [];
+                    if (images != null) {
+                      if (images is List && images.isNotEmpty) {
+                        imagesList = images;
+                      } else if (images is String && images.isNotEmpty) {
+                        // If images is a string, create a list with one item
+                        imagesList = [{'url': images}];
+                      }
+                    }
+                    
+                    // Ensure we always have at least one fallback image
+                    if (imagesList.isEmpty) {
+                      imagesList = [{'url': 'https://next-level.gg/assets/cafes/11.jpg'}];
+                    }
+                    
                     Get.to(
                       () => ArenaDetailView(
-                        images: imageUrl,
+                        images: imagesList,
                         title: cafe['cafe_name'] ?? 'Unknown Cafe',
                         address:
                             cafe['location']?['address'] ??
                             'Address not available',
                         openingHours: '9 AM - 12 AM',
-                        availableGames: const ['Game 1', 'Game 2'],
+                        availableGames: availableGames,
                         amenities: const ['Amenity 1', 'Amenity 2'],
                         phone:
                             cafe['phone'] ??
@@ -185,16 +226,33 @@ class _CafeSectionState extends State<CafeSection> {
                             fit: BoxFit.cover,
                             width: MediaQuery.of(context).size.width - 30,
                             height: 250,
-                            placeholder: (_, _) => const Center(
-                              child: RainbowGlowingLoader(size: 40),
+                            placeholder: (_, _) => Container(
+                              color: const Color(0xff1a1a1a),
+                              child: const Center(
+                                child: RainbowGlowingLoader(size: 40),
+                              ),
                             ),
                             errorWidget: (_, _, _) => Container(
-                              color: Colors.grey,
+                              color: const Color(0xff1a1a1a),
                               alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.image_not_supported,
-                                color: Colors.white54,
-                                size: 40,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.storefront,
+                                    color: Colors.white54,
+                                    size: 60,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Cafe Image',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white54,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),

@@ -23,7 +23,7 @@ class ArenaDetailView extends StatefulWidget {
   final String phone;
   final String email;
   final String ownerName;
-  final List<dynamic> images; 
+  final List<dynamic> images;
   final int vendorId;
   final List<dynamic> reviews;
 
@@ -65,7 +65,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> imageUrls = widget.images.map((image) => image['url']?.toString() ?? '').toList().cast<String>();
+    final List<String> imageUrls = widget.images
+        .map((image) => image['url']?.toString() ?? '')
+        .toList()
+        .cast<String>();
     int currentPage = 0;
     final PageController pageController = PageController();
 
@@ -435,56 +438,79 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             bottom: 0,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final response = await showFoodOrderPrompt(context, () {
-                      Get.to(
-                        MenuViewPage(
-                          vendorId: widget.vendorId.toString(),
-                          onContinue: (cartItems) {
-                            showBookSlotBottomSheet(
-                              context: context,
-                              cartItems: cartItems,
-                            );
-                          },
+              child: GetX<CafeGamesController>(
+                builder: (controller) {
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        // Check if shop is open before proceeding
+                        if (!controller.shopOpen.value) {
+                          Get.snackbar(
+                            'Shop Closed',
+                            'Shop is closed today, no games available.',
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: Colors.red,
+                            colorText: Colors.white,
+                            duration: const Duration(seconds: 3),
+                            margin: const EdgeInsets.all(16),
+                            borderRadius: 8,
+                          );
+                          return;
+                        }
+
+                        final response = await showFoodOrderPrompt(context, () {
+                          Get.to(
+                            MenuViewPage(
+                              vendorId: widget.vendorId.toString(),
+                              onContinue: (cartItems) {
+                                showBookSlotBottomSheet(
+                                  context: context,
+                                  cartItems: cartItems,
+                                );
+                              },
+                            ),
+                          );
+                        });
+
+                        // If user chose "No, thanks" or dialog was dismissed, show booking directly
+                        if (context.mounted && response == false) {
+                          showBookSlotBottomSheet(
+                            context: context,
+                            cartItems: null,
+                          );
+                        }
+                        // If response is null (dialog dismissed), also show booking directly
+                        else if (context.mounted && response == null) {
+                          showBookSlotBottomSheet(
+                            context: context,
+                            cartItems: null,
+                          );
+                        }
+                      },
+
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: controller.shopOpen.value
+                            ? const Color(0xff338125)
+                            : Colors.grey.shade600,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      );
-                    });
-
-                    // If user chose "No, thanks" or dialog was dismissed, show booking directly
-                    if (context.mounted && response == false) {
-                      showBookSlotBottomSheet(
-                        context: context,
-                        cartItems: null,
-                      );
-                    }
-                    // If response is null (dialog dismissed), also show booking directly
-                    else if (context.mounted && response == null) {
-                      showBookSlotBottomSheet(
-                        context: context,
-                        cartItems: null,
-                      );
-                    }
-                  },
-
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff338125),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        controller.shopOpen.value
+                            ? 'Continue Booking'
+                            : 'Shop Closed',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    'Continue Booking',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ),
@@ -643,6 +669,20 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     required BuildContext context,
     List<Map<String, dynamic>>? cartItems,
   }) {
+    // Check if shop is open before showing booking options
+    if (!_gamesController.shopOpen.value) {
+      Get.snackbar(
+        'Shop Closed',
+        'Shop is closed today, no games available.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+        margin: const EdgeInsets.all(16),
+        borderRadius: 8,
+      );
+      return Future.value(null);
+    }
     final List<dynamic> consoles = _gamesController.games.toList();
 
     final List<Map<String, dynamic>> slots = consoles.map((console) {
