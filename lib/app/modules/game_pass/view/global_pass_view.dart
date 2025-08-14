@@ -234,7 +234,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
     required VoidCallback onTap,
   }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: pass.isBought == true ? null : onTap,
       child: Container(
         height: 200,
         width: MediaQuery.of(context).size.width,
@@ -321,7 +321,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
                   const SizedBox(height: 20),
                   Obx(
                     () => GestureDetector(
-                      onTap: _processingPasses[pass.id] == true
+                      onTap: (pass.isBought == true || _processingPasses[pass.id] == true)
                           ? null
                           : () => _purchaseGamePass(pass),
                       child: Container(
@@ -330,7 +330,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
                           horizontal: 16,
                         ),
                         decoration: BoxDecoration(
-                          color: _processingPasses[pass.id] == true
+                          color: (pass.isBought == true || _processingPasses[pass.id] == true)
                               ? Colors.grey
                               : color,
                           borderRadius: BorderRadius.circular(25),
@@ -347,9 +347,9 @@ class _GlobalPassViewState extends State<GlobalPassView> {
                                 ),
                               )
                             : Text(
-                                'Buy Pass',
+                                pass.isBought == true ? 'Already Bought' : 'Buy Pass',
                                 style: GoogleFonts.inter(
-                                  color: Colors.black,
+                                  color: pass.isBought == true ? Colors.white : Colors.black,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),

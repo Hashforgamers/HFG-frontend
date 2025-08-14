@@ -12,6 +12,7 @@ import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
+import 'package:hash/core/repositories/model/transaction_history_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
@@ -929,4 +930,39 @@ class RemoteRepo implements RemoteRepoInterface {
       rethrow;
     }
   }
-}
+
+  @override
+  Future<List<TransactionHistoryModel>> getTransactionHistory({required String userId}) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.get(ApiEndpoints.getTransactionHistory(userId));
+      if (response.statusCode == 200) {
+     
+        
+        // Check if response.data is a Map and contains 'transactions'
+        if (response.data is Map<String, dynamic> && 
+            response.data.containsKey('transactions')) {
+          final List<dynamic> responseData = response.data['transactions'];
+          return responseData
+              .map((e) => TransactionHistoryModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        } else if (response.data is List) {
+          // If response.data is directly a list of transactions
+          final List<dynamic> responseData = response.data;
+          return responseData
+              .map((e) => TransactionHistoryModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        } else {
+          throw Exception('Invalid response format. Expected transactions array.');
+        }
+      } else {
+        throw Exception(
+          'Failed to get transaction history. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error getting transaction history: $e');
+      rethrow;
+    }
+  }
+  } 

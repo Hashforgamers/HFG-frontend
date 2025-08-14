@@ -42,7 +42,7 @@ class AppPages {
       ),),
     GetPage(
       name: AppRoutes.WALLET,
-      page: () => const WalletScreen(),
+      page: () => const WalletPage(),
     ),
   ];
 }

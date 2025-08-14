@@ -24,7 +24,7 @@ class RewardsSection extends StatelessWidget {
           child: _buildPill(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_loog_kze6kr.png", amount: "$hashCoin"),
         ),
         GestureDetector(
-          onTap: () => Get.to(WalletScreen()),
+          onTap: () => Get.to(WalletPage()),
           child: Obx(() {
             final isLoading = walletController.isLoading; 
             final walletBalance = walletController.balance;

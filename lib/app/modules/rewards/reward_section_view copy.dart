@@ -43,7 +43,7 @@ class RewardsSection extends StatelessWidget {
         ),
         GestureDetector(
           onTap: () {
-            Get.to(WalletScreen());
+            Get.to(WalletPage());
           },
           child: Obx(() {
             final walletBalance = walletController.balance;

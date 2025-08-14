@@ -5,6 +5,7 @@ import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
+import 'package:hash/core/repositories/model/transaction_history_model.dart';
 
 abstract class RemoteRepoInterface {
   Future<Map<String, dynamic>?> checkUserExistsInAPI(String fid);
@@ -116,4 +117,7 @@ abstract class RemoteRepoInterface {
     required String userId,
     required PurchasePassModel passModel,
   });
+
+  Future<List<TransactionHistoryModel>> getTransactionHistory({required String userId});
+
 }

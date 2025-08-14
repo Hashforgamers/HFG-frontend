@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
+import 'package:hash/app/modules/wallet/cubit/transaction_cubit.dart';
+import 'package:hash/core/repositories/model/transaction_history_model.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart'; // <-- free neon-style icon set
 import '../controllers/razorpay_wallet_controller.dart';
 import '../controllers/wallet_controller.dart';
@@ -11,8 +14,54 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
+class WalletPage extends StatelessWidget {
+  const WalletPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => TransactionCubit(),
+      child: _WalletPage(),
+    );
+  }
+}
+
+class _WalletPage extends StatefulWidget {
+  const _WalletPage();
+
+  @override
+  State<_WalletPage> createState() => __WalletPageState();
+}
+
+class __WalletPageState extends State<_WalletPage> {
+  @override
+  void initState() {
+    BlocProvider.of<TransactionCubit>(context).getTransactionHistory();
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<TransactionCubit, TransactionState>(
+      builder: (context, state) {
+        if (state is TransactionLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (state is TransactionLoaded) {
+          return WalletScreen(transactions: state.transactions);
+        }
+        if (state is TransactionError) {
+          return const Center(child: Text('Error'));
+        }
+        return const Center(child: Text('Error'));
+      },
+    );
+  }
+}
+
 class WalletScreen extends StatefulWidget {
-  const WalletScreen({super.key});
+  final List<TransactionHistoryModel> transactions;
+  const WalletScreen({super.key, required this.transactions});
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -249,7 +298,7 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Widget _recentTransactions() {
-    final transactions = walletCtr.recentTransactions;
+    final transactions = widget.transactions;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -372,12 +421,169 @@ class _WalletScreenState extends State<WalletScreen> {
           )
         else
           ...transactions.map(
-            (transaction) => _transactionCardFromModel(transaction),
+            (transaction) => _transactionCardFromHistoryModel(transaction),
           ),
       ],
     );
   }
 
+  Widget _transactionCardFromHistoryModel(TransactionHistoryModel transaction) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF222222)),
+      ),
+      child: Row(
+        children: [
+          // Transaction icon
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: _getTransactionIconColorFromHistory(transaction),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _getTransactionIconFromHistoryModel(transaction),
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // Transaction details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getTransactionDescription(transaction),
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _getTransactionSubtitleFromHistory(transaction),
+                  style: GoogleFonts.inter(
+                    color: Colors.grey[400],
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  transaction.time,
+                  style: GoogleFonts.inter(
+                    color: Colors.grey[500],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Amount and date
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                "${_isCreditTransaction(transaction) ? '+' : '-'}₹${transaction.amount.toStringAsFixed(2)}",
+                style: GoogleFonts.inter(
+                  color: _isCreditTransaction(transaction)
+                      ? const Color(0xff00D701)
+                      : Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                transaction.date,
+                style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 11),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getTransactionIconColorFromHistory(TransactionHistoryModel transaction) {
+    // Different colors for different transaction types
+    switch (transaction.type.toLowerCase()) {
+      case 'credit':
+      case 'add':
+      case 'topup':
+        return Colors.green;
+      case 'debit':
+      case 'withdraw':
+      case 'deduct':
+        return Colors.red;
+      case 'refund':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getTransactionDescription(TransactionHistoryModel transaction) {
+    // Generate description based on transaction type
+    switch (transaction.type.toLowerCase()) {
+      case 'credit':
+      case 'wallet_credit':
+      case 'add':
+      case 'topup':
+        return 'Wallet Recharge';
+      case 'debit':
+      case 'wallet_debit':
+      case 'withdraw':
+      case 'deduct':
+        return 'Payment';
+      case 'refund':
+        return 'Refund';
+      default:
+        return 'Transaction';
+    }
+  }
+
+  String _getTransactionSubtitleFromHistory(TransactionHistoryModel transaction) {
+    // Return transaction reference or type
+    if (transaction.referenceId.isNotEmpty) {
+      return 'Ref: ${transaction.referenceId}';
+    }
+    return transaction.type.toUpperCase();
+  }
+
+  IconData _getTransactionIconFromHistoryModel(TransactionHistoryModel transaction) {
+    switch (transaction.type.toLowerCase()) {
+      case 'credit':
+      case 'wallet_credit':
+      case 'add':
+      case 'topup':
+        return PhosphorIconsFill.arrowDown;
+      case 'debit':
+      case 'wallet_debit':
+      case 'withdraw':
+      case 'deduct':
+        return PhosphorIconsFill.arrowUp;
+      case 'refund':
+        return PhosphorIconsFill.arrowCounterClockwise;
+      default:
+        return PhosphorIconsFill.wallet;
+    }
+  }
+
+  bool _isCreditTransaction(TransactionHistoryModel transaction) {
+    return ['credit', 'wallet_credit', 'add', 'topup', 'refund'].contains(transaction.type.toLowerCase());
+  }
+
+  // Keep the existing _transactionCardFromModel method for backward compatibility
   Widget _transactionCardFromModel(WalletTransaction transaction) {
     return Container(
       width: double.infinity,
