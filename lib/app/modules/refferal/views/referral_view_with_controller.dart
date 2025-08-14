@@ -611,7 +611,7 @@ class _ReferralViewWithControllerState
         backgroundColor: Colors.black,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Get.back(),
         ),
         title: RichText(
           text: TextSpan(

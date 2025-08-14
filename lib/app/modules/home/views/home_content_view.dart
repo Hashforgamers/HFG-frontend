@@ -8,7 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/cafe/views/cafe_section_view.dart';
-import 'package:hash/app/modules/event/event_banner_view.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
@@ -17,7 +16,6 @@ import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
-import 'package:hash/app/modules/shop/views/shop_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
@@ -41,27 +39,27 @@ class _HomeContentViewState extends State<HomeContentView>
   late final LoginController loginController;
   late final UserController userController;
   late final SegmentSdkService segmentService;
-  
+
   // Animation controllers
   late final AnimationController _fadeController;
   late final AnimationController _slideController;
-  
+
   // Scroll controller for optimization
   late final ScrollController _scrollController;
-  
+
   // State variables
-  bool _isInitialized = false;
+  bool isInitialized = false;
   bool _isRefreshing = false;
-  bool _showReferModal = false;
-  
+  bool showReferModal = false;
+
   // Cached widgets for better performance
   Widget? _cachedAppBar;
   Widget? _cachedGamePassContainer;
   Widget? _cachedGameOnIndiaBanner;
-  
+
   // Visibility tracking for lazy loading
   final Map<String, bool> _sectionVisibility = {};
-  
+
   @override
   bool get wantKeepAlive => true;
 
@@ -93,8 +91,7 @@ class _HomeContentViewState extends State<HomeContentView>
   }
 
   void _initializeScrollController() {
-    _scrollController = ScrollController()
-      ..addListener(_onScrollChanged);
+    _scrollController = ScrollController()..addListener(_onScrollChanged);
   }
 
   void _initializeData() {
@@ -118,7 +115,7 @@ class _HomeContentViewState extends State<HomeContentView>
       final position = _scrollController.position;
       final maxScroll = position.maxScrollExtent;
       final currentScroll = position.pixels;
-      
+
       // Trigger lazy loading when user scrolls to certain sections
       if (currentScroll > maxScroll * 0.7 && !_sectionVisibility['shorts']!) {
         _sectionVisibility['shorts'] = true;
@@ -136,9 +133,9 @@ class _HomeContentViewState extends State<HomeContentView>
 
   Future<void> _refreshData() async {
     if (_isRefreshing) return;
-    
+
     setState(() => _isRefreshing = true);
-    
+
     try {
       // Optimized parallel API calls with proper error handling
       await Future.wait([
@@ -150,14 +147,11 @@ class _HomeContentViewState extends State<HomeContentView>
       ], eagerError: false).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          print('Data refresh timeout');
           return [];
         },
       );
-      
-      setState(() => _isInitialized = true);
-    } catch (e) {
-      print('Error refreshing data: $e');
+
+      setState(() => isInitialized = true);
     } finally {
       setState(() => _isRefreshing = false);
     }
@@ -178,28 +172,33 @@ class _HomeContentViewState extends State<HomeContentView>
     }
   }
 
-  void _showReferFriendModal() {
-    if (_showReferModal) return;
-    
-    setState(() => _showReferModal = true);
-    
-    showReferFriendModal(
-      context,
-      onReferNow: () {
-        Get.to(() => const ReferralViewWithController());
-        setState(() => _showReferModal = false);
-      },
-      onNoThanks: () {
-        Navigator.pop(context);
-        setState(() => _showReferModal = false);
-      },
+  Widget _buildReferFriendModal() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'REFER TO A FRIEND',
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ReferFriendModal(
+          isDialog: false,
+          onReferNow: () {
+            Get.to(() => const ReferralViewWithController());
+          },
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    
+
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _refreshData,
@@ -224,19 +223,31 @@ class _HomeContentViewState extends State<HomeContentView>
                       children: [
                         const SizedBox(height: 24),
                         // _buildLazyLoadedSection('event', const EventBanner()),
-                        _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+                        _buildLazyLoadedSection(
+                          'gamePass',
+                          _buildGamePassContainer(),
+                        ),
                         const SizedBox(height: 24),
                         _buildLazyLoadedSection('cafe', CafeSection()),
+                        // const SizedBox(height: 24),
+                        _buildLazyLoadedSection(
+                          'referral',
+                          _buildReferFriendModal(),
+                        ),
                         const SizedBox(height: 24),
-                        _buildLazyLoadedSection('shop', const ShopSection()),
-                        const SizedBox(height: 24),
-                        _buildLazyLoadedSection('news', const GamerNewsSection()),
+                        _buildLazyLoadedSection(
+                          'news',
+                          const GamerNewsSection(),
+                        ),
                         const SizedBox(height: 24),
                         _buildLazyLoadedSection('games', const GamesSection()),
                         const SizedBox(height: 24),
                         _buildLazyLoadedSection('shorts', ViralShotsSection()),
                         const SizedBox(height: 32),
-                        _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
+                        _buildLazyLoadedSection(
+                          'gameOnIndia',
+                          _buildGameOnIndiaBanner(),
+                        ),
                         const SizedBox(height: 32),
                       ],
                     ),
@@ -253,19 +264,17 @@ class _HomeContentViewState extends State<HomeContentView>
   Widget _buildLazyLoadedSection(String sectionKey, Widget child) {
     // Initialize visibility map if not exists
     _sectionVisibility[sectionKey] ??= true;
-    
+
     if (!_sectionVisibility[sectionKey]!) {
       return const SizedBox.shrink();
     }
-    
-    return RepaintBoundary(
-      child: child,
-    );
+
+    return RepaintBoundary(child: child);
   }
 
   Widget _buildOptimizedAppBar() {
     if (_cachedAppBar != null) return _cachedAppBar!;
-    
+
     _cachedAppBar = SliverAppBar(
       backgroundColor: Colors.transparent,
       systemOverlayStyle: const SystemUiOverlayStyle(
@@ -344,7 +353,7 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       ],
     );
-    
+
     return _cachedAppBar!;
   }
 
@@ -376,7 +385,7 @@ class _HomeContentViewState extends State<HomeContentView>
 
   Widget _buildGamePassContainer() {
     if (_cachedGamePassContainer != null) return _cachedGamePassContainer!;
-    
+
     _cachedGamePassContainer = GestureDetector(
       onTap: () => Get.to(() => GamePassViewPage()),
       child: Container(
@@ -457,119 +466,12 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       ),
     );
-    
+
     return _cachedGamePassContainer!;
-  }
-
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      backgroundColor: Colors.transparent,
-      systemOverlayStyle: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-      ),
-      elevation: 0,
-      pinned: false,
-      expandedHeight: 70,
-      flexibleSpace: ClipRRect(
-        borderRadius: BorderRadius.circular(25),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFFFFFFFF).withOpacity(0.1),
-                  const Color(0xFF64BD55).withOpacity(0.2),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(25),
-            ),
-          ),
-        ),
-      ),
-
-      leadingWidth: 55,
-      leading: Obx(
-        () => Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: userController.isLoading.value
-                ? _buildShimmerAvatar()
-              : _userAvatar(userController.user.value.photoUrl),
-        ),
-      ),
-      title: Obx(
-        () => Padding(
-          padding: const EdgeInsets.only(top: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Hey, ${userController.user.value.gameUserName}!',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Viman Nagar, Pune',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFB6B6B6),
-                  fontSize: 11.5,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ],
-          ),
-        ),
-      ),
-
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 10),
-          child: BlocBuilder<HashCoinCubit, HashCoinState>(
-            builder: (_, state) => RewardsSection(
-              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _userAvatar(String? photoUrl) {
-    const double size = 40;
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF6DFB60), width: 2),
-      ),
-      child: CircleAvatar(
-        radius: size / 2,
-        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-            ? CachedNetworkImageProvider(photoUrl)
-            : const NetworkImage(
-                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-                  )
-                  as ImageProvider,
-        backgroundColor: Colors.white,
-      ),
-    );
   }
 
   Widget _buildGameOnIndiaBanner() {
     if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
-    
     _cachedGameOnIndiaBanner = GestureDetector(
       onTap: () {},
       child: Container(
@@ -592,7 +494,6 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       ),
     );
-    
     return _cachedGameOnIndiaBanner!;
   }
 
