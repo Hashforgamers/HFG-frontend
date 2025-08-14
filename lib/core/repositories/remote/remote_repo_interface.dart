@@ -70,13 +70,11 @@ abstract class RemoteRepoInterface {
   Future<Map<String, dynamic>> fetchProductById(String productId);
 
   // Wallet related methods
-  Future<Map<String, dynamic>> fetchWallet();
+  Future<Map<String, dynamic>> fetchWallet({required String userId});
   Future<Map<String, dynamic>> addFunds({
-    required double amount,
-    required String description,
-    required String name,
-    required String contact,
-    required String emailId,
+    required String userId,
+    required int amount,
+    required String paymentId,
   });
   Future<Map<String, dynamic>> validateFunds(String paymentLinkId);
   Future<void> saveReferralCodeToPreferences(String referralCode);

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart'; // <-- free neon-style icon set
 import '../controllers/razorpay_wallet_controller.dart';
 import '../controllers/wallet_controller.dart';
+import '../../../data/models/wallet_model.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -20,15 +22,9 @@ class _WalletScreenState extends State<WalletScreen> {
   final walletCtr = Get.find<WalletController>();
   final razorpayCtr = Get.put(RazorpayWalletController());
   final TextEditingController amountController = TextEditingController();
+  final TextEditingController searchController = TextEditingController();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
-
-  final List<Map<String, dynamic>> recentTrans = [
-    {'title': 'Coffee Shop', 'category': 'Payment', 'cost': 5.75},
-    {'title': 'To Lucas', 'category': 'Transfer', 'cost': 20.00},
-    {'title': 'From Bank', 'category': 'Deposit', 'cost': 100.00},
-    {'title': 'Grocery Store', 'category': 'Payment', 'cost': 45.00},
-  ];
 
   @override
   void initState() {
@@ -46,248 +42,130 @@ class _WalletScreenState extends State<WalletScreen> {
   // ───────────────────────── UI BUILD ──────────────────────────
   @override
   Widget build(BuildContext context) {
-    walletCtr.fetchWallet();
-
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBodyBehindAppBar: false,
       appBar: AppBar(
         centerTitle: true,
-        backgroundColor: Colors.transparent,
+        title: Text(
+          "Wallet",
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         elevation: 0,
         leading: GestureDetector(
           onTap: () {
             Get.back();
           },
-          child: const Icon(Icons.arrow_back, color: Color(0xff00D701)),
+          child: const Icon(Icons.arrow_back, color: Colors.white),
         ),
-        title: Text(
-          "Wallet",
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: GestureDetector(
-              onTap: () {},
-              child: Icon(Icons.add, color: Colors.white, size: 30),
-            ),
-          ),
-        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Text(
-                '\$0',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Quick Actions',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Obx(() {
+        if (walletCtr.isLoading) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xff00D701)),
+          );
+        }
+
+        // Show error if any
+        if (walletCtr.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildButton(label: 'Add Funds', onTap: () {}),
-                _buildButton(label: 'View Passes', onTap: () {}),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: TextField(
-                style: GoogleFonts.inter(color: Colors.white),
-                cursorColor: Colors.white70,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    color: Colors.white70,
-                    size: 30,
+                Icon(Icons.error_outline, color: Colors.red, size: 64),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading wallet',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
                   ),
-                  hintText: 'Search Transactions',
-                  hintStyle: GoogleFonts.inter(color: Colors.white70),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                _buildDropDownButton(label: 'All', onTap: () {}),
-                const SizedBox(width: 10),
-                _buildDropDownButton(label: 'Payments', onTap: () {}),
-                const SizedBox(width: 10),
-                _buildDropDownButton(label: 'Transfers', onTap: () {}),
+                const SizedBox(height: 8),
+                Text(
+                  walletCtr.errorMessage,
+                  style: GoogleFonts.inter(
+                    color: Colors.grey[400],
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => walletCtr.refreshWallet(),
+                  icon: Icon(Icons.refresh, color: Colors.black),
+                  label: Text(
+                    'Retry',
+                    style: GoogleFonts.inter(color: Colors.black),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff00D701),
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 20),
-            Text(
-              'Recent Transactions',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ListView.separated(
-                separatorBuilder: (_, _) => const SizedBox(height: 20),
-                itemCount: recentTrans.length,
-                itemBuilder: (context, index) {
-                  final recentTran = recentTrans[index];
-                  return _buildTransCard(recentTran: recentTran);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+          );
+        }
 
-  Widget _buildTransCard({required Map<String, dynamic> recentTran}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            recentTran['category'] == 'Payment' &&
-                    recentTran['title'] == 'Coffee Shop'
-                ? Icons.coffee
-                      : recentTran['category'] == 'Payment' ?Icons.shopping_cart
-                : recentTran['category'] == 'Transfer'
-                ? Icons.arrow_upward_rounded
-                : Icons.arrow_downward_rounded,
-            size: 30,
-          ),
-        ),
-        const SizedBox(width: 20),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              recentTran['title'],
-              style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
+        return RefreshIndicator(
+          onRefresh: () => walletCtr.refreshWallet(),
+          color: const Color(0xff00D701),
+          backgroundColor: Colors.black,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _balanceCard(),
+                const SizedBox(height: 32),
+                _quickActionButtons(),
+                const SizedBox(height: 32),
+                _recentTransactions(),
+              ],
             ),
-            Text(
-              recentTran['category'],
-              style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
-            ),
-          ],
-        ),
-        const Spacer(),
-        Text(
-          '${recentTran['category'] == 'Deposit' ? '+' : '-'}\$${recentTran['cost']}',
-          style: GoogleFonts.inter(color: Colors.white70, fontSize: 18),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDropDownButton({
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-            ),
-            const SizedBox(width: 6),
-            Icon(Icons.keyboard_arrow_down_rounded, size: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildButton({required String label, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-        decoration: BoxDecoration(
-          color: Color(0xFF191919),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 
   // ────────────────────────── WIDGETS ──────────────────────────
   Widget _balanceCard() {
-    return _glassCard(
-      padding: const EdgeInsets.all(20),
-      child: Row(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF222222)),
+      ),
+      child: Column(
         children: [
-          Container(
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.black54,
-            ),
-            padding: const EdgeInsets.all(12),
-            child: const Icon(
-              PhosphorIconsFill.wallet,
-              color: Colors.greenAccent,
-            ),
-          ),
-          const SizedBox(width: 14),
+          // Simple balance display
           Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "WALLET BALANCE",
-                style: GoogleFonts.inter(color: Colors.white60, fontSize: 12),
+                "Balance",
+                style: GoogleFonts.inter(
+                  color: Colors.grey[400],
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               Text(
-                "₹ ${walletCtr.balance}",
+                walletCtr.formattedBalance,
                 style: GoogleFonts.orbitron(
-                  fontSize: 30,
-                  color: Colors.greenAccent,
+                  fontSize: 32,
+                  color: const Color(0xff00D701),
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -298,145 +176,469 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _topUpPanel(BuildContext ctx) {
-    return _glassCard(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Top-up Wallet",
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: amountController,
-            keyboardType: TextInputType.number,
-            style: GoogleFonts.inter(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: "Enter amount (Min ₹50)",
-              hintStyle: GoogleFonts.inter(color: Colors.white38),
-              prefixIcon: Icon(
-                PhosphorIcons.currencyInr(),
-                color: Colors.greenAccent,
-                size: 20,
-              ),
-              filled: true,
-              fillColor: Colors.white.withOpacity(0.05),
-              enabledBorder: _border(),
-              focusedBorder: _border(color: Colors.greenAccent),
-            ),
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.flash_on, color: Colors.black),
-              label: Text(
-                "TOP-UP NOW",
-                style: GoogleFonts.inter(
-                  color: Colors.black,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.greenAccent,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () {
-                final amt = int.tryParse(amountController.text.trim());
-                if (amt == null || amt < 50) {
-                  Get.snackbar(
-                    "Invalid",
-                    "Minimum top-up is ₹50",
-                    backgroundColor: Colors.red,
-                    colorText: Colors.white,
-                  );
-                  return;
-                }
-                razorpayCtr.pay(amt);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _quickTopUp() {
+  Widget _quickActionButtons() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Quick Top-up",
-          style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
-        ),
-        const SizedBox(height: 14),
-        Wrap(
-          spacing: 14,
-          runSpacing: 14,
-          children: [100, 250, 500, 1000].map((int amt) {
-            return GestureDetector(
-              onTap: () => razorpayCtr.pay(amt),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 22,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF00ff90), Color(0xFF00c56b)],
-                  ),
-                ),
-                child: Text(
-                  "₹$amt",
-                  style: GoogleFonts.orbitron(
-                    fontSize: 14,
-                    color: Colors.black,
-                    letterSpacing: 0.5,
-                  ),
-                ),
+        Row(
+          children: [
+            Expanded(
+              child: _actionButton(
+                icon: Icons.account_balance_wallet,
+                label: "Add Funds",
+                onTap: () => _showAddMoneyBottomSheet(),
               ),
-            );
-          }).toList(),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _actionButton(
+                icon: Icons.history,
+                label: "Transactions",
+                onTap: () {
+                  // Navigate to transactions page or show transactions
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _actionButton(
+                icon: Icons.card_membership,
+                label: "Hash Pass",
+                onTap: () {
+                  Get.to(() => GamePassViewPage());
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  // ────────────────────────── HELPERS ──────────────────────────
-  OutlineInputBorder _border({Color color = Colors.white24}) =>
-      OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: color, width: 1),
-      );
+  Widget _actionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 88,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF333333)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-  /// glass-morphic reusable card
-  Widget _glassCard({required Widget child, EdgeInsets? padding}) {
+  Widget _recentTransactions() {
+    final transactions = walletCtr.recentTransactions;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header with Filter button
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "Recent Transactions",
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                // Show filter options
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111111),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF222222)),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      "Filter",
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Search bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111111),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF222222)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.search, color: Colors.grey[400], size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: searchController,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: "Search Transactions",
+                    hintStyle: GoogleFonts.inter(
+                      color: Colors.grey[500],
+                      fontSize: 14,
+                    ),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        if (transactions.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: const Color(0xFF111111),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF222222)),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.receipt_long, color: Colors.grey[500], size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No transactions yet',
+                    style: GoogleFonts.inter(
+                      color: Colors.grey[300],
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your transaction history will appear here',
+                    style: GoogleFonts.inter(
+                      color: Colors.grey[500],
+                      fontSize: 13,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...transactions.map(
+            (transaction) => _transactionCardFromModel(transaction),
+          ),
+      ],
+    );
+  }
+
+  Widget _transactionCardFromModel(WalletTransaction transaction) {
     return Container(
       width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.greenAccent.withOpacity(0.15),
-            blurRadius: 8,
-            spreadRadius: 0,
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF222222)),
+      ),
+      child: Row(
+        children: [
+          // Transaction icon
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: _getTransactionIconColor(transaction),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _getTransactionIconFromModel(transaction),
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // Transaction details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  transaction.description,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _getTransactionSubtitle(transaction),
+                  style: GoogleFonts.inter(
+                    color: Colors.grey[400],
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _getTransactionTime(transaction),
+                  style: GoogleFonts.inter(
+                    color: Colors.grey[500],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Amount and date
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                "${transaction.type == TransactionType.credit ? '+' : '-'}₹${transaction.amount.toStringAsFixed(2)}",
+                style: GoogleFonts.inter(
+                  color: transaction.type == TransactionType.credit
+                      ? const Color(0xff00D701)
+                      : Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _formatTransactionDate(transaction.timestamp),
+                style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 11),
+              ),
+            ],
           ),
         ],
       ),
-      child: child,
+    );
+  }
+
+  Color _getTransactionIconColor(WalletTransaction transaction) {
+    // Different colors for different transaction types
+    switch (transaction.type) {
+      case TransactionType.credit:
+        return Colors.green;
+      case TransactionType.debit:
+        return Colors.red;
+      case TransactionType.withdrawal:
+        return Colors.orange;
+      case TransactionType.refund:
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getTransactionSubtitle(WalletTransaction transaction) {
+    // Return cafe name or transaction category
+    if (transaction.description.toLowerCase().contains('slot booking')) {
+      return 'Dragon Gaming Cafe'; // or extract from description
+    } else if (transaction.description.toLowerCase().contains('hash pass')) {
+      return 'Monthly Global Hash Pass';
+    }
+    return transaction.description;
+  }
+
+  String _getTransactionTime(WalletTransaction transaction) {
+    // Return time slot for bookings or validity for passes
+    if (transaction.description.toLowerCase().contains('slot booking')) {
+      return '2:00 pm - 3:00 pm';
+    } else if (transaction.description.toLowerCase().contains('hash pass')) {
+      return 'Validity: June - July';
+    }
+    return _formatTransactionDate(transaction.timestamp);
+  }
+
+  IconData _getTransactionIconFromModel(WalletTransaction transaction) {
+    switch (transaction.type) {
+      case TransactionType.credit:
+        return PhosphorIconsFill.arrowDown;
+      case TransactionType.debit:
+        return PhosphorIconsFill.arrowUp;
+      case TransactionType.withdrawal:
+        return PhosphorIconsFill.bank;
+      case TransactionType.refund:
+        return PhosphorIconsFill.arrowCounterClockwise;
+      default:
+        return PhosphorIconsFill.wallet;
+    }
+  }
+
+  String _formatTransactionDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      if (difference.inHours == 0) {
+        return '${difference.inMinutes} min ago';
+      }
+      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
+  void _showAddMoneyBottomSheet() {
+    Get.bottomSheet(
+      Container(
+        decoration: const BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF333333),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              "Add Money to Wallet",
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF111111),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF222222)),
+              ),
+              child: TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+                decoration: InputDecoration(
+                  hintText: "Enter amount (Min ₹50)",
+                  hintStyle: GoogleFonts.inter(
+                    color: Colors.grey[500],
+                    fontSize: 16,
+                  ),
+                  prefixIcon: Icon(
+                    PhosphorIcons.currencyInr(),
+                    color: const Color(0xff00D701),
+                    size: 20,
+                  ),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.flash_on, color: Colors.black),
+                label: Text(
+                  "ADD MONEY",
+                  style: GoogleFonts.inter(
+                    color: Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xff00D701),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  final amt = int.tryParse(amountController.text.trim());
+                  if (amt == null || amt < 50) {
+                    Get.snackbar(
+                      "Invalid",
+                      "Minimum top-up is ₹50",
+                      backgroundColor: Colors.red,
+                      colorText: Colors.white,
+                    );
+                    return;
+                  }
+                  razorpayCtr.pay(amt);
+                  Get.back();
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+      isScrollControlled: true,
     );
   }
 }

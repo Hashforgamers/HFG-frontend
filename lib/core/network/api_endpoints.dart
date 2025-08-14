@@ -62,9 +62,9 @@ class ApiEndpoints {
   static String get productById => '$userOnboardBaseUrl/api/users/product';
 
   // Wallet related endpoints (userOnboard)
-  static String get wallet => '$userOnboardBaseUrl/api/users/wallet';
-  static String get addFunds =>
-      '$userOnboardBaseUrl/api/users/wallet/add-funds';
+  static String wallet(String userId) => '$userOnboardBaseUrl/api/users/$userId/wallet';
+  static String addFunds(String userId) =>
+      '$userOnboardBaseUrl/api/users/$userId/wallet/add-funds';
   static String get validateFunds =>
       '$userOnboardBaseUrl/api/users/wallet/validate-funds';
 

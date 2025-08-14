@@ -5,4 +5,5 @@ abstract class AppRoutes {
   static const SIGNUP = '/signup';
   static const PAGE1 = '/page1';
   static const PAGE2 = '/page2';
+  static const WALLET = '/wallet';
 }
