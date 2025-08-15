@@ -12,14 +12,11 @@ class HashCoinCubit extends Cubit<HashCoinState> {
 
   Future<void> getHashCoin() async {
     emit(HashCoinLoading());
-
-    final userData = await remoteRepo.getUserFromPreferences();
-    if (userData != null) {
-      final userId = userData['id'] ?? 0;
-      final response = await remoteRepo.getHashCoin(userId: userId.toString());
+    try {
+      final response = await remoteRepo.getHashCoin();
       emit(HashCoinLoaded(hashCoin: response));
-    } else {
-      emit(const HashCoinError(message: 'User data not found'));
+    } catch (e) {
+      emit(HashCoinError(message: e.toString()));
     }
   }
 }
