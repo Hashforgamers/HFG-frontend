@@ -40,14 +40,20 @@ class _HomeContentViewState extends State<HomeContentView>
   late final LoginController loginController;
   late final UserController userController;
   late final SegmentSdkService segmentService;
-
+  
   // Animation controllers
   late final AnimationController _fadeController;
   late final AnimationController _slideController;
-
+  
   // Scroll controller for optimization
   late final ScrollController _scrollController;
+  static const double _sectionGap = 24.0;
 
+  List<Widget> _intersperse(List<Widget> items, Widget separator) {
+    if (items.isEmpty) return const [];
+    return List.generate(items.length * 2 - 1,
+            (i) => i.isEven ? items[i ~/ 2] : separator);
+  }
   // State variables
   bool isInitialized = false;
   bool _isRefreshing = false;
@@ -57,10 +63,10 @@ class _HomeContentViewState extends State<HomeContentView>
   Widget? _cachedAppBar;
   Widget? _cachedGamePassContainer;
   Widget? _cachedGameOnIndiaBanner;
-
+  
   // Visibility tracking for lazy loading
   final Map<String, bool> _sectionVisibility = {};
-
+  
   @override
   bool get wantKeepAlive => true;
 
@@ -72,7 +78,15 @@ class _HomeContentViewState extends State<HomeContentView>
     _initializeScrollController();
     _initializeData();
   }
-
+  @override
+  void dispose() {
+    // remove listeners before disposing controller
+    _scrollController.removeListener(_onScrollChanged);
+    _fadeController.dispose();
+    _slideController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
   void _initializeControllers() {
     bookingController = Get.find<BookingController>();
     loginController = Get.find<LoginController>();
@@ -111,17 +125,16 @@ class _HomeContentViewState extends State<HomeContentView>
   }
 
   void _onScrollChanged() {
-    // Implement intersection observer logic for lazy loading
-    if (_scrollController.hasClients) {
-      final position = _scrollController.position;
-      final maxScroll = position.maxScrollExtent;
-      final currentScroll = position.pixels;
+    if (!mounted || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final maxScroll = position.maxScrollExtent;
+    final currentScroll = position.pixels;
 
-      // Trigger lazy loading when user scrolls to certain sections
-      if (currentScroll > maxScroll * 0.7 && !_sectionVisibility['shorts']!) {
-        _sectionVisibility['shorts'] = true;
-        setState(() {});
-      }
+    final wasSeen = _sectionVisibility['shorts'] ?? false;
+    if (currentScroll > maxScroll * 0.7 && !wasSeen) {
+      _sectionVisibility['shorts'] = true;
+      if (!mounted) return;
+      setState(() {}); // guarded
     }
   }
 
@@ -135,6 +148,7 @@ class _HomeContentViewState extends State<HomeContentView>
   Future<void> _refreshData() async {
     if (_isRefreshing) return;
 
+    if (!mounted) return;
     setState(() => _isRefreshing = true);
 
     try {
@@ -151,9 +165,13 @@ class _HomeContentViewState extends State<HomeContentView>
           return [];
         },
       );
+      if (!mounted) return;
 
       setState(() => isInitialized = true);
+    } catch (e) {
+      debugPrint('Error refreshing data: $e');
     } finally {
+      if (!mounted) return;
       setState(() => _isRefreshing = false);
     }
   }
@@ -222,35 +240,20 @@ class _HomeContentViewState extends State<HomeContentView>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 24),
-                        // _buildLazyLoadedSection('event', const EventBanner()),
-                        _buildLazyLoadedSection(
-                          'gamePass',
-                          _buildGamePassContainer(),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildLazyLoadedSection('cafe', CafeSection()),
-                        // const SizedBox(height: 24),
-                        _buildLazyLoadedSection(
-                          'referral',
-                          _buildReferFriendModal(),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildLazyLoadedSection(
-                          'news',
-                          const GamerNewsSection(),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildLazyLoadedSection('games', const GamesSection()),
-                        const SizedBox(height: 24),
-                        _buildLazyLoadedSection('shorts', ViralShotsSection()),
-                        const SizedBox(height: 32),
-                        _buildLazyLoadedSection(
-                          'gameOnIndia',
-                          _buildGameOnIndiaBanner(),
-                        ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: _sectionGap), // top padding
+                        ..._intersperse([
+                          // _buildLazyLoadedSection('event', const EventBanner()),
+                          _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+                          _buildLazyLoadedSection('cafe', CafeSection()),
+                          _buildLazyLoadedSection('referral', _buildReferFriendModal()),
+                          _buildLazyLoadedSection('news', const GamerNewsSection()),
+                          _buildLazyLoadedSection('games', const GamesSection()),
+                          _buildLazyLoadedSection('shorts', ViralShotsSection()),
+                          _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
+                        ], const SizedBox(height: _sectionGap)),
+                        const SizedBox(height: _sectionGap), // bottom padding
                       ],
+
                     ),
                   ),
                 ),
@@ -331,7 +334,7 @@ class _HomeContentViewState extends State<HomeContentView>
               ),
               const SizedBox(height: 2),
               Text(
-                'Viman Nagar, Pune',
+                '${userController.user.value.contact?.physicalAddress?.addressLine1}',
                 style: GoogleFonts.inter(
                   color: const Color(0xFFB6B6B6),
                   fontSize: 11.5,
@@ -471,31 +474,163 @@ class _HomeContentViewState extends State<HomeContentView>
     return _cachedGamePassContainer!;
   }
 
+  // Widget _buildAppBar() {
+  //   return SliverAppBar(
+  //     backgroundColor: Colors.transparent,
+  //     systemOverlayStyle: const SystemUiOverlayStyle(
+  //       statusBarColor: Colors.transparent,
+  //     ),
+  //     elevation: 0,
+  //     pinned: false,
+  //     expandedHeight: 70,
+  //     flexibleSpace: ClipRRect(
+  //       borderRadius: BorderRadius.circular(25),
+  //       child: BackdropFilter(
+  //         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+  //         child: Container(
+  //           decoration: BoxDecoration(
+  //             gradient: LinearGradient(
+  //               begin: Alignment.topCenter,
+  //               end: Alignment.bottomCenter,
+  //               colors: [
+  //                 const Color(0xFFFFFFFF).withOpacity(0.1),
+  //                 const Color(0xFF64BD55).withOpacity(0.2),
+  //               ],
+  //             ),
+  //             borderRadius: BorderRadius.circular(25),
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //
+  //     leadingWidth: 55,
+  //     leading: Obx(
+  //       () => Padding(
+  //         padding: const EdgeInsets.only(left: 10),
+  //         child: userController.isLoading.value
+  //               ? _buildShimmerAvatar()
+  //             : _userAvatar(userController.user.value.photoUrl),
+  //       ),
+  //     ),
+  //     title: Obx(
+  //       () => Padding(
+  //         padding: const EdgeInsets.only(top: 12.0),
+  //         child: Column(
+  //           crossAxisAlignment: CrossAxisAlignment.start,
+  //           mainAxisSize: MainAxisSize.min,
+  //           children: [
+  //             Text(
+  //               'Hey, ${userController.user.value.gameUserName}!',
+  //               style: GoogleFonts.inter(
+  //                 color: Colors.white,
+  //                 fontSize: 14,
+  //                 fontWeight: FontWeight.bold,
+  //               ),
+  //               overflow: TextOverflow.ellipsis,
+  //               maxLines: 1,
+  //             ),
+  //             const SizedBox(height: 2),
+  //             Text(
+  //               'Viman Nagar, Pune',
+  //               style: GoogleFonts.inter(
+  //                 color: const Color(0xFFB6B6B6),
+  //                 fontSize: 11.5,
+  //               ),
+  //               overflow: TextOverflow.ellipsis,
+  //               maxLines: 1,
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //
+  //     actions: [
+  //       Padding(
+  //         padding: const EdgeInsets.only(right: 10),
+  //         child: BlocBuilder<HashCoinCubit, HashCoinState>(
+  //           builder: (_, state) => RewardsSection(
+  //             hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+  //           ),
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
+
+  // Widget _userAvatar(String? photoUrl) {
+  //   const double size = 40;
+  //
+  //   return Container(
+  //     width: size,
+  //     height: size,
+  //     decoration: BoxDecoration(
+  //       shape: BoxShape.circle,
+  //       border: Border.all(color: const Color(0xFF6DFB60), width: 2),
+  //     ),
+  //     child: CircleAvatar(
+  //       radius: size / 2,
+  //       backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+  //           ? CachedNetworkImageProvider(photoUrl)
+  //           : const NetworkImage(
+  //                   'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
+  //                 )
+  //                 as ImageProvider,
+  //       backgroundColor: Colors.white,
+  //     ),
+  //   );
+  // }
+
+  // Widget _buildGameOnIndiaBanner() {
+  //   if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
+  //   _cachedGameOnIndiaBanner = GestureDetector(
+  //     onTap: () {},
+  //     child: Container(
+  //       padding: const EdgeInsets.symmetric(vertical: 4),
+  //       height: 50,
+  //       width: double.infinity,
+  //       decoration: BoxDecoration(
+  //         color: Colors.transparent,
+  //         border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
+  //         borderRadius: BorderRadius.circular(50),
+  //       ),
+  //       child: Center(
+  //         child: Text(
+  //           'Game On, India!',
+  //           style: GoogleFonts.inter(
+  //             fontSize: 16,
+  //             color: const Color(0xFF75F94C),
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  //   return _cachedGameOnIndiaBanner!;
+  // }
   Widget _buildGameOnIndiaBanner() {
-    if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
-    _cachedGameOnIndiaBanner = GestureDetector(
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        height: 50,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
-          borderRadius: BorderRadius.circular(50),
-        ),
-        child: Center(
+    return Padding(
+      padding: const EdgeInsets.only(top: 5.0),
+      child: Center(
+        child: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [
+              Color(0xFFFF9933), // Saffron
+              Colors.white, // White
+              Color(0xFF138808), // Green
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(bounds),
           child: Text(
             'Game On, India!',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              color: const Color(0xFF75F94C),
+            style: GoogleFonts.tulpenOne(
+              fontSize: 100,
+              fontWeight: FontWeight.normal,
+              color: Colors.white, // Text color required for ShaderMask
             ),
           ),
         ),
       ),
     );
-    return _cachedGameOnIndiaBanner!;
   }
 
   Widget _buildShimmerAvatar() {
@@ -506,11 +641,5 @@ class _HomeContentViewState extends State<HomeContentView>
     );
   }
 
-  @override
-  void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
+
 }

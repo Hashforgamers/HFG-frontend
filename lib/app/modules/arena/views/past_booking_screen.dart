@@ -1,5 +1,6 @@
 import 'package:barcode_widget/barcode_widget.dart' as bw;
 import 'package:dotted_line/dotted_line.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -99,42 +100,32 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                     ),
                     // Filter Dropdown
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 0),
-                      decoration: BoxDecoration(
-                          // color: const Color(0xFF18191A),
-                          ),
-                      child: DropdownButton<String>(
-                        value: _sortOrder,
-                        dropdownColor: const Color(0xFF18191A),
-                        style: GoogleFonts.inter(
-                            color: Colors.white, fontSize: 12),
-                        underline: const SizedBox(),
-                        icon: const Icon(Icons.arrow_drop_down,
-                            color: Colors.green, size: 20),
-                        items: [
-                          DropdownMenuItem(
-                            value: 'newer',
-                            child: Text('Newer First',
-                                style: GoogleFonts.inter(
-                                    color: Colors.white, fontSize: 12)),
-                          ),
-                          DropdownMenuItem(
-                            value: 'older',
-                            child: Text('Older First',
-                                style: GoogleFonts.inter(
-                                    color: Colors.white, fontSize: 12)),
-                          ),
-                        ],
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              _sortOrder = newValue;
-                            });
-                          }
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                      child: IconButton(
+                        splashRadius: 18,
+                        tooltip: _sortOrder == 'newer' ? 'Newest first' : 'Oldest first',
+                        onPressed: () {
+                          setState(() {
+                            _sortOrder = _sortOrder == 'newer' ? 'older' : 'newer';
+                          });
+                          // optionally: _applySort(_sortOrder);
                         },
+                        icon: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          transitionBuilder: (child, anim) =>
+                              ScaleTransition(scale: anim, child: child),
+                          child: Icon(
+                            _sortOrder == 'newer'
+                                ? CupertinoIcons.sort_down_circle
+                                : CupertinoIcons.sort_up_circle,
+                            key: ValueKey(_sortOrder),
+                            size: 20,
+                            color: Colors.green,
+                          ),
+                        ),
                       ),
-                    ),
+                    )
+
                   ],
                 ),
               ),

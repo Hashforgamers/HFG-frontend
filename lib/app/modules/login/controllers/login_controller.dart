@@ -76,7 +76,6 @@ class LoginController extends GetxController {
 
       final firebase_auth.UserCredential userCredential = await _auth
           .signInWithCredential(credential);
-
       if (userCredential.user != null) {
         await _handleUserNavigation();
       } else {
@@ -114,7 +113,6 @@ class LoginController extends GetxController {
 
     try {
       final userData = await remoteRepo.checkUserExistsInAPI(user.uid);
-
       if (userData != null) {
         segmentService.onLoginSuccess(
           userId: user.uid,

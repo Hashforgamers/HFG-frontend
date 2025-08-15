@@ -42,20 +42,20 @@ class UserProfileView extends StatelessWidget {
                 // Handle view orders
               },
             ),
-            _buildProfileOption(
-              icon: CupertinoIcons.bag,
-              title: 'My Orders',
-              onTap: () {
-                Get.to(const GamePassPage());
-              },
-            ),
-            _buildProfileOption(
-              icon: CupertinoIcons.settings,
-              title: 'Settings',
-              onTap: () {
-                // Handle settings
-              },
-            ),
+            // _buildProfileOption(
+            //   icon: CupertinoIcons.bag,
+            //   title: 'My Orders',
+            //   onTap: () {
+            //     Get.to(const GamePassPage());
+            //   },
+            // ),
+            // _buildProfileOption(
+            //   icon: CupertinoIcons.settings,
+            //   title: 'Settings',
+            //   onTap: () {
+            //     // Handle settings
+            //   },
+            // ),
             _buildProfileOption(
               icon: CupertinoIcons.money_dollar_circle,
               title: 'Wallet',
@@ -72,13 +72,13 @@ class UserProfileView extends StatelessWidget {
                 Get.to(const ReferralViewWithController());
               },
             ),
-            _buildProfileOption(
-              icon: CupertinoIcons.heart,
-              title: 'Wishlist',
-              onTap: () {
-                // Handle wishlist
-              },
-            ),
+            // _buildProfileOption(
+            //   icon: CupertinoIcons.heart,
+            //   title: 'Wishlist',
+            //   onTap: () {
+            //     // Handle wishlist
+            //   },
+            // ),
             _buildProfileOption(
               icon: Icons.change_circle_outlined,
               title: 'Change Address',
@@ -86,13 +86,13 @@ class UserProfileView extends StatelessWidget {
                 // Handle change password
               },
             ),
-            _buildProfileOption(
-              icon: CupertinoIcons.info,
-              title: 'About',
-              onTap: () {
-                // Handle about
-              },
-            ),
+            // _buildProfileOption(
+            //   icon: CupertinoIcons.info,
+            //   title: 'About',
+            //   onTap: () {
+            //     // Handle about
+            //   },
+            // ),
             const SizedBox(height: 30),
           ],
         ),

@@ -40,8 +40,8 @@ class HomeView extends StatelessWidget {
             type: BottomNavigationBarType.fixed,
             enableFeedback: true,
             currentIndex: controller.selectedIndex.value,
-            onTap: controller.isScreenTransitioning.value 
-                ? null 
+            onTap: controller.isScreenTransitioning.value
+                ? null
                 : controller.onItemTapped,
             selectedFontSize: 0,
             unselectedFontSize: 0,
@@ -50,24 +50,24 @@ class HomeView extends StatelessWidget {
             unselectedItemColor: Colors.grey[800],
             items: <BottomNavigationBarItem>[
               _buildNavigationItem(
-                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/home-02_z5zoia.png',
+                'assets/navbar_icons/Vector (1).png',
                 isSelected: controller.selectedIndex.value == 0,
               ),
               _buildNavigationItem(
-                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-01_byibeu.png',
+                'assets/navbar_icons/maki_gaming.png',
                 isSelected: controller.selectedIndex.value == 1,
               ),
               _buildNavigationItem(
-                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/bookings_rlxzgf.png',
+                'assets/navbar_icons/Group.png',
                 isSelected: controller.selectedIndex.value == 2,
                 isSpecial: true,
               ),
               _buildNavigationItem(
-                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075083/shopping-bag-01_fma4hs.png',
+                'assets/navbar_icons/Vector (2).png',
                 isSelected: controller.selectedIndex.value == 3,
               ),
               _buildNavigationItem(
-                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075083/settings-02_uoux0w.png',
+                'assets/navbar_icons/Vector (3).png',
                 isSelected: controller.selectedIndex.value == 4,
               ),
             ],
@@ -77,11 +77,13 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  BottomNavigationBarItem _buildNavigationItem(
-    String iconPath, {
+  BottomNavigationBarItem _buildNavigationItem(String iconPath, {
     required bool isSelected,
     bool isSpecial = false,
   }) {
+    const selected = Color(0xff338125);
+    final unselected = Colors.grey[800];
+
     if (isSpecial) {
       return BottomNavigationBarItem(
         backgroundColor: Colors.black,
@@ -89,13 +91,11 @@ class HomeView extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           height: isSelected ? 27 : 25,
           width: isSelected ? 27 : 25,
-          child: CachedNetworkImage(
-            color: isSelected ? const Color(0xff338125) : Colors.grey[800],
-            imageUrl: iconPath,
-            placeholder: (_, _) =>
-                const Center(child: RainbowGlowingLoader(size: 10)),
-            errorWidget: (_, _, _) =>
-                const Icon(Icons.error, color: Colors.red),
+          child: Image.asset(
+            iconPath,
+            height: 12,
+            color: isSelected ? selected : unselected,
+            colorBlendMode: BlendMode.srcIn,
           ),
         ),
         label: '',
@@ -105,16 +105,13 @@ class HomeView extends StatelessWidget {
     return BottomNavigationBarItem(
       backgroundColor: Colors.black,
       icon: AnimatedScale(
-        scale: isSelected ? 0.83 : 1.0,
+        scale: isSelected ? 1.2 : 1.0,
         duration: const Duration(milliseconds: 200),
-        child: CachedNetworkImage(
-          imageUrl: iconPath,
-          scale: isSelected ? 2.5 : 3,
-          color: isSelected ? const Color(0xff338125) : Colors.grey[800],
-          placeholder: (_, _) =>
-              const Center(child: RainbowGlowingLoader(size: 10)),
-          errorWidget: (_, _, _) =>
-              const Icon(Icons.error, color: Colors.red),
+        child: Image.asset(
+          iconPath,
+          height: 22,
+          color: isSelected ? selected : unselected,
+          colorBlendMode: BlendMode.srcIn,
         ),
       ),
       label: '',

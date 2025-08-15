@@ -140,6 +140,13 @@ class _GlobalPassViewState extends State<GlobalPassView> {
       );
     }
   }
+  final List<String> passImagesHQ = [
+    'https://res.cloudinary.com/dxjjigepf/image/upload/q_auto:best,f_auto,w_1080,h_720,c_fill/v1755075180/globalpass3_lnlwiu.png',
+    'https://res.cloudinary.com/dxjjigepf/image/upload/q_auto:best,f_auto,w_1080,h_720,c_fill/v1755075178/globalpass1_o2shqg.png',
+    'https://res.cloudinary.com/dxjjigepf/image/upload/q_auto:best,f_auto,w_1080,h_720,c_fill/v1755075179/globalpass2_frqa5h.png',
+    'https://res.cloudinary.com/dxjjigepf/image/upload/q_auto:best,f_auto,w_1080,h_720,c_fill/v1755075171/cafepass3_on04c0.png',
+  ];
+
 
   Future<String> _createRazorpayOrder(double amount) async {
     final amountInPaisa = (amount * 100).toInt();
@@ -198,7 +205,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
               final info = _formatInfo(pass);
               return _buildGlobalPassCard(
                 pass: pass,
-                image: 'assets/images/globalpass1.png',
+                image: passImagesHQ[index % passImagesHQ.length], // cycles through list
                 title: title,
                 info: info,
                 color: const Color(0xFFE6D009),
@@ -233,6 +240,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
     required Color color,
     required VoidCallback onTap,
   }) {
+    print("pass image $image");
     return GestureDetector(
       onTap: pass.isBought == true ? null : onTap,
       child: Container(
@@ -240,7 +248,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
         width: MediaQuery.of(context).size.width,
         decoration: BoxDecoration(
           border: Border.all(color: color, width: 1.5),
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(26),
         ),
         child: Stack(
           children: [
@@ -249,6 +257,8 @@ class _GlobalPassViewState extends State<GlobalPassView> {
               child: CachedNetworkImage(
                 imageUrl: image,
                 height: 200,
+                filterQuality: FilterQuality.high, // 👈 improves scaling quality
+
                 width: MediaQuery.of(context).size.width,
                 fit: BoxFit.cover,
                 placeholder: (_, _) =>

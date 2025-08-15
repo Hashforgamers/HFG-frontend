@@ -576,15 +576,15 @@ class _BookingScreenState extends State<BookingScreen> {
             controller.selectedSlots[pcIndex] =
                 controller.selectedSlots[pcIndex] ?? [];
             controller.selectedSlots[pcIndex]?.add(timeIndex);
-            message = 'Slot selected for ${getConsoleLabel(pcIndex - 1)}';
+            // message = 'Slot selected for ${getConsoleLabel(pcIndex - 1)}';
           }
 
-          Fluttertoast.showToast(
-            msg: message,
-            backgroundColor: Colors.black,
-            textColor: Colors.white,
-            fontSize: 14,
-          );
+          // Fluttertoast.showToast(
+          //   msg: message,
+          //   backgroundColor: Colors.black,
+          //   textColor: Colors.white,
+          //   fontSize: 14,
+          // );
 
           controller.selectedSlots.refresh();
         },
