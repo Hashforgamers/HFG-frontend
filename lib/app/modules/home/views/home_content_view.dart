@@ -13,6 +13,7 @@ import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
+import 'package:hash/app/modules/home/views/invite_cafe_view.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
@@ -41,27 +42,27 @@ class _HomeContentViewState extends State<HomeContentView>
   late final LoginController loginController;
   late final UserController userController;
   late final SegmentSdkService segmentService;
-  
+
   // Animation controllers
   late final AnimationController _fadeController;
   late final AnimationController _slideController;
-  
+
   // Scroll controller for optimization
   late final ScrollController _scrollController;
-  
+
   // State variables
   bool _isInitialized = false;
   bool _isRefreshing = false;
   bool _showReferModal = false;
-  
+
   // Cached widgets for better performance
   Widget? _cachedAppBar;
   Widget? _cachedGamePassContainer;
   Widget? _cachedGameOnIndiaBanner;
-  
+
   // Visibility tracking for lazy loading
   final Map<String, bool> _sectionVisibility = {};
-  
+
   @override
   bool get wantKeepAlive => true;
 
@@ -93,8 +94,7 @@ class _HomeContentViewState extends State<HomeContentView>
   }
 
   void _initializeScrollController() {
-    _scrollController = ScrollController()
-      ..addListener(_onScrollChanged);
+    _scrollController = ScrollController()..addListener(_onScrollChanged);
   }
 
   void _initializeData() {
@@ -118,7 +118,7 @@ class _HomeContentViewState extends State<HomeContentView>
       final position = _scrollController.position;
       final maxScroll = position.maxScrollExtent;
       final currentScroll = position.pixels;
-      
+
       // Trigger lazy loading when user scrolls to certain sections
       if (currentScroll > maxScroll * 0.7 && !_sectionVisibility['shorts']!) {
         _sectionVisibility['shorts'] = true;
@@ -136,9 +136,9 @@ class _HomeContentViewState extends State<HomeContentView>
 
   Future<void> _refreshData() async {
     if (_isRefreshing) return;
-    
+
     setState(() => _isRefreshing = true);
-    
+
     try {
       // Optimized parallel API calls with proper error handling
       await Future.wait([
@@ -154,7 +154,7 @@ class _HomeContentViewState extends State<HomeContentView>
           return [];
         },
       );
-      
+
       setState(() => _isInitialized = true);
     } catch (e) {
       print('Error refreshing data: $e');
@@ -180,9 +180,9 @@ class _HomeContentViewState extends State<HomeContentView>
 
   void _showReferFriendModal() {
     if (_showReferModal) return;
-    
+
     setState(() => _showReferModal = true);
-    
+
     showReferFriendModal(
       context,
       onReferNow: () {
@@ -199,7 +199,7 @@ class _HomeContentViewState extends State<HomeContentView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    
+
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _refreshData,
@@ -224,19 +224,28 @@ class _HomeContentViewState extends State<HomeContentView>
                       children: [
                         const SizedBox(height: 24),
                         // _buildLazyLoadedSection('event', const EventBanner()),
-                        _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+                        _buildLazyLoadedSection(
+                          'gamePass',
+                          _buildGamePassContainer(),
+                        ),
                         const SizedBox(height: 24),
                         _buildLazyLoadedSection('cafe', CafeSection()),
                         const SizedBox(height: 24),
                         _buildLazyLoadedSection('shop', const ShopSection()),
                         const SizedBox(height: 24),
-                        _buildLazyLoadedSection('news', const GamerNewsSection()),
+                        _buildLazyLoadedSection(
+                          'news',
+                          const GamerNewsSection(),
+                        ),
                         const SizedBox(height: 24),
                         _buildLazyLoadedSection('games', const GamesSection()),
                         const SizedBox(height: 24),
                         _buildLazyLoadedSection('shorts', ViralShotsSection()),
                         const SizedBox(height: 32),
-                        _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
+                        _buildLazyLoadedSection(
+                          'gameOnIndia',
+                          _buildGameOnIndiaBanner(),
+                        ),
                         const SizedBox(height: 32),
                       ],
                     ),
@@ -253,19 +262,17 @@ class _HomeContentViewState extends State<HomeContentView>
   Widget _buildLazyLoadedSection(String sectionKey, Widget child) {
     // Initialize visibility map if not exists
     _sectionVisibility[sectionKey] ??= true;
-    
+
     if (!_sectionVisibility[sectionKey]!) {
       return const SizedBox.shrink();
     }
-    
-    return RepaintBoundary(
-      child: child,
-    );
+
+    return RepaintBoundary(child: child);
   }
 
   Widget _buildOptimizedAppBar() {
     if (_cachedAppBar != null) return _cachedAppBar!;
-    
+
     _cachedAppBar = SliverAppBar(
       centerTitle: false,
       titleSpacing: 14,
@@ -346,7 +353,7 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       ],
     );
-    
+
     return _cachedAppBar!;
   }
 
@@ -378,7 +385,7 @@ class _HomeContentViewState extends State<HomeContentView>
 
   Widget _buildGamePassContainer() {
     if (_cachedGamePassContainer != null) return _cachedGamePassContainer!;
-    
+
     _cachedGamePassContainer = GestureDetector(
       onTap: () => Get.to(() => GamePassViewPage()),
       child: Container(
@@ -459,7 +466,7 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       ),
     );
-    
+
     return _cachedGamePassContainer!;
   }
 
@@ -497,7 +504,7 @@ class _HomeContentViewState extends State<HomeContentView>
         () => Padding(
           padding: const EdgeInsets.only(left: 10),
           child: userController.isLoading.value
-                ? _buildShimmerAvatar()
+              ? _buildShimmerAvatar()
               : _userAvatar(userController.user.value.photoUrl),
         ),
       ),
@@ -571,9 +578,11 @@ class _HomeContentViewState extends State<HomeContentView>
 
   Widget _buildGameOnIndiaBanner() {
     if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
-    
+
     _cachedGameOnIndiaBanner = GestureDetector(
-      onTap: () {},
+      onTap: () {
+        Get.to(InviteCafeView());
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 4),
         height: 50,
@@ -594,7 +603,7 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       ),
     );
-    
+
     return _cachedGameOnIndiaBanner!;
   }
 
