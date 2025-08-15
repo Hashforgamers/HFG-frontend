@@ -25,11 +25,10 @@ abstract class RemoteRepoInterface {
 
   Future<Map<String, dynamic>> createBooking({
     required int slotId,
-    required int userId,
     required int gameId,
   });
 
-  Future<List<Map<String, dynamic>>> fetchUserBookings(int userId);
+  Future<List<Map<String, dynamic>>> fetchUserBookings();
 
   // Vendor related methods
   Future<List<Map<String, dynamic>>> fetchCybercafes();
@@ -47,6 +46,7 @@ abstract class RemoteRepoInterface {
     required String paymentMode,
     bool isGamePass = false,
     List<ExtraServiceItem>? extraServices,
+    String? userPassId,
   });
 
   // Address related methods
@@ -87,9 +87,7 @@ abstract class RemoteRepoInterface {
 
   Future<int> getHashCoin();
 
-  Future<CreateVoucherResponse> createOffer({
-    required int discountPercentage,
-  });
+  Future<CreateVoucherResponse> createOffer({required int discountPercentage});
 
   Future<String> scanQrCode({
     required String consoleId,
@@ -119,6 +117,7 @@ abstract class RemoteRepoInterface {
     required PurchasePassModel passModel,
   });
 
-  Future<List<TransactionHistoryModel>> getTransactionHistory({required String userId});
-
+  Future<List<TransactionHistoryModel>> getTransactionHistory({
+    required String userId,
+  });
 }

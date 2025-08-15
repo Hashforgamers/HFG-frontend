@@ -182,6 +182,7 @@ class RazorpayController extends GetxController {
     required String paymentId,
     required String paymentMode,
     required List<int> slotIds,
+    String? userPassId,
   }) async {
     try {
       // Parse cart items to ExtraServiceItem format
@@ -203,6 +204,7 @@ class RazorpayController extends GetxController {
         paymentMode: paymentMode, // ★ pass it
         voucherCode: null,
         extraServices: extraServices.isNotEmpty ? extraServices : null,
+        userPassId: userPassId,
       );
 
       // Clear selected slots after successful payment

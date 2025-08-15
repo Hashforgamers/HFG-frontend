@@ -167,38 +167,72 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                   }
                   if (ctr.userBookings.isEmpty) {
                     return Center(
-                        child: Text('No past bookings.',
-                            style: GoogleFonts.inter(color: Colors.white)));
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('No past bookings.',
+                              style: GoogleFonts.inter(color: Colors.white)),
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: () async {
+                              await ctr.fetchUserBookings();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF338125),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              'Refresh Bookings',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   }
 
                   final sortedBookings = _getSortedBookings();
 
                   // For demo, show all bookings in all tabs
-                  return ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    separatorBuilder: (_, __) => const SizedBox(height: 20),
-                    itemCount: sortedBookings.length,
-                    itemBuilder: (_, i) {
-                      final d = sortedBookings[i];
-                      return BookingTicketCard(
-                        game: d['slot']?['gaming_type_id']?['game_name'] ??
-                            'Unknown',
-                        cafe: d['slot']?['gaming_type_id']?['cafe_name']
-                                ['cafe_name'] ??
-                            'Cafe',
-                        start: _fmt(d['slot']?['time']?['start_time']),
-                        end: _fmt(d['slot']?['time']?['end_time']),
-                        status: d['status'] ?? 'Pending',
-                        price: double.tryParse(
-                                '${d['slot']?['gaming_type_id']?['single_slot_price'] ?? 0}') ??
-                            0,
-                        loc: d['slot']?['location'] ?? 'Mumbai',
-                        id: d['booking_id'] ?? 0,
-                        raw: d,
-                        accessCode: d['access_code'],
-                        bookDate: d['book_date'],
-                      );
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      await ctr.fetchUserBookings();
                     },
+                    color: const Color(0xFF338125),
+                    backgroundColor: const Color(0xFF1D1D1F),
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      separatorBuilder: (_, __) => const SizedBox(height: 20),
+                      itemCount: sortedBookings.length,
+                      itemBuilder: (_, i) {
+                        final d = sortedBookings[i];
+                        return BookingTicketCard(
+                          game: d['slot']?['gaming_type_id']?['game_name'] ??
+                              'Unknown',
+                          cafe: d['slot']?['gaming_type_id']?['cafe_name']
+                                  ['cafe_name'] ??
+                              'Cafe',
+                          start: _fmt(d['slot']?['time']?['start_time']),
+                          end: _fmt(d['slot']?['time']?['end_time']),
+                          status: d['status'] ?? 'Pending',
+                          price: double.tryParse(
+                                  '${d['slot']?['gaming_type_id']?['single_slot_price'] ?? 0}') ??
+                              0,
+                          loc: d['slot']?['location'] ?? 'Mumbai',
+                          id: d['booking_id'] ?? 0,
+                          raw: d,
+                          accessCode: d['access_code'],
+                          bookDate: d['book_date'],
+                        );
+                      },
+                    ),
                   );
                 }),
               ),

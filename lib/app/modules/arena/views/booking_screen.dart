@@ -725,7 +725,7 @@ class _BookingScreenState extends State<BookingScreen> {
         selectedSlots: selectedSlotDetails,
         cartItems: widget.cartItems ?? [],
         gameId: widget.gameId,
-        userId: userId,
+        vendorId: widget.vendorId,
       ),
     );
   }

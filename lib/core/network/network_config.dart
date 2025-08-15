@@ -91,7 +91,6 @@ class NetworkConfig {
 
 class NetworkProvider {
   late final Dio _dio;
-  final _authDataRepo = locator<AuthDataRepository>();
 
   NetworkProvider() {
     var options = BaseOptions(

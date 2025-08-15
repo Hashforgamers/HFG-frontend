@@ -5,7 +5,7 @@ class GetPassModel {
   final String name;
   final String passType;
   final double price;
-  final String vendorId;
+  final String? vendorId;
   final String vendorName;
   final String? expiryDate;
   final String? purchaseDate;
@@ -25,7 +25,7 @@ class GetPassModel {
     required this.name,
     required this.passType,
     required this.price,
-    required this.vendorId,
+    this.vendorId,
     required this.vendorName,
     this.expiryDate,
     this.purchaseDate,
@@ -48,7 +48,7 @@ class GetPassModel {
       name: (json['cafe_pass_name'] ?? json['name'] ?? 'Game Pass').toString(),
       passType: (json['pass_type'] ?? 'yearly').toString(),
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      vendorId: json['vendor_id'].toString(),
+      vendorId: json['vendor_id']?.toString(),
       vendorName: (json['vendor_name'] ?? 'Gaming Cafe').toString(),
       expiryDate:
           json['valid_to']?.toString() ?? json['expiry_date']?.toString(),

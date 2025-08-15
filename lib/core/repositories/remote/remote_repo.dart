@@ -160,14 +160,13 @@ class RemoteRepo implements RemoteRepoInterface {
   @override
   Future<Map<String, dynamic>> createBooking({
     required int slotId,
-    required int userId,
     required int gameId,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
         '${ApiEndpoints.bookingsBaseUrl}/bookings',
-        data: {"slot_id": slotId, "user_id": userId, "game_id": gameId},
+        data: {"slot_id": slotId, "game_id": gameId},
       );
 
       if (response.statusCode == 201) {
@@ -185,9 +184,7 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> fetchUserBookings(int userId) async {
-    if (userId == 0) return [];
-
+  Future<List<Map<String, dynamic>>> fetchUserBookings() async {
     final dio = await networkProvider.auth();
     try {
       final response = await dio.get(
@@ -203,7 +200,6 @@ class RemoteRepo implements RemoteRepoInterface {
         );
       }
     } catch (e) {
-      print('Error fetching bookings: $e');
       if (e is DioException) {
         // If it's a retryable error, let the interceptor handle it
         if (ApiErrorHandler.shouldRetry(e)) {
@@ -307,6 +303,7 @@ class RemoteRepo implements RemoteRepoInterface {
     String? voucherCode,
     bool isGamePass = false,
     List<ExtraServiceItem>? extraServices,
+    String? userPassId,
   }) async {
     final dio = networkProvider.noAuth();
     try {
@@ -316,6 +313,7 @@ class RemoteRepo implements RemoteRepoInterface {
         "book_date": bookDate,
         "payment_mode": paymentMode,
         "use_pass": isGamePass,
+        "user_pass_id": userPassId,
       };
 
       // Add voucher code if provided
@@ -587,7 +585,7 @@ class RemoteRepo implements RemoteRepoInterface {
     required String paymentId,
     required int amount,
   }) async {
-    final dio =await  networkProvider.auth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
         ApiEndpoints.wallet(),
@@ -641,9 +639,7 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<void> createVoucher({required String userId}) async {
     final dio = await networkProvider.auth();
     try {
-      final response = await dio.post(
-        ApiEndpoints.createVoucher,
-      );
+      final response = await dio.post(ApiEndpoints.createVoucher);
       if (response.statusCode == 200) {
         return response.data;
       } else if (response.statusCode == 400) {
@@ -682,9 +678,7 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<List<GetVoucherModel>> getVoucher({required String userId}) async {
     final dio = await networkProvider.auth();
     try {
-      final response = await dio.get(
-        ApiEndpoints.getVoucher,
-      );
+      final response = await dio.get(ApiEndpoints.getVoucher);
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = response.data;
 
@@ -708,12 +702,10 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-    Future<int> getHashCoin() async {
+  Future<int> getHashCoin() async {
     final dio = await networkProvider.auth();
     try {
-      final response = await dio.get(
-        ApiEndpoints.getHashCoin,
-      );
+      final response = await dio.get(ApiEndpoints.getHashCoin);
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = response.data;
         // Handle null case by returning 0 if hash_coin is null
@@ -953,9 +945,7 @@ class RemoteRepo implements RemoteRepoInterface {
   }) async {
     final dio = await networkProvider.auth();
     try {
-      final response = await dio.get(
-        ApiEndpoints.getTransactionHistory,
-      );
+      final response = await dio.get(ApiEndpoints.getTransactionHistory);
       if (response.statusCode == 200) {
         // Check if response.data is a Map and contains 'transactions'
         if (response.data is Map<String, dynamic> &&
