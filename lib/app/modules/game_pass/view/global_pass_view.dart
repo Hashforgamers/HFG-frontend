@@ -192,15 +192,13 @@ class _GlobalPassViewState extends State<GlobalPassView> {
           }
 
           return ListView.separated(
-            itemCount: passes.length + 2,
+            itemCount: passes.length,
             separatorBuilder: (_, __) => const SizedBox(height: 20),
             padding: EdgeInsets.zero,
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
             itemBuilder: (context, index) {
-              if (index == 0) return _buildLabel();
-              if (index == 1) return const SizedBox(height: 30);
-              final GetPassModel pass = passes[index - 2];
+              final GetPassModel pass = passes[index];
               final title = pass.name;
               final info = _formatInfo(pass);
               return _buildGlobalPassCard(
@@ -375,37 +373,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
       ),
     );
   }
-
-  Widget _buildLabel() {
-    return Column(
-      children: [
-        CachedNetworkImage(
-          imageUrl:
-              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/globalPassIcon_t5cod0.png',
-          height: 80,
-          width: 80,
-          fit: BoxFit.cover,
-          placeholder: (_, _) =>
-              const Center(child: RainbowGlowingLoader(size: 40)),
-          errorWidget: (_, _, _) => Container(
-            color: Colors.grey,
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.image_not_supported,
-              color: Colors.white54,
-              size: 40,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Buy a Global Hash Pass',
-          style: GoogleFonts.inter(color: Colors.white54, fontSize: 16),
-        ),
-      ],
-    );
-  }
-
+  
   Widget _buildError(BuildContext context, String message) {
     return Center(
       child: Column(
