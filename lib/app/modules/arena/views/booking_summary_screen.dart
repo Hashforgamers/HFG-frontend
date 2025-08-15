@@ -1306,7 +1306,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
@@ -1408,7 +1407,25 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             return const SizedBox.shrink();
           }),
 
-          // Voucher Input
+          // Available Vouchers Count
+          Obx(() {
+            if (_availableVouchers.isNotEmpty) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Your Available Vouchers (${_availableVouchers.length})',
+                  style: GoogleFonts.inter(
+                    color: Colors.grey.shade300,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+
+          // Voucher Input and Apply Button Row
           Row(
             children: [
               Expanded(
@@ -1453,7 +1470,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 24),
+              const SizedBox(width: 12),
               Obx(() {
                 return GestureDetector(
                   onTap: _isApplyingVoucher.value ? null : _applyVoucher,
@@ -1469,157 +1486,125 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: Center(
-                      child: Text(
-                        'Apply',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: _isApplyingVoucher.value
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF338125),
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              'Apply',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                     ),
                   ),
                 );
               }),
-              //     Obx(
-              //       () => SizedBox(
-              //         height: 48,
-              //         child: ElevatedButton(
-              //           onPressed: _isApplyingVoucher.value ? null : _applyVoucher,
-              //           style: ElevatedButton.styleFrom(
-              //             backgroundColor: const Color(0xFF338125),
-              //             foregroundColor: Colors.white,
-              //             padding: const EdgeInsets.symmetric(horizontal: 20),
-              //             shape: RoundedRectangleBorder(
-              //               borderRadius: BorderRadius.circular(8),
-              //             ),
-              //           ),
-              //           child: _isApplyingVoucher.value
-              //               ? const SizedBox(
-              //                   height: 16,
-              //                   width: 16,
-              //                   child: CircularProgressIndicator(
-              //                     color: Colors.white,
-              //                     strokeWidth: 2,
-              //                   ),
-              //                 )
-              //               : Text(
-              //                   'Apply',
-              //                   style: GoogleFonts.inter(
-              //                     fontWeight: FontWeight.w500,
-              //                   ),
-              //                 ),
-              //         ),
-              //       ),
-              //     ),
-              //   ],
-              // ),
-
-              // Error Message
-              Obx(() {
-                if (_voucherError.value.isNotEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      _voucherError.value,
-                      style: GoogleFonts.inter(
-                        color: Colors.red.shade300,
-                        fontSize: 12,
-                      ),
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              }),
-
-              // Available Vouchers
-              Obx(() {
-                if (_availableVouchers.isNotEmpty) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 20),
-                      Text(
-                        'Your Available Vouchers (${_availableVouchers.length})',
-                        style: GoogleFonts.inter(
-                          color: Colors.grey.shade300,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 120,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _availableVouchers.length,
-                          itemBuilder: (context, index) {
-                            final voucher = _availableVouchers[index];
-                            final isActive = voucher.isActive;
-                            return GestureDetector(
-                              onTap: () => _selectVoucher(voucher),
-                              child: Container(
-                                width: 140,
-                                margin: const EdgeInsets.only(right: 10),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: isActive
-                                      ? Colors.deepOrange.withOpacity(0.08)
-                                      : Colors.grey.shade800,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: isActive
-                                        ? Colors.deepOrange.withOpacity(0.3)
-                                        : Colors.grey.withOpacity(0.2),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      voucher.code,
-                                      style: GoogleFonts.inter(
-                                        color: isActive
-                                            ? Colors.deepOrange
-                                            : Colors.grey.shade500,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${voucher.discountPercentage}% OFF',
-                                      style: GoogleFonts.inter(
-                                        color: isActive
-                                            ? Colors.white
-                                            : Colors.grey,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      isActive ? 'Active' : 'Inactive',
-                                      style: GoogleFonts.inter(
-                                        color: isActive
-                                            ? Colors.green
-                                            : Colors.red,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                }
-                return const SizedBox.shrink();
-              }),
             ],
           ),
+
+          // Error Message
+          Obx(() {
+            if (_voucherError.value.isNotEmpty) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _voucherError.value,
+                  style: GoogleFonts.inter(
+                    color: Colors.red.shade300,
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+
+          // Available Vouchers List
+          Obx(() {
+            if (_availableVouchers.isNotEmpty) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _availableVouchers.length,
+                      itemBuilder: (context, index) {
+                        final voucher = _availableVouchers[index];
+                        final isActive = voucher.isActive;
+                        return GestureDetector(
+                          onTap: () => _selectVoucher(voucher),
+                          child: Container(
+                            width: 140,
+                            margin: const EdgeInsets.only(right: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? Colors.deepOrange.withOpacity(0.08)
+                                  : Colors.grey.shade800,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isActive
+                                    ? Colors.deepOrange.withOpacity(0.3)
+                                    : Colors.grey.withOpacity(0.2),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  voucher.code,
+                                  style: GoogleFonts.inter(
+                                    color: isActive
+                                        ? Colors.deepOrange
+                                        : Colors.grey.shade500,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${voucher.discountPercentage}% OFF',
+                                  style: GoogleFonts.inter(
+                                    color: isActive
+                                        ? Colors.white
+                                        : Colors.grey,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  isActive ? 'Active' : 'Inactive',
+                                  style: GoogleFonts.inter(
+                                    color: isActive
+                                        ? Colors.green
+                                        : Colors.red,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            }
+            return const SizedBox.shrink();
+          }),
         ],
       ),
     );
