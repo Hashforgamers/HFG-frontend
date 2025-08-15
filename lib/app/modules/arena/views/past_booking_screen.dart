@@ -33,16 +33,6 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     }
   }
 
-  String _formatDate(String? date) {
-    if (date == null) return 'N/A';
-    try {
-      final parsedDate = DateFormat('yyyy-MM-dd').parse(date);
-      return DateFormat('dd MMM, yyyy').format(parsedDate);
-    } catch (_) {
-      return 'N/A';
-    }
-  }
-
   List<Map<String, dynamic>> _getSortedBookings() {
     final bookings = List<Map<String, dynamic>>.from(ctr.userBookings);
 
@@ -55,10 +45,12 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     // Sort by booking ID (assuming higher ID = newer booking)
     if (_sortOrder == 'newer') {
       filteredBookings.sort(
-          (a, b) => (b['booking_id'] ?? 0).compareTo(a['booking_id'] ?? 0));
+        (a, b) => (b['booking_id'] ?? 0).compareTo(a['booking_id'] ?? 0),
+      );
     } else {
       filteredBookings.sort(
-          (a, b) => (a['booking_id'] ?? 0).compareTo(b['booking_id'] ?? 0));
+        (a, b) => (a['booking_id'] ?? 0).compareTo(b['booking_id'] ?? 0),
+      );
     }
 
     return filteredBookings;
@@ -68,8 +60,9 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => ctr.fetchUserBookings());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => ctr.fetchUserBookings(),
+    );
   }
 
   @override
@@ -80,157 +73,170 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
 
   @override
   Widget build(BuildContext ctx) => Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'My Bookings',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        color: Colors.white,
+    backgroundColor: Colors.black,
+    body: SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'My Bookings',
+                  style: GoogleFonts.inter(fontSize: 18, color: Colors.white),
+                ),
+                // Filter Dropdown
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 0,
+                  ),
+                  child: IconButton(
+                    splashRadius: 18,
+                    tooltip: _sortOrder == 'newer'
+                        ? 'Newest first'
+                        : 'Oldest first',
+                    onPressed: () {
+                      setState(() {
+                        _sortOrder = _sortOrder == 'newer' ? 'older' : 'newer';
+                      });
+                      // optionally: _applySort(_sortOrder);
+                    },
+                    icon: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      transitionBuilder: (child, anim) =>
+                          ScaleTransition(scale: anim, child: child),
+                      child: Icon(
+                        _sortOrder == 'newer'
+                            ? CupertinoIcons.sort_down_circle
+                            : CupertinoIcons.sort_up_circle,
+                        key: ValueKey(_sortOrder),
+                        size: 20,
+                        color: Colors.green,
                       ),
                     ),
-                    // Filter Dropdown
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                      child: IconButton(
-                        splashRadius: 18,
-                        tooltip: _sortOrder == 'newer' ? 'Newest first' : 'Oldest first',
-                        onPressed: () {
-                          setState(() {
-                            _sortOrder = _sortOrder == 'newer' ? 'older' : 'newer';
-                          });
-                          // optionally: _applySort(_sortOrder);
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // const SizedBox(height: 8),
+          // Padding(
+          //   padding: const EdgeInsets.symmetric(horizontal: 8),
+          //   child: TabBar(
+          //     controller: _tabController,
+          //     indicatorColor: Colors.transparent,
+          //     labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+          //     labelColor: const Color(0xff338125),
+          //     unselectedLabelColor: Colors.white70,
+          //     labelStyle:  GoogleFonts.inter(
+          //         fontWeight: FontWeight.bold, fontSize: 18),
+          //     unselectedLabelStyle:  GoogleFonts.inter(
+          //         fontWeight: FontWeight.w500, fontSize: 18),
+          //     tabs:  [
+          //       Tab(child: Text('All',style: GoogleFonts.inter(color: Colors.green),)),
+          //       Tab(child: Text('Upcoming',style: GoogleFonts.inter(color: Colors.green),)),
+          //       Tab(child: Text('Completed',style: GoogleFonts.inter(color: Colors.green),)),
+          //     ],
+          //   ),
+          // ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Obx(() {
+              if (ctr.isLoading.value) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                );
+              }
+              if (ctr.userBookings.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'No past bookings.',
+                        style: GoogleFonts.inter(color: Colors.white),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () async {
+                          await ctr.fetchUserBookings();
                         },
-                        icon: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          transitionBuilder: (child, anim) =>
-                              ScaleTransition(scale: anim, child: child),
-                          child: Icon(
-                            _sortOrder == 'newer'
-                                ? CupertinoIcons.sort_down_circle
-                                : CupertinoIcons.sort_up_circle,
-                            key: ValueKey(_sortOrder),
-                            size: 20,
-                            color: Colors.green,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF338125),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text(
+                          'Refresh Bookings',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                    )
+                    ],
+                  ),
+                );
+              }
 
-                  ],
-                ),
-              ),
-              // const SizedBox(height: 8),
-              // Padding(
-              //   padding: const EdgeInsets.symmetric(horizontal: 8),
-              //   child: TabBar(
-              //     controller: _tabController,
-              //     indicatorColor: Colors.transparent,
-              //     labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-              //     labelColor: const Color(0xff338125),
-              //     unselectedLabelColor: Colors.white70,
-              //     labelStyle:  GoogleFonts.inter(
-              //         fontWeight: FontWeight.bold, fontSize: 18),
-              //     unselectedLabelStyle:  GoogleFonts.inter(
-              //         fontWeight: FontWeight.w500, fontSize: 18),
-              //     tabs:  [
-              //       Tab(child: Text('All',style: GoogleFonts.inter(color: Colors.green),)),
-              //       Tab(child: Text('Upcoming',style: GoogleFonts.inter(color: Colors.green),)),
-              //       Tab(child: Text('Completed',style: GoogleFonts.inter(color: Colors.green),)),
-              //     ],
-              //   ),
-              // ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Obx(() {
-                  if (ctr.isLoading.value) {
-                    return const Center(
-                        child: CircularProgressIndicator(color: Colors.white));
-                  }
-                  if (ctr.userBookings.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('No past bookings.',
-                              style: GoogleFonts.inter(color: Colors.white)),
-                          const SizedBox(height: 20),
-                          ElevatedButton(
-                            onPressed: () async {
-                              await ctr.fetchUserBookings();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF338125),
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: Text(
-                              'Refresh Bookings',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+              final sortedBookings = _getSortedBookings();
+
+              // For demo, show all bookings in all tabs
+              return RefreshIndicator(
+                onRefresh: () async {
+                  await ctr.fetchUserBookings();
+                },
+                color: const Color(0xFF338125),
+                backgroundColor: const Color(0xFF1D1D1F),
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  separatorBuilder: (_, __) => const SizedBox(height: 20),
+                  itemCount: sortedBookings.length,
+                  itemBuilder: (_, i) {
+                    final d = sortedBookings[i];
+                    return BookingTicketCard(
+                      game:
+                          d['slot']?['gaming_type_id']?['game_name'] ??
+                          'Unknown',
+                      cafe:
+                          d['slot']?['gaming_type_id']?['cafe_name']['cafe_name'] ??
+                          'Cafe',
+                      start: _fmt(d['slot']?['time']?['start_time']),
+                      end: _fmt(d['slot']?['time']?['end_time']),
+                      status: d['status'] ?? 'Pending',
+                      price:
+                          double.tryParse(
+                            '${d['slot']?['gaming_type_id']?['single_slot_price'] ?? 0}',
+                          ) ??
+                          0,
+                      loc: d['slot']?['location'] ?? 'Mumbai',
+                      id: d['booking_id'] ?? 0,
+                      raw: d,
+                      accessCode: d['access_code'],
+                      bookDate: d['book_date'],
+                      extraServices: (d['extra_services'] as List<dynamic>?)
+                          ?.map((e) => ExtraService.fromJson(e as Map<String, dynamic>))
+                          .toList() ?? [],
                     );
-                  }
-
-                  final sortedBookings = _getSortedBookings();
-
-                  // For demo, show all bookings in all tabs
-                  return RefreshIndicator(
-                    onRefresh: () async {
-                      await ctr.fetchUserBookings();
-                    },
-                    color: const Color(0xFF338125),
-                    backgroundColor: const Color(0xFF1D1D1F),
-                    child: ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      separatorBuilder: (_, __) => const SizedBox(height: 20),
-                      itemCount: sortedBookings.length,
-                      itemBuilder: (_, i) {
-                        final d = sortedBookings[i];
-                        return BookingTicketCard(
-                          game: d['slot']?['gaming_type_id']?['game_name'] ??
-                              'Unknown',
-                          cafe: d['slot']?['gaming_type_id']?['cafe_name']
-                                  ['cafe_name'] ??
-                              'Cafe',
-                          start: _fmt(d['slot']?['time']?['start_time']),
-                          end: _fmt(d['slot']?['time']?['end_time']),
-                          status: d['status'] ?? 'Pending',
-                          price: double.tryParse(
-                                  '${d['slot']?['gaming_type_id']?['single_slot_price'] ?? 0}') ??
-                              0,
-                          loc: d['slot']?['location'] ?? 'Mumbai',
-                          id: d['booking_id'] ?? 0,
-                          raw: d,
-                          accessCode: d['access_code'],
-                          bookDate: d['book_date'],
-                        );
-                      },
-                    ),
-                  );
-                }),
-              ),
-            ],
+                  },
+                ),
+              );
+            }),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 class TicketClipper extends CustomClipper<Path> {
@@ -276,6 +282,7 @@ class BookingTicketCard extends StatelessWidget {
     required this.price,
     this.accessCode,
     this.bookDate,
+    required this.extraServices,
   });
 
   final String game, cafe, start, end, status, loc;
@@ -284,6 +291,7 @@ class BookingTicketCard extends StatelessWidget {
   final Map<String, dynamic> raw;
   final String? accessCode;
   final String? bookDate;
+  final List<ExtraService> extraServices;
 
   void _handleScannedCode(String scannedCode) async {
     try {
@@ -351,9 +359,11 @@ class BookingTicketCard extends StatelessWidget {
     final String formattedStatus = status
         .replaceAll('_', ' ')
         .split(' ')
-        .map((w) => w.isNotEmpty
-            ? w[0].toUpperCase() + w.substring(1).toLowerCase()
-            : '')
+        .map(
+          (w) => w.isNotEmpty
+              ? w[0].toUpperCase() + w.substring(1).toLowerCase()
+              : '',
+        )
         .join(' ');
 
     // Handle access code display - show "---" if null
@@ -372,11 +382,9 @@ class BookingTicketCard extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
-      onTap: () => Get.to(() => ViewDetailScreen(
-            booking: raw,
-            startTime: start,
-            endTime: end,
-          )),
+      onTap: () => Get.to(
+        () => ViewDetailScreen(booking: raw, startTime: start, endTime: end),
+      ),
       child: ClipPath(
         clipper: _TicketClipper(),
         child: Container(
@@ -400,8 +408,10 @@ class BookingTicketCard extends StatelessWidget {
 
               Expanded(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 8,
+                  ),
                   child: Row(
                     children: [
                       Column(
@@ -426,8 +436,9 @@ class BookingTicketCard extends StatelessWidget {
                           const SizedBox(height: 8), // Reduced from 12
                           ElevatedButton(
                             onPressed: () async {
-                              final result =
-                                  await Get.to(() => const QrScannerView());
+                              final result = await Get.to(
+                                () => const QrScannerView(),
+                              );
                               if (result != null) {
                                 _handleScannedCode(result.toString());
                               }
@@ -435,9 +446,13 @@ class BookingTicketCard extends StatelessWidget {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF338125),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2), // very slim
-                              minimumSize:
-                                  const Size(0, 28), // optional: control height
+                                horizontal: 8,
+                                vertical: 2,
+                              ), // very slim
+                              minimumSize: const Size(
+                                0,
+                                28,
+                              ), // optional: control height
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(4),
                               ),
@@ -465,7 +480,6 @@ class BookingTicketCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12), // Reduced from 18
-
                       // Right Section
                       Expanded(
                         child: Column(
@@ -515,9 +529,11 @@ class BookingTicketCard extends StatelessWidget {
                             const SizedBox(height: 6), // Reduced from 8
                             Row(
                               children: [
-                                const Icon(Icons.lock_outline,
-                                    size: 14,
-                                    color: Colors.white38), // Reduced from 16
+                                const Icon(
+                                  Icons.lock_outline,
+                                  size: 14,
+                                  color: Colors.white38,
+                                ), // Reduced from 16
                                 const SizedBox(width: 4), // Reduced from 6
                                 Text(
                                   'Access Code: $displayAccessCode',
@@ -536,8 +552,8 @@ class BookingTicketCard extends StatelessWidget {
                   ),
                 ),
               ),
-              // Left Section
 
+              // Left Section
               Container(
                 width: 25,
                 height: 50,
@@ -632,6 +648,29 @@ class QrScannerView extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class ExtraService {
+  final String name;
+  final double price;
+  final int quantity;
+  final double totalPrice;
+
+  ExtraService({
+    required this.name,
+    required this.price,
+    required this.quantity,
+    required this.totalPrice,
+  });
+
+  factory ExtraService.fromJson(Map<String, dynamic> json) {
+    return ExtraService(
+      name: json['name'],
+      price: json['price'],
+      quantity: json['quantity'],
+      totalPrice: json['total_price'],
     );
   }
 }
