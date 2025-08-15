@@ -38,9 +38,9 @@ class RemoteRepo implements RemoteRepoInterface {
         // decode the JWT
         final decodedJwt = decodeJwtAndGetUid(jwtToken ?? '');
         // decrypt the JWT with private key
-        final decryptedData = decryptData(decodedJwt ?? '');
+        final decryptedData = await decryptData(decodedJwt ?? '');
         // now enctypt it with the public key and make the jwt
-        final encryptedData = encryptData(decryptedData);
+        final encryptedData = await encryptData(decryptedData);
         // now create the jwt with the encrypted data
         final jwtEncoded = createJwtWithExpiry(
           encryptedUuid: encryptedData,
