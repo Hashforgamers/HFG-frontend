@@ -204,12 +204,12 @@ class _ArenaViewState extends State<ArenaView> {
   /*  CAMERA & MOVEMENT                                                        */
   /* ────────────────────────────────────────────────────────────────────────── */
 
-  void _smoothMoveCamera(LatLng target, {double zoom = 15}) {
+  void _smoothMoveCamera(LatLng? target, {double zoom = 15}) {
     if (!_mapReady) return;           // add this
     _camDebounce?.cancel();
     _camDebounce = Timer(const Duration(milliseconds: 280), () {
       _mapCtr.animateCamera(
-        CameraUpdate.newCameraPosition(CameraPosition(target: target, zoom: zoom)),
+        CameraUpdate.newCameraPosition(CameraPosition(target: target!, zoom: zoom)),
       );
     });
   }
@@ -807,7 +807,7 @@ class _ArenaViewState extends State<ArenaView> {
     return GestureDetector(
       onTap: () async {
         _selectedCafeId = id;
-        _smoothMoveCamera(pos!, zoom: 16);
+        _smoothMoveCamera(pos, zoom: 16);
         _refreshCafeMarkers();
         await Future.delayed(const Duration(milliseconds: 600));
         await Get.to(

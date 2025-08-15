@@ -46,7 +46,13 @@ class _HomeContentViewState extends State<HomeContentView>
   
   // Scroll controller for optimization
   late final ScrollController _scrollController;
-  
+  static const double _sectionGap = 24.0;
+
+  List<Widget> _intersperse(List<Widget> items, Widget separator) {
+    if (items.isEmpty) return const [];
+    return List.generate(items.length * 2 - 1,
+            (i) => i.isEven ? items[i ~/ 2] : separator);
+  }
   // State variables
   bool isInitialized = false;
   bool _isRefreshing = false;
@@ -233,35 +239,20 @@ class _HomeContentViewState extends State<HomeContentView>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 24),
-                        // _buildLazyLoadedSection('event', const EventBanner()),
-                        _buildLazyLoadedSection(
-                          'gamePass',
-                          _buildGamePassContainer(),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildLazyLoadedSection('cafe', CafeSection()),
-                        // const SizedBox(height: 24),
-                        _buildLazyLoadedSection(
-                          'referral',
-                          _buildReferFriendModal(),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildLazyLoadedSection(
-                          'news',
-                          const GamerNewsSection(),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildLazyLoadedSection('games', const GamesSection()),
-                        const SizedBox(height: 24),
-                        _buildLazyLoadedSection('shorts', ViralShotsSection()),
-                        const SizedBox(height: 32),
-                        _buildLazyLoadedSection(
-                          'gameOnIndia',
-                          _buildGameOnIndiaBanner(),
-                        ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: _sectionGap), // top padding
+                        ..._intersperse([
+                          // _buildLazyLoadedSection('event', const EventBanner()),
+                          _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+                          _buildLazyLoadedSection('cafe', CafeSection()),
+                          _buildLazyLoadedSection('referral', _buildReferFriendModal()),
+                          _buildLazyLoadedSection('news', const GamerNewsSection()),
+                          _buildLazyLoadedSection('games', const GamesSection()),
+                          _buildLazyLoadedSection('shorts', ViralShotsSection()),
+                          _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
+                        ], const SizedBox(height: _sectionGap)),
+                        const SizedBox(height: _sectionGap), // bottom padding
                       ],
+
                     ),
                   ),
                 ),
@@ -588,31 +579,57 @@ class _HomeContentViewState extends State<HomeContentView>
   //   );
   // }
 
+  // Widget _buildGameOnIndiaBanner() {
+  //   if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
+  //   _cachedGameOnIndiaBanner = GestureDetector(
+  //     onTap: () {},
+  //     child: Container(
+  //       padding: const EdgeInsets.symmetric(vertical: 4),
+  //       height: 50,
+  //       width: double.infinity,
+  //       decoration: BoxDecoration(
+  //         color: Colors.transparent,
+  //         border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
+  //         borderRadius: BorderRadius.circular(50),
+  //       ),
+  //       child: Center(
+  //         child: Text(
+  //           'Game On, India!',
+  //           style: GoogleFonts.inter(
+  //             fontSize: 16,
+  //             color: const Color(0xFF75F94C),
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  //   return _cachedGameOnIndiaBanner!;
+  // }
   Widget _buildGameOnIndiaBanner() {
-    if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
-    _cachedGameOnIndiaBanner = GestureDetector(
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        height: 50,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
-          borderRadius: BorderRadius.circular(50),
-        ),
-        child: Center(
+    return Padding(
+      padding: const EdgeInsets.only(top: 5.0),
+      child: Center(
+        child: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [
+              Color(0xFFFF9933), // Saffron
+              Colors.white, // White
+              Color(0xFF138808), // Green
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(bounds),
           child: Text(
             'Game On, India!',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              color: const Color(0xFF75F94C),
+            style: GoogleFonts.tulpenOne(
+              fontSize: 100,
+              fontWeight: FontWeight.normal,
+              color: Colors.white, // Text color required for ShaderMask
             ),
           ),
         ),
       ),
     );
-    return _cachedGameOnIndiaBanner!;
   }
 
   Widget _buildShimmerAvatar() {

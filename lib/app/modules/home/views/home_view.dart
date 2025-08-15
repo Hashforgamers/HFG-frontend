@@ -105,7 +105,7 @@ class HomeView extends StatelessWidget {
     return BottomNavigationBarItem(
       backgroundColor: Colors.black,
       icon: AnimatedScale(
-        scale: isSelected ? 0.83 : 1.0,
+        scale: isSelected ? 1.2 : 1.0,
         duration: const Duration(milliseconds: 200),
         child: Image.asset(
           iconPath,

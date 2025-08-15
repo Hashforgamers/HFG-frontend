@@ -14,6 +14,7 @@ import 'package:location/location.dart' as loc;
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CafeSection extends StatefulWidget {
   CafeSection({super.key});
@@ -29,6 +30,47 @@ class CafeSection extends StatefulWidget {
 }
 
 class _CafeSectionState extends State<CafeSection> {
+  static const String _sheetUrl =
+"https://docs.google.com/forms/d/1WnnEsOkza8ois79Gvp9iGvPAemq1Oi3YPHFlohfKlxM/edit";
+
+  void _openSheetInBrowser() async {
+    final uri = Uri.parse(_sheetUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      Get.snackbar('Link', 'Could not open browser');
+    }
+  }
+
+
+  Future<void> _chooseOpenSheet() async {
+    final choice = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: const Color(0xFF111111),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.open_in_browser, color: Colors.white),
+              title: Text('Open in browser', style: GoogleFonts.inter(color: Colors.white)),
+              onTap: () => Navigator.pop(context, 1),
+            ),
+            ListTile(
+              leading: const Icon(Icons.web, color: Colors.white),
+              title: Text('Open inside app (WebView)', style: GoogleFonts.inter(color: Colors.white)),
+              onTap: () => Navigator.pop(context, 2),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (choice == 1) _openSheetInBrowser();
+  }
   final loc.Location _loc = loc.Location();
   double? _userLat, _userLng;
   bool _hasLocationPermission = false;
@@ -201,14 +243,42 @@ class _CafeSectionState extends State<CafeSection> {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          'BROWSE CAFES',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
+        Row(                  crossAxisAlignment: CrossAxisAlignment.center,
+
+          children: [
+            Text(
+              'BROWSE CAFES',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            const Spacer(),
+            InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: _chooseOpenSheet,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'List Your Cafe',
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color:  Colors.green,
+                      ),
+                    ),
+                    Icon(Icons.arrow_right_outlined,)
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 5),
         // Row(

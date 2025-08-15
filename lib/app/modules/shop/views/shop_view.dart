@@ -179,14 +179,17 @@ class _ShopViewState extends State<ShopView> {
             final productImage = product.images.isNotEmpty
                 ? product.images[0].url
                 : 'https://via.placeholder.com/150';
-            return _buildProductCard(product, productImage);
+            return _buildProductCard(context, product, productImage); // pass context
           },
         ),
       ],
     );
   }
 
-  Widget _buildProductCard(Product product, String productImage) {
+  Widget _buildProductCard(BuildContext context, Product product, String productImage) {
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final renderW = (Get.width * 0.48);
+    const renderH = 125.0;
     return Stack(
       alignment: Alignment.topLeft,
       children: [
@@ -330,15 +333,23 @@ class _ShopViewState extends State<ShopView> {
               ),
               Container(
                 margin: const EdgeInsets.only(top: 20),
-                child: CachedNetworkImage(
-                  imageUrl: productImage,
-                  fit: BoxFit.fitWidth,
-                  width: Get.width * 0.48,
-                  height: 125,
-                  placeholder: (_, _) =>
-                      const Center(child: RainbowGlowingLoader(size: 40)),
-                  errorWidget: (_, _, _) =>
-                      const Icon(Icons.error, color: Colors.red),
+                child: ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: 7, sigmaY: 7), // adjust 8–16 as you like
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: CachedNetworkImage(
+                      imageUrl: productImage,
+                      fit: BoxFit.cover,
+                      width: renderW,
+                      height: renderH,
+                      // request an appropriately sized decode for smooth blur (no unnecessary VRAM)
+                      memCacheWidth: (renderW * dpr).round(),
+                      memCacheHeight: (renderH * dpr).round(),
+                      placeholder: (_, __) => const Center(child: RainbowGlowingLoader(size: 24)),
+                      errorWidget: (_, __, ___) =>
+                      const Icon(Icons.image_not_supported, color: Colors.white54),
+                    ),
+                  ),
                 ),
               ),
             ],
