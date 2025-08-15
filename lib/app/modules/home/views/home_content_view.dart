@@ -18,6 +18,7 @@ import 'package:hash/app/modules/refferal/views/referral_view_with_controller.da
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/utils/encrypt_util.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';

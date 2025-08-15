@@ -15,7 +15,6 @@ class CreateOfferCubit extends Cubit<CreateOfferState> {
     try {
       final response = await remoteRepo.createOffer(
         discountPercentage: discountPercentage,
-        userId: userId,
       );
       if (response.voucherCode.isNotEmpty) {
         emit(CreateOfferSuccess());

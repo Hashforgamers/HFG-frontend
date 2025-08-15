@@ -14,6 +14,7 @@ import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:hash/core/repositories/model/transaction_history_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/utils/encrypt_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 
@@ -32,6 +33,23 @@ class RemoteRepo implements RemoteRepoInterface {
       if (response.statusCode == 200) {
         // Dio already decodes the response data, so we don't need jsonDecode
         final Map<String, dynamic> responseBody = response.data;
+        // get the JWT from the authorization Header
+        final jwtToken = extractJwtFromResponse(response);
+        // decode the JWT
+        final decodedJwt = decodeJwtAndGetUid(jwtToken ?? '');
+        // decrypt the JWT with private key
+        final decryptedData = decryptData(decodedJwt ?? '');
+        // now enctypt it with the public key and make the jwt
+        final encryptedData = encryptData(decryptedData);
+        // now create the jwt with the encrypted data
+        final jwtEncoded = createJwtWithExpiry(
+          encryptedUuid: encryptedData,
+          expiryInSeconds: 3600 * 5,
+          secretKey: 'dev',
+        );
+        // store the jwt in the preferences
+        await saveJwtToPreferences(jwtEncoded);
+
         final Map<String, dynamic>? userData = responseBody['user'];
         final Map<String, dynamic>? userReferralData =
             responseBody['referralCode'];
@@ -170,10 +188,10 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<List<Map<String, dynamic>>> fetchUserBookings(int userId) async {
     if (userId == 0) return [];
 
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.get(
-        '${ApiEndpoints.bookingsBaseUrl}/users/$userId/bookings',
+        '${ApiEndpoints.bookingsBaseUrl}/users/bookings',
       );
 
       if (response.statusCode == 200) {
@@ -307,7 +325,9 @@ class RemoteRepo implements RemoteRepoInterface {
 
       // Add extra services if provided
       if (extraServices != null && extraServices.isNotEmpty) {
-        requestData["extra_services"] = extraServices.map((item) => item.toJson()).toList();
+        requestData["extra_services"] = extraServices
+            .map((item) => item.toJson())
+            .toList();
       }
 
       final response = await dio.post(
@@ -544,9 +564,9 @@ class RemoteRepo implements RemoteRepoInterface {
   // Wallet related methods
   @override
   Future<Map<String, dynamic>> fetchWallet({required String userId}) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
-      final response = await dio.get(ApiEndpoints.wallet(userId));
+      final response = await dio.get(ApiEndpoints.wallet());
 
       if (response.statusCode == 200) {
         return response.data;
@@ -567,14 +587,11 @@ class RemoteRepo implements RemoteRepoInterface {
     required String paymentId,
     required int amount,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio =await  networkProvider.auth();
     try {
       final response = await dio.post(
-        ApiEndpoints.wallet(userId),
-        data: {
-          'amount': amount,
-          'reference_id': paymentId,
-        },
+        ApiEndpoints.wallet(),
+        data: {'amount': amount, 'reference_id': paymentId},
       );
 
       if (response.statusCode == 200) {
@@ -622,10 +639,10 @@ class RemoteRepo implements RemoteRepoInterface {
 
   @override
   Future<void> createVoucher({required String userId}) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
-        ApiEndpoints.createVoucher.replaceAll('{userId}', userId),
+        ApiEndpoints.createVoucher,
       );
       if (response.statusCode == 200) {
         return response.data;
@@ -663,10 +680,10 @@ class RemoteRepo implements RemoteRepoInterface {
 
   @override
   Future<List<GetVoucherModel>> getVoucher({required String userId}) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.get(
-        ApiEndpoints.getVoucher.replaceAll('{userId}', userId),
+        ApiEndpoints.getVoucher,
       );
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = response.data;
@@ -691,11 +708,11 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<int> getHashCoin({required String userId}) async {
-    final dio = networkProvider.noAuth();
+    Future<int> getHashCoin() async {
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.get(
-        ApiEndpoints.getHashCoin.replaceAll('{userId}', userId),
+        ApiEndpoints.getHashCoin,
       );
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = response.data;
@@ -716,13 +733,12 @@ class RemoteRepo implements RemoteRepoInterface {
   @override
   Future<CreateVoucherResponse> createOffer({
     required int discountPercentage,
-    required String userId,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
         ApiEndpoints.createOffer,
-        data: {'discount_percentage': discountPercentage, 'user_id': userId},
+        data: {'discount_percentage': discountPercentage},
       );
       if (response.statusCode == 200) {
         return CreateVoucherResponse.fromJson(response.data);
@@ -795,10 +811,10 @@ class RemoteRepo implements RemoteRepoInterface {
     required String userId,
     required String token,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
-        ApiEndpoints.registerFCMToken(userId),
+        ApiEndpoints.registerFCMToken,
         data: {
           "token": token,
           "platform": Platform.isAndroid ? "android" : "ios",
@@ -843,10 +859,10 @@ class RemoteRepo implements RemoteRepoInterface {
     required String userId,
     required String type,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.get(
-        ApiEndpoints.gamePass(userId),
+        ApiEndpoints.gamePass,
         queryParameters: {'type': type},
       );
       if (response.statusCode == 200) {
@@ -869,9 +885,9 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<List<GetPassModel>> getUserActiveGamePass({
     required String userId,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
-      final response = await dio.get(ApiEndpoints.getActivePasses(userId));
+      final response = await dio.get(ApiEndpoints.getActivePasses);
       if (response.statusCode == 200) {
         final List<dynamic> responseData = response.data;
         return responseData
@@ -912,10 +928,10 @@ class RemoteRepo implements RemoteRepoInterface {
     required String userId,
     required PurchasePassModel passModel,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
-        ApiEndpoints.purchasePass(userId),
+        ApiEndpoints.purchasePass,
         data: passModel.toJson(),
       );
       if (response.statusCode == 200) {
@@ -932,28 +948,38 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<List<TransactionHistoryModel>> getTransactionHistory({required String userId}) async {
-    final dio = networkProvider.noAuth();
+  Future<List<TransactionHistoryModel>> getTransactionHistory({
+    required String userId,
+  }) async {
+    final dio = await networkProvider.auth();
     try {
-      final response = await dio.get(ApiEndpoints.getTransactionHistory(userId));
+      final response = await dio.get(
+        ApiEndpoints.getTransactionHistory,
+      );
       if (response.statusCode == 200) {
-     
-        
         // Check if response.data is a Map and contains 'transactions'
-        if (response.data is Map<String, dynamic> && 
+        if (response.data is Map<String, dynamic> &&
             response.data.containsKey('transactions')) {
           final List<dynamic> responseData = response.data['transactions'];
           return responseData
-              .map((e) => TransactionHistoryModel.fromJson(e as Map<String, dynamic>))
+              .map(
+                (e) =>
+                    TransactionHistoryModel.fromJson(e as Map<String, dynamic>),
+              )
               .toList();
         } else if (response.data is List) {
           // If response.data is directly a list of transactions
           final List<dynamic> responseData = response.data;
           return responseData
-              .map((e) => TransactionHistoryModel.fromJson(e as Map<String, dynamic>))
+              .map(
+                (e) =>
+                    TransactionHistoryModel.fromJson(e as Map<String, dynamic>),
+              )
               .toList();
         } else {
-          throw Exception('Invalid response format. Expected transactions array.');
+          throw Exception(
+            'Invalid response format. Expected transactions array.',
+          );
         }
       } else {
         throw Exception(
@@ -965,4 +991,16 @@ class RemoteRepo implements RemoteRepoInterface {
       rethrow;
     }
   }
-  } 
+
+  @override
+  Future<void> saveJwtToPreferences(String jwt) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('jwt', jwt);
+  }
+
+  @override
+  Future<String?> getJwtFromPreferences() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('jwt');
+  }
+}

@@ -12,6 +12,8 @@ abstract class RemoteRepoInterface {
   Future<void> saveUserToPreferences(Map<String, dynamic> userData);
   Future<Map<String, dynamic>?> getUserFromPreferences();
   Future<void> clearUserFromPreferences();
+  Future<void> saveJwtToPreferences(String jwt);
+  Future<String?> getJwtFromPreferences();
   Future<Map<String, dynamic>> signUp(Map<String, dynamic> userData);
 
   // Booking related methods
@@ -83,11 +85,10 @@ abstract class RemoteRepoInterface {
   Future<void> createVoucher({required String userId});
   Future<List<GetVoucherModel>> getVoucher({required String userId});
 
-  Future<int> getHashCoin({required String userId});
+  Future<int> getHashCoin();
 
   Future<CreateVoucherResponse> createOffer({
     required int discountPercentage,
-    required String userId,
   });
 
   Future<String> scanQrCode({
