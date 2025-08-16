@@ -1,6 +1,5 @@
 import 'package:encrypt/encrypt.dart';
-import 'package:flutter/material.dart';
-import 'package:hash/core/network/api_endpoints.dart';
+import 'package:hash/utils/key_provider.dart';
 import 'package:pointycastle/asymmetric/api.dart'; // For RSA key parsing
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
@@ -94,18 +93,8 @@ RSAPrivateKey parsePrivateKeyFromPem(String pem) {
   return parser.parse(pem) as RSAPrivateKey;
 }
 
-String encryptData(String plainText) {
-
-  const publicKeyPem = '''-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyyrCsTYxVOAspPqg/9Ua
-I6kCheAik1yXIKUblBaHkdRqGtpuQac1IOfkiZF5GrNdPtTpc+UhPpZpnpaBzYz3
-AWzvNSp1VdK+nvj2sfWfmQjeLmB+ugFQGy2TTpVr5+MakHoDqm8fLHdBSF0NWasB
-PNcOIXieVLi0WnabCXD5PSK5SSRsAejrx2LWZ8Y+wB3kQTj3MurhLDPypoMd2pIi
-TNhMBRuCYNmaOB+XkmqLu0iE9Syh022AO1waC7gciNn0n7JjNwPJfT579q+p9ERw
-pFYsV+OphYR7yULX3m5Pboe8A1AWdtg/Uba3k2XdhUviq9z3S55vzxZ1Mf4Ma5tz
-8wIDAQAB
------END PUBLIC KEY-----''';
-
+Future<String> encryptData(String plainText) async {
+  final publicKeyPem = await KeyProvider.getPublicKey();
   final publicKey = parsePublicKeyFromPem(publicKeyPem);
 
   final encrypter = Encrypter(
@@ -121,37 +110,10 @@ pFYsV+OphYR7yULX3m5Pboe8A1AWdtg/Uba3k2XdhUviq9z3S55vzxZ1Mf4Ma5tz
   return encryptedData.base64; // Encrypted output in base64 format
 }
 
-String decryptData(String encryptedBase64) {
-  const privateKeyPem = '''-----BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEAn9EcL1e+WAeOFlcIqvPlWKJPrGKINx5Iop3VEG33iZOWIO0+
-Q3O3KGTDA1hi833mXyxhM978FAMbqvPOmWv0OZeURFdUf9KhGmBV/yY9fKsroSHt
-2dW3IwjXGvmrFLi6hUfxJrgP5tzaErYGpSUyZWUxIKmMGwd5wO9wzVEyFSE0+Kd7
-+GwE+gBBS6CUMPHtNd4ReYVTYFsy0f7QWsEdWpvT3gaYxan9Z67rHyon4ZLEzQlk
-3HawJM+uedJdwr/lsWD6VbG1mf2VrUKVTVjXFAR28vuCATchJs8PGvao0c2tKsQS
-LykKayNOJ6HPC/gLc5QYDAXhTPnTkgDnCX7QswIDAQABAoIBAC79d4mOBYfxlLwJ
-1CEbvEv+0WlQwVdffqDdwmdlxfo8HFDLINsJW4mzcsl5hAKu+nzyWhQ71Kd3sHtn
-20+t9621XWFowg4hWsAcIjz2u+57j8T9amd52LKi50hlr4FUvXbxy7yEMxzAxBfr
-UHHfSX2ZrsO5RlouLQTnAiZEYPLoDQQXLdqNXzColLGP9ZVHlOIFkB6fbWGsusHc
-ZM58ti1com1kFPtVFbMgGoEYhMgc+Jr87KspJjPlu12kcAypDky6El5wq0Nq0dDw
-wXrz6PwqxyhB8n0zsmE24lfDFOXoZFuBNQSYUfV0xMu1AQ+m8tT5xJiLSSPGMtdm
-IEf8iCUCgYEA1TaM3fjphUwzMs9Y3eHPocFyL9U9o2sgWxbFmkJ5D0QY0jF7uTnA
-T9K4uQ0O7lXQFpwxSigkgbF3F+xiN+Ag4Gia0AEauDIELrlNtS1O84UcIddTXCY6
-1KdilQOm3LCzAdfkTc/tVcTso5/VOrajSyVB7CxIIRcjYUmzr+lrZZcCgYEAv+Nr
-t7qA0lN1Lu0W+Sn3X+Y+Uw4tE7IO5WF3ZAKeoEqDP5wFq6ECRnc2RnX/bwYgoy2J
-JeVkeh9pJrt19S4jxiLA4GXcMKO5N9HyA3lzJF6IUNEBcrBKezyFuz1tlmCakcOo
-htgSQUbLv/JUW5Hue0pEhRSLhFHTP/F/C79a6UUCgYAdqsR5Emxz1sF8/WrxHL2G
-VWNtEm/MMFjFM+r05vDvVdtaS/ZaNJX0xW5cmVuNgDU/ICafmexSe34Fvyd/fNk2
-QHfiH3U3UgZQ9gnA/vfwXIIol0yLEuq2sj++Wk66gH+37vFefmMYvxjqP5As5kLc
-bue4VAUJTa3nmJi/DmyaKwKBgEeSD49LpNjOABssmzD8EiRWwFBCLVX3R88Od3V5
-9Khcom+LRiIpv6uAs2G8iTVj17CFP24/DSbvqEymBu0X9IfmVoJb+7C4oFDNobLi
-Daw3Bij+i8e3MVCd1lNsKf+4sG5FyAnjdYubWEuTmxs8ZvLdVIk+jHsh+eUTsgsz
-qDjxAoGBAJnuL6pmkG+0LApV8KdhXx9+IkiOHG23w1cs/msHFhJi+fYlPnratpEr
-CXJVgfVKAH6PxNmogJTCYogFhJJE2vTX4F6ubBFkjXUSR3viznv97HgYfLLfHx4b
-gkBRsEuVAP9Xhxup2yRXJmZCEbanjcBv8QBNpeb755WqZPjPiIJs
------END RSA PRIVATE KEY-----
-''';
-
+Future<String> decryptData(String encryptedBase64) async {
+  final privateKeyPem = await KeyProvider.getPrivateKey();
   final privateKey = parsePrivateKeyFromPem(privateKeyPem);
+  
   final encrypter = Encrypter(
     RSA(
       privateKey: privateKey,

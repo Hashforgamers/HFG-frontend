@@ -17,6 +17,7 @@ class GetPassModel {
   final String? validTo;
   final int? cafePassId;
   final bool? isBought;
+  final List<VendorImages>? vendorImages;
 
   GetPassModel({
     required this.daysValid,
@@ -37,6 +38,7 @@ class GetPassModel {
     this.validTo,
     this.cafePassId,
     this.isBought,
+    this.vendorImages,
   });
 
   factory GetPassModel.fromJson(Map<String, dynamic> json) {
@@ -62,6 +64,11 @@ class GetPassModel {
       validTo: json['valid_to']?.toString(),
       cafePassId: json['cafe_pass_id'] as int?,
       isBought: json['is_bought'] as bool?,
+      vendorImages: json['vendor_images'] != null
+          ? (json['vendor_images'] as List)
+              .map((e) => VendorImages.fromJson(e))
+              .toList()
+          : null,
     );
   }
 
@@ -206,5 +213,19 @@ class GetPassModel {
       }
     }
     return DateTime.now();
+  }
+}
+
+class VendorImages {
+  final int id;
+  final String url;
+
+  VendorImages({
+    required this.id,
+    required this.url,
+  });
+
+  factory VendorImages.fromJson(Map<String, dynamic> json) {
+    return VendorImages(id: json['id'], url: json['url']);
   }
 }

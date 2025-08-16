@@ -32,7 +32,8 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
     final map = <String, List<GetPassModel>>{};
     for (final p in passes) {
       final ts = p.timestamp;
-      final key = '${ts.year.toString().padLeft(4, '0')}-${ts.month.toString().padLeft(2, '0')}';
+      final key =
+          '${ts.year.toString().padLeft(4, '0')}-${ts.month.toString().padLeft(2, '0')}';
       (map[key] ??= <GetPassModel>[]).add(p);
     }
     final sortedKeys = map.keys.toList()
@@ -42,7 +43,8 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
 
   String _formatMonthLabel(String key) {
     final now = DateTime.now();
-    final thisKey = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final thisKey =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
     if (key == thisKey) return 'This Month';
     final parts = key.split('-');
     final year = int.parse(parts[0]);
@@ -61,7 +63,8 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
         if (state is GetGamePassError) {
           return _ErrorView(
             message: state.message,
-            onRetry: () => context.read<GetGamePassCubit>().getGamePassHistory(),
+            onRetry: () =>
+                context.read<GetGamePassCubit>().getGamePassHistory(),
           );
         }
 
@@ -150,7 +153,7 @@ class _HistoryPassCard extends StatelessWidget {
       child: InkWell(
         onTap: () => ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${pass.name} · ${pass.vendorName ?? ''}'),
+            content: Text('${pass.name} · ${pass.vendorName}'),
             duration: const Duration(seconds: 2),
           ),
         ),
@@ -161,7 +164,9 @@ class _HistoryPassCard extends StatelessWidget {
             children: [
               // Background
               _smartImage(
-                urlOrAsset: pass.displayImage,
+                urlOrAsset: (pass.vendorImages?.isNotEmpty == true)
+                    ? pass.vendorImages!.first.url
+                    : 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075178/globalpass1_o2shqg.png',
                 fit: BoxFit.cover,
                 placeholder: const RainbowGlowingLoader(size: 28),
               ),
@@ -172,7 +177,9 @@ class _HistoryPassCard extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+                      begin: alignEnd
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
                       end: Alignment.center,
                       colors: [
                         Colors.black.withOpacity(0.58),
@@ -194,7 +201,7 @@ class _HistoryPassCard extends StatelessWidget {
                       children: [
                         _smartImage(
                           urlOrAsset:
-                          'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/crown_mzzqhy.png',
+                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/crown_mzzqhy.png',
                           height: 22,
                           width: 22,
                           placeholder: const RainbowGlowingLoader(size: 18),
@@ -262,7 +269,6 @@ class _HistoryPassCard extends StatelessWidget {
         ),
       ),
     );
-
   }
 
   String _deriveStatus(GetPassModel pass, double progress) {
@@ -271,7 +277,8 @@ class _HistoryPassCard extends StatelessWidget {
     final now = DateTime.now();
     final expiry = pass.expiryDate is DateTime
         ? pass.expiryDate as DateTime
-        : now;    if (progress >= 1.0) return 'Completed';
+        : now;
+    if (progress >= 1.0) return 'Completed';
     if (expiry.isBefore(now)) return 'Expired';
     if (progress <= 0.0) return 'Not Started';
     return 'Active';
@@ -315,7 +322,7 @@ class _LoadingSkeleton extends StatelessWidget {
     return Column(
       children: List.generate(
         3,
-            (i) => Container(
+        (i) => Container(
           margin: EdgeInsets.only(top: i == 0 ? 0 : 16),
           height: 196,
           decoration: BoxDecoration(
@@ -342,7 +349,10 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(message, style: GoogleFonts.inter(color: Colors.white, fontSize: 14)),
+            Text(
+              message,
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+            ),
             const SizedBox(height: 12),
             ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
           ],
@@ -373,10 +383,7 @@ class _EmptyView extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'You haven’t purchased any game passes yet.',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: Colors.grey.shade500,
-            ),
+            style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade500),
             textAlign: TextAlign.center,
           ),
         ],
@@ -405,7 +412,11 @@ Widget _smartImage({
       errorBuilder: (_, __, ___) => Container(
         color: Colors.grey.shade800,
         alignment: Alignment.center,
-        child: const Icon(Icons.image_not_supported, color: Colors.white54, size: 24),
+        child: const Icon(
+          Icons.image_not_supported,
+          color: Colors.white54,
+          size: 24,
+        ),
       ),
     );
   }
@@ -415,11 +426,16 @@ Widget _smartImage({
     width: width,
     fit: fit ?? BoxFit.cover,
     filterQuality: FilterQuality.high,
-    placeholder: (_, __) => Center(child: placeholder ?? const RainbowGlowingLoader(size: 24)),
+    placeholder: (_, __) =>
+        Center(child: placeholder ?? const RainbowGlowingLoader(size: 24)),
     errorWidget: (_, __, ___) => Container(
       color: Colors.grey.shade800,
       alignment: Alignment.center,
-      child: const Icon(Icons.image_not_supported, color: Colors.white54, size: 24),
+      child: const Icon(
+        Icons.image_not_supported,
+        color: Colors.white54,
+        size: 24,
+      ),
     ),
   );
 }

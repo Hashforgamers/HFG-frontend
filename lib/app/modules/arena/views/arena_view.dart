@@ -21,7 +21,6 @@ import 'package:http/http.dart' as http;
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import '../../../../utils/service.dart';
 import 'arena_view_detailed.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class ArenaView extends StatefulWidget {
   const ArenaView({super.key});
@@ -31,7 +30,6 @@ class ArenaView extends StatefulWidget {
 }
 
 class _ArenaViewState extends State<ArenaView> {
-
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  STATE                                                                    */
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -48,7 +46,6 @@ class _ArenaViewState extends State<ArenaView> {
   final RxSet<Polyline> polylines = <Polyline>{}.obs;
 
   final _polylinePoints = PolylinePoints(apiKey: _gmapsKey); // was ''
-
 
   final TextEditingController _searchCtl = TextEditingController();
   Timer? _camDebounce;
@@ -83,7 +80,9 @@ class _ArenaViewState extends State<ArenaView> {
   void _filterCafesByState() {
     final user = _normState(_userState);
     if (user.isEmpty) {
-      _filteredCafes.assignAll(_cafeCtr.cybercafes.cast<Map<String, dynamic>>());
+      _filteredCafes.assignAll(
+        _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
+      );
       return;
     }
     final filtered = _cafeCtr.cybercafes.where((c) {
@@ -151,7 +150,6 @@ class _ArenaViewState extends State<ArenaView> {
     );
   }
 
-
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  LOCATION INIT                                                            */
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -196,21 +194,23 @@ class _ArenaViewState extends State<ArenaView> {
           }
         }
       });
-    } catch (_) {/* swallow */}
+    } catch (_) {
+      /* swallow */
+    }
   }
-
-
 
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  CAMERA & MOVEMENT                                                        */
   /* ────────────────────────────────────────────────────────────────────────── */
 
   void _smoothMoveCamera(LatLng? target, {double zoom = 15}) {
-    if (!_mapReady) return;           // add this
+    if (!_mapReady) return; // add this
     _camDebounce?.cancel();
     _camDebounce = Timer(const Duration(milliseconds: 280), () {
       _mapCtr.animateCamera(
-        CameraUpdate.newCameraPosition(CameraPosition(target: target!, zoom: zoom)),
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: target!, zoom: zoom),
+        ),
       );
     });
   }
@@ -482,10 +482,10 @@ class _ArenaViewState extends State<ArenaView> {
     try {
       final url = Uri.parse(
         'https://maps.googleapis.com/maps/api/directions/json'
-            '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
-            '&destination=${dest.latitude},${dest.longitude}'
-            '&mode=driving'
-            '&key=$_gmapsKey',
+        '?origin=${_userLatLng!.latitude},${_userLatLng!.longitude}'
+        '&destination=${dest.latitude},${dest.longitude}'
+        '&mode=driving'
+        '&key=$_gmapsKey',
       );
       final res = await http.get(url);
 
@@ -507,8 +507,6 @@ class _ArenaViewState extends State<ArenaView> {
     return _distanceCache[id] = Map<String, String>.from(fallback);
   }
 
-
-
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  ROUTE DRAWING                                                            */
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -522,21 +520,27 @@ class _ArenaViewState extends State<ArenaView> {
       mode: TravelMode.driving,
     );
 
-    final result = await _polylinePoints.getRouteBetweenCoordinates(request: request);
+    final result = await _polylinePoints.getRouteBetweenCoordinates(
+      request: request,
+    );
     if (result.points.isEmpty) {
       Get.snackbar('Route', 'No route found');
       return;
     }
 
-    final pts = result.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+    final pts = result.points
+        .map((p) => LatLng(p.latitude, p.longitude))
+        .toList();
     polylines
       ..clear()
-      ..add(Polyline(
-        polylineId: const PolylineId('route'),
-        color: const Color(0xff338125),
-        width: 6,
-        points: pts,
-      ));
+      ..add(
+        Polyline(
+          polylineId: const PolylineId('route'),
+          color: const Color(0xff338125),
+          width: 6,
+          points: pts,
+        ),
+      );
 
     // Fit bounds
     double minLat = pts.first.latitude, maxLat = pts.first.latitude;
@@ -553,7 +557,6 @@ class _ArenaViewState extends State<ArenaView> {
     );
     await _mapCtr.animateCamera(CameraUpdate.newLatLngBounds(bounds, 48));
   }
-
 
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  EXTERNAL MAP LAUNCH                                                      */
@@ -609,7 +612,6 @@ class _ArenaViewState extends State<ArenaView> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size.height;
@@ -632,9 +634,13 @@ class _ArenaViewState extends State<ArenaView> {
                   child: Stack(
                     children: [
                       GoogleMap(
-                        initialCameraPosition: const CameraPosition(target: LatLng(20, 77), zoom: 4),
-                        myLocationEnabled: _hasLocationPermission,        // was: true
-                        myLocationButtonEnabled: _hasLocationPermission,  // add this
+                        initialCameraPosition: const CameraPosition(
+                          target: LatLng(20, 77),
+                          zoom: 4,
+                        ),
+                        myLocationEnabled: _hasLocationPermission, // was: true
+                        myLocationButtonEnabled:
+                            _hasLocationPermission, // add this
                         markers: markers.toSet(),
                         polylines: polylines.toSet(),
                         onMapCreated: (ctrl) async {
@@ -643,7 +649,9 @@ class _ArenaViewState extends State<ArenaView> {
 
                           // iOS: give the renderer a moment before styling
                           if (defaultTargetPlatform == TargetPlatform.iOS) {
-                            await Future.delayed(const Duration(milliseconds: 200));
+                            await Future.delayed(
+                              const Duration(milliseconds: 200),
+                            );
                           }
 
                           try {
@@ -651,7 +659,9 @@ class _ArenaViewState extends State<ArenaView> {
                               await _mapCtr.setMapStyle(_mapStyle);
                             }
                           } catch (e) {
-                            debugPrint('setMapStyle error: $e'); // helps catch invalid JSON
+                            debugPrint(
+                              'setMapStyle error: $e',
+                            ); // helps catch invalid JSON
                           }
 
                           _tryPlayZoom();
@@ -768,15 +778,27 @@ class _ArenaViewState extends State<ArenaView> {
                                   itemCount: _filteredCafes.length,
                                   itemBuilder: (_, i) {
                                     final cafe = _filteredCafes[i];
-                                    final imgs = (cafe['images'] as List?) ?? const [];
+                                    final imgs =
+                                        (cafe['images'] as List?) ?? const [];
                                     final img = imgs.isEmpty
                                         ? 'https://next-level.gg/assets/cafes/11.jpg'
-                                        : (imgs.first is Map && (imgs.first as Map)['url'] != null
-                                        ? (imgs.first as Map)['url'] as String
-                                        : 'https://next-level.gg/assets/cafes/11.jpg');
-                                    final pos = _latLngFromCafe(cafe); // safe now
+                                        : (imgs.first is Map &&
+                                                  (imgs.first as Map)['url'] !=
+                                                      null
+                                              ? (imgs.first as Map)['url']
+                                                    as String
+                                              : 'https://next-level.gg/assets/cafes/11.jpg');
+                                    final pos = _latLngFromCafe(
+                                      cafe,
+                                    ); // safe now
                                     final id = '${cafe['id'] ?? cafe.hashCode}';
-                                    return _buildCafeCard(id, pos, img, cafe, imgs);
+                                    return _buildCafeCard(
+                                      id,
+                                      pos,
+                                      img,
+                                      cafe,
+                                      imgs,
+                                    );
                                   },
                                 ),
                         ),
@@ -794,7 +816,7 @@ class _ArenaViewState extends State<ArenaView> {
 
   Widget _buildCafeCard(
     String id,
-      LatLng? pos, // <- nullable now
+    LatLng? pos, // <- nullable now
     String img,
     Map<String, dynamic> cafe,
     List<dynamic> images,
@@ -926,7 +948,10 @@ class _ArenaViewState extends State<ArenaView> {
                             // Distance + duration (or placeholders)
                             FutureBuilder<Map<String, String>>(
                               future: pos == null
-                                  ? Future.value({'distance': '--', 'duration': '--'})
+                                  ? Future.value({
+                                      'distance': '--',
+                                      'duration': '--',
+                                    })
                                   : _distanceInfo(pos, id),
                               builder: (_, snap) {
                                 final dist = snap.data?['distance'] ?? '--';
