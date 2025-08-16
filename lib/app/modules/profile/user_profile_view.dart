@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/about/about_page.dart';
 import 'package:hash/app/modules/game_pass/page/game_pass_page.dart';
 import 'package:hash/app/modules/hash_coin/pages/hash_coin_page.dart';
+import 'package:hash/app/modules/need_help/need_help_page.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -72,18 +74,19 @@ class UserProfileView extends StatelessWidget {
                 Get.to(const ReferralViewWithController());
               },
             ),
-            // _buildProfileOption(
-            //   icon: CupertinoIcons.heart,
-            //   title: 'Wishlist',
-            //   onTap: () {
-            //     // Handle wishlist
-            //   },
-            // ),
             _buildProfileOption(
-              icon: Icons.change_circle_outlined,
-              title: 'Change Address',
+              icon: CupertinoIcons.question_circle,
+              title: 'Need Help',
               onTap: () {
-                // Handle change password
+                // Handle wishlist
+                Get.to(NeedHelpPage());
+              },
+            ),
+            _buildProfileOption(
+              icon: Icons.info_outline,
+              title: 'About Us',
+              onTap: () {
+                Get.to(AboutPage());
               },
             ),
             // _buildProfileOption(
