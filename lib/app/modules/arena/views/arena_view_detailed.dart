@@ -1,4 +1,3 @@
-// Enhanced ArenaDetailView with full dark theme and polished UI
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -50,10 +49,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   final CafeGamesController _gamesController = Get.put(CafeGamesController());
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  
+  int currentPage = 0;
+  late PageController pageController;
 
   @override
   void initState() {
     super.initState();
+    pageController = PageController();
     _gamesController.fetchGames(widget.vendorId);
 
     // Track cafe images viewed event
@@ -62,6 +65,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       fbEventsService.onCafeImagesViewed(cafeId: widget.vendorId.toString());
     });
   }
+
+  @override
+  void dispose() {
+    pageController.dispose();
+    super.dispose();
+  }
+
   bool _hasFoodAmenity(List<dynamic> amenities) {
     return amenities.any((a) {
       if (a is! Map) return false;
@@ -90,8 +100,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         .map((image) => image['url']?.toString() ?? '')
         .toList()
         .cast<String>();
-    int currentPage = 0;
-    final PageController pageController = PageController();
 
     return Scaffold(
       backgroundColor: const Color(0xff0F0F0F),
