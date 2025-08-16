@@ -6,6 +6,7 @@ import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
+import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/extra_services_model.dart';
 import 'package:hash/core/repositories/model/get_food_menu_model.dart';
@@ -992,5 +993,28 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<String?> getJwtFromPreferences() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('jwt');
+  }
+
+  @override
+  Future<void> capturePayment({
+    required CapturePaymentModel capturePaymentModel,
+  }) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.capturePayment,
+        data: capturePaymentModel.toJson(),
+      );
+      if (response.statusCode == 200) {
+        return;
+      } else {
+        throw Exception(
+          'Failed to capture payment. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error capturing payment: $e');
+      rethrow;
+    }
   }
 }
