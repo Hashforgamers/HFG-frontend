@@ -33,7 +33,7 @@ android {
         applicationId = "com.hfg.hash"
         minSdk = 23                                   // bumped for Firebase Auth
         targetSdk = 34
-        versionCode = 19
+        versionCode = 20
         versionName = flutterVersionName.toString()
     }
 

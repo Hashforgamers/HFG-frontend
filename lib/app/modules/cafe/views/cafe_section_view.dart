@@ -16,6 +16,8 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../utils/service.dart';
+
 class CafeSection extends StatefulWidget {
   CafeSection({super.key});
 
@@ -342,6 +344,7 @@ class _CafeSectionState extends State<CafeSection> {
               separatorBuilder: (_, __) => const SizedBox(width: 20),
               itemBuilder: (context, index) {
                 final cafe = widget._cafeController.cybercafes[index];
+                print('cafe detial $cafe');
                 final images = cafe['images'];
                 String imageUrl = 'https://next-level.gg/assets/cafes/11.jpg'; // Fallback image
                 
@@ -426,7 +429,7 @@ class _CafeSectionState extends State<CafeSection> {
                             'Address not available',
                         openingHours: '9 AM - 12 AM',
                         availableGames: availableGames,
-                        amenities: const ['Amenity 1', 'Amenity 2'],
+                        amenities: cafe["amenities"]??[''],
                         phone:
                             cafe['phone'] ??
                             cafe['contact_number'] ??
@@ -516,15 +519,16 @@ class _CafeSectionState extends State<CafeSection> {
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
-                                          cafe['cafe_name'] ?? 'Unknown Cafe',
+                                          toStartCase(cafe['cafe_name']?.toString() ?? 'Unknown Cafe'),
                                           style: GoogleFonts.inter(
                                             color: Colors.white,
-                                            fontSize: 18,
+                                            fontSize: 16,
                                             fontWeight: FontWeight.bold,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
+
                                         const Spacer(),
                                         CachedNetworkImage(
                                           imageUrl:
