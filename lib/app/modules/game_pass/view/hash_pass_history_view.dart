@@ -22,45 +22,34 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
   @override
   void initState() {
     super.initState();
-    // Load history data when the view is initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<GetGamePassCubit>().getGamePassHistory();
     });
   }
 
-  Map<String, List<GetPassModel>> getGroupedHistory(List<GetPassModel> passes) {
-    Map<String, List<GetPassModel>> grouped = {};
-
-    for (var pass in passes) {
-      DateTime timestamp = pass.timestamp;
-      String monthYear =
-          '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}';
-
-      if (!grouped.containsKey(monthYear)) {
-        grouped[monthYear] = [];
-      }
-      grouped[monthYear]!.add(pass);
+  /// Group passes by "YYYY-MM" and return keys sorted desc (latest first)
+  Map<String, List<GetPassModel>> _groupByMonth(List<GetPassModel> passes) {
+    final map = <String, List<GetPassModel>>{};
+    for (final p in passes) {
+      final ts = p.timestamp;
+      final key =
+          '${ts.year.toString().padLeft(4, '0')}-${ts.month.toString().padLeft(2, '0')}';
+      (map[key] ??= <GetPassModel>[]).add(p);
     }
-
-    return grouped;
+    final sortedKeys = map.keys.toList()
+      ..sort((a, b) => b.compareTo(a)); // desc
+    return {for (final k in sortedKeys) k: map[k]!};
   }
 
-  String _formatMonthYear(String monthYear) {
+  String _formatMonthLabel(String key) {
     final now = DateTime.now();
-    final currentMonthKey =
-        "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}";
-
-    if (monthYear == currentMonthKey) {
-      return "This Month";
-    }
-
-    final parts = monthYear.split("-");
+    final thisKey =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    if (key == thisKey) return 'This Month';
+    final parts = key.split('-');
     final year = int.parse(parts[0]);
     final month = int.parse(parts[1]);
-
-    final date = DateTime(year, month);
-    final formatter = DateFormat('MMMM yyyy');
-    return formatter.format(date); // e.g., "July 2025"
+    return DateFormat('MMMM yyyy').format(DateTime(year, month));
   }
 
   @override
@@ -68,271 +57,385 @@ class _HashPassHistoryViewState extends State<HashPassHistoryView> {
     return BlocBuilder<GetGamePassCubit, GetGamePassState>(
       builder: (context, state) {
         if (state is GetGamePassLoading) {
-          return const Center(
-            child: CircularProgressIndicator(),
+          return const _LoadingSkeleton();
+        }
+
+        if (state is GetGamePassError) {
+          return _ErrorView(
+            message: state.message,
+            onRetry: () =>
+                context.read<GetGamePassCubit>().getGamePassHistory(),
           );
-        } else if (state is GetGamePassError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Error',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  state.message,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    context.read<GetGamePassCubit>().getGamePassHistory();
-                  },
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          );
-        } else if (state is GetGamePassLoaded) {
+        }
+
+        if (state is GetGamePassLoaded) {
           final passes = state.gamePass;
-          if (passes.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.history,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No Game Pass History',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'You haven\'t purchased any game passes yet.',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            );
-          }
+          if (passes.isEmpty) return const _EmptyView();
 
-          final groupedHistory = getGroupedHistory(passes);
-          final flattenedList = <dynamic>[];
+          final grouped = _groupByMonth(passes);
 
-          groupedHistory.forEach((monthYear, items) {
-            flattenedList.add({'isHeader': true, 'month': monthYear});
-            flattenedList.addAll(
-              items.map((item) => {'isHeader': false, 'data': item}),
-            );
+          // Flatten into headers and items in display order
+          final items = <_RowItem>[];
+          grouped.forEach((monthKey, list) {
+            items.add(_RowItem.header(monthKey));
+            // Optional: sort each month by timestamp desc
+            list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+            for (final p in list) {
+              items.add(_RowItem.item(p));
+            }
           });
 
           return ListView.separated(
-            scrollDirection: Axis.vertical,
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
-            itemCount: flattenedList.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 20),
+            padding: EdgeInsets.zero,
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
-              final item = flattenedList[index];
-              if (item['isHeader']) {
-                final month = item['month'];
-                final displayMonth = _formatMonthYear(month);
+              final row = items[index];
+              if (row.isHeader) {
                 return Text(
-                  displayMonth,
+                  _formatMonthLabel(row.headerKey!),
                   style: GoogleFonts.inter(
-                    color: Color(0xFF505050),
+                    color: const Color(0xFF8E8E8E),
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                   ),
                 );
-              } else {
-                return _buildHistoryPassCard(context, item['data']);
               }
+              return _HistoryPassCard(pass: row.pass!);
             },
           );
         }
 
-        return const Center(
-          child: Text('No data available'),
-        );
+        return const SizedBox.shrink();
       },
     );
   }
+}
 
-  Widget _buildHistoryPassCard(
-    BuildContext context,
-    GetPassModel pass,
-  ) {
-    final cardType = pass.id.hashCode % 2 == 0 
-        ? HistoryPassCardType.rightImage 
+/// Row model for list building
+class _RowItem {
+  final bool isHeader;
+  final String? headerKey;
+  final GetPassModel? pass;
+  _RowItem.header(this.headerKey) : isHeader = true, pass = null;
+  _RowItem.item(this.pass) : isHeader = false, headerKey = null;
+}
+
+/// Card
+class _HistoryPassCard extends StatelessWidget {
+  const _HistoryPassCard({required this.pass});
+  final GetPassModel pass;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardType = pass.id.hashCode.isEven
+        ? HistoryPassCardType.rightImage
         : HistoryPassCardType.leftImage;
 
-    return GestureDetector(
-      onTap: () {
-        // Handle tap on pass card
-        ScaffoldMessenger.of(context).showSnackBar(
+    final statusColor = Color(pass.statusColor);
+    final progress = pass.progressValue.clamp(0.0, 1.0);
+    final alignEnd = cardType == HistoryPassCardType.rightImage;
+
+    final borderRadius = BorderRadius.circular(24);
+    final shape = RoundedRectangleBorder(
+      borderRadius: borderRadius,
+      side: BorderSide(color: statusColor, width: 1),
+    );
+    final cross = alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final main = alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start;
+
+    return Material(
+      color: Colors.transparent,
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${pass.name} - ${pass.vendorName}'),
+            content: Text('${pass.name} · ${pass.vendorName}'),
             duration: const Duration(seconds: 2),
           ),
-        );
-      },
-      child: Container(
-        height: 200,
-        width: MediaQuery.of(context).size.width,
-        decoration: BoxDecoration(
-          border: Border.all(color: Color(pass.statusColor), width: 1.5),
-          borderRadius: BorderRadius.circular(25),
         ),
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(25),
-              child: Image.asset(
-                pass.displayImage,
-                height: 190,
-                width: MediaQuery.of(context).size.width,
+        child: SizedBox(
+          height: 196,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background
+              _smartImage(
+                urlOrAsset: (pass.vendorImages?.isNotEmpty == true)
+                    ? pass.vendorImages!.first.url
+                    : 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075178/globalpass1_o2shqg.png',
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 190,
-                    width: MediaQuery.of(context).size.width,
-                    color: Colors.grey[300],
-                    child: Icon(
-                      Icons.games,
-                      size: 48,
-                      color: Colors.grey[600],
-                    ),
-                  );
-                },
+                placeholder: const RainbowGlowingLoader(size: 28),
               ),
-            ),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(25),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
+
+              // Subtle blur + gradient overlay
+              ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 1.2, sigmaY: 1.2),
                 child: Container(
-                  height: 200,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(25),
+                    gradient: LinearGradient(
+                      begin: alignEnd
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      end: Alignment.center,
+                      colors: [
+                        Colors.black.withOpacity(0.58),
+                        Colors.black.withOpacity(0.28),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              top: 24,
-              left: 20,
-              right: 20,
-              child: Column(
-                crossAxisAlignment:
-                    cardType == HistoryPassCardType.rightImage
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  CachedNetworkImage(
-                    imageUrl:
-                        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/crown_mzzqhy.png',
-                    height: 26,
-                    width: 26,
-                    placeholder: (_, _) =>
-                        const Center(child: RainbowGlowingLoader(size: 20)),
-                    errorWidget: (_, _, _) =>
-                        const Icon(Icons.error, color: Colors.red),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    pass.name,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: cross,
+                  children: [
+                    Row(
+                      mainAxisAlignment: main,
+                      children: [
+                        _smartImage(
+                          urlOrAsset:
+                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/crown_mzzqhy.png',
+                          height: 22,
+                          width: 22,
+                          placeholder: const RainbowGlowingLoader(size: 18),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            pass.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    pass.infoText,
-                    style: GoogleFonts.inter(
-                      color: Color(pass.statusColor),
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(height: 4),
+                    Text(
+                      pass.infoText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: statusColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 30),
-                  SizedBox(
-                    width: 400,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(5),
+                    const Spacer(),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
                       child: LinearProgressIndicator(
-                        value: pass.progressValue,
-                        minHeight: 4,
-                        backgroundColor: Colors.white,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Color(pass.statusColor),
-                        ),
+                        value: progress.clamp(0.0, 1.0),
+                        minHeight: 5,
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      (() {
-                        final now = DateTime.now();
-                        final passDate = pass.timestamp;
-                        bool isActive = (now.year == passDate.year) &&
-                            (now.month == passDate.month) &&
-                            pass.progressValue > 0.0 &&
-                            pass.progressValue < 1.0;
-                        return isActive
-                            ? Text(
-                                'Active',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                ),
-                              )
-                            : SizedBox.shrink();
-                      })(),
-                      Text(
-                        pass.expiryText,
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 10,
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _StatusChip(
+                          status: _deriveStatus(pass, progress),
+                          color: statusColor,
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        Text(
+                          pass.expiryText,
+                          style: GoogleFonts.inter(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _deriveStatus(GetPassModel pass, double progress) {
+    // More explicit than comparing month/year only
+
+    final now = DateTime.now();
+    final expiry = pass.expiryDate is DateTime
+        ? pass.expiryDate as DateTime
+        : now;
+    if (progress >= 1.0) return 'Completed';
+    if (expiry.isBefore(now)) return 'Expired';
+    if (progress <= 0.0) return 'Not Started';
+    return 'Active';
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status, required this.color});
+  final String status;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.75),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: Text(
+        status,
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+}
+
+/// States ————————————————————————————————————————
+
+class _LoadingSkeleton extends StatelessWidget {
+  const _LoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(
+        3,
+        (i) => Container(
+          margin: EdgeInsets.only(top: i == 0 ? 0 : 16),
+          height: 196,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: const Center(child: RainbowGlowingLoader(size: 36)),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorView({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
+            const SizedBox(height: 12),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),
     );
   }
+}
+
+class _EmptyView extends StatelessWidget {
+  const _EmptyView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        children: [
+          Icon(Icons.history, size: 64, color: Colors.grey.shade500),
+          const SizedBox(height: 12),
+          Text(
+            'No Game Pass History',
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Colors.grey.shade400,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'You haven’t purchased any game passes yet.',
+            style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade500),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Image helper ———————————————————————————————————
+
+Widget _smartImage({
+  required String urlOrAsset,
+  double? height,
+  double? width,
+  BoxFit? fit,
+  Widget? placeholder,
+}) {
+  final isAsset = urlOrAsset.startsWith('assets/');
+  if (isAsset) {
+    return Image.asset(
+      urlOrAsset,
+      height: height,
+      width: width,
+      fit: fit ?? BoxFit.cover,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (_, __, ___) => Container(
+        color: Colors.grey.shade800,
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.image_not_supported,
+          color: Colors.white54,
+          size: 24,
+        ),
+      ),
+    );
+  }
+  return CachedNetworkImage(
+    imageUrl: urlOrAsset,
+    height: height,
+    width: width,
+    fit: fit ?? BoxFit.cover,
+    filterQuality: FilterQuality.high,
+    placeholder: (_, __) =>
+        Center(child: placeholder ?? const RainbowGlowingLoader(size: 24)),
+    errorWidget: (_, __, ___) => Container(
+      color: Colors.grey.shade800,
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.image_not_supported,
+        color: Colors.white54,
+        size: 24,
+      ),
+    ),
+  );
 }

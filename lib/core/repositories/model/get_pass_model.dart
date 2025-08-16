@@ -5,7 +5,7 @@ class GetPassModel {
   final String name;
   final String passType;
   final double price;
-  final String vendorId;
+  final String? vendorId;
   final String vendorName;
   final String? expiryDate;
   final String? purchaseDate;
@@ -16,6 +16,8 @@ class GetPassModel {
   final String? validFrom;
   final String? validTo;
   final int? cafePassId;
+  final bool? isBought;
+  final List<VendorImages>? vendorImages;
 
   GetPassModel({
     required this.daysValid,
@@ -24,7 +26,7 @@ class GetPassModel {
     required this.name,
     required this.passType,
     required this.price,
-    required this.vendorId,
+    this.vendorId,
     required this.vendorName,
     this.expiryDate,
     this.purchaseDate,
@@ -35,6 +37,8 @@ class GetPassModel {
     this.validFrom,
     this.validTo,
     this.cafePassId,
+    this.isBought,
+    this.vendorImages,
   });
 
   factory GetPassModel.fromJson(Map<String, dynamic> json) {
@@ -46,7 +50,7 @@ class GetPassModel {
       name: (json['cafe_pass_name'] ?? json['name'] ?? 'Game Pass').toString(),
       passType: (json['pass_type'] ?? 'yearly').toString(),
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      vendorId: json['vendor_id'].toString(),
+      vendorId: json['vendor_id']?.toString(),
       vendorName: (json['vendor_name'] ?? 'Gaming Cafe').toString(),
       expiryDate:
           json['valid_to']?.toString() ?? json['expiry_date']?.toString(),
@@ -59,6 +63,12 @@ class GetPassModel {
       validFrom: json['valid_from']?.toString(),
       validTo: json['valid_to']?.toString(),
       cafePassId: json['cafe_pass_id'] as int?,
+      isBought: json['is_bought'] as bool?,
+      vendorImages: json['vendor_images'] != null
+          ? (json['vendor_images'] as List)
+              .map((e) => VendorImages.fromJson(e))
+              .toList()
+          : null,
     );
   }
 
@@ -203,5 +213,19 @@ class GetPassModel {
       }
     }
     return DateTime.now();
+  }
+}
+
+class VendorImages {
+  final int id;
+  final String url;
+
+  VendorImages({
+    required this.id,
+    required this.url,
+  });
+
+  factory VendorImages.fromJson(Map<String, dynamic> json) {
+    return VendorImages(id: json['id'], url: json['url']);
   }
 }

@@ -24,10 +24,10 @@ class RewardsSection extends StatelessWidget {
           child: _buildPill(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_loog_kze6kr.png", amount: "$hashCoin"),
         ),
         GestureDetector(
-          onTap: () => Get.to(WalletScreen()),
+          onTap: () => Get.to(WalletPage()),
           child: Obx(() {
-            final isLoading = walletController.isLoading.value;
-            final walletBalance = walletController.balance.value;
+            final isLoading = walletController.isLoading; 
+            final walletBalance = walletController.balance;
             return Stack(
               children: [
                 _buildPill(
@@ -39,9 +39,9 @@ class RewardsSection extends StatelessWidget {
                   right: 0,
                   child: CachedNetworkImage(
                     imageUrl:
-                        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075085/vector_gq1qzh.png',
-                    height: 10,
-                    width: 10,
+                        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755197537/Vector_g5eapj.png',
+                    height: 12,
+                    width: 12,
                     placeholder: (_, _) =>
                         const Center(child: RainbowGlowingLoader(size: 4)),
                     errorWidget: (_, _, _) =>

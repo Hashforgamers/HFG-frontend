@@ -5,12 +5,15 @@ import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
+import 'package:hash/core/repositories/model/transaction_history_model.dart';
 
 abstract class RemoteRepoInterface {
   Future<Map<String, dynamic>?> checkUserExistsInAPI(String fid);
   Future<void> saveUserToPreferences(Map<String, dynamic> userData);
   Future<Map<String, dynamic>?> getUserFromPreferences();
   Future<void> clearUserFromPreferences();
+  Future<void> saveJwtToPreferences(String jwt);
+  Future<String?> getJwtFromPreferences();
   Future<Map<String, dynamic>> signUp(Map<String, dynamic> userData);
 
   // Booking related methods
@@ -22,11 +25,10 @@ abstract class RemoteRepoInterface {
 
   Future<Map<String, dynamic>> createBooking({
     required int slotId,
-    required int userId,
     required int gameId,
   });
 
-  Future<List<Map<String, dynamic>>> fetchUserBookings(int userId);
+  Future<List<Map<String, dynamic>>> fetchUserBookings();
 
   // Vendor related methods
   Future<List<Map<String, dynamic>>> fetchCybercafes();
@@ -44,6 +46,7 @@ abstract class RemoteRepoInterface {
     required String paymentMode,
     bool isGamePass = false,
     List<ExtraServiceItem>? extraServices,
+    String? userPassId,
   });
 
   // Address related methods
@@ -70,13 +73,11 @@ abstract class RemoteRepoInterface {
   Future<Map<String, dynamic>> fetchProductById(String productId);
 
   // Wallet related methods
-  Future<Map<String, dynamic>> fetchWallet();
+  Future<Map<String, dynamic>> fetchWallet({required String userId});
   Future<Map<String, dynamic>> addFunds({
-    required double amount,
-    required String description,
-    required String name,
-    required String contact,
-    required String emailId,
+    required String userId,
+    required int amount,
+    required String paymentId,
   });
   Future<Map<String, dynamic>> validateFunds(String paymentLinkId);
   Future<void> saveReferralCodeToPreferences(String referralCode);
@@ -84,12 +85,9 @@ abstract class RemoteRepoInterface {
   Future<void> createVoucher({required String userId});
   Future<List<GetVoucherModel>> getVoucher({required String userId});
 
-  Future<int> getHashCoin({required String userId});
+  Future<int> getHashCoin();
 
-  Future<CreateVoucherResponse> createOffer({
-    required int discountPercentage,
-    required String userId,
-  });
+  Future<CreateVoucherResponse> createOffer({required int discountPercentage});
 
   Future<String> scanQrCode({
     required String consoleId,
@@ -117,5 +115,9 @@ abstract class RemoteRepoInterface {
   Future<String> purchasePass({
     required String userId,
     required PurchasePassModel passModel,
+  });
+
+  Future<List<TransactionHistoryModel>> getTransactionHistory({
+    required String userId,
   });
 }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -9,9 +10,11 @@ import 'package:hash/app/modules/arena/views/arena_view_detailed.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:location/location.dart' as loc;
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CafeSection extends StatefulWidget {
   CafeSection({super.key});
@@ -27,6 +30,52 @@ class CafeSection extends StatefulWidget {
 }
 
 class _CafeSectionState extends State<CafeSection> {
+  static const String _sheetUrl =
+"https://docs.google.com/forms/d/1WnnEsOkza8ois79Gvp9iGvPAemq1Oi3YPHFlohfKlxM/edit";
+
+  void _openSheetInBrowser() async {
+    final uri = Uri.parse(_sheetUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      Get.snackbar('Link', 'Could not open browser');
+    }
+  }
+
+
+  Future<void> _chooseOpenSheet() async {
+    final choice = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: const Color(0xFF111111),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.open_in_browser, color: Colors.white),
+              title: Text('Open in browser', style: GoogleFonts.inter(color: Colors.white)),
+              onTap: () => Navigator.pop(context, 1),
+            ),
+            ListTile(
+              leading: const Icon(Icons.web, color: Colors.white),
+              title: Text('Open inside app (WebView)', style: GoogleFonts.inter(color: Colors.white)),
+              onTap: () => Navigator.pop(context, 2),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (choice == 1) _openSheetInBrowser();
+  }
+  final loc.Location _loc = loc.Location();
+  double? _userLat, _userLng;
+  bool _hasLocationPermission = false;
+  static const _avgCitySpeedKmph = 25; // for ETA calc
+
   String selectedLabel = '';
   final List<String> labels = [
     'Location',
@@ -39,6 +88,7 @@ class _CafeSectionState extends State<CafeSection> {
   void initState() {
     super.initState();
     widget._cafeController.fetchCybercafes();
+    _initLocation();
 
     // Track cafe list viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -48,19 +98,187 @@ class _CafeSectionState extends State<CafeSection> {
       );
     });
   }
+  Future<void> _initLocation() async {
+    try {
+      bool service = await _loc.serviceEnabled();
+      if (!service) service = await _loc.requestService();
+      if (!service) return;
+
+      var perm = await _loc.hasPermission();
+      if (perm == loc.PermissionStatus.denied) {
+        perm = await _loc.requestPermission();
+      }
+      if (perm != loc.PermissionStatus.granted && perm != loc.PermissionStatus.grantedLimited) {
+        return;
+      }
+
+      final ld = await _loc.getLocation();
+      final lat = ld.latitude, lng = ld.longitude;
+      if (lat == null || lng == null) return;
+
+      if (!mounted) return;
+      setState(() {
+        _hasLocationPermission = true;
+        _userLat = lat;
+        _userLng = lng;
+      });
+    } catch (_) {/* ignore */}
+  }
+  double? _toDouble(dynamic v) => double.tryParse('$v');
+
+  double? _cafeLat(Map<String, dynamic> cafe) {
+    final addr = cafe['address'] ?? cafe['location'] ?? {};
+    return _toDouble(addr['latitude']);
+  }
+  double? _cafeLng(Map<String, dynamic> cafe) {
+    final addr = cafe['address'] ?? cafe['location'] ?? {};
+    return _toDouble(addr['longitude']);
+  }
+
+// Haversine distance in KM
+  double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
+    const R = 6371.0;
+    final dLat = _deg2rad(lat2 - lat1);
+    final dLon = _deg2rad(lon2 - lon1);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_deg2rad(lat1)) * math.cos(_deg2rad(lat2)) *
+            math.sin(dLon / 2) * math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return R * c;
+  }
+  double _deg2rad(double d) => d * math.pi / 180.0;
+
+// ── Opening hours / Open-Closed
+  String _formatTimeForDisplay(String timeStr) {
+    try {
+      // handle "09:00:00", "9:00", "9:00 AM"
+      final t = timeStr.trim();
+      if (t.toUpperCase().contains('AM') || t.toUpperCase().contains('PM')) {
+        final parts = t.split(RegExp(r'\s+'));
+        final time = parts.first;
+        final period = parts.last.toUpperCase();
+        final tp = time.split(':');
+        var h = int.parse(tp[0]);
+        final m = tp.length > 1 ? int.parse(tp[1]) : 0;
+        if (period == 'PM' && h != 12) h += 12;
+        if (period == 'AM' && h == 12) h = 0;
+        return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+      }
+      // remove seconds "HH:mm:ss" → "HH:mm"
+      final p = t.split(':');
+      if (p.length >= 2) return '${p[0]}:${p[1]}';
+      return t;
+    } catch (_) { return timeStr; }
+  }
+
+  int? _parseMinutesSinceMidnight(String timeStr) {
+    try {
+      final t = _formatTimeForDisplay(timeStr);
+      final parts = t.split(':');
+      final h = int.parse(parts[0]);
+      final m = int.parse(parts[1]);
+      return h * 60 + m;
+    } catch (_) { return null; }
+  }
+
+  bool _isCurrentlyOpen(Map<String, dynamic> cafe) {
+    final open = cafe['opening_time']?.toString() ?? '';
+    final close = cafe['closing_time']?.toString() ?? '';
+    if (open.isEmpty || close.isEmpty) return false;
+    final o = _parseMinutesSinceMidnight(open);
+    final c = _parseMinutesSinceMidnight(close);
+    if (o == null || c == null) return false;
+
+    final now = DateTime.now();
+    final cur = now.hour * 60 + now.minute;
+
+    if (c < o) {
+      // e.g. 23:00–02:00
+      return cur >= o || cur <= c;
+    }
+    return cur >= o && cur <= c;
+  }
+
+  bool _isShopOpen(Map<String, dynamic> cafe) {
+    final shopOpen = cafe['shop_open'];
+    if (shopOpen != null) {
+      if (shopOpen is bool) return shopOpen;
+      if (shopOpen is String) return shopOpen.toLowerCase() == 'true';
+      if (shopOpen is num) return shopOpen == 1;
+    }
+    final status = cafe['status']?.toString().toLowerCase();
+    if (status != null) {
+      if (status == 'active' || status == 'verified' || status == 'open' || status == 'operational') {
+        return true;
+      }
+      if (status == 'pending_verification') {
+        return _isCurrentlyOpen(cafe);
+      }
+    }
+    final isOpen = cafe['is_open'];
+    if (isOpen != null) {
+      if (isOpen is bool) return isOpen;
+      if (isOpen is String) return isOpen.toLowerCase() == 'true';
+      if (isOpen is num) return isOpen == 1;
+    }
+    return _isCurrentlyOpen(cafe);
+  }
+
+  String _openCloseLabel(Map<String, dynamic> cafe) {
+    final openNow = _isShopOpen(cafe);
+    final opening = cafe['opening_time']?.toString() ?? '';
+    final closing = cafe['closing_time']?.toString() ?? '';
+    final hasHours = opening.isNotEmpty && closing.isNotEmpty;
+    final openDisp = hasHours ? _formatTimeForDisplay(opening) : '';
+    final closeDisp = hasHours ? _formatTimeForDisplay(closing) : '';
+
+    if (openNow) {
+      return hasHours ? closeDisp : 'Open';
+    } else {
+      return hasHours ? openDisp : 'Closed';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          'BROWSE CAFES',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
+        Row(                  crossAxisAlignment: CrossAxisAlignment.center,
+
+          children: [
+            Text(
+              'BROWSE CAFES',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            const Spacer(),
+            InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: _chooseOpenSheet,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'List Your Cafe',
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color:  Colors.green,
+                      ),
+                    ),
+                    Icon(Icons.arrow_right_outlined,)
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 5),
         // Row(
@@ -124,18 +342,53 @@ class _CafeSectionState extends State<CafeSection> {
               separatorBuilder: (_, __) => const SizedBox(width: 20),
               itemBuilder: (context, index) {
                 final cafe = widget._cafeController.cybercafes[index];
-                final imageUrl = cafe['images'].length == 0
-                    ? 'https://next-level.gg/assets/cafes/11.jpg'
-                    : cafe['images'][0]['url'] ??
-                          'https://next-level.gg/assets/cafes/11.jpg';
-                final isOpen = cafe['status'] == 'active';
-                return GestureDetector(
+                final images = cafe['images'];
+                String imageUrl = 'https://next-level.gg/assets/cafes/11.jpg'; // Fallback image
+                
+                if (images != null) {
+                  if (images is List && images.isNotEmpty) {
+                    // If images is a list, get the first image URL
+                    final firstImage = images[0];
+                    if (firstImage is Map && firstImage['url'] != null && firstImage['url'].toString().isNotEmpty) {
+                      imageUrl = firstImage['url'];
+                    }
+                  } else if (images is String && images.isNotEmpty) {
+                    // If images is a string (URL), use it directly
+                    imageUrl = images;
+                  }
+                }
+                
+                // Additional fallback check - if the URL is empty or invalid, use default
+                if (imageUrl.isEmpty || imageUrl == 'null' || imageUrl == 'undefined') {
+                  imageUrl = 'https://next-level.gg/assets/cafes/11.jpg';
+                }
+                final isOpen = _isShopOpen(cafe);
+                final openLabel = _openCloseLabel(cafe);
+
+// Distance + ETA
+                double? km;
+                int? etaMin;
+                final clat = _cafeLat(cafe);
+                final clng = _cafeLng(cafe);
+                if (_userLat != null && _userLng != null && clat != null && clng != null) {
+                  km = _haversineKm(_userLat!, _userLng!, clat, clng);
+                  etaMin = (_avgCitySpeedKmph > 0) ? (km / _avgCitySpeedKmph * 60).round() : null;
+                }                return GestureDetector(
                   onTap: () {
                     // Track gaming cafe viewed event
                     final cafeId = cafe['vendor_id']?.toString() ?? '';
                     final location = cafe['location']?['address'] ?? 'Unknown';
-                    final availableGames =
-                        cafe['games']?.cast<String>() ?? ['Unknown'];
+                    
+                    // Handle availableGames field safely
+                    List<String> availableGames = ['Unknown'];
+                    final games = cafe['games'];
+                    if (games != null) {
+                      if (games is List) {
+                        availableGames = games.map((game) => game.toString()).toList();
+                      } else if (games is String) {
+                        availableGames = [games];
+                      }
+                    }
 
                     widget.segmentService.onGamingCafeViewed(
                       cafeId: cafeId,
@@ -148,15 +401,31 @@ class _CafeSectionState extends State<CafeSection> {
                       availableGames: availableGames,
                     );
 
+                    // Prepare images list for ArenaDetailView
+                    List<dynamic> imagesList = [];
+                    if (images != null) {
+                      if (images is List && images.isNotEmpty) {
+                        imagesList = images;
+                      } else if (images is String && images.isNotEmpty) {
+                        // If images is a string, create a list with one item
+                        imagesList = [{'url': images}];
+                      }
+                    }
+                    
+                    // Ensure we always have at least one fallback image
+                    if (imagesList.isEmpty) {
+                      imagesList = [{'url': 'https://next-level.gg/assets/cafes/11.jpg'}];
+                    }
+                    
                     Get.to(
                       () => ArenaDetailView(
-                        images: imageUrl,
+                        images: imagesList,
                         title: cafe['cafe_name'] ?? 'Unknown Cafe',
                         address:
                             cafe['location']?['address'] ??
                             'Address not available',
                         openingHours: '9 AM - 12 AM',
-                        availableGames: const ['Game 1', 'Game 2'],
+                        availableGames: availableGames,
                         amenities: const ['Amenity 1', 'Amenity 2'],
                         phone:
                             cafe['phone'] ??
@@ -185,16 +454,33 @@ class _CafeSectionState extends State<CafeSection> {
                             fit: BoxFit.cover,
                             width: MediaQuery.of(context).size.width - 30,
                             height: 250,
-                            placeholder: (_, _) => const Center(
-                              child: RainbowGlowingLoader(size: 40),
+                            placeholder: (_, _) => Container(
+                              color: const Color(0xff1a1a1a),
+                              child: const Center(
+                                child: RainbowGlowingLoader(size: 40),
+                              ),
                             ),
                             errorWidget: (_, _, _) => Container(
-                              color: Colors.grey,
+                              color: const Color(0xff1a1a1a),
                               alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.image_not_supported,
-                                color: Colors.white54,
-                                size: 40,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.storefront,
+                                    color: Colors.white54,
+                                    size: 60,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Cafe Image',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white54,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -270,20 +556,10 @@ class _CafeSectionState extends State<CafeSection> {
                                     const SizedBox(height: 4),
                                     Row(
                                       children: [
-                                        const SizedBox(width: 12),
-                                        Row(
-                                          children: List.generate(
-                                            4,
-                                            (index) => const Icon(
-                                              Icons.star,
-                                              color: Color(0xFFE6D009),
-                                              size: 13,
-                                            ),
-                                          ),
-                                        ),
+
                                         const SizedBox(width: 8),
                                         Text(
-                                          '2.3 km',
+                                          km == null ? '-- km' : '${km.toStringAsFixed(1)} km${etaMin != null ? ' • ~${etaMin} min' : ''}',
                                           style: GoogleFonts.inter(
                                             color: Colors.white70,
                                             fontSize: 12,

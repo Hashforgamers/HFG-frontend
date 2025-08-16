@@ -62,26 +62,26 @@ class ApiEndpoints {
   static String get productById => '$userOnboardBaseUrl/api/users/product';
 
   // Wallet related endpoints (userOnboard)
-  static String get wallet => '$userOnboardBaseUrl/api/users/wallet';
-  static String get addFunds =>
-      '$userOnboardBaseUrl/api/users/wallet/add-funds';
+  static String wallet() => '$userOnboardBaseUrl/api/users/wallet';
+  static String addFunds(String userId) =>
+      '$userOnboardBaseUrl/api/users/$userId/wallet/add-funds';
   static String get validateFunds =>
       '$userOnboardBaseUrl/api/users/wallet/validate-funds';
 
   // Creating voucher (userOnboard)
   static String get createVoucher =>
-      '$userOnboardBaseUrl/api/users/{userId}/create-voucher';
+      '$userOnboardBaseUrl/api/users/create-voucher';
 
-  static String registerFCMToken(String userId) =>
-      '$userOnboardBaseUrl/api/users/$userId/register-fcm-token';
+  static String get registerFCMToken =>
+      '$userOnboardBaseUrl/api/users/register-fcm-token';
 
   // Get Voucher (userOnboard)
   static String get getVoucher =>
-      '$userOnboardBaseUrl/api/users/{userId}/voucher';
+      '$userOnboardBaseUrl/api/users/voucher';
 
   // Get HashCoin For a User By User ID (userOnboard)
   static String get getHashCoin =>
-      '$userOnboardBaseUrl/api/users/{userId}/hash-coins';
+      '$userOnboardBaseUrl/api/users/hash-coins';
 
   // Wallet core endpoints (dynamic by userId)
   static String walletByUserId(String userId) =>
@@ -96,19 +96,19 @@ class ApiEndpoints {
   static String get releaseBooking => '$bookingBaseUrl/api/release_slot';
 
   // HFG Game Pass
-  static String gamePass(String userId) =>
-      '$userOnboardBaseUrl/api/user/$userId/available_passes';
+  static String get gamePass =>
+      '$userOnboardBaseUrl/api/user/available_passes';
   // Get PAss Details
   static String getGamePassDetails(String cafeId) =>
       '$userOnboardBaseUrl/api/passes/$cafeId';
 
   // Purchase Pass Endpoint
-  static String purchasePass(String userId) =>
-      '$userOnboardBaseUrl/api/user/$userId/purchase_pass';
+  static String get purchasePass=>
+      '$userOnboardBaseUrl/api/user/purchase_pass';
 
   // Get Active passes for the user
-  static String getActivePasses(String userId) =>
-      '$userOnboardBaseUrl/api/user/$userId/passes';
+  static String get getActivePasses =>
+      '$userOnboardBaseUrl/api/user/passes';
 
   // Get Food Categories
   static String getFoodCategories(String vendorId) =>
@@ -121,4 +121,8 @@ class ApiEndpoints {
   // Get Extra Service
   static String getExtraService(String vendorId) =>
       '$userOnboardBaseUrl/api/vendor/$vendorId/extraService';
+  
+  // Get Transaction History
+  static String get getTransactionHistory =>
+      '$userOnboardBaseUrl/api/users/transactions';
 }

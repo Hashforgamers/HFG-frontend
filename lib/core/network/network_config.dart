@@ -3,6 +3,7 @@ import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/interceptors/auth_interceptor.dart';
 import 'package:hash/core/network/interceptors/retry_interceptor.dart';
 import 'package:hash/core/repositories/local/auth_data_repo.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
@@ -90,7 +91,6 @@ class NetworkConfig {
 
 class NetworkProvider {
   late final Dio _dio;
-  final _authDataRepo = locator<AuthDataRepository>();
 
   NetworkProvider() {
     var options = BaseOptions(
@@ -119,10 +119,12 @@ class NetworkProvider {
 
   Future<Dio> auth() async {
     try {
-      final token = await _authDataRepo.getAccessToken();
-      if (token == null) {
+      final remoteRepo = locator<RemoteRepoInterface>();
+      final jwt = await remoteRepo.getJwtFromPreferences();
+      if (jwt == null) {
         throw Exception('No auth token available');
       }
+      final token = jwt;
 
       _dio.options.headers = {
         'Content-Type': 'application/json',

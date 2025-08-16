@@ -8,6 +8,7 @@ import '../modules/login/views/login_view.dart';
 import '../modules/signup/views/signup_view.dart';
 import '../modules/splash/bindings/splash_binding.dart';
 import '../modules/splash/views/splash_view.dart';
+import '../modules/wallet/views/wallet_view.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -39,5 +40,9 @@ class AppPages {
       page: () => SignUpView(
 
       ),),
+    GetPage(
+      name: AppRoutes.WALLET,
+      page: () => const WalletPage(),
+    ),
   ];
 }

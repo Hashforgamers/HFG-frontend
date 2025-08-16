@@ -235,8 +235,11 @@ class _ReferralViewWithControllerState
                 );
 
                 Share.share(
-                  'Join HashforGamers with my code 👉 $code (unlimited rewards!)',
+                  '🎮 Join me on *HashforGamers*! Get access to top gaming cafes, exclusive tournaments, and earn rewards.\n\n'
+                      'Use my referral code 👉 $code to sign up and unlock **unlimited rewards**!\n\n'
+                      '📲 Download now: https://play.google.com/store/apps/details?id=com.hfg.hash',
                 );
+
               },
             ),
           ),
@@ -611,7 +614,7 @@ class _ReferralViewWithControllerState
         backgroundColor: Colors.black,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Get.back(),
         ),
         title: RichText(
           text: TextSpan(

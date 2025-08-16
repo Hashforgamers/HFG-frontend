@@ -63,6 +63,7 @@ class ViewDetailScreen extends StatelessWidget {
         'Unknown Cafe';
     final accessCode = booking['access_code'];
     final bookDate = booking['book_date'];
+    final extraServices = booking['extra_services'] ?? [];
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -214,11 +215,58 @@ class ViewDetailScreen extends StatelessWidget {
                             fontSize: 13,
                             color: Colors.white54)), // Reduced from 15
                     const SizedBox(height: 4),
-                    Text(
-                      additionalServices,
-                      style: GoogleFonts.inter(
-                          fontSize: 13, color: Colors.white), // Reduced from 15
-                    ),
+                    if (extraServices.isEmpty)
+                      Text(
+                        'No additional services',
+                        style: GoogleFonts.inter(
+                            fontSize: 13, color: Colors.white), // Reduced from 15
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: extraServices.map<Widget>((service) {
+                          final name = service['name'] ?? 'Unknown Service';
+                          final quantity = service['quantity'] ?? 0;
+                          final price = service['price'] ?? 0.0;
+                          final totalPrice = service['total_price'] ?? 0.0;
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        name,
+                                        style: GoogleFonts.inter(
+                                            fontSize: 13, 
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w500),
+                                      ),
+                                      Text(
+                                        'Qty: $quantity × ₹${price.toStringAsFixed(0)}',
+                                        style: GoogleFonts.inter(
+                                            fontSize: 11, 
+                                            color: Colors.white60),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '₹${totalPrice.toStringAsFixed(0)}',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 13, 
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
                   ],
                 ),
               ),

@@ -43,11 +43,11 @@ class RewardsSection extends StatelessWidget {
         ),
         GestureDetector(
           onTap: () {
-            Get.to(WalletScreen());
+            Get.to(WalletPage());
           },
           child: Obx(() {
-            final walletBalance = walletController.balance.value;
-            final isLoading = walletController.isLoading.value;
+            final walletBalance = walletController.balance;
+            final isLoading = walletController.isLoading;
 
             return _buildRewardItem(
               CupertinoIcons.circle_bottomthird_split,

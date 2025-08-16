@@ -140,7 +140,13 @@ class GlobalBottomSheetService {
                                     color: Colors.green.withOpacity(0.1),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.hexagon, color: Colors.green, size: 28),
+                                  child: Stack(alignment: Alignment.center,
+                                    children: [
+                                      const Icon(Icons.hexagon, color: Colors.green, size: 28),
+                                      Text('H',style: TextStyle( color: Colors.black),),
+
+                                    ],
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Column(

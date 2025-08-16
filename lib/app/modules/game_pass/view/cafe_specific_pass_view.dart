@@ -8,7 +8,6 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
-import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/app/data/services/user_controller.dart';
@@ -20,7 +19,11 @@ import 'package:hash/utils/widgets/glow_neon_loader.dart';
 class CafeSpecificPassView extends StatefulWidget {
   final TabController tabController;
   final String type; // 'vendor'
-  const CafeSpecificPassView({super.key, required this.tabController, required this.type});
+  const CafeSpecificPassView({
+    super.key,
+    required this.tabController,
+    required this.type,
+  });
 
   @override
   State<CafeSpecificPassView> createState() => _CafeSpecificPassViewState();
@@ -29,10 +32,9 @@ class CafeSpecificPassView extends StatefulWidget {
 class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
   final RazorpayController _razorpayController = Get.put(RazorpayController());
   final UserController _userController = Get.find<UserController>();
-  final _remoteRepo = locator<RemoteRepoInterface>();
   final _segmentService = locator<SegmentSdkService>();
   final _fbEventsService = locator<FbEventsService>();
-  
+
   final RxMap<String, bool> _processingPasses = <String, bool>{}.obs;
   final RxString _paymentStatus = ''.obs;
 
@@ -50,8 +52,8 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
         if (status.toLowerCase().contains('successful')) {
           _clearAllProcessingStates();
           // Success message is already handled by RazorpayController
-        } else if (status.toLowerCase().contains('failed') || 
-                   status.toLowerCase().contains('error')) {
+        } else if (status.toLowerCase().contains('failed') ||
+            status.toLowerCase().contains('error')) {
           _clearAllProcessingStates();
           // Error message is already handled by RazorpayController
         }
@@ -70,30 +72,15 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
     _processingPasses.clear();
   }
 
-
-
   Future<void> _purchaseCafePass(GetPassModel pass) async {
     final passId = pass.id;
     if (_processingPasses[passId] == true) return;
 
     try {
       _processingPasses[passId] = true;
-      _paymentStatus.value = 'Creating payment order...';
-
-      // Get user data
-      final userData = await _remoteRepo.getUserFromPreferences();
-      if (userData == null) {
-        throw Exception('User not found. Please login again.');
-      }
-
-      final userId = userData['id']?.toString() ?? '';
-      if (userId.isEmpty) {
-        throw Exception('User ID not found. Please login again.');
-      }
-
+      _paymentStatus.value = 'Creating payment order...';    
       // Create Razorpay order
       final orderId = await _createRazorpayOrder(pass.price);
-      
       // Track purchase initiated event
       _segmentService.onPaymentInitiated(
         bookingId: 'cafe_pass_${pass.id}',
@@ -112,8 +99,12 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
         name: _userController.user.value.name ?? 'User',
         description: 'Cafe Pass: ${pass.name} - ${pass.vendorName}',
         amount: pass.price,
-        contact: _userController.user.value.contact?.electronicAddress?.mobileNo ?? '',
-        email: _userController.user.value.contact?.electronicAddress?.emailId ?? '',
+        contact:
+            _userController.user.value.contact?.electronicAddress?.mobileNo ??
+            '',
+        email:
+            _userController.user.value.contact?.electronicAddress?.emailId ??
+            '',
         paymentType: PaymentType.passPurchase,
       );
 
@@ -121,7 +112,6 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
       _razorpayController.bookingIdList.value = [int.parse(pass.id)];
       // Clear slot IDs for pass purchases since passes don't have slots
       _razorpayController.slotIdsList.clear();
-
     } catch (e) {
       _processingPasses[passId] = false;
       Get.snackbar(
@@ -137,7 +127,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
   Future<String> _createRazorpayOrder(double amount) async {
     final amountInPaisa = (amount * 100).toInt();
     final receiptId = "pass_rcpt_${DateTime.now().millisecondsSinceEpoch}";
-    
+
     final url = '${FlavorConfig.getBaseUrl('booking')}/api/create_order';
     final payload = {
       "amount": amountInPaisa,
@@ -163,6 +153,10 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
   Widget build(BuildContext context) {
     return BlocBuilder<GamePassCubit, GamePassState>(
       builder: (context, state) {
+        // Handle initial state - show loading to prevent flash of old data
+        if (state is GamePassInitial) {
+          return const Center(child: CircularProgressIndicator());
+        }
         if (state is GamePassLoading) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -177,12 +171,10 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
             scrollDirection: Axis.vertical,
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
-            itemCount: passes.length + 2,
+            itemCount: passes.length,
             separatorBuilder: (_, __) => const SizedBox(height: 20),
             itemBuilder: (context, index) {
-              if (index == 0) return _buildLabel();
-              if (index == 1) return const SizedBox(height: 30);
-              final GetPassModel pass = passes[index - 2];
+              final GetPassModel pass = passes[index];
               return _buildCafePassCard(context, pass);
             },
           );
@@ -192,14 +184,13 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
     );
   }
 
-  Widget _buildCafePassCard(
-    BuildContext context,
-    GetPassModel pass,
-  ) {
+  Widget _buildCafePassCard(BuildContext context, GetPassModel pass) {
     return GestureDetector(
-      onTap: () {
-        _purchaseCafePass(pass);
-      },
+      onTap: pass.isBought == true
+          ? null
+          : () {
+              _purchaseCafePass(pass);
+            },
       child: Container(
         height: 200,
         width: MediaQuery.of(context).size.width,
@@ -209,7 +200,10 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
             ClipRRect(
               borderRadius: BorderRadius.circular(25),
               child: CachedNetworkImage(
-                imageUrl: pass.imageUrl ?? '',
+                imageUrl:
+                    (pass.vendorImages?.isNotEmpty == true) 
+                        ? pass.vendorImages!.first.url 
+                        : 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075171/cafepass3_on04c0.png',
                 height: 200,
                 width: MediaQuery.of(context).size.width,
                 fit: BoxFit.cover,
@@ -295,49 +289,78 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                                 const Icon(Icons.arrow_forward, size: 13),
                               ],
                             ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const SizedBox(width: 12),
+                                Text(
+                                  '₹${pass.price.toStringAsFixed(0)}',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                         const Spacer(),
-                        Obx(() => GestureDetector(
-                          onTap: _processingPasses[pass.id] == true 
-                              ? null 
-                              : () => _purchaseCafePass(pass),
-                          child: Container(
-                            height: 36,
-                            width: 100,
-                            decoration: BoxDecoration(
-                              color: _processingPasses[pass.id] == true 
-                                  ? Colors.grey.withOpacity(0.3)
-                                  : Colors.transparent,
-                              border: Border.all(
-                                color: _processingPasses[pass.id] == true 
-                                    ? Colors.grey 
-                                    : const Color(0xFFDADADA),
-                                width: 1.5,
+                        Obx(
+                          () => GestureDetector(
+                            onTap:
+                                (pass.isBought == true ||
+                                    _processingPasses[pass.id] == true)
+                                ? null
+                                : () => _purchaseCafePass(pass),
+                            child: Container(
+                              height: 36,
+                              width: 100,
+                              decoration: BoxDecoration(
+                                color:
+                                    (pass.isBought == true ||
+                                        _processingPasses[pass.id] == true)
+                                    ? Colors.grey.withOpacity(0.3)
+                                    : Colors.transparent,
+                                border: Border.all(
+                                  color:
+                                      (pass.isBought == true ||
+                                          _processingPasses[pass.id] == true)
+                                      ? Colors.grey
+                                      : const Color(0xFFDADADA),
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(25),
                               ),
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            child: Center(
-                              child: _processingPasses[pass.id] == true
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              child: Center(
+                                child: _processingPasses[pass.id] == true
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                        ),
+                                      )
+                                    : Text(
+                                        pass.isBought == true
+                                            ? 'Already Bought'
+                                            : 'Buy Pass',
+                                        style: GoogleFonts.inter(
+                                          color: pass.isBought == true
+                                              ? Colors.white
+                                              : const Color(0xFFDADADA),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    )
-                                  : Text(
-                                      'Buy Pass',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFDADADA),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                              ),
                             ),
                           ),
-                        )),
+                        ),
                       ],
                     ),
                   ),
@@ -347,35 +370,6 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildLabel() {
-    return Column(
-      children: [
-        CachedNetworkImage(
-          imageUrl:
-              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/cafePassIcon_qps6te.png',
-          height: 70,
-          width: 70,
-          placeholder: (_, _) =>
-              const Center(child: RainbowGlowingLoader(size: 40)),
-          errorWidget: (_, _, _) => Container(
-            color: Colors.grey,
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.image_not_supported,
-              color: Colors.white54,
-              size: 40,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'All Participating Cafes',
-          style: GoogleFonts.inter(color: Colors.white54, fontSize: 16),
-        ),
-      ],
     );
   }
 
@@ -391,7 +385,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
               context.read<GamePassCubit>().getGamePass(type: widget.type);
             },
             child: const Text('Retry'),
-          )
+          ),
         ],
       ),
     );
