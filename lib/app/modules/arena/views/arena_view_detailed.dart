@@ -1,6 +1,7 @@
 // Enhanced ArenaDetailView with full dark theme and polished UI
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -23,7 +24,7 @@ class ArenaDetailView extends StatefulWidget {
   final String phone;
   final String email;
   final String ownerName;
-  final List<dynamic> images; 
+  final List<dynamic> images;
   final int vendorId;
   final List<dynamic> reviews;
 
@@ -65,7 +66,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> imageUrls = widget.images.map((image) => image['url']?.toString() ?? '').toList().cast<String>();
+    final List<String> imageUrls = widget.images
+        .map((image) => image['url']?.toString() ?? '')
+        .toList()
+        .cast<String>();
     int currentPage = 0;
     final PageController pageController = PageController();
 
@@ -581,8 +585,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                           onYes(); // Callback for "Yes"
                         },
                         child: Container(
-                          height: 30,
-                          width: 100,
+                          height: 40,
+                          width: 120,
                           decoration: BoxDecoration(
                             border: Border.all(
                               color: Color(0xFF6DFB60),
@@ -608,8 +612,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                           false,
                         ), // Return false for "No"
                         child: Container(
-                          height: 30,
-                          width: 100,
+                          height: 40,
+                          width: 120,
                           decoration: BoxDecoration(
                             border: Border.all(
                               color: Colors.white24,
@@ -946,13 +950,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   Widget _consoleIcon(String path, String label) {
     return Padding(
-      padding: const EdgeInsets.only(right: 24.0),
+      padding: EdgeInsets.only(right: 20.w),
       child: Column(
         children: [
           CachedNetworkImage(
             imageUrl: path,
-            height: 48,
-            width: 48,
+            height: 48.h,
+            width: 48.w,
             placeholder: (_, _) =>
                 const Center(child: RainbowGlowingLoader(size: 20)),
             errorWidget: (_, _, _) =>

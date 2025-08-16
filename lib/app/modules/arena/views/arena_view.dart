@@ -686,7 +686,13 @@ class _ArenaViewState extends State<ArenaView> {
                                         : cafe['images'][0]['url'];
                                     final pos = _latLngFromCafe(cafe);
                                     final id = '${cafe['id'] ?? cafe.hashCode}';
-                                    return _buildCafeCard(id, pos, img, cafe, cafe['images'] as List<dynamic>);
+                                    return _buildCafeCard(
+                                      id,
+                                      pos,
+                                      img,
+                                      cafe,
+                                      cafe['images'] as List<dynamic>,
+                                    );
                                   },
                                 ),
                         ),
@@ -742,20 +748,23 @@ class _ArenaViewState extends State<ArenaView> {
         clipBehavior: Clip.hardEdge,
         child: Stack(
           children: [
-            CachedNetworkImage(
-              imageUrl: img,
-              width: 330.w,
-              height: 150.h,
-              fit: BoxFit.cover,
-              placeholder: (_, _) =>
-                  Center(child: RainbowGlowingLoader(size: 40)),
-              errorWidget: (_, _, _) => Container(
-                color: Colors.grey,
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.image_not_supported,
-                  color: Colors.white54,
-                  size: 40,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(25),
+              child: CachedNetworkImage(
+                imageUrl: img,
+                width: 330.w,
+                height: 200.h,
+                fit: BoxFit.cover,
+                placeholder: (_, _) =>
+                    Center(child: RainbowGlowingLoader(size: 40)),
+                errorWidget: (_, _, _) => Container(
+                  color: Colors.grey,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.image_not_supported,
+                    color: Colors.white54,
+                    size: 40,
+                  ),
                 ),
               ),
             ),
@@ -764,7 +773,6 @@ class _ArenaViewState extends State<ArenaView> {
               left: 0,
               right: 0,
               bottom: 0,
-              top: 80,
               child: ClipRRect(
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(25),
@@ -773,6 +781,7 @@ class _ArenaViewState extends State<ArenaView> {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.1),
                       // gradient: LinearGradient(
@@ -791,16 +800,15 @@ class _ArenaViewState extends State<ArenaView> {
                       // ),
                       borderRadius: BorderRadius.circular(25),
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 10,
-                      horizontal: 16,
-                    ),
+
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           cafe['cafe_name'] ?? 'Unknown',
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontSize: 16.sp,
