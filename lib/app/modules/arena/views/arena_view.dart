@@ -733,13 +733,7 @@ class _ArenaViewState extends State<ArenaView> {
                                             ),
                                           )
                                         else
-                                          Text(
-                                            'No cybercafes available',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 14,
-                                              color: Colors.white70,
-                                            ),
-                                          ),
+                                          CircularProgressIndicator(),
                                         const SizedBox(height: 8),
                                         if (_userState != null)
                                           GestureDetector(

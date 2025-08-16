@@ -56,15 +56,15 @@ class UserProfileView extends StatelessWidget {
             //     // Handle settings
             //   },
             // ),
-            _buildProfileOption(
-              icon: CupertinoIcons.money_dollar_circle,
-              title: 'Wallet',
-              onTap: () {
-                // Handle wallet
-                // Get.to(WalletDetailView());
-                Get.to(const HashCoinPage());
-              },
-            ),
+            // _buildProfileOption(
+            //   icon: CupertinoIcons.money_dollar_circle,
+            //   title: 'Wallet',
+            //   onTap: () {
+            //     // Handle wallet
+            //     // Get.to(WalletDetailView());
+            //     Get.to(const HashCoinPage());
+            //   },
+            // ),
             _buildProfileOption(
               icon: CupertinoIcons.person_2,
               title: 'Refer & Earn',
@@ -79,13 +79,13 @@ class UserProfileView extends StatelessWidget {
             //     // Handle wishlist
             //   },
             // ),
-            _buildProfileOption(
-              icon: Icons.change_circle_outlined,
-              title: 'Change Address',
-              onTap: () {
-                // Handle change password
-              },
-            ),
+            // _buildProfileOption(
+            //   icon: Icons.change_circle_outlined,
+            //   title: 'Change Address',
+            //   onTap: () {
+            //     // Handle change password
+            //   },
+            // ),
             // _buildProfileOption(
             //   icon: CupertinoIcons.info,
             //   title: 'About',
@@ -115,7 +115,7 @@ class UserProfileView extends StatelessWidget {
           const CircleAvatar(
             radius: 50,
             backgroundImage: CachedNetworkImageProvider(
-              'https://t4.ftcdn.net/jpg/03/20/70/67/360_F_320706748_9EHt2oP8NgekFXsM3INJtN7HhdRHOTJN.jpg', // Replace with actual profile image URL
+              'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png', // Replace with actual profile image URL
             ),
           ),
           const SizedBox(height: 20),
