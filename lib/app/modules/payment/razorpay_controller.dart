@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -26,7 +27,8 @@ class RazorpayController extends GetxController {
 
   RxList<int> bookingIdList = <int>[].obs;
   RxList<int> slotIdsList = <int>[].obs; // Add this line to store slot IDs
-  RxList<Map<String, dynamic>> cartItemsList = <Map<String, dynamic>>[].obs; // Add this line to store cart items
+  RxList<Map<String, dynamic>> cartItemsList =
+      <Map<String, dynamic>>[].obs; // Add this line to store cart items
   RxBool isPaymentInProgress = false.obs;
   RxString paymentStatus = ''.obs;
   PaymentType? _currentPaymentType;
@@ -116,6 +118,14 @@ class RazorpayController extends GetxController {
       bookingId: bookingIdList.first.toString(),
       paymentGateway: 'razorpay',
     );
+
+    // capture payment
+    final capturePaymentModel = CapturePaymentModel(
+      razorpayPaymentId: r.paymentId,
+      razorpayOrderId: r.orderId,
+      razorpaySignature: r.signature,
+    );
+    await _remoteRepo.capturePayment(capturePaymentModel: capturePaymentModel);
 
     // Handle different payment types
     if (_currentPaymentType == PaymentType.slotBooking) {

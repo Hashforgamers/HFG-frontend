@@ -1,5 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/config/flavor_config.dart';
+import 'package:hash/core/repositories/model/capture_payment_model.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:http/http.dart' as http;
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/service/segment_sdk_service.dart';
@@ -13,6 +19,7 @@ class RazorpayWalletController extends GetxController {
   int? _tempAmount;
   final segmentService = locator<SegmentSdkService>();
   final userController = Get.find<UserController>();
+  final remoteRepo = locator<RemoteRepoInterface>();
 
   @override
   void onInit() {
@@ -27,16 +34,18 @@ class RazorpayWalletController extends GetxController {
   }
 
   /// Opens the Razorpay checkout with provided amount
-  void openCheckout(int amountRupees) {
+  void openCheckout(int amountRupees, String orderId) {
     if (isPaying.value) return;
 
     final amountPaise = amountRupees * 100;
-    
+
     // Get dynamic user data
     final userName = userController.user.value.name ?? 'User';
-    final userEmail = userController.user.value.contact?.electronicAddress?.emailId ?? '';
-    final userPhone = userController.user.value.contact?.electronicAddress?.mobileNo ?? '';
-    
+    final userEmail =
+        userController.user.value.contact?.electronicAddress?.emailId ?? '';
+    final userPhone =
+        userController.user.value.contact?.electronicAddress?.mobileNo ?? '';
+
     final options = {
       'key': ApiEndpoints.razorpayKeyWallet,
       'amount': amountPaise,
@@ -47,6 +56,7 @@ class RazorpayWalletController extends GetxController {
         'email': userEmail.isNotEmpty ? userEmail : null,
       },
       'theme': {'color': '#1E88E5'},
+      'order_id': orderId,
     };
 
     try {
@@ -59,13 +69,30 @@ class RazorpayWalletController extends GetxController {
   }
 
   /// Safe method to start payment with stored amount
-  void pay(int amount) {
+  void pay(int amount) async {
     _tempAmount = amount;
-
     // Track add money initiated event
     segmentService.onAddMoneyInitiated(amountEntered: amount.toDouble());
+    String receiptId = "wallet_rcpt_${DateTime.now().millisecondsSinceEpoch}";
+    final url = '${FlavorConfig.getBaseUrl('booking')}/api/create_order';
+    final payload = {
+      "amount": amount * 100,
+      "currency": "INR",
+      "receipt": receiptId,
+    };
 
-    openCheckout(amount);
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      openCheckout(amount, data['id']);
+    } else {
+      Get.snackbar("Error", "Failed to create payment order");
+    }
   }
 
   /// Called when payment is successful
@@ -77,7 +104,12 @@ class RazorpayWalletController extends GetxController {
       amountAdded: _tempAmount?.toDouble() ?? 0.0,
       txnId: paymentId,
     );
-
+    final capturePaymentModel = CapturePaymentModel(
+      razorpayPaymentId: paymentId,
+      razorpayOrderId: response.orderId,
+      razorpaySignature: response.signature,
+    );
+    remoteRepo.capturePayment(capturePaymentModel: capturePaymentModel);
     final success = await Get.find<WalletController>().confirmTopUp(
       amount: (_tempAmount ?? 0).toDouble(),
       paymentId: paymentId,

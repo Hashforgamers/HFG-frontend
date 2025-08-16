@@ -17,6 +17,8 @@ class ApiEndpoints {
   static String get vendorGames => '$bookingBaseUrl/api/games/vendor';
   static String get createOffer => '$bookingBaseUrl/api/redeem-voucher';
 
+  static String get capturePayment => '$bookingBaseUrl/api/capture_payment';
+
   // Vendor Service
   static String get vendorBaseUrl => FlavorConfig.getBaseUrl('vendor');
   static String get getAllVendorsList =>
