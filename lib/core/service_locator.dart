@@ -36,4 +36,7 @@ Future<void> setupServiceLocator() async {
   
   // Register Global Bottom Sheet Service
   locator.registerSingleton<GlobalBottomSheetService>(GlobalBottomSheetService());
+  locator.registerLazySingleton<RemoteRepoInterface>(
+        () => RemoteRepo(networkProvider: locator<NetworkProvider>()),
+  );
 }

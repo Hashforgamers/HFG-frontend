@@ -28,6 +28,7 @@ abstract class RemoteRepoInterface {
     required int slotId,
     required int gameId,
   });
+  Future<Map<String, dynamic>> deleteUser();
 
   Future<List<Map<String, dynamic>>> fetchUserBookings();
 

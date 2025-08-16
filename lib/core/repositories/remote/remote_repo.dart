@@ -184,6 +184,46 @@ class RemoteRepo implements RemoteRepoInterface {
     }
   }
 
+  Future<Map<String, dynamic>> deleteUser() async {
+    final dio = await networkProvider.auth(); // must attach Authorization header (Bearer <jwt>)
+    try {
+      // If your API expects /api/users/{id}, switch endpoint to: '${ApiEndpoints.baseUrl}/$userId'
+      final response = await dio.delete(
+        ApiEndpoints.baseUrl, // DELETE /api/users  -> delete current authenticated user
+        options: Options(
+          // treat 4xx (except 5xx) as handled so we can show API message
+          validateStatus: (code) => code != null && code < 500,
+        ),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return {
+          "success": true,
+          "message": (response.data is Map && response.data['message'] != null)
+              ? response.data['message']
+              : "Account deleted successfully"
+        };
+      }
+
+      // Handle common auth/client errors with useful messages
+      final data = response.data;
+      final serverMsg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : "Failed to delete account. Status code: ${response.statusCode}";
+      return {"success": false, "message": serverMsg};
+    } on DioException catch (e) {
+      // Let retry interceptor handle retryable errors
+      if (ApiErrorHandler.shouldRetry(e)) rethrow;
+
+      final msg = ApiErrorHandler.extractErrorMessage(e);
+      return {"success": false, "message": msg};
+    } catch (e) {
+      return {"success": false, "message": "Unexpected error: $e"};
+    }
+  }
+
+
+
   @override
   Future<List<Map<String, dynamic>>> fetchUserBookings() async {
     final dio = await networkProvider.auth();

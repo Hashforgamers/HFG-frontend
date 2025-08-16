@@ -17,10 +17,19 @@ class UserProfileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    UserController userController = Get.put(UserController());
+    final userController = Get.find<UserController>();
 
     return Scaffold(
-      bottomNavigationBar: _buildLogoutButton(),
+      bottomNavigationBar: Container(height: 120,
+        child: Column(
+          children: [
+
+            _buildLogoutButton(),
+            _buildDeleteButton(userController),
+
+          ],
+        ),
+      ),
       appBar: AppBar(
         centerTitle: false,
         title: Text('Profile',
@@ -176,4 +185,63 @@ class UserProfileView extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildDeleteButton(UserController userController) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+      child: OutlinedButton(
+        onPressed: () async {
+          bool? confirm = await showCupertinoDialog<bool>(
+            context: Get.context!,
+            builder: (context) => CupertinoAlertDialog(
+              title: const Text("Delete Account"),
+              content: const Text(
+                "Are you sure you want to delete your account? This action cannot be undone.",
+              ),
+              actions: [
+                CupertinoDialogAction(
+                  isDefaultAction: true,
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text("Cancel"),
+                ),
+                CupertinoDialogAction(
+                  isDestructiveAction: true,
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text("Delete"),
+                ),
+              ],
+            ),
+          );
+
+          if (confirm == true) {
+            final success = await userController.deleteUser();
+            if (success) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.clear();
+
+              Get.offAllNamed(AppRoutes.LOGIN);
+            } else {
+              Get.snackbar("Error", "Failed to delete account",
+                  backgroundColor: Colors.red, colorText: Colors.white);
+            }
+          }
+        },
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Colors.red, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          minimumSize: const Size(double.infinity, 50),
+        ),
+        child: Text(
+          'Delete Account',
+          style: GoogleFonts.inter(color: Colors.red, fontSize: 18),
+        ),
+      ),
+    );
+  }
+
+
+
+
 }

@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:get/get.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
 import 'package:hash/core/network/api_endpoints.dart';
@@ -61,7 +63,15 @@ class UserController extends GetxController {
       val?.photoUrl = photoUrl;
     });
   }
+// inside class UserController extends GetxController {
+  final remoteRepo = locator<RemoteRepoInterface>();
+
+  Future<bool> deleteUser() async {
+    final res = await remoteRepo.deleteUser();
+    return res['success'] == true;
+  }
 
   /// 👤 Getter for current User ID
   String get userId => id.value;
 }
+
