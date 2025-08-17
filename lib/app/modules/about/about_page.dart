@@ -4,139 +4,130 @@ import 'package:url_launcher/url_launcher.dart';
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
+  final Color brandGreen = const Color(0xFF00C853); // ✅ HashforGamers green
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title:  Text(
           'About Us',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: theme.appBarTheme.titleTextStyle?.color ?? Colors.white,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold,color: brandGreen),
         ),
-        backgroundColor: theme.appBarTheme.backgroundColor,
-        iconTheme: theme.appBarTheme.iconTheme,
         elevation: 0,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        iconTheme: IconThemeData(
+          color: isDark ? Colors.white : Colors.black,
+        ),
       ),
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // App Logo
+            // Logo
             Container(
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.shadowColor.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
+                    color: brandGreen.withOpacity(0.3),
+                    blurRadius: 30,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 0),
                   ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(30),
                 child: Image.asset(
                   'assets/logo.png',
                   fit: BoxFit.cover,
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 30),
-            
-            // Company Name
+
+            // Info Cards
             _buildInfoCard(
-              context: context,
-              title: 'Company Name',
+              title: 'Company',
               content: 'Hash for Gamers Private Limited',
-              icon: Icons.business,
+              icon: Icons.business_rounded,
+              isDark: isDark,
             ),
-            
             const SizedBox(height: 16),
-            
-            // Support Email
             _buildInfoCard(
-              context: context,
               title: 'Support Email',
               content: 'support@hashforgamers.co.in',
-              icon: Icons.email,
+              icon: Icons.email_rounded,
               isClickable: true,
+              isDark: isDark,
               onTap: () => _launchEmail('support@hashforgamers.co.in'),
             ),
-            
             const SizedBox(height: 16),
-            
-            // Website
             _buildInfoCard(
-              context: context,
               title: 'Website',
               content: 'www.hashforgamers.com',
-              icon: Icons.language,
+              icon: Icons.language_rounded,
               isClickable: true,
+              isDark: isDark,
               onTap: () => _launchUrl('https://www.hashforgamers.com'),
             ),
-            
             const SizedBox(height: 16),
-            
-            // Registered Office
             _buildInfoCard(
-              context: context,
               title: 'Registered Office',
-              content: 'Hash for Gamers Private Limited\nMumbai, Maharashtra, India',
-              icon: Icons.location_on,
+              content: 'Hash for Gamers Pvt. Ltd.\nMumbai, Maharashtra, India',
+              icon: Icons.location_on_rounded,
               isMultiLine: true,
+              isDark: isDark,
             ),
-            
+
             const SizedBox(height: 30),
-            
-            // Additional Info
+
+            // About Section
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: isDark ? Colors.grey[900] : Colors.white,
-                borderRadius: BorderRadius.circular(15),
+                color: isDark ? Colors.grey[850] : Colors.white,
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.shadowColor.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
+                    color: brandGreen.withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
               child: Column(
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 40,
-                    color: theme.primaryColor,
-                  ),
-                  const SizedBox(height: 15),
+                  Icon(Icons.sports_esports_rounded,
+                      size: 40, color: brandGreen),
+                  const SizedBox(height: 12),
                   Text(
                     'About Hash for Gamers',
                     style: TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'We are dedicated to providing the best gaming experience for our community. Our platform connects gamers and offers innovative solutions for the gaming industry.',
+                    'We are building India’s first gaming café booking & rewards platform. '
+                        'Our mission is to connect gamers, simplify café bookings, and unlock '
+                        'a new era of gaming experiences powered by HashCoins & passes.',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
-                      color: isDark ? Colors.grey[400] : Colors.grey,
-                      height: 1.5,
+                      height: 1.6,
+                      color: isDark ? Colors.grey[400] : Colors.grey[700],
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
@@ -148,82 +139,75 @@ class AboutPage extends StatelessWidget {
   }
 
   Widget _buildInfoCard({
-    required BuildContext context,
     required String title,
     required String content,
     required IconData icon,
+    required bool isDark,
     bool isClickable = false,
     bool isMultiLine = false,
     VoidCallback? onTap,
   }) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: isClickable ? onTap : null,
-        borderRadius: BorderRadius.circular(15),
+    final Color brandGreen = const Color(0xFF00C853);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: isClickable ? onTap : null,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey[850] : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: brandGreen.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
         child: Row(
+          crossAxisAlignment:
+          isMultiLine ? CrossAxisAlignment.start : CrossAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: brandGreen.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(15),
               ),
-              child: Icon(
-                icon,
-                color: theme.primaryColor,
-                size: 24,
-              ),
+              child: Icon(icon, color: brandGreen, size: 22),
             ),
             const SizedBox(width: 15),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.grey[400] : Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
+                  Text(title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      )),
+                  const SizedBox(height: 4),
                   Text(
                     content,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: isClickable 
-                          ? theme.primaryColor 
+                      color: isClickable
+                          ? brandGreen
                           : (isDark ? Colors.white : Colors.black87),
-                      decoration: isClickable ? TextDecoration.underline : null,
+                      decoration:
+                      isClickable ? TextDecoration.underline : null,
                     ),
                   ),
                 ],
               ),
             ),
             if (isClickable)
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: isDark ? Colors.grey[400] : Colors.grey,
-              ),
+              Icon(Icons.arrow_forward_ios_rounded,
+                  size: 14, color: isDark ? Colors.grey[400]! : Colors.grey),
           ],
         ),
       ),
@@ -231,25 +215,16 @@ class AboutPage extends StatelessWidget {
   }
 
   Future<void> _launchEmail(String email) async {
-    final Uri emailUri = Uri(
-      scheme: 'mailto',
-      path: email,
-    );
-    
+    final Uri emailUri = Uri(scheme: 'mailto', path: email);
     if (await canLaunchUrl(emailUri)) {
       await launchUrl(emailUri);
-    } else {
-      throw 'Could not launch email';
     }
   }
 
   Future<void> _launchUrl(String url) async {
     final Uri uri = Uri.parse(url);
-    
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      throw 'Could not launch $url';
     }
   }
 }

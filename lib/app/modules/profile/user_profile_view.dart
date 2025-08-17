@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -203,62 +206,361 @@ class UserProfileView extends StatelessWidget {
     );
   }
 
+// inside UserProfileView
   Widget _buildDeleteButton(UserController userController) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
       child: OutlinedButton(
-        onPressed: () async {
-          bool? confirm = await showCupertinoDialog<bool>(
-            context: Get.context!,
-            builder: (context) => CupertinoAlertDialog(
-              title: const Text("Delete Account"),
-              content: const Text(
-                "Are you sure you want to delete your account? This action cannot be undone.",
-              ),
-              actions: [
-                CupertinoDialogAction(
-                  isDefaultAction: true,
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text("Cancel"),
-                ),
-                CupertinoDialogAction(
-                  isDestructiveAction: true,
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text("Delete"),
-                ),
-              ],
-            ),
-          );
-
-          if (confirm == true) {
-            final success = await userController.deleteUser();
-            if (success) {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.clear();
-
-              Get.offAllNamed(AppRoutes.LOGIN);
-            } else {
-              Get.snackbar("Error", "Failed to delete account",
-                  backgroundColor: Colors.red, colorText: Colors.white);
-            }
-          }
-        },
+        onPressed: () => showBlackCupertinoDeleteDialog(Get.context!, userController),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Colors.red, width: 1.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           minimumSize: const Size(double.infinity, 50),
         ),
-        child: Text(
-          'Delete Account',
-          style: GoogleFonts.inter(color: Colors.red, fontSize: 18),
-        ),
+        child: const Text('Delete Account', style: TextStyle(color: Colors.red, fontSize: 18)),
       ),
+    );
+  }
+
+  Future<void> showDeleteAccountDialog(BuildContext context, UserController userController) async {
+    bool isChecked = false;
+    int secondsLeft = 10;
+    ValueNotifier<int> timerNotifier = ValueNotifier(secondsLeft);
+    ValueNotifier<bool> acceptNotifier = ValueNotifier(false);
+
+    // Start countdown
+    Future(() async {
+      while (secondsLeft > 0) {
+        await Future.delayed(const Duration(seconds: 1));
+        secondsLeft--;
+        timerNotifier.value = secondsLeft;
+      }
+    });
+
+    await showCupertinoDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return CupertinoTheme(
+          data: const CupertinoThemeData(
+            brightness: Brightness.dark,
+            primaryColor: CupertinoColors.systemRed,
+            scaffoldBackgroundColor: CupertinoColors.black,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return CupertinoAlertDialog(
+                title: const Text(
+                  "⚠️ Delete Account",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: CupertinoColors.systemRed,
+                  ),
+                ),
+                content: Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    const Text(
+                      "This action is permanent.\n\n"
+                          "Once deleted, you cannot create another account using the same EMAIL/NUMBER for 30 days.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: CupertinoColors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Countdown
+                    ValueListenableBuilder<int>(
+                      valueListenable: timerNotifier,
+                      builder: (_, value, __) {
+                        return Text(
+                          value > 0
+                              ? "⏳ Please wait $value sec..."
+                              : "✅ You may now continue",
+                          style: TextStyle(
+                            color: value > 0
+                                ? CupertinoColors.systemYellow
+                                : CupertinoColors.activeGreen,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Checkbox replacement
+                    ValueListenableBuilder<int>(
+                      valueListenable: timerNotifier,
+                      builder: (_, value, __) {
+                        return GestureDetector(
+                          onTap: value == 0
+                              ? () {
+                            setState(() {
+                              isChecked = !isChecked;
+                              acceptNotifier.value = isChecked;
+                            });
+                          }
+                              : null,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isChecked
+                                    ? CupertinoIcons.check_mark_circled_solid
+                                    : CupertinoIcons.circle,
+                                size: 24,
+                                color: value == 0
+                                    ? CupertinoColors.activeGreen
+                                    : CupertinoColors.inactiveGray,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                "I understand the risk",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: value == 0
+                                      ? CupertinoColors.white
+                                      : CupertinoColors.inactiveGray,
+                                ),
+                              )
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                actions: [
+                  CupertinoDialogAction(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      "Cancel",
+                      style: TextStyle(color: CupertinoColors.activeBlue),
+                    ),
+                  ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: acceptNotifier,
+                    builder: (_, accepted, __) {
+                      return CupertinoDialogAction(
+                        isDestructiveAction: true,
+                        onPressed: accepted
+                            ? () async {
+                          Navigator.of(context).pop();
+                          final success = await userController.deleteUser();
+                          if (success) {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.clear();
+                            Get.offAllNamed(AppRoutes.LOGIN);
+                          } else {
+                            Get.snackbar("Error", "Failed to delete account",
+                                backgroundColor: CupertinoColors.systemRed,
+                                colorText: CupertinoColors.white);
+                          }
+                        }
+                            : null,
+                        child: const Text("Delete"),
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
 
 
 
+}
+
+// --- drop this anywhere accessible (e.g., same file, bottom) ---
+Future<void> showBlackCupertinoDeleteDialog(
+    BuildContext context,
+    UserController userController,
+    ) async {
+  int secondsLeft = 10;
+  final timerVN = ValueNotifier<int>(secondsLeft);
+  final acceptedVN = ValueNotifier<bool>(false);
+
+  // Countdown (outside widget tree; cancel on close)
+  final timer = Timer.periodic(const Duration(seconds: 1), (t) {
+    if (secondsLeft <= 0) {
+      t.cancel();
+    } else {
+      secondsLeft--;
+      timerVN.value = secondsLeft;
+    }
+  });
+
+  await showCupertinoDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => CupertinoTheme(
+      data: const CupertinoThemeData(
+        brightness: Brightness.dark,                 // black dialog
+        primaryColor: CupertinoColors.systemRed,
+      ),
+      child: WillPopScope(
+        onWillPop: () async => false,                // block back
+        child: CupertinoAlertDialog(
+          title: const Text(
+            '⚠️ Delete Account',
+            style: TextStyle(
+              color: CupertinoColors.systemRed,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Column(
+            children: [
+              const SizedBox(height: 10),
+              const Text(
+                'This action is permanent.\n\n'
+                    'After deleting, you CANNOT create another account '
+                    'with the same EMAIL/NUMBER for 30 days.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: CupertinoColors.white, fontSize: 15),
+              ),
+              const SizedBox(height: 16),
+
+              // Countdown
+              ValueListenableBuilder<int>(
+                valueListenable: timerVN,
+                builder: (_, v, __) => Text(
+                  v > 0 ? 'Please wait $v sec…' : 'You may now continue.',
+                  style: TextStyle(
+                    color: v > 0
+                        ? CupertinoColors.systemYellow
+                        : CupertinoColors.activeGreen,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // “I understand the risk” toggle (enabled after timer)
+              ValueListenableBuilder<int>(
+                valueListenable: timerVN,
+                builder: (_, v, __) {
+                  final enabled = v == 0;
+                  return GestureDetector(
+                    onTap: enabled ? () => acceptedVN.value = !acceptedVN.value : null,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ValueListenableBuilder<bool>(
+                          valueListenable: acceptedVN,
+                          builder: (_, ok, __) => Icon(
+                            ok
+                                ? CupertinoIcons.check_mark_circled_solid
+                                : CupertinoIcons.circle,
+                            color: enabled
+                                ? (ok
+                                ? CupertinoColors.activeGreen
+                                : CupertinoColors.white)
+                                : CupertinoColors.inactiveGray,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'I understand the risk',
+                          style: TextStyle(
+                            color: enabled
+                                ? CupertinoColors.white
+                                : CupertinoColors.inactiveGray,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () {
+                if (timer.isActive) timer.cancel();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel', style: TextStyle(color: CupertinoColors.activeBlue)),
+            ),
+            ValueListenableBuilder2<bool, int>(
+              first: acceptedVN,
+              second: timerVN,
+              builder: (_, accepted, v, __) {
+                final canDelete = accepted && v == 0;
+                return CupertinoDialogAction(
+                  isDestructiveAction: true,
+                  onPressed: canDelete
+                      ? () async {
+                    if (timer.isActive) timer.cancel();
+                    Navigator.of(context).pop();
+
+                    final ok = await userController.deleteUser();
+                    if (ok) {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.clear();
+                      Get.offAllNamed(AppRoutes.LOGIN);
+                    } else {
+                      Get.snackbar(
+                        'Error',
+                        'Failed to delete account',
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                      );
+                    }
+                  }
+                      : null,
+                  child: Text(
+                    v > 0 ? 'Delete ($v)' : 'Delete',
+                    style: TextStyle(
+                      color: canDelete
+                          ? CupertinoColors.systemRed
+                          : CupertinoColors.systemRed.withOpacity(0.4),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  if (timer.isActive) timer.cancel(); // safety
+}
+
+/// Small helper to listen to two notifiers at once
+class ValueListenableBuilder2<A, B> extends StatelessWidget {
+  final ValueListenable<A> first;
+  final ValueListenable<B> second;
+  final Widget Function(BuildContext, A, B, Widget?) builder;
+  final Widget? child;
+  const ValueListenableBuilder2({
+    super.key,
+    required this.first,
+    required this.second,
+    required this.builder,
+    this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<A>(
+      valueListenable: first,
+      builder: (_, a, __) => ValueListenableBuilder<B>(
+        valueListenable: second,
+        builder: (ctx, b, ___) => builder(ctx, a, b, child),
+      ),
+    );
+  }
 }

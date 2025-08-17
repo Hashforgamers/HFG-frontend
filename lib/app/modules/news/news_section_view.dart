@@ -135,19 +135,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       }
 
       if (controller.items.isEmpty) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'GAMER FIREWIRE',
-              style: GoogleFonts.inter(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
-            const SizedBox(height: 12),
-            Text('No gaming news right now.',
-                style: GoogleFonts.inter(color: Colors.white70)),
-          ],
-        );
+        return SizedBox();
       }
 
       final list = controller.items;
