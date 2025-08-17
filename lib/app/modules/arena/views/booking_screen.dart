@@ -179,8 +179,18 @@ class _BookingScreenState extends State<BookingScreen> {
             );
           }
 
-          // Get filtered slots based on availability and time
-          final availableSlots = controller.getFilteredSlots(selectedDate);
+          // Check if there are any available slots (both API availability and time-based)
+          // Only apply time-based filtering for current date
+          final isCurrentDate =
+              selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
+          final availableSlots = controller.slots.where((slot) {
+            final bool isAvailable =
+                slot['is_available'] ?? slot['isAvailable'] ?? true;
+            final bool isTimeAvailable = isCurrentDate
+                ? controller.isSlotAvailableNow(slot)
+                : true;
+            return isAvailable && isTimeAvailable;
+          }).toList();
           if (availableSlots.isEmpty) {
             return Column(
               children: [
@@ -283,11 +293,11 @@ class _BookingScreenState extends State<BookingScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Column(
+                child: Column(mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${widget.title} | $selectedDateText',
+                      '$selectedDateText',
                       style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -296,8 +306,28 @@ class _BookingScreenState extends State<BookingScreen> {
                     ),
                     const SizedBox(height: 4),
                     Obx(() {
-                      final availableSlots = controller.getFilteredSlots(selectedDate);
-                      final totalAvailableConsoles = controller.getTotalAvailableConsoles(selectedDate);
+                      final isCurrentDate =
+                          selectedDate ==
+                          DateFormat('yyyyMMdd').format(DateTime.now());
+                      final availableSlots = controller.slots.where((slot) {
+                        final bool isAvailable =
+                            slot['is_available'] ?? slot['isAvailable'] ?? true;
+                        final bool isTimeAvailable = isCurrentDate
+                            ? controller.isSlotAvailableNow(slot)
+                            : true;
+                        return isAvailable && isTimeAvailable;
+                      }).toList();
+                      final totalAvailableConsoles = availableSlots.fold<int>(
+                        0,
+                        (sum, slot) {
+                          final int availableConsoles =
+                              slot['available_slot'] ??
+                              slot['availableSlot'] ??
+                              slot['available_slots'] ??
+                              0;
+                          return sum + availableConsoles;
+                        },
+                      );
                       final consoleType = getConsoleType();
                       return Text(
                         '$totalAvailableConsoles ${consoleType == 'PC' ? 'PCs' : '${consoleType}s'} available across ${availableSlots.length} time slots',
@@ -342,17 +372,24 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
         ),
         Expanded(
-          child: Obx(() {
-            final availableSlots = controller.getFilteredSlots(selectedDate);
-            return ListView.builder(
-              itemCount: availableSlots.length,
-              itemBuilder: (context, index) {
-                final slot = availableSlots[index];
-                final originalIndex = controller.getOriginalSlotIndex(slot);
-                return buildSlotItem(slot, originalIndex);
-              },
-            );
-          }),
+          child: ListView.builder(
+            itemCount: controller.slots.length,
+            itemBuilder: (context, index) {
+              final slot = controller.slots[index];
+              // Check availability with fallback field names and time-based filtering
+              final bool isAvailable =
+                  slot['is_available'] ?? slot['isAvailable'] ?? true;
+              final bool isTimeAvailable =
+                  selectedDate == DateFormat('yyyyMMdd').format(DateTime.now())
+                  ? controller.isSlotAvailableNow(slot)
+                  : true;
+              if (isAvailable && isTimeAvailable) {
+                return buildSlotItem(slot, index);
+              } else {
+                return const SizedBox.shrink(); // Hide unavailable slots
+              }
+            },
+          ),
         ),
         buildFooter(),
       ],
