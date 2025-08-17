@@ -101,7 +101,7 @@ class UserProfileView extends StatelessWidget {
             //   },
             // ),
             _buildProfileOption(
-              icon: CupertinoIcons.question_circle,
+              icon: Icons.question_mark,
               title: 'Need Help',
               onTap: () {
                 // Handle wishlist
