@@ -34,6 +34,7 @@ class CafeSection extends StatefulWidget {
 class _CafeSectionState extends State<CafeSection> {
   static const String _sheetUrl =
 "https://docs.google.com/forms/d/1WnnEsOkza8ois79Gvp9iGvPAemq1Oi3YPHFlohfKlxM/edit";
+  bool _hasFetchedCafes = false;
 
   void _openSheetInBrowser() async {
     final uri = Uri.parse(_sheetUrl);
@@ -89,8 +90,10 @@ class _CafeSectionState extends State<CafeSection> {
   @override
   void initState() {
     super.initState();
-    widget._cafeController.fetchCybercafes();
-    _initLocation();
+    if (!_hasFetchedCafes) {
+      widget._cafeController.fetchCybercafes();
+      _hasFetchedCafes = true;
+    }    _initLocation();
 
     // Track cafe list viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -275,7 +278,7 @@ class _CafeSectionState extends State<CafeSection> {
                         color:  Colors.green,
                       ),
                     ),
-                    Icon(Icons.arrow_right_outlined,)
+                    const Icon(Icons.arrow_right_outlined,)
                   ],
                 ),
               ),
@@ -283,17 +286,7 @@ class _CafeSectionState extends State<CafeSection> {
           ],
         ),
         const SizedBox(height: 5),
-        // Row(
-        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        //   children: labels.map((label) {
-        //     return _buildCafeContainer(
-        //       label: label,
-        //       isSelected: selectedLabel == label,
-        //       screenWidth: screenWidth,
-        //     );
-        //   }).toList(),
-        // ),
-        // const SizedBox(height: 20),
+
         Obx(() {
           if (widget._cafeController.isLoading.value) {
             return SizedBox(
@@ -332,6 +325,7 @@ class _CafeSectionState extends State<CafeSection> {
               ),
             );
           }
+          final double cardWidth = MediaQuery.of(context).size.width - 30;
 
           return SizedBox(
             height: 230,
@@ -344,7 +338,6 @@ class _CafeSectionState extends State<CafeSection> {
               separatorBuilder: (_, __) => const SizedBox(width: 20),
               itemBuilder: (context, index) {
                 final cafe = widget._cafeController.cybercafes[index];
-                print('cafe detial $cafe');
                 final images = cafe['images'];
                 String imageUrl = 'https://next-level.gg/assets/cafes/11.jpg'; // Fallback image
                 
@@ -442,7 +435,7 @@ class _CafeSectionState extends State<CafeSection> {
                     );
                   },
                   child: Container(
-                    width: MediaQuery.of(context).size.width - 30,
+                    width: cardWidth,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       color: const Color(0xff0E0E0E),
@@ -455,25 +448,19 @@ class _CafeSectionState extends State<CafeSection> {
                           child: CachedNetworkImage(
                             imageUrl: imageUrl,
                             fit: BoxFit.cover,
-                            width: MediaQuery.of(context).size.width - 30,
+                            width: cardWidth,
                             height: 250,
-                            placeholder: (_, _) => Container(
+                            placeholder: (_, __) => Container(
                               color: const Color(0xff1a1a1a),
-                              child: const Center(
-                                child: RainbowGlowingLoader(size: 40),
-                              ),
+                              child: const Center(child: RainbowGlowingLoader(size: 40)),
                             ),
-                            errorWidget: (_, _, _) => Container(
+                            errorWidget: (_, __, ___) => Container(
                               color: const Color(0xff1a1a1a),
                               alignment: Alignment.center,
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(
-                                    Icons.storefront,
-                                    color: Colors.white54,
-                                    size: 60,
-                                  ),
+                                  const Icon(Icons.storefront, color: Colors.white54, size: 60),
                                   const SizedBox(height: 8),
                                   Text(
                                     'Cafe Image',
@@ -497,54 +484,44 @@ class _CafeSectionState extends State<CafeSection> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(20),
                             child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
                               child: Container(
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.1),
                                 ),
                                 child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.start,
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    /// Header row: Name + Console
                                     Row(
                                       children: [
                                         Icon(
                                           Icons.circle,
                                           size: 8,
-                                          color: isOpen
-                                              ? Colors.greenAccent
-                                              : Colors.redAccent,
+                                          color: isOpen ? Colors.greenAccent : Colors.redAccent,
                                         ),
                                         const SizedBox(width: 6),
-                                        Text(
-                                          toStartCase(cafe['cafe_name']?.toString() ?? 'Unknown Cafe'),
-                                          style: GoogleFonts.inter(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
+                                        Expanded(
+                                          child: Text(
+                                            toStartCase(cafe['cafe_name']?.toString() ?? 'Unknown Cafe'),
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
                                         ),
-
-                                        const Spacer(),
+                                        const SizedBox(width: 6),
                                         CachedNetworkImage(
-                                          imageUrl:
-                                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-02_hvvehr.png',
+                                          imageUrl: 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-02_hvvehr.png',
                                           height: 16,
                                           width: 16,
                                           fit: BoxFit.cover,
-                                          placeholder: (_, _) => const Center(
-                                            child: RainbowGlowingLoader(
-                                              size: 4,
-                                            ),
-                                          ),
-                                          errorWidget: (_, _, _) => const Icon(
-                                            Icons.error,
-                                            color: Colors.red,
-                                          ),
+                                          placeholder: (_, __) => const Center(child: RainbowGlowingLoader(size: 4)),
+                                          errorWidget: (_, __, ___) => const Icon(Icons.error, color: Colors.red),
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
@@ -558,37 +535,23 @@ class _CafeSectionState extends State<CafeSection> {
                                       ],
                                     ),
                                     const SizedBox(height: 4),
+
+                                    /// Distance + Time + Platform Icons
                                     Row(
                                       children: [
-
                                         const SizedBox(width: 8),
                                         Text(
                                           km == null ? '-- km' : '${km.toStringAsFixed(1)} km${etaMin != null ? ' • ~${etaMin} min' : ''}',
-                                          style: GoogleFonts.inter(
-                                            color: Colors.white70,
-                                            fontSize: 12,
-                                          ),
+                                          style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
                                         ),
                                         const SizedBox(width: 8),
-                                        const Icon(
-                                          Icons.arrow_forward,
-                                          size: 13,
-                                        ),
+                                        const Icon(Icons.arrow_forward, size: 13),
                                         const Spacer(),
-                                        _buildPlatformIcon(
-                                          icon:
-                                              "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png",
-                                        ),
+                                        _buildPlatformIcon(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png"),
                                         const SizedBox(width: 8),
-                                        _buildPlatformIcon(
-                                          icon:
-                                              "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png",
-                                        ),
+                                        _buildPlatformIcon(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png"),
                                         const SizedBox(width: 8),
-                                        _buildPlatformIcon(
-                                          icon:
-                                              "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png",
-                                        ),
+                                        _buildPlatformIcon(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png"),
                                       ],
                                     ),
                                   ],
@@ -599,7 +562,7 @@ class _CafeSectionState extends State<CafeSection> {
                         ),
                       ],
                     ),
-                  ),
+                  )
                 );
               },
             ),

@@ -12,6 +12,8 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'dart:convert';
 
+import '../../../../utils/widgets/loader.dart';
+
 class PastBookingsScreen extends StatefulWidget {
   const PastBookingsScreen({super.key});
   @override
@@ -147,8 +149,8 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
           Expanded(
             child: Obx(() {
               if (ctr.isLoading.value) {
-                return const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                return  Center(
+                  child: RainbowLoadingBar(),
                 );
               }
               if (ctr.userBookings.isEmpty) {

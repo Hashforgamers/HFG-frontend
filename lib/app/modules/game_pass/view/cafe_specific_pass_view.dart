@@ -16,6 +16,8 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
+import '../../../../utils/widgets/loader.dart';
+
 class CafeSpecificPassView extends StatefulWidget {
   final TabController tabController;
   final String type; // 'vendor'
@@ -155,10 +157,10 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
       builder: (context, state) {
         // Handle initial state - show loading to prevent flash of old data
         if (state is GamePassInitial) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: RainbowLoadingBar());
         }
         if (state is GamePassLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: RainbowLoadingBar());
         }
         if (state is GamePassError) {
           return _buildError(context, state.message);
@@ -335,12 +337,9 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                                     ? const SizedBox(
                                         width: 16,
                                         height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
+                                        child: RainbowLoadingBar(
+
+
                                         ),
                                       )
                                     : Text(

@@ -6,6 +6,7 @@ import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/wallet/cubit/transaction_cubit.dart';
 import 'package:hash/core/repositories/model/transaction_history_model.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart'; // <-- free neon-style icon set
+import '../../../../utils/widgets/loader.dart';
 import '../controllers/razorpay_wallet_controller.dart';
 import '../controllers/wallet_controller.dart';
 import '../../../data/models/wallet_model.dart';
@@ -45,7 +46,7 @@ class __WalletPageState extends State<_WalletPage> {
     return BlocBuilder<TransactionCubit, TransactionState>(
       builder: (context, state) {
         if (state is TransactionLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: RainbowLoadingBar());
         }
         if (state is TransactionLoaded) {
           return WalletScreen(transactions: state.transactions);
@@ -117,7 +118,7 @@ class _WalletScreenState extends State<WalletScreen> {
       body: Obx(() {
         if (walletCtr.isLoading) {
           return const Center(
-            child: CircularProgressIndicator(color: Color(0xff00D701)),
+            child: RainbowLoadingBar(),
           );
         }
 

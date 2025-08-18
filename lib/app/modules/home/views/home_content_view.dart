@@ -157,7 +157,6 @@ class _HomeContentViewState extends State<HomeContentView>
         _fetchUserDataIfNeeded(),
         _refreshWalletIfReady(),
         bookingController.fetchUserBookings(),
-        loginController.checkUserExistsInAPI(),
         BlocProvider.of<HashCoinCubit>(context).getHashCoin(),
       ], eagerError: false).timeout(
         const Duration(seconds: 10),

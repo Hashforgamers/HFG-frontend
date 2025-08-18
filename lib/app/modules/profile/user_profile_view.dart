@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hash/app/modules/about/about_page.dart';
 import 'package:hash/app/modules/game_pass/page/game_pass_page.dart';
 import 'package:hash/app/modules/hash_coin/pages/hash_coin_page.dart';
@@ -183,14 +185,25 @@ class UserProfileView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
       child: ElevatedButton(
         onPressed: () async {
-          // Handle logout
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove('token');
-          await prefs.remove('user_data');
+          try {
+            final googleSignIn = GoogleSignIn();
+            if (await googleSignIn.isSignedIn()) {
+              await googleSignIn.signOut();
+            }
 
-          Get.offAllNamed(AppRoutes
-              .LOGIN); // Navigates to the login screen and removes all previous routes
+            await FirebaseAuth.instance.signOut(); // clear Firebase session
+
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.clear(); // remove all local data
+
+            Get.offAllNamed(AppRoutes.LOGIN);
+          } catch (e) {
+            Get.snackbar('Logout Error', e.toString(),
+                backgroundColor: Colors.red, colorText: Colors.white);
+          }
         },
+
+
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green,
           shape: RoundedRectangleBorder(

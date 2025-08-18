@@ -20,6 +20,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import '../../../../utils/service.dart';
+import '../../../../utils/widgets/loader.dart';
 import 'arena_view_detailed.dart';
 
 class ArenaView extends StatefulWidget {
@@ -743,7 +744,7 @@ class _ArenaViewState extends State<ArenaView> {
                                             ),
                                           )
                                         else
-                                          CircularProgressIndicator(),
+                                          RainbowLoadingBar(),
                                         const SizedBox(height: 8),
                                         if (_userState != null)
                                           GestureDetector(

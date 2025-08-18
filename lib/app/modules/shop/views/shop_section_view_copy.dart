@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
+import '../../../../utils/widgets/loader.dart';
 import '../products_model.dart';
 
 class ShopSection extends StatelessWidget {
@@ -266,7 +267,7 @@ class ProductCard extends StatelessWidget {
               width: Get.width * 0.45,
               height: 150,
               placeholder: (context, url) =>
-                  const Center(child: CircularProgressIndicator()),
+                   Center(child: RainbowLoadingBar()),
               errorWidget: (context, url, error) =>
                   const Icon(Icons.error, color: Colors.red),
             ),

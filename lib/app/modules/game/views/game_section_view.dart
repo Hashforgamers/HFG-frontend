@@ -13,6 +13,8 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
+import '../../../../utils/widgets/loader.dart';
+
 /// ─────────────────────────────────────────────────────────────────────────────
 /// MODEL
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -277,7 +279,7 @@ class _GamesSectionState extends State<GamesSection> {
                   // loader cell
                   return const SizedBox(
                     width: 40, height: 40,
-                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: Center(child: RainbowLoadingBar()),
                   );
                 }
                 final g = ctrl.games[i];

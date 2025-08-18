@@ -17,6 +17,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
 import '../../../../core/repositories/model/extra_services_model.dart';
+import '../../../../utils/widgets/loader.dart';
 import '../../../data/services/user_controller.dart';
 import '../../../../core/repositories/model/booking_model.dart';
 
@@ -368,7 +369,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     return const Center(
                       child: Padding(
                         padding: EdgeInsets.all(20),
-                        child: CircularProgressIndicator(color: Colors.green),
+                        child: RainbowLoadingBar(),
                       ),
                     );
                   }
@@ -1247,9 +1248,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                              child: RainbowLoadingBar(
+
                               ),
                             )
                           : Text(
@@ -1490,9 +1490,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           ? const SizedBox(
                               height: 16,
                               width: 16,
-                              child: CircularProgressIndicator(
-                                color: Color(0xFF338125),
-                                strokeWidth: 2,
+                              child: RainbowLoadingBar(
+
                               ),
                             )
                           : Text(

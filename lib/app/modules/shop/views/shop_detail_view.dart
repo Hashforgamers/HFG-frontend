@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../utils/widgets/loader.dart';
 import '../../reviews/views/review_view.dart';
 import '../controllers/cart_controller.dart';
 import '../controllers/fetch_products_by_id_controller.dart';
@@ -90,7 +91,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
+          return  Center(child: RainbowLoadingBar());
         } else if (controller.errorMessage.isNotEmpty) {
           return Center(child: Text(controller.errorMessage.value));
         } else if (controller.product.value != null) {
@@ -238,7 +239,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     width: double.infinity,
                     fit: BoxFit.contain,
                     placeholder: (context, url) =>
-                        const Center(child: CircularProgressIndicator()),
+                        const Center(child: RainbowLoadingBar()),
                     errorWidget: (context, url, error) =>
                         const Icon(Icons.error),
                   ),

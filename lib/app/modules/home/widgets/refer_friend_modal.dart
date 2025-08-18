@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import '../../../../utils/widgets/loader.dart';
+
 class ReferFriendModal extends StatelessWidget {
   final VoidCallback? onReferNow;
   final VoidCallback? onNoThanks;
@@ -95,7 +97,7 @@ class ReferFriendModal extends StatelessWidget {
       placeholder: (_, __) => Container(
         color: const Color(0xFF1A1A1A),
         alignment: Alignment.center,
-        child: const CircularProgressIndicator(color: _kAccent),
+        child:  const RainbowLoadingBar(),
       ),
       errorWidget: (_, __, ___) => Container(
         color: const Color(0xFF1A1A1A),

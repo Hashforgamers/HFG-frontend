@@ -528,7 +528,7 @@
 //                         return const SizedBox(
 //                           height: 20,
 //                           width: 20,
-//                           child: CircularProgressIndicator(
+//                           child: RainbowLoadingBar(
 //                             color: Colors.white,
 //                             strokeWidth: 2,
 //                           ),
@@ -716,7 +716,7 @@
 //                         ? const SizedBox(
 //                             height: 16,
 //                             width: 16,
-//                             child: CircularProgressIndicator(
+//                             child: RainbowLoadingBar(
 //                               color: Colors.white,
 //                               strokeWidth: 2,
 //                             ),
