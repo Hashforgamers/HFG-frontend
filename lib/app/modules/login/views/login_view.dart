@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/cupertino.dart';
 import '../../../../utils/widgets/loader.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
 import '../controllers/login_controller.dart';
@@ -16,11 +18,14 @@ class LoginView extends StatelessWidget {
 
   LoginView({super.key});
 
+  bool get isIOS => defaultTargetPlatform == TargetPlatform.iOS;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      bottomNavigationBar: Container(color: Color(0xff191919),
+      bottomNavigationBar: Container(
+        color: const Color(0xff191919),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -37,6 +42,8 @@ class LoginView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+
+            // Google Sign-In
             Stack(
               children: [
                 SizedBox(
@@ -63,16 +70,10 @@ class LoginView extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CachedNetworkImage(
-                          imageUrl: 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755475120/Google__G__logo.svg_iywk14.png',
+                        Image.asset(
+                          'assets/Google__G__logo.svg.png',
                           height: 20,
                           width: 20,
-                          placeholder: (context, url) => const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: RainbowLoadingBar(),
-                          ),
-                          errorWidget: (context, url, error) => const Icon(Icons.error, size: 20),
                         ),
                         const SizedBox(width: 10),
                         Text(
@@ -88,6 +89,55 @@ class LoginView extends StatelessWidget {
                 ),
               ],
             ),
+
+            // Apple Sign-In (iOS Only)
+            if (isIOS) const SizedBox(height: 12),
+            if (isIOS)
+              Stack(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: RGBLightFrame(
+                      width: Get.width,
+                      height: Get.height,
+                      borderRadius: 12,
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await controller.appleSignInWithRelayWarning(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/apple-logo-transparent.png',
+                            height: 20,
+                            width: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Continue with Apple',
+                            style: GoogleFonts.inter(
+                              color: Colors.black,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
@@ -96,7 +146,8 @@ class LoginView extends StatelessWidget {
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -106,7 +157,8 @@ class LoginView extends StatelessWidget {
 
                     // Tag-line
                     Text(
-                      'Welcome to\nHash for Gamers',textAlign: TextAlign.center,
+                      'Welcome to\nHash for Gamers',
+                      textAlign: TextAlign.center,
                       style: GoogleFonts.orbitron(
                         color: Colors.white70,
                         fontSize: 18,
@@ -124,9 +176,7 @@ class LoginView extends StatelessWidget {
                 () => controller.isLoading.value
                 ? Container(
               color: Colors.black.withOpacity(0.8),
-              child: const Center(
-                child: RainbowLoadingBar()
-              ),
+              child: const Center(child: RainbowLoadingBar()),
             )
                 : const SizedBox.shrink(),
           ),

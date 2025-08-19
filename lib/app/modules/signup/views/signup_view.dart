@@ -49,7 +49,7 @@ class _SignUpViewState extends State<SignUpView> {
             children: [
               IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: Get.back),
+                  onPressed:()=>Get.back()),
               Expanded(
                 child: Form(
                   key: _formKey,

@@ -153,7 +153,9 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                   child: RainbowLoadingBar(),
                 );
               }
-              if (ctr.userBookings.isEmpty) {
+
+              final sortedBookings = _getSortedBookings();
+              if (ctr.userBookings.isEmpty||sortedBookings.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -191,7 +193,6 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                 );
               }
 
-              final sortedBookings = _getSortedBookings();
 
               // For demo, show all bookings in all tabs
               return RefreshIndicator(

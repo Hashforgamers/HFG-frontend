@@ -62,11 +62,11 @@ class _CafeSectionState extends State<CafeSection> {
               title: Text('Open in browser', style: GoogleFonts.inter(color: Colors.white)),
               onTap: () => Navigator.pop(context, 1),
             ),
-            ListTile(
-              leading: const Icon(Icons.web, color: Colors.white),
-              title: Text('Open inside app (WebView)', style: GoogleFonts.inter(color: Colors.white)),
-              onTap: () => Navigator.pop(context, 2),
-            ),
+            // ListTile(
+            //   leading: const Icon(Icons.web, color: Colors.white),
+            //   title: Text('Open inside app (WebView)', style: GoogleFonts.inter(color: Colors.white)),
+            //   onTap: () => Navigator.pop(context, 2),
+            // ),
             const SizedBox(height: 8),
           ],
         ),

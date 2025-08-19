@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -64,7 +65,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final fbEventsService = locator<FbEventsService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
   final RxString _selectedPayment =
-      'wallet'.obs; // 'wallet', 'gateway' or 'none'
+      'gateway'.obs; // 'wallet', 'gateway' or 'none'
   final UserController userController = Get.find<UserController>();
 
   // Voucher related variables
@@ -367,10 +368,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 Obx(() {
                   if (_isLoadingGamePasses.value) {
                     return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: RainbowLoadingBar(),
-                      ),
+                      child: RainbowLoadingBar(),
                     );
                   }
 
@@ -791,9 +789,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
-        title: Text(
-          'Booking Summary',
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+        title:  Text(
+          '${widget.selectedCafeName} - ${widget.consoleType}',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
         backgroundColor: Colors.black,
         elevation: 1,
@@ -805,15 +807,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${widget.selectedCafeName} - ${widget.consoleType}',
-                style: GoogleFonts.inter(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 4),
+              // Text(
+              //   '${widget.selectedCafeName} - ${widget.consoleType}',
+              //   style: GoogleFonts.inter(
+              //     fontSize: 22,
+              //     fontWeight: FontWeight.w600,
+              //     color: Colors.white,
+              //   ),
+              // ),
+              // const SizedBox(height: 4),
               Text(
                 '${widget.selectedSlots.length} Slot(s) Selected',
                 style: GoogleFonts.inter(
@@ -966,9 +968,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           ),
                         ],
                       ),
-                    )
-                  : _buildMealButton(),
-              const SizedBox(height: 24),
+                    ):SizedBox(),
+                  // : _buildMealButton(),
+              const SizedBox(height: 5),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1272,31 +1274,31 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
-  Widget _buildMealButton() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.pop(context);
-      },
-      child: Container(
-        height: 50,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
-          borderRadius: BorderRadius.circular(50),
-        ),
-        child: Center(
-          child: Text(
-            '+ Select your meal',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              color: const Color(0xFF75F94C),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // Widget _buildMealButton() {
+  //   return GestureDetector(
+  //     onTap: () {
+  //       Navigator.pop(context);
+  //     },
+  //     child: Container(
+  //       height: 50,
+  //       width: double.infinity,
+  //       decoration: BoxDecoration(
+  //         color: Colors.transparent,
+  //         border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
+  //         borderRadius: BorderRadius.circular(50),
+  //       ),
+  //       child: Center(
+  //         child: Text(
+  //           '+ Select your meal',
+  //           style: GoogleFonts.inter(
+  //             fontSize: 16,
+  //             color: const Color(0xFF75F94C),
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Widget _buildVoucherSection() {
     return Container(
@@ -1702,49 +1704,75 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   }
 
   String _parseErrorMessage(dynamic error) {
-    String errorMessage = 'An error occurred';
+    try {
+      if (error is DioError) {
+        final response = error.response;
+        if (response != null) {
+          final statusCode = response.statusCode ?? 0;
+          final data = response.data;
 
-    if (error.toString().contains('DioError') ||
-        error.toString().contains('DioException')) {
-      try {
-        if (error.toString().contains('"error"')) {
-          // Try to extract the error message from the response body
-          final errorMatch = RegExp(
-            r'"error":\s*"([^"]+)"',
-          ).firstMatch(error.toString());
-          if (errorMatch != null) {
-            errorMessage = errorMatch.group(1) ?? errorMessage;
+          if (data is Map<String, dynamic>) {
+            if (data.containsKey('error')) return data['error'];
+            if (data.containsKey('message')) return data['message'];
+          } else if (data is String) {
+            final parsed = jsonDecode(data);
+            if (parsed['error'] != null) return parsed['error'];
+            if (parsed['message'] != null) return parsed['message'];
           }
-        } else if (error.toString().contains('Insufficient wallet balance')) {
-          errorMessage =
-              'Insufficient wallet balance. Please add money to your wallet or choose a different payment method.';
-        } else if (error.toString().contains('500')) {
-          errorMessage = 'Server error occurred. Please try again later.';
-        } else if (error.toString().contains('400')) {
-          errorMessage = 'Invalid request. Please check your details.';
-        } else if (error.toString().contains('401')) {
-          errorMessage = 'Authentication failed. Please login again.';
-        } else if (error.toString().contains('403')) {
-          errorMessage = 'Access denied. Please check your permissions.';
-        } else if (error.toString().contains('404')) {
-          errorMessage = 'Service not found. Please try again later.';
-        } else if (error.toString().contains('422')) {
-          errorMessage = 'Invalid data. Please check your selections.';
+
+          switch (statusCode) {
+            case 400:
+              return 'Invalid request. Please check your details.';
+            case 401:
+              return 'Authentication failed. Please login again.';
+            case 403:
+              return 'Access denied. Please check your permissions.';
+            case 404:
+              return 'Service not found. Please try again later.';
+            case 422:
+              return 'Invalid data. Please check your selections.';
+            case 500:
+            default:
+              return 'Server error occurred. Please try again later.';
+          }
         }
-      } catch (parseError) {
-        print('Error parsing DioError: $parseError');
-        errorMessage = 'An unexpected error occurred. Please try again.';
+      } else if (error is http.Response) {
+        final data = jsonDecode(error.body);
+        if (data['error'] != null) return data['error'];
+        if (data['message'] != null) return data['message'];
+
+        switch (error.statusCode) {
+          case 400:
+            return 'Invalid request. Please check your details.';
+          case 401:
+            return 'Authentication failed. Please login again.';
+          case 403:
+            return 'Access denied. Please check your permissions.';
+          case 404:
+            return 'Service not found. Please try again later.';
+          case 422:
+            return 'Invalid data. Please check your selections.';
+          case 500:
+          default:
+            return 'Server error occurred. Please try again later.';
+        }
       }
-    } else {
-      // For non-Dio errors, use the original error message
-      errorMessage = error
-          .toString()
-          .replaceAll('Exception: ', '')
-          .replaceAll('Error: ', '');
+
+      if (error is Exception) {
+        final message = error.toString();
+        if (message.contains('Insufficient wallet balance')) {
+          return 'Insufficient wallet balance. Please add money to your wallet or choose a different payment method.';
+        }
+        return message.replaceAll('Exception: ', '');
+      }
+    } catch (e) {
+      print('Error parsing exception: $e');
     }
 
-    return errorMessage;
+    return 'An unexpected error occurred. Please try again.';
   }
+
+
 
   Future<void> handleBooking(
     BuildContext context, {
