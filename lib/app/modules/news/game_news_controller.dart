@@ -32,10 +32,12 @@ class GameNewsItem {
 }
 
 class NewsController extends GetxController {
-  /// Prefer passing via --dart-define=NEWSAPI_KEY=... in dev
-  static const String _envKey = String.fromEnvironment('NEWSAPI_KEY', defaultValue: '');
-  static const String _fallbackKey = '51a460406b4c42c49acf3b06fd7aebcb'; // user-provided
-  static const String _apiKey = '51a460406b4c42c49acf3b06fd7aebcb';
+  static const List<String> _apiKeys = [
+    '51a460406b4c42c49acf3b06fd7aebcb',
+    '8e619f80f675482fa9d9a7428ab8a3cd',
+    '25f277808858445e9ad83230a2af5c4b',
+    'ce0ee2717a214c128e7bb8bce624578d',
+  ];
 
   final isLoading = false.obs;
   final items = <GameNewsItem>[].obs;
@@ -45,10 +47,13 @@ class NewsController extends GetxController {
   bool _hasMore = true;
   bool _busy = false;
 
-  // Simple de-dupe by URL
   final Set<String> _seen = <String>{};
-
   final _client = http.Client();
+
+  String _getRandomKey() {
+    _apiKeys.shuffle(); // simple randomization
+    return _apiKeys.first;
+  }
 
   @override
   void onInit() {
@@ -68,7 +73,6 @@ class NewsController extends GetxController {
     try {
       final batch = await _fetchPage(_page);
       items.addAll(batch);
-      // Prefetch next page in background (tiny head start)
       _silentPrefetchNext();
     } finally {
       isLoading.value = false;
@@ -104,11 +108,15 @@ class NewsController extends GetxController {
           '&page=$page',
     );
 
-    final res = await _client.get(uri, headers: {'X-Api-Key': _apiKey});
+    final key = _getRandomKey(); // pick a random key each call
+
+    final res = await _client.get(uri, headers: {'X-Api-Key': key});
     if (res.statusCode != 200) {
       if (kDebugMode) {
         debugPrint('NewsAPI error ${res.statusCode}: ${res.body}');
+
       }
+      print(res.body);
       return const [];
     }
 
@@ -118,20 +126,22 @@ class NewsController extends GetxController {
     final list = (data['articles'] as List? ?? const [])
         .map((e) => GameNewsItem.fromJson(e as Map<String, dynamic>))
         .where((a) => a.title.isNotEmpty && a.url.isNotEmpty)
-        .where((a) => _seen.add(a.url)) // de-dupe by URL
+        .where((a) => _seen.add(a.url))
         .toList();
 
     return list;
   }
 
   void _silentPrefetchNext() {
-    // Fire-and-forget; ignore errors
     Future.microtask(() async {
       if (_hasMore && !_busy) {
-        try { await _fetchPage(_page + 1); } catch (_) {}
+        try {
+          await _fetchPage(_page + 1);
+        } catch (_) {}
       }
     });
   }
 
   bool get hasMore => _hasMore;
 }
+

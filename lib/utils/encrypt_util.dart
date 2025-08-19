@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:encrypt/encrypt.dart';
 import 'package:hash/utils/key_provider.dart';
+import 'package:hash/utils/pem_provider.dart';
 import 'package:pointycastle/asymmetric/api.dart'; // For RSA key parsing
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
@@ -94,7 +97,9 @@ RSAPrivateKey parsePrivateKeyFromPem(String pem) {
 }
 
 Future<String> encryptData(String plainText) async {
-  final publicKeyPem = await KeyProvider.getPublicKey();
+  final publicKeyPem = Platform.isAndroid
+      ? await KeyProvider.getPublicKey()
+      : await PemLoader.getPublicKey();
   final publicKey = parsePublicKeyFromPem(publicKeyPem);
 
   final encrypter = Encrypter(
@@ -111,9 +116,11 @@ Future<String> encryptData(String plainText) async {
 }
 
 Future<String> decryptData(String encryptedBase64) async {
-  final privateKeyPem = await KeyProvider.getPrivateKey();
+  final privateKeyPem = Platform.isAndroid
+      ? await KeyProvider.getPrivateKey()
+      : await PemLoader.getPrivateKey();
   final privateKey = parsePrivateKeyFromPem(privateKeyPem);
-  
+
   final encrypter = Encrypter(
     RSA(
       privateKey: privateKey,

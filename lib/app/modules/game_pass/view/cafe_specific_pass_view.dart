@@ -236,7 +236,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.1),
                     ),
-                    child: Row(
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Column(
                           mainAxisAlignment: MainAxisAlignment.start,
@@ -286,7 +286,6 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                const Icon(Icons.arrow_forward, size: 13),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -314,8 +313,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                                 ? null
                                 : () => _purchaseCafePass(pass),
                             child: Container(
-                              height: 36,
-                              width: 100,
+                             padding: EdgeInsets.symmetric(vertical: 5,horizontal: 8),
                               decoration: BoxDecoration(
                                 color:
                                     (pass.isBought == true ||

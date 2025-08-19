@@ -165,7 +165,10 @@ class _WalletScreenState extends State<WalletScreen> {
         }
 
         return RefreshIndicator(
-          onRefresh: () => walletCtr.refreshWallet(),
+          onRefresh: () async {
+            walletCtr.refreshWallet();
+            BlocProvider.of<TransactionCubit>(context).getTransactionHistory();
+          },
           color: const Color(0xff00D701),
           backgroundColor: Colors.black,
           child: SingleChildScrollView(
@@ -514,7 +517,9 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Color _getTransactionIconColorFromHistory(TransactionHistoryModel transaction) {
+  Color _getTransactionIconColorFromHistory(
+    TransactionHistoryModel transaction,
+  ) {
     // Different colors for different transaction types
     switch (transaction.type.toLowerCase()) {
       case 'credit':
@@ -552,7 +557,9 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
-  String _getTransactionSubtitleFromHistory(TransactionHistoryModel transaction) {
+  String _getTransactionSubtitleFromHistory(
+    TransactionHistoryModel transaction,
+  ) {
     // Return transaction reference or type
     if (transaction.referenceId.isNotEmpty) {
       return 'Ref: ${transaction.referenceId}';
@@ -560,7 +567,9 @@ class _WalletScreenState extends State<WalletScreen> {
     return transaction.type.toUpperCase();
   }
 
-  IconData _getTransactionIconFromHistoryModel(TransactionHistoryModel transaction) {
+  IconData _getTransactionIconFromHistoryModel(
+    TransactionHistoryModel transaction,
+  ) {
     switch (transaction.type.toLowerCase()) {
       case 'credit':
       case 'wallet_credit':
@@ -580,7 +589,13 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   bool _isCreditTransaction(TransactionHistoryModel transaction) {
-    return ['credit', 'wallet_credit', 'add', 'topup', 'refund'].contains(transaction.type.toLowerCase());
+    return [
+      'credit',
+      'wallet_credit',
+      'add',
+      'topup',
+      'refund',
+    ].contains(transaction.type.toLowerCase());
   }
 
   // Keep the existing _transactionCardFromModel method for backward compatibility

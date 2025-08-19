@@ -1,4 +1,3 @@
-// Enhanced ArenaDetailView with full dark theme and polished UI
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -51,10 +50,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   final CafeGamesController _gamesController = Get.put(CafeGamesController());
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  
+  int currentPage = 0;
+  late PageController pageController;
 
   @override
   void initState() {
     super.initState();
+    pageController = PageController();
     _gamesController.fetchGames(widget.vendorId);
 
     // Track cafe images viewed event
@@ -65,13 +68,39 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   }
 
   @override
+  void dispose() {
+    pageController.dispose();
+    super.dispose();
+  }
+
+  bool _hasFoodAmenity(List<dynamic> amenities) {
+    return amenities.any((a) {
+      if (a is! Map) return false;
+      final available = a['available'] == true;
+      final name = (a['name'] ?? '')
+          .toString()
+          .toLowerCase()
+          .replaceAll('_', ' ')
+          .trim();
+      // robust match
+      final isFood = name == 'food' ||
+          name.contains('food') ||
+          name.contains('beverage') ||
+          name.contains('snack') ||
+          name.contains('cafe') ||
+          name.contains('kitchen');
+      return available && isFood;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final hasFood = _hasFoodAmenity(widget.amenities);
+
     final List<String> imageUrls = widget.images
         .map((image) => image['url']?.toString() ?? '')
         .toList()
         .cast<String>();
-    int currentPage = 0;
-    final PageController pageController = PageController();
 
     return Scaffold(
       backgroundColor: const Color(0xff0F0F0F),
@@ -346,55 +375,22 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     const SizedBox(height: 24),
                     gameTitlesGrid(),
                     const SizedBox(height: 24),
-                    amenitiesGrid(widget.amenities),
-                    const SizedBox(height: 24),
-                    foodAndBeverageGrid([
-                      {
-                        'name': 'Crispy Fries',
-                        'image':
-                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075186/menu1_ar0hbe.png',
-                      },
-                      {
-                        'name': 'Veggie Burger',
-                        'image':
-                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
-                      },
-                      {
-                        'name': 'Red Sauce Pasta',
-                        'image':
-                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075188/menu3_o2c0zy.png',
-                      },
-                      {
-                        'name': 'Protein Sandwich',
-                        'image':
-                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
-                      },
-                      {
-                        'name': 'Hot Coffee',
-                        'image':
-                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu5_f3t2l0.png',
-                      },
-                      {
-                        'name': 'Coca Cola with Ice',
-                        'image':
-                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu6_qhoalw.png',
-                      },
-                      {
-                        'name': 'Blue Lagoon',
-                        'image':
-                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075191/menu7_tj4lp1.png',
-                      },
-                      {
-                        'name': 'Choco Pastry',
-                        'image':
-                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075192/menu8_na7k6n.png',
-                      },
-                      {
-                        'name': 'Classic Donut',
-                        'image':
-                            'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
-                      },
-                    ]),
+                    amenitiesGrid(widget.amenities, excludeFood: hasFood),
+                    if (hasFood) ...[
+                      const SizedBox(height: 24),
+                      foodAndBeverageGrid([
+                        {'name': 'Crispy Fries','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075186/menu1_ar0hbe.png'},
+                        {'name': 'Veggie Burger','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png'},
+                        {'name': 'Red Sauce Pasta','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075188/menu3_o2c0zy.png'},
+                        {'name': 'Protein Sandwich','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png'},
+                        {'name': 'Hot Coffee','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu5_f3t2l0.png'},
+                        {'name': 'Coca Cola with Ice','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu6_qhoalw.png'},
+                        {'name': 'Blue Lagoon','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075191/menu7_tj4lp1.png'},
+                        {'name': 'Choco Pastry','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075192/menu8_na7k6n.png'},
+                        {'name': 'Classic Donut','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png'},
+                      ]),
+                    ],
+
                     const SizedBox(height: 24),
 
                     Text(
@@ -446,50 +442,34 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () async {
-                        // Check if shop is open before proceeding
                         if (!controller.shopOpen.value) {
-                          Get.snackbar(
-                            'Shop Closed',
-                            'Shop is closed today, no games available.',
-                            snackPosition: SnackPosition.BOTTOM,
-                            backgroundColor: Colors.red,
-                            colorText: Colors.white,
-                            duration: const Duration(seconds: 3),
-                            margin: const EdgeInsets.all(16),
-                            borderRadius: 8,
-                          );
+                          Get.snackbar('Shop Closed','Shop is closed today, no games available.',
+                              snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
                           return;
                         }
 
-                        final response = await showFoodOrderPrompt(context, () {
-                          Get.to(
-                            MenuViewPage(
+                        final hasFood = _hasFoodAmenity(widget.amenities);
+
+                        if (hasFood) {
+                          final response = await showFoodOrderPrompt(context, () {
+                            Get.to(MenuViewPage(
                               vendorId: widget.vendorId.toString(),
                               onContinue: (cartItems) {
-                                showBookSlotBottomSheet(
-                                  context: context,
-                                  cartItems: cartItems,
-                                );
+                                showBookSlotBottomSheet(context: context, cartItems: cartItems);
                               },
-                            ),
-                          );
-                        });
+                            ));
+                          });
 
-                        // If user chose "No, thanks" or dialog was dismissed, show booking directly
-                        if (context.mounted && response == false) {
-                          showBookSlotBottomSheet(
-                            context: context,
-                            cartItems: null,
-                          );
-                        }
-                        // If response is null (dialog dismissed), also show booking directly
-                        else if (context.mounted && response == null) {
-                          showBookSlotBottomSheet(
-                            context: context,
-                            cartItems: null,
-                          );
+                          if (context.mounted && response != true) {
+                            // response == false or null → go straight to booking
+                            showBookSlotBottomSheet(context: context, cartItems: null);
+                          }
+                        } else {
+                          // No food amenity → skip prompt
+                          showBookSlotBottomSheet(context: context, cartItems: null);
                         }
                       },
+
 
                       style: ElevatedButton.styleFrom(
                         backgroundColor: controller.shopOpen.value
@@ -1238,10 +1218,16 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     );
   }
 
-  Widget amenitiesGrid(List<dynamic> amenities) {
-    final filtered = amenities
-        .where((item) => item is Map && item['available'] == true)
-        .toList();
+  Widget amenitiesGrid(List<dynamic> amenities, {bool excludeFood = false}) {
+    final filtered = amenities.where((item) {
+      if (item is! Map) return false;
+      if (item['available'] != true) return false;
+      final name = (item['name'] ?? '').toString().toLowerCase();
+      if (excludeFood && (name == 'food' || name.contains('food') || name.contains('beverage') || name.contains('snack') || name.contains('cafe'))) {
+        return false;
+      }
+      return true;
+    }).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1289,17 +1275,17 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Padding(
+                  Container(width:50,
                     padding: const EdgeInsets.symmetric(horizontal: 2.0),
                     child: Text(
                       displayName,
                       style: GoogleFonts.inter(
                         color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 9,
+                        fontWeight: FontWeight.normal,
                       ),
                       textAlign: TextAlign.center,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

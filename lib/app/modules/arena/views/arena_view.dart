@@ -20,6 +20,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
+import '../../../../utils/service.dart';
 import 'arena_view_detailed.dart';
 
 class ArenaView extends StatefulWidget {
@@ -845,108 +846,123 @@ class _ArenaViewState extends State<ArenaView> {
       },
       child: Container(
         width: 330,
-        height: 120,
+        height: 140, // a touch taller for breathing room
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
           color: Colors.black,
         ),
-        clipBehavior: Clip.hardEdge,
+        clipBehavior: Clip.antiAlias,
         child: Stack(
+          fit: StackFit.expand,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(25),
-              child: CachedNetworkImage(
-                imageUrl: img,
-                width: 330.w,
-                height: 200.h,
-                fit: BoxFit.cover,
-                placeholder: (_, _) =>
-                    Center(child: RainbowGlowingLoader(size: 40)),
-                errorWidget: (_, _, _) => Container(
-                  color: Colors.grey,
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.image_not_supported,
-                    color: Colors.white54,
-                    size: 40,
-                  ),
+            // Background image — fill the card precisely
+            CachedNetworkImage(
+              imageUrl: img,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
+              // Hint the cache with 2x widget size (optional)
+              memCacheWidth: 660,
+              memCacheHeight: 280,
+              placeholder: (_, __) =>
+                  const Center(child: RainbowGlowingLoader(size: 40)),
+              errorWidget: (_, __, ___) => Container(
+                color: Colors.grey,
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.image_not_supported,
+                  color: Colors.white54,
+                  size: 40,
                 ),
               ),
             ),
-            // Glassmorphism overlay for bottom half
+
+            // Subtle gradient for contrast (cheaper than full blur)
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    const Color(0xCC000000), // ~80% black at bottom
+                    const Color(0x66000000), // ~40%
+                    const Color(0x00000000), // transparent
+                  ],
+                ),
+              ),
+            ),
+
+            // Optional mild blur just for the bottom band (keep sigma low)
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
+              top: 84, // glassy bottom 40–60px
               child: ClipRRect(
                 borderRadius: const BorderRadius.all(Radius.circular(25)),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      // gradient: LinearGradient(
-                      //   begin: Alignment.bottomCenter,
-                      //   end: Alignment.topCenter,
-                      //   colors: [
-                      //     Color.fromARGB(
-                      //       180,
-                      //       0,
-                      //       0,
-                      //       0,
-                      //     ), // Strong black at bottom
-                      //     Color.fromARGB(80, 0, 0, 0), // Faded black in middle
-                      //     Color.fromARGB(0, 0, 0, 0), // Transparent at top
-                      //   ],
-                      // ),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
+                  filter: ImageFilter.blur(
+                    sigmaX: 6,
+                    sigmaY: 6,
+                  ), // was 10 (heavier)
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
 
-                    child: Column(
+            // Content
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 16,
+                ),
+                child: Builder(
+                  builder: (_) {
+                    final bool isOpen = _isShopOpen(cafe);
+                    final Color openColor = isOpen ? Colors.green : Colors.red;
+
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Title
                         Text(
-                          cafe['cafe_name'] ?? 'Unknown',
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
+                          toStartCase(
+                            cafe['cafe_name']?.toString() ?? 'Unknown Cafe',
+                          ),
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontSize: 16,
-                            fontWeight: FontWeight.w400,
+                            fontWeight: FontWeight.w700,
+                            height: 1.1,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
+
+                        const SizedBox(height: 4),
+
+                        // Status · Distance · Duration
                         Row(
                           children: [
-                            Icon(
-                              Icons.circle,
-                              size: 8,
-                              color: _isShopOpen(cafe)
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
+                            Icon(Icons.circle, size: 8, color: openColor),
                             const SizedBox(width: 6),
                             Text(
-                              _isShopOpen(cafe) ? 'Open' : 'Closed',
+                              isOpen ? 'Open' : 'Closed',
                               style: GoogleFonts.inter(
-                                color: _isShopOpen(cafe)
-                                    ? Colors.green
-                                    : Colors.red,
-                                fontWeight: FontWeight.w400,
+                                color: openColor,
                                 fontSize: 12,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '|',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
+
+                            // separator
+                            _miniSeparator(),
+
+                            // Distance + duration (or placeholders)
                             FutureBuilder<Map<String, String>>(
                               future: pos == null
                                   ? Future.value({
@@ -966,15 +982,7 @@ class _ArenaViewState extends State<ArenaView> {
                                         fontSize: 12,
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '|',
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
+                                    _miniSeparator(),
                                     Text(
                                       dur,
                                       style: GoogleFonts.inter(
@@ -988,15 +996,24 @@ class _ArenaViewState extends State<ArenaView> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+
+                        const SizedBox(height: 8),
+
+                        // Buttons
                         Row(
                           children: [
                             Expanded(
                               child: SizedBox(
                                 height: 36,
                                 child: ElevatedButton.icon(
+                                  onPressed: (pos == null)
+                                      ? null
+                                      : () => _drawRoute(pos!),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xff338125),
+                                    disabledBackgroundColor: const Color(
+                                      0xff338125,
+                                    ).withOpacity(0.35),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -1005,7 +1022,7 @@ class _ArenaViewState extends State<ArenaView> {
                                     ),
                                     elevation: 0,
                                   ),
-                                  icon: Icon(
+                                  icon: const Icon(
                                     Icons.directions_outlined,
                                     color: Colors.white,
                                     size: 18,
@@ -1015,10 +1032,9 @@ class _ArenaViewState extends State<ArenaView> {
                                     style: GoogleFonts.inter(
                                       color: Colors.white,
                                       fontSize: 12,
-                                      fontWeight: FontWeight.w400,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  onPressed: () => _drawRoute(pos!),
                                 ),
                               ),
                             ),
@@ -1027,10 +1043,15 @@ class _ArenaViewState extends State<ArenaView> {
                               child: SizedBox(
                                 height: 36,
                                 child: ElevatedButton.icon(
+                                  onPressed: (pos == null)
+                                      ? null
+                                      : () => _openExternalMaps(pos!),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.white.withOpacity(
                                       0.13,
                                     ),
+                                    disabledBackgroundColor: Colors.white
+                                        .withOpacity(0.08),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                       side: BorderSide(
@@ -1042,7 +1063,7 @@ class _ArenaViewState extends State<ArenaView> {
                                     ),
                                     elevation: 0,
                                   ),
-                                  icon: Icon(
+                                  icon: const Icon(
                                     Icons.map_outlined,
                                     color: Colors.white,
                                     size: 18,
@@ -1052,26 +1073,36 @@ class _ArenaViewState extends State<ArenaView> {
                                     style: GoogleFonts.inter(
                                       color: Colors.white,
                                       fontSize: 12,
-                                      fontWeight: FontWeight.w400,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  onPressed: () => _openExternalMaps(pos!),
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ],
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
           ],
         ),
       ),
+
+      //
     );
   }
+
+  Widget _miniSeparator() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8),
+    child: Container(
+      width: 1,
+      height: 10,
+      color: Colors.white.withOpacity(0.35),
+    ),
+  );
 
   Widget _buildCafeHeader() {
     return Obx(

@@ -23,6 +23,63 @@ class BookingController extends GetxController {
     selectedSlots.clear();
   }
 
+  /// Filter and sort time slots based on start time
+  List<Map<String, dynamic>> filterAndSortTimeSlots(List<Map<String, dynamic>> rawSlots) {
+    try {
+      // Filter out slots that are not available
+      final availableSlots = rawSlots.where((slot) {
+        final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+        return isAvailable;
+      }).toList();
+
+      // Sort slots by start time
+      availableSlots.sort((a, b) {
+        final startTimeA = a['start_time'] ?? '';
+        final startTimeB = b['start_time'] ?? '';
+        
+        // Parse time strings (format: "HH:mm:ss")
+        final timeA = _parseTimeString(startTimeA);
+        final timeB = _parseTimeString(startTimeB);
+        
+        return timeA.compareTo(timeB);
+      });
+
+      // Log the filtered and sorted slots for debugging
+      print('Filtered and sorted ${availableSlots.length} slots out of ${rawSlots.length} total slots');
+      for (var slot in availableSlots.take(3)) {
+        print('Slot: ${slot['start_time']} - ${slot['end_time']}, Available: ${slot['available_slot']}');
+      }
+
+      return availableSlots;
+    } catch (e) {
+      print('Error filtering and sorting slots: $e');
+      return rawSlots; // Return original list if error occurs
+    }
+  }
+
+  /// Parse time string to DateTime for comparison
+  DateTime _parseTimeString(String timeStr) {
+    try {
+      if (timeStr.isEmpty) {
+        return DateTime(2000, 1, 1, 0, 0);
+      }
+      
+      final parts = timeStr.split(':');
+      if (parts.length >= 2) {
+        final hour = int.parse(parts[0]);
+        final minute = int.parse(parts[1]);
+        
+        // Validate hour and minute ranges
+        if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+          return DateTime(2000, 1, 1, hour, minute); // Use arbitrary date for time comparison
+        }
+      }
+    } catch (e) {
+      print('Error parsing time string: $timeStr, error: $e');
+    }
+    return DateTime(2000, 1, 1, 0, 0); // Default to midnight if parsing fails
+  }
+
   /// Check if a slot is available based on current time
   bool isSlotAvailableNow(Map<String, dynamic> slot) {
     try {
@@ -56,6 +113,67 @@ class BookingController extends GetxController {
     }
   }
 
+  /// Get filtered and sorted slots based on availability and time
+  List<Map<String, dynamic>> getFilteredSlots(String selectedDate) {
+    try {
+      final isCurrentDate = selectedDate == _getCurrentDateString();
+      
+      return slots.where((slot) {
+        // First check if slot is available from API
+        final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+        
+        // Then check if slot is available based on current time (only for current date)
+        final bool isTimeAvailable = isCurrentDate ? isSlotAvailableNow(slot) : true;
+        
+        // Also check if there are actually available consoles for this slot
+        final int availableConsoles = slot['available_slot'] ?? 
+                                    slot['availableSlot'] ?? 
+                                    slot['available_slots'] ?? 0;
+        
+        return isAvailable && isTimeAvailable && availableConsoles > 0;
+      }).toList();
+    } catch (e) {
+      print('Error getting filtered slots: $e');
+      return slots.toList();
+    }
+  }
+
+  /// Get total available consoles from filtered slots
+  int getTotalAvailableConsoles(String selectedDate) {
+    try {
+      final availableSlots = getFilteredSlots(selectedDate);
+      return availableSlots.fold<int>(
+        0,
+        (sum, slot) {
+          final int availableConsoles = slot['available_slot'] ??
+                                      slot['availableSlot'] ??
+                                      slot['available_slots'] ??
+                                      0;
+          return sum + availableConsoles;
+        },
+      );
+    } catch (e) {
+      print('Error calculating total available consoles: $e');
+      return 0;
+    }
+  }
+
+  /// Get current date string in yyyyMMdd format
+  String _getCurrentDateString() {
+    final now = DateTime.now();
+    return '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Get the original index of a slot in the main slots list
+  int getOriginalSlotIndex(Map<String, dynamic> slot) {
+    try {
+      return slots.indexWhere((s) => s['slot_id'] == slot['slot_id'] || s['id'] == slot['id']);
+    } catch (e) {
+      print('Error getting original slot index: $e');
+      return 0;
+    }
+  }
+
   Future<void> fetchSlots({
     required int vendorId,
     required int gameId,
@@ -69,7 +187,9 @@ class BookingController extends GetxController {
         date: date,
       );
 
-      slots.assignAll(slotList);
+      // Filter and sort the slots based on start time
+      final filteredAndSortedSlots = filterAndSortTimeSlots(slotList);
+      slots.assignAll(filteredAndSortedSlots);
     } catch (e) {
       _logError('Error fetching slots: $e');
       slots.clear();

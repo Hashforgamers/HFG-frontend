@@ -330,6 +330,7 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       ),
       leadingWidth: 55,
+      centerTitle: false,
       leading: Obx(
         () => Padding(
           padding: const EdgeInsets.only(left: 10),

@@ -90,11 +90,6 @@ class _GlobalPassViewState extends State<GlobalPassView> {
         throw Exception('User not found. Please login again.');
       }
 
-      final userId = userData['id']?.toString() ?? '';
-      if (userId.isEmpty) {
-        throw Exception('User ID not found. Please login again.');
-      }
-
       // Create Razorpay order
       final orderId = await _createRazorpayOrder(pass.price);
 
@@ -131,6 +126,8 @@ class _GlobalPassViewState extends State<GlobalPassView> {
       _razorpayController.slotIdsList.clear();
     } catch (e) {
       _processingPasses[passId] = false;
+      print(e);
+      print(e);
       Get.snackbar(
         'Error',
         'Failed to initiate payment: $e',

@@ -1,4 +1,5 @@
 import 'package:hash/core/repositories/model/booking_model.dart';
+import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/extra_services_model.dart';
 import 'package:hash/core/repositories/model/get_food_menu_model.dart';
@@ -27,6 +28,7 @@ abstract class RemoteRepoInterface {
     required int slotId,
     required int gameId,
   });
+  Future<Map<String, dynamic>> deleteUser();
 
   Future<List<Map<String, dynamic>>> fetchUserBookings();
 
@@ -119,5 +121,9 @@ abstract class RemoteRepoInterface {
 
   Future<List<TransactionHistoryModel>> getTransactionHistory({
     required String userId,
+  });
+
+  Future<void> capturePayment({
+    required CapturePaymentModel capturePaymentModel,
   });
 }

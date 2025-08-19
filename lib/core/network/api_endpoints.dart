@@ -17,6 +17,8 @@ class ApiEndpoints {
   static String get vendorGames => '$bookingBaseUrl/api/games/vendor';
   static String get createOffer => '$bookingBaseUrl/api/redeem-voucher';
 
+  static String get capturePayment => '$bookingBaseUrl/api/capture_payment';
+
   // Vendor Service
   static String get vendorBaseUrl => FlavorConfig.getBaseUrl('vendor');
   static String get getAllVendorsList =>
@@ -35,8 +37,8 @@ class ApiEndpoints {
   // Payment related constants
   // TODO:- Remove this and use the new API to get the Order ID and then use that Order ID to create the payment order
   static String get razorpayKeyWallet => FlavorConfig.isProduction()
-      // ? 'rzp_live_RmxaTWJdsdl8yy' // Replace with your live key
-      ?'rzp_test_viVAhwtbVdu1X4'
+      ? 'rzp_live_RmxaTWJdsdl8yy' // Replace with your live key
+      // ?'rzp_test_viVAhwtbVdu1X4'
       : 'rzp_test_viVAhwtbVdu1X4';
 
   // Address related endpoints (userOnboard)

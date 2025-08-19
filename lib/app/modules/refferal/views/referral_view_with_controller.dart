@@ -275,7 +275,7 @@ class _ReferralViewWithControllerState
           ),
           _howItWorksStep(
             'Step 3',
-            'You both earn rewards when your friend makes a booking',
+            'You will earn rewards when your friend makes a successful signup',
             Icons.card_giftcard,
           ),
         ],

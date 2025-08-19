@@ -6,6 +6,7 @@ import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
+import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/extra_services_model.dart';
 import 'package:hash/core/repositories/model/get_food_menu_model.dart';
@@ -182,6 +183,46 @@ class RemoteRepo implements RemoteRepoInterface {
       return {"success": false, "message": "Error: $e"};
     }
   }
+
+  Future<Map<String, dynamic>> deleteUser() async {
+    final dio = await networkProvider.auth(); // must attach Authorization header (Bearer <jwt>)
+    try {
+      // If your API expects /api/users/{id}, switch endpoint to: '${ApiEndpoints.baseUrl}/$userId'
+      final response = await dio.delete(
+        ApiEndpoints.baseUrl, // DELETE /api/users  -> delete current authenticated user
+        options: Options(
+          // treat 4xx (except 5xx) as handled so we can show API message
+          validateStatus: (code) => code != null && code < 500,
+        ),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return {
+          "success": true,
+          "message": (response.data is Map && response.data['message'] != null)
+              ? response.data['message']
+              : "Account deleted successfully"
+        };
+      }
+
+      // Handle common auth/client errors with useful messages
+      final data = response.data;
+      final serverMsg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : "Failed to delete account. Status code: ${response.statusCode}";
+      return {"success": false, "message": serverMsg};
+    } on DioException catch (e) {
+      // Let retry interceptor handle retryable errors
+      if (ApiErrorHandler.shouldRetry(e)) rethrow;
+
+      final msg = ApiErrorHandler.extractErrorMessage(e);
+      return {"success": false, "message": msg};
+    } catch (e) {
+      return {"success": false, "message": "Unexpected error: $e"};
+    }
+  }
+
+
 
   @override
   Future<List<Map<String, dynamic>>> fetchUserBookings() async {
@@ -992,5 +1033,28 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<String?> getJwtFromPreferences() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('jwt');
+  }
+
+  @override
+  Future<void> capturePayment({
+    required CapturePaymentModel capturePaymentModel,
+  }) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.capturePayment,
+        data: capturePaymentModel.toJson(),
+      );
+      if (response.statusCode == 200) {
+        return;
+      } else {
+        throw Exception(
+          'Failed to capture payment. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error capturing payment: $e');
+      rethrow;
+    }
   }
 }
