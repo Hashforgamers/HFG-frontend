@@ -5,6 +5,7 @@ import 'package:hash/features/mini_games/pacman/HomePage.dart';
 import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart';
 import 'flappy_birds/Layouts/Pages/page_game.dart';
 import 'flappy_birds/Layouts/Pages/page_start_screen.dart';
+import 'ludo/ludo_game_screen.dart';
 import 'mini_game_card.dart';
 import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
 import 'models/minigame_model.dart';
@@ -41,6 +42,12 @@ class MiniGamesSection extends StatelessWidget {
         imageUrl:
         "assets/mini_game_icons/flappy_birds.png",
         onTap: () => Get.to(GamePage()),
+      ),MiniGame(
+        title: "Ludo",
+        subtitle: "Daily rewards",
+        imageUrl:
+        "assets/mini_game_icons/ludo_icon.png",
+        onTap: () =>Get.to(() => const LudoGameScreen()),
       ),
     ];
 

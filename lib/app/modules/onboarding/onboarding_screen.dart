@@ -16,7 +16,8 @@ class OnboardingScreen extends StatelessWidget {
             globalBackgroundColor: Colors.black,
             showSkipButton: false, // hide built-in skip
             pages: [
-              PageViewModel(useScrollView: false,
+              PageViewModel(useScrollView: false,                decoration: PageDecoration(pageMargin:EdgeInsets.only(bottom: 0)),
+
                 titleWidget: const SizedBox.shrink(),
                 bodyWidget: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -40,12 +41,13 @@ class OnboardingScreen extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                         "Enjoy immersive gaming, fast PCs, comfortable seating, friendly vibes, and endless fun with friends.",
-                        style: GoogleFonts.orbitron(
+                        style: GoogleFonts.inter(
                             color: Colors.white70, fontSize: 14)),
                   ],
                 ),
               ),
-              PageViewModel(useScrollView: false,
+              PageViewModel(useScrollView: false,                decoration: PageDecoration(pageMargin:EdgeInsets.only(bottom: 0)),
+
                 titleWidget: const SizedBox.shrink(),
                 bodyWidget: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,20 +68,23 @@ class OnboardingScreen extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                         "Share with friends, grow your community, unlock exclusive rewards, play more, save more, and enjoy ultimate gaming benefits.",
-                        style: GoogleFonts.orbitron(
+                        style: GoogleFonts.inter(
                             color: Colors.white70, fontSize: 14)),
                   ],
                 ),
               ),
               PageViewModel(useScrollView: false,
                 titleWidget: const SizedBox.shrink(),
+                decoration: PageDecoration(pageMargin:EdgeInsets.only(bottom: 0)),
                 bodyWidget: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
 
                     const SizedBox(height: 100),
-                    Image.asset("assets/onboarding_icons/image 182.png",
-                        height: 250),
+                    Center(
+                      child: Image.asset("assets/onboarding_icons/image 182.png",alignment: Alignment.center,
+                          height: 250),
+                    ),
                     const SizedBox(height: 50),
                     Text("Participate",
                         style: GoogleFonts.orbitron(
@@ -94,7 +99,7 @@ class OnboardingScreen extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                         "Compete with top gamers, win epic prizes, earn glory, and become a legend in gaming.",
-                        style: GoogleFonts.orbitron(
+                        style: GoogleFonts.inter(
                             color: Colors.white70, fontSize: 14)),
                   ],
                 ),
@@ -117,10 +122,17 @@ class OnboardingScreen extends StatelessWidget {
                 child: const Icon(Icons.chevron_right, color: Colors.black),
               ),
             ),
-            done: Text("Letsgo",
-                style: GoogleFonts.orbitron(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold)),
+            done: Container(padding:  EdgeInsets.symmetric(horizontal: 16,vertical: 6),
+              decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  color:Colors.white 
+
+              ),
+              child: Text("Letsgo",
+                  style: GoogleFonts.orbitron(
+                      color: Colors.black,fontSize: 12,
+                      fontWeight: FontWeight.w100)),
+            ),
             onDone: () {
               Navigator.pushReplacementNamed(context, "/login");
             },

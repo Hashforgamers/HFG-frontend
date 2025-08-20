@@ -1,5 +1,6 @@
 // lib/app/modules/shorts/controllers/game_news_controller.dart
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -32,12 +33,12 @@ class GameNewsItem {
 }
 
 class NewsController extends GetxController {
-  static const List<String> _apiKeys = [
-    '51a460406b4c42c49acf3b06fd7aebcb',
-    '8e619f80f675482fa9d9a7428ab8a3cd',
-    '25f277808858445e9ad83230a2af5c4b',
-    'ce0ee2717a214c128e7bb8bce624578d',
-  ];
+  // static const List<String> _apiKeys = [
+  //   '51a460406b4c42c49acf3b06fd7aebcb',
+  //   '8e619f80f675482fa9d9a7428ab8a3cd',
+  //   '25f277808858445e9ad83230a2af5c4b',
+  //   'ce0ee2717a214c128e7bb8bce624578d',
+  // ];
 
   final isLoading = false.obs;
   final items = <GameNewsItem>[].obs;
@@ -49,11 +50,19 @@ class NewsController extends GetxController {
 
   final Set<String> _seen = <String>{};
   final _client = http.Client();
+  static const List<String> _apiKeys = [
+    '51a460406b4c42c49acf3b06fd7aebcb',
+    '8e619f80f675482fa9d9a7428ab8a3cd',
+    '25f277808858445e9ad83230a2af5c4b',
+    'ce0ee2717a214c128e7bb8bce624578d',
+  ];
+
+  final _rnd = Random();
 
   String _getRandomKey() {
-    _apiKeys.shuffle(); // simple randomization
-    return _apiKeys.first;
+    return _apiKeys[_rnd.nextInt(_apiKeys.length)];
   }
+
 
   @override
   void onInit() {
