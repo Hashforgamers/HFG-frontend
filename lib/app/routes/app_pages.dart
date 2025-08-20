@@ -5,6 +5,7 @@ import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
 import '../modules/login/bindings/login_binding.dart';
 import '../modules/login/views/login_view.dart';
+import '../modules/onboarding/onboarding_screen.dart';
 import '../modules/signup/views/signup_view.dart';
 import '../modules/splash/bindings/splash_binding.dart';
 import '../modules/splash/views/splash_view.dart';
@@ -18,6 +19,11 @@ class AppPages {
       name: AppRoutes.SPLASH,
       page: () => SplashView(),
       binding: SplashBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.ONBOARDING,
+      page: () => OnboardingScreen(),
+      // binding: SplashBinding(),
     ),
     GetPage(
       name: AppRoutes.HOME,

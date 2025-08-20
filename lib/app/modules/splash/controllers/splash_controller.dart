@@ -49,7 +49,7 @@ class SplashController extends GetxController {
       await _fetchUserDataIfNeeded();
       Get.offAllNamed(AppRoutes.HOME);
     } else {
-      Get.offAllNamed(AppRoutes.LOGIN);
+      Get.offAllNamed(AppRoutes.ONBOARDING);
     }
   }
 

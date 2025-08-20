@@ -1,3 +1,6 @@
+
+import 'dart:math';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -31,7 +34,30 @@ class _SignUpViewState extends State<SignUpView> {
       c.emailController.text = args['email'] ?? '';
       c.mobileNoController.text = args['phoneNumber'] ?? '';
     }
+
+    // 🔹 Listener: whenever name changes → regenerate username
+    c.nameController.addListener(() {
+      final baseName = c.nameController.text.trim().isNotEmpty
+          ? c.nameController.text.split(" ").first
+          : "Player";
+
+      final gamingWords = [
+        "Ninja", "Warrior", "Shadow", "Hunter", "Sniper",
+        "Dragon", "Knight", "Phantom", "Rogue", "Assassin",
+        "Beast", "Predator", "Ghost", "Samurai", "Reaper"
+      ];
+
+      final random = Random();
+      final word = gamingWords[random.nextInt(gamingWords.length)];
+      final number = random.nextInt(900) + 100; // 100–999
+
+      c.gameUserNameController.text = "$baseName$word$number";
+    });
+
+    // 🔹 Default gender = Male
+    c.genderController.text = "Male";
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +75,7 @@ class _SignUpViewState extends State<SignUpView> {
             children: [
               IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed:()=>Get.back()),
+                  onPressed: ()=>Get.back()),
               Expanded(
                 child: Form(
                   key: _formKey,
@@ -64,47 +90,84 @@ class _SignUpViewState extends State<SignUpView> {
                             fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 20),
+
+                      // Name
                       _field(c.nameController, 'Name',
                           autofill: AutofillHints.name),
+
+                      // Game Username (auto-filled)
                       _userNameField(),
-                      _dobPicker(),
-                      _genderDrop(),
+
+
+
+                      // Mobile
+                      _mobileField(phoneFilled),
+
+                      // Referral
+                      _referralField(),
+
+                      // Email
                       _field(c.emailController, 'Email',
                           readOnly: emailFilled, autofill: AutofillHints.email),
-                      _field(c.mobileNoController, 'Mobile Number',
-                          readOnly: phoneFilled,
-                          autofill: AutofillHints.telephoneNumber),
-                      _field(
-                          c.referralCodeController, 'Referral Code (Optional)',
-                          required: false),
-                      _locationBtn(),
-                      _field(c.addressLine1Controller, 'Address Line 1',
-                          autofill: AutofillHints.streetAddressLine1,
-                          required: false),
-                      _field(c.addressLine2Controller, 'Address Line 2',
-                          autofill: AutofillHints.streetAddressLine2,
-                          required: false),
-                      const SizedBox(height: 20),
-                      _signupBtn(),
-                      TextButton(
-                        onPressed: () => Get.offAllNamed(AppRoutes.LOGIN),
-                        child: Text.rich(TextSpan(
-                            text: 'Already have an account? ',
-                            style: GoogleFonts.inter(color: Colors.white70),
-                            children: [
-                              TextSpan(
-                                text: 'Login',
-                                style: GoogleFonts.inter(
-                                    color: const Color(0xFF3AFF6B)),
-                              )
-                            ])),
-                      )
+                      // Location button
+                      // _locationBtn(),
+                      //
+                      // // Address
+                      // _field(c.addressLine1Controller, 'Address Line 1',
+                      //     autofill: AutofillHints.streetAddressLine1, required: false),
+                      // _field(c.addressLine2Controller, 'Address Line 2',
+                      //     autofill: AutofillHints.streetAddressLine2, required: false),
+
+                      // const SizedBox(height: 20),
+                      // _signupBtn(),
+                      //
+                      // TextButton(
+                      //   onPressed: () => Get.offAllNamed(AppRoutes.LOGIN),
+                      //   child: Text.rich(TextSpan(
+                      //       text: 'Already have an account? ',
+                      //       style: GoogleFonts.inter(color: Colors.white70),
+                      //       children: [
+                      //         TextSpan(
+                      //           text: 'Login',
+                      //           style: GoogleFonts.inter(
+                      //               color: const Color(0xFF3AFF6B)),
+                      //         )
+                      //       ])),
+                      // )
                     ],
                   ),
                 ),
               ),
             ],
           ),
+        ),
+
+      ),
+
+      // 🔹 Bottom section
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _signupBtn(),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Get.offAllNamed(AppRoutes.LOGIN),
+              child: Text.rich(
+                TextSpan(
+                  text: 'Already have an account? ',
+                  style: GoogleFonts.inter(color: Colors.white70),
+                  children: [
+                    TextSpan(
+                      text: 'Login',
+                      style: GoogleFonts.inter(color: const Color(0xFF3AFF6B)),
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -119,18 +182,54 @@ class _SignUpViewState extends State<SignUpView> {
       child: TextFormField(
         controller: ctl,
         readOnly: readOnly,
-        style: GoogleFonts.inter(color: Colors.white),
+        style: GoogleFonts.inter(
+          color: readOnly ? Colors.grey.shade400 : Colors.white,
+        ),
         autofillHints: autofill != null ? [autofill] : null,
         decoration: InputDecoration(
           labelText: label,
+          labelStyle: GoogleFonts.inter(
+            color: readOnly ? Colors.grey.shade500 : Colors.white70,
+          ),
+          filled: readOnly, // fill only if readOnly
+          fillColor: Colors.grey.shade900, // subtle grey bg
+          contentPadding: _pad,
+          enabledBorder: _border(readOnly ? Colors.grey.shade700 : const Color(0x3FFFFFFF)),
+          focusedBorder: _border(readOnly ? Colors.grey.shade700 : const Color(0xFF3AFF6B)),
+        ),
+        validator: (v) {
+          if (required && !readOnly && (v == null || v.trim().isEmpty)) {
+            return 'Enter $label';
+          }
+          return null;
+        },
+      ),
+    );
+  }
+
+  Widget _mobileField(bool readOnly) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: c.mobileNoController,
+        readOnly: readOnly,
+        keyboardType: TextInputType.phone,
+        style: GoogleFonts.inter(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: 'Mobile Number',
           labelStyle: GoogleFonts.inter(color: Colors.white70),
+          prefixText: '+91 ', // 🔹 prefix visible, non-editable
+          prefixStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500),
           contentPadding: _pad,
           enabledBorder: _border(const Color(0x3FFFFFFF)),
           focusedBorder: _border(const Color(0xFF3AFF6B)),
         ),
         validator: (v) {
-          if (required && !readOnly && (v == null || v.trim().isEmpty)) {
-            return 'Enter $label';
+          if (!readOnly && (v == null || v.trim().isEmpty)) {
+            return 'Enter Mobile Number';
+          }
+          if (!readOnly && v!.length < 10) {
+            return 'Enter valid number';
           }
           return null;
         },
@@ -159,38 +258,9 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
-  Widget _dobPicker() {
-    return GestureDetector(
-      onTap: _pickDob,
-      child: AbsorbPointer(child: _field(c.dobController, 'Date of Birth')),
-    );
-  }
 
-  Future<void> _pickDob() async {
-    final picked = await showModalBottomSheet<DateTime>(
-      context: context,
-      backgroundColor: Colors.black,
-      builder: (_) => _CupertinoDobPicker(initial: c.dobController.text),
-    );
-    if (picked != null) {
-      final m = [
-        'JAN',
-        'FEB',
-        'MAR',
-        'APR',
-        'MAY',
-        'JUN',
-        'JUL',
-        'AUG',
-        'SEP',
-        'OCT',
-        'NOV',
-        'DEC'
-      ];
-      c.dobController.text =
-          '${picked.day.toString().padLeft(2, "0")}-${m[picked.month - 1]}-${picked.year}';
-    }
-  }
+
+
 
   Widget _genderDrop() {
     return Padding(
@@ -218,29 +288,29 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
-  Widget _locationBtn() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          RGBLightFrame(width: Get.width, height: 50, borderRadius: 100),
-          InkWell(
-            onTap: c.fetchLocation,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(CupertinoIcons.location_solid, color: Colors.white),
-                const SizedBox(width: 8),
-                Text('Fetch Location',
-                    style: GoogleFonts.inter(color: Colors.white)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _locationBtn() {
+  //   return Padding(
+  //     padding: const EdgeInsets.only(bottom: 16),
+  //     child: Stack(
+  //       alignment: Alignment.center,
+  //       children: [
+  //         RGBLightFrame(width: Get.width, height: 50, borderRadius: 100),
+  //         InkWell(
+  //           onTap: c.fetchLocation,
+  //           child: Row(
+  //             mainAxisAlignment: MainAxisAlignment.center,
+  //             children: [
+  //               const Icon(CupertinoIcons.location_solid, color: Colors.white),
+  //               const SizedBox(width: 8),
+  //               Text('Fetch Location',
+  //                   style: GoogleFonts.inter(color: Colors.white)),
+  //             ],
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _signupBtn() {
     return Obx(() => Stack(
@@ -277,6 +347,25 @@ class _SignUpViewState extends State<SignUpView> {
           ],
         ));
   }
+  Widget _referralField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: c.referralCodeController,
+        style: GoogleFonts.inter(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: 'Referral Code (Optional)',
+          labelStyle: GoogleFonts.inter(color: Colors.white54), // lighter
+          hintText: 'Enter if you have one',
+          hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 13,fontWeight: FontWeight.w100),
+          contentPadding: _pad.copyWith(top: 10, bottom: 10), // smaller
+          enabledBorder: _border(const Color(0x2FFFFFFF)),   // lighter border
+          focusedBorder: _border(const Color(0xFF3AFF6B)),
+        ),
+        // 🔹 No validator → not mandatory
+      ),
+    );
+  }
 
   // helper
   OutlineInputBorder _border(Color c) => OutlineInputBorder(
@@ -284,44 +373,3 @@ class _SignUpViewState extends State<SignUpView> {
       borderRadius: BorderRadius.circular(12));
 }
 
-// ───────────────────────── Cupertino DOB picker widget ─────────────────────────
-class _CupertinoDobPicker extends StatefulWidget {
-  final String initial;
-  const _CupertinoDobPicker({required this.initial});
-  @override
-  State<_CupertinoDobPicker> createState() => _CupertinoDobPickerState();
-}
-
-class _CupertinoDobPickerState extends State<_CupertinoDobPicker> {
-  late DateTime _selected;
-
-  @override
-  void initState() {
-    super.initState();
-    _selected = DateTime.tryParse(widget.initial) ?? DateTime(2000);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 250,
-      child: Column(
-        children: [
-          Expanded(
-            child: CupertinoDatePicker(
-              backgroundColor: Colors.black,
-              mode: CupertinoDatePickerMode.date,
-              initialDateTime: _selected,
-              maximumDate: DateTime.now(),
-              onDateTimeChanged: (d) => _selected = d,
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, _selected),
-            child: const Text('Done'),
-          )
-        ],
-      ),
-    );
-  }
-}
