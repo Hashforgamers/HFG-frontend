@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.3.11+16
+version: 1.3.12+17
 
 environment:
   sdk: ^3.8.1
@@ -92,6 +92,13 @@ dependencies:
   in_app_update: ^4.2.3
   sign_in_with_apple: ^7.0.1
   crypto: ^3.0.6
+  flame: ^1.17.0
+  path_provider: ^2.1.4
+  flame_audio:
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  smooth_star_rating_null_safety:
+  rating_dialog:
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -145,6 +152,16 @@ flutter:
     - assets/custom_marker.png
     - assets/custom_marker2.png
     - shorebird.yaml
+    - assets/images/
+    - assets/audio/music/
+    - assets/audio/sfx/
+    - assets/mini_game_icons/
+    - assets/plant_vs_zombies/images/
+    - assets/plant_vs_zombies/sounds/
+    - assets/pacman/
+    - assets/flappy_birds/audio/
+    - assets/flappy_birds/fonts/
+    - assets/flappy_birds/pics/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
@@ -162,6 +179,9 @@ flutter:
     - family: Pricedown
       fonts:
         - asset: fonts/pricedown bl.otf
+    - family: Magic4
+      fonts:
+        - asset: assets/flappy_birds/fonts/DiloWorld-mLJLv.ttf
   #       - asset: fonts/Schyler-Italic.ttf
   #         style: italic
   #   - family: Trajan Pro

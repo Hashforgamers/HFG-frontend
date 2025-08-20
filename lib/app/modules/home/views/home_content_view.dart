@@ -26,6 +26,10 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/modules/home/widgets/refer_friend_modal.dart';
 
+import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
+import '../../../../features/mini_games/mini_game_section.dart';
+import '../../arena/views/payment_success.dart';
+
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
 
@@ -245,6 +249,7 @@ class _HomeContentViewState extends State<HomeContentView>
                           _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
                           _buildLazyLoadedSection('cafe', CafeSection()),
                           _buildLazyLoadedSection('referral', _buildReferFriendModal()),
+                          _buildLazyLoadedSection('miniGames', const MiniGamesSection()),
                           _buildLazyLoadedSection('news', const GamerNewsSection()),
                           _buildLazyLoadedSection('games', const GamesSection()),
                           _buildLazyLoadedSection('shorts', ViralShotsSection()),
@@ -392,6 +397,16 @@ class _HomeContentViewState extends State<HomeContentView>
     if (_cachedGamePassContainer != null) return _cachedGamePassContainer!;
 
     _cachedGamePassContainer = GestureDetector(
+      // onTap: () => Get.to(() => PaymentSuccessScreen(
+      //   dateText: "2/8/25",
+      //   timeText: "11:45 pm",
+      //   totalText: "₹500",
+      //   email: "test00@gmail.com",
+      //   onViewInvoice: () {
+      //     // Navigate to invoice screen or open a link
+      //   },
+      // ),),
+      // onTap: () => Get.to(() => FruitCuttingScreen()),
       onTap: () => Get.to(() => GamePassViewPage()),
       child: Container(
         height: 200,
