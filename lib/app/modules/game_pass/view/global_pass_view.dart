@@ -17,6 +17,8 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
+import '../../../../utils/widgets/loader.dart';
+
 enum GlobalPassCardType { rightImage, leftImage }
 
 class GlobalPassView extends StatefulWidget {
@@ -126,8 +128,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
       _razorpayController.slotIdsList.clear();
     } catch (e) {
       _processingPasses[passId] = false;
-      print(e);
-      print(e);
+
       Get.snackbar(
         'Error',
         'Failed to initiate payment: $e',
@@ -175,7 +176,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
     return BlocBuilder<GamePassCubit, GamePassState>(
       builder: (context, state) {
         if (state is GamePassLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: RainbowLoadingBar());
         }
 
         if (state is GamePassError) {
@@ -344,11 +345,8 @@ class _GlobalPassViewState extends State<GlobalPassView> {
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
+                                child: RainbowLoadingBar(
+
                                 ),
                               )
                             : Text(

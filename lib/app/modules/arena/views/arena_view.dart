@@ -21,6 +21,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import '../../../../utils/service.dart';
+import '../../../../utils/widgets/loader.dart';
 import 'arena_view_detailed.dart';
 
 class ArenaView extends StatefulWidget {
@@ -630,7 +631,7 @@ class _ArenaViewState extends State<ArenaView> {
                   topRight: Radius.circular(8),
                 ),
                 child: SizedBox(
-                  height: size * 0.51,
+                  height: size * 0.55,
                   width: double.infinity,
                   child: Stack(
                     children: [
@@ -744,7 +745,7 @@ class _ArenaViewState extends State<ArenaView> {
                                             ),
                                           )
                                         else
-                                          CircularProgressIndicator(),
+                                          RainbowLoadingBar(),
                                         const SizedBox(height: 8),
                                         if (_userState != null)
                                           GestureDetector(
@@ -862,8 +863,9 @@ class _ArenaViewState extends State<ArenaView> {
               fit: BoxFit.cover,
               filterQuality: FilterQuality.high,
               // Hint the cache with 2x widget size (optional)
-              memCacheWidth: 660,
-              memCacheHeight: 280,
+
+              // memCacheWidth: 660,
+              // memCacheHeight: 280,
               placeholder: (_, __) =>
                   const Center(child: RainbowGlowingLoader(size: 40)),
               errorWidget: (_, __, ___) => Container(
@@ -897,13 +899,13 @@ class _ArenaViewState extends State<ArenaView> {
               left: 0,
               right: 0,
               bottom: 0,
-              top: 84, // glassy bottom 40–60px
+              top: 53, // glassy bottom 40–60px
               child: ClipRRect(
-                borderRadius: const BorderRadius.all(Radius.circular(25)),
+                borderRadius: const BorderRadius.all(Radius.circular(20)),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(
-                    sigmaX: 6,
-                    sigmaY: 6,
+                    sigmaX: 4,
+                    sigmaY: 4,
                   ), // was 10 (heavier)
                   child: const SizedBox.expand(),
                 ),

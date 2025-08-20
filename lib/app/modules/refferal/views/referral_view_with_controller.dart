@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../../../utils/widgets/loader.dart';
 import '../controller/refferal_controller.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:flutter/services.dart';
@@ -89,8 +90,8 @@ class _ReferralViewWithControllerState
                   child: BlocBuilder<HashCoinCubit, HashCoinState>(
                     builder: (context, state) {
                       if (state is HashCoinLoading) {
-                        return const CircularProgressIndicator(
-                          color: Colors.green,
+                        return  RainbowLoadingBar(
+
                         );
                       }
                       if (state is HashCoinLoaded) {
@@ -340,9 +341,8 @@ class _ReferralViewWithControllerState
                     ? SizedBox(
                         height: 16,
                         width: 16,
-                        child: CircularProgressIndicator(
-                          color: _green,
-                          strokeWidth: 2,
+                        child: RainbowLoadingBar(
+
                         ),
                       )
                     : GestureDetector(
@@ -399,9 +399,8 @@ class _ReferralViewWithControllerState
                 ? SizedBox(
                     width: double.infinity,
                     child: Center(
-                      child: CircularProgressIndicator(
-                        color: _green,
-                        strokeWidth: 2,
+                      child: RainbowLoadingBar(
+
                       ),
                     ),
                   )

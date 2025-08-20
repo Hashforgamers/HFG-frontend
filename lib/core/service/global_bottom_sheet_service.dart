@@ -7,6 +7,8 @@ import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 
+import '../../utils/widgets/loader.dart';
+
 class GlobalBottomSheetService {
   static final GlobalBottomSheetService _instance = GlobalBottomSheetService._internal();
   factory GlobalBottomSheetService() => _instance;
@@ -340,10 +342,8 @@ class GlobalBottomSheetService {
                                               const SizedBox(
                                                 width: 20,
                                                 height: 20,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                                ),
+                                                child: RainbowLoadingBar(
+                                               ),
                                               ),
                                               const SizedBox(width: 12),
                                               Text(
@@ -482,12 +482,11 @@ class GlobalBottomSheetService {
       SnackBar(
         content: Row(
           children: [
-            const SizedBox(
+             SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              child: RainbowLoadingBar(
+
               ),
             ),
             const SizedBox(width: 16),

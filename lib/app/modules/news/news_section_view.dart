@@ -7,6 +7,7 @@ import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../utils/widgets/loader.dart';
 import 'game_news_controller.dart';
 
 class GamerNewsSection extends StatefulWidget {
@@ -214,7 +215,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                 padding: const EdgeInsets.only(top: 6),
                 child: SizedBox(
                   height: 16, width: 16,
-                  child: const CircularProgressIndicator(strokeWidth: 2),
+                  child: const RainbowLoadingBar(),
                 ),
               ),
             ),

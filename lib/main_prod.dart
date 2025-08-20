@@ -60,7 +60,7 @@ void main() async {
   // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
 
-  runApp(DevicePreview(enabled: !kReleaseMode, builder: (context) => MyApp()));
+  runApp(DevicePreview(enabled: !kDebugMode, builder: (context) => MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -68,33 +68,35 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ScreenUtilInit(
-      designSize: const Size(390, 844),
-      minTextAdapt: true,
-      splitScreenMode: true,
-      builder: (context, child) {
-        return MultiBlocProvider(
-          providers: [
-            BlocProvider(create: (context) => HashCoinCubit(),
-            ),
-        BlocProvider(
-          create: (context) => FcmCubit(),
-        ),
-        BlocProvider(
-          create: (context) =>  GamePassCubit(),),
-          ],
-          child: ScrollConfiguration(
-            behavior: NoGlowScrollBehavior(),
-            child: GetMaterialApp(
-              debugShowCheckedModeBanner: false, // Hide debug banner for prod
-              title: FlavorConfig.instance.appName,
-              theme: AppTheme.dark,
-              initialRoute: AppRoutes.SPLASH,
-              getPages: AppPages.pages,
-            ),
+    return SafeArea(
+      child: ScreenUtilInit(
+        designSize: const Size(390, 844),
+        minTextAdapt: true,
+        splitScreenMode: true,
+        builder: (context, child) {
+          return MultiBlocProvider(
+            providers: [
+              BlocProvider(create: (context) => HashCoinCubit(),
+              ),
+          BlocProvider(
+            create: (context) => FcmCubit(),
           ),
-        );
-      },
+          BlocProvider(
+            create: (context) =>  GamePassCubit(),),
+            ],
+            child: ScrollConfiguration(
+              behavior: NoGlowScrollBehavior(),
+              child: GetMaterialApp(
+                debugShowCheckedModeBanner: false, // Hide debug banner for prod
+                title: FlavorConfig.instance.appName,
+                theme: AppTheme.dark,
+                initialRoute: AppRoutes.SPLASH,
+                getPages: AppPages.pages,
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

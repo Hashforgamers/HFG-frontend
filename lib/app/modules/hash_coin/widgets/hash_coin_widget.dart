@@ -6,6 +6,8 @@ import 'package:hash/app/modules/hash_coin/cubit/create_offer_cubit.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/global_bottom_sheet_service.dart';
 
+import '../../../../utils/widgets/loader.dart';
+
 class HashCoinWidget extends StatefulWidget {
   final int hashCoin;
   final CreateOfferCubit? createOfferCubit;
@@ -845,12 +847,11 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
       SnackBar(
         content: Row(
           children: [
-            const SizedBox(
+             SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              child: RainbowLoadingBar(
+
               ),
             ),
             const SizedBox(width: 16),

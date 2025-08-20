@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/hash_coin/widgets/hash_coin_widget.dart';
 
+import '../../../../utils/widgets/loader.dart';
+
 class HashCoinPage extends StatelessWidget {
   const HashCoinPage({super.key});
 
@@ -34,8 +36,8 @@ class __HashCoinPageState extends State<_HashCoinPage> {
     return BlocBuilder<HashCoinCubit, HashCoinState>(
       builder: (context, state) {
         if (state is HashCoinLoading) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+          return Scaffold(
+            body: Center(child: RainbowLoadingBar()),
           );
         } else if (state is HashCoinLoaded) {
           return HashCoinWidget(

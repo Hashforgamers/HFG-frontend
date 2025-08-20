@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/shop/controllers/cart_controller.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:lottie/lottie.dart';
+import '../../../../utils/widgets/loader.dart';
 import '../products_model.dart';
 import 'cart_view.dart';
 import 'shop_detail_view.dart';
@@ -134,7 +135,7 @@ class _ShopViewState extends State<ShopView> {
         ],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ?  Center(child: RainbowLoadingBar())
           : errorMessage.isNotEmpty
           ? Center(
               child: Text(

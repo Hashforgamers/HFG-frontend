@@ -22,7 +22,11 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
-
+    <key>NSUserTrackingUsageDescription</key>
+    <string>This identifier will be used to sign in.</string>
+    <!-- Add Apple Sign-In Capability -->
+    <key>NSUserAuthenticationUsageDescription</key>
+    <string>Sign in to your account securely using Apple.</string>
 	<!-- Privacy purpose strings -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Hash for Gamers uses your location to show nearby gaming cafés, directions, and location-aware offers while you use the app.</string>
@@ -45,10 +49,18 @@
 	<!-- Google Maps SDK key (as provided) -->
 	<key>GMSApiKey</key>
 	<string>AIzaSyDjaI5XOoq4r0AbJVfDSz9tiQqLGBC_yNU</string>
+    <key>FacebookClientToken</key>
+    <string>ef176e72dcf69f0d3f9d791237249300</string>
 
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
+		<key>SignInWithApple</key>
+        <true/>
+
+        <key>FirebaseAppDelegateProxyEnabled</key>
+        <true/>
+
 			<key>CFBundleURLName</key>
 			<string>hash</string>
 			<key>CFBundleURLSchemes</key>

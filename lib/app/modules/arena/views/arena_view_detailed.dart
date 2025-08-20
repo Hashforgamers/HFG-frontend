@@ -12,6 +12,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
+import '../../../../utils/widgets/loader.dart';
 import '../controllers/games_controller.dart';
 
 class ArenaDetailView extends StatefulWidget {
@@ -319,8 +320,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                         builder: (controller) {
                           if (controller.isLoading.value) {
                             return const Center(
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
+                              child: RainbowLoadingBar(
                               ),
                             );
                           }

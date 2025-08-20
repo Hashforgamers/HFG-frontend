@@ -1,9 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class RainbowGlowingLoader extends StatefulWidget {
   final double size;
 
-  const RainbowGlowingLoader({super.key, this.size = 80}); // default size: 80
+  const RainbowGlowingLoader({super.key, this.size = 80});
 
   @override
   State<RainbowGlowingLoader> createState() => _RainbowGlowingLoaderState();
@@ -11,16 +12,27 @@ class RainbowGlowingLoader extends StatefulWidget {
 
 class _RainbowGlowingLoaderState extends State<RainbowGlowingLoader>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  late final AnimationController _controller;
 
-  final List<double> blurLevels = [3, 6, 12, 24];
+  static const _rainbowGradient = SweepGradient(
+    colors: [
+      Colors.red,
+      Colors.orange,
+      Colors.yellow,
+      Colors.green,
+      Colors.cyan,
+      Colors.blue,
+      Colors.purple,
+      Colors.red, // loop
+    ],
+  );
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
+      duration: const Duration(seconds: 2),
       vsync: this,
-      duration: const Duration(seconds: 3),
     )..repeat();
   }
 
@@ -30,69 +42,60 @@ class _RainbowGlowingLoaderState extends State<RainbowGlowingLoader>
     super.dispose();
   }
 
-  Widget _buildBlurredCircle(double blur, double size) {
-    return Container(
-      height: size,
-      width: size,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: SweepGradient(
-          colors: [
-            Colors.red,
-            Colors.orange,
-            Colors.yellow,
-            Colors.green,
-            Colors.cyan,
-            Colors.blue,
-            Colors.purple,
-            Colors.red,
-          ],
+  Widget _buildGlowCircle({required double size, required double blur}) {
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: _rainbowGradient,
+          ),
         ),
       ),
-      child: Container(color: Colors.transparent),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final double outerSize = widget.size;
-    final double innerSize = outerSize * 0.88;
+    final double innerSize = outerSize * 0.82;
 
-    return Center(
-      child: RotationTransition(
-        turns: _controller,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            for (var blur in blurLevels) _buildBlurredCircle(blur, outerSize),
-            Container(
-              height: outerSize,
-              width: outerSize,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: SweepGradient(
-                  colors: [
-                    Colors.red,
-                    Colors.orange,
-                    Colors.yellow,
-                    Colors.green,
-                    Colors.cyan,
-                    Colors.blue,
-                    Colors.purple,
-                    Colors.red,
-                  ],
+    return RepaintBoundary(
+      child: SizedBox(
+        width: outerSize,
+        height: outerSize,
+        child: RotationTransition(
+          turns: _controller,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Efficient single blurred glow
+              _buildGlowCircle(size: outerSize, blur: 12.0),
+
+              // Main rotating color ring
+              Container(
+                width: outerSize,
+                height: outerSize,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: _rainbowGradient,
                 ),
               ),
-            ),
-            Container(
-              height: innerSize,
-              width: innerSize,
-              decoration: const BoxDecoration(
-                color: Colors.black,
-                shape: BoxShape.circle,
+
+              // Black inner cut-out
+              Container(
+                width: innerSize,
+                height: innerSize,
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

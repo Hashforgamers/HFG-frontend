@@ -4,6 +4,8 @@ import 'package:geocoding/geocoding.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/firebase_service.dart';
 
+import '../../../../utils/widgets/loader.dart';
+
 class AddCafeScreen extends StatefulWidget {
   const AddCafeScreen({super.key});
 
@@ -261,11 +263,8 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                           child: SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                const Color(0xffDE3A3A).withOpacity(0.8),
-                              ),
+                            child: RainbowLoadingBar(
+
                             ),
                           ),
                         ),
@@ -287,11 +286,8 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
+                              child: RainbowLoadingBar(
+
                               ),
                             )
                           : Text(
@@ -312,9 +308,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
             Container(
               color: Colors.black.withOpacity(0.5),
               child: const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
-                ),
+                child: RainbowLoadingBar()
               ),
             ),
         ],

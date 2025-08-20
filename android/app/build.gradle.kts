@@ -32,8 +32,8 @@ android {
     defaultConfig {
         applicationId = "com.hfg.hash"
         minSdk = 23                                   // bumped for Firebase Auth
-        targetSdk = 34
-        versionCode = 22
+        targetSdk = 35
+        versionCode = 23
         versionName = flutterVersionName.toString()
     }
 

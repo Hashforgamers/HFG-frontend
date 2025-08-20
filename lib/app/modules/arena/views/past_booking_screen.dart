@@ -12,6 +12,8 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'dart:convert';
 
+import '../../../../utils/widgets/loader.dart';
+
 class PastBookingsScreen extends StatefulWidget {
   const PastBookingsScreen({super.key});
   @override
@@ -147,11 +149,13 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
           Expanded(
             child: Obx(() {
               if (ctr.isLoading.value) {
-                return const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                return  Center(
+                  child: RainbowLoadingBar(),
                 );
               }
-              if (ctr.userBookings.isEmpty) {
+
+              final sortedBookings = _getSortedBookings();
+              if (ctr.userBookings.isEmpty||sortedBookings.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -189,7 +193,6 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                 );
               }
 
-              final sortedBookings = _getSortedBookings();
 
               // For demo, show all bookings in all tabs
               return RefreshIndicator(

@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hash/app/modules/about/about_page.dart';
 import 'package:hash/app/modules/game_pass/page/game_pass_page.dart';
 import 'package:hash/app/modules/hash_coin/pages/hash_coin_page.dart';
@@ -25,14 +27,10 @@ class UserProfileView extends StatelessWidget {
     UserController userController = Get.put(UserController());
 
     return Scaffold(
-      bottomNavigationBar: Container(height: 120,
+      bottomNavigationBar: Container(
+        height: 120,
         child: Column(
-          children: [
-
-            _buildLogoutButton(),
-            _buildDeleteButton(userController),
-
-          ],
+          children: [_buildLogoutButton(), _buildDeleteButton(userController)],
         ),
       ),
       appBar: AppBar(
@@ -187,15 +185,28 @@ class UserProfileView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
       child: ElevatedButton(
         onPressed: () async {
-          // Handle logout
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove('token');
-          await prefs.remove('user_data');
+          try {
+            final googleSignIn = GoogleSignIn();
+            if (await googleSignIn.isSignedIn()) {
+              await googleSignIn.signOut();
+            }
 
-          Get.offAllNamed(
-            AppRoutes.LOGIN,
-          ); // Navigates to the login screen and removes all previous routes
+            await FirebaseAuth.instance.signOut(); // clear Firebase session
+
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.clear(); // remove all local data
+
+            Get.offAllNamed(AppRoutes.LOGIN);
+          } catch (e) {
+            Get.snackbar(
+              'Logout Error',
+              e.toString(),
+              backgroundColor: Colors.red,
+              colorText: Colors.white,
+            );
+          }
         },
+
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -209,23 +220,30 @@ class UserProfileView extends StatelessWidget {
     );
   }
 
-// inside UserProfileView
+  // inside UserProfileView
   Widget _buildDeleteButton(UserController userController) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
       child: OutlinedButton(
-        onPressed: () => showBlackCupertinoDeleteDialog(Get.context!, userController),
+        onPressed: () =>
+            showBlackCupertinoDeleteDialog(Get.context!, userController),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Colors.red, width: 1.5),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           minimumSize: const Size(double.infinity, 50),
         ),
-        child: const Text('Delete Account', style: TextStyle(color: Colors.red, fontSize: 18)),
+        child: const Text(
+          'Delete Account',
+          style: TextStyle(color: Colors.red, fontSize: 18),
+        ),
       ),
     );
   }
 
-  Future<void> showDeleteAccountDialog(BuildContext context, UserController userController) async {
+  Future<void> showDeleteAccountDialog(
+    BuildContext context,
+    UserController userController,
+  ) async {
     bool isChecked = false;
     int secondsLeft = 10;
     ValueNotifier<int> timerNotifier = ValueNotifier(secondsLeft);
@@ -265,7 +283,7 @@ class UserProfileView extends StatelessWidget {
                     const SizedBox(height: 10),
                     const Text(
                       "This action is permanent.\n\n"
-                          "Once deleted, you cannot create another account using the same EMAIL/NUMBER for 30 days.",
+                      "Once deleted, you cannot create another account using the same EMAIL/NUMBER for 30 days.",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 15,
@@ -302,11 +320,11 @@ class UserProfileView extends StatelessWidget {
                         return GestureDetector(
                           onTap: value == 0
                               ? () {
-                            setState(() {
-                              isChecked = !isChecked;
-                              acceptNotifier.value = isChecked;
-                            });
-                          }
+                                  setState(() {
+                                    isChecked = !isChecked;
+                                    acceptNotifier.value = isChecked;
+                                  });
+                                }
                               : null,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -329,7 +347,7 @@ class UserProfileView extends StatelessWidget {
                                       ? CupertinoColors.white
                                       : CupertinoColors.inactiveGray,
                                 ),
-                              )
+                              ),
                             ],
                           ),
                         );
@@ -352,18 +370,23 @@ class UserProfileView extends StatelessWidget {
                         isDestructiveAction: true,
                         onPressed: accepted
                             ? () async {
-                          Navigator.of(context).pop();
-                          final success = await userController.deleteUser();
-                          if (success) {
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.clear();
-                            Get.offAllNamed(AppRoutes.LOGIN);
-                          } else {
-                            Get.snackbar("Error", "Failed to delete account",
-                                backgroundColor: CupertinoColors.systemRed,
-                                colorText: CupertinoColors.white);
-                          }
-                        }
+                                Navigator.of(context).pop();
+                                final success = await userController
+                                    .deleteUser();
+                                if (success) {
+                                  final prefs =
+                                      await SharedPreferences.getInstance();
+                                  await prefs.clear();
+                                  Get.offAllNamed(AppRoutes.LOGIN);
+                                } else {
+                                  Get.snackbar(
+                                    "Error",
+                                    "Failed to delete account",
+                                    backgroundColor: CupertinoColors.systemRed,
+                                    colorText: CupertinoColors.white,
+                                  );
+                                }
+                              }
                             : null,
                         child: const Text("Delete"),
                       );
@@ -377,17 +400,13 @@ class UserProfileView extends StatelessWidget {
       },
     );
   }
-
-
-
-
 }
 
 // --- drop this anywhere accessible (e.g., same file, bottom) ---
 Future<void> showBlackCupertinoDeleteDialog(
-    BuildContext context,
-    UserController userController,
-    ) async {
+  BuildContext context,
+  UserController userController,
+) async {
   int secondsLeft = 10;
   final timerVN = ValueNotifier<int>(secondsLeft);
   final acceptedVN = ValueNotifier<bool>(false);
@@ -407,11 +426,11 @@ Future<void> showBlackCupertinoDeleteDialog(
     barrierDismissible: false,
     builder: (_) => CupertinoTheme(
       data: const CupertinoThemeData(
-        brightness: Brightness.dark,                 // black dialog
+        brightness: Brightness.dark, // black dialog
         primaryColor: CupertinoColors.systemRed,
       ),
       child: WillPopScope(
-        onWillPop: () async => false,                // block back
+        onWillPop: () async => false, // block back
         child: CupertinoAlertDialog(
           title: const Text(
             '⚠️ Delete Account',
@@ -425,8 +444,8 @@ Future<void> showBlackCupertinoDeleteDialog(
               const SizedBox(height: 10),
               const Text(
                 'This action is permanent.\n\n'
-                    'After deleting, you CANNOT create another account '
-                    'with the same EMAIL/NUMBER for 30 days.',
+                'After deleting, you CANNOT create another account '
+                'with the same EMAIL/NUMBER for 30 days.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: CupertinoColors.white, fontSize: 15),
               ),
@@ -454,7 +473,9 @@ Future<void> showBlackCupertinoDeleteDialog(
                 builder: (_, v, __) {
                   final enabled = v == 0;
                   return GestureDetector(
-                    onTap: enabled ? () => acceptedVN.value = !acceptedVN.value : null,
+                    onTap: enabled
+                        ? () => acceptedVN.value = !acceptedVN.value
+                        : null,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -466,8 +487,8 @@ Future<void> showBlackCupertinoDeleteDialog(
                                 : CupertinoIcons.circle,
                             color: enabled
                                 ? (ok
-                                ? CupertinoColors.activeGreen
-                                : CupertinoColors.white)
+                                      ? CupertinoColors.activeGreen
+                                      : CupertinoColors.white)
                                 : CupertinoColors.inactiveGray,
                           ),
                         ),
@@ -493,7 +514,10 @@ Future<void> showBlackCupertinoDeleteDialog(
                 if (timer.isActive) timer.cancel();
                 Navigator.of(context).pop();
               },
-              child: const Text('Cancel', style: TextStyle(color: CupertinoColors.activeBlue)),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: CupertinoColors.activeBlue),
+              ),
             ),
             ValueListenableBuilder2<bool, int>(
               first: acceptedVN,
@@ -504,23 +528,23 @@ Future<void> showBlackCupertinoDeleteDialog(
                   isDestructiveAction: true,
                   onPressed: canDelete
                       ? () async {
-                    if (timer.isActive) timer.cancel();
-                    Navigator.of(context).pop();
+                          if (timer.isActive) timer.cancel();
+                          Navigator.of(context).pop();
 
-                    final ok = await userController.deleteUser();
-                    if (ok) {
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.clear();
-                      Get.offAllNamed(AppRoutes.LOGIN);
-                    } else {
-                      Get.snackbar(
-                        'Error',
-                        'Failed to delete account',
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
-                      );
-                    }
-                  }
+                          final ok = await userController.deleteUser();
+                          if (ok) {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.clear();
+                            Get.offAllNamed(AppRoutes.LOGIN);
+                          } else {
+                            Get.snackbar(
+                              'Error',
+                              'Failed to delete account',
+                              backgroundColor: Colors.red,
+                              colorText: Colors.white,
+                            );
+                          }
+                        }
                       : null,
                   child: Text(
                     v > 0 ? 'Delete ($v)' : 'Delete',

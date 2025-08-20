@@ -161,7 +161,6 @@ class _HomeContentViewState extends State<HomeContentView>
         _fetchUserDataIfNeeded(),
         _refreshWalletIfReady(),
         bookingController.fetchUserBookings(),
-        loginController.checkUserExistsInAPI(),
         BlocProvider.of<HashCoinCubit>(context).getHashCoin(),
       ], eagerError: false).timeout(
         const Duration(seconds: 10),
@@ -309,11 +308,11 @@ class _HomeContentViewState extends State<HomeContentView>
       ),
       elevation: 0,
       pinned: false,
-      expandedHeight: 70,
+      expandedHeight: 60,
       flexibleSpace: ClipRRect(
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -332,7 +331,7 @@ class _HomeContentViewState extends State<HomeContentView>
       leadingWidth: 55,
       leading: Obx(
         () => Padding(
-          padding: const EdgeInsets.only(left: 10),
+          padding: const EdgeInsets.only(left: 10,top: 5),
           child: userController.isLoading.value
               ? _buildShimmerAvatar()
               : _buildOptimizedUserAvatar(userController.user.value.photoUrl),
@@ -340,8 +339,9 @@ class _HomeContentViewState extends State<HomeContentView>
       ),
       title: Obx(
         () => Padding(
-          padding: const EdgeInsets.only(top: 12.0),
+          padding: const EdgeInsets.only(top: 15.0),
           child: Column(
+
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -660,7 +660,7 @@ class _HomeContentViewState extends State<HomeContentView>
     return Shimmer.fromColors(
       baseColor: Colors.grey.shade800,
       highlightColor: Colors.grey.shade600,
-      child: const CircleAvatar(radius: 15, backgroundColor: Colors.grey),
+      child: const CircleAvatar(radius: 13, backgroundColor: Colors.grey),
     );
   }
 }

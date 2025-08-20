@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../utils/widgets/loader.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
 import '../../../routes/app_routes.dart';
 import '../controllers/signup_controller.dart';
@@ -48,7 +49,7 @@ class _SignUpViewState extends State<SignUpView> {
             children: [
               IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: Get.back),
+                  onPressed:()=>Get.back()),
               Expanded(
                 child: Form(
                   key: _formKey,
@@ -266,7 +267,7 @@ class _SignUpViewState extends State<SignUpView> {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        child: RainbowLoadingBar())
                     : Text(
                         'Sign Up',
                         style: GoogleFonts.inter(color: Colors.white),
