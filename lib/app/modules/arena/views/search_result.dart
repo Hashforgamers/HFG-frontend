@@ -389,8 +389,8 @@ class _SearchResultState extends State<SearchResult> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Search Results',
-                    style: GoogleFonts.inter(
-                        fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                  style: GoogleFonts.inter(fontSize: 18, color: Colors.white),
+                ),
                 if (widget.location != null)
                   Text(widget.location!,
                       style: GoogleFonts.inter(fontSize: 14, color: Colors.white70)),

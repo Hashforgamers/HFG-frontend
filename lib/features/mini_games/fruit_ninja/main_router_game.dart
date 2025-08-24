@@ -1,10 +1,6 @@
-/*
- * @ Author: Flutter Journey 🎯 <flutterjourney.org@gmail.com>
- * @ Created: 2024-12-09 13:15:47
- * @ Message: You look very hardworking 👨‍💻. Keep focusing on your goals. 🌤️
- */
-
 import 'dart:math';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
@@ -17,20 +13,17 @@ import 'package:hash/features/mini_games/fruit_ninja/presentation/game_pause/gam
 import 'package:hash/features/mini_games/fruit_ninja/presentation/game_victory/game_victory.dart';
 import 'package:hash/features/mini_games/fruit_ninja/presentation/home/home.dart';
 
-
 import 'core/configs/assets/app_images.dart';
 import 'core/configs/assets/app_sfx.dart';
 import 'core/configs/constants/app_configs.dart';
 import 'core/configs/constants/app_router.dart';
 import 'data/models/fruit_model.dart';
 
-/// Main game class that extends FlameGame
 class MainRouterGame extends FlameGame with KeyboardEvents {
   final Random random = Random();
   late final RouterComponent router;
   late double maxVerticalVelocity;
 
-  // List of available fruits in the game
   final List<FruitModel> fruits = [
     FruitModel(image: AppImages.apple),
     FruitModel(image: AppImages.banana),
@@ -50,38 +43,52 @@ class MainRouterGame extends FlameGame with KeyboardEvents {
     FlameAudio.bgm.play(AppSfx.musicBG, volume: 0.3);
   }
 
-  bool isDesktop = false; // Current state of the screen
+  bool isDesktop = false;
 
-  int score = 0; // Current score of the player
+  /// PRIVATE score — prevent tampering
+  int _score = 0;
+  int _mode = 0;
 
-  /// Retrieves the current score.
-  ///
-  /// Returns the current score value.
-  int getScore() {
-    return score;
+  late final int sessionTimestamp;
+  late final String userId;
+
+  /// Secret used to hash (Should be obfuscated/moved to native ideally)
+  static const String _secretKey = "hfg_protected_key";
+
+  /// Set the user and start timestamp
+  void initSession({required String userId}) {
+    this.userId = userId;
+    sessionTimestamp = DateTime.now().millisecondsSinceEpoch;
   }
 
-  /// Saves the input score.
-  ///
-  /// Updates the score with the provided scoreInput value.
-  void saveScore(int scoreInput) {
-    score = scoreInput;
+  /// Increase score internally only
+  void incrementScore([int points = 1]) {
+    _score += points;
   }
 
-  int mode = 0; // Current game mode (0, 1, 2, etc.)
+  /// Read-only getter
+  int getScore() => _score;
+  int getMode() => _mode;
 
-  /// Retrieves the current game mode.
-  ///
-  /// Returns the current mode value.
-  int getMode() {
-    return mode;
-  }
-
-  /// Saves the input mode.
-  ///
-  /// Updates the mode with the provided modeInput value.
   void saveMode(int modeInput) {
-    mode = modeInput;
+    _mode = modeInput;
+  }
+
+  /// Generate secure hash of score
+  String getScoreHash() {
+    final raw = '$_score|$_mode|$userId|$sessionTimestamp|$_secretKey';
+    return sha256.convert(utf8.encode(raw)).toString();
+  }
+
+  /// Generate score payload for API
+  Map<String, dynamic> getScorePayload() {
+    return {
+      "userId": userId,
+      "score": _score,
+      "mode": _mode,
+      "timestamp": sessionTimestamp,
+      "hash": getScoreHash(),
+    };
   }
 
   @override
@@ -105,7 +112,6 @@ class MainRouterGame extends FlameGame with KeyboardEvents {
             ],
           ),
         ),
-        // Set up the router for navigating between different game screens.
         router = RouterComponent(
           initialRoute: AppRouter.homePage,
           routes: {
@@ -126,10 +132,7 @@ class MainRouterGame extends FlameGame with KeyboardEvents {
     getMaxVerticalVelocity(size);
   }
 
-  /// Calculate the maximum vertical velocity based on the game size.
   void getMaxVerticalVelocity(Vector2 size) {
-    // Formula to calculate maximum vertical velocity.
-    // Adjust for the object's size.
     maxVerticalVelocity = sqrt(2 *
         (AppConfig.gravity.abs() + AppConfig.acceleration.abs()) *
         (size.y - AppConfig.objSize * 2));

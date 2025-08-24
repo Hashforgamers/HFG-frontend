@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
@@ -51,6 +52,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     if (dragOffset.abs() > 50) {
       if (dragOffset < 0 && currentIndex < total - 1) {
         // Swipe up → next
+        HapticFeedback.mediumImpact(); // 🔥 add haptic feedback here
         setState(() => slidingOutIndex = currentIndex);
         Future.delayed(const Duration(milliseconds: 160), () {
           setState(() {
@@ -62,12 +64,14 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
         });
       } else if (dragOffset > 0 && currentIndex > 0) {
         // Swipe down → previous
+        HapticFeedback.lightImpact(); // optional, lighter haptic for down-swipe
         _slideDownController.forward(from: 1.0);
         setState(() => currentIndex--);
       }
     }
     setState(() => dragOffset = 0.0);
   }
+
 
   void _maybeLoadMore() {
     // When we are within last 4 cards, trigger loadMore

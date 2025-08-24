@@ -318,15 +318,23 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                       child: GetX<CafeGamesController>(
                         builder: (controller) {
                           if (controller.isLoading.value) {
-                            return const Center(
-                              child: RainbowLoadingBar(
-                              ),
-                            );
+                            return const Center(child: RainbowLoadingBar());
                           }
 
                           final List<dynamic> consoles = controller.games
+                              .where((game) =>
+                          game['game_name'] != null &&
+                              (game['total_slots'] ?? 0) > 0)
                               .toList();
 
+                          if (consoles.isEmpty) {
+                            return const Center(
+                              child: Text(
+                                "No consoles available",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            );
+                          }
                           if (consoles.isEmpty) {
                             // Fallback to hardcoded consoles
                             return ListView(
@@ -352,22 +360,21 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                             );
                           }
 
-                          return ListView(
+                          return ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            children: consoles.map((console) {
-                              final Map<String, dynamic> consoleMap =
-                                  console as Map<String, dynamic>;
-                              final consoleName =
-                                  consoleMap['game_name']
-                                      ?.toString()
-                                      .toUpperCase() ??
-                                  'Unknown';
-                              final iconPath = _getConsoleIcon(
-                                consoleMap['game_name'] ?? '',
-                              );
-                              return _consoleIcon(iconPath, consoleName);
-                            }).toList(),
+                            itemCount: consoles.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 0),
+                            itemBuilder: (context, index) {
+                              final Map<String, dynamic> console = consoles[index];
+                              final String name =
+                                  console['game_name']?.toString().toUpperCase() ?? 'UNKNOWN';
+                              final String iconPath =
+                              _getConsoleIcon(console['game_name']?.toString() ?? '');
+
+                              return _consoleIcon(iconPath, name);
+                            },
                           );
+
                         },
                       ),
                     ),

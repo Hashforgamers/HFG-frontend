@@ -11,6 +11,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hash/app/modules/arena/views/search_result.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:location/location.dart' as loc;
 import 'package:flutter/services.dart' show rootBundle;
@@ -822,7 +823,7 @@ class _ArenaViewState extends State<ArenaView> {
     Map<String, dynamic> cafe,
     List<dynamic> images,
   ) {
-    return GestureDetector(
+    return BounceTap(
       onTap: () async {
         _selectedCafeId = id;
         _smoothMoveCamera(pos, zoom: 16);

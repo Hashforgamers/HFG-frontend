@@ -28,7 +28,9 @@ import 'package:hash/app/modules/home/widgets/refer_friend_modal.dart';
 
 import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
 import '../../../../features/mini_games/mini_game_section.dart';
+import '../../../../utils/widgets/bounce_tap_widget.dart';
 import '../../arena/views/payment_success.dart';
+import '../../support/support_screen.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -239,24 +241,44 @@ class _HomeContentViewState extends State<HomeContentView>
                     end: Offset.zero,
                   ).animate(_slideController),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: _sectionGap), // top padding
                         ..._intersperse([
-                          // _buildLazyLoadedSection('event', const EventBanner()),
+
+                          // 🔷 1. Game Pass – Monetization + Core use
                           _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+
+                          // 🔷 2. Café Section – Main booking action
                           _buildLazyLoadedSection('cafe', CafeSection()),
+
+                          // 🔷 3. Contact Support – High trust & user concern item
+                          ContactSupport(),
+
+                          // 🔷 4. Mini Games – Retention boost (engaging short content)
+                          // _buildLazyLoadedSection('miniGames', const MiniGamesSection()),
+
+                          // 🔷 5. Refer & Earn – Growth lever
                           _buildLazyLoadedSection('referral', _buildReferFriendModal()),
-                          _buildLazyLoadedSection('miniGames', const MiniGamesSection()),
-                          _buildLazyLoadedSection('news', const GamerNewsSection()),
-                          _buildLazyLoadedSection('games', const GamesSection()),
+
+                          // 🔷 6. Viral Shorts – Fun scroll content, lower intent
                           _buildLazyLoadedSection('shorts', ViralShotsSection()),
+
+                          // 🔷 7. Gamer News – Passive consumption
+                          _buildLazyLoadedSection('news', const GamerNewsSection()),
+
+                          // 🔷 8. Games List – Browse-only for now (assuming no play feature)
+                          _buildLazyLoadedSection('games', const GamesSection()),
+
+                          // 🔷 9. GameOn India Banner – Occasional promo
                           _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
+
                         ], const SizedBox(height: _sectionGap)),
                         const SizedBox(height: _sectionGap), // bottom padding
                       ],
+
 
                     ),
                   ),
@@ -396,7 +418,7 @@ class _HomeContentViewState extends State<HomeContentView>
   Widget _buildGamePassContainer() {
     if (_cachedGamePassContainer != null) return _cachedGamePassContainer!;
 
-    _cachedGamePassContainer = GestureDetector(
+    _cachedGamePassContainer = BounceTap(
       // onTap: () => Get.to(() => PaymentSuccessScreen(
       //   dateText: "2/8/25",
       //   timeText: "11:45 pm",

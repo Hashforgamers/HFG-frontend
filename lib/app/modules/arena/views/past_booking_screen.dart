@@ -26,6 +26,19 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
   late TabController _tabController;
   String _sortOrder = 'newer'; // 'newer' or 'older'
 
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => ctr.fetchUserBookings());
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   String _fmt(String? t) {
     if (t == null) return 'N/A';
     try {
@@ -35,43 +48,52 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     }
   }
 
-  List<Map<String, dynamic>> _getSortedBookings() {
+// Colors
+  static const _green = Color(0xFF338125);
+  static const _yellow = Color(0xFFF5C042);
+  static const _red = Color(0xFFE2584E);
+
+// Bucketing stays as you wrote (with pending_verified excluded)
+  String _statusBucket(dynamic rawStatus) {
+    final s = (rawStatus ?? '').toString().toLowerCase().trim();
+    if (s.isEmpty) return 'pending';
+    if (s.contains('pending_verified')) return 'exclude';
+    if (s.contains('confirm') || s.contains('success')) return 'confirmed';
+    if (s.contains('pend') || s.contains('await') || s.contains('unpaid')) return 'pending';
+    return 'pending';
+  }
+
+// Count per bucket for tab badges
+  int _countFor(String filter) {
+    return ctr.userBookings.where((b) {
+      final bucket = _statusBucket(b['status']);
+      if (bucket == 'exclude') return false;
+      if (filter == 'all') return true;
+      return bucket == filter;
+    }).length;
+  }
+
+
+  List<Map<String, dynamic>> _getFilteredAndSorted(String filter) {
     final bookings = List<Map<String, dynamic>>.from(ctr.userBookings);
 
-    // Filter to only show bookings with status 'confirmed' or 'extra'
-    final filteredBookings = bookings.where((b) {
-      final status = (b['status'] ?? '').toString().toLowerCase();
-      return status == 'confirmed' || status == 'extra';
+    final filtered = bookings.where((b) {
+      final bucket = _statusBucket(b['status']);
+      if (bucket == 'exclude') return false; // 🚫 skip
+      if (filter == 'all') return true;
+      return bucket == filter;
     }).toList();
 
-    // Sort by booking ID (assuming higher ID = newer booking)
-    if (_sortOrder == 'newer') {
-      filteredBookings.sort(
-        (a, b) => (b['booking_id'] ?? 0).compareTo(a['booking_id'] ?? 0),
-      );
-    } else {
-      filteredBookings.sort(
-        (a, b) => (a['booking_id'] ?? 0).compareTo(b['booking_id'] ?? 0),
-      );
-    }
+    // Sort
+    filtered.sort((a, b) {
+      final aId = (a['booking_id'] ?? 0) as int;
+      final bId = (b['booking_id'] ?? 0) as int;
+      return _sortOrder == 'newer' ? bId.compareTo(aId) : aId.compareTo(bId);
+    });
 
-    return filteredBookings;
+    return filtered;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => ctr.fetchUserBookings(),
-    );
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext ctx) => Scaffold(
@@ -86,154 +108,115 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'My Bookings',
-                  style: GoogleFonts.inter(fontSize: 18, color: Colors.white),
-                ),
-                // Filter Dropdown
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 0,
-                  ),
-                  child: IconButton(
-                    splashRadius: 18,
-                    tooltip: _sortOrder == 'newer'
-                        ? 'Newest first'
-                        : 'Oldest first',
-                    onPressed: () {
-                      setState(() {
-                        _sortOrder = _sortOrder == 'newer' ? 'older' : 'newer';
-                      });
-                      // optionally: _applySort(_sortOrder);
-                    },
-                    icon: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      transitionBuilder: (child, anim) =>
-                          ScaleTransition(scale: anim, child: child),
-                      child: Icon(
-                        _sortOrder == 'newer'
-                            ? CupertinoIcons.sort_down_circle
-                            : CupertinoIcons.sort_up_circle,
-                        key: ValueKey(_sortOrder),
-                        size: 20,
-                        color: Colors.green,
-                      ),
+                Text('My Bookings',
+                    style:
+                    GoogleFonts.inter(fontSize: 18, color: Colors.white)),
+                IconButton(
+                  splashRadius: 18,
+                  tooltip:
+                  _sortOrder == 'newer' ? 'Newest first' : 'Oldest first',
+                  onPressed: () {
+                    setState(() {
+                      _sortOrder =
+                      _sortOrder == 'newer' ? 'older' : 'newer';
+                    });
+                  },
+                  icon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    transitionBuilder: (child, anim) =>
+                        ScaleTransition(scale: anim, child: child),
+                    child: Icon(
+                      _sortOrder == 'newer'
+                          ? CupertinoIcons.sort_down_circle
+                          : CupertinoIcons.sort_up_circle,
+                      key: ValueKey(_sortOrder),
+                      size: 20,
+                      color: Colors.green,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          // const SizedBox(height: 8),
-          // Padding(
-          //   padding: const EdgeInsets.symmetric(horizontal: 8),
-          //   child: TabBar(
-          //     controller: _tabController,
-          //     indicatorColor: Colors.transparent,
-          //     labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-          //     labelColor: const Color(0xff338125),
-          //     unselectedLabelColor: Colors.white70,
-          //     labelStyle:  GoogleFonts.inter(
-          //         fontWeight: FontWeight.bold, fontSize: 18),
-          //     unselectedLabelStyle:  GoogleFonts.inter(
-          //         fontWeight: FontWeight.w500, fontSize: 18),
-          //     tabs:  [
-          //       Tab(child: Text('All',style: GoogleFonts.inter(color: Colors.green),)),
-          //       Tab(child: Text('Upcoming',style: GoogleFonts.inter(color: Colors.green),)),
-          //       Tab(child: Text('Completed',style: GoogleFonts.inter(color: Colors.green),)),
-          //     ],
-          //   ),
-          // ),
-          const SizedBox(height: 8),
+
+          // Tabs
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF141415),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.transparent),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              dividerColor: Colors.transparent,
+                indicatorAnimation:TabIndicatorAnimation.elastic,
+                enableFeedback: true,
+              // Add more space inside each tab
+              labelPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                indicatorColor: Colors.transparent,
+
+
+                // Indicator pill with spacing
+              indicator: BoxDecoration(
+                color: const Color(0xFF1F2A1C),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _green.withOpacity(0.5)),
+              ),
+
+              // Push indicator slightly away from text baseline
+              indicatorPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+
+              // Make indicator fill only tab label, not full width
+              indicatorSize: TabBarIndicatorSize.tab,
+
+              labelColor: const Color(0xFF93F80A),
+              unselectedLabelColor: Colors.white70,
+              labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+              unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),
+              overlayColor: MaterialStateProperty.all(Colors.transparent),
+
+              tabs: [
+                Tab(child: _TabChip(text: 'All', count: _countFor('all'))),
+                Tab(child: _TabChip(text: 'Confirmed', count: _countFor('confirmed'))),
+                Tab(child: _TabChip(text: 'Pending', count: _countFor('pending'))),
+              ],
+            ),
+          ),
+        ),
+
+
+        const SizedBox(height: 8),
+
           Expanded(
             child: Obx(() {
               if (ctr.isLoading.value) {
-                return  Center(
-                  child: RainbowLoadingBar(),
-                );
+                return Center(child: RainbowLoadingBar());
               }
 
-              final sortedBookings = _getSortedBookings();
-              if (ctr.userBookings.isEmpty||sortedBookings.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'No past bookings.',
-                        style: GoogleFonts.inter(color: Colors.white),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () async {
-                          await ctr.fetchUserBookings();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF338125),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Text(
-                          'Refresh Bookings',
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
+              return TabBarView(
+                controller: _tabController,
+                children: [
+                  _BookingsList(
+                    bookings: _getFilteredAndSorted('all'),
+                    emptyHint: 'No bookings found.',
+                    fmt: _fmt,
                   ),
-                );
-              }
-
-
-              // For demo, show all bookings in all tabs
-              return RefreshIndicator(
-                onRefresh: () async {
-                  await ctr.fetchUserBookings();
-                },
-                color: const Color(0xFF338125),
-                backgroundColor: const Color(0xFF1D1D1F),
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  separatorBuilder: (_, __) => const SizedBox(height: 20),
-                  itemCount: sortedBookings.length,
-                  itemBuilder: (_, i) {
-                    final d = sortedBookings[i];
-                    return BookingTicketCard(
-                      game:
-                          d['slot']?['gaming_type_id']?['game_name'] ??
-                          'Unknown',
-                      cafe:
-                          d['slot']?['gaming_type_id']?['cafe_name']['cafe_name'] ??
-                          'Cafe',
-                      start: _fmt(d['slot']?['time']?['start_time']),
-                      end: _fmt(d['slot']?['time']?['end_time']),
-                      status: d['status'] ?? 'Pending',
-                      price:
-                          double.tryParse(
-                            '${d['slot']?['gaming_type_id']?['single_slot_price'] ?? 0}',
-                          ) ??
-                          0,
-                      loc: d['slot']?['location'] ?? 'Mumbai',
-                      id: d['booking_id'] ?? 0,
-                      raw: d,
-                      accessCode: d['access_code'],
-                      bookDate: d['book_date'],
-                      extraServices: (d['extra_services'] as List<dynamic>?)
-                          ?.map((e) => ExtraService.fromJson(e as Map<String, dynamic>))
-                          .toList() ?? [],
-                    );
-                  },
-                ),
+                  _BookingsList(
+                    bookings: _getFilteredAndSorted('confirmed'),
+                    emptyHint: 'No confirmed bookings yet.',
+                    fmt: _fmt,
+                  ),
+                  _BookingsList(
+                    bookings: _getFilteredAndSorted('pending'),
+                    emptyHint: 'No pending bookings.',
+                    fmt: _fmt,
+                  ),
+                ],
               );
+
             }),
           ),
         ],
@@ -241,6 +224,120 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     ),
   );
 }
+class _TabChip extends StatelessWidget {
+  const _TabChip({required this.text, required this.count});
+  final String text;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(text),
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.white12,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            '$count',
+            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BookingsList extends StatelessWidget {
+  const _BookingsList({
+    required this.bookings,
+    required this.emptyHint,
+    required this.fmt,
+  });
+
+  final List<Map<String, dynamic>> bookings;
+  final String emptyHint;
+  final String Function(String?) fmt;
+
+  @override
+  Widget build(BuildContext context) {
+    if (bookings.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(emptyHint, style: GoogleFonts.inter(color: Colors.white)),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () async {
+                // Trigger a refresh via controller
+                final ctr = Get.find<BookingController>();
+                await ctr.fetchUserBookings();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF338125),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Refresh Bookings',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        final ctr = Get.find<BookingController>();
+        await ctr.fetchUserBookings();
+      },
+      color: const Color(0xFF338125),
+      backgroundColor: const Color(0xFF1D1D1F),
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        separatorBuilder: (_, __) => const SizedBox(height: 20),
+        itemCount: bookings.length,
+        itemBuilder: (_, i) {
+          final d = bookings[i];
+          return BookingTicketCard(
+            game: d['slot']?['gaming_type_id']?['game_name'] ?? 'Unknown',
+            cafe: d['slot']?['gaming_type_id']?['cafe_name']?['cafe_name'] ?? 'Cafe',
+            start: fmt(d['slot']?['time']?['start_time']),
+            end: fmt(d['slot']?['time']?['end_time']),
+            status: (d['status'] ?? 'Pending').toString(),
+            price: double.tryParse(
+              '${d['slot']?['gaming_type_id']?['single_slot_price'] ?? 0}',
+            ) ??
+                0,
+            loc: d['slot']?['location'] ?? 'Mumbai',
+            id: d['booking_id'] ?? 0,
+            raw: d,
+            accessCode: d['access_code'],
+            bookDate: d['book_date'],
+            extraServices: (d['extra_services'] as List<dynamic>?)
+                ?.map((e) => ExtraService.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+                [],
+          );
+        },
+      ),
+    );
+  }
+}
+
 
 class TicketClipper extends CustomClipper<Path> {
   @override
@@ -382,6 +479,12 @@ class BookingTicketCard extends StatelessWidget {
         formattedDate = 'N/A';
       }
     }
+    Color _accentForStatus(String s) {
+      final v = s.toLowerCase();
+      if (v.contains('confirm') || v.contains('success')) return const Color(0xFF338125); // green
+      if (v.contains('pend') || v.contains('await') || v.contains('unpaid')) return const Color(0xFFF5C042); // yellow
+      return Colors.white; // default for any other/unknown
+    }
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
@@ -423,19 +526,19 @@ class BookingTicketCard extends StatelessWidget {
                           Text(
                             '#$id',
                             style: GoogleFonts.inter(
-                              color: Color(0xFF338125),
-                              fontSize: 24, // Reduced from 28
+                              color: _accentForStatus(status),
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                            ),),
                           const SizedBox(height: 2),
                           Text(
                             'Booking ID',
                             style: GoogleFonts.inter(
-                              color: Colors.white70,
-                              fontSize: 10, // Reduced from 12
+                              color: _accentForStatus(status).withOpacity(0.75),
+                              fontSize: 10,
                             ),
                           ),
+
                           const SizedBox(height: 8), // Reduced from 12
                           ElevatedButton(
                             onPressed: () async {

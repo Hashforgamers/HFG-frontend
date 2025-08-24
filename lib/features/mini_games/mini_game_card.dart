@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'models/minigame_model.dart';
 
 class MiniGameCard extends StatelessWidget {
@@ -9,7 +10,7 @@ class MiniGameCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return BounceTap(
       onTap: game.onTap,
       child: SizedBox(
         width: 90, // like an app icon

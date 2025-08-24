@@ -25,6 +25,7 @@ import '../../../../core/repositories/model/booking_model.dart';
 class BookingSummaryScreen extends StatefulWidget {
   final String selectedCafeName;
   final String consoleType;
+  final String selectedDate;
   final List<Map<String, dynamic>> selectedSlots;
   final List<Map<String, dynamic>> cartItems;
   final int gameId;
@@ -38,7 +39,7 @@ class BookingSummaryScreen extends StatefulWidget {
     required this.selectedSlots,
     required this.cartItems,
     required this.vendorId,
-    required this.gameId,
+    required this.gameId, required this.selectedDate,
   });
 
   @override
@@ -52,6 +53,7 @@ enum PaymentStage {
   initiatingGateway,
   confirmingVoucher,
   confirmingGamePass,
+  confirmingPayAtCafe,
   openingRazorpay,
   done,
   error,
@@ -708,6 +710,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       useWallet: false,
       isGamePass: true,
       selectedPassId: _selectedGamePass.value!.id,
+      isPayAtCafe: false,
     );
   }
 
@@ -819,12 +822,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               Text(
                 '${widget.selectedSlots.length} Slot(s) Selected',
                 style: GoogleFonts.inter(
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF8B8B8B),
+                  color: const Color(0xFFB0B0B0),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 10),
+
               ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -834,38 +838,57 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 itemBuilder: (context, index) {
                   final slot = widget.selectedSlots[index];
                   final double slotPrice = (slot['price'] ?? 50.0).toDouble();
-                  return ListTile(
-                    tileColor: Color(0xFF191919),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1A1A),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    title: Text(
-                      slot['console_label'] ?? 'PC ${slot['pc_index']}',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Time: ${slot['start_time']} - ${slot['end_time']}',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
-                    ),
-                    trailing: Text(
-                      'Rs. ${slotPrice.toStringAsFixed(2)}',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6DFB60),
-                        fontSize: 12,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              slot['console_label'] ?? 'PC ${slot['pc_index']}',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${slot['start_time']} - ${slot['end_time']}',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: Colors.grey.shade400,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '₹${slotPrice.toStringAsFixed(2)}',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: const Color(0xFF6DFB60),
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 },
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 5),
               _getValidatedCartItems().isNotEmpty
                   ? Container(
                       padding: const EdgeInsets.symmetric(
@@ -926,43 +949,76 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               final double totalItemPrice =
                                   itemPrice * quantity;
 
-                              return Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                              return Container(
+                                margin: const EdgeInsets.symmetric(vertical: 20),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1F1F1F),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
                                       children: [
                                         Text(
-                                          cartItem['name'] ?? 'Unknown Item',
+                                          'Food & Beverages',
                                           style: GoogleFonts.inter(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
                                             color: Colors.white,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
-                                        if (quantity > 1) ...[
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            'Qty: $quantity × Rs. ${itemPrice.toStringAsFixed(2)}',
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF338125).withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            _getCartItemsSummary(),
                                             style: GoogleFonts.inter(
-                                              color: Colors.grey.shade400,
                                               fontSize: 12,
+                                              color: const Color(0xFF6DFB60),
                                             ),
                                           ),
-                                        ],
+                                        ),
                                       ],
                                     ),
-                                  ),
-                                  Text(
-                                    'Rs. ${totalItemPrice.toStringAsFixed(2)}',
-                                    style: GoogleFonts.inter(
-                                      color: Color(0xFF6DFB60),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 12),
+                                    ..._getValidatedCartItems().map((item) {
+                                      final quantity = item['qty'] ?? 1;
+                                      final price = (item['price'] ?? 0.0).toDouble();
+                                      final total = price * quantity;
+                                      return Padding(
+                                        padding: const EdgeInsets.only(bottom: 10),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                '${item['name']} (x$quantity)',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 14,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                            Text(
+                                              '₹${total.toStringAsFixed(2)}',
+                                              style: GoogleFonts.inter(
+                                                color: const Color(0xFF6DFB60),
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
                               );
                             },
                           ),
@@ -970,307 +1026,413 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       ),
                     ):SizedBox(),
                   // : _buildMealButton(),
-              const SizedBox(height: 5),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Booking User',
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF8B8B8B),
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Obx(
-                        () => Text(
-                          userController.user.value.name ?? 'User',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        'Change',
-                        style: GoogleFonts.inter(
-                          color: Colors.deepOrange,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              _buildVoucherSection(),
-              const SizedBox(height: 24),
-              Text(
-                'Payment Summary',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Obx(() {
-                double totalPrice = calculateTotalPrice();
-                double discount = calculateDiscount();
-                double subtotal = calculateSubtotal();
-                double slotsSubtotal = calculateSlotsSubtotal();
-                double cartSubtotal = calculateCartSubtotal();
-
-                return Column(
-                  children: [
-                    // Show slots subtotal if there are slots
-                    if (widget.selectedSlots.isNotEmpty) ...[
-                      buildPaymentRow(
-                        'Slots',
-                        'Rs. ${slotsSubtotal.toStringAsFixed(2)}',
-                      ),
-                    ],
-                    // Show cart subtotal if there are validated cart items
-                    if (_getValidatedCartItems().isNotEmpty) ...[
-                      buildPaymentRow(
-                        'Food & Beverages',
-                        'Rs. ${cartSubtotal.toStringAsFixed(2)}',
-                      ),
-                    ],
-                    buildPaymentRow(
-                      'Sub Total',
-                      'Rs. ${subtotal.toStringAsFixed(2)}',
-                    ),
-                    if (discount > 0) ...[
-                      buildPaymentRow(
-                        'Discount',
-                        '-₹${discount.toStringAsFixed(2)}',
-                        color: Colors.green,
-                      ),
-                    ],
-                    buildPaymentRow('GST', 'Rs. 0.00'),
-                    Divider(color: Colors.grey.shade800),
-                    buildPaymentRow(
-                      'GRAND TOTAL',
-                      'Rs. ${totalPrice.toStringAsFixed(2)}',
-                      bold: true,
-                      fontSize: 16,
+              const SizedBox(height: 1),
+              Container(
+                margin: const EdgeInsets.only(top: 5),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F1F1F),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
                   ],
-                );
-              }),
-              // ─── Payment Method ──────────────────────────────────────────
-              const SizedBox(height: 16),
-              Text(
-                'Choose Payment Method',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
                 ),
-              ),
-              const SizedBox(height: 12),
-
-              Obx(
-                () => Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _paymentChip(
-                            'Wallet',
-                            Icons.account_balance_wallet,
-                            'wallet',
+                        Text(
+                          'Booking User',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF8B8B8B),
+                            fontSize: 14,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _paymentChip(
-                            'Hash Game Pass',
-                            Icons.gamepad,
-                            'none',
+                        const SizedBox(height: 4),
+                        Obx(
+                              () => Text(
+                            userController.user.value.name ?? 'User',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: SizedBox(
-                        width: 200,
-                        child: _paymentChip(
-                          'UPI/CARD',
-                          Icons.credit_card,
-                          'gateway',
+                    TextButton(
+                      onPressed: () {
+                        // Add change logic here
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      child: Text(
+                        'Change',
+                        style: GoogleFonts.inter(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.deepOrange,
                         ),
                       ),
                     ),
-                    // Show selected game pass info
-                    if (_selectedPayment.value == 'none' &&
-                        _selectedGamePass.value != null) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF338125).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color(0xFF338125).withOpacity(0.3),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle,
-                              color: Color(0xFF338125),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Selected: ${_selectedGamePass.value!.name}',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFF338125),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    _selectedGamePass.value!.vendorName,
-                                    style: GoogleFonts.inter(
-                                      color: Colors.grey.shade400,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => _selectedGamePass.value = null,
-                              child: Text(
-                                'Change',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF338125),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
-              Divider(height: 32, color: Colors.grey.shade800),
+
+              const SizedBox(height: 1),
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F1F1F),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Obx(
+                      () => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Choose Payment Method',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // ── Payment Options ─────────────────
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _paymentChip(
+                              'Wallet',
+                              Icons.account_balance_wallet,
+                              'wallet',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _paymentChip(
+                              'Hash Game Pass',
+                              Icons.gamepad,
+                              'none',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _paymentChip(
+                              'UPI / Card',
+                              Icons.credit_card,
+                              'gateway',
+                            ),
+                          ),
+                          Expanded(
+                            child: _paymentChip(
+                              'Pay in Cafe',
+                              Icons.directions_walk,
+                              'pay_at_cafe',
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // ── Game Pass Selected Info ──────────────
+                      if (_selectedPayment.value == 'none' &&
+                          _selectedGamePass.value != null) ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF338125).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: const Color(0xFF338125).withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.check_circle,
+                                color: Color(0xFF338125),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Selected: ${_selectedGamePass.value!.name}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        color: const Color(0xFF6DFB60),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _selectedGamePass.value!.vendorName,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => _selectedGamePass.value = null,
+                                child: Text(
+                                  'Change',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: const Color(0xFF6DFB60),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 1),
+              _buildVoucherSection(),
+              const SizedBox(height: 1),
+
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F1F1F),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Obx(() {
+                  double totalPrice = calculateTotalPrice();
+                  double discount = calculateDiscount();
+                  double subtotal = calculateSubtotal();
+                  double slotsSubtotal = calculateSlotsSubtotal();
+                  double cartSubtotal = calculateCartSubtotal();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Payment Summary',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      if (widget.selectedSlots.isNotEmpty)
+                        buildPaymentRow(
+                          'Slots',
+                          '₹${slotsSubtotal.toStringAsFixed(2)}',
+                        ),
+
+                      if (_getValidatedCartItems().isNotEmpty)
+                        buildPaymentRow(
+                          'Food & Beverages',
+                          '₹${cartSubtotal.toStringAsFixed(2)}',
+                        ),
+
+                      buildPaymentRow(
+                        'Subtotal',
+                        '₹${subtotal.toStringAsFixed(2)}',
+                      ),
+
+                      if (discount > 0)
+                        buildPaymentRow(
+                          'Discount',
+                          '-₹${discount.toStringAsFixed(2)}',
+                          color: Colors.green,
+                        ),
+
+                      buildPaymentRow('GST', '₹0.00'),
+
+                      Divider(
+                        color: Colors.grey.shade800,
+                        thickness: 1,
+                        height: 24,
+                      ),
+
+                      buildPaymentRow(
+                        'GRAND TOTAL',
+                        '₹${totalPrice.toStringAsFixed(2)}',
+                        bold: true,
+                        fontSize: 16,
+                      ),
+                    ],
+                  );
+                }),
+              ),
+
+              // ─── Payment Method ──────────────────────────────────────────
+
+
             ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomAppBar(
-        color: const Color(0xFF0F0F0F),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Obx(
-                    () => Text(
-                      'Rs. ${calculateTotalPrice().toStringAsFixed(2)}',
+        bottomNavigationBar: BottomAppBar(
+          color: const Color(0xFF0F0F0F),
+          elevation: 16,
+          child: Padding(
+            padding: const EdgeInsets.all(5),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Total Amount
+                Obx(() => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total Payable',
                       style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.6),
+                      ),
+                    ),
+                    Text(
+                      '₹ ${calculateTotalPrice().toStringAsFixed(2)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
                     ),
-                  ),
-                  Obx(() {
-                    final isProcessing =
-                        _isProcessingPayment.value ||
-                        _stage.value == PaymentStage.creatingBooking ||
-                        _stage.value == PaymentStage.debitingWallet ||
-                        _stage.value == PaymentStage.initiatingGateway ||
-                        _stage.value == PaymentStage.confirmingVoucher ||
-                        _stage.value == PaymentStage.confirmingGamePass ||
-                        _stage.value == PaymentStage.openingRazorpay;
+                  ],
+                )),
 
-                    final isGamePassSelected = _selectedPayment.value == 'none';
-                    final hasSelectedPass = _selectedGamePass.value != null;
+                // Proceed / Select Pass Button
+                Obx(() {
+                  final isProcessing =
+                      _isProcessingPayment.value ||
+                          _stage.value == PaymentStage.creatingBooking ||
+                          _stage.value == PaymentStage.debitingWallet ||
+                          _stage.value == PaymentStage.initiatingGateway ||
+                          _stage.value == PaymentStage.confirmingVoucher ||
+                          _stage.value == PaymentStage.confirmingGamePass ||
+                          _stage.value == PaymentStage.openingRazorpay;
 
-                    return ElevatedButton(
+                  final isGamePassSelected = _selectedPayment.value == 'none';
+                  final hasSelectedPass = _selectedGamePass.value != null;
+
+                  final showSelectPass = isGamePassSelected && !hasSelectedPass;
+
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color:const Color(0xFF338125),
+
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Color(0xFF338125)
+                      ),
+                    ),
+                    child: ElevatedButton(
                       onPressed: isProcessing
                           ? null
                           : () {
-                              // Check if Hash Game Pass is selected
-                              if (isGamePassSelected) {
-                                _showGamePassSelectionDialog();
-                                                             } else {
-                                 handleBooking(
-                                   context,
-                                   isVoucherApplied:
-                                       _appliedVoucher.value != null,
-                                   useWallet: _selectedPayment.value == 'wallet',
-                                   isGamePass: false,
-                                   selectedPassId: null,
-                                 );
-                               }
-                            },
+                        if (showSelectPass) {
+                          _showGamePassSelectionDialog();
+                        } else if (_selectedPayment.value == 'pay_at_cafe') {
+                          // Handle Pay at Café booking flow
+                          handleBooking(
+                            context,
+                            isVoucherApplied: _appliedVoucher.value != null,
+                            useWallet: false, // Not wallet
+                            isGamePass: false,
+                            selectedPassId: null,
+                            isPayAtCafe: true, // <-- add this param in handleBooking
+                          );
+                        } else {
+                          // Default (wallet / online gateway)
+                          handleBooking(
+                            context,
+                            isVoucherApplied: _appliedVoucher.value != null,
+                            useWallet: _selectedPayment.value == 'wallet',
+                            isGamePass: false,
+                            selectedPassId: null,
+                            isPayAtCafe: false,
+                          );
+                        }
+                      },
+
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF338125),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 24,
-                        ),
+                        padding:
+                        const EdgeInsets.symmetric(horizontal: 23, vertical: 8),
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: isProcessing
                           ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: RainbowLoadingBar(
-
-                              ),
-                            )
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor:
+                          AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
                           : Text(
-                              isGamePassSelected && !hasSelectedPass
-                                  ? 'SELECT PASS'
-                                  : 'PROCEED',
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                    );
-                  }),
-                ],
-              ),
-            ],
+                        showSelectPass ? 'Select Pass' : 'Pay',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
           ),
-        ),
-      ),
+        )
+
     );
   }
 
@@ -1301,7 +1463,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   // }
 
   Widget _buildVoucherSection() {
-    return Container(
+    return Container(margin: EdgeInsets.only(top: 10),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       decoration: BoxDecoration(
         color: Color(0xFF191919),
@@ -1780,6 +1942,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     required bool useWallet,
     required bool isGamePass,
     String? selectedPassId,
+        required bool isPayAtCafe,
   }) async {
     if (!_validateBooking()) {
       return;
@@ -1801,7 +1964,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           .toList();
 
       // Use the new mapping function
-      _bookingIdToSlotId = await createBookingWithSlotMap(slotIds);
+      _bookingIdToSlotId = await createBookingWithSlotMap(slotIds,isPayAtCafe,widget.selectedDate);
       List<int> bookingIds = _bookingIdToSlotId.keys.toList();
 
       if (bookingIds.isEmpty) {
@@ -1821,6 +1984,21 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         slotTime: slotTime,
       );
 
+      if (isPayAtCafe) {
+        _stage.value = PaymentStage.confirmingPayAtCafe;
+        _isProcessingPayment(false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text("Booking created. Please pay at café counter."),
+            backgroundColor: Colors.green.shade600,
+            duration: const Duration(seconds: 4),
+          ),
+
+        );
+        Get.to(() => const PastBookingsScreen());
+        return; // short-circuit
+      }
       // a) WALLET route
       if (useWallet) {
         _stage.value = PaymentStage.debitingWallet;
@@ -1854,6 +2032,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         );
         return;
       }
+// // // d) PAY AT CAFE route
+//       if (_selectedPayment.value == 'pay_at_cafe') {
+//         _stage.value = PaymentStage.confirmingPayAtCafe; // or PaymentStage.confirmingPayAtCafe if added
+//         // await confirmBooking(
+//         //   bookingIds: bookingIds,
+//         //   paymentMode: 'pay_at_cafe',
+//         //   voucherCode: isVoucherApplied ? _appliedVoucher.value!.code : null,
+//         // );
+//         return;
+//       }
 
       // d) RAZORPAY route (default)
       _stage.value = PaymentStage.initiatingGateway;
@@ -2067,16 +2255,23 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
   }
 
-  Future<Map<int, int>> createBookingWithSlotMap(List<int> slotIds) async {
+  Future<Map<int, int>> createBookingWithSlotMap(
+      List<int> slotIds, bool payAtCafe, String selectedDate) async {
     final url = '${FlavorConfig.getBaseUrl('booking')}/api/bookings';
-    final today = DateTime.now();
+
+    // Parse yyyymmdd into DateTime
+    final parsed = DateTime.parse(
+        "${selectedDate.substring(0, 4)}-${selectedDate.substring(4, 6)}-${selectedDate.substring(6, 8)}");
+
+    // Format as yyyy-MM-dd
     final bookDate =
-        "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+        "${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}";
 
     final payload = {
       "slot_id": slotIds,
       "game_id": widget.gameId,
-      "book_date": bookDate,
+      "book_date": bookDate,        // now in correct format
+      "is_pay_at_cafe": payAtCafe
     };
 
     debugPrint('payload: $payload');

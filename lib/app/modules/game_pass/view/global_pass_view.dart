@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
+import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:http/http.dart' as http;
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -237,7 +238,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
     required VoidCallback onTap,
   }) {
     print("pass image $image");
-    return GestureDetector(
+    return BounceTap(
       onTap: pass.isBought == true ? null : onTap,
       child: Container(
         height: 200,

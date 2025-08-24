@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:ui';
 
 import '../../../../utils/widgets/loader.dart';
 
@@ -25,7 +26,7 @@ class ReferFriendModal extends StatelessWidget {
       'https://res.cloudinary.com/dxjjigepf/image/upload/v1754671561/pop_ui_ohybpb.png';
 
   double _cardHeight(BuildContext context) =>
-      MediaQuery.of(context).size.height * 0.30;
+      MediaQuery.of(context).size.height * 0.38;
 
   ButtonStyle _primaryBtnStyle(bool dialog) => OutlinedButton.styleFrom(
     backgroundColor: _kPrimaryFill.withOpacity(0.8),
@@ -81,8 +82,13 @@ class ReferFriendModal extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             _buildBackgroundImage(),
-            // optional subtle overlay for text legibility
-            Container(color: Colors.black.withOpacity(0.08)),
+            // Glassmorphism effect
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+              child: Container(
+                color: Colors.black.withOpacity(0.2),
+              ),
+            ),
             _buildContent(),
           ],
         ),
@@ -97,7 +103,7 @@ class ReferFriendModal extends StatelessWidget {
       placeholder: (_, __) => Container(
         color: const Color(0xFF1A1A1A),
         alignment: Alignment.center,
-        child:  const RainbowLoadingBar(),
+        child: const RainbowLoadingBar(),
       ),
       errorWidget: (_, __, ___) => Container(
         color: const Color(0xFF1A1A1A),
@@ -108,17 +114,16 @@ class ReferFriendModal extends StatelessWidget {
   }
 
   Widget _buildContent() {
-    final titleSize = isDialog ? 24.0 : 20.0;
-    final coinsSize = isDialog ? 28.0 : 24.0;
+    final titleSize = isDialog ? 22.0 : 20.0;
+    final coinsSize = isDialog ? 26.0 : 24.0;
 
-    return Padding(
-      padding: const EdgeInsets.all(20),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (isDialog) const Spacer(),
           Text(
-            'Refer to a Friend',
+            'Invite Your Squad',
             style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: titleSize,
@@ -126,58 +131,58 @@ class ReferFriendModal extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text.rich(
-            TextSpan(children: [
-              TextSpan(
-                text: 'Earn ',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: coinsSize,
-                  fontWeight: FontWeight.w700,
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Get ',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: coinsSize,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              TextSpan(
-                text: 'Hash',
-                style: GoogleFonts.inter(
-                  color: _kAccent,
-                  fontSize: coinsSize,
-                  fontWeight: FontWeight.w700,
+                TextSpan(
+                  text: 'Hash',
+                  style: GoogleFonts.inter(
+                    color: _kAccent,
+                    fontSize: coinsSize,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              TextSpan(
-                text: ' Coins',
-                style: GoogleFonts.inter(
-                  color: _kAccent,
-                  fontSize: coinsSize,
-                  fontWeight: FontWeight.w700,
+                TextSpan(
+                  text: ' Coins for Every Friend',
+                  style: GoogleFonts.inter(
+                    color: _kAccent,
+                    fontSize: coinsSize,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             textAlign: TextAlign.center,
           ),
-          if (!isDialog) ...[
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
+          if (!isDialog)
             Text(
-              'Share your referral code with friends and earn rewards together!',
+              'Share your referral code and both of you earn rewards when they join and play!',
               style: GoogleFonts.inter(
-                color: Colors.white70,
+                color: Colors.white,
                 fontSize: 14,
-                fontWeight: FontWeight.w400,
+                // fontWeight: FontWeight.w400,
               ),
               textAlign: TextAlign.center,
             ),
-          ],
-          if (isDialog) const Spacer() else const SizedBox(height: 12),
+          const SizedBox(height: 20),
           _buildButtonsRow(),
-          if (isDialog) const SizedBox(height: 20),
         ],
       ),
     );
   }
 
   Widget _buildButtonsRow() {
-    final btnHeight = isDialog ? 50.0 : 45.0;
+    final btnHeight = 45.0;
 
     if (!isDialog) {
       return SizedBox(
@@ -194,7 +199,7 @@ class ReferFriendModal extends StatelessWidget {
           child: Text(
             'Refer Now',
             style: GoogleFonts.inter(
-              color: Colors.white,
+              color: Colors.black,
               fontSize: isDialog ? 16 : 15,
               fontWeight: FontWeight.w600,
             ),
@@ -255,7 +260,7 @@ class ReferFriendModal extends StatelessWidget {
   }
 }
 
-// Helpers
+// Entry Points
 void showReferFriendModal(
     BuildContext context, {
       VoidCallback? onReferNow,

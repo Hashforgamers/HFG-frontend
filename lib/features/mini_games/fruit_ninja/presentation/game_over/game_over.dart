@@ -1,11 +1,4 @@
-/*
- * @ Author: Flutter Journey 🎯 <flutterjourney.org@gmail.com>
- * @ Created: 2024-12-09 13:15:47
- * @ Message: You look very hardworking 👨‍💻. Keep focusing on your goals. 🌤️
- */
-
 import 'dart:async';
-// ignore: avoid_web_libraries_in_flutter
 import 'dart:io';
 import 'dart:ui';
 
@@ -16,7 +9,6 @@ import 'package:flame/game.dart';
 import 'package:flame/rendering.dart';
 import 'package:flame/text.dart';
 import 'package:flutter/foundation.dart';
-import 'package:hash/features/mini_games/fruit_ninja/common/helpers/app_save_action.dart';
 import 'package:hash/features/mini_games/fruit_ninja/common/widgets/button/rounded_button.dart';
 import 'package:hash/features/mini_games/fruit_ninja/core/configs/constants/app_router.dart';
 import 'package:hash/features/mini_games/fruit_ninja/core/configs/theme/app_colors.dart';
@@ -25,42 +17,37 @@ import 'package:hash/features/mini_games/fruit_ninja/presentation/game/game.dart
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// This class represents the route for the Game Over screen.
+/// Secure API call placeholder
+Future<void> submitScoreToAPI(Map<String, dynamic> payload) async {
+  debugPrint("Submitting score securely: $payload");
+}
+
 class GameOverRoute extends Route {
-  /// Constructor for GameOverRoute, setting it to show GameOverPage.
   GameOverRoute() : super(GameOverPage.new, transparent: true);
 
-  /// When this route is pushed, stop the game time and apply a gray effect to the background.
   @override
   void onPush(Route? previousRoute) {
     previousRoute!
-      ..stopTime() // Stops the game's time.
-      ..addRenderEffect(
-        // Adds a visual effect to the background.
-        PaintDecorator.grayscale(opacity: 0.5) // Makes the background gray.
-          ..addBlur(3.0), // Adds a blur effect.
-      );
+      ..stopTime()
+      ..addRenderEffect(PaintDecorator.grayscale(opacity: 0.5)..addBlur(3.0));
   }
 
-  /// When this route is popped (removed), resume game time and remove effects.
   @override
   void onPop(Route nextRoute) {
-    // Find any children routes that are of type GamePage.
     final routeChildren = nextRoute.children.whereType<GamePage>();
     if (routeChildren.isNotEmpty) {
-      final gamePage = routeChildren.first; // Get the first GamePage.
-      gamePage.removeAll(gamePage.children); // Remove all components from GamePage.
+      final gamePage = routeChildren.first;
+      gamePage.removeAll(gamePage.children);
     }
 
     nextRoute
-      ..resumeTime() // Resumes the game's time.
-      ..removeRenderEffect(); // Removes the visual effects.
+      ..resumeTime()
+      ..removeRenderEffect();
   }
 }
 
-/// This class represents the Game Over page displayed after the game ends.
 class GameOverPage extends Component with TapCallbacks, HasGameReference<MainRouterGame> {
-  late TextComponent _textComponent; // Text component to show the game over message.
+  late TextComponent _textComponent;
   late TextComponent _textTimeComponent;
   late TextComponent _textScoreComponent;
   late TextComponent _textNewGameComponent;
@@ -70,7 +57,6 @@ class GameOverPage extends Component with TapCallbacks, HasGameReference<MainRou
 
   final String timezone = 'UTC+7';
 
-  /// Load the components for the Game Over page.
   @override
   FutureOr<void> onLoad() {
     final textTitlePaint = TextPaint(
@@ -113,75 +99,63 @@ class GameOverPage extends Component with TapCallbacks, HasGameReference<MainRou
       sizeX: 250,
       bgColor: AppColors.githubColor,
       borderColor: AppColors.blue,
-      text: "Leaderboard",
+      text: "Submit Score",
       anchor: Anchor.center,
       onPressed: () async {
         await captureAndSaveImage();
-        // Save your score
-        final GitHubService gitHubService = GitHubService(
-          time: _textTimeComponent.text,
-          score: game.getScore().toString(),
-          mode: game.mode.toString(),
-          win: false,
-        );
-        gitHubService.createIssue();
+
+        // 🔐 Submit secure score
+        final payload = game.getScorePayload();
+        await submitScoreToAPI(payload);
       },
     );
 
     add(_buttonLeaderboard);
 
-    final flameGame = findGame()!; // Find the current game instance.
+    final flameGame = findGame()!;
+    final mode = game.getMode();
+    final modeText = mode == 0 ? 'Easy' : mode == 1 ? 'Medium' : 'Hard';
 
-    // Add the text component to display "Game Over".
-    addAll(
-      [
-        _textComponent = TextComponent(
-          text: 'Game Over', // The message to display.
-          position: flameGame.canvasSize / 2, // Center the text on the canvas.
-          anchor: Anchor.center, // Set the anchor point to the center.
-          children: [
-            // Add a scaling effect to the text.
-            ScaleEffect.to(
-              Vector2.all(1.1), // Scale the text up to 110%.
-              EffectController(
-                duration: 0.3, // Duration of the scaling effect.
-                alternate: true, // Make the effect go back and forth.
-                infinite: true, // Repeat the effect forever.
-              ),
-            ),
-          ],
-
-          textRenderer: textTitlePaint,
-        ),
-        _textTimeComponent = TextComponent(
-          text: "", // The message to display.
-          position: flameGame.canvasSize / 2, // Center the text on the canvas.
-          anchor: Anchor.centerLeft, // Set the anchor point to the center.
-          textRenderer: textTimePaint,
-        ),
-        _textNewGameComponent = TextComponent(
-          text: "Click anywhere to start new Game",
-          position: flameGame.canvasSize / 2,
-          anchor: game.isDesktop ? Anchor.centerRight : Anchor.center,
-          textRenderer: textPaint,
-        ),
-        _textScoreComponent = TextComponent(
-          text: 'Score: ',
-          position: flameGame.canvasSize / 2,
-          anchor: Anchor.center,
-          textRenderer: textScorePaint,
-        ),
-        _textGameModeComponent = TextComponent(
-          text: "Mode: ${game.mode == 0 ? 'Easy' : game.mode == 1 ? 'Medium' : 'Hard'}",
-          position: flameGame.canvasSize / 2,
-          anchor: game.isDesktop ? Anchor.centerLeft : Anchor.center,
-          textRenderer: textPaint,
-        ),
-      ],
-    );
+    addAll([
+      _textComponent = TextComponent(
+        text: 'Game Over',
+        position: flameGame.canvasSize / 2,
+        anchor: Anchor.center,
+        children: [
+          ScaleEffect.to(
+            Vector2.all(1.1),
+            EffectController(duration: 0.3, alternate: true, infinite: true),
+          ),
+        ],
+        textRenderer: textTitlePaint,
+      ),
+      _textTimeComponent = TextComponent(
+        text: "",
+        position: flameGame.canvasSize / 2,
+        anchor: Anchor.centerLeft,
+        textRenderer: textTimePaint,
+      ),
+      _textNewGameComponent = TextComponent(
+        text: "Click anywhere to start new Game",
+        position: flameGame.canvasSize / 2,
+        anchor: game.isDesktop ? Anchor.centerRight : Anchor.center,
+        textRenderer: textPaint,
+      ),
+      _textScoreComponent = TextComponent(
+        text: 'Score: ',
+        position: flameGame.canvasSize / 2,
+        anchor: Anchor.center,
+        textRenderer: textScorePaint,
+      ),
+      _textGameModeComponent = TextComponent(
+        text: "Mode: $modeText",
+        position: flameGame.canvasSize / 2,
+        anchor: game.isDesktop ? Anchor.centerLeft : Anchor.center,
+        textRenderer: textPaint,
+      ),
+    ]);
   }
 
-  /// Called when the game is resized; updates text position to stay centered.
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
@@ -195,15 +169,14 @@ class GameOverPage extends Component with TapCallbacks, HasGameReference<MainRou
     _textNewGameComponent.position = game.isDesktop
         ? Vector2(game.size.x - 15, game.size.y - 15)
         : Vector2(game.size.x / 2, game.size.y - 15);
-    _textGameModeComponent.position =
-        game.isDesktop ? Vector2(15, game.size.y - 15) : Vector2(game.size.x / 2, game.size.y - 30);
+
+    _textGameModeComponent.position = game.isDesktop
+        ? Vector2(15, game.size.y - 15)
+        : Vector2(game.size.x / 2, game.size.y - 30);
   }
 
-  /// Always returns true, indicating that this component can contain tap events.
   @override
-  bool containsLocalPoint(Vector2 point) {
-    return true; // Accept all tap events.
-  }
+  bool containsLocalPoint(Vector2 point) => true;
 
   @override
   void update(double dt) {
@@ -217,39 +190,31 @@ class GameOverPage extends Component with TapCallbacks, HasGameReference<MainRou
     }
   }
 
-  /// Handle tap up events; navigate to the home page when tapped.
   @override
   void onTapUp(TapUpEvent event) {
     game.router
-      ..pop() // Go back to the previous route.
-      ..pushNamed(AppRouter.homePage, replace: true); // Push the home page route.
+      ..pop()
+      ..pushNamed(AppRouter.homePage, replace: true);
   }
 
   Future<void> captureAndSaveImage() async {
     try {
-      final PictureRecorder recorder = PictureRecorder();
-      final Rect rect = Rect.fromLTWH(0.0, 0.0, game.size.x, game.size.y);
-      final Canvas c = Canvas(recorder, rect);
+      final recorder = PictureRecorder();
+      final rect = Rect.fromLTWH(0.0, 0.0, game.size.x, game.size.y);
+      final canvas = Canvas(recorder, rect);
 
-      game.render(c);
+      game.render(canvas);
 
-      final Image image =
-          await recorder.endRecording().toImage(game.size.x.toInt(), game.size.y.toInt());
-      ByteData? byteData = await image.toByteData(format: ImageByteFormat.png);
-      Uint8List pngBytes = byteData!.buffer.asUint8List();
+      final image = await recorder.endRecording().toImage(game.size.x.toInt(), game.size.y.toInt());
+      final byteData = await image.toByteData(format: ImageByteFormat.png);
+      final pngBytes = byteData!.buffer.asUint8List();
 
-
-
-        final directory = await getApplicationDocumentsDirectory();
-        final imagePath = '${directory.path}/screenshot.png';
-        final imageFile = File(imagePath);
-        await imageFile.writeAsBytes(pngBytes);
-
-      // ignore: empty_catches
+      final directory = await getApplicationDocumentsDirectory();
+      final imagePath = '${directory.path}/screenshot.png';
+      final imageFile = File(imagePath);
+      await imageFile.writeAsBytes(pngBytes);
     } catch (e) {
-      if (kDebugMode) {
-        print(e.toString());
-      }
+      if (kDebugMode) print(e.toString());
     }
   }
 }
