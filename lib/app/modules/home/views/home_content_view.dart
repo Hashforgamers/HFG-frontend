@@ -210,7 +210,28 @@ class _HomeContentViewState extends State<HomeContentView>
         ReferFriendModal(
           isDialog: false,
           onReferNow: () {
-            Get.to(() => const ReferralViewWithController());
+            segmentService.onReferralViewed(
+              email:
+                  userController
+                      .user
+                      .value
+                      .contact
+                      ?.electronicAddress
+                      ?.emailId ??
+                  '',
+            );
+            Get.to(
+              () => ReferralViewWithController(
+                email:
+                    userController
+                        .user
+                        .value
+                        .contact
+                        ?.electronicAddress
+                        ?.emailId ??
+                    '',
+              ),
+            );
           },
         ),
       ],
@@ -331,7 +352,7 @@ class _HomeContentViewState extends State<HomeContentView>
       leadingWidth: 55,
       leading: Obx(
         () => Padding(
-          padding: const EdgeInsets.only(left: 10,top: 5),
+          padding: const EdgeInsets.only(left: 10, top: 5),
           child: userController.isLoading.value
               ? _buildShimmerAvatar()
               : _buildOptimizedUserAvatar(userController.user.value.photoUrl),
@@ -341,7 +362,6 @@ class _HomeContentViewState extends State<HomeContentView>
         () => Padding(
           padding: const EdgeInsets.only(top: 15.0),
           child: Column(
-
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -414,7 +434,15 @@ class _HomeContentViewState extends State<HomeContentView>
     if (_cachedGamePassContainer != null) return _cachedGamePassContainer!;
 
     _cachedGamePassContainer = GestureDetector(
-      onTap: () => Get.to(() => GamePassViewPage()),
+      onTap: () {
+        // Track hash pass checked event
+        segmentService.onHashPassChecked(
+          email:
+              userController.user.value.contact?.electronicAddress?.emailId ??
+              '',
+        );
+        Get.to(() => GamePassViewPage());
+      },
       child: Container(
         height: 200,
         width: double.infinity,

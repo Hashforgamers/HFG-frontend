@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:intl/intl.dart';
 import 'package:segment_analytics/client.dart';
 import 'package:segment_analytics/state.dart';
 
@@ -64,8 +65,8 @@ class SegmentSdkService {
         'referred_by': referralBy,
         'source': '',
         'email': email,
-        'time': '',
-        'date': '',
+        'time': DateFormat('hh:mm a').format(DateTime.now()),
+        'date': DateFormat('dd/MM/yyyy').format(DateTime.now()),
       },
     );
   }
@@ -110,7 +111,10 @@ class SegmentSdkService {
   Future<void> onTicketViewed({required String email}) async {
     await analytics.track(
       'Ticket Viewed',
-      properties: {'email': email, 'timestamp': ''},
+      properties: {
+        'email': email,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      },
     );
   }
 
@@ -118,7 +122,10 @@ class SegmentSdkService {
   Future<void> onShowViewed({required String email}) async {
     await analytics.track(
       'Show Viewed',
-      properties: {'email': email, 'timestamp': ''},
+      properties: {
+        'email': email,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      },
     );
   }
 
@@ -129,18 +136,26 @@ class SegmentSdkService {
   }) async {
     await analytics.track(
       'Product Viewed',
-      properties: {'email': email, 'product_name': name, 'timestamp': ''},
+      properties: {
+        'email': email,
+        'product_name': name,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      },
     );
   }
 
   // Product Pre-Registered
   Future<void> onProductPreRegistered({
     required String email,
-    required String name,
+    required String productName,
   }) async {
     await analytics.track(
       'Product Pre-Registered',
-      properties: {'email': email, 'product_name': name, 'timestamp': ''},
+      properties: {
+        'email': email,
+        'product_name': productName,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      },
     );
   }
 
@@ -148,7 +163,10 @@ class SegmentSdkService {
   Future<void> onHelpRequested({required String email}) async {
     await analytics.track(
       'Help Requested',
-      properties: {'email': email, 'timestamp': ''},
+      properties: {
+        'email': email,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      },
     );
   }
 
@@ -156,7 +174,10 @@ class SegmentSdkService {
   Future<void> onAccountDeletedRequested({required String email}) async {
     await analytics.track(
       'Account Deleted Requested',
-      properties: {'email': email, 'timestamp': ''},
+      properties: {
+        'email': email,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      },
     );
   }
 
@@ -164,23 +185,43 @@ class SegmentSdkService {
   Future<void> onHashPassChecked({required String email}) async {
     await analytics.track(
       'Hash Pass Checked',
-      properties: {'email': email, 'time': '', 'date': ''},
+      properties: {
+        'email': email,
+        'time': DateFormat('hh:mm a').format(DateTime.now()),
+        'date': DateFormat('dd/MM/yyyy').format(DateTime.now()),
+      },
     );
   }
 
   // Hash Pass Initiated
-  Future<void> onHashPassInitiated({required String email}) async {
+  Future<void> onHashPassInitiated({
+    required String email,
+    required double amount,
+  }) async {
     await analytics.track(
       'Hash Pass Initiated',
-      properties: {'email': email, 'amount': '', 'time': '', 'date': ''},
+      properties: {
+        'email': email,
+        'amount': amount,
+        'time': DateFormat('hh:mm a').format(DateTime.now()),
+        'date': DateFormat('dd/MM/yyyy').format(DateTime.now()),
+      },
     );
   }
 
   // Hash Pass Purchased
-  Future<void> onHashPassPurchased({required String email}) async {
+  Future<void> onHashPassPurchased({
+    required String email,
+    // required double amount,
+  }) async {
     await analytics.track(
       'Hash Pass Purchased',
-      properties: {'email': email, 'amount': '', 'time': '', 'date': ''},
+      properties: {
+        'email': email,
+        // 'amount': amount,
+        'time': DateFormat('hh:mm a').format(DateTime.now()),
+        'date': DateFormat('dd/MM/yyyy').format(DateTime.now()),
+      },
     );
   }
 
@@ -214,7 +255,10 @@ class SegmentSdkService {
   Future<void> onReferralInitiated({required String email}) async {
     await analytics.track(
       'Referral Initiated',
-      properties: {'email': email, 'timestamp': ''},
+      properties: {
+        'email': email,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      },
     );
   }
 
@@ -222,14 +266,17 @@ class SegmentSdkService {
   Future<void> onReferralJoined({
     required String referredBy,
     required bool referralBonusEarned,
+    required String email,
+    required String referraCode,
   }) async {
     await analytics.track(
       'Referral Joined',
       properties: {
         'referred_by': referredBy,
         'referral_bonus_earned': referralBonusEarned,
-        'email': '',
-        'timestamp': '',
+        'email': email,
+        'referral_code': referraCode,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
       },
     );
   }
@@ -246,7 +293,10 @@ class SegmentSdkService {
   Future<void> onNearbyCafeViewed({required String email}) async {
     await analytics.track(
       'Nearby Cafe Viewed',
-      properties: {'email': '', 'timestamp': ''},
+      properties: {
+        'email': '',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      },
     );
   }
 
@@ -266,6 +316,7 @@ class SegmentSdkService {
     required String cafeId,
     required String location,
     required List<String> availableGames,
+    required email,
   }) async {
     await analytics.track(
       'Gaming Cafe Viewed',
@@ -273,9 +324,9 @@ class SegmentSdkService {
         'cafe_id': cafeId,
         'location': location,
         'available_games': availableGames,
-        'email': '',
-        'time': '',
-        'date': '',
+        'email': email,
+        'time': DateFormat('hh:mm a').format(DateTime.now()),
+        'date': DateFormat('dd/MM/yyyy').format(DateTime.now()),
       },
     );
   }
@@ -283,12 +334,16 @@ class SegmentSdkService {
   // Cafe Console Selected
   Future<void> onCafeConsoleSelected({
     required String email,
-    required String type,
-    required int amount,
+    required String consoleType,
+    required int consoleAmount,
   }) async {
     await analytics.track(
       'Cafe Console Selected',
-      properties: {'email': '', 'console_type': type, 'console_amount': amount},
+      properties: {
+        'email': '',
+        'console_type': consoleType,
+        'console_amount': consoleAmount,
+      },
     );
   }
 
@@ -314,20 +369,11 @@ class SegmentSdkService {
   // Meal Selected
   Future<void> onMealSelected({
     required String email,
-    required String type,
-    required int amount,
-    required String slotTime,
-    required String mealType,
+    required List<Map<String, dynamic>> selectedMeal,
   }) async {
     await analytics.track(
       'Meal Selected',
-      properties: {
-        'email': email,
-        'console_type': type,
-        'console_amount': amount,
-        'slotTime': slotTime,
-        'meal_type': mealType,
-      },
+      properties: {'email': email, 'selected_meal': selectedMeal},
     );
   }
 
@@ -336,6 +382,9 @@ class SegmentSdkService {
     required String cafeId,
     required String gameId,
     required String slotTime,
+    required String email,
+    required String consoleType,
+    required int consoleAmount,
   }) async {
     await analytics.track(
       'Booking Started',
@@ -343,9 +392,9 @@ class SegmentSdkService {
         'cafe_id': cafeId,
         'game_id': gameId,
         'slot_time': slotTime,
-        'email': '',
-        'console_type': '',
-        'console_amount': '',
+        'email': email,
+        'console_type': consoleType,
+        'console_amount': consoleAmount,
       },
     );
   }
@@ -385,8 +434,8 @@ class SegmentSdkService {
   // Vouncher Redeemed
   Future<void> onVouncherRedeemed({
     required String email,
-    required String type,
-    required int amount,
+    required String consoleType,
+    required int consoleAmount,
     required String slotTime,
     required String mealType,
   }) async {
@@ -394,8 +443,8 @@ class SegmentSdkService {
       'Vouncher Redeemed',
       properties: {
         'email': email,
-        'console_type': type,
-        'console_amount': amount,
+        'console_type': consoleType,
+        'console_amount': consoleAmount,
         'slotTime': slotTime,
         'meal_type': mealType,
       },
@@ -434,6 +483,11 @@ class SegmentSdkService {
     required String bookingId,
     required String startTime,
     required String duration,
+    required String slotTime,
+    required String email,
+    required String consoleType,
+    required int consoleAmount,
+    required String paymentMethod,
   }) async {
     await analytics.track(
       'Booking Confirmed',
@@ -441,10 +495,11 @@ class SegmentSdkService {
         'booking_id': bookingId,
         'start_time': startTime,
         'duration': duration,
-        'email': '',
-        'console_type': '',
-        'console_amount': '',
-        'payment_method_opted': '',
+        'slot_time': slotTime,
+        'email': email,
+        'console_type': consoleType,
+        'console_amount': consoleAmount,
+        'payment_method_opted': paymentMethod,
       },
     );
   }

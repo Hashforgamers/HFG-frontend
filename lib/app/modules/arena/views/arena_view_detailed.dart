@@ -11,6 +11,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../utils/widgets/loader.dart';
 import '../controllers/games_controller.dart';
@@ -51,7 +52,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   final CafeGamesController _gamesController = Get.put(CafeGamesController());
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
-  
+
   int currentPage = 0;
   late PageController pageController;
 
@@ -84,7 +85,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           .replaceAll('_', ' ')
           .trim();
       // robust match
-      final isFood = name == 'food' ||
+      final isFood =
+          name == 'food' ||
           name.contains('food') ||
           name.contains('beverage') ||
           name.contains('snack') ||
@@ -319,10 +321,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                       child: GetX<CafeGamesController>(
                         builder: (controller) {
                           if (controller.isLoading.value) {
-                            return const Center(
-                              child: RainbowLoadingBar(
-                              ),
-                            );
+                            return const Center(child: RainbowLoadingBar());
                           }
 
                           final List<dynamic> consoles = controller.games
@@ -379,15 +378,51 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     if (hasFood) ...[
                       const SizedBox(height: 24),
                       foodAndBeverageGrid([
-                        {'name': 'Crispy Fries','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075186/menu1_ar0hbe.png'},
-                        {'name': 'Veggie Burger','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png'},
-                        {'name': 'Red Sauce Pasta','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075188/menu3_o2c0zy.png'},
-                        {'name': 'Protein Sandwich','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png'},
-                        {'name': 'Hot Coffee','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu5_f3t2l0.png'},
-                        {'name': 'Coca Cola with Ice','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu6_qhoalw.png'},
-                        {'name': 'Blue Lagoon','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075191/menu7_tj4lp1.png'},
-                        {'name': 'Choco Pastry','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075192/menu8_na7k6n.png'},
-                        {'name': 'Classic Donut','image':'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png'},
+                        {
+                          'name': 'Crispy Fries',
+                          'image':
+                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075186/menu1_ar0hbe.png',
+                        },
+                        {
+                          'name': 'Veggie Burger',
+                          'image':
+                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
+                        },
+                        {
+                          'name': 'Red Sauce Pasta',
+                          'image':
+                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075188/menu3_o2c0zy.png',
+                        },
+                        {
+                          'name': 'Protein Sandwich',
+                          'image':
+                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
+                        },
+                        {
+                          'name': 'Hot Coffee',
+                          'image':
+                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu5_f3t2l0.png',
+                        },
+                        {
+                          'name': 'Coca Cola with Ice',
+                          'image':
+                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu6_qhoalw.png',
+                        },
+                        {
+                          'name': 'Blue Lagoon',
+                          'image':
+                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075191/menu7_tj4lp1.png',
+                        },
+                        {
+                          'name': 'Choco Pastry',
+                          'image':
+                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075192/menu8_na7k6n.png',
+                        },
+                        {
+                          'name': 'Classic Donut',
+                          'image':
+                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
+                        },
                       ]),
                     ],
 
@@ -443,33 +478,55 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     child: ElevatedButton(
                       onPressed: () async {
                         if (!controller.shopOpen.value) {
-                          Get.snackbar('Shop Closed','Shop is closed today, no games available.',
-                              snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+                          Get.snackbar(
+                            'Shop Closed',
+                            'Shop is closed today, no games available.',
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: Colors.red,
+                            colorText: Colors.white,
+                          );
                           return;
                         }
 
                         final hasFood = _hasFoodAmenity(widget.amenities);
 
                         if (hasFood) {
-                          final response = await showFoodOrderPrompt(context, () {
-                            Get.to(MenuViewPage(
-                              vendorId: widget.vendorId.toString(),
-                              onContinue: (cartItems) {
-                                showBookSlotBottomSheet(context: context, cartItems: cartItems);
-                              },
-                            ));
-                          });
+                          final response = await showFoodOrderPrompt(
+                            context,
+                            () {
+                              Get.to(
+                                MenuViewPage(
+                                  vendorId: widget.vendorId.toString(),
+                                  email: widget.email,
+                                  onContinue: (cartItems) {
+                                    showBookSlotBottomSheet(
+                                      context: context,
+                                      email: widget.email,
+                                      cartItems: cartItems,
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          );
 
                           if (context.mounted && response != true) {
                             // response == false or null → go straight to booking
-                            showBookSlotBottomSheet(context: context, cartItems: null);
+                            showBookSlotBottomSheet(
+                              context: context,
+                              email: widget.email,
+                              cartItems: null,
+                            );
                           }
                         } else {
                           // No food amenity → skip prompt
-                          showBookSlotBottomSheet(context: context, cartItems: null);
+                          showBookSlotBottomSheet(
+                            context: context,
+                            email: widget.email,
+                            cartItems: null,
+                          );
                         }
                       },
-
 
                       style: ElevatedButton.styleFrom(
                         backgroundColor: controller.shopOpen.value
@@ -648,6 +705,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   Future<dynamic> showBookSlotBottomSheet({
     required BuildContext context,
+    required email,
     List<Map<String, dynamic>>? cartItems,
   }) {
     // Check if shop is open before showing booking options
@@ -908,6 +966,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                     try {
                                       Get.to(
                                         BookingScreen(
+                                          email: email,
                                           consoleType:
                                               slots[selectedIndex]['game_label'] ??
                                               '',
@@ -1223,7 +1282,12 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       if (item is! Map) return false;
       if (item['available'] != true) return false;
       final name = (item['name'] ?? '').toString().toLowerCase();
-      if (excludeFood && (name == 'food' || name.contains('food') || name.contains('beverage') || name.contains('snack') || name.contains('cafe'))) {
+      if (excludeFood &&
+          (name == 'food' ||
+              name.contains('food') ||
+              name.contains('beverage') ||
+              name.contains('snack') ||
+              name.contains('cafe'))) {
         return false;
       }
       return true;
@@ -1275,7 +1339,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Container(width:50,
+                  Container(
+                    width: 50,
                     padding: const EdgeInsets.symmetric(horizontal: 2.0),
                     child: Text(
                       displayName,

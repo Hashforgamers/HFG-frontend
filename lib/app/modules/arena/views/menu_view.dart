@@ -4,14 +4,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/cubit/get_food_menu_cubit.dart';
 import 'package:hash/core/repositories/model/food_menu_model.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 class MenuViewPage extends StatelessWidget {
   final String vendorId;
+  final String email;
   final void Function(List<Map<String, dynamic>> cartItems) onContinue;
   const MenuViewPage({
     super.key,
     required this.vendorId,
+    required this.email,
     required this.onContinue,
   });
 
@@ -19,15 +23,24 @@ class MenuViewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => GetFoodMenuCubit(),
-      child: _MenuViewPage(vendorId: vendorId, onContinue: onContinue),
+      child: _MenuViewPage(
+        vendorId: vendorId,
+        email: email,
+        onContinue: onContinue,
+      ),
     );
   }
 }
 
 class _MenuViewPage extends StatefulWidget {
   final String vendorId;
+  final String email;
   final void Function(List<Map<String, dynamic>> cartItems) onContinue;
-  const _MenuViewPage({required this.vendorId, required this.onContinue});
+  const _MenuViewPage({
+    required this.vendorId,
+    required this.email,
+    required this.onContinue,
+  });
 
   @override
   State<_MenuViewPage> createState() => __MenuViewPageState();
@@ -96,6 +109,7 @@ class __MenuViewPageState extends State<_MenuViewPage> {
         if (state is GetFoodMenuLoaded) {
           return MenuView(
             foodMenuList: state.foodMenu,
+            email: widget.email,
             onContinue: widget.onContinue,
           );
         }
@@ -107,11 +121,13 @@ class __MenuViewPageState extends State<_MenuViewPage> {
 
 class MenuView extends StatefulWidget {
   final List<FoodMenuModel> foodMenuList;
+  final String email;
   final void Function(List<Map<String, dynamic>> cartItems) onContinue;
 
   const MenuView({
     super.key,
     required this.foodMenuList,
+    required this.email,
     required this.onContinue,
   });
 
@@ -126,6 +142,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
   late AnimationController _itemAnimationController;
   late Animation<double> _cartHeightAnimation;
   late Animation<double> _cartOpacityAnimation;
+  final segmentService = locator<SegmentSdkService>();
 
   @override
   void initState() {
@@ -265,7 +282,9 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ListView.builder(
-              padding: const EdgeInsets.only(bottom: 180), // Increased space for cart + button
+              padding: const EdgeInsets.only(
+                bottom: 180,
+              ), // Increased space for cart + button
               itemCount: _getAllMenuItems().length,
               itemBuilder: (context, index) {
                 final itemData = _getAllMenuItems()[index];
@@ -293,7 +312,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
                         _buildBottomCart(),
                         if (cartItems.isNotEmpty) ...[
                           const SizedBox(height: 12),
-                          _buildContinueButton(),
+                          _buildContinueButton(widget.email),
                         ],
                       ],
                     ),
@@ -557,8 +576,8 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
   Widget _buildBottomCart() {
     if (cartItems.isEmpty) return const SizedBox.shrink();
 
-          return Container(
-        margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(20),
@@ -769,9 +788,10 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildContinueButton() {
+  Widget _buildContinueButton(String email) {
     return GestureDetector(
       onTap: () {
+        segmentService.onMealSelected(email: email, selectedMeal: cartItems);
         Navigator.pop(context);
         widget.onContinue(cartItems);
       },

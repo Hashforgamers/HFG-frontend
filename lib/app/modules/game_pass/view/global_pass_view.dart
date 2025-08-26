@@ -95,6 +95,9 @@ class _GlobalPassViewState extends State<GlobalPassView> {
       // Create Razorpay order
       final orderId = await _createRazorpayOrder(pass.price);
 
+      // Track hash pass initiated event
+      _segmentService.onHashPassInitiated(email: _userController.user.value.contact?.electronicAddress?.emailId ?? '', amount: pass.price,);
+
       // Track purchase initiated event
       _segmentService.onPaymentInitiated(
         bookingId: 'pass_${pass.id}',

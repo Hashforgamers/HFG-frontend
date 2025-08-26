@@ -33,7 +33,7 @@ class CafeSection extends StatefulWidget {
 
 class _CafeSectionState extends State<CafeSection> {
   static const String _sheetUrl =
-"https://docs.google.com/forms/d/1WnnEsOkza8ois79Gvp9iGvPAemq1Oi3YPHFlohfKlxM/edit";
+      "https://docs.google.com/forms/d/1WnnEsOkza8ois79Gvp9iGvPAemq1Oi3YPHFlohfKlxM/edit";
   bool _hasFetchedCafes = false;
 
   void _openSheetInBrowser() async {
@@ -44,7 +44,6 @@ class _CafeSectionState extends State<CafeSection> {
       Get.snackbar('Link', 'Could not open browser');
     }
   }
-
 
   Future<void> _chooseOpenSheet() async {
     final choice = await showModalBottomSheet<int>(
@@ -59,7 +58,10 @@ class _CafeSectionState extends State<CafeSection> {
           children: [
             ListTile(
               leading: const Icon(Icons.open_in_browser, color: Colors.white),
-              title: Text('Open in browser', style: GoogleFonts.inter(color: Colors.white)),
+              title: Text(
+                'Open in browser',
+                style: GoogleFonts.inter(color: Colors.white),
+              ),
               onTap: () => Navigator.pop(context, 1),
             ),
             // ListTile(
@@ -74,6 +76,7 @@ class _CafeSectionState extends State<CafeSection> {
     );
     if (choice == 1) _openSheetInBrowser();
   }
+
   final loc.Location _loc = loc.Location();
   double? _userLat, _userLng;
   bool _hasLocationPermission = false;
@@ -93,7 +96,8 @@ class _CafeSectionState extends State<CafeSection> {
     if (!_hasFetchedCafes) {
       widget._cafeController.fetchCybercafes();
       _hasFetchedCafes = true;
-    }    _initLocation();
+    }
+    _initLocation();
 
     // Track cafe list viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -103,6 +107,7 @@ class _CafeSectionState extends State<CafeSection> {
       );
     });
   }
+
   Future<void> _initLocation() async {
     try {
       bool service = await _loc.serviceEnabled();
@@ -113,7 +118,8 @@ class _CafeSectionState extends State<CafeSection> {
       if (perm == loc.PermissionStatus.denied) {
         perm = await _loc.requestPermission();
       }
-      if (perm != loc.PermissionStatus.granted && perm != loc.PermissionStatus.grantedLimited) {
+      if (perm != loc.PermissionStatus.granted &&
+          perm != loc.PermissionStatus.grantedLimited) {
         return;
       }
 
@@ -127,33 +133,41 @@ class _CafeSectionState extends State<CafeSection> {
         _userLat = lat;
         _userLng = lng;
       });
-    } catch (_) {/* ignore */}
+    } catch (_) {
+      /* ignore */
+    }
   }
+
   double? _toDouble(dynamic v) => double.tryParse('$v');
 
   double? _cafeLat(Map<String, dynamic> cafe) {
     final addr = cafe['address'] ?? cafe['location'] ?? {};
     return _toDouble(addr['latitude']);
   }
+
   double? _cafeLng(Map<String, dynamic> cafe) {
     final addr = cafe['address'] ?? cafe['location'] ?? {};
     return _toDouble(addr['longitude']);
   }
 
-// Haversine distance in KM
+  // Haversine distance in KM
   double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
     const R = 6371.0;
     final dLat = _deg2rad(lat2 - lat1);
     final dLon = _deg2rad(lon2 - lon1);
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_deg2rad(lat1)) * math.cos(_deg2rad(lat2)) *
-            math.sin(dLon / 2) * math.sin(dLon / 2);
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_deg2rad(lat1)) *
+            math.cos(_deg2rad(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
     final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     return R * c;
   }
+
   double _deg2rad(double d) => d * math.pi / 180.0;
 
-// ── Opening hours / Open-Closed
+  // ── Opening hours / Open-Closed
   String _formatTimeForDisplay(String timeStr) {
     try {
       // handle "09:00:00", "9:00", "9:00 AM"
@@ -173,7 +187,9 @@ class _CafeSectionState extends State<CafeSection> {
       final p = t.split(':');
       if (p.length >= 2) return '${p[0]}:${p[1]}';
       return t;
-    } catch (_) { return timeStr; }
+    } catch (_) {
+      return timeStr;
+    }
   }
 
   int? _parseMinutesSinceMidnight(String timeStr) {
@@ -183,7 +199,9 @@ class _CafeSectionState extends State<CafeSection> {
       final h = int.parse(parts[0]);
       final m = int.parse(parts[1]);
       return h * 60 + m;
-    } catch (_) { return null; }
+    } catch (_) {
+      return null;
+    }
   }
 
   bool _isCurrentlyOpen(Map<String, dynamic> cafe) {
@@ -213,7 +231,10 @@ class _CafeSectionState extends State<CafeSection> {
     }
     final status = cafe['status']?.toString().toLowerCase();
     if (status != null) {
-      if (status == 'active' || status == 'verified' || status == 'open' || status == 'operational') {
+      if (status == 'active' ||
+          status == 'verified' ||
+          status == 'open' ||
+          status == 'operational') {
         return true;
       }
       if (status == 'pending_verification') {
@@ -250,7 +271,8 @@ class _CafeSectionState extends State<CafeSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Row(                  crossAxisAlignment: CrossAxisAlignment.center,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
 
           children: [
             Text(
@@ -267,7 +289,8 @@ class _CafeSectionState extends State<CafeSection> {
               onTap: _chooseOpenSheet,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
@@ -275,10 +298,10 @@ class _CafeSectionState extends State<CafeSection> {
                       style: GoogleFonts.lato(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
-                        color:  Colors.green,
+                        color: Colors.green,
                       ),
                     ),
-                    const Icon(Icons.arrow_right_outlined,)
+                    const Icon(Icons.arrow_right_outlined),
                   ],
                 ),
               ),
@@ -339,13 +362,16 @@ class _CafeSectionState extends State<CafeSection> {
               itemBuilder: (context, index) {
                 final cafe = widget._cafeController.cybercafes[index];
                 final images = cafe['images'];
-                String imageUrl = 'https://next-level.gg/assets/cafes/11.jpg'; // Fallback image
-                
+                String imageUrl =
+                    'https://next-level.gg/assets/cafes/11.jpg'; // Fallback image
+
                 if (images != null) {
                   if (images is List && images.isNotEmpty) {
                     // If images is a list, get the first image URL
                     final firstImage = images[0];
-                    if (firstImage is Map && firstImage['url'] != null && firstImage['url'].toString().isNotEmpty) {
+                    if (firstImage is Map &&
+                        firstImage['url'] != null &&
+                        firstImage['url'].toString().isNotEmpty) {
                       imageUrl = firstImage['url'];
                     }
                   } else if (images is String && images.isNotEmpty) {
@@ -353,34 +379,45 @@ class _CafeSectionState extends State<CafeSection> {
                     imageUrl = images;
                   }
                 }
-                
+
                 // Additional fallback check - if the URL is empty or invalid, use default
-                if (imageUrl.isEmpty || imageUrl == 'null' || imageUrl == 'undefined') {
+                if (imageUrl.isEmpty ||
+                    imageUrl == 'null' ||
+                    imageUrl == 'undefined') {
                   imageUrl = 'https://next-level.gg/assets/cafes/11.jpg';
                 }
                 final isOpen = _isShopOpen(cafe);
                 final openLabel = _openCloseLabel(cafe);
 
-// Distance + ETA
+                // Distance + ETA
                 double? km;
                 int? etaMin;
                 final clat = _cafeLat(cafe);
                 final clng = _cafeLng(cafe);
-                if (_userLat != null && _userLng != null && clat != null && clng != null) {
+                if (_userLat != null &&
+                    _userLng != null &&
+                    clat != null &&
+                    clng != null) {
                   km = _haversineKm(_userLat!, _userLng!, clat, clng);
-                  etaMin = (_avgCitySpeedKmph > 0) ? (km / _avgCitySpeedKmph * 60).round() : null;
-                }                return GestureDetector(
+                  etaMin = (_avgCitySpeedKmph > 0)
+                      ? (km / _avgCitySpeedKmph * 60).round()
+                      : null;
+                }
+                return GestureDetector(
                   onTap: () {
                     // Track gaming cafe viewed event
                     final cafeId = cafe['vendor_id']?.toString() ?? '';
                     final location = cafe['location']?['address'] ?? 'Unknown';
-                    
+                    final email = cafe['email'] ?? 'Email not available';
+
                     // Handle availableGames field safely
                     List<String> availableGames = ['Unknown'];
                     final games = cafe['games'];
                     if (games != null) {
                       if (games is List) {
-                        availableGames = games.map((game) => game.toString()).toList();
+                        availableGames = games
+                            .map((game) => game.toString())
+                            .toList();
                       } else if (games is String) {
                         availableGames = [games];
                       }
@@ -390,6 +427,7 @@ class _CafeSectionState extends State<CafeSection> {
                       cafeId: cafeId,
                       location: location,
                       availableGames: availableGames,
+                      email: email,
                     );
                     widget.fbEventsService.onGamingCafeViewed(
                       cafeId: cafeId,
@@ -404,15 +442,19 @@ class _CafeSectionState extends State<CafeSection> {
                         imagesList = images;
                       } else if (images is String && images.isNotEmpty) {
                         // If images is a string, create a list with one item
-                        imagesList = [{'url': images}];
+                        imagesList = [
+                          {'url': images},
+                        ];
                       }
                     }
-                    
+
                     // Ensure we always have at least one fallback image
                     if (imagesList.isEmpty) {
-                      imagesList = [{'url': 'https://next-level.gg/assets/cafes/11.jpg'}];
+                      imagesList = [
+                        {'url': 'https://next-level.gg/assets/cafes/11.jpg'},
+                      ];
                     }
-                    
+
                     Get.to(
                       () => ArenaDetailView(
                         images: imagesList,
@@ -422,7 +464,7 @@ class _CafeSectionState extends State<CafeSection> {
                             'Address not available',
                         openingHours: '9 AM - 12 AM',
                         availableGames: availableGames,
-                        amenities: cafe["amenities"]??[''],
+                        amenities: cafe["amenities"] ?? [''],
                         phone:
                             cafe['phone'] ??
                             cafe['contact_number'] ??
@@ -452,7 +494,9 @@ class _CafeSectionState extends State<CafeSection> {
                             height: 250,
                             placeholder: (_, __) => Container(
                               color: const Color(0xff1a1a1a),
-                              child: const Center(child: RainbowGlowingLoader(size: 40)),
+                              child: const Center(
+                                child: RainbowGlowingLoader(size: 40),
+                              ),
                             ),
                             errorWidget: (_, __, ___) => Container(
                               color: const Color(0xff1a1a1a),
@@ -460,7 +504,11 @@ class _CafeSectionState extends State<CafeSection> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.storefront, color: Colors.white54, size: 60),
+                                  const Icon(
+                                    Icons.storefront,
+                                    color: Colors.white54,
+                                    size: 60,
+                                  ),
                                   const SizedBox(height: 8),
                                   Text(
                                     'Cafe Image',
@@ -499,12 +547,17 @@ class _CafeSectionState extends State<CafeSection> {
                                         Icon(
                                           Icons.circle,
                                           size: 8,
-                                          color: isOpen ? Colors.greenAccent : Colors.redAccent,
+                                          color: isOpen
+                                              ? Colors.greenAccent
+                                              : Colors.redAccent,
                                         ),
                                         const SizedBox(width: 6),
                                         Expanded(
                                           child: Text(
-                                            toStartCase(cafe['cafe_name']?.toString() ?? 'Unknown Cafe'),
+                                            toStartCase(
+                                              cafe['cafe_name']?.toString() ??
+                                                  'Unknown Cafe',
+                                            ),
                                             style: GoogleFonts.inter(
                                               color: Colors.white,
                                               fontSize: 16,
@@ -516,12 +569,21 @@ class _CafeSectionState extends State<CafeSection> {
                                         ),
                                         const SizedBox(width: 6),
                                         CachedNetworkImage(
-                                          imageUrl: 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-02_hvvehr.png',
+                                          imageUrl:
+                                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-02_hvvehr.png',
                                           height: 16,
                                           width: 16,
                                           fit: BoxFit.cover,
-                                          placeholder: (_, __) => const Center(child: RainbowGlowingLoader(size: 4)),
-                                          errorWidget: (_, __, ___) => const Icon(Icons.error, color: Colors.red),
+                                          placeholder: (_, __) => const Center(
+                                            child: RainbowGlowingLoader(
+                                              size: 4,
+                                            ),
+                                          ),
+                                          errorWidget: (_, __, ___) =>
+                                              const Icon(
+                                                Icons.error,
+                                                color: Colors.red,
+                                              ),
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
@@ -541,17 +603,34 @@ class _CafeSectionState extends State<CafeSection> {
                                       children: [
                                         const SizedBox(width: 8),
                                         Text(
-                                          km == null ? '-- km' : '${km.toStringAsFixed(1)} km${etaMin != null ? ' • ~${etaMin} min' : ''}',
-                                          style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+                                          km == null
+                                              ? '-- km'
+                                              : '${km.toStringAsFixed(1)} km${etaMin != null ? ' • ~${etaMin} min' : ''}',
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                          ),
                                         ),
                                         const SizedBox(width: 8),
-                                        const Icon(Icons.arrow_forward, size: 13),
+                                        const Icon(
+                                          Icons.arrow_forward,
+                                          size: 13,
+                                        ),
                                         const Spacer(),
-                                        _buildPlatformIcon(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png"),
+                                        _buildPlatformIcon(
+                                          icon:
+                                              "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png",
+                                        ),
                                         const SizedBox(width: 8),
-                                        _buildPlatformIcon(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png"),
+                                        _buildPlatformIcon(
+                                          icon:
+                                              "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png",
+                                        ),
                                         const SizedBox(width: 8),
-                                        _buildPlatformIcon(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png"),
+                                        _buildPlatformIcon(
+                                          icon:
+                                              "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png",
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -562,7 +641,7 @@ class _CafeSectionState extends State<CafeSection> {
                         ),
                       ],
                     ),
-                  )
+                  ),
                 );
               },
             ),

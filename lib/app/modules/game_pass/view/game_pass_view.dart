@@ -99,7 +99,10 @@ class _GamePassViewState extends State<GamePassView>
             physics: const NeverScrollableScrollPhysics(),
             children: [
               GlobalPassView(tabController: tabController, type: 'hash'),
-              CafeSpecificPassView(tabController: tabController, type: 'vendor'),
+              CafeSpecificPassView(
+                tabController: tabController,
+                type: 'vendor',
+              ),
               HashPassHistoryView(tabController: tabController),
             ],
           ),

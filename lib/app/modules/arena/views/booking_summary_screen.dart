@@ -30,7 +30,6 @@ class BookingSummaryScreen extends StatefulWidget {
   final int gameId;
   final int vendorId;
 
-
   const BookingSummaryScreen({
     super.key,
     required this.selectedCafeName,
@@ -210,7 +209,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         final gamePasses = await _remoteRepo.getUserActiveGamePass(
           userId: userId,
         );
-        
+
         // Filter passes based on vendor ID match
         final filteredPasses = _filterPassesByVendor(gamePasses);
         _userGamePasses.value = filteredPasses;
@@ -229,7 +228,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   List<GetPassModel> _filterPassesByVendor(List<GetPassModel> passes) {
     // Use vendor ID from the constructor
     final currentVendorId = widget.vendorId.toString();
-    
+
     // Filter passes to only show those that match the vendor ID
     // or are HASH Passes (vendor_id is null) - which can be used at any cafe
     return passes.where((pass) {
@@ -237,7 +236,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       if (pass.vendorId == null) {
         return true;
       }
-      
+
       // Show passes that match the current vendor
       return pass.vendorId == currentVendorId;
     }).toList();
@@ -367,9 +366,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 const SizedBox(height: 16),
                 Obx(() {
                   if (_isLoadingGamePasses.value) {
-                    return const Center(
-                      child: RainbowLoadingBar(),
-                    );
+                    return const Center(child: RainbowLoadingBar());
                   }
 
                   if (_gamePassError.value.isNotEmpty) {
@@ -549,59 +546,65 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                         ],
                                       ),
                                     ),
-                                                                            Column(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 4,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: isExpired
-                                                    ? Colors.red.withOpacity(0.2)
-                                                    : const Color(
-                                                        0xFF338125,
-                                                      ).withOpacity(0.2),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                isExpired ? 'EXPIRED' : 'ACTIVE',
-                                                style: GoogleFonts.inter(
-                                                  color: isExpired
-                                                      ? Colors.red
-                                                      : const Color(0xFF338125),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
+                                    Column(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isExpired
+                                                ? Colors.red.withOpacity(0.2)
+                                                : const Color(
+                                                    0xFF338125,
+                                                  ).withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
                                             ),
-                                            const SizedBox(height: 4),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 6,
-                                                vertical: 2,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: pass.vendorId == null
-                                                    ? Colors.blue.withOpacity(0.2)
-                                                    : Colors.orange.withOpacity(0.2),
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                pass.vendorId == null
-                                                    ? 'HASH'
-                                                    : 'CAFE',
-                                                style: GoogleFonts.inter(
-                                                  color: pass.vendorId == null
-                                                      ? Colors.blue
-                                                      : Colors.orange,
-                                                  fontSize: 8,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
+                                          ),
+                                          child: Text(
+                                            isExpired ? 'EXPIRED' : 'ACTIVE',
+                                            style: GoogleFonts.inter(
+                                              color: isExpired
+                                                  ? Colors.red
+                                                  : const Color(0xFF338125),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
                                             ),
-                                          ],
+                                          ),
                                         ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: pass.vendorId == null
+                                                ? Colors.blue.withOpacity(0.2)
+                                                : Colors.orange.withOpacity(
+                                                    0.2,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            pass.vendorId == null
+                                                ? 'HASH'
+                                                : 'CAFE',
+                                            style: GoogleFonts.inter(
+                                              color: pass.vendorId == null
+                                                  ? Colors.blue
+                                                  : Colors.orange,
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ],
                                 ),
                                 if (!isExpired) ...[
@@ -689,7 +692,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
-    void _proceedWithGamePass() {
+  void _proceedWithGamePass() {
     // This method will be called when user selects a game pass and clicks proceed
     // The actual booking logic will be handled in the existing handleBooking method
     if (_selectedGamePass.value == null) {
@@ -701,7 +704,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       );
       return;
     }
-    
+
     handleBooking(
       context,
       isVoucherApplied: _appliedVoucher.value != null,
@@ -789,7 +792,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
-        title:  Text(
+        title: Text(
           '${widget.selectedCafeName} - ${widget.consoleType}',
           style: GoogleFonts.inter(
             fontSize: 16,
@@ -968,8 +971,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           ),
                         ],
                       ),
-                    ):SizedBox(),
-                  // : _buildMealButton(),
+                    )
+                  : SizedBox(),
+              // : _buildMealButton(),
               const SizedBox(height: 5),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1224,16 +1228,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               // Check if Hash Game Pass is selected
                               if (isGamePassSelected) {
                                 _showGamePassSelectionDialog();
-                                                             } else {
-                                 handleBooking(
-                                   context,
-                                   isVoucherApplied:
-                                       _appliedVoucher.value != null,
-                                   useWallet: _selectedPayment.value == 'wallet',
-                                   isGamePass: false,
-                                   selectedPassId: null,
-                                 );
-                               }
+                              } else {
+                                handleBooking(
+                                  context,
+                                  isVoucherApplied:
+                                      _appliedVoucher.value != null,
+                                  useWallet: _selectedPayment.value == 'wallet',
+                                  isGamePass: false,
+                                  selectedPassId: null,
+                                );
+                              }
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF338125),
@@ -1250,9 +1254,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child: RainbowLoadingBar(
-
-                              ),
+                              child: RainbowLoadingBar(),
                             )
                           : Text(
                               isGamePassSelected && !hasSelectedPass
@@ -1492,9 +1494,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           ? const SizedBox(
                               height: 16,
                               width: 16,
-                              child: RainbowLoadingBar(
-
-                              ),
+                              child: RainbowLoadingBar(),
                             )
                           : Text(
                               'Apply',
@@ -1588,9 +1588,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                 Text(
                                   isActive ? 'Active' : 'Inactive',
                                   style: GoogleFonts.inter(
-                                    color: isActive
-                                        ? Colors.green
-                                        : Colors.red,
+                                    color: isActive ? Colors.green : Colors.red,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -1772,8 +1770,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return 'An unexpected error occurred. Please try again.';
   }
 
-
-
   Future<void> handleBooking(
     BuildContext context, {
     required bool isVoucherApplied,
@@ -1814,6 +1810,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         cafeId: 'cafe_${widget.gameId}',
         gameId: widget.gameId.toString(),
         slotTime: slotTime,
+        email:
+            userController.user.value.contact?.electronicAddress?.emailId ?? '',
+        consoleType: widget.consoleType,
+        consoleAmount: widget.selectedSlots.length,
       );
       fbEventsService.onBookingStarted(
         cafeId: 'cafe_${widget.gameId}',
@@ -1955,12 +1955,19 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       );
 
       // Track booking confirmed event
+      final slotTime = widget.selectedSlots.first['time'] ?? 'Unknown';
       final startTime = DateTime.now().toIso8601String();
       final duration = '${widget.selectedSlots.length} hour(s)';
       segmentService.onBookingConfirmed(
         bookingId: bookingIds.first.toString(),
         startTime: startTime,
         duration: duration,
+        slotTime: slotTime,
+        email:
+            userController.user.value.contact?.electronicAddress?.emailId ?? '',
+        consoleType: widget.consoleType,
+        consoleAmount: widget.selectedSlots.length,
+        paymentMethod: paymentMode,
       );
       fbEventsService.onBookingConfirmed(
         bookingId: bookingIds.first.toString(),

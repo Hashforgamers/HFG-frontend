@@ -81,6 +81,8 @@ class SignUpController extends GetxController {
         segmentService.onReferralJoined(
           referredBy: referralCodeController.text,
           referralBonusEarned: true, // Assuming bonus is earned
+          email: emailController.text,
+          referraCode: referralCodeController.text,
         );
         fbEventsService.onReferralJoined(
           referredBy: referralCodeController.text,

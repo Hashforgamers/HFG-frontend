@@ -14,17 +14,28 @@ import 'package:hash/app/modules/hash_coin/pages/hash_coin_page.dart';
 import 'package:hash/app/modules/need_help/need_help_page.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../utils/widgets/glow_neon_loader.dart';
 import '../../data/services/user_controller.dart';
 import '../../routes/app_routes.dart';
 
-class UserProfileView extends StatelessWidget {
+class UserProfileView extends StatefulWidget {
   const UserProfileView({super.key});
 
   @override
+  State<UserProfileView> createState() => _UserProfileViewState();
+}
+
+class _UserProfileViewState extends State<UserProfileView> {
+  UserController userController = Get.put(UserController());
+  final segmentService = locator<SegmentSdkService>();
+
+  @override
   Widget build(BuildContext context) {
-    UserController userController = Get.put(UserController());
+    final email =
+        userController.user.value.contact?.electronicAddress?.emailId ?? '';
 
     return Scaffold(
       bottomNavigationBar: Container(
@@ -83,7 +94,10 @@ class UserProfileView extends StatelessWidget {
               icon: CupertinoIcons.person_2,
               title: 'Refer & Earn',
               onTap: () {
-                Get.to(const ReferralViewWithController());
+                // Track referral initiated event
+                segmentService.onReferralInitiated(email: email);
+
+                Get.to(ReferralViewWithController(email: email));
               },
             ),
             // _buildProfileOption(
@@ -104,6 +118,9 @@ class UserProfileView extends StatelessWidget {
               icon: Icons.question_mark,
               title: 'Need Help',
               onTap: () {
+                // Track help requested event
+                segmentService.onHelpRequested(email: email);
+
                 // Handle wishlist
                 Get.to(NeedHelpPage());
               },
@@ -370,6 +387,18 @@ class UserProfileView extends StatelessWidget {
                         isDestructiveAction: true,
                         onPressed: accepted
                             ? () async {
+                                // Track account deleted requested event
+                                segmentService.onAccountDeletedRequested(
+                                  email:
+                                      userController
+                                          .user
+                                          .value
+                                          .contact
+                                          ?.electronicAddress
+                                          ?.emailId ??
+                                      '',
+                                );
+
                                 Navigator.of(context).pop();
                                 final success = await userController
                                     .deleteUser();

@@ -14,7 +14,8 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 
 class ReferralViewWithController extends StatefulWidget {
-  const ReferralViewWithController({super.key});
+  final String email;
+  const ReferralViewWithController({super.key, required this.email});
 
   @override
   State<ReferralViewWithController> createState() =>
@@ -90,9 +91,7 @@ class _ReferralViewWithControllerState
                   child: BlocBuilder<HashCoinCubit, HashCoinState>(
                     builder: (context, state) {
                       if (state is HashCoinLoading) {
-                        return  RainbowLoadingBar(
-
-                        );
+                        return RainbowLoadingBar();
                       }
                       if (state is HashCoinLoaded) {
                         return Text(
@@ -224,6 +223,9 @@ class _ReferralViewWithControllerState
                 ),
               ),
               onPressed: () {
+                // Track referral initiated event
+                segmentService.onReferralInitiated(email: widget.email);
+
                 // Track referral sent event
                 final referralCode = controller.getReferralCode();
                 segmentService.onReferralSent(
@@ -237,10 +239,9 @@ class _ReferralViewWithControllerState
 
                 Share.share(
                   '🎮 Join me on *HashforGamers*! Get access to top gaming cafes, exclusive tournaments, and earn rewards.\n\n'
-                      'Use my referral code 👉 $code to sign up and unlock **unlimited rewards**!\n\n'
-                      '📲 Download now: https://play.google.com/store/apps/details?id=com.hfg.hash',
+                  'Use my referral code 👉 $code to sign up and unlock **unlimited rewards**!\n\n'
+                  '📲 Download now: https://play.google.com/store/apps/details?id=com.hfg.hash',
                 );
-
               },
             ),
           ),
@@ -341,9 +342,7 @@ class _ReferralViewWithControllerState
                     ? SizedBox(
                         height: 16,
                         width: 16,
-                        child: RainbowLoadingBar(
-
-                        ),
+                        child: RainbowLoadingBar(),
                       )
                     : GestureDetector(
                         onTap: () => controller.getVoucher(),
@@ -398,11 +397,7 @@ class _ReferralViewWithControllerState
             () => controller.isLoading.value
                 ? SizedBox(
                     width: double.infinity,
-                    child: Center(
-                      child: RainbowLoadingBar(
-
-                      ),
-                    ),
+                    child: Center(child: RainbowLoadingBar()),
                   )
                 : SizedBox(
                     width: double.infinity,
@@ -426,6 +421,9 @@ class _ReferralViewWithControllerState
                       ),
                       onPressed: () async {
                         try {
+                          // Track help requested event
+                          // segmentService.onVouncherRedeemed(email: widget.email, );
+
                           await controller.createVoucher();
                         } catch (e) {
                           // Fallback error handling in case controller doesn't show snackbar
