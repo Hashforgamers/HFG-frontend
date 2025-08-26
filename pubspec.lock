@@ -541,18 +541,18 @@ packages:
     dependency: "direct main"
     description:
       name: flame
-      sha256: c50e2f39e118f5f6a6f3339ce6825ee803c7e5fada95ec50fb02eb27944e0e76
+      sha256: "1da87b0c07e09491517b28bcfdbfdb7b77c2e1527c4d160e394f66c3a9635026"
       url: "https://pub.dev"
     source: hosted
-    version: "1.30.1"
+    version: "1.31.0"
   flame_audio:
     dependency: "direct main"
     description:
       name: flame_audio
-      sha256: c03d1cfb952805a14b5a2793181009a1510ab28c8d0d69cd150cefd17053c489
+      sha256: "8d820b2c52e26d0a720c6a6de60cea376aae3a8e2552e635f1b5497fd0b5fd48"
       url: "https://pub.dev"
     source: hosted
-    version: "2.11.8"
+    version: "2.11.9"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -714,10 +714,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_local_notifications
-      sha256: "20ca0a9c82ce0c855ac62a2e580ab867f3fbea82680a90647f7953832d0850ae"
+      sha256: a9966c850de5e445331b854fa42df96a8020066d67f125a5964cbc6556643f68
       url: "https://pub.dev"
     source: hosted
-    version: "19.4.0"
+    version: "19.4.1"
   flutter_local_notifications_linux:
     dependency: transitive
     description:
@@ -1033,10 +1033,10 @@ packages:
     dependency: transitive
     description:
       name: google_maps_flutter_web
-      sha256: ce2cac714e5462bf761ff2fdfc3564c7e5d7ed0578268dccb0a54dbdb1e6214e
+      sha256: "9d57993ba29b80bb637bb7b9784159ca93071d5940e4d0383ae2358ad371e375"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.12+2"
+    version: "0.5.13"
   google_sign_in:
     dependency: "direct main"
     description:
@@ -1537,10 +1537,10 @@ packages:
     dependency: "direct main"
     description:
       name: provider
-      sha256: "4abbd070a04e9ddc287673bf5a030c7ca8b685ff70218720abab8b092f53dd84"
+      sha256: "4e82183fa20e5ca25703ead7e05de9e4cceed1fbd1eadc1ac3cb6f565a09f272"
       url: "https://pub.dev"
     source: hosted
-    version: "6.1.5"
+    version: "6.1.5+1"
   qr:
     dependency: transitive
     description:

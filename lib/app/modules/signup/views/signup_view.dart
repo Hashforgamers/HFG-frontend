@@ -1,10 +1,11 @@
-
 import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';            // ← ADDED
 import '../../../../utils/widgets/loader.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
 import '../../../routes/app_routes.dart';
@@ -23,39 +24,85 @@ class _SignUpViewState extends State<SignUpView> {
   final _formKey = GlobalKey<FormState>();
   static const _pad = EdgeInsets.symmetric(horizontal: 16, vertical: 14);
 
+  // ← ADDED: access auth + provider helpers
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool get _cameFromOAuth {
+    final u = _auth.currentUser;
+    if (u == null) return false;
+    return u.providerData.any(
+          (p) => p.providerId == 'apple.com' || p.providerId == 'google.com',
+    );
+  }
+
   @override
   void initState() {
     super.initState();
 
     final args = Get.arguments as Map<String, String>?;
+    final firebaseName = _auth.currentUser?.displayName ?? '';
 
-    if (args != null) {
+    // Only prefill from args for *non*-OAuth flows (manual/phone).
+    if (args != null && !_cameFromOAuth) {
       c.nameController.text = args['name'] ?? '';
       c.emailController.text = args['email'] ?? '';
       c.mobileNoController.text = args['phoneNumber'] ?? '';
+    } else if (_cameFromOAuth) {
+      // For OAuth, DO NOT ask name/email again.
+      c.mobileNoController.text = args?['phoneNumber'] ?? '';
     }
 
-    // 🔹 Listener: whenever name changes → regenerate username
-    c.nameController.addListener(() {
-      final baseName = c.nameController.text.trim().isNotEmpty
-          ? c.nameController.text.split(" ").first
-          : "Player";
+    // 🧠 Generate game username ONCE using cleaned-up name
+    final rawName = !_cameFromOAuth
+        ? c.nameController.text
+        : firebaseName;
 
-      final gamingWords = [
-        "Ninja", "Warrior", "Shadow", "Hunter", "Sniper",
-        "Dragon", "Knight", "Phantom", "Rogue", "Assassin",
-        "Beast", "Predator", "Ghost", "Samurai", "Reaper"
-      ];
-
-      final random = Random();
-      final word = gamingWords[random.nextInt(gamingWords.length)];
-      final number = random.nextInt(900) + 100; // 100–999
-
-      c.gameUserNameController.text = "$baseName$word$number";
-    });
+    if (rawName.trim().isNotEmpty) {
+      final base = rawName.replaceAll(RegExp(r'\s+'), ''); // Remove all spaces
+      final gamerTag = _generateGamerUsername(base);
+      c.gameUserNameController.text = gamerTag;
+    }
 
     // 🔹 Default gender = Male
     c.genderController.text = "Male";
+
+    // 🔁 Regenerate gamer username if nameController changes (manual login only)
+    if (!_cameFromOAuth) {
+      c.nameController.addListener(() {
+        final baseName = c.nameController.text.trim().replaceAll(' ', '');
+        if (baseName.isNotEmpty) {
+          c.gameUserNameController.text = _generateGamerUsername(baseName);
+        }
+      });
+    }
+  }
+  String _generateGamerUsername(String base) {
+    final gamingWords = [
+      "Ninja", "Warrior", "Sniper", "Slayer", "Assassin",
+      "Crusher", "Striker", "Hunter", "Brawler", "Fighter",
+      "Executioner", "Killer", "Battler", "Bruiser", "Sharpshot",
+      "Bomber", "Mauler", "Breaker", "Rager", "Bludgeon","Dragon", "Phoenix", "Wraith", "Demon", "Shadow",
+      "Specter", "Reaper", "Grim", "Phantom", "Ghost",
+      "Shinigami", "Banshee", "Ghoul", "Raven", "Valkyrie",
+      "Soulstealer", "Apparition", "Haunt", "Necro", "Poltergeist","Commando", "Rogue", "Merc", "Agent", "Soldier",
+      "Operator", "Captain", "Sergeant", "Sniper", "Pilot",
+      "Marksman", "Corporal", "Brigadier", "Sapper", "Trooper","Drifter", "Runner", "Dash", "Rush", "Blaze",
+      "Flash", "Zoom", "Velocity", "Rapid", "Zephyr",
+      "Surge", "Jet", "Boost", "Quickshot", "Dashblade","Venom", "Viper", "Fury", "Toxin", "Dagger",
+      "Rage", "Blood", "Inferno", "Scythe", "Claw",
+      "Darklord", "Hellfire", "Ember", "Doom", "Rupture",
+      "Slash", "Hex", "Oblivion", "Decay", "Ravage","Cyber", "Glitch", "Matrix", "Pixel", "Neo",
+      "Byte", "Bot", "AI", "Quantum", "Cortex",
+      "Override", "Sync", "Binary", "Circuit", "Echo",
+      "CodeX", "Virus", "Firewall", "Protocol", "Omega","Frost", "Blaze", "Storm", "Thunder", "Flame",
+      "Ice", "Ember", "Ash", "Quake", "Bolt",
+      "Typhoon", "Tempest", "Vortex", "Avalanche", "Gale",
+      "Hurricane", "Dust", "Fireball", "Hail", "Ignite"
+    ];
+    final random = Random();
+    final word = gamingWords[random.nextInt(gamingWords.length)];
+    final number = random.nextInt(900) + 100; // 100–999
+
+    return "$base$word$number";
   }
 
 
@@ -63,7 +110,10 @@ class _SignUpViewState extends State<SignUpView> {
   Widget build(BuildContext context) {
     final args = Get.arguments as Map<String, String>?;
     final phoneFilled = (args?['phoneNumber']?.isNotEmpty ?? false);
-    final emailFilled = (args?['email']?.isNotEmpty ?? false);
+
+    // ← ADDED: identity from Firebase for info labels (not inputs)
+    final firebaseName  = _auth.currentUser?.displayName ?? '';
+    final firebaseEmail = _auth.currentUser?.email ?? '';
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -91,14 +141,15 @@ class _SignUpViewState extends State<SignUpView> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Name
-                      _field(c.nameController, 'Name',
-                          autofill: AutofillHints.name),
+                      // Name (only for non-OAuth)
+                      if (!_cameFromOAuth)
+                        _field(c.nameController, 'Name',
+                            autofill: AutofillHints.name)
+                      else
+                        _infoRow('Name', firebaseName.isEmpty ? '—' : firebaseName),
 
                       // Game Username (auto-filled)
                       _userNameField(),
-
-
 
                       // Mobile
                       _mobileField(phoneFilled),
@@ -106,34 +157,14 @@ class _SignUpViewState extends State<SignUpView> {
                       // Referral
                       _referralField(),
 
-                      // Email
-                      _field(c.emailController, 'Email',
-                          readOnly: emailFilled, autofill: AutofillHints.email),
-                      // Location button
-                      // _locationBtn(),
-                      //
-                      // // Address
-                      // _field(c.addressLine1Controller, 'Address Line 1',
-                      //     autofill: AutofillHints.streetAddressLine1, required: false),
-                      // _field(c.addressLine2Controller, 'Address Line 2',
-                      //     autofill: AutofillHints.streetAddressLine2, required: false),
+                      // Email (only for non-OAuth). For OAuth, show read-only label.
+                      if (!_cameFromOAuth)
+                        _field(c.emailController, 'Email',
+                            autofill: AutofillHints.email)
+                      else
+                        _infoRow('Email', firebaseEmail.isEmpty ? '—' : firebaseEmail),
 
-                      // const SizedBox(height: 20),
-                      // _signupBtn(),
-                      //
-                      // TextButton(
-                      //   onPressed: () => Get.offAllNamed(AppRoutes.LOGIN),
-                      //   child: Text.rich(TextSpan(
-                      //       text: 'Already have an account? ',
-                      //       style: GoogleFonts.inter(color: Colors.white70),
-                      //       children: [
-                      //         TextSpan(
-                      //           text: 'Login',
-                      //           style: GoogleFonts.inter(
-                      //               color: const Color(0xFF3AFF6B)),
-                      //         )
-                      //       ])),
-                      // )
+                      // If you later re-enable address/location, keep them optional only.
                     ],
                   ),
                 ),
@@ -141,7 +172,6 @@ class _SignUpViewState extends State<SignUpView> {
             ],
           ),
         ),
-
       ),
 
       // 🔹 Bottom section
@@ -175,6 +205,37 @@ class _SignUpViewState extends State<SignUpView> {
 
   // ───────────────────────── widgets ───────────────────────────────────────────
 
+  Widget _infoRow(String label, String value) {                 // ← ADDED
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: _pad,
+        decoration: BoxDecoration(
+          color: const Color(0xFF141414),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x3FFFFFFF)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(label,
+                  style: GoogleFonts.inter(color: Colors.white70)),
+            ),
+            Flexible(
+              child: Text(
+                value.isEmpty ? '—' : value,
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                    color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _field(TextEditingController ctl, String label,
       {String? autofill, bool readOnly = false, bool required = true}) {
     return Padding(
@@ -191,13 +252,14 @@ class _SignUpViewState extends State<SignUpView> {
           labelStyle: GoogleFonts.inter(
             color: readOnly ? Colors.grey.shade500 : Colors.white70,
           ),
-          filled: readOnly, // fill only if readOnly
-          fillColor: Colors.grey.shade900, // subtle grey bg
+          filled: readOnly,
+          fillColor: Colors.grey.shade900,
           contentPadding: _pad,
           enabledBorder: _border(readOnly ? Colors.grey.shade700 : const Color(0x3FFFFFFF)),
           focusedBorder: _border(readOnly ? Colors.grey.shade700 : const Color(0xFF3AFF6B)),
         ),
         validator: (v) {
+          // Validators will not run for OAuth because the fields are not rendered.
           if (required && !readOnly && (v == null || v.trim().isEmpty)) {
             return 'Enter $label';
           }
@@ -213,13 +275,22 @@ class _SignUpViewState extends State<SignUpView> {
       child: TextFormField(
         controller: c.mobileNoController,
         readOnly: readOnly,
-        keyboardType: TextInputType.phone,
+        keyboardType: TextInputType.number,
+        maxLength: 15, // Max length for international numbers (E.164)
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly, // ✅ allows only numbers
+        ],
+        enableInteractiveSelection: false, // ✅ disables copy/paste/select
         style: GoogleFonts.inter(color: Colors.white),
         decoration: InputDecoration(
+          counterText: "", // hides character counter
           labelText: 'Mobile Number',
           labelStyle: GoogleFonts.inter(color: Colors.white70),
-          prefixText: '+91 ', // 🔹 prefix visible, non-editable
-          prefixStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500),
+          prefixText: '+ ', // ✅ just '+' for any country code
+          prefixStyle: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
           contentPadding: _pad,
           enabledBorder: _border(const Color(0x3FFFFFFF)),
           focusedBorder: _border(const Color(0xFF3AFF6B)),
@@ -228,7 +299,7 @@ class _SignUpViewState extends State<SignUpView> {
           if (!readOnly && (v == null || v.trim().isEmpty)) {
             return 'Enter Mobile Number';
           }
-          if (!readOnly && v!.length < 10) {
+          if (!readOnly && v!.length < 7) {
             return 'Enter valid number';
           }
           return null;
@@ -236,6 +307,7 @@ class _SignUpViewState extends State<SignUpView> {
       ),
     );
   }
+
 
   Widget _userNameField() {
     return Padding(
@@ -258,95 +330,68 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
-
-
-
-
-  Widget _genderDrop() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: DropdownButtonFormField<String>(
-        value:
-            c.genderController.text.isNotEmpty ? c.genderController.text : null,
-        dropdownColor: Colors.black,
-        style: GoogleFonts.inter(color: Colors.white),
-        decoration: InputDecoration(
-          labelText: 'Gender',
-          labelStyle: GoogleFonts.inter(color: Colors.white70),
-          contentPadding: _pad,
-          enabledBorder: _border(const Color(0x3FFFFFFF)),
-          focusedBorder: _border(const Color(0xFF3AFF6B)),
-        ),
-        items: const [
-          DropdownMenuItem(value: 'Male', child: Text('Male')),
-          DropdownMenuItem(value: 'Female', child: Text('Female')),
-          DropdownMenuItem(value: 'Other', child: Text('Other')),
-        ],
-        onChanged: (val) => c.genderController.text = val ?? '',
-        validator: (val) => val == null || val.isEmpty ? 'Select gender' : null,
-      ),
-    );
-  }
-
-  // Widget _locationBtn() {
+  // Widget _genderDrop() {
   //   return Padding(
   //     padding: const EdgeInsets.only(bottom: 16),
-  //     child: Stack(
-  //       alignment: Alignment.center,
-  //       children: [
-  //         RGBLightFrame(width: Get.width, height: 50, borderRadius: 100),
-  //         InkWell(
-  //           onTap: c.fetchLocation,
-  //           child: Row(
-  //             mainAxisAlignment: MainAxisAlignment.center,
-  //             children: [
-  //               const Icon(CupertinoIcons.location_solid, color: Colors.white),
-  //               const SizedBox(width: 8),
-  //               Text('Fetch Location',
-  //                   style: GoogleFonts.inter(color: Colors.white)),
-  //             ],
-  //           ),
-  //         ),
+  //     child: DropdownButtonFormField<String>(
+  //       value:
+  //       c.genderController.text.isNotEmpty ? c.genderController.text : null,
+  //       dropdownColor: Colors.black,
+  //       style: GoogleFonts.inter(color: Colors.white),
+  //       decoration: InputDecoration(
+  //         labelText: 'Gender',
+  //         labelStyle: GoogleFonts.inter(color: Colors.white70),
+  //         contentPadding: _pad,
+  //         enabledBorder: _border(const Color(0x3FFFFFFF)),
+  //         focusedBorder: _border(const Color(0xFF3AFF6B)),
+  //       ),
+  //       items: const [
+  //         DropdownMenuItem(value: 'Male', child: Text('Male')),
+  //         DropdownMenuItem(value: 'Female', child: Text('Female')),
+  //         DropdownMenuItem(value: 'Other', child: Text('Other')),
   //       ],
+  //       onChanged: (val) => c.genderController.text = val ?? '',
+  //       validator: (val) => val == null || val.isEmpty ? 'Select gender' : null,
   //     ),
   //   );
   // }
 
   Widget _signupBtn() {
     return Obx(() => Stack(
-          children: [
-            RGBLightFrame(width: Get.width, height: 50, borderRadius: 10),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: c.isLoading.value
-                    ? null
-                    : () {
-                        if (_formKey.currentState!.validate()) {
-                          c.signUp();
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                child: c.isLoading.value
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: RainbowLoadingBar())
-                    : Text(
-                        'Sign Up',
-                        style: GoogleFonts.inter(color: Colors.white),
-                      ),
-              ),
-            )
-          ],
-        ));
+      children: [
+        RGBLightFrame(width: Get.width, height: 50, borderRadius: 10),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: c.isLoading.value
+                ? null
+                : () {
+              if (_formKey.currentState!.validate()) {
+                c.signUp();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: c.isLoading.value
+                ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: RainbowLoadingBar())
+                : Text(
+              'Sign Up',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+          ),
+        )
+      ],
+    ));
   }
+
   Widget _referralField() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -355,14 +400,13 @@ class _SignUpViewState extends State<SignUpView> {
         style: GoogleFonts.inter(color: Colors.white),
         decoration: InputDecoration(
           labelText: 'Referral Code (Optional)',
-          labelStyle: GoogleFonts.inter(color: Colors.white54), // lighter
+          labelStyle: GoogleFonts.inter(color: Colors.white54),
           hintText: 'Enter if you have one',
-          hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 13,fontWeight: FontWeight.w100),
-          contentPadding: _pad.copyWith(top: 10, bottom: 10), // smaller
-          enabledBorder: _border(const Color(0x2FFFFFFF)),   // lighter border
+          hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 13, fontWeight: FontWeight.w100),
+          contentPadding: _pad.copyWith(top: 10, bottom: 10),
+          enabledBorder: _border(const Color(0x2FFFFFFF)),
           focusedBorder: _border(const Color(0xFF3AFF6B)),
         ),
-        // 🔹 No validator → not mandatory
       ),
     );
   }
@@ -372,4 +416,3 @@ class _SignUpViewState extends State<SignUpView> {
       borderSide: BorderSide(color: c),
       borderRadius: BorderRadius.circular(12));
 }
-
