@@ -18,7 +18,7 @@ import 'package:hash/app/modules/refferal/views/referral_view_with_controller.da
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:hash/utils/encrypt_util.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
@@ -46,20 +46,25 @@ class _HomeContentViewState extends State<HomeContentView>
   late final LoginController loginController;
   late final UserController userController;
   late final SegmentSdkService segmentService;
-  
+
   // Animation controllers
   late final AnimationController _fadeController;
   late final AnimationController _slideController;
-  
+
   // Scroll controller for optimization
   late final ScrollController _scrollController;
   static const double _sectionGap = 24.0;
 
+  final remoteRepo = locator<RemoteRepoInterface>();
+
   List<Widget> _intersperse(List<Widget> items, Widget separator) {
     if (items.isEmpty) return const [];
-    return List.generate(items.length * 2 - 1,
-            (i) => i.isEven ? items[i ~/ 2] : separator);
+    return List.generate(
+      items.length * 2 - 1,
+      (i) => i.isEven ? items[i ~/ 2] : separator,
+    );
   }
+
   // State variables
   bool isInitialized = false;
   bool _isRefreshing = false;
@@ -69,10 +74,10 @@ class _HomeContentViewState extends State<HomeContentView>
   Widget? _cachedAppBar;
   Widget? _cachedGamePassContainer;
   Widget? _cachedGameOnIndiaBanner;
-  
+
   // Visibility tracking for lazy loading
   final Map<String, bool> _sectionVisibility = {};
-  
+
   @override
   bool get wantKeepAlive => true;
 
@@ -84,6 +89,7 @@ class _HomeContentViewState extends State<HomeContentView>
     _initializeScrollController();
     _initializeData();
   }
+
   @override
   void dispose() {
     // remove listeners before disposing controller
@@ -91,8 +97,10 @@ class _HomeContentViewState extends State<HomeContentView>
     _fadeController.dispose();
     _slideController.dispose();
     _scrollController.dispose();
+    _initAuthToken();
     super.dispose();
   }
+
   void _initializeControllers() {
     bookingController = Get.find<BookingController>();
     loginController = Get.find<LoginController>();
@@ -109,6 +117,13 @@ class _HomeContentViewState extends State<HomeContentView>
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
+  }
+
+  void _initAuthToken() async {
+    final uid = await remoteRepo.getUIDFromPreferences();
+    if (uid.isNotEmpty) {
+      await remoteRepo.checkUserExistsInAPI(uid);
+    }
   }
 
   void _initializeScrollController() {
@@ -678,6 +693,4 @@ class _HomeContentViewState extends State<HomeContentView>
       child: const CircleAvatar(radius: 13, backgroundColor: Colors.grey),
     );
   }
-
-
 }

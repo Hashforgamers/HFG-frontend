@@ -185,11 +185,13 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   Future<Map<String, dynamic>> deleteUser() async {
-    final dio = await networkProvider.auth(); // must attach Authorization header (Bearer <jwt>)
+    final dio = await networkProvider
+        .auth(); // must attach Authorization header (Bearer <jwt>)
     try {
       // If your API expects /api/users/{id}, switch endpoint to: '${ApiEndpoints.baseUrl}/$userId'
       final response = await dio.delete(
-        ApiEndpoints.baseUrl, // DELETE /api/users  -> delete current authenticated user
+        ApiEndpoints
+            .baseUrl, // DELETE /api/users  -> delete current authenticated user
         options: Options(
           // treat 4xx (except 5xx) as handled so we can show API message
           validateStatus: (code) => code != null && code < 500,
@@ -201,7 +203,7 @@ class RemoteRepo implements RemoteRepoInterface {
           "success": true,
           "message": (response.data is Map && response.data['message'] != null)
               ? response.data['message']
-              : "Account deleted successfully"
+              : "Account deleted successfully",
         };
       }
 
@@ -221,8 +223,6 @@ class RemoteRepo implements RemoteRepoInterface {
       return {"success": false, "message": "Unexpected error: $e"};
     }
   }
-
-
 
   @override
   Future<List<Map<String, dynamic>>> fetchUserBookings() async {
@@ -1056,5 +1056,17 @@ class RemoteRepo implements RemoteRepoInterface {
       debugPrint('Error capturing payment: $e');
       rethrow;
     }
+  }
+
+  @override
+  Future<String> getUIDFromPreferences() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('uid') ?? '';
+  }
+
+  @override
+  Future<void> saveUIDToPreferences(String uid) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('uid', uid);
   }
 }

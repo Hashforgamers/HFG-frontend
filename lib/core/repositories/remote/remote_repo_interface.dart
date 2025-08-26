@@ -126,4 +126,7 @@ abstract class RemoteRepoInterface {
   Future<void> capturePayment({
     required CapturePaymentModel capturePaymentModel,
   });
+
+  Future<void> saveUIDToPreferences(String uid);
+  Future<String> getUIDFromPreferences();
 }

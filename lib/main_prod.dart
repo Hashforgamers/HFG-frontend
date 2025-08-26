@@ -1,3 +1,4 @@
+import 'package:clarity_flutter/clarity_flutter.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -71,6 +72,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final config = ClarityConfig(
+      projectId: "t124gco2m1",
+      logLevel: LogLevel
+          .Verbose, // Note: Use "LogLevel.Verbose" value while testing to debug initialization issues.
+    );
+
     return ScreenUtilInit(
       designSize: const Size(390, 844),
       minTextAdapt: true,
@@ -78,22 +85,21 @@ class MyApp extends StatelessWidget {
       builder: (context, child) {
         return MultiBlocProvider(
           providers: [
-            BlocProvider(create: (context) => HashCoinCubit(),
-            ),
-        BlocProvider(
-          create: (context) => FcmCubit(),
-        ),
-        BlocProvider(
-          create: (context) =>  GamePassCubit(),),
+            BlocProvider(create: (context) => HashCoinCubit()),
+            BlocProvider(create: (context) => FcmCubit()),
+            BlocProvider(create: (context) => GamePassCubit()),
           ],
           child: ScrollConfiguration(
             behavior: NoGlowScrollBehavior(),
-            child: GetMaterialApp(
-              debugShowCheckedModeBanner: false, // Hide debug banner for prod
-              title: FlavorConfig.instance.appName,
-              theme: AppTheme.dark,
-              initialRoute: AppRoutes.SPLASH,
-              getPages: AppPages.pages,
+            child: ClarityWidget(
+              clarityConfig: config,
+              app: GetMaterialApp(
+                debugShowCheckedModeBanner: false, // Hide debug banner for prod
+                title: FlavorConfig.instance.appName,
+                theme: AppTheme.dark,
+                initialRoute: AppRoutes.SPLASH,
+                getPages: AppPages.pages,
+              ),
             ),
           ),
         );

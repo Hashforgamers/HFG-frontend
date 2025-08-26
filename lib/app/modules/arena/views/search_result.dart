@@ -134,9 +134,12 @@ class _SearchResultState extends State<SearchResult> {
     const R = 6371.0;
     final dLat = _deg2rad(lat2 - lat1);
     final dLon = _deg2rad(lon2 - lon1);
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_deg2rad(lat1)) * math.cos(_deg2rad(lat2)) *
-            math.sin(dLon / 2) * math.sin(dLon / 2);
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_deg2rad(lat1)) *
+            math.cos(_deg2rad(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
     final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     return R * c;
   }
@@ -204,7 +207,10 @@ class _SearchResultState extends State<SearchResult> {
     }
     final status = cafe['status']?.toString().toLowerCase();
     if (status != null) {
-      if (status == 'active' || status == 'verified' || status == 'open' || status == 'operational') {
+      if (status == 'active' ||
+          status == 'verified' ||
+          status == 'open' ||
+          status == 'operational') {
         return true;
       }
       if (status == 'pending_verification') {
@@ -234,9 +240,13 @@ class _SearchResultState extends State<SearchResult> {
       final city = (addrMap['city'] ?? '').toString();
       final state = (addrMap['state'] ?? '').toString();
       final pin = (addrMap['pincode'] ?? '').toString();
-      final parts = [line1, line2, city, state, pin]
-          .where((e) => e.isNotEmpty)
-          .toList();
+      final parts = [
+        line1,
+        line2,
+        city,
+        state,
+        pin,
+      ].where((e) => e.isNotEmpty).toList();
       if (parts.isNotEmpty) return parts.join(', ');
     }
     // 3) direct string
@@ -250,7 +260,9 @@ class _SearchResultState extends State<SearchResult> {
     final imgs = cafe['images'];
     if (imgs is List && imgs.isNotEmpty) {
       final first = imgs.first;
-      if (first is Map && first['url'] is String && first['url'].toString().isNotEmpty) {
+      if (first is Map &&
+          first['url'] is String &&
+          first['url'].toString().isNotEmpty) {
         return first['url'];
       }
       if (first is String && first.isNotEmpty) return first;
@@ -274,7 +286,8 @@ class _SearchResultState extends State<SearchResult> {
         if (a != null) f.add(a.toString());
       }
     }
-    if (f.isEmpty) f.addAll(['Gaming PCs', 'High-speed Internet', 'Gaming Setup']);
+    if (f.isEmpty)
+      f.addAll(['Gaming PCs', 'High-speed Internet', 'Gaming Setup']);
     return f;
   }
 
@@ -285,16 +298,24 @@ class _SearchResultState extends State<SearchResult> {
       return ('-- km', null);
     }
     final key = '${lat.toStringAsFixed(5)},${lng.toStringAsFixed(5)}';
-    final km = _distanceKm.putIfAbsent(key, () => _haversineKm(_userLat!, _userLng!, lat, lng));
-    final etaMin = (_avgCitySpeedKmph > 0) ? (km / _avgCitySpeedKmph * 60).round() : null;
-    return ('${km.toStringAsFixed(1)} km', etaMin != null ? '~$etaMin min' : null);
+    final km = _distanceKm.putIfAbsent(
+      key,
+      () => _haversineKm(_userLat!, _userLng!, lat, lng),
+    );
+    final etaMin = (_avgCitySpeedKmph > 0)
+        ? (km / _avgCitySpeedKmph * 60).round()
+        : null;
+    return (
+      '${km.toStringAsFixed(1)} km',
+      etaMin != null ? '~$etaMin min' : null,
+    );
   }
 
   // ────────────────────────────── derived results ─────────────────────────────
 
   List<Map<String, dynamic>> get _filteredResults {
-    List<Map<String, dynamic>> results =
-    _cafeController.cybercafes.cast<Map<String, dynamic>>();
+    List<Map<String, dynamic>> results = _cafeController.cybercafes
+        .cast<Map<String, dynamic>>();
 
     // search client-side (name/address)
     if (_currentQuery.isNotEmpty) {
@@ -312,14 +333,18 @@ class _SearchResultState extends State<SearchResult> {
         switch (_selectedFilter) {
           case 'Gaming':
             return cafe['type'] == 'gaming' ||
-                (cafe['cafe_name']?.toString().toLowerCase().contains('gaming') ?? false);
+                (cafe['cafe_name']?.toString().toLowerCase().contains(
+                      'gaming',
+                    ) ??
+                    false);
           case 'Cafe':
             return cafe['type'] == 'cafe' ||
-                (cafe['cafe_name']?.toString().toLowerCase().contains('cafe') ?? false);
+                (cafe['cafe_name']?.toString().toLowerCase().contains('cafe') ??
+                    false);
           case 'Open Now':
             return _isShopOpen(cafe);
           case 'Nearby':
-          // keep all for now; we will sort by distance below
+            // keep all for now; we will sort by distance below
             return true;
         }
         return true;
@@ -380,7 +405,11 @@ class _SearchResultState extends State<SearchResult> {
                 color: Colors.white.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+              child: const Icon(
+                Icons.arrow_back_ios_new,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -388,12 +417,18 @@ class _SearchResultState extends State<SearchResult> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Search Results',
+                Text(
+                  'Search Results',
                   style: GoogleFonts.inter(fontSize: 18, color: Colors.white),
                 ),
                 if (widget.location != null)
-                  Text(widget.location!,
-                      style: GoogleFonts.inter(fontSize: 14, color: Colors.white70)),
+                  Text(
+                    widget.location!,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -415,7 +450,9 @@ class _SearchResultState extends State<SearchResult> {
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(.15),
               borderRadius: BorderRadius.circular(25),
-              border: Border.all(color: const Color(0xff338125).withOpacity(.2)),
+              border: Border.all(
+                color: const Color(0xff338125).withOpacity(.2),
+              ),
             ),
             child: Row(
               children: [
@@ -444,7 +481,11 @@ class _SearchResultState extends State<SearchResult> {
                 ),
                 if (_searchController.text.isNotEmpty)
                   IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.white70, size: 20),
+                    icon: const Icon(
+                      Icons.clear,
+                      color: Colors.white70,
+                      size: 20,
+                    ),
                     onPressed: () {
                       _searchController.clear();
                       setState(() {
@@ -477,12 +518,19 @@ class _SearchResultState extends State<SearchResult> {
               onTap: () => setState(() => _selectedFilter = filter),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 3,
+                ),
                 decoration: BoxDecoration(
-                  color: selected ? const Color(0xff338125) : Colors.white.withOpacity(0.1),
+                  color: selected
+                      ? const Color(0xff338125)
+                      : Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: selected ? const Color(0xff338125) : Colors.white.withOpacity(0.2),
+                    color: selected
+                        ? const Color(0xff338125)
+                        : Colors.white.withOpacity(0.2),
                   ),
                 ),
                 child: Text(
@@ -513,9 +561,8 @@ class _SearchResultState extends State<SearchResult> {
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: items.length,
-        itemBuilder: (context, index) => RepaintBoundary(
-          child: _buildResultCard(items[index], index),
-        ),
+        itemBuilder: (context, index) =>
+            RepaintBoundary(child: _buildResultCard(items[index], index)),
       );
     });
   }
@@ -555,27 +602,35 @@ class _SearchResultState extends State<SearchResult> {
                   child: imageUrl.isEmpty
                       ? Container(color: const Color(0xFF1A1A1A))
                       : CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.cover,
-                    memCacheWidth: memW,
-                    memCacheHeight: (imgH * dpr).round(),
-                    placeholder: (_, __) => Container(
-                      color: Colors.grey[800],
-                      child: const Center(child: RainbowGlowingLoader(size: 32)),
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      color: Colors.grey[800],
-                      child: const Icon(Icons.image_not_supported,
-                          color: Colors.white54, size: 50),
-                    ),
-                  ),
+                          imageUrl: imageUrl,
+                          fit: BoxFit.cover,
+                          memCacheWidth: memW,
+                          memCacheHeight: (imgH * dpr).round(),
+                          placeholder: (_, __) => Container(
+                            color: Colors.grey[800],
+                            child: const Center(
+                              child: RainbowGlowingLoader(size: 32),
+                            ),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: Colors.grey[800],
+                            child: const Icon(
+                              Icons.image_not_supported,
+                              color: Colors.white54,
+                              size: 50,
+                            ),
+                          ),
+                        ),
                 ),
                 // Status
                 Positioned(
                   top: 12,
                   left: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: isOpen ? const Color(0xff338125) : Colors.red,
                       borderRadius: BorderRadius.circular(12),
@@ -583,7 +638,10 @@ class _SearchResultState extends State<SearchResult> {
                     child: Text(
                       isOpen ? 'OPEN' : 'CLOSED',
                       style: GoogleFonts.inter(
-                          color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -592,7 +650,10 @@ class _SearchResultState extends State<SearchResult> {
                   top: 12,
                   right: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(12),
@@ -600,7 +661,10 @@ class _SearchResultState extends State<SearchResult> {
                     child: Text(
                       (cafe['type'] ?? 'Gaming').toString(),
                       style: GoogleFonts.inter(
-                          color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -620,16 +684,23 @@ class _SearchResultState extends State<SearchResult> {
                         child: Text(
                           (cafe['cafe_name'] ?? 'Unknown Cafe').toString(),
                           style: GoogleFonts.inter(
-                              fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                       Row(
                         children: [
                           const Icon(Icons.star, color: Colors.amber, size: 16),
                           const SizedBox(width: 4),
-                          Text('$rating',
-                              style: GoogleFonts.inter(
-                                  color: Colors.white, fontWeight: FontWeight.w600)),
+                          Text(
+                            '$rating',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -639,27 +710,36 @@ class _SearchResultState extends State<SearchResult> {
                   // address + distance
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, color: Colors.white54, size: 16),
+                      const Icon(
+                        Icons.location_on_outlined,
+                        color: Colors.white54,
+                        size: 16,
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           address,
-                          style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                       Text(
                         eta == null ? dist : '$dist • $eta',
                         style: GoogleFonts.inter(
-                            color: const Color(0xff338125), fontWeight: FontWeight.w600),
+                          color: const Color(0xff338125),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
 
                   // features
-    buildFeatureChips(feats),
+                  buildFeatureChips(feats),
 
-    const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
                   // price + action
                   Row(
@@ -671,42 +751,70 @@ class _SearchResultState extends State<SearchResult> {
                       ElevatedButton(
                         onPressed: isOpen
                             ? () {
-                          final images = cafe['images'];
-                          List<dynamic> imagesList = [];
-                          if (images is List) {
-                            imagesList = images;
-                          } else if (images is String && images.isNotEmpty) {
-                            imagesList = [{'url': images}];
-                          }
-                          if (imagesList.isEmpty) {
-                            imagesList = [{'url': _pickImage(cafe, index)}];
-                          }
+                                final images = cafe['images'];
+                                List<dynamic> imagesList = [];
+                                if (images is List) {
+                                  imagesList = images;
+                                } else if (images is String &&
+                                    images.isNotEmpty) {
+                                  imagesList = [
+                                    {'url': images},
+                                  ];
+                                }
+                                if (imagesList.isEmpty) {
+                                  imagesList = [
+                                    {'url': _pickImage(cafe, index)},
+                                  ];
+                                }
 
-                          final featsAll = _features(cafe);
+                                final featsAll = _features(cafe);
 
-                          Get.to(() => ArenaDetailView(
-                            images: imagesList,
-                            title: (cafe['cafe_name'] ?? 'Unknown Cafe').toString(),
-                            address: address,
-                            openingHours: '9 AM - 12 AM', // TODO: plug real hours
-                            availableGames: featsAll,
-                            amenities: featsAll,
-                            phone: (cafe['phone'] ?? cafe['contact_number'] ?? 'Phone not available').toString(),
-                            email: (cafe['email'] ?? 'Email not available').toString(),
-                            ownerName: (cafe['owner_name'] ?? 'Owner not available').toString(),
-                            reviews: const ['Great place!', 'Loved it!'],
-                            vendorId: cafe['vendor_id'],
-                          ));
-                        }
+                                Get.to(
+                                  () => ArenaDetailView(
+                                    images: imagesList,
+                                    title: (cafe['cafe_name'] ?? 'Unknown Cafe')
+                                        .toString(),
+                                    address: address,
+                                    openingHours:
+                                        '9 AM - 12 AM', // TODO: plug real hours
+                                    availableGames: featsAll,
+                                    amenities: featsAll,
+                                    phone:
+                                        (cafe['phone'] ??
+                                                cafe['contact_number'] ??
+                                                'Phone not available')
+                                            .toString(),
+                                    email:
+                                        (cafe['email'] ?? 'Email not available')
+                                            .toString(),
+                                    ownerName:
+                                        (cafe['owner_name'] ??
+                                                'Owner not available')
+                                            .toString(),
+                                    reviews: const [
+                                      'Great place!',
+                                      'Loved it!',
+                                    ],
+                                    vendorId: cafe['vendor_id'],
+                                  ),
+                                );
+                              }
                             : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xff338125),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
                         ),
-                        child: Text(isOpen ? 'View Details' : 'Closed',
-                            style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                        child: Text(
+                          isOpen ? 'View Details' : 'Closed',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ],
                   ),
@@ -721,46 +829,126 @@ class _SearchResultState extends State<SearchResult> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              shape: BoxShape.circle,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xff191919),
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
             ),
-            child: const Icon(Icons.search_off, size: 64, color: Colors.white54),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Using the provided Cloudinary image
+              CachedNetworkImage(
+                imageUrl:
+                    'https://res.cloudinary.com/dxjjigepf/image/upload/v1756237262/hash_01_lwpcj9.png',
+                width: 120,
+                height: 120,
+                placeholder: (context, url) => Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.error, color: Colors.white, size: 40),
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // Main heading
+              Text(
+                'Oops, Cafe not Found.',
+                style: GoogleFonts.inter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 16),
+
+              // Descriptive text
+              Text(
+                'Got a café in mind? Send them our way—\nwe\'ll handle the rest!',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.white.withOpacity(0.8),
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 40),
+
+              // Call-to-action button
+              Container(
+                width: double.infinity,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(28),
+                    onTap: () {
+                      //TODO: Implement invite cafe
+                    },
+                    child: Center(
+                      child: Text(
+                        'Invite this Cafe',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF191919),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-          Text('No cafes found',
-              style: GoogleFonts.inter(
-                  fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-          const SizedBox(height: 8),
-          Text('Try adjusting your search or filters',
-              style: GoogleFonts.inter(fontSize: 14, color: Colors.white70)),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _currentQuery = '';
-                _selectedFilter = 'All';
-                _searchController.clear();
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xff338125),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 5),
-            ),
-            child: Text('Clear Filters', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
+
 // Drop-in: replace your Wrap with this builder
 Widget buildFeatureChips(List<String> feats, {int maxToShow = 5}) {
   // 1) Clean + de-dup + cap
@@ -807,7 +995,7 @@ class _FeaturePill extends StatelessWidget {
             color: const Color(0xFF338125).withOpacity(.12),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Row(
@@ -834,13 +1022,16 @@ class _FeaturePill extends StatelessWidget {
   IconData _iconFor(String s) {
     final t = s.toLowerCase();
     if (t.contains('pc')) return Icons.computer_rounded;
-    if (t.contains('ps') || t.contains('playstation')) return Icons.sports_esports_rounded;
+    if (t.contains('ps') || t.contains('playstation'))
+      return Icons.sports_esports_rounded;
     if (t.contains('xbox')) return Icons.sports_esports_rounded;
     if (t.contains('vr')) return Icons.vrpano_rounded;
     if (t.contains('wifi') || t.contains('internet')) return Icons.wifi_rounded;
-    if (t.contains('snack') || t.contains('food')) return Icons.fastfood_rounded;
+    if (t.contains('snack') || t.contains('food'))
+      return Icons.fastfood_rounded;
     if (t.contains('ac') || t.contains('air')) return Icons.ac_unit_rounded;
-    if (t.contains('tournament') || t.contains('event')) return Icons.emoji_events_rounded;
+    if (t.contains('tournament') || t.contains('event'))
+      return Icons.emoji_events_rounded;
     if (t.contains('console')) return Icons.sports_esports_rounded;
     return Icons.label_rounded;
   }
