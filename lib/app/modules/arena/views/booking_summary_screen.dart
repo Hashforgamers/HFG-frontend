@@ -15,7 +15,9 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:http/http.dart' as http;
+import 'package:in_app_review/in_app_review.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
 import '../../../../core/repositories/model/extra_services_model.dart';
 import '../../../../utils/widgets/loader.dart';
@@ -115,6 +117,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         cafeId: 'cafe_${widget.gameId}',
         amount: calculateTotalPrice(),
       );
+      _maybeShowRatingDialog();
     });
   }
 
@@ -691,7 +694,50 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
-    void _proceedWithGamePass() {
+  void _showRatingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: Color(0xff404040),
+          title: const Text("Enjoying our app?", style: TextStyle(color: Colors.white),),
+          content: const Text("We’d love your feedback! Please rate us on the Play Store.", style: TextStyle(color: Colors.white),),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // dismiss
+              },
+              child: const Text("Maybe Later", style: TextStyle(color: Colors.white),),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('hasRatedApp', true); // remember that user rated
+                final InAppReview inAppReview = InAppReview.instance;
+                await inAppReview.openStoreListing();
+              },
+              child: const Text("Rate Us", style: TextStyle(color: Colors.green),),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _maybeShowRatingDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasRated = prefs.getBool('hasRatedApp') ?? false;
+
+    if (!hasRated) {
+      _showRatingDialog();
+    }
+  }
+
+
+  void _proceedWithGamePass() {
     // This method will be called when user selects a game pass and clicks proceed
     // The actual booking logic will be handled in the existing handleBooking method
     if (_selectedGamePass.value == null) {
