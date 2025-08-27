@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../utils/widgets/loader.dart';
@@ -213,23 +214,32 @@ class _SignUpViewState extends State<SignUpView> {
       child: TextFormField(
         controller: c.mobileNoController,
         readOnly: readOnly,
-        keyboardType: TextInputType.phone,
+        keyboardType: TextInputType.number,
+        maxLength: 10,
+        enableInteractiveSelection: false, // disables paste
+        textInputAction: TextInputAction.done,
         style: GoogleFonts.inter(color: Colors.white),
         decoration: InputDecoration(
           labelText: 'Mobile Number',
           labelStyle: GoogleFonts.inter(color: Colors.white70),
-          prefixText: '+91 ', // 🔹 prefix visible, non-editable
+          prefixText: '+91 ',
           prefixStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500),
+          counterText: '', // hides 0/10 counter
           contentPadding: _pad,
           enabledBorder: _border(const Color(0x3FFFFFFF)),
           focusedBorder: _border(const Color(0xFF3AFF6B)),
         ),
+        inputFormatters: [
+          // Only numbers and max 10 digits
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(10),
+        ],
         validator: (v) {
           if (!readOnly && (v == null || v.trim().isEmpty)) {
             return 'Enter Mobile Number';
           }
-          if (!readOnly && v!.length < 10) {
-            return 'Enter valid number';
+          if (!readOnly && v?.length != 10) {
+            return 'Enter valid 10-digit number';
           }
           return null;
         },
