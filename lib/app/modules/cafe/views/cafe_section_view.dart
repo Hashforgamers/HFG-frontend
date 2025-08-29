@@ -286,7 +286,6 @@ class _CafeSectionState extends State<CafeSection> {
             ),
             const Spacer(),
             BounceTap(
-
               onTap: _chooseOpenSheet,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -399,11 +398,16 @@ class _CafeSectionState extends State<CafeSection> {
                     clat != null &&
                     clng != null) {
                   km = _haversineKm(_userLat!, _userLng!, clat, clng);
-                  etaMin = (_avgCitySpeedKmph > 0) ? (km / _avgCitySpeedKmph * 60).round() : null;
-                }                return BounceTap(
+                  etaMin = (_avgCitySpeedKmph > 0)
+                      ? (km / _avgCitySpeedKmph * 60).round()
+                      : null;
+                }
+                return BounceTap(
                   onTap: () {
                     // Track gaming cafe viewed event
                     final cafeId = cafe['vendor_id']?.toString() ?? '';
+                    final cafeName =
+                        cafe['cafe_name']?.toString() ?? 'Unknown Cafe';
                     final location = cafe['location']?['address'] ?? 'Unknown';
                     final email = cafe['email'] ?? 'Email not available';
 
@@ -422,6 +426,7 @@ class _CafeSectionState extends State<CafeSection> {
 
                     widget.segmentService.onGamingCafeViewed(
                       cafeId: cafeId,
+                      cafeName: cafeName,
                       location: location,
                       availableGames: availableGames,
                       email: email,

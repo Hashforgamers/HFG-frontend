@@ -107,6 +107,7 @@ class RazorpayController extends GetxController {
         email:
             userController.user.value.contact?.electronicAddress?.emailId ??
             '',
+        // amount: amount,
       );
 
     if (bookingIdList.isEmpty) {

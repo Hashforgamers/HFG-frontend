@@ -95,7 +95,7 @@ class _UserProfileViewState extends State<UserProfileView> {
               title: 'Refer & Earn',
               onTap: () {
                 // Track referral initiated event
-                segmentService.onReferralInitiated(email: email);
+                segmentService.onReferralViewed(email: email);
 
                 Get.to(ReferralViewWithController(email: email));
               },

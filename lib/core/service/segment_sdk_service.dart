@@ -314,6 +314,7 @@ class SegmentSdkService {
   // Gaming Cafe Viewed
   Future<void> onGamingCafeViewed({
     required String cafeId,
+    required String cafeName,
     required String location,
     required List<String> availableGames,
     required email,
@@ -322,6 +323,7 @@ class SegmentSdkService {
       'Gaming Cafe Viewed',
       properties: {
         'cafe_id': cafeId,
+        'cafe_name': cafeName,
         'location': location,
         'available_games': availableGames,
         'email': email,

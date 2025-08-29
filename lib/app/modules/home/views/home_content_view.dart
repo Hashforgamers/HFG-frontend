@@ -272,9 +272,11 @@ class _HomeContentViewState extends State<HomeContentView>
                       children: [
                         const SizedBox(height: _sectionGap), // top padding
                         ..._intersperse([
-
                           // 🔷 1. Game Pass – Monetization + Core use
-                          _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+                          _buildLazyLoadedSection(
+                            'gamePass',
+                            _buildGamePassContainer(),
+                          ),
 
                           // 🔷 2. Café Section – Main booking action
                           _buildLazyLoadedSection('cafe', CafeSection()),
@@ -286,25 +288,37 @@ class _HomeContentViewState extends State<HomeContentView>
                           // _buildLazyLoadedSection('miniGames', const MiniGamesSection()),
 
                           // 🔷 5. Refer & Earn – Growth lever
-                          _buildLazyLoadedSection('referral', _buildReferFriendModal()),
+                          _buildLazyLoadedSection(
+                            'referral',
+                            _buildReferFriendModal(),
+                          ),
 
                           // 🔷 6. Viral Shorts – Fun scroll content, lower intent
-                          _buildLazyLoadedSection('shorts', ViralShotsSection()),
+                          _buildLazyLoadedSection(
+                            'shorts',
+                            ViralShotsSection(),
+                          ),
 
                           // 🔷 7. Gamer News – Passive consumption
-                          _buildLazyLoadedSection('news', const GamerNewsSection()),
+                          _buildLazyLoadedSection(
+                            'news',
+                            const GamerNewsSection(),
+                          ),
 
                           // 🔷 8. Games List – Browse-only for now (assuming no play feature)
-                          _buildLazyLoadedSection('games', const GamesSection()),
+                          _buildLazyLoadedSection(
+                            'games',
+                            const GamesSection(),
+                          ),
 
                           // 🔷 9. GameOn India Banner – Occasional promo
-                          _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
-
+                          _buildLazyLoadedSection(
+                            'gameOnIndia',
+                            _buildGameOnIndiaBanner(),
+                          ),
                         ], const SizedBox(height: _sectionGap)),
                         const SizedBox(height: _sectionGap), // bottom padding
                       ],
-
-
                     ),
                   ),
                 ),
@@ -454,7 +468,14 @@ class _HomeContentViewState extends State<HomeContentView>
       //   },
       // ),),
       // onTap: () => Get.to(() => FruitCuttingScreen()),
-      onTap: () => Get.to(() => GamePassViewPage()),
+      onTap: () {
+        segmentService.onHashPassChecked(
+          email:
+              userController.user.value.contact?.electronicAddress?.emailId ??
+              '',
+        );
+        Get.to(() => GamePassViewPage());
+      },
       child: Container(
         height: 200,
         width: double.infinity,
