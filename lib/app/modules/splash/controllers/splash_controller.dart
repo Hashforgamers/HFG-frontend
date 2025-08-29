@@ -22,24 +22,26 @@ class SplashController extends GetxController {
     fbEventsService.onAppLaunch();
 
     // Run after first frame so Get.context is available
-    // WidgetsBinding.instance.addPostFrameCallback((_) async {
-    //   final ctx = Get.context!;
-    //
-    //   // 🚀 Skip update check if dev flavor
-    //   const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
-    //   if (flavor != 'dev') {
-    //     final blocked = await UpdateService().enforce(ctx);
-    //     if (blocked) return; // force update shown → stop here
-    //   }
-    //
-    //   _checkLoginStatus();  // continue normal flow
-    // });
+    //TODO: THIS IS A TEMPORARILY UPDATE BYPASS
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final ctx = Get.context!;
-      final blocked = await UpdateService().enforce(ctx); // show dialog/banners if needed
-      if (blocked) return; // force update shown → stop here
+
+      // 🚀 Skip update check if dev flavor
+      const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
+      if (flavor != 'dev') {
+        final blocked = await UpdateService().enforce(ctx);
+        if (blocked) return; // force update shown → stop here
+      }
+
       _checkLoginStatus();  // continue normal flow
     });
+    // TODO: UNCOMMENT FOLLOWING THREE LINES 39, 40, 41 BEFORE PUSHING THE CODE
+    // WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // final ctx = Get.context!;
+      // final blocked = await UpdateService().enforce(ctx); // show dialog/banners if needed
+      // if (blocked) return; // force update shown → stop here
+      //_checkLoginStatus();  // continue normal flow
+    // });
   }
 
 

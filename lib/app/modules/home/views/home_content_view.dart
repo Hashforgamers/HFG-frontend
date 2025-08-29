@@ -20,6 +20,7 @@ import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/utils/encrypt_util.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -83,6 +84,17 @@ class _HomeContentViewState extends State<HomeContentView>
     _initializeAnimations();
     _initializeScrollController();
     _initializeData();
+
+    // 🔹Check if Welcome Aboard popup was already shown
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final prefs = await SharedPreferences.getInstance();
+      bool shown = prefs.getBool('welcome_shown') ?? false;
+
+      if (!shown) {
+        _showWelcomePopup(context); // your function
+        await prefs.setBool('welcome_shown', true);
+      }
+    });
   }
   @override
   void dispose() {
@@ -149,6 +161,254 @@ class _HomeContentViewState extends State<HomeContentView>
     if (currentUser != null) {
       segmentService.onHomeScreenViewed(userId: currentUser.uid);
     }
+  }
+
+  void _showWelcomePopup(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return Dialog(
+          insetPadding: EdgeInsets.zero,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: SweepGradient(
+                center: Alignment.center,
+                startAngle: 0.0,
+                endAngle: 6.28319, // 2 * pi
+                colors: [
+                  Color(0xFF1541A3), // 22%
+                  Color(0xFF070C29), // 28%
+                  Color(0xFF040309), // 66%
+                  Color(0xFF060A22), // 73%
+                  Color(0xFF8320C3), // 97%
+                  Color(0xFF1541A3), // repeat start to close loop
+                ],
+                stops: [
+                  0.22,
+                  0.28,
+                  0.66,
+                  0.73,
+                  0.97,
+                  1.0,
+                ],
+                transform: GradientRotation(-1), // -90° in radians (π/2)
+              ),
+            ),
+            child: Stack(
+              children: [
+                ///Added individual icons
+                // Example:
+                // Positioned(
+                //   top: 50,
+                //   left: 20,
+                //   child: Transform.rotate(
+                //     angle: 0.4,
+                //     child: Image.asset("assets/dollar.png", width: 62),
+                //   ),
+                // ),
+                // Positioned(
+                //   top: 5,
+                //   right: -70,
+                //   child: Transform(
+                //     transform: Matrix4.identity()..scale(-1.0, 1.0),
+                //     child: Image.asset("assets/dollar.png", width: 82, fit: BoxFit.fill,),
+                //   ),
+                // ),
+                // Positioned(
+                //   top: 280,
+                //   right: -30,
+                //   child: Transform.rotate(
+                //     angle: 0.4,
+                //     child: Image.asset("assets/dollar.png", width: 72, fit: BoxFit.fill,),
+                //   ),
+                // ),
+                // Positioned(
+                //   bottom: 120,
+                //   right: -80,
+                //   child: Transform(
+                //     transform: Matrix4.identity()..scale(-1.0, 1.0),
+                //     child: Image.asset("assets/dollar.png", width: 62, fit: BoxFit.fill,),
+                //   ),
+                // ),
+                // Positioned(
+                //   bottom: -20,
+                //   right: 150,
+                //   child: Transform.rotate(
+                //     angle: 0.4,
+                //     child: Image.asset("assets/dollar.png", width: 62, fit: BoxFit.fill,),
+                //   ),
+                // ),
+                // Positioned(
+                //   bottom: 30,
+                //   left: 20,
+                //   child: Image.asset("assets/dollar.png", width: 52, fit: BoxFit.fill,),
+                // ),
+                // Positioned(
+                //   bottom: 170,
+                //   left: -20,
+                //   child: Transform.rotate(
+                //     angle: 0.4,
+                //     child: Image.asset("assets/dollar.png", width: 62, fit: BoxFit.fill,),
+                //   ),
+                // ),
+                //
+                // Positioned(
+                //   top: -20,
+                //   left: 180,
+                //   child: Transform(
+                //     transform: Matrix4.identity()..scale(-1.0, 1.0)..rotateZ(-0.3),
+                //     child: Image.asset("assets/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
+                //   ),
+                // ),
+                // Positioned(
+                //   top: 110,
+                //   right: -30,
+                //   child: Transform.rotate(
+                //     angle: 0.3,
+                //     child: Image.asset("assets/lightning_bolt.png", height: 85, fit: BoxFit.cover,),
+                //   ),
+                // ),
+                // Positioned(
+                //   bottom: 250,
+                //   right: -100,
+                //   child: Transform(
+                //     transform: Matrix4.identity()
+                //       ..scale(-1.0, 1.0)
+                //       ..rotateZ(0.4),
+                //     child: Image.asset("assets/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
+                //   ),
+                // ),
+                // Positioned(
+                //   bottom: 30,
+                //   right: -75,
+                //   child: Transform(
+                //     transform: Matrix4.identity()
+                //       ..scale(-1.0, 1.0)
+                //       ..rotateZ(0.4),
+                //     child: Image.asset("assets/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
+                //   ),
+                // ),
+                // Positioned(
+                //   bottom: 115,
+                //   left: 55,
+                //   child: Image.asset("assets/lightning_bolt.png", height: 52, fit: BoxFit.cover,),
+                // ),
+                // Positioned(
+                //   top: 220,
+                //   left: 5,
+                //   child: Image.asset("assets/lightning_bolt.png", height: 52, fit: BoxFit.cover,),
+                // ),
+
+                // Main content
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "Welcome Aboard!",
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 25),
+
+                      // Gift box image
+                      Image.asset(
+                        "assets/gift_box.png",
+                        height: 160,
+                        fit: BoxFit.fill,
+                      ),
+
+                      const SizedBox(height: 25),
+
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "You’ve unlocked ",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold
+                                  ),
+                                ),
+                                Text(" ₹50 bonus crate! 🎁", style: TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold),),
+                              ],
+                            ),
+                            Text("Use it to book your favourite café today!", style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(30),
+                        child: Stack(
+                          children: [
+                            // Frosted background blur
+                            BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                width: 280,
+                                height: 50,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(
+                                    width: 1.5,
+                                    style: BorderStyle.solid,
+                                    color: Colors.white.withOpacity(0.3), // base glass stroke
+                                  ),
+                                ),
+                                child: ShaderMask(
+                                  shaderCallback: (Rect bounds) {
+                                    return LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.white.withOpacity(0.8), // reflection
+                                        Colors.transparent,            // fades away
+                                        Colors.white.withOpacity(0.4),
+                                      ],
+                                      stops: const [0.0, 0.5, 1.0],
+                                    ).createShader(bounds);
+                                  },
+                                  blendMode: BlendMode.srcATop,
+                                  child: const Text(
+                                    "Claim in Drop Crate",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _refreshData() async {
