@@ -13,6 +13,8 @@ import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/utils/scroll_behaviour.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/adapters.dart';
 import 'app/data/services/user_controller.dart';
 import 'app/modules/arena/controllers/booking_controller.dart';
 import 'app/modules/game/views/game_section_view.dart';
@@ -45,7 +47,8 @@ void main() async {
     primaryColor: Colors.purple,
     accentColor: Colors.purpleAccent,
   );
-
+  await Hive.initFlutter();
+  await Hive.openBox('user');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Setup service locator first before any controllers that depend on it
@@ -60,7 +63,7 @@ void main() async {
   // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
 
-  runApp(DevicePreview(enabled: !kDebugMode, builder: (context) => MyApp()));
+  runApp(DevicePreview(enabled: !kReleaseMode, builder: (context) => MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -68,35 +71,33 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: ScreenUtilInit(
-        designSize: const Size(390, 844),
-        minTextAdapt: true,
-        splitScreenMode: true,
-        builder: (context, child) {
-          return MultiBlocProvider(
-            providers: [
-              BlocProvider(create: (context) => HashCoinCubit(),
-              ),
-          BlocProvider(
-            create: (context) => FcmCubit(),
-          ),
-          BlocProvider(
-            create: (context) =>  GamePassCubit(),),
-            ],
-            child: ScrollConfiguration(
-              behavior: NoGlowScrollBehavior(),
-              child: GetMaterialApp(
-                debugShowCheckedModeBanner: false, // Hide debug banner for prod
-                title: FlavorConfig.instance.appName,
-                theme: AppTheme.dark,
-                initialRoute: AppRoutes.SPLASH,
-                getPages: AppPages.pages,
-              ),
+    return ScreenUtilInit(
+      designSize: const Size(390, 844),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      builder: (context, child) {
+        return MultiBlocProvider(
+          providers: [
+            BlocProvider(create: (context) => HashCoinCubit(),
             ),
-          );
-        },
-      ),
+        BlocProvider(
+          create: (context) => FcmCubit(),
+        ),
+        BlocProvider(
+          create: (context) =>  GamePassCubit(),),
+          ],
+          child: ScrollConfiguration(
+            behavior: NoGlowScrollBehavior(),
+            child: GetMaterialApp(
+              debugShowCheckedModeBanner: false, // Hide debug banner for prod
+              title: FlavorConfig.instance.appName,
+              theme: AppTheme.dark,
+              initialRoute: AppRoutes.SPLASH,
+              getPages: AppPages.pages,
+            ),
+          ),
+        );
+      },
     );
   }
 }

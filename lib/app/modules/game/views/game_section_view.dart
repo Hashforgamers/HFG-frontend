@@ -13,6 +13,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
+import '../../../../utils/widgets/bounce_tap_widget.dart';
 import '../../../../utils/widgets/loader.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -340,7 +341,7 @@ class GameCard extends StatelessWidget {
     final segment = locator<SegmentSdkService>();
     final fb = locator<FbEventsService>();
 
-    return GestureDetector(
+    return BounceTap(
       onTap: () {
         segment.onGameDetailsViewed(gameId: game.id.toString(), cafeId: 'general');
         fb.onGameDetailsViewed(gameId: game.id.toString(), cafeId: 'general');

@@ -16,6 +16,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
+import '../../../../utils/widgets/bounce_tap_widget.dart';
 import '../../../../utils/widgets/loader.dart';
 
 class CafeSpecificPassView extends StatefulWidget {
@@ -196,7 +197,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
   }
 
   Widget _buildCafePassCard(BuildContext context, GetPassModel pass) {
-    return GestureDetector(
+    return BounceTap(
       onTap: pass.isBought == true
           ? null
           : () {
@@ -317,7 +318,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                         ),
                         const Spacer(),
                         Obx(
-                          () => GestureDetector(
+                          () => BounceTap(
                             onTap:
                                 (pass.isBought == true ||
                                     _processingPasses[pass.id] == true)

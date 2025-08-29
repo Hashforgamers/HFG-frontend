@@ -1,7 +1,11 @@
+import 'dart:math';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';            // ← ADDED
 import '../../../../utils/widgets/loader.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
 import '../../../routes/app_routes.dart';
@@ -20,24 +24,96 @@ class _SignUpViewState extends State<SignUpView> {
   final _formKey = GlobalKey<FormState>();
   static const _pad = EdgeInsets.symmetric(horizontal: 16, vertical: 14);
 
+  // ← ADDED: access auth + provider helpers
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool get _cameFromOAuth {
+    final u = _auth.currentUser;
+    if (u == null) return false;
+    return u.providerData.any(
+          (p) => p.providerId == 'apple.com' || p.providerId == 'google.com',
+    );
+  }
+
   @override
   void initState() {
     super.initState();
 
     final args = Get.arguments as Map<String, String>?;
+    final firebaseName = _auth.currentUser?.displayName ?? '';
 
-    if (args != null) {
+    // Only prefill from args for *non*-OAuth flows (manual/phone).
+    if (args != null && !_cameFromOAuth) {
       c.nameController.text = args['name'] ?? '';
       c.emailController.text = args['email'] ?? '';
       c.mobileNoController.text = args['phoneNumber'] ?? '';
+    } else if (_cameFromOAuth) {
+      // For OAuth, DO NOT ask name/email again.
+      c.mobileNoController.text = args?['phoneNumber'] ?? '';
+    }
+
+    // 🧠 Generate game username ONCE using cleaned-up name
+    final rawName = !_cameFromOAuth
+        ? c.nameController.text
+        : firebaseName;
+
+    if (rawName.trim().isNotEmpty) {
+      final base = rawName.replaceAll(RegExp(r'\s+'), ''); // Remove all spaces
+      final gamerTag = _generateGamerUsername(base);
+      c.gameUserNameController.text = gamerTag;
+    }
+
+    // 🔹 Default gender = Male
+    c.genderController.text = "Male";
+
+    // 🔁 Regenerate gamer username if nameController changes (manual login only)
+    if (!_cameFromOAuth) {
+      c.nameController.addListener(() {
+        final baseName = c.nameController.text.trim().replaceAll(' ', '');
+        if (baseName.isNotEmpty) {
+          c.gameUserNameController.text = _generateGamerUsername(baseName);
+        }
+      });
     }
   }
+  String _generateGamerUsername(String base) {
+    final gamingWords = [
+      "Ninja", "Warrior", "Sniper", "Slayer", "Assassin",
+      "Crusher", "Striker", "Hunter", "Brawler", "Fighter",
+      "Executioner", "Killer", "Battler", "Bruiser", "Sharpshot",
+      "Bomber", "Mauler", "Breaker", "Rager", "Bludgeon","Dragon", "Phoenix", "Wraith", "Demon", "Shadow",
+      "Specter", "Reaper", "Grim", "Phantom", "Ghost",
+      "Shinigami", "Banshee", "Ghoul", "Raven", "Valkyrie",
+      "Soulstealer", "Apparition", "Haunt", "Necro", "Poltergeist","Commando", "Rogue", "Merc", "Agent", "Soldier",
+      "Operator", "Captain", "Sergeant", "Sniper", "Pilot",
+      "Marksman", "Corporal", "Brigadier", "Sapper", "Trooper","Drifter", "Runner", "Dash", "Rush", "Blaze",
+      "Flash", "Zoom", "Velocity", "Rapid", "Zephyr",
+      "Surge", "Jet", "Boost", "Quickshot", "Dashblade","Venom", "Viper", "Fury", "Toxin", "Dagger",
+      "Rage", "Blood", "Inferno", "Scythe", "Claw",
+      "Darklord", "Hellfire", "Ember", "Doom", "Rupture",
+      "Slash", "Hex", "Oblivion", "Decay", "Ravage","Cyber", "Glitch", "Matrix", "Pixel", "Neo",
+      "Byte", "Bot", "AI", "Quantum", "Cortex",
+      "Override", "Sync", "Binary", "Circuit", "Echo",
+      "CodeX", "Virus", "Firewall", "Protocol", "Omega","Frost", "Blaze", "Storm", "Thunder", "Flame",
+      "Ice", "Ember", "Ash", "Quake", "Bolt",
+      "Typhoon", "Tempest", "Vortex", "Avalanche", "Gale",
+      "Hurricane", "Dust", "Fireball", "Hail", "Ignite"
+    ];
+    final random = Random();
+    final word = gamingWords[random.nextInt(gamingWords.length)];
+    final number = random.nextInt(900) + 100; // 100–999
+
+    return "$base$word$number";
+  }
+
 
   @override
   Widget build(BuildContext context) {
     final args = Get.arguments as Map<String, String>?;
     final phoneFilled = (args?['phoneNumber']?.isNotEmpty ?? false);
-    final emailFilled = (args?['email']?.isNotEmpty ?? false);
+
+    // ← ADDED: identity from Firebase for info labels (not inputs)
+    final firebaseName  = _auth.currentUser?.displayName ?? '';
+    final firebaseEmail = _auth.currentUser?.email ?? '';
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -49,7 +125,7 @@ class _SignUpViewState extends State<SignUpView> {
             children: [
               IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed:()=>Get.back()),
+                  onPressed: ()=>Get.back()),
               Expanded(
                 child: Form(
                   key: _formKey,
@@ -64,41 +140,31 @@ class _SignUpViewState extends State<SignUpView> {
                             fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 20),
-                      _field(c.nameController, 'Name',
-                          autofill: AutofillHints.name),
+
+                      // Name (only for non-OAuth)
+                      if (!_cameFromOAuth)
+                        _field(c.nameController, 'Name',
+                            autofill: AutofillHints.name)
+                      else
+                        _infoRow('Name', firebaseName.isEmpty ? '—' : firebaseName),
+
+                      // Game Username (auto-filled)
                       _userNameField(),
-                      _dobPicker(),
-                      _genderDrop(),
-                      _field(c.emailController, 'Email',
-                          readOnly: emailFilled, autofill: AutofillHints.email),
-                      _field(c.mobileNoController, 'Mobile Number',
-                          readOnly: phoneFilled,
-                          autofill: AutofillHints.telephoneNumber),
-                      _field(
-                          c.referralCodeController, 'Referral Code (Optional)',
-                          required: false),
-                      _locationBtn(),
-                      _field(c.addressLine1Controller, 'Address Line 1',
-                          autofill: AutofillHints.streetAddressLine1,
-                          required: false),
-                      _field(c.addressLine2Controller, 'Address Line 2',
-                          autofill: AutofillHints.streetAddressLine2,
-                          required: false),
-                      const SizedBox(height: 20),
-                      _signupBtn(),
-                      TextButton(
-                        onPressed: () => Get.offAllNamed(AppRoutes.LOGIN),
-                        child: Text.rich(TextSpan(
-                            text: 'Already have an account? ',
-                            style: GoogleFonts.inter(color: Colors.white70),
-                            children: [
-                              TextSpan(
-                                text: 'Login',
-                                style: GoogleFonts.inter(
-                                    color: const Color(0xFF3AFF6B)),
-                              )
-                            ])),
-                      )
+
+                      // Mobile
+                      _mobileField(phoneFilled),
+
+                      // Referral
+                      _referralField(),
+
+                      // Email (only for non-OAuth). For OAuth, show read-only label.
+                      if (!_cameFromOAuth)
+                        _field(c.emailController, 'Email',
+                            autofill: AutofillHints.email)
+                      else
+                        _infoRow('Email', firebaseEmail.isEmpty ? '—' : firebaseEmail),
+
+                      // If you later re-enable address/location, keep them optional only.
                     ],
                   ),
                 ),
@@ -107,10 +173,68 @@ class _SignUpViewState extends State<SignUpView> {
           ),
         ),
       ),
+
+      // 🔹 Bottom section
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _signupBtn(),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Get.offAllNamed(AppRoutes.LOGIN),
+              child: Text.rich(
+                TextSpan(
+                  text: 'Already have an account? ',
+                  style: GoogleFonts.inter(color: Colors.white70),
+                  children: [
+                    TextSpan(
+                      text: 'Login',
+                      style: GoogleFonts.inter(color: const Color(0xFF3AFF6B)),
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   // ───────────────────────── widgets ───────────────────────────────────────────
+
+  Widget _infoRow(String label, String value) {                 // ← ADDED
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: _pad,
+        decoration: BoxDecoration(
+          color: const Color(0xFF141414),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x3FFFFFFF)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(label,
+                  style: GoogleFonts.inter(color: Colors.white70)),
+            ),
+            Flexible(
+              child: Text(
+                value.isEmpty ? '—' : value,
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                    color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _field(TextEditingController ctl, String label,
       {String? autofill, bool readOnly = false, bool required = true}) {
@@ -119,16 +243,23 @@ class _SignUpViewState extends State<SignUpView> {
       child: TextFormField(
         controller: ctl,
         readOnly: readOnly,
-        style: GoogleFonts.inter(color: Colors.white),
+        style: GoogleFonts.inter(
+          color: readOnly ? Colors.grey.shade400 : Colors.white,
+        ),
         autofillHints: autofill != null ? [autofill] : null,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: GoogleFonts.inter(color: Colors.white70),
+          labelStyle: GoogleFonts.inter(
+            color: readOnly ? Colors.grey.shade500 : Colors.white70,
+          ),
+          filled: readOnly,
+          fillColor: Colors.grey.shade900,
           contentPadding: _pad,
-          enabledBorder: _border(const Color(0x3FFFFFFF)),
-          focusedBorder: _border(const Color(0xFF3AFF6B)),
+          enabledBorder: _border(readOnly ? Colors.grey.shade700 : const Color(0x3FFFFFFF)),
+          focusedBorder: _border(readOnly ? Colors.grey.shade700 : const Color(0xFF3AFF6B)),
         ),
         validator: (v) {
+          // Validators will not run for OAuth because the fields are not rendered.
           if (required && !readOnly && (v == null || v.trim().isEmpty)) {
             return 'Enter $label';
           }
@@ -137,6 +268,46 @@ class _SignUpViewState extends State<SignUpView> {
       ),
     );
   }
+
+  Widget _mobileField(bool readOnly) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: c.mobileNoController,
+        readOnly: readOnly,
+        keyboardType: TextInputType.number,
+        maxLength: 15, // Max length for international numbers (E.164)
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly, // ✅ allows only numbers
+        ],
+        enableInteractiveSelection: false, // ✅ disables copy/paste/select
+        style: GoogleFonts.inter(color: Colors.white),
+        decoration: InputDecoration(
+          counterText: "", // hides character counter
+          labelText: 'Mobile Number',
+          labelStyle: GoogleFonts.inter(color: Colors.white70),
+          prefixText: '+ ', // ✅ just '+' for any country code
+          prefixStyle: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+          contentPadding: _pad,
+          enabledBorder: _border(const Color(0x3FFFFFFF)),
+          focusedBorder: _border(const Color(0xFF3AFF6B)),
+        ),
+        validator: (v) {
+          if (!readOnly && (v == null || v.trim().isEmpty)) {
+            return 'Enter Mobile Number';
+          }
+          if (!readOnly && v!.length < 7) {
+            return 'Enter valid number';
+          }
+          return null;
+        },
+      ),
+    );
+  }
+
 
   Widget _userNameField() {
     return Padding(
@@ -159,169 +330,89 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
-  Widget _dobPicker() {
-    return GestureDetector(
-      onTap: _pickDob,
-      child: AbsorbPointer(child: _field(c.dobController, 'Date of Birth')),
-    );
-  }
-
-  Future<void> _pickDob() async {
-    final picked = await showModalBottomSheet<DateTime>(
-      context: context,
-      backgroundColor: Colors.black,
-      builder: (_) => _CupertinoDobPicker(initial: c.dobController.text),
-    );
-    if (picked != null) {
-      final m = [
-        'JAN',
-        'FEB',
-        'MAR',
-        'APR',
-        'MAY',
-        'JUN',
-        'JUL',
-        'AUG',
-        'SEP',
-        'OCT',
-        'NOV',
-        'DEC'
-      ];
-      c.dobController.text =
-          '${picked.day.toString().padLeft(2, "0")}-${m[picked.month - 1]}-${picked.year}';
-    }
-  }
-
-  Widget _genderDrop() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: DropdownButtonFormField<String>(
-        value:
-            c.genderController.text.isNotEmpty ? c.genderController.text : null,
-        dropdownColor: Colors.black,
-        style: GoogleFonts.inter(color: Colors.white),
-        decoration: InputDecoration(
-          labelText: 'Gender',
-          labelStyle: GoogleFonts.inter(color: Colors.white70),
-          contentPadding: _pad,
-          enabledBorder: _border(const Color(0x3FFFFFFF)),
-          focusedBorder: _border(const Color(0xFF3AFF6B)),
-        ),
-        items: const [
-          DropdownMenuItem(value: 'Male', child: Text('Male')),
-          DropdownMenuItem(value: 'Female', child: Text('Female')),
-          DropdownMenuItem(value: 'Other', child: Text('Other')),
-        ],
-        onChanged: (val) => c.genderController.text = val ?? '',
-        validator: (val) => val == null || val.isEmpty ? 'Select gender' : null,
-      ),
-    );
-  }
-
-  Widget _locationBtn() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          RGBLightFrame(width: Get.width, height: 50, borderRadius: 100),
-          InkWell(
-            onTap: c.fetchLocation,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(CupertinoIcons.location_solid, color: Colors.white),
-                const SizedBox(width: 8),
-                Text('Fetch Location',
-                    style: GoogleFonts.inter(color: Colors.white)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _genderDrop() {
+  //   return Padding(
+  //     padding: const EdgeInsets.only(bottom: 16),
+  //     child: DropdownButtonFormField<String>(
+  //       value:
+  //       c.genderController.text.isNotEmpty ? c.genderController.text : null,
+  //       dropdownColor: Colors.black,
+  //       style: GoogleFonts.inter(color: Colors.white),
+  //       decoration: InputDecoration(
+  //         labelText: 'Gender',
+  //         labelStyle: GoogleFonts.inter(color: Colors.white70),
+  //         contentPadding: _pad,
+  //         enabledBorder: _border(const Color(0x3FFFFFFF)),
+  //         focusedBorder: _border(const Color(0xFF3AFF6B)),
+  //       ),
+  //       items: const [
+  //         DropdownMenuItem(value: 'Male', child: Text('Male')),
+  //         DropdownMenuItem(value: 'Female', child: Text('Female')),
+  //         DropdownMenuItem(value: 'Other', child: Text('Other')),
+  //       ],
+  //       onChanged: (val) => c.genderController.text = val ?? '',
+  //       validator: (val) => val == null || val.isEmpty ? 'Select gender' : null,
+  //     ),
+  //   );
+  // }
 
   Widget _signupBtn() {
     return Obx(() => Stack(
-          children: [
-            RGBLightFrame(width: Get.width, height: 50, borderRadius: 10),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: c.isLoading.value
-                    ? null
-                    : () {
-                        if (_formKey.currentState!.validate()) {
-                          c.signUp();
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                child: c.isLoading.value
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: RainbowLoadingBar())
-                    : Text(
-                        'Sign Up',
-                        style: GoogleFonts.inter(color: Colors.white),
-                      ),
-              ),
-            )
-          ],
-        ));
+      children: [
+        RGBLightFrame(width: Get.width, height: 50, borderRadius: 10),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: c.isLoading.value
+                ? null
+                : () {
+              if (_formKey.currentState!.validate()) {
+                c.signUp();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: c.isLoading.value
+                ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: RainbowLoadingBar())
+                : Text(
+              'Sign Up',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+          ),
+        )
+      ],
+    ));
+  }
+
+  Widget _referralField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: c.referralCodeController,
+        style: GoogleFonts.inter(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: 'Referral Code (Optional)',
+          labelStyle: GoogleFonts.inter(color: Colors.white54),
+          hintText: 'Enter if you have one',
+          hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 13, fontWeight: FontWeight.w100),
+          contentPadding: _pad.copyWith(top: 10, bottom: 10),
+          enabledBorder: _border(const Color(0x2FFFFFFF)),
+          focusedBorder: _border(const Color(0xFF3AFF6B)),
+        ),
+      ),
+    );
   }
 
   // helper
   OutlineInputBorder _border(Color c) => OutlineInputBorder(
       borderSide: BorderSide(color: c),
       borderRadius: BorderRadius.circular(12));
-}
-
-// ───────────────────────── Cupertino DOB picker widget ─────────────────────────
-class _CupertinoDobPicker extends StatefulWidget {
-  final String initial;
-  const _CupertinoDobPicker({required this.initial});
-  @override
-  State<_CupertinoDobPicker> createState() => _CupertinoDobPickerState();
-}
-
-class _CupertinoDobPickerState extends State<_CupertinoDobPicker> {
-  late DateTime _selected;
-
-  @override
-  void initState() {
-    super.initState();
-    _selected = DateTime.tryParse(widget.initial) ?? DateTime(2000);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 250,
-      child: Column(
-        children: [
-          Expanded(
-            child: CupertinoDatePicker(
-              backgroundColor: Colors.black,
-              mode: CupertinoDatePickerMode.date,
-              initialDateTime: _selected,
-              maximumDate: DateTime.now(),
-              onDateTimeChanged: (d) => _selected = d,
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, _selected),
-            child: const Text('Done'),
-          )
-        ],
-      ),
-    );
-  }
 }

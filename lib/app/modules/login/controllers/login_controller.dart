@@ -112,13 +112,27 @@ class LoginController extends GetxController {
       segmentService.onLoginSuccess(userId: user.uid, loginMethod: 'apple', deviceId: '');
       fbEventsService.onLoginSuccess(userId: user.uid, loginMethod: 'apple', deviceId: '');
 
+      // ⬇️ Construct full name from Apple if available
+      final fullName = [
+        appleCredential.givenName ?? '',
+        appleCredential.familyName ?? ''
+      ].where((s) => s.trim().isNotEmpty).join(' ').trim();
+
+// ⬇️ Save name to Firebase if not already set (Apple gives name only on first login)
+      if (fullName.isNotEmpty && (user.displayName == null || user.displayName!.trim().isEmpty)) {
+        await user.updateDisplayName(fullName);
+        await user.reload();
+      }
+
+// ⬇️ Persist session
       await _persistSession(
         uid: user.uid,
-        name: '${user.displayName ?? appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}',
+        name: user.displayName ?? fullName,
         email: user.email ?? appleCredential.email ?? '',
-        photoUrl: '', // Apple doesn't provide a photo
+        photoUrl: '', // Apple doesn’t provide one
         provider: 'apple',
       );
+
 
       await _handleUserNavigation(user);
     } catch (e) {
@@ -201,8 +215,7 @@ class LoginController extends GetxController {
         Get.offAllNamed(
           AppRoutes.SIGNUP,
           arguments: {
-            'name': user.displayName ?? '',
-            'email': user.email ?? '',
+
             'phoneNumber': '', // left blank now that phone login is removed
           },
         );

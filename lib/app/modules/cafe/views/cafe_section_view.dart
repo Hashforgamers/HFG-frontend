@@ -17,6 +17,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../utils/service.dart';
+import '../../../../utils/widgets/bounce_tap_widget.dart';
 
 class CafeSection extends StatefulWidget {
   CafeSection({super.key});
@@ -284,8 +285,8 @@ class _CafeSectionState extends State<CafeSection> {
               ),
             ),
             const Spacer(),
-            InkWell(
-              borderRadius: BorderRadius.circular(6),
+            BounceTap(
+
               onTap: _chooseOpenSheet,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -308,7 +309,6 @@ class _CafeSectionState extends State<CafeSection> {
             ),
           ],
         ),
-        const SizedBox(height: 5),
 
         Obx(() {
           if (widget._cafeController.isLoading.value) {
@@ -399,11 +399,8 @@ class _CafeSectionState extends State<CafeSection> {
                     clat != null &&
                     clng != null) {
                   km = _haversineKm(_userLat!, _userLng!, clat, clng);
-                  etaMin = (_avgCitySpeedKmph > 0)
-                      ? (km / _avgCitySpeedKmph * 60).round()
-                      : null;
-                }
-                return GestureDetector(
+                  etaMin = (_avgCitySpeedKmph > 0) ? (km / _avgCitySpeedKmph * 60).round() : null;
+                }                return BounceTap(
                   onTap: () {
                     // Track gaming cafe viewed event
                     final cafeId = cafe['vendor_id']?.toString() ?? '';
@@ -536,7 +533,7 @@ class _CafeSectionState extends State<CafeSection> {
                               child: Container(
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.black.withOpacity(0.1),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,

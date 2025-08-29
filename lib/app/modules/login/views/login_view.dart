@@ -44,50 +44,52 @@ class LoginView extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Google Sign-In
-            Stack(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: RGBLightFrame(
-                    width: Get.width,
-                    height: Get.height,
-                    borderRadius: 12,
+            SafeArea(
+              child: Stack(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: RGBLightFrame(
+                      width: Get.width,
+                      height: Get.height,
+                      borderRadius: 12,
+                    ),
                   ),
-                ),
-                Positioned.fill(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      await controller.googleSignIn();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  Positioned.fill(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await controller.googleSignIn();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/Google__G__logo.svg.png',
+                            height: 20,
+                            width: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Continue with Google',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/Google__G__logo.svg.png',
-                          height: 20,
-                          width: 20,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Continue with Google',
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
 
             // Apple Sign-In (iOS Only)
