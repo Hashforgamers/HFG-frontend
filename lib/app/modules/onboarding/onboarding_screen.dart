@@ -52,8 +52,11 @@ class OnboardingScreen extends StatelessWidget {
                 bodyWidget: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [ const SizedBox(height: 100),
-                    Image.asset("assets/onboarding_icons/image 181.png",
-                        height: 250),
+                    Align(
+                      alignment: Alignment.center,
+                      child: Image.asset("assets/onboarding_icons/image 181.png",
+                          height: 250),
+                    ),
                     const SizedBox(height: 50),
                     Text("Refer & Earn",
                         style: GoogleFonts.orbitron(

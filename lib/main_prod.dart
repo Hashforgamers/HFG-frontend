@@ -1,3 +1,4 @@
+import 'package:clarity_flutter/clarity_flutter.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -71,11 +72,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // final config = ClarityConfig(
-    //   projectId: "t124gco2m1",
-    //   logLevel: LogLevel
-    //       .None, // Note: Use "LogLevel.Verbose" value while testing to debug initialization issues.
-    // );
+    final config = ClarityConfig(
+      projectId: "t124gco2m1",
+      logLevel: LogLevel
+          .Verbose, // Note: Use "LogLevel.Verbose" value while testing to debug initialization issues.
+    );
 
     return ScreenUtilInit(
       designSize: const Size(390, 844),
@@ -90,12 +91,15 @@ class MyApp extends StatelessWidget {
           ],
           child: ScrollConfiguration(
             behavior: NoGlowScrollBehavior(),
-            child:  GetMaterialApp(
-              debugShowCheckedModeBanner: true, // Show debug banner for dev
-              title: FlavorConfig.instance.appName,
-              theme: AppTheme.dark,
-              initialRoute: AppRoutes.SPLASH,
-              getPages: AppPages.pages,
+            child:  ClarityWidget(
+              clarityConfig: config,
+              app: GetMaterialApp(
+                debugShowCheckedModeBanner: true, // Show debug banner for dev
+                title: FlavorConfig.instance.appName,
+                theme: AppTheme.dark,
+                initialRoute: AppRoutes.SPLASH,
+                getPages: AppPages.pages,
+              ),
             ),
           ),
         );

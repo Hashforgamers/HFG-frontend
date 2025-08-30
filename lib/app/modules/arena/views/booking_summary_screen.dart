@@ -267,7 +267,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       );
 
       if (voucher != null) {
-        if (voucher.isActive) {
+              if (voucher.isActive) {
+        // Check if this is a 100% voucher and validate slot count
+        if (_isHundredPercentVoucher(voucher)) {
+          if (!_canApplyVoucher(voucher)) {
+            _voucherError.value = '100% vouchers can only be used for one slot. Please remove extra slots.';
+            _isApplyingVoucher(false);
+            return;
+          }
+        }
+
           _appliedVoucher.value = voucher;
           _voucherError.value = '';
           ScaffoldMessenger.of(context).showSnackBar(
@@ -293,6 +302,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   void _selectVoucher(Voucher voucher) {
     if (voucher.isActive) {
+      // Check if this is a 100% voucher and validate slot count
+      if (_isHundredPercentVoucher(voucher) && !_canApplyVoucher(voucher)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('100% vouchers can only be used for one slot. Please remove extra slots.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       _voucherController.text = voucher.code;
       _applyVoucher();
     } else {
@@ -309,6 +329,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     _appliedVoucher.value = null;
     _voucherController.clear();
     _voucherError.value = '';
+  }
+
+  bool _isHundredPercentVoucher(Voucher voucher) {
+    return voucher.discountPercentage == 100;
+  }
+
+  bool _canApplyVoucher(Voucher voucher) {
+    // Check if voucher can be applied based on current slot selection
+    if (_isHundredPercentVoucher(voucher)) {
+      return widget.selectedSlots.length <= 1;
+    }
+    return true;
   }
 
   void _showGamePassSelectionDialog() {
@@ -1232,6 +1264,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               'gateway',
                             ),
                           ),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: _paymentChip(
                               'Pay in Cafe',
@@ -1391,18 +1424,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomAppBar(
-        color: const Color(0xFF0F0F0F),
-        elevation: 16,
-        child: Padding(
-          padding: const EdgeInsets.all(5),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Total Amount
-              Obx(
-                () => Column(
+        bottomNavigationBar: BottomAppBar(
+          color: const Color(0xFF0F0F0F),
+          elevation: 16,
+          child: Padding(
+            padding: const EdgeInsets.all(5),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Total Amount
+                Obx(() => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -1637,6 +1669,27 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               fontSize: 12,
                             ),
                           ),
+                          if (applied.discountPercentage == 100) ...[
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.orange.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Text(
+                                '⚠️ Limited to 1 slot only',
+                                style: GoogleFonts.inter(
+                                  color: Colors.orange,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -1790,21 +1843,26 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       itemBuilder: (context, index) {
                         final voucher = _availableVouchers[index];
                         final isActive = voucher.isActive;
+                        final canApply = isActive && _canApplyVoucher(voucher);
                         return GestureDetector(
-                          onTap: () => _selectVoucher(voucher),
+                          onTap: canApply ? () => _selectVoucher(voucher) : null,
                           child: Container(
                             width: 140,
                             margin: const EdgeInsets.only(right: 10),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: isActive
+                              color: canApply
                                   ? Colors.deepOrange.withOpacity(0.08)
-                                  : Colors.grey.shade800,
+                                  : isActive
+                                      ? Colors.grey.shade700
+                                      : Colors.grey.shade800,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isActive
+                                color: canApply
                                     ? Colors.deepOrange.withOpacity(0.3)
-                                    : Colors.grey.withOpacity(0.2),
+                                    : isActive
+                                        ? Colors.orange.withOpacity(0.3)
+                                        : Colors.grey.withOpacity(0.2),
                               ),
                             ),
                             child: Column(
@@ -1814,9 +1872,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                 Text(
                                   voucher.code,
                                   style: GoogleFonts.inter(
-                                    color: isActive
+                                    color: canApply
                                         ? Colors.deepOrange
-                                        : Colors.grey.shade500,
+                                        : isActive
+                                            ? Colors.grey.shade400
+                                            : Colors.grey.shade500,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13,
                                   ),
@@ -1825,20 +1885,44 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                 Text(
                                   '${voucher.discountPercentage}% OFF',
                                   style: GoogleFonts.inter(
-                                    color: isActive
+                                    color: canApply
                                         ? Colors.white
-                                        : Colors.grey,
+                                        : isActive
+                                            ? Colors.grey.shade400
+                                            : Colors.grey,
                                     fontSize: 11,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  isActive ? 'Active' : 'Inactive',
+                                  canApply ? 'Available' : isActive ? 'Limited' : 'Inactive',
                                   style: GoogleFonts.inter(
-                                    color: isActive ? Colors.green : Colors.red,
+                                    color: canApply
+                                        ? Colors.green
+                                        :isActive ? Colors.orange : Colors.red,
                                     fontSize: 10,
                                   ),
                                 ),
+                                if (isActive && voucher.discountPercentage == 100) ...[
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: canApply
+                                          ? Colors.orange.withOpacity(0.2)
+                                          : Colors.red.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      canApply ? '1 slot only' : 'Too many slots',
+                                      style: GoogleFonts.inter(
+                                        color: canApply ? Colors.orange : Colors.red,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -1866,6 +1950,19 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         ),
       );
       return false;
+    }
+
+    // Check if 100% voucher is applied and validate slot count
+    if (_appliedVoucher.value != null && _isHundredPercentVoucher(_appliedVoucher.value!)) {
+      if (!_canApplyVoucher(_appliedVoucher.value!)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('100% vouchers can only be used for one slot. Please remove extra slots.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return false;
+      }
     }
 
     // Check if total price is valid
