@@ -42,14 +42,12 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     getRatingBool();
     _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ctr.fetchUserBookings();
-      if(!hasRated){
-        _maybeShowRatingDialogIfPending();
-      }
-
-
+      ctr.fetchUserBookings().then((_){
+        if(!hasRated && ctr.userBookings.isNotEmpty){
+          _maybeShowRatingDialogIfPending();
+        }
+      });
     });
-
   }
 
   @override
@@ -153,7 +151,6 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
           },
         );
       }
-
   }
 
   void _showRatingDialog() {

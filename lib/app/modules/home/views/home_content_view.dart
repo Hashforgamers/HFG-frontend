@@ -78,6 +78,7 @@ class _HomeContentViewState extends State<HomeContentView>
 
   // Visibility tracking for lazy loading
   final Map<String, bool> _sectionVisibility = {};
+final prefs = locator<SharedPreferences>();
 
   @override
   bool get wantKeepAlive => true;
@@ -92,7 +93,6 @@ class _HomeContentViewState extends State<HomeContentView>
 
     // 🔹Check if Welcome Aboard popup was already shown
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final prefs = await SharedPreferences.getInstance();
       bool shown = prefs.getBool('welcome_shown') ?? false;
 
       if (!shown) {
@@ -217,106 +217,106 @@ class _HomeContentViewState extends State<HomeContentView>
               children: [
                 ///Added individual icons
                 // Example:
-                // Positioned(
-                //   top: 50,
-                //   left: 20,
-                //   child: Transform.rotate(
-                //     angle: 0.4,
-                //     child: Image.asset("assets/dollar.png", width: 62),
-                //   ),
-                // ),
-                // Positioned(
-                //   top: 5,
-                //   right: -70,
-                //   child: Transform(
-                //     transform: Matrix4.identity()..scale(-1.0, 1.0),
-                //     child: Image.asset("assets/dollar.png", width: 82, fit: BoxFit.fill,),
-                //   ),
-                // ),
-                // Positioned(
-                //   top: 280,
-                //   right: -30,
-                //   child: Transform.rotate(
-                //     angle: 0.4,
-                //     child: Image.asset("assets/dollar.png", width: 72, fit: BoxFit.fill,),
-                //   ),
-                // ),
-                // Positioned(
-                //   bottom: 120,
-                //   right: -80,
-                //   child: Transform(
-                //     transform: Matrix4.identity()..scale(-1.0, 1.0),
-                //     child: Image.asset("assets/dollar.png", width: 62, fit: BoxFit.fill,),
-                //   ),
-                // ),
-                // Positioned(
-                //   bottom: -20,
-                //   right: 150,
-                //   child: Transform.rotate(
-                //     angle: 0.4,
-                //     child: Image.asset("assets/dollar.png", width: 62, fit: BoxFit.fill,),
-                //   ),
-                // ),
-                // Positioned(
-                //   bottom: 30,
-                //   left: 20,
-                //   child: Image.asset("assets/dollar.png", width: 52, fit: BoxFit.fill,),
-                // ),
-                // Positioned(
-                //   bottom: 170,
-                //   left: -20,
-                //   child: Transform.rotate(
-                //     angle: 0.4,
-                //     child: Image.asset("assets/dollar.png", width: 62, fit: BoxFit.fill,),
-                //   ),
-                // ),
-                //
-                // Positioned(
-                //   top: -20,
-                //   left: 180,
-                //   child: Transform(
-                //     transform: Matrix4.identity()..scale(-1.0, 1.0)..rotateZ(-0.3),
-                //     child: Image.asset("assets/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
-                //   ),
-                // ),
-                // Positioned(
-                //   top: 110,
-                //   right: -30,
-                //   child: Transform.rotate(
-                //     angle: 0.3,
-                //     child: Image.asset("assets/lightning_bolt.png", height: 85, fit: BoxFit.cover,),
-                //   ),
-                // ),
-                // Positioned(
-                //   bottom: 250,
-                //   right: -100,
-                //   child: Transform(
-                //     transform: Matrix4.identity()
-                //       ..scale(-1.0, 1.0)
-                //       ..rotateZ(0.4),
-                //     child: Image.asset("assets/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
-                //   ),
-                // ),
-                // Positioned(
-                //   bottom: 30,
-                //   right: -75,
-                //   child: Transform(
-                //     transform: Matrix4.identity()
-                //       ..scale(-1.0, 1.0)
-                //       ..rotateZ(0.4),
-                //     child: Image.asset("assets/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
-                //   ),
-                // ),
-                // Positioned(
-                //   bottom: 115,
-                //   left: 55,
-                //   child: Image.asset("assets/lightning_bolt.png", height: 52, fit: BoxFit.cover,),
-                // ),
-                // Positioned(
-                //   top: 220,
-                //   left: 5,
-                //   child: Image.asset("assets/lightning_bolt.png", height: 52, fit: BoxFit.cover,),
-                // ),
+                Positioned(
+                  top: 50,
+                  left: 20,
+                  child: Transform.rotate(
+                    angle: 0.4,
+                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62),
+                  ),
+                ),
+                Positioned(
+                  top: 5,
+                  right: -70,
+                  child: Transform(
+                    transform: Matrix4.identity()..scale(-1.0, 1.0),
+                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 82, fit: BoxFit.fill,),
+                  ),
+                ),
+                Positioned(
+                  top: 280,
+                  right: -30,
+                  child: Transform.rotate(
+                    angle: 0.4,
+                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 72, fit: BoxFit.fill,),
+                  ),
+                ),
+                Positioned(
+                  bottom: 120,
+                  right: -80,
+                  child: Transform(
+                    transform: Matrix4.identity()..scale(-1.0, 1.0),
+                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62, fit: BoxFit.fill,),
+                  ),
+                ),
+                Positioned(
+                  bottom: -20,
+                  right: 150,
+                  child: Transform.rotate(
+                    angle: 0.4,
+                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62, fit: BoxFit.fill,),
+                  ),
+                ),
+                Positioned(
+                  bottom: 30,
+                  left: 20,
+                  child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 52, fit: BoxFit.fill,),
+                ),
+                Positioned(
+                  bottom: 170,
+                  left: -20,
+                  child: Transform.rotate(
+                    angle: 0.4,
+                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62, fit: BoxFit.fill,),
+                  ),
+                ),
+
+                Positioned(
+                  top: -20,
+                  left: 180,
+                  child: Transform(
+                    transform: Matrix4.identity()..scale(-1.0, 1.0)..rotateZ(-0.3),
+                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
+                  ),
+                ),
+                Positioned(
+                  top: 110,
+                  right: -30,
+                  child: Transform.rotate(
+                    angle: 0.3,
+                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 85, fit: BoxFit.cover,),
+                  ),
+                ),
+                Positioned(
+                  bottom: 250,
+                  right: -100,
+                  child: Transform(
+                    transform: Matrix4.identity()
+                      ..scale(-1.0, 1.0)
+                      ..rotateZ(0.4),
+                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
+                  ),
+                ),
+                Positioned(
+                  bottom: 30,
+                  right: -75,
+                  child: Transform(
+                    transform: Matrix4.identity()
+                      ..scale(-1.0, 1.0)
+                      ..rotateZ(0.4),
+                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
+                  ),
+                ),
+                Positioned(
+                  bottom: 115,
+                  left: 55,
+                  child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 52, fit: BoxFit.cover,),
+                ),
+                Positioned(
+                  top: 220,
+                  left: 5,
+                  child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 52, fit: BoxFit.cover,),
+                ),
 
                 // Main content
                 Center(
@@ -335,7 +335,7 @@ class _HomeContentViewState extends State<HomeContentView>
 
                       // Gift box image
                       Image.asset(
-                        "assets/gift_box.png",
+                        "assets/welcome_aboard_images/gift_box.png",
                         height: 160,
                         fit: BoxFit.fill,
                       ),
@@ -368,51 +368,56 @@ class _HomeContentViewState extends State<HomeContentView>
 
                       const SizedBox(height: 40),
 
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(30),
-                        child: Stack(
-                          children: [
-                            // Frosted background blur
-                            BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                              child: Container(
-                                width: 280,
-                                height: 50,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(30),
-                                  border: Border.all(
-                                    width: 1.5,
-                                    style: BorderStyle.solid,
-                                    color: Colors.white.withOpacity(0.3), // base glass stroke
+                      GestureDetector(
+                        onTap: (){
+                          Navigator.of(context).pop(); // Dismiss the welcome aboard dialog
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(30),
+                          child: Stack(
+                            children: [
+                              // Frosted background blur
+                              BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                child: Container(
+                                  width: 280,
+                                  height: 50,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(30),
+                                    border: Border.all(
+                                      width: 1.5,
+                                      style: BorderStyle.solid,
+                                      color: Colors.white.withOpacity(0.3), // base glass stroke
+                                    ),
                                   ),
-                                ),
-                                child: ShaderMask(
-                                  shaderCallback: (Rect bounds) {
-                                    return LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Colors.white.withOpacity(0.8), // reflection
-                                        Colors.transparent,            // fades away
-                                        Colors.white.withOpacity(0.4),
-                                      ],
-                                      stops: const [0.0, 0.5, 1.0],
-                                    ).createShader(bounds);
-                                  },
-                                  blendMode: BlendMode.srcATop,
-                                  child: const Text(
-                                    "Claim in Drop Crate",
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.green,
+                                  child: ShaderMask(
+                                    shaderCallback: (Rect bounds) {
+                                      return LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Colors.white.withOpacity(0.8), // reflection
+                                          Colors.transparent,            // fades away
+                                          Colors.white.withOpacity(0.4),
+                                        ],
+                                        stops: const [0.0, 0.5, 1.0],
+                                      ).createShader(bounds);
+                                    },
+                                    blendMode: BlendMode.srcATop,
+                                    child: const Text(
+                                      "Claim in Drop Crate",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.green,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ],
