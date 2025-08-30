@@ -4,12 +4,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/home/controllers/home_controller.dart';
+import 'package:in_app_review/in_app_review.dart';
 import 'package:intl/intl.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen_detail.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import '../../../../utils/widgets/loader.dart';
@@ -25,12 +28,28 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
   final BookingController ctr = Get.put(BookingController());
   late TabController _tabController;
   String _sortOrder = 'newer'; // 'newer' or 'older'
+  final prefs = locator<SharedPreferences>();
+  bool hasRated = false;
+
+  void getRatingBool(){
+    final hasRated = prefs.getBool('hasRatedApp') ?? false;
+    this.hasRated = hasRated;
+  }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => ctr.fetchUserBookings());
+    getRatingBool();
+    _tabController = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ctr.fetchUserBookings();
+      if(!hasRated){
+        _maybeShowRatingDialogIfPending();
+      }
+
+
+    });
+
   }
 
   @override
@@ -93,6 +112,86 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
 
     return filtered;
   }
+
+  void _maybeShowRatingDialogIfPending() {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              backgroundColor: const Color(0xff404040),
+              title: const Text(
+                  "Enjoying our app?", style: TextStyle(color: Colors.white)),
+              content: const Text(
+                  "We’d love your feedback! Please rate us on the Play Store.",
+                  style: TextStyle(color: Colors.white)),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context)
+                        .pop(); // "Maybe later" – do NOT set hasRatedApp
+                    // Next successful payment will set ratePromptPending again.
+                  },
+                  child: const Text(
+                      "Maybe Later", style: TextStyle(color: Colors.white)),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    await prefs.setBool(
+                        'hasRatedApp', true); // never show again
+                    final InAppReview inAppReview = InAppReview.instance;
+                    await inAppReview.openStoreListing();
+                  },
+                  child: const Text(
+                      "Rate Us", style: TextStyle(color: Colors.green)),
+                ),
+              ],
+            );
+          },
+        );
+      }
+
+  }
+
+  void _showRatingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: const Color(0xff404040),
+          title: const Text("Enjoying our app?", style: TextStyle(color: Colors.white)),
+          content: const Text("We’d love your feedback! Please rate us on the Play Store.",
+              style: TextStyle(color: Colors.white)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // "Maybe later" – do NOT set hasRatedApp
+                // Next successful payment will set ratePromptPending again.
+              },
+              child: const Text("Maybe Later", style: TextStyle(color: Colors.white)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('hasRatedApp', true);        // never show again
+                await prefs.setBool('ratePromptPending', false); // extra safety
+                final InAppReview inAppReview = InAppReview.instance;
+                await inAppReview.openStoreListing();
+              },
+              child: const Text("Rate Us", style: TextStyle(color: Colors.green)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
 
   @override
@@ -266,35 +365,93 @@ class _BookingsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (bookings.isEmpty) {
+      // return Center(
+      //   child: Column(
+      //     mainAxisAlignment: MainAxisAlignment.center,
+      //     children: [
+      //       Text(emptyHint, style: GoogleFonts.inter(color: Colors.white)),
+      //       const SizedBox(height: 20),
+      //       ElevatedButton(
+      //         onPressed: () async {
+      //           // Trigger a refresh via controller
+      //           final ctr = Get.find<BookingController>();
+      //           await ctr.fetchUserBookings();
+      //         },
+      //         style: ElevatedButton.styleFrom(
+      //           backgroundColor: const Color(0xFF338125),
+      //           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      //           shape: RoundedRectangleBorder(
+      //             borderRadius: BorderRadius.circular(8),
+      //           ),
+      //         ),
+      //         child: Text(
+      //           'Refresh Bookings',
+      //           style: GoogleFonts.inter(
+      //             color: Colors.white,
+      //             fontSize: 14,
+      //             fontWeight: FontWeight.w500,
+      //           ),
+      //         ),
+      //       ),
+      //     ],
+      //   ),
+      // );
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(emptyHint, style: GoogleFonts.inter(color: Colors.white)),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                // Trigger a refresh via controller
-                final ctr = Get.find<BookingController>();
-                await ctr.fetchUserBookings();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF338125),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                'Refresh Bookings',
+        child: Container(
+          width: MediaQuery.of(context).size.width,
+          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1C1C1C),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Color(0xff292929), width: 0.5)
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'No Bookings Found',
                 style: GoogleFonts.inter(
                   color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'You don’t have any active bookings.\nStart exploring gaming cafés now!',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () async {
+                  // Navigate to cafes explore screen
+                  final homeController = Get.find<HomeController>();
+                  homeController.onItemTapped(1);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF93F80A),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  'Explore Cafés',
+                  style: GoogleFonts.inter(
+                    color: Colors.black,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }

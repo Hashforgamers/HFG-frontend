@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
+import 'package:hash/app/modules/arena/views/payment_success.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
 import 'package:hash/app/modules/payment/razorpay_controller.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
@@ -15,7 +16,9 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:http/http.dart' as http;
+import 'package:in_app_review/in_app_review.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
 import '../../../../core/repositories/model/extra_services_model.dart';
 import '../../../../utils/widgets/loader.dart';
@@ -31,7 +34,6 @@ class BookingSummaryScreen extends StatefulWidget {
   final int gameId;
   final int vendorId;
 
-
   const BookingSummaryScreen({
     super.key,
     required this.selectedCafeName,
@@ -39,7 +41,8 @@ class BookingSummaryScreen extends StatefulWidget {
     required this.selectedSlots,
     required this.cartItems,
     required this.vendorId,
-    required this.gameId, required this.selectedDate,
+    required this.gameId,
+    required this.selectedDate,
   });
 
   @override
@@ -66,6 +69,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
+  final prefs = locator<SharedPreferences>();
   final RxString _selectedPayment =
       'gateway'.obs; // 'wallet', 'gateway' or 'none'
   final UserController userController = Get.find<UserController>();
@@ -212,7 +216,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         final gamePasses = await _remoteRepo.getUserActiveGamePass(
           userId: userId,
         );
-        
+
         // Filter passes based on vendor ID match
         final filteredPasses = _filterPassesByVendor(gamePasses);
         _userGamePasses.value = filteredPasses;
@@ -231,7 +235,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   List<GetPassModel> _filterPassesByVendor(List<GetPassModel> passes) {
     // Use vendor ID from the constructor
     final currentVendorId = widget.vendorId.toString();
-    
+
     // Filter passes to only show those that match the vendor ID
     // or are HASH Passes (vendor_id is null) - which can be used at any cafe
     return passes.where((pass) {
@@ -239,7 +243,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       if (pass.vendorId == null) {
         return true;
       }
-      
+
       // Show passes that match the current vendor
       return pass.vendorId == currentVendorId;
     }).toList();
@@ -369,9 +373,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 const SizedBox(height: 16),
                 Obx(() {
                   if (_isLoadingGamePasses.value) {
-                    return const Center(
-                      child: RainbowLoadingBar(),
-                    );
+                    return const Center(child: RainbowLoadingBar());
                   }
 
                   if (_gamePassError.value.isNotEmpty) {
@@ -551,59 +553,65 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                         ],
                                       ),
                                     ),
-                                                                            Column(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 4,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: isExpired
-                                                    ? Colors.red.withOpacity(0.2)
-                                                    : const Color(
-                                                        0xFF338125,
-                                                      ).withOpacity(0.2),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                isExpired ? 'EXPIRED' : 'ACTIVE',
-                                                style: GoogleFonts.inter(
-                                                  color: isExpired
-                                                      ? Colors.red
-                                                      : const Color(0xFF338125),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
+                                    Column(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isExpired
+                                                ? Colors.red.withOpacity(0.2)
+                                                : const Color(
+                                                    0xFF338125,
+                                                  ).withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
                                             ),
-                                            const SizedBox(height: 4),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 6,
-                                                vertical: 2,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: pass.vendorId == null
-                                                    ? Colors.blue.withOpacity(0.2)
-                                                    : Colors.orange.withOpacity(0.2),
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                pass.vendorId == null
-                                                    ? 'HASH'
-                                                    : 'CAFE',
-                                                style: GoogleFonts.inter(
-                                                  color: pass.vendorId == null
-                                                      ? Colors.blue
-                                                      : Colors.orange,
-                                                  fontSize: 8,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
+                                          ),
+                                          child: Text(
+                                            isExpired ? 'EXPIRED' : 'ACTIVE',
+                                            style: GoogleFonts.inter(
+                                              color: isExpired
+                                                  ? Colors.red
+                                                  : const Color(0xFF338125),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
                                             ),
-                                          ],
+                                          ),
                                         ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: pass.vendorId == null
+                                                ? Colors.blue.withOpacity(0.2)
+                                                : Colors.orange.withOpacity(
+                                                    0.2,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            pass.vendorId == null
+                                                ? 'HASH'
+                                                : 'CAFE',
+                                            style: GoogleFonts.inter(
+                                              color: pass.vendorId == null
+                                                  ? Colors.blue
+                                                  : Colors.orange,
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ],
                                 ),
                                 if (!isExpired) ...[
@@ -691,7 +699,66 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
-    void _proceedWithGamePass() {
+  void _showRatingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          backgroundColor: Color(0xff404040),
+          title: const Text(
+            "Enjoying our app?",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            "We’d love your feedback! Please rate us on the Play Store.",
+            style: TextStyle(color: Colors.white),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // dismiss
+              },
+              child: const Text(
+                "Maybe Later",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool(
+                  'hasRatedApp',
+                  true,
+                ); // remember that user rated
+                final InAppReview inAppReview = InAppReview.instance;
+                await inAppReview.openStoreListing();
+              },
+              child: const Text(
+                "Rate Us",
+                style: TextStyle(color: Colors.green),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _maybeShowRatingDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasRated = prefs.getBool('hasRatedApp') ?? false;
+
+    if (!hasRated) {
+      _showRatingDialog();
+    }
+  }
+
+  void _proceedWithGamePass() {
     // This method will be called when user selects a game pass and clicks proceed
     // The actual booking logic will be handled in the existing handleBooking method
     if (_selectedGamePass.value == null) {
@@ -703,7 +770,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       );
       return;
     }
-    
+
     handleBooking(
       context,
       isVoucherApplied: _appliedVoucher.value != null,
@@ -792,7 +859,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
-        title:  Text(
+        title: Text(
           '${widget.selectedCafeName} - ${widget.consoleType}',
           style: GoogleFonts.inter(
             fontSize: 16,
@@ -950,7 +1017,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                   itemPrice * quantity;
 
                               return Container(
-                                margin: const EdgeInsets.symmetric(vertical: 20),
+                                margin: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                ),
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF1F1F1F),
@@ -971,10 +1040,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                         ),
                                         const SizedBox(width: 8),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 3,
+                                          ),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF338125).withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(10),
+                                            color: const Color(
+                                              0xFF338125,
+                                            ).withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                           ),
                                           child: Text(
                                             _getCartItemsSummary(),
@@ -989,12 +1065,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                     const SizedBox(height: 12),
                                     ..._getValidatedCartItems().map((item) {
                                       final quantity = item['qty'] ?? 1;
-                                      final price = (item['price'] ?? 0.0).toDouble();
+                                      final price = (item['price'] ?? 0.0)
+                                          .toDouble();
                                       final total = price * quantity;
                                       return Padding(
-                                        padding: const EdgeInsets.only(bottom: 10),
+                                        padding: const EdgeInsets.only(
+                                          bottom: 10,
+                                        ),
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Expanded(
                                               child: Text(
@@ -1024,8 +1104,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           ),
                         ],
                       ),
-                    ):SizedBox(),
-                  // : _buildMealButton(),
+                    )
+                  : SizedBox(),
+              // : _buildMealButton(),
               const SizedBox(height: 1),
               Container(
                 margin: const EdgeInsets.only(top: 5),
@@ -1058,7 +1139,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         ),
                         const SizedBox(height: 4),
                         Obx(
-                              () => Text(
+                          () => Text(
                             userController.user.value.name ?? 'User',
                             style: GoogleFonts.inter(
                               fontSize: 15,
@@ -1074,7 +1155,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         // Add change logic here
                       },
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                       child: Text(
                         'Change',
@@ -1105,7 +1189,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   ],
                 ),
                 child: Obx(
-                      () => Column(
+                  () => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -1303,23 +1387,22 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               ),
 
               // ─── Payment Method ──────────────────────────────────────────
-
-
             ],
           ),
         ),
       ),
-        bottomNavigationBar: BottomAppBar(
-          color: const Color(0xFF0F0F0F),
-          elevation: 16,
-          child: Padding(
-            padding: const EdgeInsets.all(5),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Total Amount
-                Obx(() => Column(
+      bottomNavigationBar: BottomAppBar(
+        color: const Color(0xFF0F0F0F),
+        elevation: 16,
+        child: Padding(
+          padding: const EdgeInsets.all(5),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Total Amount
+              Obx(
+                () => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -1338,101 +1421,104 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       ),
                     ),
                   ],
-                )),
+                ),
+              ),
 
-                // Proceed / Select Pass Button
-                Obx(() {
-                  final isProcessing =
-                      _isProcessingPayment.value ||
-                          _stage.value == PaymentStage.creatingBooking ||
-                          _stage.value == PaymentStage.debitingWallet ||
-                          _stage.value == PaymentStage.initiatingGateway ||
-                          _stage.value == PaymentStage.confirmingVoucher ||
-                          _stage.value == PaymentStage.confirmingGamePass ||
-                          _stage.value == PaymentStage.openingRazorpay;
+              // Proceed / Select Pass Button
+              Obx(() {
+                final isProcessing =
+                    _isProcessingPayment.value ||
+                    _stage.value == PaymentStage.creatingBooking ||
+                    _stage.value == PaymentStage.debitingWallet ||
+                    _stage.value == PaymentStage.initiatingGateway ||
+                    _stage.value == PaymentStage.confirmingVoucher ||
+                    _stage.value == PaymentStage.confirmingGamePass ||
+                    _stage.value == PaymentStage.openingRazorpay;
 
-                  final isGamePassSelected = _selectedPayment.value == 'none';
-                  final hasSelectedPass = _selectedGamePass.value != null;
+                final isGamePassSelected = _selectedPayment.value == 'none';
+                final hasSelectedPass = _selectedGamePass.value != null;
 
-                  final showSelectPass = isGamePassSelected && !hasSelectedPass;
+                final showSelectPass = isGamePassSelected && !hasSelectedPass;
 
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color:const Color(0xFF338125),
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF338125),
 
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Color(0xFF338125)
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Color(0xFF338125)),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: isProcessing
+                        ? null
+                        : () {
+                            if (showSelectPass) {
+                              _showGamePassSelectionDialog();
+                            } else if (_selectedPayment.value ==
+                                'pay_at_cafe') {
+                              // Handle Pay at Café booking flow
+                              handleBooking(
+                                context,
+                                isVoucherApplied: _appliedVoucher.value != null,
+                                useWallet: false, // Not wallet
+                                isGamePass: false,
+                                selectedPassId: null,
+                                isPayAtCafe:
+                                    true, // <-- add this param in handleBooking
+                              );
+                            } else {
+                              // Default (wallet / online gateway)
+                              handleBooking(
+                                context,
+                                isVoucherApplied: _appliedVoucher.value != null,
+                                useWallet: _selectedPayment.value == 'wallet',
+                                isGamePass: false,
+                                selectedPassId: null,
+                                isPayAtCafe: false,
+                              );
+                            }
+                          },
+
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 23,
+                        vertical: 8,
+                      ),
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: ElevatedButton(
-                      onPressed: isProcessing
-                          ? null
-                          : () {
-                        if (showSelectPass) {
-                          _showGamePassSelectionDialog();
-                        } else if (_selectedPayment.value == 'pay_at_cafe') {
-                          // Handle Pay at Café booking flow
-                          handleBooking(
-                            context,
-                            isVoucherApplied: _appliedVoucher.value != null,
-                            useWallet: false, // Not wallet
-                            isGamePass: false,
-                            selectedPassId: null,
-                            isPayAtCafe: true, // <-- add this param in handleBooking
-                          );
-                        } else {
-                          // Default (wallet / online gateway)
-                          handleBooking(
-                            context,
-                            isVoucherApplied: _appliedVoucher.value != null,
-                            useWallet: _selectedPayment.value == 'wallet',
-                            isGamePass: false,
-                            selectedPassId: null,
-                            isPayAtCafe: false,
-                          );
-                        }
-                      },
-
-                      style: ElevatedButton.styleFrom(
-                        padding:
-                        const EdgeInsets.symmetric(horizontal: 23, vertical: 8),
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: isProcessing
-                          ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor:
-                          AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                          : Text(
-                        showSelectPass ? 'Select Pass' : 'Pay',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-              ],
-            ),
+                    child: isProcessing
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            showSelectPass ? 'Select Pass' : 'Pay',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                  ),
+                );
+              }),
+            ],
           ),
-        )
-
+        ),
+      ),
     );
   }
 
@@ -1463,7 +1549,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   // }
 
   Widget _buildVoucherSection() {
-    return Container(margin: EdgeInsets.only(top: 10),
+    return Container(
+      margin: EdgeInsets.only(top: 10),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       decoration: BoxDecoration(
         color: Color(0xFF191919),
@@ -1654,9 +1741,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           ? const SizedBox(
                               height: 16,
                               width: 16,
-                              child: RainbowLoadingBar(
-
-                              ),
+                              child: RainbowLoadingBar(),
                             )
                           : Text(
                               'Apply',
@@ -1750,9 +1835,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                 Text(
                                   isActive ? 'Active' : 'Inactive',
                                   style: GoogleFonts.inter(
-                                    color: isActive
-                                        ? Colors.green
-                                        : Colors.red,
+                                    color: isActive ? Colors.green : Colors.red,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -1934,15 +2017,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return 'An unexpected error occurred. Please try again.';
   }
 
-
-
   Future<void> handleBooking(
     BuildContext context, {
     required bool isVoucherApplied,
     required bool useWallet,
     required bool isGamePass,
     String? selectedPassId,
-        required bool isPayAtCafe,
+    required bool isPayAtCafe,
   }) async {
     if (!_validateBooking()) {
       return;
@@ -1964,7 +2045,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           .toList();
 
       // Use the new mapping function
-      _bookingIdToSlotId = await createBookingWithSlotMap(slotIds,isPayAtCafe,widget.selectedDate);
+      _bookingIdToSlotId = await createBookingWithSlotMap(
+        slotIds,
+        isPayAtCafe,
+        widget.selectedDate,
+      );
       List<int> bookingIds = _bookingIdToSlotId.keys.toList();
 
       if (bookingIds.isEmpty) {
@@ -1994,9 +2079,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             backgroundColor: Colors.green.shade600,
             duration: const Duration(seconds: 4),
           ),
-
         );
-        Get.to(() => const PastBookingsScreen());
+        Get.to(
+          () => PaymentSuccessScreen(
+            dateText: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+            timeText: "",
+            totalText: totalPrice.toString(),
+            email: "",
+            onViewInvoice: (){
+              Get.to(const PastBookingsScreen());
+            },
+          ),
+        );
         return; // short-circuit
       }
       // a) WALLET route
@@ -2006,6 +2100,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           bookingIds: bookingIds,
           paymentMode: 'wallet',
           voucherCode: isVoucherApplied ? _appliedVoucher.value!.code : null,
+          totalPrice: totalPrice
         );
         return;
       }
@@ -2017,6 +2112,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           bookingIds: bookingIds,
           paymentMode: 'voucher',
           voucherCode: _appliedVoucher.value!.code,
+            totalPrice: totalPrice,
         );
         return;
       }
@@ -2029,19 +2125,20 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           paymentMode: 'none',
           isGamePass: isGamePass,
           userPassId: selectedPassId,
+            totalPrice: totalPrice
         );
         return;
       }
-// // // d) PAY AT CAFE route
-//       if (_selectedPayment.value == 'pay_at_cafe') {
-//         _stage.value = PaymentStage.confirmingPayAtCafe; // or PaymentStage.confirmingPayAtCafe if added
-//         // await confirmBooking(
-//         //   bookingIds: bookingIds,
-//         //   paymentMode: 'pay_at_cafe',
-//         //   voucherCode: isVoucherApplied ? _appliedVoucher.value!.code : null,
-//         // );
-//         return;
-//       }
+      // // // d) PAY AT CAFE route
+      //       if (_selectedPayment.value == 'pay_at_cafe') {
+      //         _stage.value = PaymentStage.confirmingPayAtCafe; // or PaymentStage.confirmingPayAtCafe if added
+      //         // await confirmBooking(
+      //         //   bookingIds: bookingIds,
+      //         //   paymentMode: 'pay_at_cafe',
+      //         //   voucherCode: isVoucherApplied ? _appliedVoucher.value!.code : null,
+      //         // );
+      //         return;
+      //       }
 
       // d) RAZORPAY route (default)
       _stage.value = PaymentStage.initiatingGateway;
@@ -2114,6 +2211,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     String? voucherCode,
     bool isGamePass = false,
     String? userPassId,
+    required double totalPrice,
   }) async {
     try {
       // Parse cart items to ExtraServiceItem format
@@ -2175,13 +2273,25 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       bookingController.clearSelectedSlots();
 
       // Navigate to past bookings first
-      await Get.to(() => const PastBookingsScreen());
+      await Get.to(
+        () => PaymentSuccessScreen(
+          method: paymentMode,
+          dateText: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          timeText: "",
+          totalText: totalPrice.toString(),
+          email: "",
+          onViewInvoice: () {
+            Get.to(const PastBookingsScreen());
+            // Then navigate back to home with arena tab selected
+            // This ensures when user presses back, they go to cafe page
+            final homeController = Get.find<HomeController>();
+            homeController.onItemTapped(1); // Select arena/cafe tab
+            Get.offAllNamed('/home'); // Replace all routes with home
+          },
+        ),
+      );
 
-      // Then navigate back to home with arena tab selected
-      // This ensures when user presses back, they go to cafe page
-      final homeController = Get.find<HomeController>();
-      homeController.onItemTapped(1); // Select arena/cafe tab
-      Get.offAllNamed('/home'); // Replace all routes with home
+
     } catch (e) {
       // Release each booking if confirmation fails
       for (final bookingId in bookingIds) {
@@ -2256,12 +2366,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   }
 
   Future<Map<int, int>> createBookingWithSlotMap(
-      List<int> slotIds, bool payAtCafe, String selectedDate) async {
+    List<int> slotIds,
+    bool payAtCafe,
+    String selectedDate,
+  ) async {
     final url = '${FlavorConfig.getBaseUrl('booking')}/api/bookings';
 
     // Parse yyyymmdd into DateTime
     final parsed = DateTime.parse(
-        "${selectedDate.substring(0, 4)}-${selectedDate.substring(4, 6)}-${selectedDate.substring(6, 8)}");
+      "${selectedDate.substring(0, 4)}-${selectedDate.substring(4, 6)}-${selectedDate.substring(6, 8)}",
+    );
 
     // Format as yyyy-MM-dd
     final bookDate =
@@ -2270,8 +2384,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     final payload = {
       "slot_id": slotIds,
       "game_id": widget.gameId,
-      "book_date": bookDate,        // now in correct format
-      "is_pay_at_cafe": payAtCafe
+      "book_date": bookDate, // now in correct format
+      "is_pay_at_cafe": payAtCafe,
     };
 
     debugPrint('payload: $payload');
