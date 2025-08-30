@@ -281,6 +281,10 @@ class _SignUpViewState extends State<SignUpView> {
           FilteringTextInputFormatter.digitsOnly, // ✅ allows only numbers
         ],
         enableInteractiveSelection: false, // ✅ disables copy/paste/select
+        keyboardType: TextInputType.number,
+        maxLength: 10,
+        enableInteractiveSelection: false, // disables paste
+        textInputAction: TextInputAction.done,
         style: GoogleFonts.inter(color: Colors.white),
         decoration: InputDecoration(
           counterText: "", // hides character counter
@@ -291,16 +295,26 @@ class _SignUpViewState extends State<SignUpView> {
             color: Colors.white,
             fontWeight: FontWeight.w500,
           ),
+          prefixText: '+91 ',
+          prefixStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500),
+          counterText: '', // hides 0/10 counter
           contentPadding: _pad,
           enabledBorder: _border(const Color(0x3FFFFFFF)),
           focusedBorder: _border(const Color(0xFF3AFF6B)),
         ),
+        inputFormatters: [
+          // Only numbers and max 10 digits
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(10),
+        ],
         validator: (v) {
           if (!readOnly && (v == null || v.trim().isEmpty)) {
             return 'Enter Mobile Number';
           }
           if (!readOnly && v!.length < 7) {
             return 'Enter valid number';
+          if (!readOnly && v?.length != 10) {
+            return 'Enter valid 10-digit number';
           }
           return null;
         },
