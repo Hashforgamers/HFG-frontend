@@ -47,8 +47,11 @@ class _SignUpViewState extends State<SignUpView> {
       c.emailController.text = args['email'] ?? '';
       c.mobileNoController.text = args['phoneNumber'] ?? '';
     } else if (_cameFromOAuth) {
-      // For OAuth, DO NOT ask name/email again.
       c.mobileNoController.text = args?['phoneNumber'] ?? '';
+      final firebaseName  = _auth.currentUser?.displayName ?? '';
+      final firebaseEmail = _auth.currentUser?.email ?? '';
+      c.nameController.text  = firebaseName;     // ← add
+      c.emailController.text = firebaseEmail;    // ← add
     }
 
     // 🧠 Generate game username ONCE using cleaned-up name
@@ -277,27 +280,27 @@ class _SignUpViewState extends State<SignUpView> {
         readOnly: readOnly,
         keyboardType: TextInputType.number,
         maxLength: 15, // Max length for international numbers (E.164)
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly, // ✅ allows only numbers
-        ],
+        // inputFormatters: [
+        //   FilteringTextInputFormatter.digitsOnly, // ✅ allows only numbers
+        // ],
         enableInteractiveSelection: false, // ✅ disables copy/paste/select
-        keyboardType: TextInputType.number,
-        maxLength: 10,
-        enableInteractiveSelection: false, // disables paste
+        // keyboardType: TextInputType.number,
+        // maxLength: 10,
+        // enableInteractiveSelection: false, // disables paste
         textInputAction: TextInputAction.done,
         style: GoogleFonts.inter(color: Colors.white),
         decoration: InputDecoration(
           counterText: "", // hides character counter
           labelText: 'Mobile Number',
           labelStyle: GoogleFonts.inter(color: Colors.white70),
-          prefixText: '+ ', // ✅ just '+' for any country code
-          prefixStyle: GoogleFonts.inter(
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-          ),
+          // prefixText: '+ ', // ✅ just '+' for any country code
+          // prefixStyle: GoogleFonts.inter(
+          //   color: Colors.white,
+          //   fontWeight: FontWeight.w500,
+          // ),
           prefixText: '+91 ',
           prefixStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500),
-          counterText: '', // hides 0/10 counter
+          // counterText: '', // hides 0/10 counter
           contentPadding: _pad,
           enabledBorder: _border(const Color(0x3FFFFFFF)),
           focusedBorder: _border(const Color(0xFF3AFF6B)),
@@ -308,17 +311,19 @@ class _SignUpViewState extends State<SignUpView> {
           LengthLimitingTextInputFormatter(10),
         ],
         validator: (v) {
-          if (!readOnly && (v == null || v.trim().isEmpty)) {
+          if (!readOnly && (v == null || v
+              .trim()
+              .isEmpty)) {
             return 'Enter Mobile Number';
           }
           if (!readOnly && v!.length < 7) {
             return 'Enter valid number';
-          if (!readOnly && v?.length != 10) {
-            return 'Enter valid 10-digit number';
+            if (!readOnly && v?.length != 10) {
+              return 'Enter valid 10-digit number';
+            }
+            return null;
           }
-          return null;
-        },
-      ),
+        })
     );
   }
 

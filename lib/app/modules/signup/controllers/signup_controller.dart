@@ -49,7 +49,9 @@ class SignUpController extends GetxController {
       final userData = {
         "fid": currentUser.uid,
         "avatar_path": avatarPath.value,
-        "name": nameController.text,
+        "name": (nameController.text.isNotEmpty
+            ? nameController.text
+            : (_auth.currentUser?.displayName ?? '')),
         "gender": genderController.text,
         "dob": dobController.text,
         "gameUserName": gameUserNameController.text,

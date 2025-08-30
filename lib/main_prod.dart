@@ -75,7 +75,7 @@ class MyApp extends StatelessWidget {
     final config = ClarityConfig(
       projectId: "t124gco2m1",
       logLevel: LogLevel
-          .Verbose, // Note: Use "LogLevel.Verbose" value while testing to debug initialization issues.
+          .None, // Note: Use "LogLevel.Verbose" value while testing to debug initialization issues.
     );
 
     return ScreenUtilInit(
