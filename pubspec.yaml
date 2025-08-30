@@ -179,6 +179,8 @@ flutter:
     - assets/ludo/images/crown/
     - assets/ludo/sounds/
 
+    - assets/welcome_aboard_images/
+
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

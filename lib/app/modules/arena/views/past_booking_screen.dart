@@ -47,9 +47,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
         _maybeShowRatingDialogIfPending();
       }
 
-
     });
-
   }
 
   @override
@@ -153,7 +151,6 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
           },
         );
       }
-
   }
 
   void _showRatingDialog() {
