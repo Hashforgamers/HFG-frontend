@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -28,20 +29,165 @@ class LoginController extends GetxController {
   final isLoading = false.obs;
 
   // ────────────────────────────────────────────────────────────────────────────
-  // GOOGLE SIGN-IN (ONLY)
+  // PHONE AUTH STATE
+  // ────────────────────────────────────────────────────────────────────────────
+  final phoneController = TextEditingController();
+  final otpController = TextEditingController();
+
+  // default India; UI can change it
+  final selectedDialCode = '+91'.obs;
+  final supportedDialCodes = const ['+1', '+44', '+61', '+65', '+81', '+91', '+971', '+974'];
+
+  final isStartingPhone = false.obs;
+  final isVerifyingOtp = false.obs;
+  final otpSent = false.obs;
+  final secondsLeft = 0.obs;
+
+  String? _verificationId;
+  Timer? _timer;
+
+  void resetPhoneFlow() {
+    phoneController.clear();
+    otpController.clear();
+    isStartingPhone.value = false;
+    isVerifyingOtp.value = false;
+    otpSent.value = false;
+    secondsLeft.value = 0;
+    _verificationId = null;
+    _timer?.cancel();
+  }
+
+  Future<void> startPhoneSignIn() async {
+    final raw = phoneController.text.trim();
+    if (raw.isEmpty) {
+      Get.snackbar('Phone', 'Please enter your phone number', colorText: Colors.white);
+      return;
+    }
+    final phone = '${selectedDialCode.value}$raw';
+    isStartingPhone.value = true;
+
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: phone,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (firebase_auth.PhoneAuthCredential credential) async {
+          try {
+            final cred = await _auth.signInWithCredential(credential);
+            final user = cred.user;
+            if (user == null) {
+              _showErrorSnackbar('Phone Sign-In failed', 'No user returned.');
+              return;
+            }
+            // Persist + track
+            await _persistSession(
+              uid: user.uid,
+              name: user.displayName ?? '',
+              email: user.email ?? '',
+              photoUrl: user.photoURL ?? '',
+              provider: 'phone',
+            );
+            segmentService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
+            fbEventsService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
+
+            Get.back(); // Close sheet
+            await _handleUserNavigation(user, phoneNumber: phone);
+          } catch (e) {
+            _showErrorSnackbar('Auto Verify Failed', e.toString());
+          }
+        },
+        verificationFailed: (firebase_auth.FirebaseAuthException e) {
+          _showErrorSnackbar('Verification Failed', e.message ?? e.code);
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          _verificationId = verificationId;
+          otpSent.value = true;
+          _startCountdown(60);
+          Get.snackbar('OTP Sent', 'We have sent an OTP to $phone', colorText: Colors.white);
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
+      );
+    } catch (e) {
+      _showErrorSnackbar('Error', e.toString());
+    } finally {
+      isStartingPhone.value = false;
+    }
+  }
+
+  Future<void> verifyOtpAndSignIn() async {
+    final code = otpController.text.trim();
+    if (code.length != 6) {
+      Get.snackbar('Invalid OTP', 'Enter the 6-digit code', colorText: Colors.white);
+      return;
+    }
+    if (_verificationId == null) {
+      Get.snackbar('Error', 'Verification session expired, try resending.', colorText: Colors.white);
+      return;
+    }
+
+    isVerifyingOtp.value = true;
+    try {
+      final credential = firebase_auth.PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: code,
+      );
+      final cred = await _auth.signInWithCredential(credential);
+      final user = cred.user;
+      if (user == null) {
+        _showErrorSnackbar('Phone Sign-In failed', 'No user returned.');
+        return;
+      }
+
+      // Persist + track
+      await _persistSession(
+        uid: user.uid,
+        name: user.displayName ?? '',
+        email: user.email ?? '',
+        photoUrl: user.photoURL ?? '',
+        provider: 'phone',
+      );
+      segmentService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
+      fbEventsService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
+
+      Get.back(); // close sheet
+      final fullPhone = '${selectedDialCode.value}${phoneController.text.trim()}';
+      await _handleUserNavigation(user, phoneNumber: fullPhone);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      _showErrorSnackbar('Verification Failed', e.message ?? e.code);
+    } catch (e) {
+      _showErrorSnackbar('Error', e.toString());
+    } finally {
+      isVerifyingOtp.value = false;
+    }
+  }
+
+  Future<void> resendCode() async {
+    await startPhoneSignIn();
+  }
+
+  void _startCountdown(int seconds) {
+    _timer?.cancel();
+    secondsLeft.value = seconds;
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (secondsLeft.value <= 1) {
+        t.cancel();
+        secondsLeft.value = 0;
+      } else {
+        secondsLeft.value = secondsLeft.value - 1;
+      }
+    });
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // GOOGLE SIGN-IN
   // ────────────────────────────────────────────────────────────────────────────
   Future<void> googleSignIn() async {
     isLoading.value = true;
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        // scopes: ['email'], // add scopes if needed later
-      );
-
+      final GoogleSignIn googleSignIn = GoogleSignIn();
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      if (googleUser == null) {
-        // user cancelled
-        return;
-      }
+      if (googleUser == null) return; // cancelled
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
@@ -58,11 +204,9 @@ class LoginController extends GetxController {
         return;
       }
 
-      // Track login
       segmentService.onLoginSuccess(userId: user.uid, loginMethod: 'google', deviceId: '');
       fbEventsService.onLoginSuccess(userId: user.uid, loginMethod: 'google', deviceId: '');
 
-      // Persist essentials in SharedPreferences (keeps your existing prefs flows usable)
       await _persistSession(
         uid: user.uid,
         name: user.displayName ?? '',
@@ -78,8 +222,12 @@ class LoginController extends GetxController {
       isLoading.value = false;
     }
   }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // APPLE SIGN-IN
+  // ────────────────────────────────────────────────────────────────────────────
   Future<void> appleSignIn() async {
-    if (!Platform.isIOS) return; // Guard: only run on iOS
+    if (!Platform.isIOS) return;
 
     isLoading.value = true;
 
@@ -96,8 +244,7 @@ class LoginController extends GetxController {
       final credential = oAuthProvider.credential(
         idToken: appleCredential.identityToken,
         rawNonce: rawNonce,
-          accessToken: appleCredential.authorizationCode,
-
+        accessToken: appleCredential.authorizationCode,
       );
 
       final userCredential = await _auth.signInWithCredential(credential);
@@ -108,31 +255,26 @@ class LoginController extends GetxController {
         return;
       }
 
-      // Track login
       segmentService.onLoginSuccess(userId: user.uid, loginMethod: 'apple', deviceId: '');
       fbEventsService.onLoginSuccess(userId: user.uid, loginMethod: 'apple', deviceId: '');
 
-      // ⬇️ Construct full name from Apple if available
       final fullName = [
         appleCredential.givenName ?? '',
         appleCredential.familyName ?? ''
       ].where((s) => s.trim().isNotEmpty).join(' ').trim();
 
-// ⬇️ Save name to Firebase if not already set (Apple gives name only on first login)
       if (fullName.isNotEmpty && (user.displayName == null || user.displayName!.trim().isEmpty)) {
         await user.updateDisplayName(fullName);
         await user.reload();
       }
 
-// ⬇️ Persist session
       await _persistSession(
         uid: user.uid,
         name: user.displayName ?? fullName,
         email: user.email ?? appleCredential.email ?? '',
-        photoUrl: '', // Apple doesn’t provide one
+        photoUrl: '',
         provider: 'apple',
       );
-
 
       await _handleUserNavigation(user);
     } catch (e) {
@@ -174,10 +316,9 @@ class LoginController extends GetxController {
     );
 
     if (proceed == true) {
-      await appleSignIn(); // your existing Apple sign-in method
+      await appleSignIn();
     }
   }
-
 
   // ────────────────────────────────────────────────────────────────────────────
   // SESSION PERSISTENCE (SharedPreferences)
@@ -194,29 +335,29 @@ class LoginController extends GetxController {
     await prefs.setString('name', name);
     await prefs.setString('email', email);
     await prefs.setString('photoUrl', photoUrl);
-    // await prefs.setString('hfg_login_provider', provider);
     await prefs.setBool('isLoggedIn', true);
-
+    // Optionally persist provider if you need it elsewhere:
+    // await prefs.setString('hfg_login_provider', provider);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
   // NAVIGATION / USER FETCH
   // ────────────────────────────────────────────────────────────────────────────
-  Future<void> _handleUserNavigation(firebase_auth.User user) async {
+  Future<void> _handleUserNavigation(firebase_auth.User user, {String? phoneNumber}) async {
     try {
       final userExists = await remoteRepo.checkUserExistsInAPI(user.uid);
 
       if (userExists != null) {
-        // Fetch and store full user in your UserController (keeps your app state same as before)
         await userController.fetchUserData(user.uid);
         Get.offAllNamed(AppRoutes.HOME);
       } else {
-        // go to signup with prefilled google info
         Get.offAllNamed(
           AppRoutes.SIGNUP,
           arguments: {
-
-            'phoneNumber': '', // left blank now that phone login is removed
+            'name': user.displayName ?? '',
+            'email': user.email ?? '',
+            'photoUrl': user.photoURL ?? '',
+            'phoneNumber': phoneNumber ?? '', // prefill if phone login
           },
         );
       }
@@ -234,7 +375,19 @@ class LoginController extends GetxController {
       colorText: Colors.white,
     );
   }
+
+  @override
+  void onClose() {
+    _timer?.cancel();
+    phoneController.dispose();
+    otpController.dispose();
+    super.onClose();
+  }
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Helpers for Apple Sign-In
+// ──────────────────────────────────────────────────────────────────────────────
 String _generateNonce([int length = 32]) {
   final charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
   final random = Random.secure();
