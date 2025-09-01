@@ -36,12 +36,12 @@ class SplashController extends GetxController {
       _checkLoginStatus();  // continue normal flow
     });
     // TODO: UNCOMMENT FOLLOWING THREE LINES 39, 40, 41 BEFORE PUSHING THE CODE
-    // WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // final ctx = Get.context!;
-      // final blocked = await UpdateService().enforce(ctx); // show dialog/banners if needed
-      // if (blocked) return; // force update shown → stop here
-      //_checkLoginStatus();  // continue normal flow
-    // });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final ctx = Get.context!;
+      final blocked = await UpdateService().enforce(ctx); // show dialog/banners if needed
+      if (blocked) return; // force update shown → stop here
+      _checkLoginStatus();  // continue normal flow
+    });
   }
 
 
@@ -60,12 +60,19 @@ class SplashController extends GetxController {
     final token = prefs.getString('user_data');
 
     if (token != null && token.isNotEmpty) {
-      await _fetchUserDataIfNeeded();
+      await _fetchUserDataIfNeeded(); // Ensures userId is fetched
+      if (userController.userId.isEmpty) {
+        print("❌ userId not fetched even after fetchUserData");
+      } else {
+        print("✅ userId fetched: ${userController.userId}");
+      }
+
       Get.offAllNamed(AppRoutes.HOME);
     } else {
       Get.offAllNamed(AppRoutes.ONBOARDING);
     }
   }
+
 
   Future<void> _fetchUserDataIfNeeded() async {
     final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;

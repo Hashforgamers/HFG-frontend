@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
@@ -232,6 +233,24 @@ class WalletController extends GetxController {
       _setLoading(false);
     }
   }
+  Future<void> claimDropCrate() async {
+    String userId = _userController.userId.trim();
+
+
+    if (userId.isEmpty) {
+      _handleError('User ID missing');
+      return;
+    }
+
+    try {
+      await _remoteRepo.claimDropCrateBonus(userId: userId, amount: 30);
+      await fetchWallet(); // Refresh balance
+      _showSuccessMessage("🎉 ₹30 Drop Crate claimed!");
+    } catch (e) {
+      _showErrorMessage("❌ Claim failed: ${e.toString()}");
+    }
+  }
+
 
   /// Validate funds after payment
   Future<bool> validateFunds(String paymentLinkId) async {

@@ -81,6 +81,8 @@ abstract class RemoteRepoInterface {
     required int amount,
     required String paymentId,
   });
+  Future<void> claimDropCrateBonus({required String userId, int amount});
+
   Future<Map<String, dynamic>> validateFunds(String paymentLinkId);
   Future<void> saveReferralCodeToPreferences(String referralCode);
 

@@ -619,6 +619,36 @@ class RemoteRepo implements RemoteRepoInterface {
       rethrow;
     }
   }
+  @override
+  Future<void> claimDropCrateBonus({
+    required String userId,
+    int amount = 30,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        '${ApiEndpoints.baseUrl}/wallet',
+        data: {
+          "amount": amount,
+          "reference_id": "drop_crate_${DateTime.now().millisecondsSinceEpoch}",
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint("✅ Drop Crate bonus claimed successfully.");
+      } else {
+        final err = response.data;
+        throw Exception(
+          (err is Map && err.containsKey('error'))
+              ? err['error']
+              : 'Failed to claim drop crate bonus',
+        );
+      }
+    } catch (e) {
+      debugPrint("❌ Error claiming drop crate bonus: $e");
+      rethrow;
+    }
+  }
 
   @override
   Future<Map<String, dynamic>> addFunds({

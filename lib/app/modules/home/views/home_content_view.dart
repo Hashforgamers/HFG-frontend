@@ -180,6 +180,7 @@ final prefs = locator<SharedPreferences>();
 
   void _showWelcomePopup(BuildContext context) {
     showDialog(
+      useSafeArea: false,
       context: context,
       barrierDismissible: false,
       builder: (_) {
@@ -358,7 +359,7 @@ final prefs = locator<SharedPreferences>();
                                       fontWeight: FontWeight.bold
                                   ),
                                 ),
-                                Text(" ₹50 bonus crate! 🎁", style: TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold),),
+                                Text(" ₹30 bonus crate! 🎁", style: TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold),),
                               ],
                             ),
                             Text("Use it to book your favourite café today!", style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),),
@@ -369,9 +370,9 @@ final prefs = locator<SharedPreferences>();
                       const SizedBox(height: 40),
 
                       GestureDetector(
-                        onTap: (){
-                          Navigator.of(context).pop(); // Dismiss the welcome aboard dialog
-                        },
+                        onTap: ()async{
+                          Navigator.of(context).pop();
+                          await Get.find<WalletController>().claimDropCrate();                        },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(30),
                           child: Stack(
