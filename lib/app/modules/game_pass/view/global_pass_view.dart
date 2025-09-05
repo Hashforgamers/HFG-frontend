@@ -202,109 +202,29 @@ class _GlobalPassViewState extends State<GlobalPassView> {
             return _buildEmpty(context);
           }
 
-          final GetPassModel dayPass = passes[0];
-          final GetPassModel weekPass = passes[0];
-          final GetPassModel monthPass = passes[0];
+          return ListView.separated(
+            itemCount: passes.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 20),
+            padding: EdgeInsets.zero,
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            itemBuilder: (context, index) {
+              final GetPassModel pass = passes[index];
+              final title = pass.name;
+              final info = _formatInfo(pass);
 
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                _buildGlobalPassCard(
-                  pass: dayPass,
-                  image: passImagesHQ[0 % passImagesHQ.length],
-                  title: 'DAILY HASH PASS',
-                  info: _formatInfo(dayPass),
-                  btnColor: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [Color(0xFF302C2A), Color(0xFF968983)],
-                  ),
-                  top: 30,
-                  titleType: GlobalPassCardTitleType.titleCenter,
-                  subTitleType: GlobalPassCardSubTitleType.down,
-                  btnType: GlobalPassCardBtnType.btnRight,
-                  onTap: () {},
-                ),
-                const SizedBox(height: 20),
-                _buildGlobalPassCard(
-                  pass: weekPass,
-                  image: passImagesHQ[1 % passImagesHQ.length],
-                  title: 'WEEKLY HASH PASS',
-                  info: _formatInfo(weekPass),
-                  btnColor: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [Color(0xFF331F45), Color(0xFF745195)],
-                  ),
-                  top: 70,
-                  titleType: GlobalPassCardTitleType.titleCenter,
-                  subTitleType: GlobalPassCardSubTitleType.up,
-                  btnType: GlobalPassCardBtnType.btnCenter,
-                  onTap: () {},
-                ),
-                const SizedBox(height: 20),
-                _buildGlobalPassCard(
-                  pass: monthPass,
-                  image: passImagesHQ[2],
-                  title: 'MONTHLY\nHASH PASS',
-                  info: _formatInfo(monthPass),
-                  btnColor: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [Color(0xFF144542), Color(0xFF6EAAA9)],
-                  ),
-                  top: 40,
-                  titleType: GlobalPassCardTitleType.titleLeft,
-                  subTitleType: GlobalPassCardSubTitleType.down,
-                  btnType: GlobalPassCardBtnType.btnRight,
-                  onTap: () {},
-                ),
-              ],
-            ),
+              return _buildGlobalPassCard(
+                index: index,
+                pass: pass,
+                image:
+                    passImagesHQ[index %
+                        passImagesHQ.length], // cycles through list
+                title: title,
+                info: info,
+                onTap: () {},
+              );
+            },
           );
-
-          // return ListView.separated(
-          //   itemCount: passes.length,
-          //   separatorBuilder: (_, __) => const SizedBox(height: 20),
-          //   padding: EdgeInsets.zero,
-          //   physics: const NeverScrollableScrollPhysics(),
-          //   shrinkWrap: true,
-          //   itemBuilder: (context, index) {
-          //     final GetPassModel pass = passes[index];
-          //     final title = pass.name;
-          //     final info = _formatInfo(pass);
-          //     return _buildGlobalPassCard(
-          //       pass: pass,
-          //       image:
-          //           passImagesHQ[index %
-          //               passImagesHQ.length], // cycles through list
-          //       title: title,
-          //       info: info,
-          //       btnColor: index == 0
-          //           ? LinearGradient(
-          //               begin: Alignment.centerLeft,
-          //               end: Alignment.centerRight,
-          //               colors: [Color(0xFF302C2A), Color(0xFF968983)],
-          //             )
-          //           : index == 1
-          //           ? LinearGradient(
-          //               begin: Alignment.centerLeft,
-          //               end: Alignment.centerRight,
-          //               colors: [Color(0xFF331F45), Color(0xFF745195)],
-          //             )
-          //           : LinearGradient(
-          //               begin: Alignment.centerLeft,
-          //               end: Alignment.centerRight,
-          //               colors: [Color(0xFF144542), Color(0xFF6EAAA9)],
-          //             ),
-          //       titleType: GlobalPassCardTitleType.titleCenter,
-          //       subTitleType: GlobalPassCardSubTitleType.down,
-          //       btnType: GlobalPassCardBtnType.btnRight,
-          //       onTap: () {},
-          //     );
-          //   },
-          // );
         }
 
         return const SizedBox.shrink();
@@ -324,17 +244,73 @@ class _GlobalPassViewState extends State<GlobalPassView> {
   }
 
   Widget _buildGlobalPassCard({
+    required int index,
     required GetPassModel pass,
     required String image,
     required String title,
     required String info,
-    required Gradient btnColor,
-    required double top,
-    GlobalPassCardBtnType btnType = GlobalPassCardBtnType.btnRight,
-    GlobalPassCardTitleType titleType = GlobalPassCardTitleType.titleCenter,
-    GlobalPassCardSubTitleType subTitleType = GlobalPassCardSubTitleType.down,
     required VoidCallback onTap,
   }) {
+    const gradients = [
+      LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [Color(0xFF302C2A), Color(0xFF968983)],
+      ),
+      LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [Color(0xFF331F45), Color(0xFF745195)],
+      ),
+      LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [Color(0xFF144542), Color(0xFF6EAAA9)],
+      ),
+    ];
+
+    // 🔹 Apply exact params for the first 3 passes
+    final Gradient btnColor = index < gradients.length
+        ? gradients[index]
+        : const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [Color(0xFF444444), Color(0xFF888888)], // fallback
+          );
+
+    const tops = [30.0, 70.0, 40.0];
+    final double top = index < tops.length ? tops[index] : 30.0;
+
+    const titleTypes = [
+      GlobalPassCardTitleType.titleCenter,
+      GlobalPassCardTitleType.titleCenter,
+      GlobalPassCardTitleType.titleLeft,
+    ];
+
+    final titleType = index < titleTypes.length
+        ? titleTypes[index]
+        : GlobalPassCardTitleType.titleCenter;
+
+    const subTitleTypes = [
+      GlobalPassCardSubTitleType.down,
+      GlobalPassCardSubTitleType.up,
+      GlobalPassCardSubTitleType.down,
+    ];
+
+    final subTitleType = index < subTitleTypes.length
+        ? subTitleTypes[index]
+        : GlobalPassCardSubTitleType.down;
+
+    const btnTypes = [
+      GlobalPassCardBtnType.btnRight,
+      GlobalPassCardBtnType.btnCenter,
+      GlobalPassCardBtnType.btnRight,
+    ];
+
+    final btnType = index < btnTypes.length
+        ? btnTypes[index]
+        : GlobalPassCardBtnType.btnRight;
+
     print("pass image $image");
     return BounceTap(
       onTap: pass.isBought == true ? null : onTap,
@@ -370,7 +346,9 @@ class _GlobalPassViewState extends State<GlobalPassView> {
             Positioned(
               top: top,
               left: titleType == GlobalPassCardTitleType.titleCenter ? 60 : 30,
-              right: titleType == GlobalPassCardTitleType.titleCenter ? 60 : 30,
+              right: titleType == GlobalPassCardTitleType.titleCenter
+                  ? 60
+                  : 110,
               child: Column(
                 crossAxisAlignment:
                     titleType == GlobalPassCardTitleType.titleCenter
@@ -390,6 +368,9 @@ class _GlobalPassViewState extends State<GlobalPassView> {
                       : const SizedBox(),
                   Text(
                     title,
+                    textAlign: titleType == GlobalPassCardTitleType.titleCenter
+                        ? TextAlign.center
+                        : TextAlign.start,
                     style: GoogleFonts.merriweather(
                       color: Color(0xFFDADADA),
                       fontSize: 20,
