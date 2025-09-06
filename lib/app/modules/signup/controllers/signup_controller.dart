@@ -41,7 +41,10 @@ class SignUpController extends GetxController {
     }
 
     // Track signup started event
-    segmentService.onSignupStarted(referralCode: referralCodeController.text);
+    segmentService.onSignupStarted(
+      referralCode: referralCodeController.text,
+      email: emailController.text,
+    );
     fbEventsService.onSignupStarted(referralCode: referralCodeController.text);
 
     isLoading.value = true;
@@ -69,8 +72,8 @@ class SignUpController extends GetxController {
           "electronicAddress": {
             "mobileNo": mobileNoController.text,
             "emailId": emailController.text,
-          }
-        }
+          },
+        },
       };
 
       final response = await remoteRepo.signUp(userData);
@@ -80,6 +83,8 @@ class SignUpController extends GetxController {
         segmentService.onReferralJoined(
           referredBy: referralCodeController.text,
           referralBonusEarned: true, // Assuming bonus is earned
+          email: emailController.text,
+          referraCode: referralCodeController.text,
         );
         fbEventsService.onReferralJoined(
           referredBy: referralCodeController.text,
@@ -90,6 +95,7 @@ class SignUpController extends GetxController {
       segmentService.onSignupCompleted(
         referralBy: '',
         userId: currentUser.uid,
+        email: emailController.text,
       );
       fbEventsService.onSignupCompleted(
         referralBy: '',
@@ -151,19 +157,24 @@ class SignUpController extends GetxController {
       // Track permissions granted event
       segmentService.onPermissionsGranted(
         location: true,
-        notification: false, // We'll need to check notification permission separately
+        notification:
+            false, // We'll need to check notification permission separately
         contacts: false, // We'll need to check contacts permission separately
       );
       fbEventsService.onPermissionsGranted(
         location: true,
-        notification: false, // We'll need to check notification permission separately
+        notification:
+            false, // We'll need to check notification permission separately
         contacts: false, // We'll need to check contacts permission separately
       );
-      
+
       Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
-      List<Placemark> placemarks =
-      await placemarkFromCoordinates(position.latitude, position.longitude);
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
 
       if (placemarks.isNotEmpty) {
         var place = placemarks[0];
@@ -184,7 +195,11 @@ class SignUpController extends GetxController {
   }
 
   void _showError(String msg) {
-    Get.snackbar('Error', msg,
-        backgroundColor: Colors.red, colorText: Colors.white);
+    Get.snackbar(
+      'Error',
+      msg,
+      backgroundColor: Colors.red,
+      colorText: Colors.white,
+    );
   }
 }

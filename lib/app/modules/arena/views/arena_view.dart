@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -863,13 +864,19 @@ class _ArenaViewState extends State<ArenaView> {
               fit: BoxFit.cover,
               filterQuality: FilterQuality.high,
               // Hint the cache with 2x widget size (optional)
+
               // memCacheWidth: 660,
               // memCacheHeight: 280,
-              placeholder: (_, __) => const Center(child: RainbowGlowingLoader(size: 40)),
+              placeholder: (_, __) =>
+                  const Center(child: RainbowGlowingLoader(size: 40)),
               errorWidget: (_, __, ___) => Container(
                 color: Colors.grey,
                 alignment: Alignment.center,
-                child: const Icon(Icons.image_not_supported, color: Colors.white54, size: 40),
+                child: const Icon(
+                  Icons.image_not_supported,
+                  color: Colors.white54,
+                  size: 40,
+                ),
               ),
             ),
 
@@ -897,7 +904,10 @@ class _ArenaViewState extends State<ArenaView> {
               child: ClipRRect(
                 borderRadius: const BorderRadius.all(Radius.circular(20)),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4), // was 10 (heavier)
+                  filter: ImageFilter.blur(
+                    sigmaX: 4,
+                    sigmaY: 4,
+                  ), // was 10 (heavier)
                   child: const SizedBox.expand(),
                 ),
               ),
@@ -909,7 +919,10 @@ class _ArenaViewState extends State<ArenaView> {
               right: 0,
               bottom: 0,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 16,
+                ),
                 child: Builder(
                   builder: (_) {
                     final bool isOpen = _isShopOpen(cafe);
@@ -921,7 +934,9 @@ class _ArenaViewState extends State<ArenaView> {
                       children: [
                         // Title
                         Text(
-                          toStartCase(cafe['cafe_name']?.toString() ?? 'Unknown Cafe'),
+                          toStartCase(
+                            cafe['cafe_name']?.toString() ?? 'Unknown Cafe',
+                          ),
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontSize: 16,
@@ -941,7 +956,10 @@ class _ArenaViewState extends State<ArenaView> {
                             const SizedBox(width: 6),
                             Text(
                               isOpen ? 'Open' : 'Closed',
-                              style: GoogleFonts.inter(color: openColor, fontSize: 12),
+                              style: GoogleFonts.inter(
+                                color: openColor,
+                                fontSize: 12,
+                              ),
                             ),
 
                             // separator
@@ -957,12 +975,24 @@ class _ArenaViewState extends State<ArenaView> {
                                   : _distanceInfo(pos, id),
                               builder: (_, snap) {
                                 final dist = snap.data?['distance'] ?? '--';
-                                final dur  = snap.data?['duration'] ?? '--';
+                                final dur = snap.data?['duration'] ?? '--';
                                 return Row(
                                   children: [
-                                    Text(dist, style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
+                                    Text(
+                                      dist,
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                     _miniSeparator(),
-                                    Text(dur,  style: GoogleFonts.inter(color: Colors.grey,  fontSize: 12)),
+                                    Text(
+                                      dur,
+                                      style: GoogleFonts.inter(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ],
                                 );
                               },
@@ -979,18 +1009,34 @@ class _ArenaViewState extends State<ArenaView> {
                               child: SizedBox(
                                 height: 36,
                                 child: ElevatedButton.icon(
-                                  onPressed: (pos == null) ? null : () => _drawRoute(pos!),
+                                  onPressed: (pos == null)
+                                      ? null
+                                      : () => _drawRoute(pos!),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xff338125),
-                                    disabledBackgroundColor: const Color(0xff338125).withOpacity(0.35),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                    disabledBackgroundColor: const Color(
+                                      0xff338125,
+                                    ).withOpacity(0.35),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 6,
+                                    ),
                                     elevation: 0,
                                   ),
-                                  icon: const Icon(Icons.directions_outlined, color: Colors.white, size: 18),
+                                  icon: const Icon(
+                                    Icons.directions_outlined,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                   label: Text(
                                     'Directions',
-                                    style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1000,21 +1046,38 @@ class _ArenaViewState extends State<ArenaView> {
                               child: SizedBox(
                                 height: 36,
                                 child: ElevatedButton.icon(
-                                  onPressed: (pos == null) ? null : () => _openExternalMaps(pos!),
+                                  onPressed: (pos == null)
+                                      ? null
+                                      : () => _openExternalMaps(pos!),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white.withOpacity(0.13),
-                                    disabledBackgroundColor: Colors.white.withOpacity(0.08),
+                                    backgroundColor: Colors.white.withOpacity(
+                                      0.13,
+                                    ),
+                                    disabledBackgroundColor: Colors.white
+                                        .withOpacity(0.08),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
-                                      side: BorderSide(color: Colors.white.withOpacity(0.13)),
+                                      side: BorderSide(
+                                        color: Colors.white.withOpacity(0.13),
+                                      ),
                                     ),
-                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 6,
+                                    ),
                                     elevation: 0,
                                   ),
-                                  icon: const Icon(Icons.map_outlined, color: Colors.white, size: 18),
+                                  icon: const Icon(
+                                    Icons.map_outlined,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                   label: Text(
                                     'View on maps',
-                                    style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1028,15 +1091,20 @@ class _ArenaViewState extends State<ArenaView> {
               ),
             ),
           ],
-        ),)
+        ),
+      ),
 
-
-//
+      //
     );
   }
+
   Widget _miniSeparator() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 8),
-    child: Container(width: 1, height: 10, color: Colors.white.withOpacity(0.35)),
+    child: Container(
+      width: 1,
+      height: 10,
+      color: Colors.white.withOpacity(0.35),
+    ),
   );
 
   Widget _buildCafeHeader() {

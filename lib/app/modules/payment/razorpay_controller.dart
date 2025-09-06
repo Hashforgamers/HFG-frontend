@@ -102,6 +102,14 @@ class RazorpayController extends GetxController {
   void _handlePaymentSuccess(PaymentSuccessResponse r) async {
     paymentStatus.value = 'Payment successful! Confirming booking…';
 
+    // Track hash pass purchased event
+    segmentService.onHashPassPurchased(
+        email:
+            userController.user.value.contact?.electronicAddress?.emailId ??
+            '',
+        // amount: amount,
+      );
+
     if (bookingIdList.isEmpty) {
       _reset();
       return;

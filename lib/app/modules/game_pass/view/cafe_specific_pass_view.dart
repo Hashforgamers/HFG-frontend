@@ -81,9 +81,18 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
 
     try {
       _processingPasses[passId] = true;
-      _paymentStatus.value = 'Creating payment order...';    
+      _paymentStatus.value = 'Creating payment order...';
       // Create Razorpay order
       final orderId = await _createRazorpayOrder(pass.price);
+
+      // Track hash pass initiated event
+      _segmentService.onHashPassInitiated(
+        email:
+            _userController.user.value.contact?.electronicAddress?.emailId ??
+            '',
+        amount: pass.price,
+      );
+
       // Track purchase initiated event
       _segmentService.onPaymentInitiated(
         bookingId: 'cafe_pass_${pass.id}',
@@ -203,10 +212,9 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
             ClipRRect(
               borderRadius: BorderRadius.circular(25),
               child: CachedNetworkImage(
-                imageUrl:
-                    (pass.vendorImages?.isNotEmpty == true) 
-                        ? pass.vendorImages!.first.url 
-                        : 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075171/cafepass3_on04c0.png',
+                imageUrl: (pass.vendorImages?.isNotEmpty == true)
+                    ? pass.vendorImages!.first.url
+                    : 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075171/cafepass3_on04c0.png',
                 height: 200,
                 width: MediaQuery.of(context).size.width,
                 fit: BoxFit.cover,
@@ -239,7 +247,8 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.1),
                     ),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.end,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Column(
                           mainAxisAlignment: MainAxisAlignment.start,
@@ -316,7 +325,10 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                                 ? null
                                 : () => _purchaseCafePass(pass),
                             child: Container(
-                             padding: EdgeInsets.symmetric(vertical: 5,horizontal: 8),
+                              padding: EdgeInsets.symmetric(
+                                vertical: 5,
+                                horizontal: 8,
+                              ),
                               decoration: BoxDecoration(
                                 color:
                                     (pass.isBought == true ||
@@ -338,10 +350,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                                     ? const SizedBox(
                                         width: 16,
                                         height: 16,
-                                        child: RainbowLoadingBar(
-
-
-                                        ),
+                                        child: RainbowLoadingBar(),
                                       )
                                     : Text(
                                         pass.isBought == true
