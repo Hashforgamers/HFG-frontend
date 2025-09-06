@@ -94,7 +94,6 @@ class LoginView extends StatelessWidget {
             ),
 
             // Apple Sign-In (iOS Only)
-            if (isIOS) const SizedBox(height: 12),
             if (isIOS)
               Stack(
                 children: [

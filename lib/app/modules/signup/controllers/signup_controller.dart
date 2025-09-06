@@ -96,12 +96,12 @@ class SignUpController extends GetxController {
         userId: currentUser.uid,
       );
 
-      Get.snackbar(
-        'Success',
-        response['message'] ?? 'Signup successful',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
+      // Get.snackbar(
+      //   'Success',
+      //   response['message'] ?? 'Signup successful',
+      //   backgroundColor: Colors.green,
+      //   colorText: Colors.white,
+      // );
 
       await fetchUserData();
       Get.offAllNamed('/home');
