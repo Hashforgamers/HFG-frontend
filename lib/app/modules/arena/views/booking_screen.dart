@@ -4,9 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shimmer/shimmer.dart';
-
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -14,17 +12,22 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'booking_summary_screen.dart';
 
 class BookingScreen extends StatefulWidget {
+  final String email;
   final String consoleType;
   final String title;
   final int gameId;
   final int vendorId;
+  final List<Map<String, dynamic>>? cartItems;
 
-  const BookingScreen(
-      {super.key,
-      required this.consoleType,
-      required this.title,
-      required this.gameId,
-      required this.vendorId});
+  const BookingScreen({
+    super.key,
+    required this.email,
+    required this.consoleType,
+    required this.title,
+    required this.gameId,
+    required this.vendorId,
+    required this.cartItems,
+  });
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
@@ -41,7 +44,10 @@ class _BookingScreenState extends State<BookingScreen> {
     super.initState();
     _fetchUserId();
     controller.fetchSlots(
-        vendorId: widget.vendorId, gameId: widget.gameId, date: selectedDate);
+      vendorId: widget.vendorId,
+      gameId: widget.gameId,
+      date: selectedDate,
+    );
 
     // Clear any previous selections when entering the screen
     controller.clearSelectedSlots();
@@ -97,17 +103,18 @@ class _BookingScreenState extends State<BookingScreen> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            icon: const Icon(
-              Icons.arrow_back,
-              color: Colors.white,
-            )),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+        ),
         title: Text(
           widget.title,
           style: GoogleFonts.inter(
-              color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.black,
       ),
@@ -118,8 +125,10 @@ class _BookingScreenState extends State<BookingScreen> {
             return ListView.builder(
               itemCount: 4,
               itemBuilder: (context, index) => Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 child: Shimmer.fromColors(
                   baseColor: Colors.grey[900]!,
                   highlightColor: Colors.grey[800]!,
@@ -143,11 +152,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.schedule,
-                          size: 64,
-                          color: Colors.grey[600],
-                        ),
+                        Icon(Icons.schedule, size: 64, color: Colors.grey[600]),
                         const SizedBox(height: 16),
                         Text(
                           'No slots available',
@@ -181,8 +186,9 @@ class _BookingScreenState extends State<BookingScreen> {
           final availableSlots = controller.slots.where((slot) {
             final bool isAvailable =
                 slot['is_available'] ?? slot['isAvailable'] ?? true;
-            final bool isTimeAvailable =
-                isCurrentDate ? controller.isSlotAvailableNow(slot) : true;
+            final bool isTimeAvailable = isCurrentDate
+                ? controller.isSlotAvailableNow(slot)
+                : true;
             return isAvailable && isTimeAvailable;
           }).toList();
           if (availableSlots.isEmpty) {
@@ -193,11 +199,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.computer,
-                          size: 64,
-                          color: Colors.grey[600],
-                        ),
+                        Icon(Icons.computer, size: 64, color: Colors.grey[600]),
                         const SizedBox(height: 16),
                         Text(
                           'No available slots for this date',
@@ -235,9 +237,7 @@ class _BookingScreenState extends State<BookingScreen> {
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
       decoration: const BoxDecoration(
         color: Color(0xff121212),
-        border: Border(
-          top: BorderSide(color: Color(0xff2D2D2D), width: 1),
-        ),
+        border: Border(top: BorderSide(color: Color(0xff2D2D2D), width: 1)),
       ),
       child: ElevatedButton.icon(
         onPressed: () async {
@@ -247,10 +247,7 @@ class _BookingScreenState extends State<BookingScreen> {
             firstDate: DateTime.now(),
             lastDate: DateTime.now().add(const Duration(days: 30)),
             builder: (context, child) {
-              return Theme(
-                data: ThemeData.dark(),
-                child: child!,
-              );
+              return Theme(data: ThemeData.dark(), child: child!);
             },
           );
 
@@ -259,9 +256,10 @@ class _BookingScreenState extends State<BookingScreen> {
               selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
               selectedDateText = DateFormat('dd MMM, yyyy').format(pickedDate);
               controller.fetchSlots(
-                  vendorId: widget.vendorId,
-                  gameId: widget.gameId,
-                  date: selectedDate);
+                vendorId: widget.vendorId,
+                gameId: widget.gameId,
+                date: selectedDate,
+              );
             });
           }
         },
@@ -296,10 +294,11 @@ class _BookingScreenState extends State<BookingScreen> {
             children: [
               Expanded(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${widget.title} | $selectedDateText',
+                      '$selectedDateText',
                       style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -308,7 +307,8 @@ class _BookingScreenState extends State<BookingScreen> {
                     ),
                     const SizedBox(height: 4),
                     Obx(() {
-                      final isCurrentDate = selectedDate ==
+                      final isCurrentDate =
+                          selectedDate ==
                           DateFormat('yyyyMMdd').format(DateTime.now());
                       final availableSlots = controller.slots.where((slot) {
                         final bool isAvailable =
@@ -318,14 +318,17 @@ class _BookingScreenState extends State<BookingScreen> {
                             : true;
                         return isAvailable && isTimeAvailable;
                       }).toList();
-                      final totalAvailableConsoles =
-                          availableSlots.fold<int>(0, (sum, slot) {
-                        final int availableConsoles = slot['available_slot'] ??
-                            slot['availableSlot'] ??
-                            slot['available_slots'] ??
-                            0;
-                        return sum + availableConsoles;
-                      });
+                      final totalAvailableConsoles = availableSlots.fold<int>(
+                        0,
+                        (sum, slot) {
+                          final int availableConsoles =
+                              slot['available_slot'] ??
+                              slot['availableSlot'] ??
+                              slot['available_slots'] ??
+                              0;
+                          return sum + availableConsoles;
+                        },
+                      );
                       final consoleType = getConsoleType();
                       return Text(
                         '$totalAvailableConsoles ${consoleType == 'PC' ? 'PCs' : '${consoleType}s'} available across ${availableSlots.length} time slots',
@@ -346,27 +349,26 @@ class _BookingScreenState extends State<BookingScreen> {
                     firstDate: DateTime.now(),
                     lastDate: DateTime.now().add(const Duration(days: 30)),
                     builder: (context, child) {
-                      return Theme(
-                        data: ThemeData.dark(),
-                        child: child!,
-                      );
+                      return Theme(data: ThemeData.dark(), child: child!);
                     },
                   );
 
                   if (pickedDate != null) {
                     setState(() {
                       selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
-                      selectedDateText =
-                          DateFormat('dd MMM, yyyy').format(pickedDate);
+                      selectedDateText = DateFormat(
+                        'dd MMM, yyyy',
+                      ).format(pickedDate);
                       controller.fetchSlots(
-                          vendorId: widget.vendorId,
-                          gameId: widget.gameId,
-                          date: selectedDate);
+                        vendorId: widget.vendorId,
+                        gameId: widget.gameId,
+                        date: selectedDate,
+                      );
                     });
                   }
                 },
                 icon: const Icon(Icons.calendar_today, color: Colors.white),
-              )
+              ),
             ],
           ),
         ),
@@ -380,8 +382,8 @@ class _BookingScreenState extends State<BookingScreen> {
                   slot['is_available'] ?? slot['isAvailable'] ?? true;
               final bool isTimeAvailable =
                   selectedDate == DateFormat('yyyyMMdd').format(DateTime.now())
-                      ? controller.isSlotAvailableNow(slot)
-                      : true;
+                  ? controller.isSlotAvailableNow(slot)
+                  : true;
               if (isAvailable && isTimeAvailable) {
                 return buildSlotItem(slot, index);
               } else {
@@ -400,14 +402,14 @@ class _BookingScreenState extends State<BookingScreen> {
       final DateTime parsedTime = DateFormat('HH:mm:ss').parse(rawTime);
       return DateFormat('HH:mm').format(parsedTime);
     } catch (e) {
-      print('Error formatting time: $e');
       return rawTime;
     }
   }
 
   Widget buildSlotItem(Map<String, dynamic> slot, int index) {
     // Get the number of available PCs for this slot with fallback
-    final int availablePCs = slot['available_slot'] ??
+    final int availablePCs =
+        slot['available_slot'] ??
         slot['availableSlot'] ??
         slot['available_slots'] ??
         0;
@@ -415,8 +417,9 @@ class _BookingScreenState extends State<BookingScreen> {
     // Check if slot is available based on time - only for current date
     final bool isCurrentDate =
         selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
-    final bool isTimeAvailable =
-        isCurrentDate ? controller.isSlotAvailableNow(slot) : true;
+    final bool isTimeAvailable = isCurrentDate
+        ? controller.isSlotAvailableNow(slot)
+        : true;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -427,11 +430,12 @@ class _BookingScreenState extends State<BookingScreen> {
               : const Color(0xFF0F0F0F),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-              color: isTimeAvailable
-                  ? const Color(0xff2D2D2D)
-                  : Colors.grey.shade800),
+            color: isTimeAvailable
+                ? const Color(0xff2D2D2D)
+                : Colors.grey.shade800,
+          ),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -449,24 +453,27 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: isTimeAvailable
                         ? Colors.green.withOpacity(0.2)
                         : Colors.grey.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: isTimeAvailable
-                            ? Colors.green.withOpacity(0.5)
-                            : Colors.grey.withOpacity(0.5)),
+                      color: isTimeAvailable
+                          ? Colors.green.withOpacity(0.5)
+                          : Colors.grey.withOpacity(0.5),
+                    ),
                   ),
                   child: Text(
                     isTimeAvailable
                         ? '$availablePCs ${getConsoleType()}${availablePCs > 1 ? 's' : ''} Available'
                         : isCurrentDate
-                            ? 'Time Expired'
-                            : 'Available',
+                        ? 'Time Expired'
+                        : 'Available',
                     style: GoogleFonts.inter(
                       color: isTimeAvailable
                           ? Colors.green
@@ -570,15 +577,15 @@ class _BookingScreenState extends State<BookingScreen> {
             controller.selectedSlots[pcIndex] =
                 controller.selectedSlots[pcIndex] ?? [];
             controller.selectedSlots[pcIndex]?.add(timeIndex);
-            message = 'Slot selected for ${getConsoleLabel(pcIndex - 1)}';
+            // message = 'Slot selected for ${getConsoleLabel(pcIndex - 1)}';
           }
 
-          Fluttertoast.showToast(
-            msg: message,
-            backgroundColor: Colors.black,
-            textColor: Colors.white,
-            fontSize: 14,
-          );
+          // Fluttertoast.showToast(
+          //   msg: message,
+          //   backgroundColor: Colors.black,
+          //   textColor: Colors.white,
+          //   fontSize: 14,
+          // );
 
           controller.selectedSlots.refresh();
         },
@@ -587,8 +594,9 @@ class _BookingScreenState extends State<BookingScreen> {
           margin: const EdgeInsets.only(right: 10),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isSelected ? const Color(0xFF338125) : const Color(0xff2D2D2D),
+            color: isSelected
+                ? const Color(0xFF338125)
+                : const Color(0xff2D2D2D),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected ? Colors.greenAccent : Colors.grey.shade700,
@@ -609,8 +617,10 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Widget buildFooter() {
     return Obx(() {
-      int totalSelectedSlots = controller.selectedSlots.values
-          .fold(0, (sum, slots) => sum + slots.length);
+      int totalSelectedSlots = controller.selectedSlots.values.fold(
+        0,
+        (sum, slots) => sum + slots.length,
+      );
 
       // Calculate total price based on actual slot prices
       double totalPrice = 0.0;
@@ -627,9 +637,7 @@ class _BookingScreenState extends State<BookingScreen> {
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
         decoration: const BoxDecoration(
           color: Color(0xff121212),
-          border: Border(
-            top: BorderSide(color: Color(0xff2D2D2D), width: 1),
-          ),
+          border: Border(top: BorderSide(color: Color(0xff2D2D2D), width: 1)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -687,6 +695,7 @@ class _BookingScreenState extends State<BookingScreen> {
     // Track game details viewed event when user proceeds with console selection
     final segmentService = locator<SegmentSdkService>();
     final fbEventsService = locator<FbEventsService>();
+
     segmentService.onGameDetailsViewed(
       gameId: widget.gameId.toString(),
       cafeId: widget.vendorId.toString(),
@@ -711,10 +720,22 @@ class _BookingScreenState extends State<BookingScreen> {
       }
     });
 
-    Get.to(() => BookingSummaryScreen(
-          selectedSlots: selectedSlotDetails,
-          gameId: widget.gameId,
-          userId: userId,
-        ));
+    segmentService.onCafeConsoleSelected(
+      email: widget.email,
+      consoleType: widget.consoleType,
+      consoleAmount: selectedSlotDetails.length,
+    );
+
+    Get.to(
+      () => BookingSummaryScreen(
+        selectedCafeName: widget.title,
+        consoleType: widget.consoleType,
+        selectedSlots: selectedSlotDetails,
+        cartItems: widget.cartItems ?? [],
+        gameId: widget.gameId,
+        vendorId: widget.vendorId,
+        selectedDate:selectedDate
+      ),
+    );
   }
 }

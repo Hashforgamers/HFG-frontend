@@ -45,28 +45,33 @@ class _GlassSearchBarState extends State<GlassSearchBar> {
             borderRadius: BorderRadius.circular(25),
             border: Border.all(color: const Color(0xff338125).withOpacity(.2)),
           ),
-          child: Row(children: [
-            const Icon(Icons.search, color: Color(0xff338125)),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: _searchCtl,
-                style: GoogleFonts.inter(color: Colors.white),
-                cursorColor: const Color(0xff338125),
-                decoration: InputDecoration(
-                  hintText: 'Search location',
-                  hintStyle: GoogleFonts.inter(color: Colors.white70),
-                  border: InputBorder.none,
+          child: Row(
+            children: [
+              const Icon(Icons.search, color: Color(0xff338125)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _searchCtl,
+                  style: GoogleFonts.inter(color: Colors.white),
+                  cursorColor: const Color(0xff338125),
+                  decoration: InputDecoration(
+                    hintText: 'Search location',
+                    hintStyle: GoogleFonts.inter(color: Colors.white70),
+                    border: InputBorder.none,
+                  ),
+                  onSubmitted: (_) => _searchAndGo(),
                 ),
-                onSubmitted: (_) => _searchAndGo(),
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.arrow_forward_ios_rounded,
-                  size: 18, color: Color(0xff338125)),
-              onPressed: _searchAndGo,
-            )
-          ]),
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 18,
+                  color: Color(0xff338125),
+                ),
+                onPressed: _searchAndGo,
+              ),
+            ],
+          ),
         ),
       ),
     );

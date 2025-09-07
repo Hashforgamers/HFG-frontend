@@ -1,12 +1,18 @@
 import 'dart:ui';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/shop/controllers/cart_controller.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:lottie/lottie.dart';
+import '../../../../utils/widgets/loader.dart';
 import '../products_model.dart';
 import 'cart_view.dart';
 import 'shop_detail_view.dart';
@@ -24,6 +30,9 @@ class ShopView extends StatefulWidget {
 
 class _ShopViewState extends State<ShopView> {
   final ProductService _productService = ProductService();
+  UserController userController = Get.put(UserController());
+  final segmentService = locator<SegmentSdkService>();
+
   final List<Product> products = [];
   bool isLoading = true;
   String errorMessage = '';
@@ -73,11 +82,8 @@ class _ShopViewState extends State<ShopView> {
       final preRegistrationService = PreRegistrationService();
 
       // Check if already registered
-      final bool isRegistered =
-          await preRegistrationService.isAlreadyRegistered(
-        user.uid,
-        product.id,
-      );
+      final bool isRegistered = await preRegistrationService
+          .isAlreadyRegistered(user.uid, product.id);
 
       if (isRegistered) {
         _showToast("You have already pre-registered for this product");
@@ -108,7 +114,10 @@ class _ShopViewState extends State<ShopView> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: Text('Shop', style: GoogleFonts.inter(color: Colors.white)),
+        title: Text(
+          'Shop',
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+        ),
         backgroundColor: Colors.black,
         actions: [
           GestureDetector(
@@ -116,78 +125,92 @@ class _ShopViewState extends State<ShopView> {
               Get.to(CartView());
             },
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Obx(() => Badge(
-                    label: Text(
-                      '${cartController.cartItems.length}',
-                      style:
-                          GoogleFonts.inter(color: Colors.white, fontSize: 10),
-                    ),
-                    child: const Icon(CupertinoIcons.bag, color: Colors.white),
-                  )),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Obx(
+                () => Badge(
+                  label: Text(
+                    '${cartController.cartItems.length}',
+                    style: GoogleFonts.inter(color: Colors.white, fontSize: 10),
+                  ),
+                  child: const Icon(CupertinoIcons.bag, color: Colors.white),
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 15),
         ],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: RainbowLoadingBar())
           : errorMessage.isNotEmpty
-              ? Center(
-                  child: Text(
-                  errorMessage,
-                  style: GoogleFonts.inter(color: Colors.white),
-                ))
-              : Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10.0),
-                  child: SingleChildScrollView(
-                    child: _buildSection('Products', products),
-                  ),
-                ),
+          ? Center(
+              child: Text(
+                errorMessage,
+                style: GoogleFonts.inter(color: Colors.white),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: 10.0,
+                horizontal: 16.0,
+              ),
+              child: SingleChildScrollView(
+                child: _buildSection('Products', products),
+              ),
+            ),
     );
   }
 
   Widget _buildSection(String title, List<Product> products) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 0.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 50,
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-            child: Text(
-              title,
-              style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 50,
+          child: Text(
+            title,
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              final productImage = product.images.isNotEmpty
-                  ? product.images[0].url
-                  : 'https://via.placeholder.com/150';
-              return _buildProductCard(product, productImage);
-            },
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            final product = products[index];
+            final productImage = product.images.isNotEmpty
+                ? product.images[0].url
+                : 'https://via.placeholder.com/150';
+            return _buildProductCard(
+              context,
+              product,
+              productImage,
+            ); // pass context
+          },
+        ),
+      ],
     );
   }
 
-  Widget _buildProductCard(Product product, String productImage) {
+  Widget _buildProductCard(
+    BuildContext context,
+    Product product,
+    String productImage,
+  ) {
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final renderW = (Get.width * 0.48);
+    const renderH = 125.0;
     return Stack(
       alignment: Alignment.topLeft,
       children: [
         Container(
           width: Get.width * 0.83,
-          margin: const EdgeInsets.only(right: 10, left: 55, bottom: 20),
+          margin: const EdgeInsets.only(left: 45, bottom: 20),
           decoration: ShapeDecoration(
             color: Colors.white12,
             shape: ContinuousRectangleBorder(
@@ -203,19 +226,29 @@ class _ShopViewState extends State<ShopView> {
                   _showToast("Coming Soon");
                 },
                 child: const Padding(
-                  padding: EdgeInsets.only(top: 15.0, right: 15),
-                  child:
-                      Icon(CupertinoIcons.heart, size: 20, color: Colors.red),
+                  padding: EdgeInsets.only(top: 15.0, right: 20),
+                  child: Icon(
+                    CupertinoIcons.heart,
+                    size: 20,
+                    color: Colors.red,
+                  ),
                 ),
               ),
               GestureDetector(
                 onTap: () {
-                  Get.to(ProductDetailView(
-                      productId: product.id, productImages: productImage));
+                  Get.to(
+                    ProductDetailView(
+                      productId: product.id,
+                      productImages: productImage,
+                    ),
+                  );
                 },
                 child: Container(
                   width: Get.width * 0.57,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 20,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -240,20 +273,37 @@ class _ShopViewState extends State<ShopView> {
                       Text(
                         '${product.preRegisterCount} Pre-Registered',
                         style: GoogleFonts.inter(
-                            color: Colors.white70, fontSize: 12),
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 10,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     GestureDetector(
                       onTap: () {
+                        // Track product pre-registered event
+                        segmentService.onProductPreRegistered(
+                          email:
+                              userController
+                                  .user
+                                  .value
+                                  .contact
+                                  ?.electronicAddress
+                                  ?.emailId ??
+                              '',
+                          productName: product.name,
+                        );
+
                         _showToast("Coming Soon");
                       },
                       child: Container(
@@ -277,11 +327,7 @@ class _ShopViewState extends State<ShopView> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.lock,
-                            color: Colors.black,
-                            size: 16,
-                          ),
+                          const Icon(Icons.lock, color: Colors.black, size: 16),
                           const SizedBox(width: 5),
                           Text(
                             'Pre-Register',
@@ -315,11 +361,29 @@ class _ShopViewState extends State<ShopView> {
               ),
               Container(
                 margin: const EdgeInsets.only(top: 20),
-                child: Image.network(
-                  productImage,
-                  fit: BoxFit.fitWidth,
-                  width: Get.width * 0.48,
-                  height: 125,
+                child: ImageFiltered(
+                  imageFilter: ImageFilter.blur(
+                    sigmaX: 7,
+                    sigmaY: 7,
+                  ), // adjust 8–16 as you like
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: CachedNetworkImage(
+                      imageUrl: productImage,
+                      fit: BoxFit.cover,
+                      width: renderW,
+                      height: renderH,
+                      // request an appropriately sized decode for smooth blur (no unnecessary VRAM)
+                      memCacheWidth: (renderW * dpr).round(),
+                      memCacheHeight: (renderH * dpr).round(),
+                      placeholder: (_, __) =>
+                          const Center(child: RainbowGlowingLoader(size: 24)),
+                      errorWidget: (_, __, ___) => const Icon(
+                        Icons.image_not_supported,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],

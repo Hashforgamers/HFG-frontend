@@ -5,9 +5,12 @@ import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
 import '../modules/login/bindings/login_binding.dart';
 import '../modules/login/views/login_view.dart';
+import '../modules/onboarding/onboarding_screen.dart';
 import '../modules/signup/views/signup_view.dart';
 import '../modules/splash/bindings/splash_binding.dart';
 import '../modules/splash/views/splash_view.dart';
+import '../modules/wallet/views/wallet_view.dart';
+import '../modules/need_help/need_help_page.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -16,6 +19,11 @@ class AppPages {
       name: AppRoutes.SPLASH,
       page: () => SplashView(),
       binding: SplashBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.ONBOARDING,
+      page: () => OnboardingScreen(),
+      // binding: SplashBinding(),
     ),
     GetPage(
       name: AppRoutes.HOME,
@@ -39,5 +47,13 @@ class AppPages {
       page: () => SignUpView(
 
       ),),
+    GetPage(
+      name: AppRoutes.WALLET,
+      page: () => const WalletPage(),
+    ),
+    GetPage(
+      name: AppRoutes.NEED_HELP,
+      page: () => const NeedHelpPage(),
+    ),
   ];
 }

@@ -36,7 +36,6 @@ class ReferralController extends GetxController {
       );
     } catch (e) {
       // Fallback to ScaffoldMessenger if Get.snackbar fails
-      print('Get.snackbar failed, using ScaffoldMessenger: $e');
       if (Get.context != null) {
         ScaffoldMessenger.of(Get.context!).showSnackBar(
           SnackBar(
@@ -45,7 +44,9 @@ class ReferralController extends GetxController {
             duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -89,44 +90,44 @@ class ReferralController extends GetxController {
       await getVoucher();
 
       // Show success message
-      _showSnackbar('Success', 'Voucher created successfully!', const Color(0xff4CAF50));
+      _showSnackbar(
+        'Success',
+        'Voucher created successfully!',
+        const Color(0xff4CAF50),
+      );
     } catch (e) {
       errorMessage.value = 'Failed to create voucher: $e';
       voucherCreated(false);
 
-      print('=== VOUCHER CREATION ERROR ===');
-      print('Original error: $e');
-      
       // Extract user-friendly error message
       String errorMsg = e.toString();
       String errorTitle = 'Error';
       Color backgroundColor = const Color(0xffF44336);
-      
+
       // Remove "Exception: " prefix if present
       if (errorMsg.contains('Exception: ')) {
         errorMsg = errorMsg.replaceAll('Exception: ', '');
       }
-      
+
       // Handle specific error cases
       if (errorMsg.contains('Not enough referral points')) {
         errorTitle = 'Insufficient Points';
-        backgroundColor = const Color(0xffff9800); // Orange for insufficient points
-        errorMsg = 'You need more referral points to create a voucher. Share your referral code with friends to earn points!';
-      } else if (errorMsg.contains('network') || errorMsg.contains('connection')) {
+        backgroundColor = const Color(
+          0xffff9800,
+        ); // Orange for insufficient points
+        errorMsg =
+            'You need more referral points to create a voucher. Share your referral code with friends to earn points!';
+      } else if (errorMsg.contains('network') ||
+          errorMsg.contains('connection')) {
         errorTitle = 'Network Error';
         backgroundColor = const Color(0xff2196F3); // Blue for network issues
-        errorMsg = 'Network error. Please check your internet connection and try again.';
+        errorMsg =
+            'Network error. Please check your internet connection and try again.';
       }
-
-      print('Error title: $errorTitle');
-      print('Error message: $errorMsg');
-      print('Background color: $backgroundColor');
 
       // Only show snackbar for non-retryable errors
       // Retryable errors (500, 502, 503, 504) will be handled by the retry interceptor
       _showSnackbar(errorTitle, errorMsg, backgroundColor);
-
-      print('Error creating voucher: $e');
     } finally {
       isLoading(false);
     }
@@ -183,17 +184,16 @@ class ReferralController extends GetxController {
       }
 
       final voucherResponse = await _remoteRepo.getVoucher(userId: userId);
-      
+
       // Update the vouchers list in the controller
       if (voucherResponse.isNotEmpty) {
         vouchers.value = voucherResponse.first.vouchers;
       } else {
         vouchers.value = [];
       }
-      
+
       return voucherResponse;
     } catch (e) {
-      print('Error fetching vouchers: $e');
       vouchers.value = [];
       rethrow;
     } finally {

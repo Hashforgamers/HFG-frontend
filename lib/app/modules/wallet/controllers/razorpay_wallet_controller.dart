@@ -1,8 +1,16 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/config/flavor_config.dart';
+import 'package:hash/core/repositories/model/capture_payment_model.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:http/http.dart' as http;
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/service/segment_sdk_service.dart';
 import '../../../../core/service_locator.dart';
+import '../../../data/services/user_controller.dart';
 import 'wallet_controller.dart';
 
 class RazorpayWalletController extends GetxController {
@@ -10,6 +18,8 @@ class RazorpayWalletController extends GetxController {
   final isPaying = false.obs;
   int? _tempAmount;
   final segmentService = locator<SegmentSdkService>();
+  final userController = Get.find<UserController>();
+  final remoteRepo = locator<RemoteRepoInterface>();
 
   @override
   void onInit() {
@@ -21,91 +31,116 @@ class RazorpayWalletController extends GetxController {
 
     // 🔍 Optional: Set log level for debugging (only in dev builds)
     // _razorpay.setLogLevel(Razorpay.Loglevel.verbose); // Uncomment if needed
-    print("[Razorpay] Initialized");
   }
 
   /// Opens the Razorpay checkout with provided amount
-  void openCheckout(int amountRupees) {
+  void openCheckout(int amountRupees, String orderId) {
     if (isPaying.value) return;
 
-    if (ApiEndpoints.razorpayKey.isEmpty) {
-      Get.snackbar("Error", "Razorpay key is missing");
-      print("[Razorpay] Missing Razorpay Key");
-      return;
-    }
-
     final amountPaise = amountRupees * 100;
+
+    // Get dynamic user data
+    final userName = userController.user.value.name ?? 'User';
+    final userEmail =
+        userController.user.value.contact?.electronicAddress?.emailId ?? '';
+    final userPhone =
+        userController.user.value.contact?.electronicAddress?.mobileNo ?? '';
+
     final options = {
       'key': ApiEndpoints.razorpayKeyWallet,
       'amount': amountPaise,
-      'name': 'HashforGamers',
+      'name': userName,
       'description': 'Wallet Top-up',
       'prefill': {
-        'contact': '9137757935', // Optional: populate if available
-        'email': 'zeyanansari10@gmail.com'
+        'contact': userPhone.isNotEmpty ? userPhone : null,
+        'email': userEmail.isNotEmpty ? userEmail : null,
       },
       'theme': {'color': '#1E88E5'},
+      'order_id': orderId,
     };
 
     try {
-      print("[Razorpay] Opening checkout with options: $options");
       _razorpay.open(options);
       isPaying.value = true;
     } catch (e) {
-      print("[Razorpay] Error during openCheckout: $e");
       Get.snackbar("Error", e.toString());
       isPaying.value = false;
     }
   }
 
   /// Safe method to start payment with stored amount
-  void pay(int amount) {
+  void pay(int amount) async {
     _tempAmount = amount;
-    print("[Razorpay] Starting payment for ₹$amount");
-    
     // Track add money initiated event
     segmentService.onAddMoneyInitiated(amountEntered: amount.toDouble());
-    
-    openCheckout(amount);
+    String receiptId = "wallet_rcpt_${DateTime.now().millisecondsSinceEpoch}";
+    final url = '${FlavorConfig.getBaseUrl('booking')}/api/create_order';
+    final payload = {
+      "amount": amount * 100,
+      "currency": "INR",
+      "receipt": receiptId,
+    };
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      openCheckout(amount, data['id']);
+    } else {
+      Get.snackbar("Error", "Failed to create payment order");
+    }
   }
 
   /// Called when payment is successful
-  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
     final paymentId = response.paymentId ?? 'Unknown';
-    print("[Razorpay] ✅ Payment Success: $paymentId");
 
     // Track add money success event
     segmentService.onAddMoneySuccess(
       amountAdded: _tempAmount?.toDouble() ?? 0.0,
       txnId: paymentId,
     );
-
-    Get.find<WalletController>().confirmTopUp(
-      amount: _tempAmount ?? 0,
+    final capturePaymentModel = CapturePaymentModel(
+      razorpayPaymentId: paymentId,
+      razorpayOrderId: response.orderId,
+      razorpaySignature: response.signature,
+    );
+    remoteRepo.capturePayment(capturePaymentModel: capturePaymentModel);
+    final success = await Get.find<WalletController>().confirmTopUp(
+      amount: (_tempAmount ?? 0).toDouble(),
       paymentId: paymentId,
     );
+
+    if (!success) {
+      Get.snackbar(
+        "Error",
+        "Failed to credit wallet. Please contact support.",
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
 
     isPaying.value = false;
   }
 
   /// Called when payment fails
   void _handlePaymentError(PaymentFailureResponse response) {
-    print(
-        "[Razorpay] ❌ Payment Failed → Code: ${response.code}, Message: ${response.message}");
     Get.snackbar("Payment Failed", response.message ?? "Try again later");
     isPaying.value = false;
   }
 
   /// Called when user selects external wallet like Paytm
   void _handleExternalWallet(ExternalWalletResponse response) {
-    print("[Razorpay] 👜 External Wallet Selected: ${response.walletName}");
     Get.snackbar("Wallet", response.walletName ?? "External Wallet");
     isPaying.value = false;
   }
 
   @override
   void onClose() {
-    print("[Razorpay] Disposing & clearing event listeners");
     _razorpay.clear();
     super.onClose();
   }

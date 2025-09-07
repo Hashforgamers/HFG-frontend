@@ -3,6 +3,11 @@ import 'package:facebook_app_events/facebook_app_events.dart';
 class FbEventsService {
   static final fbAppEvents = FacebookAppEvents();
 
+  // NEW: generic custom event (parity with Segment)
+  Future<void> onCustomEvent(String name, Map<String, dynamic> properties) async {
+    await fbAppEvents.logEvent(name: name, parameters: properties);
+  }
+
   Future<void> logEvent(
       String eventName, Map<String, dynamic> parameters) async {
     await fbAppEvents.logEvent(

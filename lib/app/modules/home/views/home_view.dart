@@ -1,101 +1,120 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import '../controllers/home_controller.dart';
 
 class HomeView extends StatelessWidget {
   final HomeController controller = Get.find();
 
-   HomeView({super.key});
+  HomeView({super.key});
 
   @override
-  Widget build(BuildContext context) { 
+  Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.1, 0),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          );
+        },
         child: Obx(() {
-          return controller.currentScreen.value;
+          return RepaintBoundary(
+            key: ValueKey(controller.selectedIndex.value),
+            child: controller.currentScreen.value,
+          );
         }),
       ),
       bottomNavigationBar: Obx(() {
-        return BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          enableFeedback: true,
-          currentIndex: controller.selectedIndex.value,
-          onTap: controller.onItemTapped,
-          selectedFontSize: 0,
-          unselectedFontSize: 0,
-          items: <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-              backgroundColor: Colors.black,
-              icon: Image.asset(
-                'assets/icons/home-02.png',
-                scale: 3,
-                color: Colors.grey[800],
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          child: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            enableFeedback: true,
+            currentIndex: controller.selectedIndex.value,
+            onTap: controller.isScreenTransitioning.value
+                ? null
+                : controller.onItemTapped,
+            selectedFontSize: 0,
+            unselectedFontSize: 0,
+            backgroundColor: Colors.black,
+            selectedItemColor: const Color(0xff338125),
+            unselectedItemColor: Colors.grey[800],
+            items: <BottomNavigationBarItem>[
+              _buildNavigationItem(
+                'assets/navbar_icons/Vector (1).png',
+                isSelected: controller.selectedIndex.value == 0,
               ),
-              label: '',
-              activeIcon: Image.asset(
-                'assets/icons/home-02.png',
-                scale: 2.5,
-                color: const Color(0xff338125),
+              _buildNavigationItem(
+                'assets/navbar_icons/maki_gaming.png',
+                isSelected: controller.selectedIndex.value == 1,
               ),
-            ),
-            // BottomNavigationBarItem(backgroundColor: Colors.black,
-            //   icon: Image.asset('assets/icons/target-04.png',scale: 3,color: Colors.grey[800]),
-            //   label: '',
-            //   activeIcon: Image.asset('assets/icons/target-04.png',scale: 2.5,color: Color(0xffDE3A3A),),
-
-            // ),
-
-            BottomNavigationBarItem(
-              backgroundColor: Colors.black,
-              icon: Image.asset('assets/icons/gaming-pad-01.png',
-                  scale: 2.5, color: Colors.grey[800]),
-              label: '',
-              activeIcon: Image.asset(
-                'assets/icons/gaming-pad-01.png',
-                scale: 2.1,
-                color: const Color(0xff338125),
+              _buildNavigationItem(
+                'assets/navbar_icons/Group.png',
+                isSelected: controller.selectedIndex.value == 2,
+                isSpecial: true,
               ),
-            ),
-            BottomNavigationBarItem(
-              backgroundColor: Colors.black,
-              icon: SizedBox(
-                height: 25, // Adjust height
-                width: 25, // Adjust width
-                child: Image.asset(
-                  'assets/icons/bookings.png',
-                  color: Colors.grey[800],
-                ),
+              _buildNavigationItem(
+                'assets/navbar_icons/Vector (2).png',
+                isSelected: controller.selectedIndex.value == 3,
               ),
-              label: '',
-              activeIcon: SizedBox(
-                height: 27, // Slightly larger when active
-                width: 27,
-                child: Image.asset(
-                  'assets/icons/bookings.png',
-                  color: const Color(0xff338125),
-                ),
+              _buildNavigationItem(
+                'assets/navbar_icons/Vector (3).png',
+                isSelected: controller.selectedIndex.value == 4,
               ),
-            ),
-
-            BottomNavigationBarItem(
-              backgroundColor: Colors.black,
-              icon: Image.asset('assets/icons/shopping-bag-01.png',
-                  scale: 3, color: Colors.grey[800]),
-              label: '',
-              activeIcon: Image.asset('assets/icons/shopping-bag-01.png',
-                  scale: 2.5, color: const Color(0xff338125)),
-            ),
-            BottomNavigationBarItem(
-              backgroundColor: Colors.black,
-              icon: Image.asset('assets/icons/settings-02.png',
-                  scale: 3, color: Colors.grey[800]),
-              label: '',
-              activeIcon: Image.asset('assets/icons/settings-02.png',
-                  scale: 2.5, color: const Color(0xff338125)),
-            ),
-          ],
+            ],
+          ),
         );
       }),
+    );
+  }
+
+  BottomNavigationBarItem _buildNavigationItem(String iconPath, {
+    required bool isSelected,
+    bool isSpecial = false,
+  }) {
+    const selected = Color(0xff338125);
+    final unselected = Colors.grey[800];
+
+    if (isSpecial) {
+      return BottomNavigationBarItem(
+        backgroundColor: Colors.black,
+        icon: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: isSelected ? 27 : 25,
+          width: isSelected ? 27 : 25,
+          child: Image.asset(
+            iconPath,
+            height: 12,
+            color: isSelected ? selected : unselected,
+            colorBlendMode: BlendMode.srcIn,
+          ),
+        ),
+        label: '',
+      );
+    }
+
+    return BottomNavigationBarItem(
+      backgroundColor: Colors.black,
+      icon: AnimatedScale(
+        scale: isSelected ? 1.2 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        child: Image.asset(
+          iconPath,
+          height: 22,
+          color: isSelected ? selected : unselected,
+          colorBlendMode: BlendMode.srcIn,
+        ),
+      ),
+      label: '',
     );
   }
 }

@@ -6,9 +6,16 @@ import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
+import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
+import 'package:hash/core/repositories/model/extra_services_model.dart';
+import 'package:hash/core/repositories/model/get_food_menu_model.dart';
+import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
+import 'package:hash/core/repositories/model/purchase_pass_model.dart';
+import 'package:hash/core/repositories/model/transaction_history_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/utils/encrypt_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 
@@ -22,13 +29,28 @@ class RemoteRepo implements RemoteRepoInterface {
     final dio = networkProvider.noAuth();
 
     try {
-      final response = await dio.get(
-        ApiEndpoints.checkUserExistsInAPI + fid,
-      );
+      final response = await dio.get(ApiEndpoints.checkUserExistsInAPI + fid);
 
       if (response.statusCode == 200) {
         // Dio already decodes the response data, so we don't need jsonDecode
         final Map<String, dynamic> responseBody = response.data;
+        // get the JWT from the authorization Header
+        final jwtToken = extractJwtFromResponse(response);
+        // decode the JWT
+        final decodedJwt = decodeJwtAndGetUid(jwtToken ?? '');
+        // decrypt the JWT with private key
+        final decryptedData = await decryptData(decodedJwt ?? '');
+        // now enctypt it with the public key and make the jwt
+        final encryptedData = await encryptData(decryptedData);
+        // now create the jwt with the encrypted data
+        final jwtEncoded = createJwtWithExpiry(
+          encryptedUuid: encryptedData,
+          expiryInSeconds: 3600 * 5,
+          secretKey: 'dev',
+        );
+        // store the jwt in the preferences
+        await saveJwtToPreferences(jwtEncoded);
+
         final Map<String, dynamic>? userData = responseBody['user'];
         final Map<String, dynamic>? userReferralData =
             responseBody['referralCode'];
@@ -54,10 +76,7 @@ class RemoteRepo implements RemoteRepoInterface {
     final dio = networkProvider.noAuth();
 
     try {
-      final response = await dio.post(
-        ApiEndpoints.signUp,
-        data: userData,
-      );
+      final response = await dio.post(ApiEndpoints.signUp, data: userData);
 
       if (response.statusCode == 201) {
         final Map<String, dynamic> responseBody = response.data;
@@ -66,7 +85,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return responseBody;
       } else {
         throw Exception(
-            'Signup failed with status code: ${response.statusCode}');
+          'Signup failed with status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       // Handle DioException specifically
@@ -129,7 +149,8 @@ class RemoteRepo implements RemoteRepoInterface {
             .toList();
       } else {
         throw Exception(
-            'Failed to fetch slots. Status code: ${response.statusCode}');
+          'Failed to fetch slots. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error fetching slots: $e');
@@ -140,18 +161,13 @@ class RemoteRepo implements RemoteRepoInterface {
   @override
   Future<Map<String, dynamic>> createBooking({
     required int slotId,
-    required int userId,
     required int gameId,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
         '${ApiEndpoints.bookingsBaseUrl}/bookings',
-        data: {
-          "slot_id": slotId,
-          "user_id": userId,
-          "game_id": gameId,
-        },
+        data: {"slot_id": slotId, "game_id": gameId},
       );
 
       if (response.statusCode == 201) {
@@ -160,7 +176,7 @@ class RemoteRepo implements RemoteRepoInterface {
         return {
           "success": false,
           "message":
-              "Failed to create booking. Status code: ${response.statusCode}"
+              "Failed to create booking. Status code: ${response.statusCode}",
         };
       }
     } catch (e) {
@@ -168,14 +184,52 @@ class RemoteRepo implements RemoteRepoInterface {
     }
   }
 
-  @override
-  Future<List<Map<String, dynamic>>> fetchUserBookings(int userId) async {
-    if (userId == 0) return [];
+  Future<Map<String, dynamic>> deleteUser() async {
+    final dio = await networkProvider
+        .auth(); // must attach Authorization header (Bearer <jwt>)
+    try {
+      // If your API expects /api/users/{id}, switch endpoint to: '${ApiEndpoints.baseUrl}/$userId'
+      final response = await dio.delete(
+        ApiEndpoints
+            .baseUrl, // DELETE /api/users  -> delete current authenticated user
+        options: Options(
+          // treat 4xx (except 5xx) as handled so we can show API message
+          validateStatus: (code) => code != null && code < 500,
+        ),
+      );
 
-    final dio = networkProvider.noAuth();
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return {
+          "success": true,
+          "message": (response.data is Map && response.data['message'] != null)
+              ? response.data['message']
+              : "Account deleted successfully",
+        };
+      }
+
+      // Handle common auth/client errors with useful messages
+      final data = response.data;
+      final serverMsg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : "Failed to delete account. Status code: ${response.statusCode}";
+      return {"success": false, "message": serverMsg};
+    } on DioException catch (e) {
+      // Let retry interceptor handle retryable errors
+      if (ApiErrorHandler.shouldRetry(e)) rethrow;
+
+      final msg = ApiErrorHandler.extractErrorMessage(e);
+      return {"success": false, "message": msg};
+    } catch (e) {
+      return {"success": false, "message": "Unexpected error: $e"};
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchUserBookings() async {
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.get(
-        '${ApiEndpoints.bookingsBaseUrl}/users/$userId/bookings',
+        '${ApiEndpoints.bookingsBaseUrl}/users/bookings',
       );
 
       if (response.statusCode == 200) {
@@ -183,10 +237,10 @@ class RemoteRepo implements RemoteRepoInterface {
         return data.map((e) => e as Map<String, dynamic>).toList();
       } else {
         throw Exception(
-            'Failed to fetch bookings. Status code: ${response.statusCode}');
+          'Failed to fetch bookings. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
-      print('Error fetching bookings: $e');
       if (e is DioException) {
         // If it's a retryable error, let the interceptor handle it
         if (ApiErrorHandler.shouldRetry(e)) {
@@ -212,7 +266,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return List<Map<String, dynamic>>.from(data['vendors']);
       } else {
         throw Exception(
-            'Failed to fetch cybercafes. Status code: ${response.statusCode}');
+          'Failed to fetch cybercafes. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error fetching cybercafes: $e');
@@ -244,7 +299,8 @@ class RemoteRepo implements RemoteRepoInterface {
         };
       } else {
         throw Exception(
-            'Failed to fetch vendor games. Status code: ${response.statusCode}');
+          'Failed to fetch vendor games. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error fetching vendor games: $e');
@@ -270,7 +326,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return List<Map<String, dynamic>>.from(data['results']);
       } else {
         throw Exception(
-            'Failed to fetch game news. Status code: ${response.statusCode}');
+          'Failed to fetch game news. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error fetching game news: $e');
@@ -284,8 +341,10 @@ class RemoteRepo implements RemoteRepoInterface {
     required String paymentId,
     required String bookDate,
     required String paymentMode, // ✅ ADD THIS
-
     String? voucherCode,
+    bool isGamePass = false,
+    List<ExtraServiceItem>? extraServices,
+    String? userPassId,
   }) async {
     final dio = networkProvider.noAuth();
     try {
@@ -294,11 +353,20 @@ class RemoteRepo implements RemoteRepoInterface {
         "payment_id": paymentId,
         "book_date": bookDate,
         "payment_mode": paymentMode,
+        "use_pass": isGamePass,
+        "user_pass_id": userPassId,
       };
 
       // Add voucher code if provided
       if (voucherCode != null && voucherCode.isNotEmpty) {
         requestData["voucher_code"] = voucherCode;
+      }
+
+      // Add extra services if provided
+      if (extraServices != null && extraServices.isNotEmpty) {
+        requestData["extra_services"] = extraServices
+            .map((item) => item.toJson())
+            .toList();
       }
 
       final response = await dio.post(
@@ -310,7 +378,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return response.data;
       } else {
         throw Exception(
-            'Failed to confirm booking. Status code: ${response.statusCode}');
+          'Failed to confirm booking. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error confirming booking: $e');
@@ -329,7 +398,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return List<Map<String, dynamic>>.from(data['addresses']);
       } else {
         throw Exception(
-            'Failed to fetch addresses. Status code: ${response.statusCode}');
+          'Failed to fetch addresses. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error fetching addresses: $e');
@@ -347,7 +417,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return response.data;
       } else {
         throw Exception(
-            'Failed to fetch active address. Status code: ${response.statusCode}');
+          'Failed to fetch active address. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error fetching active address: $e');
@@ -359,14 +430,12 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<void> addAddress(Map<String, dynamic> address) async {
     final dio = await networkProvider.auth();
     try {
-      final response = await dio.post(
-        ApiEndpoints.addAddress,
-        data: address,
-      );
+      final response = await dio.post(ApiEndpoints.addAddress, data: address);
 
       if (response.statusCode != 200) {
         throw Exception(
-            'Failed to add address. Status code: ${response.statusCode}');
+          'Failed to add address. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error adding address: $e');
@@ -384,17 +453,15 @@ class RemoteRepo implements RemoteRepoInterface {
     try {
       final response = await dio.post(
         ApiEndpoints.cartBaseUrl,
-        data: {
-          "product_id": productId,
-          "quantity": quantity,
-        },
+        data: {"product_id": productId, "quantity": quantity},
       );
 
       if (response.statusCode == 200) {
         return response.data;
       } else {
         throw Exception(
-            'Failed to add to cart. Status code: ${response.statusCode}');
+          'Failed to add to cart. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error adding to cart: $e');
@@ -414,7 +481,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return items.map((item) => item as Map<String, dynamic>).toList();
       } else {
         throw Exception(
-            'Failed to fetch cart. Status code: ${response.statusCode}');
+          'Failed to fetch cart. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error fetching cart: $e');
@@ -426,13 +494,12 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<void> deleteCartItem(String productId) async {
     final dio = await networkProvider.auth();
     try {
-      final response = await dio.delete(
-        '${ApiEndpoints.cartItem}/$productId',
-      );
+      final response = await dio.delete('${ApiEndpoints.cartItem}/$productId');
 
       if (response.statusCode != 200) {
         throw Exception(
-            'Failed to delete item from cart. Status code: ${response.statusCode}');
+          'Failed to delete item from cart. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error deleting cart item: $e');
@@ -447,16 +514,15 @@ class RemoteRepo implements RemoteRepoInterface {
     try {
       final response = await dio.get(
         ApiEndpoints.checkoutOther,
-        options: Options(
-          followRedirects: true,
-        ),
+        options: Options(followRedirects: true),
       );
 
       if (response.statusCode == 200) {
         return response.data;
       } else {
         throw Exception(
-            'Failed to initiate checkout. Status code: ${response.statusCode}');
+          'Failed to initiate checkout. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error initiating checkout: $e');
@@ -485,7 +551,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return response.data;
       } else {
         throw Exception(
-            'Failed to validate transaction. Status code: ${response.statusCode}');
+          'Failed to validate transaction. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error validating transaction: $e');
@@ -505,7 +572,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return data.map((item) => item as Map<String, dynamic>).toList();
       } else {
         throw Exception(
-            'Failed to fetch products. Status code: ${response.statusCode}');
+          'Failed to fetch products. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error fetching products: $e');
@@ -523,7 +591,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return response.data;
       } else {
         throw Exception(
-            'Failed to fetch product. Status code: ${response.statusCode}');
+          'Failed to fetch product. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error fetching product by ID: $e');
@@ -533,49 +602,73 @@ class RemoteRepo implements RemoteRepoInterface {
 
   // Wallet related methods
   @override
-  Future<Map<String, dynamic>> fetchWallet() async {
+  Future<Map<String, dynamic>> fetchWallet({required String userId}) async {
     final dio = await networkProvider.auth();
     try {
-      final response = await dio.get(ApiEndpoints.wallet);
+      final response = await dio.get(ApiEndpoints.wallet());
 
       if (response.statusCode == 200) {
         return response.data;
       } else {
         throw Exception(
-            'Failed to fetch wallet data. Status code: ${response.statusCode}');
+          'Failed to fetch wallet data. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error fetching wallet: $e');
       rethrow;
     }
   }
-
   @override
-  Future<Map<String, dynamic>> addFunds({
-    required double amount,
-    required String description,
-    required String name,
-    required String contact,
-    required String emailId,
+  Future<void> claimDropCrateBonus({
+    required String userId,
+    int amount = 30,
   }) async {
     final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
-        ApiEndpoints.addFunds,
+        '${ApiEndpoints.baseUrl}/wallet',
         data: {
-          'amount': amount,
-          'description': description,
-          'name': name,
-          'contact': contact,
-          'email_id': emailId,
+          "amount": amount,
+          "reference_id": "drop_crate_${DateTime.now().millisecondsSinceEpoch}",
         },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint("✅ Drop Crate bonus claimed successfully.");
+      } else {
+        final err = response.data;
+        throw Exception(
+          (err is Map && err.containsKey('error'))
+              ? err['error']
+              : 'Failed to claim drop crate bonus',
+        );
+      }
+    } catch (e) {
+      debugPrint("❌ Error claiming drop crate bonus: $e");
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> addFunds({
+    required String userId,
+    required String paymentId,
+    required int amount,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.wallet(),
+        data: {'amount': amount, 'reference_id': paymentId},
       );
 
       if (response.statusCode == 200) {
         return response.data;
       } else {
         throw Exception(
-            'Failed to add funds. Status code: ${response.statusCode}');
+          'Failed to add funds. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error adding funds: $e');
@@ -598,7 +691,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return response.data;
       } else {
         throw Exception(
-            'Failed to validate funds. Status code: ${response.statusCode}');
+          'Failed to validate funds. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error validating funds: $e');
@@ -610,15 +704,13 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<void> saveReferralCodeToPreferences(String referralCode) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('referralCode', referralCode);
-    print('Referral code saved to preferences.');
   }
 
   @override
   Future<void> createVoucher({required String userId}) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
-      final response = await dio
-          .post(ApiEndpoints.createVoucher.replaceAll('{userId}', userId));
+      final response = await dio.post(ApiEndpoints.createVoucher);
       if (response.statusCode == 200) {
         return response.data;
       } else if (response.statusCode == 400) {
@@ -628,12 +720,9 @@ class RemoteRepo implements RemoteRepoInterface {
             responseData.containsKey('error')) {
           errorMessage = responseData['error'];
         }
-        debugPrint('Voucher creation failed: $errorMessage');
         throw Exception(errorMessage);
       }
     } catch (e) {
-      debugPrint('Error creating voucher: $e');
-
       // Handle DioException specifically to extract error message
       if (e is DioException && e.response != null) {
         final statusCode = e.response!.statusCode;
@@ -658,10 +747,9 @@ class RemoteRepo implements RemoteRepoInterface {
 
   @override
   Future<List<GetVoucherModel>> getVoucher({required String userId}) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
-      final response =
-          await dio.get(ApiEndpoints.getVoucher.replaceAll('{userId}', userId));
+      final response = await dio.get(ApiEndpoints.getVoucher);
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = response.data;
 
@@ -675,7 +763,8 @@ class RemoteRepo implements RemoteRepoInterface {
         }
       } else {
         throw Exception(
-            'Failed to get voucher. Status code: ${response.statusCode}');
+          'Failed to get voucher. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       debugPrint('Error getting voucher: $e');
@@ -684,12 +773,10 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<int> getHashCoin({required String userId}) async {
-    final dio = networkProvider.noAuth();
+  Future<int> getHashCoin() async {
+    final dio = await networkProvider.auth();
     try {
-      final response = await dio.get(
-        ApiEndpoints.getHashCoin.replaceAll('{userId}', userId),
-      );
+      final response = await dio.get(ApiEndpoints.getHashCoin);
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = response.data;
         // Handle null case by returning 0 if hash_coin is null
@@ -697,7 +784,8 @@ class RemoteRepo implements RemoteRepoInterface {
         return hashCoin is int ? hashCoin : 0;
       } else {
         throw Exception(
-            'Failed to get hash coin. Status code: ${response.statusCode}');
+          'Failed to get hash coin. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       debugPrint('Error getting hash coin: $e');
@@ -706,19 +794,21 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<CreateVoucherResponse> createOffer(
-      {required int discountPercentage, required String userId}) async {
-    final dio = networkProvider.noAuth();
+  Future<CreateVoucherResponse> createOffer({
+    required int discountPercentage,
+  }) async {
+    final dio = await networkProvider.auth();
     try {
-      final response = await dio.post(ApiEndpoints.createOffer, data: {
-        'discount_percentage': discountPercentage,
-        'user_id': userId,
-      });
+      final response = await dio.post(
+        ApiEndpoints.createOffer,
+        data: {'discount_percentage': discountPercentage},
+      );
       if (response.statusCode == 200) {
         return CreateVoucherResponse.fromJson(response.data);
       } else {
         throw Exception(
-            'Failed to create offer. Status code: ${response.statusCode}');
+          'Failed to create offer. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       debugPrint('Error creating offer: $e');
@@ -727,19 +817,23 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<String> scanQrCode(
-      {required String consoleId,
-      required String gameId,
-      required String vendorId,
-      required String bookingId}) async {
+  Future<String> scanQrCode({
+    required String consoleId,
+    required String gameId,
+    required String vendorId,
+    required String bookingId,
+  }) async {
     final dio = networkProvider.noAuth();
     try {
-      final response = await dio.post(ApiEndpoints.scanQrCode, data: {
-        'console_id': consoleId,
-        'game_id': gameId,
-        'vendor_id': vendorId,
-        'booking_id': bookingId,
-      });
+      final response = await dio.post(
+        ApiEndpoints.scanQrCode,
+        data: {
+          'console_id': consoleId,
+          'game_id': gameId,
+          'vendor_id': vendorId,
+          'booking_id': bookingId,
+        },
+      );
       if (response.statusCode == 201) {
         return response.data['message'];
       } else {
@@ -750,12 +844,9 @@ class RemoteRepo implements RemoteRepoInterface {
             responseData.containsKey('error')) {
           errorMessage = responseData['error'];
         }
-        debugPrint('QR code scanning failed: $errorMessage');
         throw Exception(errorMessage);
       }
     } catch (e) {
-      debugPrint('Error scanning QR code: $e');
-
       // Handle DioException specifically to extract error message
       if (e is DioException && e.response != null) {
         final statusCode = e.response!.statusCode;
@@ -779,20 +870,25 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<String> registerFCMToken(
-      {required String userId, required String token}) async {
-    final dio = networkProvider.noAuth();
+  Future<String> registerFCMToken({
+    required String userId,
+    required String token,
+  }) async {
+    final dio = await networkProvider.auth();
     try {
-      final response =
-          await dio.post(ApiEndpoints.registerFCMToken(userId), data: {
-        "token": token,
-        "platform": Platform.isAndroid ? "android" : "ios",
-      });
+      final response = await dio.post(
+        ApiEndpoints.registerFCMToken,
+        data: {
+          "token": token,
+          "platform": Platform.isAndroid ? "android" : "ios",
+        },
+      );
       if (response.statusCode == 200) {
         return response.data['message'];
       } else {
         throw Exception(
-            'Failed to register FCM token. Status code: ${response.statusCode}');
+          'Failed to register FCM token. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       debugPrint('Error registering FCM token: $e');
@@ -801,22 +897,206 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<String> releaseBooking({
-    required BookingModel bookings,
-  }) async {
+  Future<String> releaseBooking({required BookingModel bookings}) async {
     final dio = networkProvider.noAuth();
     try {
-      final response =
-          await dio.post(ApiEndpoints.releaseBooking, data: bookings.toJson());
+      final response = await dio.post(
+        ApiEndpoints.releaseBooking,
+        data: {'bookings': bookings},
+      );
       if (response.statusCode == 200) {
         return response.data['message'];
       } else {
         throw Exception(
-            'Failed to release booking. Status code: ${response.statusCode}');
+          'Failed to release booking. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       debugPrint('Error releasing booking: $e');
       rethrow;
     }
+  }
+
+  @override
+  Future<List<GetPassModel>> getGamePass({
+    required String userId,
+    required String type,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(
+        ApiEndpoints.gamePass,
+        queryParameters: {'type': type},
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = response.data;
+        return responseData
+            .map((e) => GetPassModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else {
+        throw Exception(
+          'Failed to get game pass. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error getting game pass: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<GetPassModel>> getUserActiveGamePass({
+    required String userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(ApiEndpoints.getActivePasses);
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = response.data;
+        return responseData
+            .map((e) => GetPassModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else {
+        throw Exception(
+          'Failed to get game pass. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error getting game pass: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<GetFoodMenuModel> getFoodMenu({required String vendorId}) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.get(ApiEndpoints.getExtraService(vendorId));
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        return GetFoodMenuModel.fromJson(responseData as Map<String, dynamic>);
+      } else {
+        throw Exception(
+          'Failed to get food menu. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error getting food menu: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String> purchasePass({
+    required String userId,
+    required PurchasePassModel passModel,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.purchasePass,
+        data: passModel.toJson(),
+      );
+      if (response.statusCode == 200) {
+        return response.data['message'];
+      } else {
+        throw Exception(
+          'Failed to purchase pass. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error purchasing pass: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<TransactionHistoryModel>> getTransactionHistory({
+    required String userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(ApiEndpoints.getTransactionHistory);
+      if (response.statusCode == 200) {
+        // Check if response.data is a Map and contains 'transactions'
+        if (response.data is Map<String, dynamic> &&
+            response.data.containsKey('transactions')) {
+          final List<dynamic> responseData = response.data['transactions'];
+          return responseData
+              .map(
+                (e) =>
+                    TransactionHistoryModel.fromJson(e as Map<String, dynamic>),
+              )
+              .toList();
+        } else if (response.data is List) {
+          // If response.data is directly a list of transactions
+          final List<dynamic> responseData = response.data;
+          return responseData
+              .map(
+                (e) =>
+                    TransactionHistoryModel.fromJson(e as Map<String, dynamic>),
+              )
+              .toList();
+        } else {
+          throw Exception(
+            'Invalid response format. Expected transactions array.',
+          );
+        }
+      } else {
+        throw Exception(
+          'Failed to get transaction history. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error getting transaction history: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> saveJwtToPreferences(String jwt) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('jwt', jwt);
+  }
+
+  @override
+  Future<String?> getJwtFromPreferences() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('jwt');
+  }
+
+  @override
+  Future<void> capturePayment({
+    required CapturePaymentModel capturePaymentModel,
+  }) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.capturePayment,
+        data: capturePaymentModel.toJson(),
+      );
+      if (response.statusCode == 200) {
+        return;
+      } else {
+        throw Exception(
+          'Failed to capture payment. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error capturing payment: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String> getUIDFromPreferences() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('uid') ?? '';
+  }
+
+  @override
+  Future<void> saveUIDToPreferences(String uid) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('uid', uid);
   }
 }

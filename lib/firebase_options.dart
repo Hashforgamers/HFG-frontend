@@ -63,13 +63,13 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCXO-uoxj4l3avsid_N5rxUDRbSPK0z2B0',
-    appId: '1:376797794992:ios:aa916bac09884b8ed82175',
+    appId: '1:376797794992:ios:a86e2e341999671fd82175',
     messagingSenderId: '376797794992',
     projectId: 'hash-ee6fc',
     storageBucket: 'hash-ee6fc.firebasestorage.app',
     androidClientId: '376797794992-6n1pa1g8kmo87g98mknh7nlbj6br177f.apps.googleusercontent.com',
-    iosClientId: '376797794992-ikpq7h5o7flrhgmm53otlf1sm973489h.apps.googleusercontent.com',
-    iosBundleId: 'com.hfg.hash',
+    iosClientId: '376797794992-5cvgge6qmfms06rr1bkj22ibn06tstns.apps.googleusercontent.com',
+    iosBundleId: 'com.hashforgamers.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(

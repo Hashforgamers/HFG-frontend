@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
 
 class RainbowLoadingBar extends StatefulWidget {
-  final double? width;
-  final double? height;
+  final double width;
+  final double height;
 
-  const RainbowLoadingBar({super.key, this.width, this.height});
+  const RainbowLoadingBar({
+    super.key,
+    this.width = 200.0,
+    this.height = 3.0,
+  });
 
   @override
-  _RainbowLoadingBarState createState() => _RainbowLoadingBarState();
+  State<RainbowLoadingBar> createState() => _RainbowLoadingBarState();
 }
 
-class _RainbowLoadingBarState extends State<RainbowLoadingBar> with SingleTickerProviderStateMixin {
+class _RainbowLoadingBarState extends State<RainbowLoadingBar>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late Animation<double> _animation;
 
   @override
   void initState() {
@@ -20,6 +26,8 @@ class _RainbowLoadingBarState extends State<RainbowLoadingBar> with SingleTicker
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat();
+
+    _animation = Tween<double>(begin: -8.0, end: 1.0).animate(_controller);
   }
 
   @override
@@ -30,52 +38,48 @@ class _RainbowLoadingBarState extends State<RainbowLoadingBar> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SizedBox(
-        height: widget.height ?? 5.0,
-        width: widget.width ?? 200.0,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return ShaderMask(
-              shaderCallback: (bounds) {
-                return LinearGradient(
-                  begin: Alignment(-8.0 + 8.0 * _controller.value, 0.0),
-                  end: Alignment(1.0 + 8.0 * _controller.value, 0.0),
-                  colors: const [
-                    Colors.red,
-                    Colors.orange,
-                    Colors.yellow,
-                    Colors.green,
-                    Colors.blue,
-                    Colors.indigo,
-                    Colors.purple,
-                    Colors.red, // Ensure the loop is smooth
-                  ],
-                  stops: const [
-                    0.0,
-                    1 / 7,
-                    2 / 7,
-                    3 / 7,
-                    4 / 7,
-                    5 / 7,
-                    6 / 7,
-                    1.0,
-                  ],
-                ).createShader(bounds);
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(3),
-                ),
+    return SizedBox(
+      width: widget.width,
+      height: widget.height,
+      child: AnimatedBuilder(
+        animation: _animation,
+        builder: (context, child) {
+          return ShaderMask(
+            shaderCallback: (bounds) {
+              return LinearGradient(
+                begin: Alignment(_animation.value, 0.0),
+                end: Alignment(_animation.value + 8.0, 0.0),
+                colors: const [
+                  Colors.red,
+                  Colors.orange,
+                  Colors.yellow,
+                  Colors.green,
+                  Colors.blue,
+                  Colors.indigo,
+                  Colors.purple,
+                  Colors.red, // for smooth wrap
+                ],
+                stops: const [
+                  0.0,
+                  1 / 7,
+                  2 / 7,
+                  3 / 7,
+                  4 / 7,
+                  5 / 7,
+                  6 / 7,
+                  1.0,
+                ],
+              ).createShader(bounds);
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(3),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 }
-
-

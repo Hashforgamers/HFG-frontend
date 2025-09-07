@@ -26,8 +26,6 @@ class CartView extends StatelessWidget {
           },
           child: Container(
             height: 45,
-            margin: EdgeInsets.all(5),
-            padding: EdgeInsets.all(5),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               color: Color(0xffDE3A3A),
@@ -49,29 +47,28 @@ class CartView extends StatelessWidget {
       ),
       appBar: AppBar(
         centerTitle: false,
-        title: Text('Cart', style: GoogleFonts.inter(color: Colors.white)),
+        title: Text(
+          'Cart',
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+        ),
         backgroundColor: Colors.black,
         leading: GestureDetector(
           onTap: () {
             Get.back();
           },
-          child: const Icon(
-            Icons.arrow_back,
-            color: Color(0xffDE3A3A),
-          ),
+          child: const Icon(Icons.arrow_back, color: Color(0xffDE3A3A)),
         ),
       ),
       body: Obx(() {
         if (cartController.isLoading.value) {
-          return const Center(
-            child: RainbowGlowingLoader(size: 50),
-          );
+          return const Center(child: RainbowGlowingLoader(size: 50));
         } else if (cartController.cartItems.isEmpty) {
           return Center(
-              child: Text(
-            'Cart is empty',
-            style: GoogleFonts.inter(color: Colors.white),
-          ));
+            child: Text(
+              'Cart is empty',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+          );
         } else {
           return Column(
             children: [
@@ -96,14 +93,19 @@ class CartView extends StatelessWidget {
             width: 60,
             decoration: ShapeDecoration(
               shape: ContinuousRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
               color: Color(0xff121212),
             ),
           ),
-          title: Text('Product ID: ${item.productId}',
-              style: GoogleFonts.inter(color: Colors.white)),
-          subtitle: Text('Quantity: ${item.quantity}',
-              style: GoogleFonts.inter(color: Colors.white70)),
+          title: Text(
+            'Product ID: ${item.productId}',
+            style: GoogleFonts.inter(color: Colors.white),
+          ),
+          subtitle: Text(
+            'Quantity: ${item.quantity}',
+            style: GoogleFonts.inter(color: Colors.white70),
+          ),
           trailing: IconButton(
             icon: const Icon(CupertinoIcons.delete, color: Colors.red),
             onPressed: () {
@@ -126,10 +128,7 @@ class CartView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Payment Option',
-            style: GoogleFonts.inter(color: Colors.white),
-          ),
+          Text('Payment Option', style: GoogleFonts.inter(color: Colors.white)),
           Obx(() {
             return Column(
               children: [
@@ -137,8 +136,10 @@ class CartView extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   contentPadding: EdgeInsets.symmetric(horizontal: 0),
                   activeColor: Color(0xffDE3A3A),
-                  title: Text('Wallet',
-                      style: GoogleFonts.inter(color: Colors.white)),
+                  title: Text(
+                    'Wallet',
+                    style: GoogleFonts.inter(color: Colors.white),
+                  ),
                   value: 'wallet',
                   groupValue: checkoutController.paymentMethod.value,
                   onChanged: (value) {
@@ -149,8 +150,10 @@ class CartView extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   contentPadding: EdgeInsets.symmetric(horizontal: 0),
                   activeColor: Color(0xffDE3A3A),
-                  title: Text('Other',
-                      style: GoogleFonts.inter(color: Colors.white)),
+                  title: Text(
+                    'Other',
+                    style: GoogleFonts.inter(color: Colors.white),
+                  ),
                   value: 'other',
                   groupValue: checkoutController.paymentMethod.value,
                   onChanged: (value) {
@@ -197,16 +200,18 @@ class CartView extends StatelessWidget {
                 isExpanded: true, // Use full width
                 onChanged: (String? newValue) {
                   var selectedAddress = addressController.addresses.firstWhere(
-                      (address) => address['addressLine1'] == newValue);
+                    (address) => address['addressLine1'] == newValue,
+                  );
                   addressController.activeAddress.value = selectedAddress;
                 },
                 items: addressController.addresses
                     .map<DropdownMenuItem<String>>((address) {
-                  return DropdownMenuItem<String>(
-                    value: address['addressLine1'],
-                    child: Text(address['addressLine1']),
-                  );
-                }).toList(),
+                      return DropdownMenuItem<String>(
+                        value: address['addressLine1'],
+                        child: Text(address['addressLine1']),
+                      );
+                    })
+                    .toList(),
               ),
             );
           }),

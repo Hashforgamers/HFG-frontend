@@ -1,14 +1,21 @@
+import 'package:clarity_flutter/clarity_flutter.dart';
+import 'package:device_preview/device_preview.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
+import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/core/service/deeplink_service.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/utils/scroll_behaviour.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/adapters.dart';
 import 'app/data/services/user_controller.dart';
 import 'app/modules/arena/controllers/booking_controller.dart';
 import 'app/modules/game/views/game_section_view.dart';
@@ -21,6 +28,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ScreenUtil.ensureScreenSize(); // optional but prevents early access
 
   // Initialize flavor configuration for production
   FlavorConfig(
@@ -40,10 +48,9 @@ void main() async {
     primaryColor: Colors.purple,
     accentColor: Colors.purpleAccent,
   );
-
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Hive.initFlutter();
+  await Hive.openBox('user');
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
@@ -54,9 +61,10 @@ void main() async {
   Get.put(GamesController(), permanent: true);
   Get.put(NotificationController());
   Get.put(DeepLinkController());
+  // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
 
-  runApp(const MyApp());
+  runApp(DevicePreview(enabled: !kReleaseMode, builder: (context) => MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -64,25 +72,38 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (context) => HashCoinCubit(),
-        ),
-        BlocProvider(
-          create: (context) => FcmCubit(),
-        ),
-      ],
-      child: ScrollConfiguration(
-        behavior: NoGlowScrollBehavior(),
-        child: GetMaterialApp(
-          debugShowCheckedModeBanner: false, // Hide debug banner for prod
-          title: FlavorConfig.instance.appName,
-          theme: AppTheme.dark,
-          initialRoute: AppRoutes.SPLASH,
-          getPages: AppPages.pages,
-        ),
-      ),
+    final config = ClarityConfig(
+      projectId: "t124gco2m1",
+      logLevel: LogLevel
+          .None, // Note: Use "LogLevel.Verbose" value while testing to debug initialization issues.
+    );
+
+    return ScreenUtilInit(
+      designSize: const Size(390, 844),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      builder: (context, child) {
+        return MultiBlocProvider(
+          providers: [
+            BlocProvider(create: (context) => HashCoinCubit()),
+            BlocProvider(create: (context) => FcmCubit()),
+            BlocProvider(create: (context) => GamePassCubit()),
+          ],
+          child: ScrollConfiguration(
+            behavior: NoGlowScrollBehavior(),
+            child:  ClarityWidget(
+              clarityConfig: config,
+              app: GetMaterialApp(
+                debugShowCheckedModeBanner: true, // Show debug banner for dev
+                title: FlavorConfig.instance.appName,
+                theme: AppTheme.dark,
+                initialRoute: AppRoutes.SPLASH,
+                getPages: AppPages.pages,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

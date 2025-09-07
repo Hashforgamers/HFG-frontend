@@ -1,9 +1,10 @@
-import 'package:flutter/cupertino.dart';
+import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/global_bottom_sheet_service.dart';
-
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import '../wallet/controllers/wallet_controller.dart';
 import '../wallet/views/wallet_view.dart';
 
@@ -15,45 +16,39 @@ class RewardsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final WalletController walletController = Get.find<WalletController>();
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+    return Wrap(
+      spacing: 8,
       children: [
         GestureDetector(
-          onTap: () async {
-            await GlobalBottomSheetService().showHashCoinRedemptionBottomSheet(
-              context,
-              hashCoin: hashCoin,
-              onSuccess: (message) {
-                Get.snackbar("Success", message);
-              },
-              onError: (message) {
-                Get.snackbar("Error", message);
-              },
-              onLoading: () {
-                Get.snackbar("Loading", "Please wait...");
-              },
-            );
-          },
-          child: _buildRewardItem(
-            CupertinoIcons.hexagon,
-            "$hashCoin",
-            "Hash Coins",
-            const Color(0xff338125),
-          ),
+          onTap: () => _onRedeemPressed(context),
+          child: _buildPill(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_loog_kze6kr.png", amount: "$hashCoin"),
         ),
         GestureDetector(
-          onTap: () {
-            Get.to(WalletScreen());
-          },
+          onTap: () => Get.to(WalletPage()),
           child: Obx(() {
-            final walletBalance = walletController.balance.value;
-            final isLoading = walletController.isLoading.value;
-
-            return _buildRewardItem(
-              CupertinoIcons.circle_bottomthird_split,
-              isLoading ? "..." : "₹$walletBalance",
-              "Wallet",
-              Colors.yellow,
+            final isLoading = walletController.isLoading; 
+            final walletBalance = walletController.balance;
+            return Stack(
+              children: [
+                _buildPill(
+                  icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_coin_logo_hy62ou.png",
+                  amount: isLoading ? "..." : "₹$walletBalance",
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: CachedNetworkImage(
+                    imageUrl:
+                        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755197537/Vector_g5eapj.png',
+                    height: 12,
+                    width: 12,
+                    placeholder: (_, _) =>
+                        const Center(child: RainbowGlowingLoader(size: 4)),
+                    errorWidget: (_, _, _) =>
+                        const Icon(Icons.error, color: Colors.red),
+                  ),
+                ),
+              ],
             );
           }),
         ),
@@ -61,33 +56,60 @@ class RewardsSection extends StatelessWidget {
     );
   }
 
-  Widget _buildRewardItem(
-      IconData icon, String amount, String label, Color color) {
-    return Column(
-      children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 3.0),
-              child: Text(
-                label[0],
-                style: GoogleFonts.inter(color: color, fontSize: 20),
-              ),
+  void _onRedeemPressed(BuildContext context) {
+    GlobalBottomSheetService().showHashCoinRedemptionBottomSheet(
+      context,
+      hashCoin: hashCoin,
+      onSuccess: (message) => Get.snackbar("Success", message),
+      onError: (message) => Get.snackbar("Error", message),
+      onLoading: () => Get.snackbar("Loading", "Please wait..."),
+    );
+  }
+
+  Widget _buildPill({required String icon, required String amount}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+          constraints: const BoxConstraints(minWidth: 80),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.15),
+                Colors.white.withOpacity(0.05),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            Icon(icon, color: color, size: 30),
-          ],
-        ),
-        const SizedBox(height: 5),
-        Text(
-          amount,
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CachedNetworkImage(
+                imageUrl: icon,
+                height: 18,
+                width: 18,
+                placeholder: (_, _) =>
+                    const Center(child: RainbowGlowingLoader(size: 10)),
+                errorWidget: (_, _, _) =>
+                    const Icon(Icons.error, color: Colors.red),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                amount,
+                style: GoogleFonts.bigShouldersDisplay(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+            ],
           ),
         ),
-        Text(label, style: GoogleFonts.inter(color: Colors.white)),
-      ],
+      ),
     );
   }
 }

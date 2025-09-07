@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../utils/widgets/loader.dart';
+
 class TournamentsSection extends StatelessWidget {
   const TournamentsSection({super.key});
 
@@ -97,7 +99,7 @@ class TournamentCard extends StatelessWidget {
               width: double.infinity,
               fit: BoxFit.cover,
               placeholder: (context, url) =>
-                  const Center(child: CircularProgressIndicator()),
+                  Center(child: RainbowLoadingBar()),
               errorWidget: (context, url, error) => const Icon(Icons.error),
             ),
           ),

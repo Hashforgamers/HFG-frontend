@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
@@ -7,22 +6,78 @@ class BookingController extends GetxController {
   final isLoading = false.obs;
   final slots = <Map<String, dynamic>>[].obs; // Holds fetched slots
   final userBookings = <Map<String, dynamic>>[].obs; // Holds user bookings
-  final userId = 0.obs; // Holds user ID
-  final selectedSlots =
-      RxMap<int, List<int>>({}); // Holds selected slots per PC
+  final selectedSlots = RxMap<int, List<int>>(
+    {},
+  ); // Holds selected slots per PC
 
   final _remoteRepo = locator<RemoteRepoInterface>();
 
   @override
   void onInit() {
     super.onInit();
-    fetchUserId().then(
-        (_) => fetchUserBookings()); // Fetch bookings after fetching user ID
+    fetchUserBookings(); // Fetch bookings directly
   }
 
   /// Clear all selected slots
   void clearSelectedSlots() {
     selectedSlots.clear();
+  }
+
+  /// Filter and sort time slots based on start time
+  List<Map<String, dynamic>> filterAndSortTimeSlots(List<Map<String, dynamic>> rawSlots) {
+    try {
+      // Filter out slots that are not available
+      final availableSlots = rawSlots.where((slot) {
+        final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+        return isAvailable;
+      }).toList();
+
+      // Sort slots by start time
+      availableSlots.sort((a, b) {
+        final startTimeA = a['start_time'] ?? '';
+        final startTimeB = b['start_time'] ?? '';
+        
+        // Parse time strings (format: "HH:mm:ss")
+        final timeA = _parseTimeString(startTimeA);
+        final timeB = _parseTimeString(startTimeB);
+        
+        return timeA.compareTo(timeB);
+      });
+
+      // Log the filtered and sorted slots for debugging
+      print('Filtered and sorted ${availableSlots.length} slots out of ${rawSlots.length} total slots');
+      for (var slot in availableSlots.take(3)) {
+        print('Slot: ${slot['start_time']} - ${slot['end_time']}, Available: ${slot['available_slot']}');
+      }
+
+      return availableSlots;
+    } catch (e) {
+      print('Error filtering and sorting slots: $e');
+      return rawSlots; // Return original list if error occurs
+    }
+  }
+
+  /// Parse time string to DateTime for comparison
+  DateTime _parseTimeString(String timeStr) {
+    try {
+      if (timeStr.isEmpty) {
+        return DateTime(2000, 1, 1, 0, 0);
+      }
+      
+      final parts = timeStr.split(':');
+      if (parts.length >= 2) {
+        final hour = int.parse(parts[0]);
+        final minute = int.parse(parts[1]);
+        
+        // Validate hour and minute ranges
+        if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+          return DateTime(2000, 1, 1, hour, minute); // Use arbitrary date for time comparison
+        }
+      }
+    } catch (e) {
+      print('Error parsing time string: $timeStr, error: $e');
+    }
+    return DateTime(2000, 1, 1, 0, 0); // Default to midnight if parsing fails
   }
 
   /// Check if a slot is available based on current time
@@ -40,8 +95,9 @@ class BookingController extends GetxController {
 
       final startHour = int.parse(startTimeParts[0]);
       final startMinute = int.parse(startTimeParts[1]);
-      final slotStartTime =
-          today.add(Duration(hours: startHour, minutes: startMinute));
+      final slotStartTime = today.add(
+        Duration(hours: startHour, minutes: startMinute),
+      );
 
       // Add a buffer of 15 minutes - slots within 15 minutes of current time are not available
       final bufferTime = now.add(const Duration(minutes: 15));
@@ -53,8 +109,68 @@ class BookingController extends GetxController {
 
       return true;
     } catch (e) {
-      print('Error checking slot availability: $e');
       return true; // Default to available if error
+    }
+  }
+
+  /// Get filtered and sorted slots based on availability and time
+  List<Map<String, dynamic>> getFilteredSlots(String selectedDate) {
+    try {
+      final isCurrentDate = selectedDate == _getCurrentDateString();
+      
+      return slots.where((slot) {
+        // First check if slot is available from API
+        final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+        
+        // Then check if slot is available based on current time (only for current date)
+        final bool isTimeAvailable = isCurrentDate ? isSlotAvailableNow(slot) : true;
+        
+        // Also check if there are actually available consoles for this slot
+        final int availableConsoles = slot['available_slot'] ?? 
+                                    slot['availableSlot'] ?? 
+                                    slot['available_slots'] ?? 0;
+        
+        return isAvailable && isTimeAvailable && availableConsoles > 0;
+      }).toList();
+    } catch (e) {
+      print('Error getting filtered slots: $e');
+      return slots.toList();
+    }
+  }
+
+  /// Get total available consoles from filtered slots
+  int getTotalAvailableConsoles(String selectedDate) {
+    try {
+      final availableSlots = getFilteredSlots(selectedDate);
+      return availableSlots.fold<int>(
+        0,
+        (sum, slot) {
+          final int availableConsoles = slot['available_slot'] ??
+                                      slot['availableSlot'] ??
+                                      slot['available_slots'] ??
+                                      0;
+          return sum + availableConsoles;
+        },
+      );
+    } catch (e) {
+      print('Error calculating total available consoles: $e');
+      return 0;
+    }
+  }
+
+  /// Get current date string in yyyyMMdd format
+  String _getCurrentDateString() {
+    final now = DateTime.now();
+    return '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Get the original index of a slot in the main slots list
+  int getOriginalSlotIndex(Map<String, dynamic> slot) {
+    try {
+      return slots.indexWhere((s) => s['slot_id'] == slot['slot_id'] || s['id'] == slot['id']);
+    } catch (e) {
+      print('Error getting original slot index: $e');
+      return 0;
     }
   }
 
@@ -71,13 +187,9 @@ class BookingController extends GetxController {
         date: date,
       );
 
-      // Debug logging to understand the slot structure
-      print('Fetched ${slotList.length} slots');
-      if (slotList.isNotEmpty) {
-        print('First slot structure: ${slotList.first}');
-      }
-
-      slots.assignAll(slotList);
+      // Filter and sort the slots based on start time
+      final filteredAndSortedSlots = filterAndSortTimeSlots(slotList);
+      slots.assignAll(filteredAndSortedSlots);
     } catch (e) {
       _logError('Error fetching slots: $e');
       slots.clear();
@@ -89,14 +201,12 @@ class BookingController extends GetxController {
   /// Create a booking
   Future<Map<String, dynamic>> createBooking({
     required int slotId,
-    required int userId,
     required int gameId,
   }) async {
     _setLoading(true);
     try {
       final result = await _remoteRepo.createBooking(
         slotId: slotId,
-        userId: userId,
         gameId: gameId,
       );
       return result;
@@ -107,33 +217,11 @@ class BookingController extends GetxController {
     }
   }
 
-  /// Fetch user ID from local storage
-  Future<void> fetchUserId() async {
-    try {
-      final userData = await _remoteRepo.getUserFromPreferences();
-      if (userData != null) {
-        userId.value = userData['id'] ?? 0;
-        print('User ID: ${userId.value}');
-      } else {
-        _logError('User data not found in preferences!');
-      }
-    } catch (e) {
-      _logError('Error fetching user ID: $e');
-      Get.snackbar(
-        'Error',
-        'Unable to fetch user data. Please try again.',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    }
-  }
-
-  /// Fetch bookings for a specific user
+  /// Fetch bookings for the current user
   Future<void> fetchUserBookings() async {
-    if (userId.value == 0) return; // Skip if user ID is not set
     _setLoading(true);
     try {
-      final bookings = await _remoteRepo.fetchUserBookings(userId.value);
+      final bookings = await _remoteRepo.fetchUserBookings();
       userBookings.assignAll(bookings);
     } catch (e) {
       _logError('Error fetching bookings: $e');

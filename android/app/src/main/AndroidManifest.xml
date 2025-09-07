@@ -9,10 +9,15 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
+        android:enableOnBackInvokedCallback="true"
+
         >
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyAIeaszJ60ZcjL9hNYpsQ_JD8w8J2vnmuQ" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_notification" />
         <!-- FACEBOOK SDK CONFIG -->
         <meta-data android:name="com.facebook.sdk.ApplicationId"
             android:value="@string/facebook_app_id" />

@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:get/get.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
 import 'package:hash/core/network/api_endpoints.dart';
@@ -38,16 +40,12 @@ class UserController extends GetxController {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final fetchedUser = User.fromJson(data['user']); // ✅ RIGHT
-        print('fetched user $data');
-        id.value = data['user']['id'].toString();         // ✅ Ensure ID is stored correctly
+        id.value = data['user']['id']
+            .toString(); // ✅ Ensure ID is stored correctly
 
         setUserData(fetchedUser);
-        print("ID set: $idValue");
-      } else {
-        print('Failed to load user data: ${response.statusCode}');
-      }
+      } else {}
     } catch (e) {
-      print('Error fetching user data: $e');
     } finally {
       isLoading.value = false;
     }
@@ -56,7 +54,6 @@ class UserController extends GetxController {
   /// ✅ Replace entire user object
   void setUserData(User fetchedUser) {
     user.value = fetchedUser;
-    print("User data updated - Name: ${user.value.name}");
   }
 
   /// ✅ Update Google-auth fields only
@@ -65,9 +62,16 @@ class UserController extends GetxController {
       val?.name = name;
       val?.photoUrl = photoUrl;
     });
-    print("Google User Data set - Name: ${user.value.name}, PhotoURL: $photoUrl");
+  }
+// inside class UserController extends GetxController {
+  final remoteRepo = locator<RemoteRepoInterface>();
+
+  Future<bool> deleteUser() async {
+    final res = await remoteRepo.deleteUser();
+    return res['success'] == true;
   }
 
   /// 👤 Getter for current User ID
   String get userId => id.value;
 }
+

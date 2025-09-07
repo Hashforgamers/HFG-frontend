@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
@@ -21,6 +22,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ScreenUtil.ensureScreenSize(); // optional but prevents early access
 
   // Initialize flavor configuration for production
   FlavorConfig(
@@ -54,6 +56,7 @@ void main() async {
   Get.put(GamesController(), permanent: true);
   Get.put(NotificationController());
   Get.put(DeepLinkController());
+  // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
 
   runApp(const MyApp());
@@ -64,6 +67,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // final config = ClarityConfig(
+    //   projectId: "t124gco2m1",
+    //   logLevel: LogLevel
+    //       .None, // Note: Use "LogLevel.Verbose" value while testing to debug initialization issues.
+    // );
     return MultiBlocProvider(
       providers: [
         BlocProvider(
@@ -75,8 +83,8 @@ class MyApp extends StatelessWidget {
       ],
       child: ScrollConfiguration(
         behavior: NoGlowScrollBehavior(),
-        child: GetMaterialApp(
-          debugShowCheckedModeBanner: false, // Hide debug banner for prod
+        child:  GetMaterialApp(
+          debugShowCheckedModeBanner: true, // Show debug banner for dev
           title: FlavorConfig.instance.appName,
           theme: AppTheme.dark,
           initialRoute: AppRoutes.SPLASH,
