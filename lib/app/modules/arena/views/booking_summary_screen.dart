@@ -2159,6 +2159,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         cafeId: 'cafe_${widget.gameId}',
         gameId: widget.gameId.toString(),
         slotTime: slotTime,
+        email:
+            userController.user.value.contact?.electronicAddress?.emailId ?? '',
+        consoleType: widget.consoleType,
+        consoleAmount: widget.selectedSlots.length,
       );
       fbEventsService.onBookingStarted(
         cafeId: 'cafe_${widget.gameId}',
@@ -2338,12 +2342,19 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       );
 
       // Track booking confirmed event
+      final slotTime = widget.selectedSlots.first['time'] ?? 'Unknown';
       final startTime = DateTime.now().toIso8601String();
       final duration = '${widget.selectedSlots.length} hour(s)';
       segmentService.onBookingConfirmed(
         bookingId: bookingIds.first.toString(),
         startTime: startTime,
         duration: duration,
+        slotTime: slotTime,
+        email:
+            userController.user.value.contact?.electronicAddress?.emailId ?? '',
+        consoleType: widget.consoleType,
+        consoleAmount: widget.selectedSlots.length,
+        paymentMethod: paymentMode,
       );
       fbEventsService.onBookingConfirmed(
         bookingId: bookingIds.first.toString(),
