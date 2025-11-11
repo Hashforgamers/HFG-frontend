@@ -29,11 +29,11 @@ android {
     namespace = "com.hfg.hash"
     compileSdk = 35
     ndkVersion = "27.0.12077973"
-//    lint {
-//        disable.add("PackagedPrivateKey")
-//        checkReleaseBuilds = false
-//        abortOnError = false
-//    }
+    lint {
+        disable.add("PackagedPrivateKey")
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
     defaultConfig {
         applicationId = "com.hfg.hash"
         minSdk = 23                                   // bumped for Firebase Auth

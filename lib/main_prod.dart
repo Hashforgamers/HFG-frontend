@@ -64,7 +64,7 @@ void main() async {
   // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
 
-  runApp(DevicePreview(enabled: !kReleaseMode, builder: (context) => MyApp()));
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {

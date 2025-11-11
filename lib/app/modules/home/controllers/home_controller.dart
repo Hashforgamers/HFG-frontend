@@ -7,27 +7,32 @@ import '../../profile/user_profile_view.dart';
 import '../views/home_content_view.dart';
 
 class HomeController extends GetxController {
-  var selectedIndex = 0.obs;
-  var currentScreen = Rx<Widget>(const HomeContentView());
-  
-  // Cache for screens to prevent rebuilding
+  // --- Reactive states ---
+  final selectedIndex = 0.obs;
+  final currentScreen = Rx<Widget>(const HomeContentView());
+  final isShopOpen = false.obs;
+  final isScreenTransitioning = false.obs;
+
+  // --- Performance & Cache ---
   final Map<int, Widget> _screenCache = {};
-  
-  // Performance tracking
-  var isScreenTransitioning = false.obs;
-  var lastScreenChangeTime = 0;
-  
-  // Memory management
   static const int maxCacheSize = 3;
-  
+  int lastScreenChangeTime = 0;
+
   @override
   void onInit() {
     super.onInit();
     _initializeScreenCache();
   }
-  
+
+  // --- Hash Shop Slide Toggle ---
+  void toggleShop() {
+    // Close if open, open if closed
+    if (isScreenTransitioning.value) return;
+    isShopOpen.toggle();
+  }
+
+  // --- Initialize Pre-cache ---
   void _initializeScreenCache() {
-    // Pre-cache the most commonly used screens
     _screenCache[0] = const HomeContentView();
     _screenCache[1] = const ArenaView();
     _screenCache[2] = PastBookingsScreen();
@@ -35,39 +40,52 @@ class HomeController extends GetxController {
     _screenCache[4] = const UserProfileView();
   }
 
+  // --- Handle Bottom Navigation Tap ---
   void onItemTapped(int index) {
-    // Prevent rapid tapping
+    // --- Debounce to avoid flicker ---
     final now = DateTime.now().millisecondsSinceEpoch;
     if (now - lastScreenChangeTime < 300) return;
-    
+
+    // --- Prevent double-tap on same tab ---
     if (selectedIndex.value == index) return;
-    
     lastScreenChangeTime = now;
-    selectedIndex.value = index;
+
+    // --- Hash Shop Handling (Middle Icon) ---
+    // if (index == 2) {
+    //   // Toggle slide bar instead of switching screen
+    //   toggleShop();
+    //   return;
+    // }
+
+    // --- Close Shop bar when navigating elsewhere ---
+    if (isShopOpen.value) {
+      isShopOpen.value = false;
+    }
+
+    // --- Begin transition ---
     isScreenTransitioning.value = true;
-    
-    // Use cached screen if available
+    selectedIndex.value = index;
+
+    // --- Use cached screen or build new ---
     if (_screenCache.containsKey(index)) {
       currentScreen.value = _screenCache[index]!;
     } else {
-      // Create new screen and cache it
       final newScreen = _createScreenForIndex(index);
       _screenCache[index] = newScreen;
       currentScreen.value = newScreen;
-      
-      // Manage cache size
       _manageCacheSize();
     }
-    
-    // Reset transition flag after a short delay
+
+    // --- End transition after animation ---
     Future.delayed(const Duration(milliseconds: 100), () {
       isScreenTransitioning.value = false;
     });
   }
-  
+
+  // --- Create new screen if not cached ---
   Widget _createScreenForIndex(int index) {
     switch (index) {
-      case 0: 
+      case 0:
         return const HomeContentView();
       case 1:
         return const ArenaView();
@@ -81,34 +99,32 @@ class HomeController extends GetxController {
         return const HomeContentView();
     }
   }
-  
+
+  // --- Limit cache size ---
   void _manageCacheSize() {
     if (_screenCache.length > maxCacheSize) {
-      // Remove least recently used screens
       final keysToRemove = _screenCache.keys
           .where((key) => key != selectedIndex.value)
           .take(_screenCache.length - maxCacheSize);
-      
       for (final key in keysToRemove) {
         _screenCache.remove(key);
       }
     }
   }
-  
-  // Method to clear cache when memory is low
+
+  // --- Manual maintenance ---
   void clearCache() {
     final currentIndex = selectedIndex.value;
     _screenCache.clear();
     _screenCache[currentIndex] = currentScreen.value;
   }
-  
-  // Method to preload specific screens
+
   void preloadScreen(int index) {
     if (!_screenCache.containsKey(index)) {
       _screenCache[index] = _createScreenForIndex(index);
     }
   }
-  
+
   @override
   void onClose() {
     _screenCache.clear();
