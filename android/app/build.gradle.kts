@@ -94,7 +94,7 @@ android {
 /* ───────── dependencies ───────── */
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-    implementation("com.guardsquare:proguard-annotations:7.4.1")
+    //implementation("com.guardsquare:proguard-annotations:7.4.1")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     // add other libs below …

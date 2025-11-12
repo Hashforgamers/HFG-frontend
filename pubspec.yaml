@@ -181,6 +181,7 @@ flutter:
     - assets/ludo/sounds/
 
     - assets/welcome_aboard_images/
+    - assets/hash_store_images/
 
   #   - images/a_dot_ham.jpeg
 

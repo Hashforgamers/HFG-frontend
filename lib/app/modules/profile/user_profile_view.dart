@@ -27,27 +27,31 @@ class UserProfileView extends StatelessWidget {
     UserController userController = Get.put(UserController());
 
     return Scaffold(
-      bottomNavigationBar: Container(height: 120,
-        child: Column(
-          children: [
-
-            _buildLogoutButton(),
-            _buildDeleteButton(userController),
-
-          ],
-        ),
-      ),
+      // bottomNavigationBar: Container(height: 120,
+      //   child: Column(
+      //     children: [
+      //
+      //       _buildLogoutButton(),
+      //       _buildDeleteButton(userController),
+      //
+      //     ],
+      //   ),
+      // ),
       appBar: AppBar(
         centerTitle: false,
-        title: Text('Profile',
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: Icon(Icons.arrow_back_ios_rounded, color: Colors.white70,),
+        ),
         backgroundColor: Colors.black,
       ),
       body: Padding(
         padding: const EdgeInsets.all(10.0),
         child: ListView(
           children: [
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             _buildProfileHeader(userController),
             const SizedBox(height: 30),
             _buildProfileOption(
@@ -65,13 +69,13 @@ class UserProfileView extends StatelessWidget {
             //     Get.to(const GamePassPage());
             //   },
             // ),
-            // _buildProfileOption(
-            //   icon: CupertinoIcons.settings,
-            //   title: 'Settings',
-            //   onTap: () {
-            //     // Handle settings
-            //   },
-            // ),
+            _buildProfileOption(
+              icon: Icons.shopping_bag,
+              title: 'Hash Shop',
+              onTap: () {
+                // Handle settings
+              },
+            ),
             // _buildProfileOption(
             //   icon: CupertinoIcons.money_dollar_circle,
             //   title: 'Wallet',
@@ -124,6 +128,13 @@ class UserProfileView extends StatelessWidget {
             //     // Handle about
             //   },
             // ),
+            _buildProfileOption(
+              icon: Icons.settings_outlined,
+              title: 'Settings',
+              onTap: () {
+                // Handle settings
+              },
+            ),
             const SizedBox(height: 30),
           ],
         ),
@@ -140,25 +151,48 @@ class UserProfileView extends StatelessWidget {
       }
 
       final user = userController.user.value;
+      final imageUrl = user.photoUrl ?? '';
 
       return Column(
         children: [
-          const CircleAvatar(
+          imageUrl.isNotEmpty
+              ? CircleAvatar(
             radius: 50,
-            backgroundImage: CachedNetworkImageProvider(
-              'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png', // Replace with actual profile image URL
+            // backgroundImage: const CachedNetworkImageProvider(
+            //   'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png', // Replace with actual profile image URL
+            // ),
+            backgroundImage: CachedNetworkImageProvider(imageUrl),
+          )
+              : Container(
+            width: 100, // radius * 2
+            height: 100, // radius * 2
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.transparent,
+              border: Border.all(
+                color: Color(0xFF7A44C0), // Change border color as needed
+                width: 2.0,
+              ),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.person_rounded,
+                color: Color(0xFF7A44C0),
+                size: 70,
+              ),
             ),
           ),
+
           const SizedBox(height: 20),
           Text(
             user.name!,
-            style: GoogleFonts.inter(
-                color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+            style: GoogleFonts.orbitron(
+                color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
           Text(
             user.contact?.electronicAddress?.emailId ?? "",
-            style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
+            style: GoogleFonts.orbitron(color: Colors.white70, fontSize: 12),
           ),
         ],
       );
@@ -170,10 +204,10 @@ class UserProfileView extends StatelessWidget {
       required String title,
       required VoidCallback onTap}) {
     return ListTile(
-      leading: Icon(icon, color: Colors.green),
+      leading: Icon(icon, color: Colors.white54,),
       title: Text(
         title,
-        style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
+        style: GoogleFonts.orbitron(color: Colors.white, fontSize: 15,),
       ),
       trailing: const Icon(CupertinoIcons.forward, color: Colors.white70),
       onTap: onTap,

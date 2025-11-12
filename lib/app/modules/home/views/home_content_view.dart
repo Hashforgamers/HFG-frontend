@@ -12,12 +12,15 @@ import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
+import 'package:hash/app/modules/hash_store/pages/hash_store_home_page.dart';
+import 'package:hash/app/modules/home/widgets/optimized_app_bar.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_home_view.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -505,6 +508,12 @@ final prefs = locator<SharedPreferences>();
     super.build(context);
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Get.to(HashStoreHomePage());
+        },
+        child: Icon(Icons.shopping_cart),
+      ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
         backgroundColor: Colors.black,
@@ -512,7 +521,7 @@ final prefs = locator<SharedPreferences>();
           controller: _scrollController,
           physics: const BouncingScrollPhysics(),
           slivers: [
-            _buildOptimizedAppBar(),
+            OptimizedAppBar(),
             SliverToBoxAdapter(
               child: FadeTransition(
                 opacity: _fadeController,
