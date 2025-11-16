@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
+import 'package:hash/app/modules/profile/user_profile_view.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -52,7 +53,12 @@ class OptimizedAppBar extends StatelessWidget {
           padding: const EdgeInsets.only(left: 10, top: 5),
           child: userController.isLoading.value
               ? _buildShimmerAvatar()
-              : _buildOptimizedUserAvatar(userController.user.value.photoUrl),
+              : GestureDetector(
+            onTap: (){
+              Get.to(UserProfileView());
+            },
+            child: _buildOptimizedUserAvatar(userController.user.value.photoUrl),
+          ),
         ),
       ),
       title: Obx(

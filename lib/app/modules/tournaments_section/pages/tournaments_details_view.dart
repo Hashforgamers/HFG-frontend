@@ -390,17 +390,50 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
         );
       case 1:
         final teams = t['teams'] as List<dynamic>? ?? [];
+
         return Column(
           children: [
-            ...teams.map((team) => Padding(
-              padding: const EdgeInsets.only(bottom: 10.0),
-              child: _buildGlassContainer(team),
-            )),
-            if (teams.isEmpty)
-              Text(
-                'Teams section coming soon...',
-                style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+            // LIMITED HEIGHT LIST (shows ~3 items)
+            Container(
+              height: 200, // adjust to match exact Figma height if needed
+              child: Stack(
+                children: [
+                  ListView.builder(
+                    padding: EdgeInsets.only(bottom: 60),
+                    itemCount: teams.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10.0),
+                        child: _buildGlassContainer(teams[index]),
+                      );
+                    },
+                  ),
+
+                  // EXPAND BUTTON (bottom-right)
+                  Positioned(
+                    bottom: 10,
+                    right: 10,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ExpandedTeamListView(teams: teams),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                        ),
+                        child: Image.asset("assets/hash_store_images/expand_icon.png", height: 32, width: 32,),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ),
           ],
         );
       case 2:
@@ -565,6 +598,191 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                   ),
                 ],
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+}
+
+class ExpandedTeamListView extends StatelessWidget {
+  final List<dynamic> teams;
+
+  const ExpandedTeamListView({super.key, required this.teams});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: (){
+            Navigator.pop(context);
+          },
+          icon: Icon(Icons.arrow_back_ios_rounded, color: Colors.white,),
+        ),
+        title: Text('Teams', style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),),
+        iconTheme: IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.share),
+            onPressed: () {},
+          ),
+        ],
+      ),
+
+      body: Stack(
+        children: [
+          // THE TEAM LIST
+          ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: teams.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: _buildExpandedTeamGlassContainer(context, teams[index]),
+              );
+            },
+          ),
+
+          // SHRINK BUTTON (bottom-right)
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                ),
+                child: Image.asset(
+                  "assets/hash_store_images/shrink_icon.png",
+                  height: 32,
+                  width: 32,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Container(
+          height: 50,
+          decoration: BoxDecoration(
+            border: Border.all(color: Color(0xFFC06701)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              "+ Create your Team",
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedTeamGlassContainer(BuildContext context, Map<String, dynamic> team) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          width: MediaQuery.of(context).size.width,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white12,
+                Colors.white24,
+                Colors.white30.withOpacity(0.3),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(width: 0.6, color: Colors.white24),
+          ),
+          child: Row(
+            children: [
+              // Rank
+              Text(
+                team['rank'] ?? '-',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 14),
+
+              // Avatar
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white30, width: 2),
+                ),
+                child: CircleAvatar(
+                  radius: 25,
+                  backgroundImage: (team['photoUrl'] != null && team['photoUrl'].isNotEmpty)
+                      ? AssetImage(team['photoUrl'])
+                      : const AssetImage('assets/hash_store_images/team_fallback.png')
+                  as ImageProvider,
+                ),
+              ),
+
+              SizedBox(width: 16),
+
+              // Name + Stats
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    team['name'] ?? 'Unknown',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.star, color: Colors.green, size: 11),
+                      SizedBox(width: 2),
+                      Text(
+                        "${team['points']} Points",
+                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        "${team['matchesWon']} Matches Won",
+                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+              Spacer(),
             ],
           ),
         ),

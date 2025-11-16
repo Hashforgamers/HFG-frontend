@@ -16,6 +16,7 @@ import 'package:hash/app/modules/hash_store/pages/hash_store_home_page.dart';
 import 'package:hash/app/modules/home/widgets/optimized_app_bar.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
+import 'package:hash/app/modules/profile/user_profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
@@ -650,7 +651,12 @@ final prefs = locator<SharedPreferences>();
           padding: const EdgeInsets.only(left: 10,top: 5),
           child: userController.isLoading.value
               ? _buildShimmerAvatar()
-              : _buildOptimizedUserAvatar(userController.user.value.photoUrl),
+              : GestureDetector(
+            onTap: (){
+              Get.to(UserProfileView());
+            },
+            child: _buildOptimizedUserAvatar(userController.user.value.photoUrl),
+          ),
         ),
       ),
       title: Obx(
