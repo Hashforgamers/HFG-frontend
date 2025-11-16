@@ -496,7 +496,28 @@ final prefs = locator<SharedPreferences>();
         ReferFriendModal(
           isDialog: false,
           onReferNow: () {
-            Get.to(() => const ReferralViewWithController());
+            segmentService.onReferralViewed(
+              email:
+                  userController
+                      .user
+                      .value
+                      .contact
+                      ?.electronicAddress
+                      ?.emailId ??
+                  '',
+            );
+            Get.to(
+              () => ReferralViewWithController(
+                email:
+                    userController
+                        .user
+                        .value
+                        .contact
+                        ?.electronicAddress
+                        ?.emailId ??
+                    '',
+              ),
+            );
           },
         ),
       ],

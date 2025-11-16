@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/shop/controllers/cart_controller.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:lottie/lottie.dart';
 import '../../../../utils/widgets/loader.dart';
@@ -27,6 +30,9 @@ class ShopView extends StatefulWidget {
 
 class _ShopViewState extends State<ShopView> {
   final ProductService _productService = ProductService();
+  UserController userController = Get.put(UserController());
+  final segmentService = locator<SegmentSdkService>();
+
   final List<Product> products = [];
   bool isLoading = true;
   String errorMessage = '';
@@ -135,7 +141,7 @@ class _ShopViewState extends State<ShopView> {
         ],
       ),
       body: isLoading
-          ?  Center(child: RainbowLoadingBar())
+          ? Center(child: RainbowLoadingBar())
           : errorMessage.isNotEmpty
           ? Center(
               child: Text(
@@ -180,14 +186,22 @@ class _ShopViewState extends State<ShopView> {
             final productImage = product.images.isNotEmpty
                 ? product.images[0].url
                 : 'https://via.placeholder.com/150';
-            return _buildProductCard(context, product, productImage); // pass context
+            return _buildProductCard(
+              context,
+              product,
+              productImage,
+            ); // pass context
           },
         ),
       ],
     );
   }
 
-  Widget _buildProductCard(BuildContext context, Product product, String productImage) {
+  Widget _buildProductCard(
+    BuildContext context,
+    Product product,
+    String productImage,
+  ) {
     final dpr = MediaQuery.of(context).devicePixelRatio;
     final renderW = (Get.width * 0.48);
     const renderH = 125.0;
@@ -277,6 +291,19 @@ class _ShopViewState extends State<ShopView> {
                   children: [
                     GestureDetector(
                       onTap: () {
+                        // Track product pre-registered event
+                        segmentService.onProductPreRegistered(
+                          email:
+                              userController
+                                  .user
+                                  .value
+                                  .contact
+                                  ?.electronicAddress
+                                  ?.emailId ??
+                              '',
+                          productName: product.name,
+                        );
+
                         _showToast("Coming Soon");
                       },
                       child: Container(
@@ -335,7 +362,10 @@ class _ShopViewState extends State<ShopView> {
               Container(
                 margin: const EdgeInsets.only(top: 20),
                 child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(sigmaX: 7, sigmaY: 7), // adjust 8–16 as you like
+                  imageFilter: ImageFilter.blur(
+                    sigmaX: 7,
+                    sigmaY: 7,
+                  ), // adjust 8–16 as you like
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: CachedNetworkImage(
@@ -346,9 +376,12 @@ class _ShopViewState extends State<ShopView> {
                       // request an appropriately sized decode for smooth blur (no unnecessary VRAM)
                       memCacheWidth: (renderW * dpr).round(),
                       memCacheHeight: (renderH * dpr).round(),
-                      placeholder: (_, __) => const Center(child: RainbowGlowingLoader(size: 24)),
-                      errorWidget: (_, __, ___) =>
-                      const Icon(Icons.image_not_supported, color: Colors.white54),
+                      placeholder: (_, __) =>
+                          const Center(child: RainbowGlowingLoader(size: 24)),
+                      errorWidget: (_, __, ___) => const Icon(
+                        Icons.image_not_supported,
+                        color: Colors.white54,
+                      ),
                     ),
                   ),
                 ),

@@ -3,6 +3,9 @@ allprojects {
         google()
         mavenCentral()
     }
+    configurations.all {
+        exclude(group = "com.guardsquare", module = "proguard-annotations")
+    }
 }
 
 val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()

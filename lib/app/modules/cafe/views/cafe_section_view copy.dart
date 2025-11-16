@@ -114,11 +114,11 @@ class _CafeSectionState extends State<CafeSection> {
                     final availableGames =
                         cafe['games']?.cast<String>() ?? ['Unknown'];
 
-                    widget.segmentService.onGamingCafeViewed(
-                      cafeId: cafeId,
-                      location: location,
-                      availableGames: availableGames,
-                    );
+                    // widget.segmentService.onGamingCafeViewed(
+                    //   cafeId: cafeId,
+                    //   location: location,
+                    //   availableGames: availableGames,
+                    // );
                     widget.fbEventsService.onGamingCafeViewed(
                       cafeId: cafeId,
                       location: location,

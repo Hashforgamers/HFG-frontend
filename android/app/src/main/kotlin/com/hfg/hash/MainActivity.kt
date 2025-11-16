@@ -16,11 +16,11 @@ private val CHANNEL = "secure_channel"
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getPrivateKey" -> {
-                        val pem = readPemFile(resources.openRawResource(R.raw.flutter_private))
+                        val pem = readPemFile(resources.openRawResource(R.raw.dev_flutter_private))
                         result.success(pem)
                     }
                     "getPublicKey" -> {
-                        val pem = readPemFile(resources.openRawResource(R.raw.public_key))
+                        val pem = readPemFile(resources.openRawResource(R.raw.dev_public_key))
                         result.success(pem)
                     }
                     else -> result.notImplemented()

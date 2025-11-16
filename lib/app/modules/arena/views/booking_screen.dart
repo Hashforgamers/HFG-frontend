@@ -4,9 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shimmer/shimmer.dart';
-
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -14,6 +12,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'booking_summary_screen.dart';
 
 class BookingScreen extends StatefulWidget {
+  final String email;
   final String consoleType;
   final String title;
   final int gameId;
@@ -22,6 +21,7 @@ class BookingScreen extends StatefulWidget {
 
   const BookingScreen({
     super.key,
+    required this.email,
     required this.consoleType,
     required this.title,
     required this.gameId,
@@ -293,7 +293,8 @@ class _BookingScreenState extends State<BookingScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Column(mainAxisAlignment: MainAxisAlignment.start,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -694,6 +695,7 @@ class _BookingScreenState extends State<BookingScreen> {
     // Track game details viewed event when user proceeds with console selection
     final segmentService = locator<SegmentSdkService>();
     final fbEventsService = locator<FbEventsService>();
+
     segmentService.onGameDetailsViewed(
       gameId: widget.gameId.toString(),
       cafeId: widget.vendorId.toString(),
@@ -717,6 +719,12 @@ class _BookingScreenState extends State<BookingScreen> {
         });
       }
     });
+
+    segmentService.onCafeConsoleSelected(
+      email: widget.email,
+      consoleType: widget.consoleType,
+      consoleAmount: selectedSlotDetails.length,
+    );
 
     Get.to(
       () => BookingSummaryScreen(

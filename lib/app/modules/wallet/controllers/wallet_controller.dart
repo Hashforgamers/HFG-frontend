@@ -171,7 +171,7 @@ class WalletController extends GetxController {
         // Refresh wallet balance
         await fetchWallet();
         
-        _showSuccessMessage('Wallet credited successfully');
+        // _showSuccessMessage('Wallet credited successfully');
         return true;
       } else {
         _handleError('Top-up failed');
@@ -245,7 +245,7 @@ class WalletController extends GetxController {
     try {
       await _remoteRepo.claimDropCrateBonus(userId: userId, amount: 30);
       await fetchWallet(); // Refresh balance
-      _showSuccessMessage("🎉 ₹30 Drop Crate claimed!");
+      // _showSuccessMessage("🎉 ₹30 Drop Crate claimed!");
     } catch (e) {
       _showErrorMessage("❌ Claim failed: ${e.toString()}");
     }
