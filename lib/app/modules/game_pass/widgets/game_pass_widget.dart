@@ -1,17 +1,17 @@
-
-
 import 'package:flutter/material.dart';
+import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
 
-class GamePassWidget extends StatefulWidget {
-  const GamePassWidget({super.key});
+class VendorPassesWidget extends StatefulWidget {
+  final List<GetVendorPassesModel> vendorPasses;
+  const VendorPassesWidget({super.key, required this.vendorPasses});
 
   @override
-  State<GamePassWidget> createState() => _GamePassWidgetState();
+  State<VendorPassesWidget> createState() => _VendorPassesWidgetState();
 }
 
-class _GamePassWidgetState extends State<GamePassWidget> {
+class _VendorPassesWidgetState extends State<VendorPassesWidget> {
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Scaffold();
   }
 }

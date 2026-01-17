@@ -45,7 +45,6 @@ class UserController extends GetxController {
 
         setUserData(fetchedUser);
       } else {}
-    } catch (e) {
     } finally {
       isLoading.value = false;
     }
