@@ -17,6 +17,14 @@ class _HomeViewState extends State<HomeView>
 
   @override
   Widget build(BuildContext context) {
+    // 🔹 Read tabIndex argument if provided (default = 0)
+    final args = Get.arguments;
+    if (args != null && args['tabIndex'] != null) {
+      final int targetIndex = args['tabIndex'] as int;
+      if (controller.selectedIndex.value != targetIndex) {
+        Future.microtask(() => controller.onItemTapped(targetIndex));
+      }
+    }
     return Scaffold(
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),

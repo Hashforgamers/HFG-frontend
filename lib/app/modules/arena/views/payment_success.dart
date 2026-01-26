@@ -68,7 +68,7 @@ class PaymentSuccessScreen extends StatelessWidget {
               ),
               textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
-            child: const Text("View invoice"),
+            child: const Text("Continue"),
           ),
         ),
       ),

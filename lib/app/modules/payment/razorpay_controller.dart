@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/app/modules/arena/views/payment_success.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:hash/core/network/api_endpoints.dart';
@@ -232,11 +233,26 @@ class RazorpayController extends GetxController {
       _reset();
 
       // Navigate to past bookings
-      await Get.to(() => const PastBookingsScreen());
+      // await Get.to(() => const PastBookingsScreen());
 
       // Then home (arena tab)
-      Get.find<HomeController>().onItemTapped(1);
-      Get.offAllNamed('/home');
+      // Get.find<HomeController>().onItemTapped(1);
+      // Get.offAllNamed('/home');
+      await Get.to(
+          () => PaymentSuccessScreen(
+            method: paymentMode,
+            dateText: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+            timeText: "",
+            totalText: "",
+            email: "",
+            onViewInvoice: () {
+              Get.to(const PastBookingsScreen());
+              final homeController = Get.find<HomeController>();
+              homeController.onItemTapped(2);
+              Get.offAllNamed('/home', arguments: {'tabIndex':2});
+            },
+          )
+      );
     } catch (e) {
       // here call the release booking api
       await _remoteRepo.releaseBooking(

@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
 import 'package:hash/app/modules/shop/views/shop_view.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_home_view.dart';
 import '../../arena/views/arena_view.dart';
 import '../../profile/user_profile_view.dart';
 import '../views/home_content_view.dart';
@@ -36,7 +37,8 @@ class HomeController extends GetxController {
     _screenCache[0] = const HomeContentView();
     _screenCache[1] = const ArenaView();
     _screenCache[2] = PastBookingsScreen();
-    _screenCache[3] = const ShopView();
+    // _screenCache[3] = const ShopView();
+    _screenCache[3] = const TournamentsHomeView();
     _screenCache[4] = const UserProfileView();
   }
 
@@ -91,8 +93,10 @@ class HomeController extends GetxController {
         return const ArenaView();
       case 2:
         return PastBookingsScreen();
+      // case 3:
+      //   return const ShopView();
       case 3:
-        return const ShopView();
+        return const TournamentsHomeView();
       case 4:
         return const UserProfileView();
       default:

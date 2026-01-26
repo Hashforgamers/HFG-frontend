@@ -150,12 +150,32 @@ class ProfileView extends StatelessWidget {
   Widget _buildProfileHeader(User user) {
     return Column(
       children: [
-        CircleAvatar(
+        user.photoUrl != null
+            ? CircleAvatar(
           radius: 50,
-          backgroundImage: user.photoUrl != null
-              ? CachedNetworkImageProvider(user.photoUrl!)
-              : const AssetImage('assets/default_profile.png')
-                    as ImageProvider, // Fallback to a local asset if no photoUrl
+          // backgroundImage: const CachedNetworkImageProvider(
+          //   'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png', // Replace with actual profile image URL
+          // ),
+          backgroundImage: CachedNetworkImageProvider(user.photoUrl!),
+        )
+            : Container(
+          width: 100, // radius * 2
+          height: 100, // radius * 2
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.transparent,
+            border: Border.all(
+              color: Color(0xFF7A44C0), // Change border color as needed
+              width: 2.0,
+            ),
+          ),
+          child: const Center(
+            child: Icon(
+              Icons.person_rounded,
+              color: Color(0xFF7A44C0),
+              size: 70,
+            ),
+          ),
         ),
         const SizedBox(height: 20),
         Text(
