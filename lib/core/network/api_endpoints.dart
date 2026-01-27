@@ -22,6 +22,12 @@ class ApiEndpoints {
 
   // Purchase Pass Endpoint
   static String get purchasePassNew => '$bookingBaseUrl/api/passes/purchase';
+ 
+ // User's Pass Management
+ static String get viewActivePasses => '$bookingBaseUrl/api/pass/user/active';
+ static String get validatePass => '$bookingBaseUrl/api/pass/validate';
+ static String get redeemPass => '$bookingBaseUrl/api/pass/redeem/app';
+
 
   // Vendor Service
   static String get vendorBaseUrl => FlavorConfig.getBaseUrl('vendor');

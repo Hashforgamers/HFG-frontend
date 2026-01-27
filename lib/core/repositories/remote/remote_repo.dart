@@ -3,6 +3,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
+import 'package:hash/app/modules/user_pass/model/redeem_pass_request_model.dart';
+import 'package:hash/app/modules/user_pass/model/redeem_pass_response_model.dart';
+import 'package:hash/app/modules/user_pass/model/user_gaming_pass_model.dart';
+import 'package:hash/app/modules/user_pass/model/validate_pass_request_model.dart';
+import 'package:hash/app/modules/user_pass/model/validate_pass_response_model.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
@@ -892,7 +897,7 @@ class RemoteRepo implements RemoteRepoInterface {
 
   @override
   Future<List<GetVendorPassesModel>> getAllAvailablePasses({required String vendorId}) async {
-    final dio = await networkProvider.auth();
+    final dio = networkProvider.noAuth();
     try {
       final response = await dio.get(ApiEndpoints.getAllAvailablePasses(vendorId));
       if (response.statusCode == 200) {
@@ -919,6 +924,55 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       debugPrint('Error making purchase pass payment: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<UserGamingPassModel>> getUserActiveGamePasses(String? vendorId) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(ApiEndpoints.viewActivePasses, queryParameters: {if (vendorId != null) 'vendor_id': vendorId});
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = response.data['passes'];
+        return responseData.map((e) => UserGamingPassModel.fromJson(e as Map<String, dynamic>)).toList();
+      } else {
+        throw Exception('Failed to get user active game passes. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error getting user active game passes: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<ValidatePassResponseModel> validateUserPass({required ValidatePassRequest validatePassRequest}) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.post(ApiEndpoints.validatePass, data: validatePassRequest.toJson());
+      if (response.statusCode == 201) {
+        return ValidatePassResponseModel.fromJson(response.data);
+      } else {
+        throw Exception('Failed to validate user pass. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error validating user pass: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<RedeemPassResponseModel> redeemUserPass({required RedeemPassRequestModel redeemPassRequestModel}) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(ApiEndpoints.redeemPass, data: redeemPassRequestModel.toJson());
+      if (response.statusCode == 201) {
+        return RedeemPassResponseModel.fromJson(response.data);
+      } else {
+        throw Exception('Failed to redeem user pass. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error redeeming user pass: $e');
       rethrow;
     }
   }

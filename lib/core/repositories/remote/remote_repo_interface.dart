@@ -1,4 +1,9 @@
 import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
+import 'package:hash/app/modules/user_pass/model/redeem_pass_request_model.dart';
+import 'package:hash/app/modules/user_pass/model/redeem_pass_response_model.dart';
+import 'package:hash/app/modules/user_pass/model/user_gaming_pass_model.dart';
+import 'package:hash/app/modules/user_pass/model/validate_pass_request_model.dart';
+import 'package:hash/app/modules/user_pass/model/validate_pass_response_model.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
@@ -103,4 +108,11 @@ abstract class RemoteRepoInterface {
 
   Future<List<GetVendorPassesModel>> getAllAvailablePasses({required String vendorId});
   Future<String> makePurchasePassPayment({required PurchasePassModel purchasePassModel});
+
+  //User Pass Management
+  Future<List<UserGamingPassModel>> getUserActiveGamePasses(String? vendorId);
+  // Pass Validate
+  Future<ValidatePassResponseModel> validateUserPass({required ValidatePassRequest validatePassRequest});
+  // Pass Redeem
+  Future<RedeemPassResponseModel> redeemUserPass({required RedeemPassRequestModel redeemPassRequestModel});
 }
