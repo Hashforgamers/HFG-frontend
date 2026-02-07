@@ -2,9 +2,11 @@ import 'package:hash/config/flavor_config.dart';
 
 class ApiEndpoints {
   // User Onboard Service
-  static String get userOnboardBaseUrl => FlavorConfig.getBaseUrl('userOnboard');
+  static String get userOnboardBaseUrl =>
+      FlavorConfig.getBaseUrl('userOnboard');
   static String get baseUrl => '$userOnboardBaseUrl/api/users';
-  static String get checkUserExistsInAPI => '$userOnboardBaseUrl/api/users/fid/';
+  static String get checkUserExistsInAPI =>
+      '$userOnboardBaseUrl/api/users/fid/';
   static String get signUp => '$userOnboardBaseUrl/api/users';
 
   // Booking Service
@@ -13,19 +15,24 @@ class ApiEndpoints {
   static String get bookingsBaseUrl => '$bookingBaseUrl/api';
   static String get confirmBooking => '$bookingBaseUrl/api/bookings/confirm';
   static String get vendorGames => '$bookingBaseUrl/api/games/vendor';
+  static String vendorGamesByVendorId(String vendorId) =>
+      '${dashboardBaseUrl}/vendor/$vendorId/vendor-games';
   static String get createOffer => '$bookingBaseUrl/api/redeem-voucher';
 
   static String get capturePayment => '$bookingBaseUrl/api/capture_payment';
 
-  //Pass Purchase New API Endpoints
-  static String getAllAvailablePasses(String vendorId) => '$bookingBaseUrl/api/vendor/$vendorId/passes/available';
+  // Pass Purchase (HMNX Booking API)
+  static const String passBaseUrl = 'https://hfg-booking-hmnx.onrender.com/api';
+  static String getAllAvailablePasses(String vendorId) =>
+      '$passBaseUrl/vendor/$vendorId/passes/available';
 
   // Purchase Pass Endpoint
   static String get purchasePassNew => '$bookingBaseUrl/api/passes/purchase';
 
   // Vendor Service
   static String get vendorBaseUrl => FlavorConfig.getBaseUrl('vendor');
-  static String get getAllVendorsList => '$vendorBaseUrl/api/vendor/getAllGamingCafe';
+  static String get getAllVendorsList =>
+      '$vendorBaseUrl/api/vendor/getAllGamingCafe';
   static String get scanQrCode => '$vendorBaseUrl/api/bookingQueue';
 
   // Dashboard Service
@@ -45,17 +52,22 @@ class ApiEndpoints {
       : 'rzp_test_viVAhwtbVdu1X4';
 
   // Address related endpoints (userOnboard)
-  static String get addresses => '$userOnboardBaseUrl/api/users/checkout/addresses';
-  static String get activeAddress => '$userOnboardBaseUrl/api/users/checkout/address/active';
-  static String get addAddress => '$userOnboardBaseUrl/api/users/checkout/address';
+  static String get addresses =>
+      '$userOnboardBaseUrl/api/users/checkout/addresses';
+  static String get activeAddress =>
+      '$userOnboardBaseUrl/api/users/checkout/address/active';
+  static String get addAddress =>
+      '$userOnboardBaseUrl/api/users/checkout/address';
 
   // Cart related endpoints (userOnboard)
   static String get cartBaseUrl => '$userOnboardBaseUrl/api/users/cart';
   static String get cartItem => '$userOnboardBaseUrl/api/users/cart/item';
 
   // Checkout related endpoints (userOnboard)
-  static String get checkoutOther => '$userOnboardBaseUrl/api/users/checkout/other';
-  static String get validatePayment => '$userOnboardBaseUrl/api/users/checkout/pay/validate';
+  static String get checkoutOther =>
+      '$userOnboardBaseUrl/api/users/checkout/other';
+  static String get validatePayment =>
+      '$userOnboardBaseUrl/api/users/checkout/pay/validate';
 
   // Products related endpoints (userOnboard)
   static String get products => '$userOnboardBaseUrl/api/users/products';
@@ -63,13 +75,17 @@ class ApiEndpoints {
 
   // Wallet related endpoints (userOnboard)
   static String wallet() => '$userOnboardBaseUrl/api/users/wallet';
-  static String addFunds(String userId) => '$userOnboardBaseUrl/api/users/$userId/wallet/add-funds';
-  static String get validateFunds => '$userOnboardBaseUrl/api/users/wallet/validate-funds';
+  static String addFunds(String userId) =>
+      '$userOnboardBaseUrl/api/users/$userId/wallet/add-funds';
+  static String get validateFunds =>
+      '$userOnboardBaseUrl/api/users/wallet/validate-funds';
 
   // Creating voucher (userOnboard)
-  static String get createVoucher => '$userOnboardBaseUrl/api/users/create-voucher';
+  static String get createVoucher =>
+      '$userOnboardBaseUrl/api/users/create-voucher';
 
-  static String get registerFCMToken => '$userOnboardBaseUrl/api/users/register-fcm-token';
+  static String get registerFCMToken =>
+      '$userOnboardBaseUrl/api/users/register-fcm-token';
 
   // Get Voucher (userOnboard)
   static String get getVoucher => '$userOnboardBaseUrl/api/users/voucher';
@@ -78,34 +94,43 @@ class ApiEndpoints {
   static String get getHashCoin => '$userOnboardBaseUrl/api/users/hash-coins';
 
   // Wallet core endpoints (dynamic by userId)
-  static String walletByUserId(String userId) => '$userOnboardBaseUrl/api/users/$userId/wallet';
+  static String walletByUserId(String userId) =>
+      '$userOnboardBaseUrl/api/users/$userId/wallet';
 
-  static String addFundsByUserId(String userId) => '$userOnboardBaseUrl/api/users/$userId/wallet';
+  static String addFundsByUserId(String userId) =>
+      '$userOnboardBaseUrl/api/users/$userId/wallet';
 
-  static String validateFundsByUserId(String userId) => '$userOnboardBaseUrl/api/users/$userId/wallet/validate';
+  static String validateFundsByUserId(String userId) =>
+      '$userOnboardBaseUrl/api/users/$userId/wallet/validate';
 
   static String get releaseBooking => '$bookingBaseUrl/api/release_slot';
 
   // HFG Game Pass
   static String get gamePass => '$userOnboardBaseUrl/api/user/available_passes';
   // Get PAss Details
-  static String getGamePassDetails(String cafeId) => '$userOnboardBaseUrl/api/passes/$cafeId';
+  static String getGamePassDetails(String cafeId) =>
+      '$userOnboardBaseUrl/api/passes/$cafeId';
 
   // Purchase Pass Endpoint
-  static String get purchasePass => '$userOnboardBaseUrl/api/user/purchase_pass';
+  static String get purchasePass =>
+      '$userOnboardBaseUrl/api/user/purchase_pass';
 
   // Get Active passes for the user
   static String get getActivePasses => '$userOnboardBaseUrl/api/user/passes';
 
   // Get Food Categories
-  static String getFoodCategories(String vendorId) => '$userOnboardBaseUrl/api/vendor/$vendorId/extras/categories';
+  static String getFoodCategories(String vendorId) =>
+      '$userOnboardBaseUrl/api/vendor/$vendorId/extras/categories';
 
   // Get Food Items
-  static String getFoodItems(String vendorId, String categoryId) => '$userOnboardBaseUrl/api/vendor/$vendorId/extras/category/$categoryId/menus';
+  static String getFoodItems(String vendorId, String categoryId) =>
+      '$userOnboardBaseUrl/api/vendor/$vendorId/extras/category/$categoryId/menus';
 
   // Get Extra Service
-  static String getExtraService(String vendorId) => '$userOnboardBaseUrl/api/vendor/$vendorId/extraService';
+  static String getExtraService(String vendorId) =>
+      '$userOnboardBaseUrl/api/vendor/$vendorId/extraService';
 
   // Get Transaction History
-  static String get getTransactionHistory => '$userOnboardBaseUrl/api/users/transactions';
+  static String get getTransactionHistory =>
+      '$userOnboardBaseUrl/api/users/transactions';
 }

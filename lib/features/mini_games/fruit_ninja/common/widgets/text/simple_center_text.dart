@@ -51,7 +51,10 @@ class SimpleCenterText extends PositionComponent with TapCallbacks {
     size = Vector2(200, 60);
 
     // Calculate the offset to center the text inside the component
-    _textOffset = Offset((size.x - _textPainter.width) / 2, (size.y - _textPainter.height) / 2);
+    _textOffset = Offset(
+      (size.x - _textPainter.width) / 2,
+      (size.y - _textPainter.height) / 2,
+    );
   }
 
   /// Renders the text on the canvas.

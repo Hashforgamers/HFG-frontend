@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/core/repositories/local/auth_data_repo.dart';
+import 'package:hash/core/service_locator.dart';
 import '../../../../utils/widgets/glow_neon_loader.dart';
 import '../controllers/review_controller.dart';
 
@@ -19,12 +21,20 @@ class ReviewPage extends StatelessWidget {
       shrinkWrap: true,
       children: [
         ElevatedButton(
-          onPressed: () {
-            // Example token and review data
-            String token = 'your_jwt_token_here';
-            double rating = 3.5;
-            String comment = 'Great product, recommended! user 3 last';
+          onPressed: () async {
+            final token = await locator<AuthDataRepository>().getAccessToken();
+            if (token == null || token.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Please login to add a review.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return;
+            }
 
+            const rating = 3.5;
+            const comment = 'Great product, recommended! user 3 last';
             reviewController.addReview(token, pid, rating, comment);
           },
           child: Text('Add Review'),

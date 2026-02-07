@@ -14,8 +14,9 @@ class BirdSettings extends StatelessWidget {
     return Column(
       children: [
         Container(
-            margin: EdgeInsets.symmetric(vertical: 10),
-            child: myText("Characters", Colors.black, 20)),
+          margin: EdgeInsets.symmetric(vertical: 10),
+          child: myText("Characters", Colors.black, 20),
+        ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [

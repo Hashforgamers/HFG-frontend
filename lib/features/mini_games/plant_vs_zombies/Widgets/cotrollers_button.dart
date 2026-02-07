@@ -7,7 +7,7 @@ class ControllerButton extends StatelessWidget {
 
   const ControllerButton({required this.icon, required this.onTap});
 
-  static bool get isTapping => _isTapping;   // ✅ add this
+  static bool get isTapping => _isTapping; // ✅ add this
 
   @override
   Widget build(BuildContext context) {

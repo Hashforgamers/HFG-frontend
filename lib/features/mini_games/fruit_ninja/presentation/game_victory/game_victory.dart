@@ -13,8 +13,10 @@ import 'package:hash/features/mini_games/fruit_ninja/common/widgets/button/round
 import 'package:hash/features/mini_games/fruit_ninja/core/configs/constants/app_router.dart';
 import 'package:hash/features/mini_games/fruit_ninja/core/configs/theme/app_colors.dart';
 import 'package:hash/features/mini_games/fruit_ninja/main_router_game.dart';
+import 'package:hash/features/mini_games/score/mini_game_score_service.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 /// Secure API call placeholder (you'll replace this with your real service)
 Future<void> submitScoreToAPI(Map<String, dynamic> payload) async {
@@ -29,9 +31,7 @@ class VictoryRoute extends Route {
   void onPush(Route? previousRoute) {
     previousRoute!
       ..stopTime()
-      ..addRenderEffect(
-        PaintDecorator.grayscale(opacity: 0.5)..addBlur(3.0),
-      );
+      ..addRenderEffect(PaintDecorator.grayscale(opacity: 0.5)..addBlur(3.0));
   }
 
   @override
@@ -42,7 +42,8 @@ class VictoryRoute extends Route {
   }
 }
 
-class GameVictoryPage extends Component with TapCallbacks, HasGameReference<MainRouterGame> {
+class GameVictoryPage extends Component
+    with TapCallbacks, HasGameReference<MainRouterGame> {
   late TextComponent _textComponent;
   late TextComponent _textTimeComponent;
   late TextComponent _textScoreComponent;
@@ -55,6 +56,11 @@ class GameVictoryPage extends Component with TapCallbacks, HasGameReference<Main
 
   @override
   Future<void> onLoad() async {
+    MiniGameScoreService().recordScore(
+      'fruit_cutting',
+      game.getScore(),
+    ); // sync best score
+
     final textTitlePaint = TextPaint(
       style: const TextStyle(
         fontSize: 80,
@@ -108,7 +114,11 @@ class GameVictoryPage extends Component with TapCallbacks, HasGameReference<Main
     final flameGame = findGame()!;
 
     final mode = game.getMode();
-    final modeText = mode == 0 ? 'Easy' : mode == 1 ? 'Medium' : 'Hard';
+    final modeText = mode == 0
+        ? 'Easy'
+        : mode == 1
+        ? 'Medium'
+        : 'Hard';
 
     addAll([
       _textComponent = TextComponent(
@@ -155,9 +165,18 @@ class GameVictoryPage extends Component with TapCallbacks, HasGameReference<Main
     super.onGameResize(size);
     _textComponent.position = Vector2(game.size.x / 2, game.size.y / 2 - 70);
     _textTimeComponent.position = Vector2(15, 20);
-    _textScoreComponent.position = Vector2(game.size.x / 2, game.size.y / 2 + 25);
-    _buttonNewGameComponent.position = Vector2(game.size.x / 2, game.size.y / 2 + 110);
-    _textLeaderboardComponent.position = Vector2(game.size.x - 15, game.size.y - 15);
+    _textScoreComponent.position = Vector2(
+      game.size.x / 2,
+      game.size.y / 2 + 25,
+    );
+    _buttonNewGameComponent.position = Vector2(
+      game.size.x / 2,
+      game.size.y / 2 + 110,
+    );
+    _textLeaderboardComponent.position = Vector2(
+      game.size.x - 15,
+      game.size.y - 15,
+    );
     _textGameModeComponent.position = Vector2(15, game.size.y - 15);
 
     _textScoreComponent.text = 'Score: ${game.getScore()}';
@@ -195,7 +214,10 @@ class GameVictoryPage extends Component with TapCallbacks, HasGameReference<Main
 
       game.render(canvas);
 
-      final image = await recorder.endRecording().toImage(game.size.x.toInt(), game.size.y.toInt());
+      final image = await recorder.endRecording().toImage(
+        game.size.x.toInt(),
+        game.size.y.toInt(),
+      );
       final byteData = await image.toByteData(format: ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
 
@@ -204,7 +226,7 @@ class GameVictoryPage extends Component with TapCallbacks, HasGameReference<Main
       final imageFile = File(imagePath);
       await imageFile.writeAsBytes(pngBytes);
     } catch (e) {
-      if (kDebugMode) print(e.toString());
+      if (kDebugMode) AppLogger.d(e.toString());
     }
   }
 }

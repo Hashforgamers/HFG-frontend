@@ -3,7 +3,7 @@ import 'dart:convert';
 class GetVendorPassesModel {
   final String? id;
   final String? name;
-  final int? price;
+  final double? price;
   final String? passMode;
   final int? totalHour;
   final int? daysValid;
@@ -12,23 +12,42 @@ class GetVendorPassesModel {
   final int? hoursPerSlot;
   final bool? isActive;
   final String? description;
-  GetVendorPassesModel({this.id, this.name, this.price, this.passMode, this.totalHour, this.daysValid, this.vendorId, this.hourCalculationMode, this.hoursPerSlot, this.isActive, this.description});
+  GetVendorPassesModel({
+    this.id,
+    this.name,
+    this.price,
+    this.passMode,
+    this.totalHour,
+    this.daysValid,
+    this.vendorId,
+    this.hourCalculationMode,
+    this.hoursPerSlot,
+    this.isActive,
+    this.description,
+  });
 
   factory GetVendorPassesModel.fromMap(Map<String, dynamic> map) {
     return GetVendorPassesModel(
-      id: map['id'],
-      name: map['name'],
-      price: map['price']?.toInt(),
-      passMode: map['pass_mode'],
-      totalHour: map['total_hours']?.toInt(),
-      daysValid: map['days_valid']?.toInt(),
-      vendorId: map['vendor_id'],
-      hourCalculationMode: map['hour_calculation_mode'],
-      hoursPerSlot: map['hours_per_slot']?.toInt(),
-      isActive: map['is_active'],
-      description: map['description'],
+      id: map['id']?.toString(),
+      name: map['name']?.toString(),
+      price: (map['price'] as num?)?.toDouble(),
+      passMode: map['pass_mode']?.toString(),
+      totalHour: map['total_hours'] is num
+          ? (map['total_hours'] as num).toInt()
+          : null,
+      daysValid: map['days_valid'] is num
+          ? (map['days_valid'] as num).toInt()
+          : null,
+      vendorId: map['vendor_id']?.toString(),
+      hourCalculationMode: map['hour_calculation_mode']?.toString(),
+      hoursPerSlot: map['hours_per_slot'] is num
+          ? (map['hours_per_slot'] as num).toInt()
+          : null,
+      isActive: map['is_active'] as bool?,
+      description: map['description']?.toString(),
     );
   }
 
-  factory GetVendorPassesModel.fromJson(String source) => GetVendorPassesModel.fromMap(json.decode(source));
+  factory GetVendorPassesModel.fromJson(String source) =>
+      GetVendorPassesModel.fromMap(json.decode(source));
 }

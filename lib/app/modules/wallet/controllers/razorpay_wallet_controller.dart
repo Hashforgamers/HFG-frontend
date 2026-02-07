@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/config/flavor_config.dart';
+import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
-import 'package:http/http.dart' as http;
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/service/segment_sdk_service.dart';
@@ -81,18 +81,18 @@ class RazorpayWalletController extends GetxController {
       "receipt": receiptId,
     };
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(payload),
-    );
+    final dio = locator<NetworkProvider>().noAuth();
+    final response = await dio.post(url, data: payload);
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = response.data is String
+          ? jsonDecode(response.data as String)
+          : response.data;
       openCheckout(amount, data['id']);
-    } else {
-      Get.snackbar("Error", "Failed to create payment order");
+      return;
     }
+
+    Get.snackbar("Error", "Failed to create payment order");
   }
 
   /// Called when payment is successful

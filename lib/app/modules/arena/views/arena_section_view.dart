@@ -68,7 +68,7 @@ class ArenaSection extends StatelessWidget {
         width: double.infinity,
         height: 60,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withValues(alpha: 0.5),
           borderRadius: const BorderRadius.vertical(
             bottom: Radius.circular(10),
           ),

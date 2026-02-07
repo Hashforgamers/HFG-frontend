@@ -3,7 +3,11 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import 'package:hash/config/app_keys.dart';
+import 'package:hash/core/network/network_config.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 /// Minimal model
 class GameNewsItem {
@@ -33,13 +37,6 @@ class GameNewsItem {
 }
 
 class NewsController extends GetxController {
-  // static const List<String> _apiKeys = [
-  //   '51a460406b4c42c49acf3b06fd7aebcb',
-  //   '8e619f80f675482fa9d9a7428ab8a3cd',
-  //   '25f277808858445e9ad83230a2af5c4b',
-  //   'ce0ee2717a214c128e7bb8bce624578d',
-  // ];
-
   final isLoading = false.obs;
   final items = <GameNewsItem>[].obs;
 
@@ -49,17 +46,13 @@ class NewsController extends GetxController {
   bool _busy = false;
 
   final Set<String> _seen = <String>{};
-  final _client = http.Client();
-  static const List<String> _apiKeys = [
-    '51a460406b4c42c49acf3b06fd7aebcb',
-    '8e619f80f675482fa9d9a7428ab8a3cd',
-    '25f277808858445e9ad83230a2af5c4b',
-    'ce0ee2717a214c128e7bb8bce624578d',
-  ];
+  final Dio _dio = locator<NetworkProvider>().noAuth();
+  final List<String> _apiKeys = AppKeys.newsApiKeys;
 
   final _rnd = Random();
 
-  String _getRandomKey() {
+  String? _getRandomKey() {
+    if (_apiKeys.isEmpty) return null;
     return _apiKeys[_rnd.nextInt(_apiKeys.length)];
   }
 
@@ -118,18 +111,28 @@ class NewsController extends GetxController {
     );
 
     final key = _getRandomKey(); // pick a random key each call
-
-    final res = await _client.get(uri, headers: {'X-Api-Key': key});
-    if (res.statusCode != 200) {
+    if (key == null) {
       if (kDebugMode) {
-        debugPrint('NewsAPI error ${res.statusCode}: ${res.body}');
-
+        AppLogger.w('NEWS_API_KEYS not set; skipping news fetch.');
       }
-      print(res.body);
       return const [];
     }
 
-    final data = json.decode(res.body) as Map<String, dynamic>;
+    final res = await _dio.get(
+      uri.toString(),
+      options: Options(headers: {'X-Api-Key': key}),
+    );
+    if (res.statusCode != 200) {
+      if (kDebugMode) {
+        debugPrint('NewsAPI error ${res.statusCode}: ${res.data}');
+      }
+      AppLogger.d(res.data);
+      return const [];
+    }
+
+    final data = res.data is String
+        ? json.decode(res.data as String) as Map<String, dynamic>
+        : res.data as Map<String, dynamic>;
     if (data['status'] != 'ok') return const [];
 
     final list = (data['articles'] as List? ?? const [])
@@ -153,4 +156,3 @@ class NewsController extends GetxController {
 
   bool get hasMore => _hasMore;
 }
-

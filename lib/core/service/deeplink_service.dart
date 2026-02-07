@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:app_links/app_links.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class DeepLinkController extends GetxController {
   final AppLinks _appLinks = AppLinks();
@@ -21,7 +22,7 @@ class DeepLinkController extends GetxController {
         _navigateToDeepLink(initialUri);
       }
     } catch (e) {
-      print('Failed to get initial app link: $e');
+      AppLogger.d('Failed to get initial app link: $e');
     }
   }
 
@@ -31,7 +32,7 @@ class DeepLinkController extends GetxController {
         _navigateToDeepLink(uri);
       },
       onError: (err) {
-        print('Error in app link stream: $err');
+        AppLogger.d('Error in app link stream: $err');
       },
     );
   }

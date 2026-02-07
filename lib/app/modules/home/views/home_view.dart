@@ -101,7 +101,9 @@ class _HomeViewState extends State<HomeView>
               duration: const Duration(milliseconds: 100),
               curve: Curves.ease,
               bottom: 5, // Just above navbar
-              right: isShopMenuOpen ? 0 : -MediaQuery.of(context).size.width*0.80,
+              right: isShopMenuOpen
+                  ? 0
+                  : -MediaQuery.of(context).size.width * 0.80,
               child: ClipRRect(
                 borderRadius: isShopMenuOpen
                     ? BorderRadius.zero
@@ -111,34 +113,40 @@ class _HomeViewState extends State<HomeView>
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     width: MediaQuery.of(context).size.width,
-                    height: isShopMenuOpen?50:45,
+                    height: isShopMenuOpen ? 50 : 45,
                     decoration: BoxDecoration(
                       borderRadius: isShopMenuOpen
                           ? BorderRadius.zero
                           : const BorderRadius.horizontal(
-                        left: Radius.circular(35),
-                      ),
+                              left: Radius.circular(35),
+                            ),
                       gradient: isShopMenuOpen
-                          ?  LinearGradient(
-                        colors: [
-                          Color(0xff0B1B08), // Green on left
-                          Color(0xff0B1B08).withOpacity(0.6), // Green on left
-                          Color(0xff7A44C0).withOpacity(0.7), // Purple on right
-                          Color(0xff7A44C0).withOpacity(0.8), // Purple on right
-                          Color(0xff7A44C0), // Purple on right
-                        ],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      )
+                          ? LinearGradient(
+                              colors: [
+                                Color(0xff0B1B08), // Green on left
+                                Color(
+                                  0xff0B1B08,
+                                ).withOpacity(0.6), // Green on left
+                                Color(
+                                  0xff7A44C0,
+                                ).withOpacity(0.7), // Purple on right
+                                Color(
+                                  0xff7A44C0,
+                                ).withOpacity(0.8), // Purple on right
+                                Color(0xff7A44C0), // Purple on right
+                              ],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            )
                           : LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withOpacity(0.08),
-                          Colors.white.withOpacity(0.03),
-                          Colors.black.withOpacity(0.25),
-                        ],
-                      ),
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.08),
+                                Colors.white.withOpacity(0.03),
+                                Colors.black.withOpacity(0.25),
+                              ],
+                            ),
 
                       boxShadow: [
                         BoxShadow(
@@ -167,12 +175,15 @@ class _HomeViewState extends State<HomeView>
                             child: Row(
                               children: [
                                 if (isShopMenuOpen)
-                                  const Icon(Icons.arrow_back_ios_new_sharp,
-                                      size: 12, color: Colors.white),
+                                  const Icon(
+                                    Icons.arrow_back_ios_new_sharp,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
                                 const SizedBox(width: 8),
                                 Text(
                                   isShopMenuOpen ? "Home" : "HASH\nSHOP",
-                                  style:  GoogleFonts.orbitron(
+                                  style: GoogleFonts.orbitron(
                                     color: Colors.white,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
@@ -184,9 +195,11 @@ class _HomeViewState extends State<HomeView>
 
                           // --- Shop Icons ---
                           Expanded(
-                            child: Row(mainAxisSize: MainAxisSize.max,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.max,
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [                                const SizedBox(width: 10),
+                              children: [
+                                const SizedBox(width: 10),
 
                                 _shopIcon(Icons.category),
                                 const SizedBox(width: 10),
@@ -194,7 +207,6 @@ class _HomeViewState extends State<HomeView>
                                 const SizedBox(width: 10),
                                 _shopIcon(Icons.gif_box_rounded),
                                 const SizedBox(width: 10),
-
                               ],
                             ),
                           ),
@@ -213,11 +225,13 @@ class _HomeViewState extends State<HomeView>
 
   // --- BottomNavigationBar Item Builder ---
   BottomNavigationBarItem _buildNavigationItem(
-      String iconPath, {
-        required bool isSelected,
-        bool isSpecial = false,
-      }) {
-    final selected = controller.selectedIndex.value==3?Color(0xffFBA544):Color(0xff338125);
+    String iconPath, {
+    required bool isSelected,
+    bool isSpecial = false,
+  }) {
+    final selected = controller.selectedIndex.value == 3
+        ? Color(0xffFBA544)
+        : Color(0xff338125);
     final unselected = Colors.grey[800];
 
     if (isSpecial) {

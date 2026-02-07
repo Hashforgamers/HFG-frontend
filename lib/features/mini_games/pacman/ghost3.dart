@@ -5,7 +5,7 @@ class MyGhost3 extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(2),
-      child: Image.asset('lib/features/mini_games/pacman/images/ghost3.png'),
+      child: Image.asset('assets/pacman/images/ghost3.png'),
     );
   }
 }

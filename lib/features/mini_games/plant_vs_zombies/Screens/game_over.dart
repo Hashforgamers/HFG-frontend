@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-
 import '../Constant/assets.dart';
 import '../Utils/audio_player.dart';
 import '../routes.dart';
@@ -28,7 +27,9 @@ class GameOver extends StatelessWidget {
               Text(
                 "Game Over",
                 style: GoogleFonts.pressStart2p(
-                    fontSize: 35.0, color: Colors.white),
+                  fontSize: 35.0,
+                  color: Colors.white,
+                ),
               ),
               SizedBox(height: 25.0),
               Text(
@@ -51,7 +52,10 @@ class GameOver extends StatelessWidget {
                   ),
                   onPressed: () {
                     Navigator.pushNamedAndRemoveUntil(
-                        context, Routes.home, (route) => false);
+                      context,
+                      Routes.home,
+                      (route) => false,
+                    );
                   },
                 ),
               ),

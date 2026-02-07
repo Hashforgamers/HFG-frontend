@@ -55,14 +55,14 @@ class JaggedButton extends PositionComponent with TapCallbacks {
     required this.borderPosition,
     super.anchor = Anchor.center,
   }) : _textDrawable = TextPaint(
-          style: const TextStyle(
-            fontSize: 23,
-            color: AppColors.white,
-            fontWeight: FontWeight.w800,
-            fontFamily: 'Insan',
-            letterSpacing: 2.0,
-          ),
-        ).toTextPainter(text) {
+         style: const TextStyle(
+           fontSize: 23,
+           color: AppColors.white,
+           fontWeight: FontWeight.w800,
+           fontFamily: 'Insan',
+           letterSpacing: 2.0,
+         ),
+       ).toTextPainter(text) {
     // Sets the button size based on the text width
     size = Vector2(
       _textDrawable.width + 100, // Adding padding for the button width
@@ -80,8 +80,10 @@ class JaggedButton extends PositionComponent with TapCallbacks {
 
     // Paint for the border of the button
     _borderPaint = Paint()
-      ..style = PaintingStyle.stroke // Border style
-      ..strokeWidth = 7.0 // Border thickness
+      ..style = PaintingStyle
+          .stroke // Border style
+      ..strokeWidth =
+          7.0 // Border thickness
       ..color = borderColor;
   }
 
@@ -112,12 +114,16 @@ class JaggedButton extends PositionComponent with TapCallbacks {
     final Path path = Path();
 
     // Set starting point for the jagged effect based on the position
-    double yOffset = borderPosition == JaggedBorderPosition.top ? -3 : size.y + 3;
+    double yOffset = borderPosition == JaggedBorderPosition.top
+        ? -3
+        : size.y + 3;
 
     for (int i = 0; i <= 10; i++) {
       // Create a jagged effect by moving up and down
       double x = i * (size.x / 10);
-      double y = (i % 2 == 0) ? yOffset - 2 : yOffset + 2; // Adjust height based on position
+      double y = (i % 2 == 0)
+          ? yOffset - 2
+          : yOffset + 2; // Adjust height based on position
       if (i == 0) {
         path.moveTo(x, y);
       } else {

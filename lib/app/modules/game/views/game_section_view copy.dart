@@ -9,7 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import 'package:hash/config/app_keys.dart';
 
 import '../../../../utils/widgets/glow_neon_loader.dart';
 
@@ -44,18 +45,27 @@ class Game {
 }
 
 class GameService {
-  static const String _apiKey = '5161e75d1d234431ac34d3947d01ea1e';
+  static const String _apiKey = AppKeys.rawgApiKey;
   static const String _baseUrl = 'https://api.rawg.io/api';
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+      responseType: ResponseType.plain,
+    ),
+  );
 
   Future<List<Game>> fetchGames(List<Color> colors) async {
-    final url = Uri.parse('$_baseUrl/games?key=$_apiKey');
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body)['results'] as List;
+    if (_apiKey.isEmpty) return [];
+
+    final url = '$_baseUrl/games?key=$_apiKey';
+    final response = await _dio.get<String>(url);
+    if (response.statusCode == 200 && response.data != null) {
+      final data = json.decode(response.data!)['results'] as List;
       return data.map((game) => Game.fromJson(game, colors)).toList();
-    } else {
-      throw Exception('Failed to fetch games');
     }
+
+    throw Exception('Failed to fetch games');
   }
 }
 

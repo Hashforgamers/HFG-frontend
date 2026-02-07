@@ -1,12 +1,13 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 part 'tournaments_details_state.dart';
 
 class TournamentsDetailsCubit extends Cubit<TournamentsDetailsState> {
   TournamentsDetailsCubit(Map<String, dynamic> tournament)
       : super(TournamentsDetailsLoaded(tournament: _enrichWithFullData(tournament))) {
-    print('Details Cubit: ${tournament['title']}');
+    AppLogger.d('Details Cubit: ${tournament['title']}');
   }
 
   // Enrich compact data with full details (mock)

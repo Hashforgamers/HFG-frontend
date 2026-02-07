@@ -6,6 +6,7 @@ import 'package:hash/app/modules/hash_store/pages/hash_store_cart_view.dart';
 import 'package:hash/app/modules/hash_store/widgets/hash_store_app_bar.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class CategoriesView extends StatefulWidget {
   const CategoriesView({super.key});
@@ -92,7 +93,7 @@ class _CategoriesViewState extends State<CategoriesView> {
   }) {
     return BounceTap(
       onTap: () {
-        print('Tapped $title');
+        AppLogger.d('Tapped $title');
       },
       child: Container(
         height: 70,

@@ -259,7 +259,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
               indicator: BoxDecoration(
                 color: const Color(0xFF1F2A1C),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _green.withOpacity(0.5)),
+                border: Border.all(color: _green.withValues(alpha: 0.5)),
               ),
 
               // Push indicator slightly away from text baseline
@@ -563,7 +563,7 @@ class BookingTicketCard extends StatelessWidget {
         Get.snackbar(
           'Error',
           'Invalid QR Code format. Missing required fields.',
-          backgroundColor: Colors.red.withOpacity(0.8),
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
           colorText: Colors.white,
           duration: const Duration(seconds: 3),
           snackPosition: SnackPosition.TOP,
@@ -583,7 +583,7 @@ class BookingTicketCard extends StatelessWidget {
       Get.snackbar(
         'Success',
         result, // Use the API response message
-        backgroundColor: Colors.green.withOpacity(0.8),
+        backgroundColor: Colors.green.withValues(alpha: 0.8),
         colorText: Colors.white,
         duration: const Duration(seconds: 3),
         snackPosition: SnackPosition.TOP,
@@ -600,7 +600,7 @@ class BookingTicketCard extends StatelessWidget {
       Get.snackbar(
         'Error',
         errorMessage,
-        backgroundColor: Colors.red.withOpacity(0.8),
+        backgroundColor: Colors.red.withValues(alpha: 0.8),
         colorText: Colors.white,
         duration: const Duration(seconds: 3),
         snackPosition: SnackPosition.TOP,
@@ -688,7 +688,7 @@ class BookingTicketCard extends StatelessWidget {
                           Text(
                             'Booking ID',
                             style: GoogleFonts.inter(
-                              color: _accentForStatus(status).withOpacity(0.75),
+                              color: _accentForStatus(status).withValues(alpha: 0.75),
                               fontSize: 10,
                             ),
                           ),

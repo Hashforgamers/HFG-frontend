@@ -1,29 +1,37 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
+import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_bottom_bar.dart';
+import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_cart_section.dart';
+import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_game_pass_dialog.dart';
+import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_payment_method_section.dart';
+import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_payment_summary_section.dart';
+import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_processing_overlay.dart';
+import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_slots_list.dart';
+import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_user_section.dart';
+import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_voucher_section.dart';
 import 'package:hash/app/modules/arena/views/payment_success.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
 import 'package:hash/app/modules/payment/razorpay_controller.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
 import 'package:hash/config/flavor_config.dart';
+import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
-import 'package:http/http.dart' as http;
 import 'package:in_app_review/in_app_review.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
 import '../../../../core/repositories/model/extra_services_model.dart';
-import '../../../../utils/widgets/loader.dart';
 import '../../../data/services/user_controller.dart';
 import '../../../../core/repositories/model/booking_model.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class BookingSummaryScreen extends StatefulWidget {
   final String selectedCafeName;
@@ -69,6 +77,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
+  final _networkProvider = locator<NetworkProvider>();
   final prefs = locator<SharedPreferences>();
   final RxString _selectedPayment =
       'gateway'.obs; // 'wallet', 'gateway' or 'none'
@@ -209,24 +218,55 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   Future<void> _loadUserGamePasses() async {
     _isLoadingGamePasses(true);
     _gamePassError.value = '';
+
     try {
       final userData = await _remoteRepo.getUserFromPreferences();
+
       if (userData != null) {
         final userId = userData['id']?.toString() ?? '0';
+
+        AppLogger.d("🎯 Loading game passes for userId: $userId");
+
         final gamePasses = await _remoteRepo.getUserActiveGamePass(
           userId: userId,
         );
 
+        AppLogger.d("✅ Raw gamePasses count: ${gamePasses.length}");
+
         // Filter passes based on vendor ID match
         final filteredPasses = _filterPassesByVendor(gamePasses);
+
+        AppLogger.d("🎯 Filtered passes count: ${filteredPasses.length}");
+
         _userGamePasses.value = filteredPasses;
       } else {
+        AppLogger.d("❌ User not found in preferences");
+
         _userGamePasses.value = [];
         _gamePassError.value = 'User not found';
       }
-    } catch (e) {
+    } catch (e, st) {
       _userGamePasses.value = [];
-      _gamePassError.value = 'Failed to load game passes: $e';
+
+      // ───── DIO-SPECIFIC DEBUG ─────
+      if (e is DioException) {
+        final statusCode = e.response?.statusCode;
+        final responseData = e.response?.data;
+
+        AppLogger.d("❌ Dio error while loading game passes");
+        AppLogger.d("   ➤ Status code: $statusCode");
+        AppLogger.d("   ➤ URL: ${e.requestOptions.uri}");
+        AppLogger.d("   ➤ Method: ${e.requestOptions.method}");
+        AppLogger.d("   ➤ Response data: $responseData");
+        AppLogger.d("   ➤ Message: ${e.message}");
+        AppLogger.d("   ➤ Type: ${e.type}");
+      } else {
+        AppLogger.d("❌ Non-Dio error while loading game passes: $e");
+      }
+
+      AppLogger.d("🧵 StackTrace: $st");
+
+      _gamePassError.value = 'Failed to load game passes';
     } finally {
       _isLoadingGamePasses(false);
     }
@@ -351,381 +391,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: const Color(0xFF1A1A1A),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            constraints: const BoxConstraints(maxHeight: 500, minHeight: 200),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Select Hash Game Pass',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Obx(
-                          () => _isLoadingGamePasses.value
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CupertinoActivityIndicator(
-                                    color: Colors.green,
-                                  ),
-                                )
-                              : IconButton(
-                                  onPressed: _loadUserGamePasses,
-                                  icon: const Icon(
-                                    Icons.refresh,
-                                    color: Colors.green,
-                                  ),
-                                ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close, color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Obx(() {
-                  if (_isLoadingGamePasses.value) {
-                    return const Center(child: RainbowLoadingBar());
-                  }
-
-                  if (_gamePassError.value.isNotEmpty) {
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.withOpacity(0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error, color: Colors.red, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _gamePassError.value,
-                              style: GoogleFonts.inter(
-                                color: Colors.red,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  if (_userGamePasses.isEmpty) {
-                    return Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.gamepad_outlined,
-                            color: Colors.grey.shade400,
-                            size: 48,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No Compatible Game Passes',
-                            style: GoogleFonts.inter(
-                              color: Colors.grey.shade400,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'You don\'t have any active game passes that can be used at this cafe.',
-                            style: GoogleFonts.inter(
-                              color: Colors.grey.shade500,
-                              fontSize: 14,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'HASH Passes can be used at any cafe. Cafe-specific passes can only be used at their respective cafes.',
-                            style: GoogleFonts.inter(
-                              color: Colors.grey.shade600,
-                              fontSize: 12,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return SizedBox(
-                    height: 300, // Fixed height to avoid layout issues
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: _userGamePasses.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final pass = _userGamePasses[index];
-                        final isSelected =
-                            _selectedGamePass.value?.id == pass.id;
-                        final isExpired = pass.progressValue >= 1.0;
-
-                        return GestureDetector(
-                          onTap: isExpired
-                              ? null
-                              : () {
-                                  _selectedGamePass.value = pass;
-                                },
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFF338125).withOpacity(0.2)
-                                  : const Color(0xFF2A2A2A),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? const Color(0xFF338125)
-                                    : isExpired
-                                    ? Colors.red.withOpacity(0.3)
-                                    : Colors.grey.withOpacity(0.3),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            pass.name,
-                                            style: GoogleFonts.inter(
-                                              color: isExpired
-                                                  ? Colors.grey.shade500
-                                                  : Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            pass.vendorName,
-                                            style: GoogleFonts.inter(
-                                              color: Colors.grey.shade400,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (isSelected)
-                                      const Icon(
-                                        Icons.check_circle,
-                                        color: Color(0xFF338125),
-                                        size: 24,
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            pass.expiryText,
-                                            style: GoogleFonts.inter(
-                                              color: isExpired
-                                                  ? Colors.red
-                                                  : Colors.grey.shade300,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          if (pass.description.isNotEmpty)
-                                            Text(
-                                              pass.description,
-                                              style: GoogleFonts.inter(
-                                                color: Colors.grey.shade400,
-                                                fontSize: 12,
-                                              ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    Column(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: isExpired
-                                                ? Colors.red.withOpacity(0.2)
-                                                : const Color(
-                                                    0xFF338125,
-                                                  ).withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            isExpired ? 'EXPIRED' : 'ACTIVE',
-                                            style: GoogleFonts.inter(
-                                              color: isExpired
-                                                  ? Colors.red
-                                                  : const Color(0xFF338125),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: pass.vendorId == null
-                                                ? Colors.blue.withOpacity(0.2)
-                                                : Colors.orange.withOpacity(
-                                                    0.2,
-                                                  ),
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            pass.vendorId == null
-                                                ? 'HASH'
-                                                : 'CAFE',
-                                            style: GoogleFonts.inter(
-                                              color: pass.vendorId == null
-                                                  ? Colors.blue
-                                                  : Colors.orange,
-                                              fontSize: 8,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                if (!isExpired) ...[
-                                  const SizedBox(height: 12),
-                                  LinearProgressIndicator(
-                                    value: pass.progressValue,
-                                    backgroundColor: Colors.grey.withOpacity(
-                                      0.3,
-                                    ),
-                                    valueColor:
-                                        const AlwaysStoppedAnimation<Color>(
-                                          Color(0xFF338125),
-                                        ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                }),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            side: BorderSide(
-                              color: Colors.grey.withOpacity(0.3),
-                            ),
-                          ),
-                        ),
-                        child: Text(
-                          'Cancel',
-                          style: GoogleFonts.inter(
-                            color: Colors.grey.shade300,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Obx(
-                        () => ElevatedButton(
-                          onPressed: _selectedGamePass.value != null
-                              ? () {
-                                  Navigator.of(context).pop();
-                                  // Proceed with the selected game pass
-                                  _proceedWithGamePass();
-                                }
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF338125),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: Text(
-                            'Proceed',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        return BookingSummaryGamePassDialog(
+          isLoading: _isLoadingGamePasses,
+          errorMessage: _gamePassError,
+          userGamePasses: _userGamePasses,
+          selectedGamePass: _selectedGamePass,
+          onRefresh: _loadUserGamePasses,
+          onProceed: _proceedWithGamePass,
         );
       },
     );
@@ -813,6 +485,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
+  void _onPaymentSelected(String value) {
+    _selectedPayment(value);
+    if (value != 'none') {
+      _selectedGamePass.value = null;
+      return;
+    }
+
+    _selectedGamePass.value = null;
+    _loadUserGamePasses();
+  }
+
   double calculateTotalPrice() {
     // Calculate subtotal including slots and cart items
     double subtotal = calculateSubtotal();
@@ -888,6 +571,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final validatedCartItems = _getValidatedCartItems();
+    final cartSummary = _getCartItemsSummary();
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
@@ -903,14 +589,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Obx(() => Stack(
-        children: [
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+      body: Obx(
+        () => Stack(
+          children: [
+            SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   // Text(
                   //   '${widget.selectedCafeName} - ${widget.consoleType}',
                   //   style: GoogleFonts.inter(
@@ -930,659 +617,123 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: widget.selectedSlots.length,
-                    separatorBuilder: (context, index) =>
-                        Divider(color: Colors.grey.shade800),
-                    itemBuilder: (context, index) {
-                      final slot = widget.selectedSlots[index];
-                      final double slotPrice = (slot['price'] ?? 50.0).toDouble();
-                      return Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1A1A1A),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  slot['console_label'] ?? 'PC ${slot['pc_index']}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${slot['start_time']} - ${slot['end_time']}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              '₹${slotPrice.toStringAsFixed(2)}',
-                              style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                                color: const Color(0xFF6DFB60),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                  BookingSummarySlotsList(
+                    selectedSlots: widget.selectedSlots,
                   ),
                   const SizedBox(height: 5),
-                  _getValidatedCartItems().isNotEmpty
-                      ? Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 20,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Color(0xFF191919),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Food & Beverages',
-                              style: GoogleFonts.inter(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Color(0xFF338125).withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                _getCartItemsSummary(),
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: Color(0xFF6DFB60),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          separatorBuilder: (context, index) =>
-                          const SizedBox(height: 10),
-                          itemCount: _getValidatedCartItems().length,
-                          itemBuilder: (context, index) {
-                            final cartItem = _getValidatedCartItems()[index];
-                            final int quantity =
-                            (cartItem['qty'] ?? 1) as int;
-                            final double itemPrice =
-                            (cartItem['price'] ?? 0.0).toDouble();
-                            final double totalItemPrice =
-                                itemPrice * quantity;
-
-                            return Container(
-                              margin: const EdgeInsets.symmetric(
-                                vertical: 20,
-                              ),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1F1F1F),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Food & Beverages',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(
-                                            0xFF338125,
-                                          ).withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          _getCartItemsSummary(),
-                                          style: GoogleFonts.inter(
-                                            fontSize: 12,
-                                            color: const Color(0xFF6DFB60),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ..._getValidatedCartItems().map((item) {
-                                    final quantity = item['qty'] ?? 1;
-                                    final price = (item['price'] ?? 0.0)
-                                        .toDouble();
-                                    final total = price * quantity;
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 10,
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              '${item['name']} (x$quantity)',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 14,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                          Text(
-                                            '₹${total.toStringAsFixed(2)}',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFF6DFB60),
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  )
-                      : SizedBox(),
+                  BookingSummaryCartSection(
+                    cartItems: validatedCartItems,
+                    summaryText: cartSummary,
+                  ),
                   // : _buildMealButton(),
                   const SizedBox(height: 1),
-                  Container(
-                    margin: const EdgeInsets.only(top: 5),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1F1F1F),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Booking User',
-                              style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w500,
-                                color: const Color(0xFF8B8B8B),
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Obx(
-                                  () => Text(
-                                userController.user.value.name ?? 'User',
-                                style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            // Add change logic here
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                          child: Text(
-                            'Change',
-                            style: GoogleFonts.inter(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.deepOrange,
-                            ),
-                          ),
-                        ),
-                      ],
+                  Obx(
+                    () => BookingSummaryUserSection(
+                      userName: userController.user.value.name ?? 'User',
+                      onChangeUser: () {
+                        // Add change logic here
+                      },
                     ),
                   ),
 
                   const SizedBox(height: 1),
-                  Container(
-                    margin: const EdgeInsets.only(top: 10),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1F1F1F),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Obx(
-                          () => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Choose Payment Method',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // ── Payment Options ─────────────────
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _paymentChip(
-                                  'Wallet',
-                                  Icons.account_balance_wallet,
-                                  'wallet',
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _paymentChip(
-                                  'Hash Game Pass',
-                                  Icons.gamepad,
-                                  'none',
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _paymentChip(
-                                  'UPI / Card',
-                                  Icons.credit_card,
-                                  'gateway',
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _paymentChip(
-                                  'Pay in Cafe',
-                                  Icons.directions_walk,
-                                  'pay_at_cafe',
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          // ── Game Pass Selected Info ──────────────
-                          if (_selectedPayment.value == 'none' &&
-                              _selectedGamePass.value != null) ...[
-                            const SizedBox(height: 20),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF338125).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: const Color(0xFF338125).withOpacity(0.3),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.check_circle,
-                                    color: Color(0xFF338125),
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Selected: ${_selectedGamePass.value!.name}',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 14,
-                                            color: const Color(0xFF6DFB60),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          _selectedGamePass.value!.vendorName,
-                                          style: GoogleFonts.inter(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade400,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => _selectedGamePass.value = null,
-                                    child: Text(
-                                      'Change',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        color: const Color(0xFF6DFB60),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+                  BookingSummaryPaymentMethodSection(
+                    selectedPayment: _selectedPayment,
+                    selectedGamePass: _selectedGamePass,
+                    onSelectPayment: _onPaymentSelected,
+                    onClearSelectedPass: () => _selectedGamePass.value = null,
                   ),
                   const SizedBox(height: 1),
-                  _buildVoucherSection(),
+                  BookingSummaryVoucherSection(
+                    voucherController: _voucherController,
+                    isLoadingVouchers: _isLoadingVouchers,
+                    availableVouchers: _availableVouchers,
+                    appliedVoucher: _appliedVoucher,
+                    isApplyingVoucher: _isApplyingVoucher,
+                    voucherError: _voucherError,
+                    onReload: _loadVouchers,
+                    onApply: _applyVoucher,
+                    onRemove: _removeVoucher,
+                    onSelectVoucher: _selectVoucher,
+                    canApplyVoucher: _canApplyVoucher,
+                  ),
                   const SizedBox(height: 1),
 
-                  Container(
-                    margin: const EdgeInsets.only(top: 10),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1F1F1F),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Obx(() {
-                      double totalPrice = calculateTotalPrice();
-                      double discount = calculateDiscount();
-                      double subtotal = calculateSubtotal();
-                      double slotsSubtotal = calculateSlotsSubtotal();
-                      double cartSubtotal = calculateCartSubtotal();
+                  Obx(() {
+                    final totalPrice = calculateTotalPrice();
+                    final discount = calculateDiscount();
+                    final subtotal = calculateSubtotal();
+                    final slotsSubtotal = calculateSlotsSubtotal();
+                    final cartSubtotal = calculateCartSubtotal();
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Payment Summary',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          if (widget.selectedSlots.isNotEmpty)
-                            buildPaymentRow(
-                              'Slots',
-                              '₹${slotsSubtotal.toStringAsFixed(2)}',
-                            ),
-
-                          if (_getValidatedCartItems().isNotEmpty)
-                            buildPaymentRow(
-                              'Food & Beverages',
-                              '₹${cartSubtotal.toStringAsFixed(2)}',
-                            ),
-
-                          buildPaymentRow(
-                            'Subtotal',
-                            '₹${subtotal.toStringAsFixed(2)}',
-                          ),
-
-                          if (discount > 0)
-                            buildPaymentRow(
-                              'Discount',
-                              '-₹${discount.toStringAsFixed(2)}',
-                              color: Colors.green,
-                            ),
-
-                          buildPaymentRow('GST', '₹0.00'),
-
-                          Divider(
-                            color: Colors.grey.shade800,
-                            thickness: 1,
-                            height: 24,
-                          ),
-
-                          buildPaymentRow(
-                            'GRAND TOTAL',
-                            '₹${totalPrice.toStringAsFixed(2)}',
-                            bold: true,
-                            fontSize: 16,
-                          ),
-                        ],
-                      );
-                    }),
-                  ),
+                    return BookingSummaryPaymentSummarySection(
+                      totalPrice: totalPrice,
+                      discount: discount,
+                      subtotal: subtotal,
+                      slotsSubtotal: slotsSubtotal,
+                      cartSubtotal: cartSubtotal,
+                      hasSlots: widget.selectedSlots.isNotEmpty,
+                      hasCartItems: validatedCartItems.isNotEmpty,
+                    );
+                  }),
 
                   // ─── Payment Method ──────────────────────────────────────────
-                ],
-              ),
-            ),
-          ),
-          if (_isProcessingPayment.value) // Conditional loader
-            Center( // Centers on screen
-              child: Container(
-                padding: const EdgeInsets.all(20), // Padding for better visuals
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7), // Semi-transparent overlay
-                  borderRadius: BorderRadius.circular(16), // Rounded corners
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min, // Compact size
-                  children: [
-                    const CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF338125)), // App's green color
-                    ),
-                    const SizedBox(height: 16), // Optional spacing
-                    Text(
-                      _paymentStatus.value.isNotEmpty ? _paymentStatus.value : 'Processing...', // Show status or default text
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
                   ],
                 ),
               ),
             ),
-        ],
-      ),
-      ),
-        bottomNavigationBar: BottomAppBar(
-          color: const Color(0xFF0F0F0F),
-          elevation: 16,
-          child: Padding(
-            padding: const EdgeInsets.all(5),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Total Amount
-                Obx(() => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total Payable',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.6),
-                      ),
-                    ),
-                    Text(
-                      '₹ ${calculateTotalPrice().toStringAsFixed(2)}',
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Proceed / Select Pass Button
-              Obx(() {
-                final isProcessing =
-                    _isProcessingPayment.value ||
-                    _stage.value == PaymentStage.creatingBooking ||
-                    _stage.value == PaymentStage.debitingWallet ||
-                    _stage.value == PaymentStage.initiatingGateway ||
-                    _stage.value == PaymentStage.confirmingVoucher ||
-                    _stage.value == PaymentStage.confirmingGamePass ||
-                    _stage.value == PaymentStage.openingRazorpay;
-
-                final isGamePassSelected = _selectedPayment.value == 'none';
-                final hasSelectedPass = _selectedGamePass.value != null;
-
-                final showSelectPass = isGamePassSelected && !hasSelectedPass;
-
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF338125),
-
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Color(0xFF338125)),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: isProcessing
-                        ? null
-                        : () {
-                            if (showSelectPass) {
-                              _showGamePassSelectionDialog();
-                            } else if (_selectedPayment.value ==
-                                'pay_at_cafe') {
-                              // Handle Pay at Café booking flow
-                              handleBooking(
-                                context,
-                                isVoucherApplied: _appliedVoucher.value != null,
-                                useWallet: false, // Not wallet
-                                isGamePass: false,
-                                selectedPassId: null,
-                                isPayAtCafe:
-                                    true, // <-- add this param in handleBooking
-                              );
-                            } else {
-                              // Default (wallet / online gateway)
-                              handleBooking(
-                                context,
-                                isVoucherApplied: _appliedVoucher.value != null,
-                                useWallet: _selectedPayment.value == 'wallet',
-                                isGamePass: false,
-                                selectedPassId: null,
-                                isPayAtCafe: false,
-                              );
-                            }
-                          },
-
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 23,
-                        vertical: 8,
-                      ),
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: isProcessing
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          )
-                        : Text(
-                            showSelectPass ? 'Select Pass' : 'Pay',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                  ),
-                );
-              }),
-            ],
-          ),
+            BookingSummaryProcessingOverlay(
+              isProcessing: _isProcessingPayment.value,
+              status: _paymentStatus.value,
+            ),
+          ],
         ),
       ),
-    );
+        bottomNavigationBar: Obx(() {
+          final isProcessing =
+              _isProcessingPayment.value ||
+              _stage.value == PaymentStage.creatingBooking ||
+              _stage.value == PaymentStage.debitingWallet ||
+              _stage.value == PaymentStage.initiatingGateway ||
+              _stage.value == PaymentStage.confirmingVoucher ||
+              _stage.value == PaymentStage.confirmingGamePass ||
+              _stage.value == PaymentStage.openingRazorpay;
+
+          final isGamePassSelected = _selectedPayment.value == 'none';
+          final hasSelectedPass = _selectedGamePass.value != null;
+          final showSelectPass = isGamePassSelected && !hasSelectedPass;
+
+          return BookingSummaryBottomBar(
+            totalPrice: calculateTotalPrice(),
+            isProcessing: isProcessing,
+            showSelectPass: showSelectPass,
+            onPressed: () {
+              if (showSelectPass) {
+                _showGamePassSelectionDialog();
+              } else if (_selectedPayment.value == 'pay_at_cafe') {
+                handleBooking(
+                  context,
+                  isVoucherApplied: _appliedVoucher.value != null,
+                  useWallet: false,
+                  isGamePass: false,
+                  selectedPassId: null,
+                  isPayAtCafe: true,
+                );
+              } else {
+                handleBooking(
+                  context,
+                  isVoucherApplied: _appliedVoucher.value != null,
+                  useWallet: _selectedPayment.value == 'wallet',
+                  isGamePass: false,
+                  selectedPassId: null,
+                  isPayAtCafe: false,
+                );
+              }
+            },
+          );
+        }),
+      );
+
   }
 
   // Widget _buildMealButton() {
@@ -1610,366 +761,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   //     ),
   //   );
   // }
-
-  Widget _buildVoucherSection() {
-    return Container(
-      margin: EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      decoration: BoxDecoration(
-        color: Color(0xFF191919),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Have a Voucher?',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(
-                height: 20,
-                child: Obx(
-                  () => _isLoadingVouchers.value
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CupertinoActivityIndicator(),
-                        )
-                      : GestureDetector(
-                          onTap: _loadVouchers,
-                          child: const Icon(
-                            CupertinoIcons.refresh,
-                            color: Colors.green,
-                            size: 20,
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          // Applied Voucher Info
-          Obx(() {
-            final applied = _appliedVoucher.value;
-            if (applied != null) {
-              return Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.green.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Applied: ${applied.code}',
-                            style: GoogleFonts.inter(
-                              color: Colors.green,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            '${applied.discountPercentage}% discount active',
-                            style: GoogleFonts.inter(
-                              color: Colors.green.withOpacity(0.8),
-                              fontSize: 12,
-                            ),
-                          ),
-                          if (applied.discountPercentage == 100) ...[
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Colors.orange.withOpacity(0.3),
-                                ),
-                              ),
-                              child: Text(
-                                '⚠️ Limited to 1 slot only',
-                                style: GoogleFonts.inter(
-                                  color: Colors.orange,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _removeVoucher,
-                      icon: const Icon(
-                        Icons.close,
-                        size: 18,
-                        color: Colors.green,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      tooltip: 'Remove Voucher',
-                    ),
-                  ],
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          }),
-
-          // Available Vouchers Count
-          Obx(() {
-            if (_availableVouchers.isNotEmpty) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'Your Available Vouchers (${_availableVouchers.length})',
-                  style: GoogleFonts.inter(
-                    color: Colors.grey.shade300,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          }),
-
-          // Voucher Input and Apply Button Row
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: TextField(
-                    controller: _voucherController,
-                    style: GoogleFonts.inter(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Enter voucher code',
-                      hintStyle: GoogleFonts.inter(
-                        color: Colors.grey.shade400,
-                        fontSize: 14,
-                      ),
-                      filled: true,
-                      fillColor: Colors.black.withOpacity(0.3),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide(
-                          color: Color(0xFF505050),
-                          width: 1,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide(
-                          color: Color(0xFF505050),
-                          width: 1,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF338125),
-                          width: 1,
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Obx(() {
-                return GestureDetector(
-                  onTap: _isApplyingVoucher.value ? null : _applyVoucher,
-                  child: Container(
-                    height: 44,
-                    width: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.transparent,
-                      border: Border.all(
-                        color: const Color(0xFF338125),
-                        width: 1,
-                      ),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Center(
-                      child: _isApplyingVoucher.value
-                          ? const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: RainbowLoadingBar(),
-                            )
-                          : Text(
-                              'Apply',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-
-          // Error Message
-          Obx(() {
-            if (_voucherError.value.isNotEmpty) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  _voucherError.value,
-                  style: GoogleFonts.inter(
-                    color: Colors.red.shade300,
-                    fontSize: 12,
-                  ),
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          }),
-
-          // Available Vouchers List
-          Obx(() {
-            if (_availableVouchers.isNotEmpty) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 120,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _availableVouchers.length,
-                      itemBuilder: (context, index) {
-                        final voucher = _availableVouchers[index];
-                        final isActive = voucher.isActive;
-                        final canApply = isActive && _canApplyVoucher(voucher);
-                        return GestureDetector(
-                          onTap: canApply ? () => _selectVoucher(voucher) : null,
-                          child: Container(
-                            width: 140,
-                            margin: const EdgeInsets.only(right: 10),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: canApply
-                                  ? Colors.deepOrange.withOpacity(0.08)
-                                  : isActive
-                                      ? Colors.grey.shade700
-                                      : Colors.grey.shade800,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: canApply
-                                    ? Colors.deepOrange.withOpacity(0.3)
-                                    : isActive
-                                        ? Colors.orange.withOpacity(0.3)
-                                        : Colors.grey.withOpacity(0.2),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  voucher.code,
-                                  style: GoogleFonts.inter(
-                                    color: canApply
-                                        ? Colors.deepOrange
-                                        : isActive
-                                            ? Colors.grey.shade400
-                                            : Colors.grey.shade500,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${voucher.discountPercentage}% OFF',
-                                  style: GoogleFonts.inter(
-                                    color: canApply
-                                        ? Colors.white
-                                        : isActive
-                                            ? Colors.grey.shade400
-                                            : Colors.grey,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  canApply ? 'Available' : isActive ? 'Limited' : 'Inactive',
-                                  style: GoogleFonts.inter(
-                                    color: canApply
-                                        ? Colors.green
-                                        :isActive ? Colors.orange : Colors.red,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                                if (isActive && voucher.discountPercentage == 100) ...[
-                                  const SizedBox(height: 2),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                    decoration: BoxDecoration(
-                                      color: canApply
-                                          ? Colors.orange.withOpacity(0.2)
-                                          : Colors.red.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      canApply ? '1 slot only' : 'Too many slots',
-                                      style: GoogleFonts.inter(
-                                        color: canApply ? Colors.orange : Colors.red,
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              );
-            }
-            return const SizedBox.shrink();
-          }),
-        ],
-      ),
-    );
-  }
 
   bool _validateBooking() {
     // Check if slots are selected
@@ -2109,28 +900,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               return 'Server error occurred. Please try again later.';
           }
         }
-      } else if (error is http.Response) {
-        final data = jsonDecode(error.body);
-        if (data['error'] != null) return data['error'];
-        if (data['message'] != null) return data['message'];
-
-        switch (error.statusCode) {
-          case 400:
-            return 'Invalid request. Please check your details.';
-          case 401:
-            return 'Authentication failed. Please login again.';
-          case 403:
-            return 'Access denied. Please check your permissions.';
-          case 404:
-            return 'Service not found. Please try again later.';
-          case 422:
-            return 'Invalid data. Please check your selections.';
-          case 500:
-          default:
-            return 'Server error occurred. Please try again later.';
-        }
-      }
-
       if (error is Exception) {
         final message = error.toString();
         if (message.contains('Insufficient wallet balance')) {
@@ -2138,8 +907,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         }
         return message.replaceAll('Exception: ', '');
       }
-    } catch (e) {
-      print('Error parsing exception: $e');
+    }} catch (e) {
+      AppLogger.d('Error parsing exception: $e');
     }
 
     return 'An unexpected error occurred. Please try again.';
@@ -2444,7 +1213,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             ),
           );
         } catch (releaseError) {
-          print('Error releasing booking $bookingId: $releaseError');
+          AppLogger.d('Error releasing booking $bookingId: $releaseError');
         }
       }
 
@@ -2528,20 +1297,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     };
 
     debugPrint('payload: $payload');
-    var jwt = await _remoteRepo.getJwtFromPreferences();
     try {
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $jwt",
-        },
-        body: jsonEncode(payload),
-      );
-      debugPrint('response: ${response.body}');
+      final dio = await _networkProvider.auth();
+      final response = await dio.post(url, data: payload);
+      debugPrint('response: ${response.data}');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
         Map<int, int> map = {};
         if (data['bookings'] != null) {
           for (final b in data['bookings']) {
@@ -2578,15 +1342,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       _stage.value = PaymentStage.openingRazorpay;
       _paymentStatus.value = 'Creating payment order...';
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(payload),
-      );
+      final dio = _networkProvider.noAuth();
+      final response = await dio.post(url, data: payload);
 
       if (response.statusCode == 200) {
-        debugPrint('Payment order created successfully ${response.body}');
-        final data = jsonDecode(response.body);
+        debugPrint('Payment order created successfully ${response.data}');
+        final data = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
         _paymentStatus.value = 'Opening payment gateway...';
 
         razorpayController.openCheckout(
@@ -2622,7 +1385,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       _errorMessage.value = errorMessage;
       _resetButtonState();
       _paymentStatus.value = 'Payment initialization failed';
-      print('Payment error: $e');
+      AppLogger.d('Payment error: $e');
 
       // Show error message with better styling and action button for wallet errors
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2671,87 +1434,5 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
   }
 
-  Widget buildPaymentRow(
-    String label,
-    String value, {
-    bool bold = false,
-    double fontSize = 14,
-    Color? color,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: fontSize,
-              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-              color: Colors.white,
-            ),
-          ),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              fontSize: fontSize,
-              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-              color: color ?? Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _paymentChip(String label, IconData icon, String value) {
-    final bool isSelected = _selectedPayment.value == value;
-
-    return GestureDetector(
-      onTap: () {
-        _selectedPayment(value);
-        // Clear selected game pass when changing payment method
-        if (value != 'none') {
-          _selectedGamePass.value = null;
-        } else {
-          // If switching to Hash Game Pass, refresh the passes and clear selection
-          _selectedGamePass.value = null;
-          _loadUserGamePasses();
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? Color(0xFF338125) : Colors.grey.shade800,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? Color(0xFF338125) : Colors.grey.shade700,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.white : Colors.white70,
-              size: 16,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                style: GoogleFonts.inter(
-                  color: isSelected ? Colors.white : Colors.white70,
-                  fontSize: 13,
-                ),
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  
 }

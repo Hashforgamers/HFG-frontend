@@ -6,7 +6,7 @@ class MyPlayer extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(2.0),
       child: Image.asset(
-        'lib/features/mini_games/pacman/images/pacman.png',
+        'assets/pacman/images/pacman.png',
         // width: MediaQuery.of(context).size.width,
         // fit: BoxFit.cover,
       ),

@@ -13,7 +13,13 @@ class PawnWidget extends StatelessWidget {
   final int step;
   final bool highlight;
 
-  const PawnWidget(this.index, this.type, {super.key, this.highlight = false, this.step = -1});
+  const PawnWidget(
+    this.index,
+    this.type, {
+    super.key,
+    this.highlight = false,
+    this.step = -1,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +62,10 @@ class PawnWidget extends StatelessWidget {
                 context.read<LudoProvider>().move(type, index, step);
               },
               child: Container(
-                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: color, width: 2)),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: color, width: 2),
+                ),
                 child: Container(
                   decoration: BoxDecoration(
                     color: color,

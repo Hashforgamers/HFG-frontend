@@ -446,7 +446,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   'Slot: ${formatTime(slot['start_time'])} - ${formatTime(slot['end_time'])}',
                   style: GoogleFonts.inter(
                     color: isTimeAvailable
-                        ? Colors.white.withOpacity(0.85)
+                        ? Colors.white.withValues(alpha: 0.85)
                         : Colors.grey.shade600,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -459,13 +459,13 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: isTimeAvailable
-                        ? Colors.green.withOpacity(0.2)
-                        : Colors.grey.withOpacity(0.2),
+                        ? Colors.green.withValues(alpha: 0.2)
+                        : Colors.grey.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isTimeAvailable
-                          ? Colors.green.withOpacity(0.5)
-                          : Colors.grey.withOpacity(0.5),
+                          ? Colors.green.withValues(alpha: 0.5)
+                          : Colors.grey.withValues(alpha: 0.5),
                     ),
                   ),
                   child: Text(
@@ -506,9 +506,9 @@ class _BookingScreenState extends State<BookingScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -529,9 +529,9 @@ class _BookingScreenState extends State<BookingScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -648,7 +648,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 Text(
                   '$totalSelectedSlots Slot(s)',
                   style: GoogleFonts.inter(
-                    color: Colors.white.withOpacity(0.95),
+                    color: Colors.white.withValues(alpha: 0.95),
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),

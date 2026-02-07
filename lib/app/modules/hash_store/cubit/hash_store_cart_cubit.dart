@@ -1,11 +1,12 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 part 'hash_store_cart_state.dart';
 
 class HashStoreCartCubit extends Cubit<HashStoreCartState> {
   HashStoreCartCubit() : super(HashStoreCartInitial()){
-    print('🟩 HashStoreCartCubit created');
+    AppLogger.d('🟩 HashStoreCartCubit created');
   }
 
   Future<void> fetchCart() async {

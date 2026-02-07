@@ -14,6 +14,7 @@ import 'app/data/services/user_controller.dart';
 import 'app/modules/arena/controllers/booking_controller.dart';
 import 'app/modules/game/views/game_section_view.dart';
 import 'app/modules/payment/razorpay_controller.dart';
+import 'app/modules/shop_new/controllers/shop_controller.dart';
 import 'app/modules/wallet/controllers/wallet_controller.dart';
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
@@ -58,6 +59,7 @@ void main() async {
   Get.put(DeepLinkController());
   // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
+  Get.put(ShopController(), permanent: true);
 
   runApp(const MyApp());
 }

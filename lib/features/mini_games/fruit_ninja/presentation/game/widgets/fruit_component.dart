@@ -15,10 +15,12 @@ import 'package:hash/features/mini_games/fruit_ninja/core/configs/constants/app_
 import 'package:hash/features/mini_games/fruit_ninja/data/models/fruit_model.dart';
 import 'package:hash/features/mini_games/fruit_ninja/main_router_game.dart';
 import 'package:hash/features/mini_games/fruit_ninja/presentation/game/game.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 /// A component representing a fruit in the game.
 /// This class manages the fruit's behavior, movement, and interactions.
-class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGame> {
+class FruitComponent extends SpriteComponent
+    with HasGameReference<MainRouterGame> {
   Vector2 velocity; // Speed and direction of the fruit.
   final Vector2 pageSize; // Size of the game page.
   final double acceleration; // Acceleration applied to the fruit's velocity.
@@ -55,10 +57,10 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
     Anchor? anchor, // Optional anchor point.
     this.divided = false, // Default divided state.
   }) : super(
-          sprite: Sprite(image), // Initialize sprite with the fruit's image.
-          position: p, // Set size of the fruit.
-          anchor: anchor ?? Anchor.center, // Set angle of rotation.
-        ) {
+         sprite: Sprite(image), // Initialize sprite with the fruit's image.
+         position: p, // Set size of the fruit.
+         anchor: anchor ?? Anchor.center, // Set angle of rotation.
+       ) {
     _initPosition = p; // Store initial position.
     canDragOnShape = false; // Initially, dragging is disabled.
   }
@@ -74,7 +76,10 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
     angle %= 2 * pi; // Keep angle within 0 to 2π.
 
     // Update position based on velocity and gravity.
-    position += Vector2(velocity.x, -(velocity.y * dt - .5 * AppConfig.gravity * dt * dt));
+    position += Vector2(
+      velocity.x,
+      -(velocity.y * dt - .5 * AppConfig.gravity * dt * dt),
+    );
 
     // Update vertical velocity with acceleration and gravity.
     velocity.y += (AppConfig.acceleration + AppConfig.gravity) * dt;
@@ -115,7 +120,11 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
       // Formula: `atan2(dy, dx)` where `dy = touchPoint.y - center.y` and `dx = touchPoint.x - center.x`.
       // `atan2` returns the angle between the positive x-axis and the vector from (0, 0) to (dx, dy) in radians.
       // The resulting angle helps identify whether the touch is in a vertical or horizontal slicing direction.
-      final a = AppUtils.getAngleOfTouchPont(center: position, initAngle: angle, touch: vector2);
+      final a = AppUtils.getAngleOfTouchPont(
+        center: position,
+        initAngle: angle,
+        touch: vector2,
+      );
 
       try {
         // 2. Check if the calculated angle falls along a vertical or horizontal slice.
@@ -125,9 +134,18 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
         if (a < 45 || (a > 135 && a < 225) || a > 315) {
           // Vertical slice: Create two halves of the fruit.
           final dividedImage1 = await createDividedImage(
-              image, Rect.fromLTWH(0, 0, image.width.toDouble(), image.height / 2));
+            image,
+            Rect.fromLTWH(0, 0, image.width.toDouble(), image.height / 2),
+          );
           final dividedImage2 = await createDividedImage(
-              image, Rect.fromLTWH(0, image.height / 2, image.width.toDouble(), image.height / 2));
+            image,
+            Rect.fromLTWH(
+              0,
+              image.height / 2,
+              image.width.toDouble(),
+              image.height / 2,
+            ),
+          );
 
           // 3. Position adjustments using cosine and sine for direction:
           // The formula used to adjust the position of each half of the fruit is based on vector rotation.
@@ -154,13 +172,17 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
             FruitComponent(
               parentComponent,
               center -
-                  Vector2(size.x / 2 * cos(angle),
-                      size.x / 2 * sin(angle)), // Adjust position for upper half.
+                  Vector2(
+                    size.x / 2 * cos(angle),
+                    size.x / 2 * sin(angle),
+                  ), // Adjust position for upper half.
               fruit: fruit,
               image: dividedImage2,
               acceleration: acceleration,
-              velocity: Vector2(velocity.x - 2,
-                  velocity.y), // Apply slightly different velocities for split effect.
+              velocity: Vector2(
+                velocity.x - 2,
+                velocity.y,
+              ), // Apply slightly different velocities for split effect.
               pageSize: pageSize,
               divided: true, // Mark as divided.
               size: Vector2(size.x, size.y / 2), // Adjust size for top half.
@@ -186,15 +208,20 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
             FruitComponent(
               parentComponent,
               center +
-                  Vector2(size.x / 4 * cos(angle + 3 * pi / 2),
-                      size.x / 4 * sin(angle + 3 * pi / 2)), // Adjust position for lower half.
+                  Vector2(
+                    size.x / 4 * cos(angle + 3 * pi / 2),
+                    size.x / 4 * sin(angle + 3 * pi / 2),
+                  ), // Adjust position for lower half.
               size: Vector2(size.x, size.y / 2), // Adjust size for bottom half.
               angle: angle,
               anchor: Anchor.center,
               fruit: fruit,
               image: dividedImage1,
               acceleration: acceleration,
-              velocity: Vector2(velocity.x + 2, velocity.y), // Different velocity for other half.
+              velocity: Vector2(
+                velocity.x + 2,
+                velocity.y,
+              ), // Different velocity for other half.
               pageSize: pageSize,
               divided: true, // Mark as divided.
             ),
@@ -202,9 +229,18 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
         } else {
           // Horizontal slice: Create two halves of the fruit.
           final dividedImage1 = await createDividedImage(
-              image, Rect.fromLTWH(0, 0, image.width / 2, image.height.toDouble()));
+            image,
+            Rect.fromLTWH(0, 0, image.width / 2, image.height.toDouble()),
+          );
           final dividedImage2 = await createDividedImage(
-              image, Rect.fromLTWH(image.width / 2, 0, image.width / 2, image.height.toDouble()));
+            image,
+            Rect.fromLTWH(
+              image.width / 2,
+              0,
+              image.width / 2,
+              image.height.toDouble(),
+            ),
+          );
 
           // 4. Position adjustments for horizontal slice:
           // The formulas for adjusting the position are similar to the vertical slice, but with a different factor for horizontal separation.
@@ -228,16 +264,20 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
             FruitComponent(
               parentComponent,
               center -
-                  Vector2(size.x / 4 * cos(angle),
-                      size.x / 4 * sin(angle)), // Adjust position for left half.
+                  Vector2(
+                    size.x / 4 * cos(angle),
+                    size.x / 4 * sin(angle),
+                  ), // Adjust position for left half.
               size: Vector2(size.x / 2, size.y), // Adjust size for left half.
               angle: angle,
               anchor: Anchor.center,
               fruit: fruit,
               image: dividedImage1,
               acceleration: acceleration,
-              velocity:
-                  Vector2(velocity.x - 2, velocity.y), // Apply velocity change for split effect.
+              velocity: Vector2(
+                velocity.x - 2,
+                velocity.y,
+              ), // Apply velocity change for split effect.
               pageSize: pageSize,
               divided: true, // Mark as divided.
             ),
@@ -260,16 +300,20 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
             FruitComponent(
               parentComponent,
               center +
-                  Vector2(size.x / 2 * cos(angle + 3 * pi / 2),
-                      size.x / 2 * sin(angle + 3 * pi / 2)), // Adjust position for right half.
+                  Vector2(
+                    size.x / 2 * cos(angle + 3 * pi / 2),
+                    size.x / 2 * sin(angle + 3 * pi / 2),
+                  ), // Adjust position for right half.
               size: Vector2(size.x / 2, size.y), // Adjust size for right half.
               angle: angle,
               anchor: Anchor.topLeft,
               fruit: fruit,
               image: dividedImage2,
               acceleration: acceleration,
-              velocity:
-                  Vector2(velocity.x + 2, velocity.y), // Apply different velocity for other half.
+              velocity: Vector2(
+                velocity.x + 2,
+                velocity.y,
+              ), // Apply different velocity for other half.
               pageSize: pageSize,
               divided: true, // Mark as divided.
             ),
@@ -277,12 +321,13 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
         }
       } catch (e, stackTrace) {
         if (kDebugMode) {
-          print('Error adding components: $e\n$stackTrace');
+          AppLogger.d('Error adding components: $e\n$stackTrace');
         }
       }
     }
 
-    parentComponent.addScore(); // Update the score when fruit is successfully cut.
+    parentComponent
+        .addScore(); // Update the score when fruit is successfully cut.
     removeFromParent(); // Remove the original, whole fruit from the game.
   }
 
@@ -300,7 +345,12 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
     canvas.drawImageRect(
       originalImage, // The original image
       sourceRect, // The region to cut from the original image
-      Rect.fromLTWH(0, 0, sourceRect.width, sourceRect.height), // Destination rect on the Canvas
+      Rect.fromLTWH(
+        0,
+        0,
+        sourceRect.width,
+        sourceRect.height,
+      ), // Destination rect on the Canvas
       paint, // Default paint
     );
 
@@ -308,6 +358,9 @@ class FruitComponent extends SpriteComponent with HasGameReference<MainRouterGam
     final picture = recorder.endRecording();
 
     // Convert the Picture to an Image with the specified width and height
-    return await picture.toImage(sourceRect.width.toInt(), sourceRect.height.toInt());
+    return await picture.toImage(
+      sourceRect.width.toInt(),
+      sourceRect.height.toInt(),
+    );
   }
 }

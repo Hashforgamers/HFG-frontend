@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hash/features/mini_games/ludo/widgets/pawn_widget.dart';
 
-
 import 'constants.dart';
 
 ///This is ludo player model class which contains all the information about the player
@@ -52,10 +51,12 @@ class LudoPlayer {
   }
 
   ///Get how many pawns are in the home
-  int get pawnInsideCount => pawns.where((element) => element.step == -1).length;
+  int get pawnInsideCount =>
+      pawns.where((element) => element.step == -1).length;
 
   ///Get how many pawns are outside home
-  int get pawnOutsideCount => pawns.where((element) => element.step > -1).length;
+  int get pawnOutsideCount =>
+      pawns.where((element) => element.step > -1).length;
 
   ///Moving mean you'll replace the current widget with the new widget
   void movePawn(int index, int step) async {
@@ -66,7 +67,10 @@ class LudoPlayer {
   void highlightPawn(int index, [bool highlight = true]) {
     var pawn = pawns[index];
     pawns.removeAt(index);
-    pawns.insert(index, PawnWidget(index, pawn.type, highlight: highlight, step: pawn.step));
+    pawns.insert(
+      index,
+      PawnWidget(index, pawn.type, highlight: highlight, step: pawn.step),
+    );
   }
 
   ///Highlight all the pawns

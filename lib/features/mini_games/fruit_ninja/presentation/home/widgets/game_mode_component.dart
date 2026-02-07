@@ -19,10 +19,7 @@ class InteractiveButtonComponent extends PositionComponent
   late SpriteComponent spriteComponent;
   late TextComponent textComponent;
 
-  InteractiveButtonComponent({
-    super.position,
-    super.size,
-  });
+  InteractiveButtonComponent({super.position, super.size});
 
   @override
   Future<void> onLoad() async {
@@ -40,10 +37,7 @@ class InteractiveButtonComponent extends PositionComponent
     final int currentMode = game.getMode();
 
     final initialImage = await Flame.images.load(imagePaths[currentMode]);
-    spriteComponent = SpriteComponent(
-      sprite: Sprite(initialImage),
-      size: size,
-    );
+    spriteComponent = SpriteComponent(sprite: Sprite(initialImage), size: size);
 
     textComponent = TextComponent(
       text: texts[currentMode],

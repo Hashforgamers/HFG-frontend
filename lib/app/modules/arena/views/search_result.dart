@@ -1,18 +1,20 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:location/location.dart' as loc;
 
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
+import 'package:hash/app/modules/arena/views/arena_view_detailed.dart';
+import 'package:hash/app/modules/arena/views/search_result/search_result_card.dart';
+import 'package:hash/app/modules/arena/views/search_result/search_result_empty_state.dart';
+import 'package:hash/app/modules/arena/views/search_result/search_result_filters.dart';
+import 'package:hash/app/modules/arena/views/search_result/search_result_header.dart';
+import 'package:hash/app/modules/arena/views/search_result/search_result_search_bar.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
-import 'package:hash/app/modules/arena/views/arena_view_detailed.dart';
 
 class SearchResult extends StatefulWidget {
   final String? searchQuery;
@@ -286,8 +288,9 @@ class _SearchResultState extends State<SearchResult> {
         if (a != null) f.add(a.toString());
       }
     }
-    if (f.isEmpty)
+    if (f.isEmpty) {
       f.addAll(['Gaming PCs', 'High-speed Internet', 'Gaming Setup']);
+    }
     return f;
   }
 
@@ -376,9 +379,22 @@ class _SearchResultState extends State<SearchResult> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
-            _buildSearchBar(),
-            _buildFilters(),
+            SearchResultHeader(
+              location: widget.location,
+              onBack: () => Get.back(),
+            ),
+            SearchResultSearchBar(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              onSubmitted: (_) => _loadCafes(),
+              onClear: _clearSearch,
+              showClear: _searchController.text.isNotEmpty,
+            ),
+            SearchResultFilters(
+              filters: _filters,
+              selected: _selectedFilter,
+              onSelected: (filter) => setState(() => _selectedFilter = filter),
+            ),
             Expanded(
               child: RefreshIndicator(
                 backgroundColor: Colors.black,
@@ -392,160 +408,20 @@ class _SearchResultState extends State<SearchResult> {
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => Get.back(),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Search Results',
-                  style: GoogleFonts.inter(fontSize: 18, color: Colors.white),
-                ),
-                if (widget.location != null)
-                  Text(
-                    widget.location!,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.white70,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      setState(() => _currentQuery = value);
+    });
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(25),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            height: 50,
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(.15),
-              borderRadius: BorderRadius.circular(25),
-              border: Border.all(
-                color: const Color(0xff338125).withOpacity(.2),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.search, color: Color(0xff338125)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    style: GoogleFonts.inter(color: Colors.white),
-                    cursorColor: const Color(0xff338125),
-                    decoration: InputDecoration(
-                      hintText: 'Search gaming centers, cafes...',
-                      hintStyle: GoogleFonts.inter(color: Colors.white70),
-                      border: InputBorder.none,
-                    ),
-                    onChanged: (value) {
-                      _debounce?.cancel();
-                      _debounce = Timer(const Duration(milliseconds: 250), () {
-                        if (!mounted) return;
-                        setState(() => _currentQuery = value);
-                        // If server-side search available, call _loadCafes();
-                      });
-                    },
-                    onSubmitted: (_) => _loadCafes(),
-                  ),
-                ),
-                if (_searchController.text.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.clear,
-                      color: Colors.white70,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() {
-                        _currentQuery = '';
-                        _selectedFilter = 'All';
-                      });
-                    },
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilters() {
-    return SizedBox(
-      height: 37,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-        itemCount: _filters.length,
-        itemBuilder: (context, index) {
-          final filter = _filters[index];
-          final selected = _selectedFilter == filter;
-          return Container(
-            margin: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedFilter = filter),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(0xff338125)
-                      : Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: selected
-                        ? const Color(0xff338125)
-                        : Colors.white.withOpacity(0.2),
-                  ),
-                ),
-                child: Text(
-                  filter,
-                  style: GoogleFonts.inter(
-                    color: selected ? Colors.white : Colors.white70,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _currentQuery = '';
+      _selectedFilter = 'All';
+    });
   }
 
   Widget _buildResults() {
@@ -555,7 +431,9 @@ class _SearchResultState extends State<SearchResult> {
       }
 
       final items = _filteredResults;
-      if (items.isEmpty) return _buildEmptyState();
+      if (items.isEmpty) {
+        return const SearchResultEmptyState();
+      }
 
       return ListView.builder(
         controller: _scrollController,
@@ -573,491 +451,63 @@ class _SearchResultState extends State<SearchResult> {
     final address = _safeAddress(cafe);
     final feats = _features(cafe);
     final (dist, eta) = _distanceLabel(cafe);
-    final rating = 4.5; // TODO: plug real rating when API provides
-    final price = '₹200/hour'; // TODO: plug real price when API provides
+    final title = (cafe['cafe_name'] ?? 'Unknown Cafe').toString();
+    final type = (cafe['type'] ?? 'Gaming').toString();
+    const rating = 4.5; // TODO: plug real rating when API provides
 
-    final width = MediaQuery.of(context).size.width - 32;
-    final dpr = MediaQuery.of(context).devicePixelRatio;
-    final memW = (width * dpr).round();
-    const imgH = 200.0;
+    return SearchResultCard(
+      title: title,
+      type: type,
+      imageUrl: imageUrl,
+      address: address,
+      features: feats,
+      isOpen: isOpen,
+      distanceLabel: dist,
+      etaLabel: eta,
+      rating: rating,
+      onViewDetails: isOpen
+          ? () {
+              final images = cafe['images'];
+              List<dynamic> imagesList = [];
+              if (images is List) {
+                imagesList = images;
+              } else if (images is String && images.isNotEmpty) {
+                imagesList = [
+                  {'url': images},
+                ];
+              }
+              if (imagesList.isEmpty) {
+                imagesList = [
+                  {'url': _pickImage(cafe, index)},
+                ];
+              }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            Stack(
-              children: [
-                SizedBox(
-                  height: imgH,
-                  width: double.infinity,
-                  child: imageUrl.isEmpty
-                      ? Container(color: const Color(0xFF1A1A1A))
-                      : CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.cover,
-                          memCacheWidth: memW,
-                          memCacheHeight: (imgH * dpr).round(),
-                          placeholder: (_, __) => Container(
-                            color: Colors.grey[800],
-                            child: const Center(
-                              child: RainbowGlowingLoader(size: 32),
-                            ),
-                          ),
-                          errorWidget: (_, __, ___) => Container(
-                            color: Colors.grey[800],
-                            child: const Icon(
-                              Icons.image_not_supported,
-                              color: Colors.white54,
-                              size: 50,
-                            ),
-                          ),
-                        ),
-                ),
-                // Status
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isOpen ? const Color(0xff338125) : Colors.red,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      isOpen ? 'OPEN' : 'CLOSED',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                // Type
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      (cafe['type'] ?? 'Gaming').toString(),
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              final featsAll = _features(cafe);
 
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // title + rating
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          (cafe['cafe_name'] ?? 'Unknown Cafe').toString(),
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$rating',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // address + distance
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        color: Colors.white54,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          address,
-                          style: GoogleFonts.inter(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        eta == null ? dist : '$dist • $eta',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xff338125),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // features
-                  buildFeatureChips(feats),
-
-                  const SizedBox(height: 16),
-
-                  // price + action
-                  Row(
-                    children: [
-                      // Text(price,
-                      //     style: GoogleFonts.inter(
-                      //         fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xff338125))),
-                      const Spacer(),
-                      ElevatedButton(
-                        onPressed: isOpen
-                            ? () {
-                                final images = cafe['images'];
-                                List<dynamic> imagesList = [];
-                                if (images is List) {
-                                  imagesList = images;
-                                } else if (images is String &&
-                                    images.isNotEmpty) {
-                                  imagesList = [
-                                    {'url': images},
-                                  ];
-                                }
-                                if (imagesList.isEmpty) {
-                                  imagesList = [
-                                    {'url': _pickImage(cafe, index)},
-                                  ];
-                                }
-
-                                final featsAll = _features(cafe);
-
-                                Get.to(
-                                  () => ArenaDetailView(
-                                    images: imagesList,
-                                    title: (cafe['cafe_name'] ?? 'Unknown Cafe')
-                                        .toString(),
-                                    address: address,
-                                    openingHours:
-                                        '9 AM - 12 AM', // TODO: plug real hours
-                                    availableGames: featsAll,
-                                    amenities: featsAll,
-                                    phone:
-                                        (cafe['phone'] ??
-                                                cafe['contact_number'] ??
-                                                'Phone not available')
-                                            .toString(),
-                                    email:
-                                        (cafe['email'] ?? 'Email not available')
-                                            .toString(),
-                                    ownerName:
-                                        (cafe['owner_name'] ??
-                                                'Owner not available')
-                                            .toString(),
-                                    reviews: const [
-                                      'Great place!',
-                                      'Loved it!',
-                                    ],
-                                    vendorId: cafe['vendor_id'],
-                                  ),
-                                );
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xff338125),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                        ),
-                        child: Text(
-                          isOpen ? 'View Details' : 'Closed',
-                          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xff191919),
-          borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Using the provided Cloudinary image
-              CachedNetworkImage(
-                imageUrl:
-                    'https://res.cloudinary.com/dxjjigepf/image/upload/v1756237262/hash_01_lwpcj9.png',
-                width: 120,
-                height: 120,
-                placeholder: (context, url) => Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.error, color: Colors.white, size: 40),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // Main heading
-              Text(
-                'Oops, Cafe not Found.',
-                style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: -0.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 16),
-
-              // Descriptive text
-              Text(
-                'Got a café in mind? Send them our way—\nwe\'ll handle the rest!',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white.withOpacity(0.8),
-                  height: 1.4,
-                ),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 40),
-
-              // Call-to-action button
-              Container(
-                width: double.infinity,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.3),
-                      blurRadius: 15,
-                      spreadRadius: 2,
-                    ),
+              Get.to(
+                () => ArenaDetailView(
+                  images: imagesList,
+                  title: title,
+                  address: address,
+                  openingHours: '9 AM - 12 AM', // TODO: plug real hours
+                  availableGames: featsAll,
+                  amenities: featsAll,
+                  phone: (cafe['phone'] ??
+                          cafe['contact_number'] ??
+                          'Phone not available')
+                      .toString(),
+                  email: (cafe['email'] ?? 'Email not available').toString(),
+                  ownerName:
+                      (cafe['owner_name'] ?? 'Owner not available').toString(),
+                  reviews: const [
+                    'Great place!',
+                    'Loved it!',
                   ],
+                  vendorId: cafe['vendor_id'],
                 ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(28),
-                    onTap: () {
-                      //TODO: Implement invite cafe
-                    },
-                    child: Center(
-                      child: Text(
-                        'Invite this Cafe',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF191919),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Drop-in: replace your Wrap with this builder
-Widget buildFeatureChips(List<String> feats, {int maxToShow = 5}) {
-  // 1) Clean + de-dup + cap
-  final cleaned = feats
-      .map((f) => f.toString().replaceAll(RegExp(r'[{}]'), '').trim())
-      .where((f) => f.isNotEmpty)
-      .toSet()
-      .toList();
-  final visible = cleaned.take(maxToShow).toList();
-  final remaining = cleaned.length - visible.length;
-
-  return Wrap(
-    spacing: 8,
-    runSpacing: 8,
-    children: [
-      for (final f in visible) _FeaturePill(label: f),
-      if (remaining > 0) _MorePill(count: remaining),
-    ],
-  );
-}
-
-class _FeaturePill extends StatelessWidget {
-  const _FeaturePill({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        // soft green tint with subtle depth
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF338125).withOpacity(.22),
-            const Color(0xFF1A1A1A).withOpacity(.22),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF338125).withOpacity(.35)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF338125).withOpacity(.12),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(_iconFor(label), size: 14, color: const Color(0xFF7FF16A)),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF7FF16A),
-              letterSpacing: .1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // very small keyword → icon map; extend as you like
-  IconData _iconFor(String s) {
-    final t = s.toLowerCase();
-    if (t.contains('pc')) return Icons.computer_rounded;
-    if (t.contains('ps') || t.contains('playstation'))
-      return Icons.sports_esports_rounded;
-    if (t.contains('xbox')) return Icons.sports_esports_rounded;
-    if (t.contains('vr')) return Icons.vrpano_rounded;
-    if (t.contains('wifi') || t.contains('internet')) return Icons.wifi_rounded;
-    if (t.contains('snack') || t.contains('food'))
-      return Icons.fastfood_rounded;
-    if (t.contains('ac') || t.contains('air')) return Icons.ac_unit_rounded;
-    if (t.contains('tournament') || t.contains('event'))
-      return Icons.emoji_events_rounded;
-    if (t.contains('console')) return Icons.sports_esports_rounded;
-    return Icons.label_rounded;
-  }
-}
-
-class _MorePill extends StatelessWidget {
-  const _MorePill({required this.count});
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.06),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(.15)),
-      ),
-      child: Text(
-        '+$count more',
-        style: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Colors.white70,
-        ),
-      ),
+              );
+            }
+          : null,
     );
   }
 }

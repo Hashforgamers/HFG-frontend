@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 
 import '../../../data/services/user_controller.dart';
 import '../cubit/tournament_home_cubit.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class TournamentsHomeView extends StatefulWidget {
   const TournamentsHomeView({super.key});
@@ -310,7 +311,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
             ? CachedNetworkImageProvider(
           photoUrl,
-          errorListener: (error) => print('Avatar image error: $error'),
+          errorListener: (error) => AppLogger.d('Avatar image error: $error'),
         )
             : const NetworkImage(
           'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',

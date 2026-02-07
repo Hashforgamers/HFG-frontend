@@ -10,14 +10,12 @@ import 'package:flutter/material.dart';
 import 'package:hash/features/mini_games/fruit_ninja/core/configs/theme/app_colors.dart';
 import 'package:hash/features/mini_games/fruit_ninja/main_router_game.dart';
 
-class TutorialFruitsListComponent extends PositionComponent with HasGameReference<MainRouterGame> {
+class TutorialFruitsListComponent extends PositionComponent
+    with HasGameReference<MainRouterGame> {
   final List<TutorialFruitComponent> fruits;
   final bool isLeft;
 
-  TutorialFruitsListComponent({
-    required this.fruits,
-    required this.isLeft,
-  });
+  TutorialFruitsListComponent({required this.fruits, required this.isLeft});
 
   @override
   Future<void> onLoad() async {
@@ -40,7 +38,8 @@ class TutorialFruitsListComponent extends PositionComponent with HasGameReferenc
   }
 }
 
-class TutorialFruitComponent extends PositionComponent with HasGameReference<MainRouterGame> {
+class TutorialFruitComponent extends PositionComponent
+    with HasGameReference<MainRouterGame> {
   final String text;
   final String imagePath;
   final bool isLeft;
@@ -74,14 +73,15 @@ class TutorialFruitComponent extends PositionComponent with HasGameReference<Mai
 
     final imageSize = Vector2(game.size.y / 8.3, game.size.y / 8.3);
 
-    final spriteComponent = SpriteComponent(
-      sprite: sprite,
-      size: imageSize,
-    )..position = Vector2(isLeft ? 0 : -game.size.y / 8.3, 0);
+    final spriteComponent = SpriteComponent(sprite: sprite, size: imageSize)
+      ..position = Vector2(isLeft ? 0 : -game.size.y / 8.3, 0);
 
     textComponent = TextComponent(
       text: text,
-      position: Vector2(isLeft ? game.size.y / 6 : -game.size.y / 6, imageSize.y / 2),
+      position: Vector2(
+        isLeft ? game.size.y / 6 : -game.size.y / 6,
+        imageSize.y / 2,
+      ),
       anchor: isLeft ? Anchor.centerLeft : Anchor.centerRight,
       textRenderer: textPaint,
     );

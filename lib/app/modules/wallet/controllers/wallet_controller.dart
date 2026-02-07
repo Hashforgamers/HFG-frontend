@@ -7,6 +7,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import '../../../data/services/user_controller.dart';
 import '../../../data/models/wallet_model.dart';
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 /// WalletController manages wallet operations including balance fetching,
 /// top-up, and withdrawal functionality with proper error handling and analytics.
@@ -309,7 +310,7 @@ class WalletController extends GetxController {
 
   void _handleError(String message) {
     _errorMessage.value = message;
-    print('❌ WalletController Error: $message');
+    AppLogger.d('❌ WalletController Error: $message');
   }
 
   void _showSuccessMessage(String message) {
@@ -348,7 +349,7 @@ class WalletController extends GetxController {
         _fbEventsService.onWalletViewed(userId: userId);
       }
     } catch (e) {
-      print('Error tracking wallet viewed: $e');
+      AppLogger.d('Error tracking wallet viewed: $e');
     }
   }
 
@@ -358,7 +359,7 @@ class WalletController extends GetxController {
         _segmentService.onAddMoneySuccess(amountAdded: amount, txnId: paymentId);
         _fbEventsService.onAddMoneySuccess(amountAdded: amount, txnId: paymentId);
       } catch (e) {
-        print('Error tracking top-up success: $e');
+        AppLogger.d('Error tracking top-up success: $e');
       }
     });
   }
@@ -375,7 +376,7 @@ class WalletController extends GetxController {
           bankAccount: bankAccount,
         );
       } catch (e) {
-        print('Error tracking withdrawal initiated: $e');
+        AppLogger.d('Error tracking withdrawal initiated: $e');
       }
     });
   }
@@ -386,7 +387,7 @@ class WalletController extends GetxController {
         _segmentService.onWithdrawalSuccess(payoutId: payoutId, amount: amount);
         _fbEventsService.onWithdrawalSuccess(payoutId: payoutId, amount: amount);
       } catch (e) {
-        print('Error tracking withdrawal success: $e');
+        AppLogger.d('Error tracking withdrawal success: $e');
       }
     });
   }

@@ -8,6 +8,7 @@ import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 import '../../../data/services/user_controller.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class HashStoreOrdersView extends StatefulWidget {
   const HashStoreOrdersView({super.key});
@@ -146,7 +147,7 @@ class _HashStoreOrdersViewState extends State<HashStoreOrdersView> {
   }) {
     return BounceTap(
       onTap: () {
-        print('Tapped $title');
+        AppLogger.d('Tapped $title');
       },
       child: Container(
         height: 140,

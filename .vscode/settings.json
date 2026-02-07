@@ -1,4 +1,4 @@
 {
   "cmake.sourceDirectory": "/Users/someshwarkarmakar/Desktop/HFG-frontend/windows/runner",
-  "dart.flutterSdkPath": ".fvm/versions/3.32.8"
+  "dart.flutterSdkPath": "./Users/zeyanansari/flutter/bin/flutter"
 }

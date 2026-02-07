@@ -19,9 +19,16 @@ abstract class RemoteRepoInterface {
   Future<Map<String, dynamic>> signUp(Map<String, dynamic> userData);
 
   // Booking related methods
-  Future<List<Map<String, dynamic>>> fetchSlots({required int vendorId, required int gameId, required String date});
+  Future<List<Map<String, dynamic>>> fetchSlots({
+    required int vendorId,
+    required int gameId,
+    required String date,
+  });
 
-  Future<Map<String, dynamic>> createBooking({required int slotId, required int gameId});
+  Future<Map<String, dynamic>> createBooking({
+    required int slotId,
+    required int gameId,
+  });
   Future<Map<String, dynamic>> deleteUser();
 
   Future<List<Map<String, dynamic>>> fetchUserBookings();
@@ -51,7 +58,10 @@ abstract class RemoteRepoInterface {
   Future<void> addAddress(Map<String, dynamic> address);
 
   // Cart related methods
-  Future<Map<String, dynamic>> addToCart({required String productId, required int quantity});
+  Future<Map<String, dynamic>> addToCart({
+    required String productId,
+    required int quantity,
+  });
 
   Future<List<Map<String, dynamic>>> fetchCart();
 
@@ -67,7 +77,11 @@ abstract class RemoteRepoInterface {
 
   // Wallet related methods
   Future<Map<String, dynamic>> fetchWallet({required String userId});
-  Future<Map<String, dynamic>> addFunds({required String userId, required int amount, required String paymentId});
+  Future<Map<String, dynamic>> addFunds({
+    required String userId,
+    required int amount,
+    required String paymentId,
+  });
   Future<void> claimDropCrateBonus({required String userId, int amount});
 
   Future<Map<String, dynamic>> validateFunds(String paymentLinkId);
@@ -80,27 +94,49 @@ abstract class RemoteRepoInterface {
 
   Future<CreateVoucherResponse> createOffer({required int discountPercentage});
 
-  Future<String> scanQrCode({required String consoleId, required String gameId, required String vendorId, required String bookingId});
+  Future<String> scanQrCode({
+    required String consoleId,
+    required String gameId,
+    required String vendorId,
+    required String bookingId,
+  });
 
-  Future<String> registerFCMToken({required String userId, required String token});
+  Future<String> registerFCMToken({
+    required String userId,
+    required String token,
+  });
 
   Future<String> releaseBooking({required BookingModel bookings});
 
-  Future<List<GetPassModel>> getGamePass({required String userId, required String type});
+  Future<List<GetPassModel>> getGamePass({
+    required String userId,
+    required String type,
+  });
 
   Future<List<GetPassModel>> getUserActiveGamePass({required String userId});
 
   Future<GetFoodMenuModel> getFoodMenu({required String vendorId});
 
-  Future<String> purchasePass({required String userId, required PurchasePassModel passModel});
+  Future<String> purchasePass({
+    required String userId,
+    required PurchasePassModel passModel,
+  });
 
-  Future<List<TransactionHistoryModel>> getTransactionHistory({required String userId});
+  Future<List<TransactionHistoryModel>> getTransactionHistory({
+    required String userId,
+  });
 
-  Future<void> capturePayment({required CapturePaymentModel capturePaymentModel});
+  Future<void> capturePayment({
+    required CapturePaymentModel capturePaymentModel,
+  });
 
   Future<void> saveUIDToPreferences(String uid);
   Future<String> getUIDFromPreferences();
 
-  Future<List<GetVendorPassesModel>> getAllAvailablePasses({required String vendorId});
-  Future<String> makePurchasePassPayment({required PurchasePassModel purchasePassModel});
+  Future<List<GetVendorPassesModel>> getAllAvailablePasses({
+    required String vendorId,
+  });
+  Future<String> makePurchasePassPayment({
+    required PurchasePassModel purchasePassModel,
+  });
 }

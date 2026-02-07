@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 
 import '../../../data/services/user_controller.dart';
 import '../cubit/tournaments_details_cubit.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class TournamentsDetailsView extends StatefulWidget {
   final Map<String, dynamic> tournament;
@@ -527,7 +528,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
             ? CachedNetworkImageProvider(
           photoUrl,
-          errorListener: (error) => print('Avatar error: $error'),
+          errorListener: (error) => AppLogger.d('Avatar error: $error'),
         )
             : const AssetImage(
           'assets/hash_store_images/tournament_banner.png',

@@ -10,6 +10,7 @@ import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/profile/user_profile_view.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class TournamentsAppBar extends StatelessWidget {
   const TournamentsAppBar({super.key});
@@ -119,7 +120,7 @@ class TournamentsAppBar extends StatelessWidget {
         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
             ? CachedNetworkImageProvider(
           photoUrl,
-          errorListener: (error) => print('Avatar image error: $error'),
+          errorListener: (error) => AppLogger.d('Avatar image error: $error'),
         )
             : const NetworkImage(
           'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',

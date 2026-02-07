@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 
@@ -7,6 +9,8 @@ class CafeGamesController extends GetxController {
   var isLoading = false.obs; // Observable to manage loading state
   var shopOpen = false.obs; // Observable to track shop status
   final _remoteRepo = locator<RemoteRepoInterface>();
+  var passes = <GetVendorPassesModel>[].obs;
+  var isPassesLoading = false.obs;
 
   Future<void> fetchGames(int vendorId) async {
     isLoading.value = true;
@@ -22,6 +26,21 @@ class CafeGamesController extends GetxController {
       );
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> fetchPasses(int vendorId) async {
+    isPassesLoading.value = true;
+    try {
+      passes.value = await _remoteRepo.getAllAvailablePasses(
+        vendorId: vendorId.toString(),
+      );
+      debugPrint('passes loaded: ${passes.length}');
+    } catch (e) {
+      // Avoid overlay errors if view not mounted
+      debugPrint('Failed to fetch passes: $e');
+    } finally {
+      isPassesLoading.value = false;
     }
   }
 }

@@ -18,7 +18,8 @@ import '../../core/configs/theme/app_colors.dart';
 import '../../main_router_game.dart';
 
 /// [SECURE] GamePage — All score/mode logic now uses secure access
-class GamePage extends Component with DragCallbacks, HasGameReference<MainRouterGame> {
+class GamePage extends Component
+    with DragCallbacks, HasGameReference<MainRouterGame> {
   final Random random = Random();
   late List<double> fruitsTime;
 
@@ -147,7 +148,8 @@ class GamePage extends Component with DragCallbacks, HasGameReference<MainRouter
         _countdownFinished = true;
       }
     } else if (fruitsTime.isEmpty && !hasFruits()) {
-      if (_countdownTextComponent != null && !_countdownTextComponent!.isMounted) {
+      if (_countdownTextComponent != null &&
+          !_countdownTextComponent!.isMounted) {
         _countdownTextComponent?.addToParent(this);
       }
 
@@ -226,8 +228,10 @@ class GamePage extends Component with DragCallbacks, HasGameReference<MainRouter
 
     _countdownTextComponent?.position = game.size / 2;
     _mistakeTextComponent?.position = Vector2(game.size.x - 15, 10);
-    _scoreTextComponent?.position =
-        Vector2(game.size.x - 15, _mistakeTextComponent!.position.y + 40);
+    _scoreTextComponent?.position = Vector2(
+      game.size.x - 15,
+      _mistakeTextComponent!.position.y + 40,
+    );
     _modeTextComponent?.position = Vector2(game.size.x - 15, game.size.y - 15);
   }
 

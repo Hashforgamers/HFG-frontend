@@ -5,89 +5,99 @@ import '../Database/database.dart';
 import '../Resources/strings.dart';
 import 'constant.dart';
 
-Text myText(String txt, Color? color, double size){
+Text myText(String txt, Color? color, double size) {
   return Text(
     txt,
-    style: TextStyle(
-        fontSize: size,
-        fontFamily: "Magic4",
-        color: color
+    style: TextStyle(fontSize: size, fontFamily: "Magic4", color: color),
+  );
+}
+
+ElevatedButton gameButton(VoidCallback? onPress, String txt, Color color) {
+  return ElevatedButton(
+    onPressed: onPress,
+    style: ElevatedButton.styleFrom(backgroundColor: color),
+    child: myText(txt, Colors.white, 20),
+  );
+}
+
+BoxDecoration frame() {
+  return BoxDecoration(
+    borderRadius: BorderRadius.circular(10),
+    border: Border.all(color: Colors.black, width: 2),
+    color: Colors.white54,
+    boxShadow: [
+      BoxShadow(
+        color: Colors.grey.withOpacity(0.6),
+        blurRadius: 1.0,
+        offset: Offset(5, 5),
+      ),
+    ],
+  );
+}
+
+BoxDecoration background(String y) {
+  return BoxDecoration(
+    image: DecorationImage(
+      image: AssetImage("assets/flappy_birds/pics/$y.png"),
+      fit: BoxFit.fill,
     ),
   );
 }
 
-ElevatedButton gameButton(VoidCallback? onPress, String txt, Color color){
-  return ElevatedButton(
-    onPressed: onPress,
-    style: ElevatedButton.styleFrom(backgroundColor: color),
-    child: myText(txt,Colors.white,20),
-  );
-}
-
-BoxDecoration frame(){
-  return BoxDecoration(
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: Colors.black, width: 2),
-      color: Colors.white54,
-      boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.6),blurRadius: 1.0,offset: Offset(5,5))]);
-}
-
-BoxDecoration background(String y){
-  return BoxDecoration(
-    image: DecorationImage(
-        image: AssetImage("assets/flappy_birds/pics/$y.png"),
-        fit: BoxFit.fill),
-  );
-}
-
-AlertDialog dialog(BuildContext context){
+AlertDialog dialog(BuildContext context) {
   return AlertDialog(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     actionsPadding: EdgeInsets.only(right: 8, bottom: 8),
-    title: myText("About Flappy Bird",Colors.black, 22),
-    content: Text(Str.about, style: TextStyle(fontFamily: "Magic4"),),
+    title: myText("About Flappy Bird", Colors.black, 22),
+    content: Text(Str.about, style: TextStyle(fontFamily: "Magic4")),
     actions: [
-      gameButton(() {Navigator.pop(context);}, "Okay", Colors.deepOrange),
+      gameButton(
+        () {
+          Navigator.pop(context);
+        },
+        "Okay",
+        Colors.deepOrange,
+      ),
     ],
   );
 }
 
 void init() {
-  if(read("score") != null){
+  if (read("score") != null) {
     topScore = read("score");
-  }else{
+  } else {
     write("score", topScore);
   }
-  if(read("background") != null){
+  if (read("background") != null) {
     Str.image = read("background");
-  }else{
+  } else {
     write("background", Str.image);
   }
-  if(read("bird") != null){
+  if (read("bird") != null) {
     Str.bird = read("bird");
-  }else{
+  } else {
     write("bird", Str.bird);
   }
-  if(read("level") != null){
+  if (read("level") != null) {
     barrierMovement = read("level");
-  }else{
+  } else {
     write("level", barrierMovement);
   }
-  if(read("audio") != null){
+  if (read("audio") != null) {
     play = read("audio");
-  }else{
+  } else {
     write("audio", play);
   }
-  if(play){
+  if (play) {
     player.play(AssetSource("flappy_birds/audio/Tintin.mp3"));
-  }else{
+  } else {
     player.stop();
   }
   player.setReleaseMode(ReleaseMode.loop);
 }
 
-void navigate(context,navigate){
-  switch(navigate){
+void navigate(context, navigate) {
+  switch (navigate) {
     case Str.gamePage:
       Navigator.pushNamed(context, Str.gamePage);
       break;

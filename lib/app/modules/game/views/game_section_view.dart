@@ -4,10 +4,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show compute, kDebugMode;
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
 
+import 'package:hash/config/app_keys.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -15,6 +16,7 @@ import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 import '../../../../utils/widgets/bounce_tap_widget.dart';
 import '../../../../utils/widgets/loader.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// MODEL
@@ -60,40 +62,50 @@ List<Game> _parseGames(String body) {
 /// ─────────────────────────────────────────────────────────────────────────────
 
 class GameService {
-  static const String _apiKey = '5161e75d1d234431ac34d3947d01ea1e'; // TODO: dart-define
+  static const String _apiKey = AppKeys.rawgApiKey;
   static const String _baseUrl = 'https://api.rawg.io/api';
-  final http.Client _client = http.Client();
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+      responseType: ResponseType.plain,
+    ),
+  );
 
   Future<({List<Game> items, bool hasMore})> fetchGames({
     required int page,
     int pageSize = 20,
   }) async {
+    if (_apiKey.isEmpty) {
+      if (kDebugMode) {
+        AppLogger.w('RAWG_API_KEY is not set; skipping game fetch.');
+      }
+      return (items: const <Game>[], hasMore: false);
+    }
+
     final uri = Uri.parse(
       '$_baseUrl/games?key=$_apiKey&page=$page&page_size=$pageSize&ordering=-added',
     );
-    final res = await _client
-        .get(uri)
-        .timeout(const Duration(seconds: 10), onTimeout: () => http.Response('{}', 504));
+    final res = await _dio.get<String>(uri.toString());
 
-    if (res.statusCode != 200) {
+    if (res.statusCode != 200 || res.data == null) {
       if (kDebugMode) {
-        // ignore: avoid_print
-        print('RAWG error ${res.statusCode}: ${res.body}');
+        AppLogger.d('RAWG error ${res.statusCode}: ${res.data}');
       }
       return (items: const <Game>[], hasMore: false);
     }
 
     // Parse off-main-thread
-    final items = await compute(_parseGames, res.body);
+    final items = await compute(_parseGames, res.data!);
 
     // detect "next" presence to continue
-    final map = json.decode(res.body) as Map<String, dynamic>;
+    final map = json.decode(res.data!) as Map<String, dynamic>;
     final hasMore = map['next'] != null;
 
     return (items: items, hasMore: hasMore);
   }
 
-  void dispose() => _client.close();
+  void dispose() {}
 }
 
 /// ─────────────────────────────────────────────────────────────────────────────

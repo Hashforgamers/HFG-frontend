@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -16,8 +17,10 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../../../data/models/user_model.dart';
 import '../../../data/services/user_controller.dart' as userModel;
 import '../../../routes/app_routes.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class LoginController extends GetxController {
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
@@ -288,27 +291,19 @@ class LoginController extends GetxController {
     final proceed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF111111),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: Row(
-          children: const [
-            Icon(Icons.info_rounded, color: Colors.amber),
-            SizedBox(width: 8),
-            Text('Important for Bookings', style: TextStyle(color: Colors.white)),
-          ],
-        ),
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Important for Bookings'),
         content: const Text(
           'On the next Apple screen, tap “Share My Email”.\n\nIf you choose “Hide My Email”, booking emails and receipts may not reach you.',
-          style: TextStyle(color: Colors.white70, height: 1.4),
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context, true),
+            isDefaultAction: true,
             child: const Text('Continue'),
           ),
         ],
@@ -345,10 +340,22 @@ class LoginController extends GetxController {
   // ────────────────────────────────────────────────────────────────────────────
   Future<void> _handleUserNavigation(firebase_auth.User user, {String? phoneNumber}) async {
     try {
-      final userExists = await remoteRepo.checkUserExistsInAPI(user.uid);
+      final userData = await remoteRepo.checkUserExistsInAPI(user.uid);
 
-      if (userExists != null) {
-        await userController.fetchUserData(user.uid);
+      if (userData != null) {
+        // save backend id immediately
+        if (userData['id'] != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('user_id', userData['id'].toString());
+
+          AppLogger.d("✅ Backend userId saved: ${userData['id']}");
+        }
+
+        // push into UserController without refetch
+        final fetchedUser = User.fromJson(userData);
+        userController.setUserData(fetchedUser);
+        userController.id.value = userData['id'].toString();
+
         Get.offAllNamed(AppRoutes.HOME);
       } else {
         Get.offAllNamed(
@@ -357,7 +364,7 @@ class LoginController extends GetxController {
             'name': user.displayName ?? '',
             'email': user.email ?? '',
             'photoUrl': user.photoURL ?? '',
-            'phoneNumber': phoneNumber ?? '', // prefill if phone login
+            'phoneNumber': phoneNumber ?? '',
           },
         );
       }
@@ -365,6 +372,7 @@ class LoginController extends GetxController {
       _showErrorSnackbar('Error', 'Failed to complete login: $e');
     }
   }
+
 
   void _showErrorSnackbar(String title, String? message) {
     Get.snackbar(

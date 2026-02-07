@@ -14,8 +14,10 @@ import 'package:hash/features/mini_games/fruit_ninja/core/configs/constants/app_
 import 'package:hash/features/mini_games/fruit_ninja/core/configs/theme/app_colors.dart';
 import 'package:hash/features/mini_games/fruit_ninja/main_router_game.dart';
 import 'package:hash/features/mini_games/fruit_ninja/presentation/game/game.dart';
+import 'package:hash/features/mini_games/score/mini_game_score_service.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 /// Secure API call placeholder
 Future<void> submitScoreToAPI(Map<String, dynamic> payload) async {
@@ -46,7 +48,8 @@ class GameOverRoute extends Route {
   }
 }
 
-class GameOverPage extends Component with TapCallbacks, HasGameReference<MainRouterGame> {
+class GameOverPage extends Component
+    with TapCallbacks, HasGameReference<MainRouterGame> {
   late TextComponent _textComponent;
   late TextComponent _textTimeComponent;
   late TextComponent _textScoreComponent;
@@ -59,6 +62,11 @@ class GameOverPage extends Component with TapCallbacks, HasGameReference<MainRou
 
   @override
   FutureOr<void> onLoad() {
+    MiniGameScoreService().recordScore(
+      'fruit_cutting',
+      game.getScore(),
+    ); // sync best score
+
     final textTitlePaint = TextPaint(
       style: const TextStyle(
         fontSize: 60,
@@ -114,7 +122,11 @@ class GameOverPage extends Component with TapCallbacks, HasGameReference<MainRou
 
     final flameGame = findGame()!;
     final mode = game.getMode();
-    final modeText = mode == 0 ? 'Easy' : mode == 1 ? 'Medium' : 'Hard';
+    final modeText = mode == 0
+        ? 'Easy'
+        : mode == 1
+        ? 'Medium'
+        : 'Hard';
 
     addAll([
       _textComponent = TextComponent(
@@ -161,10 +173,16 @@ class GameOverPage extends Component with TapCallbacks, HasGameReference<MainRou
     super.onGameResize(size);
     _textComponent.position = Vector2(game.size.x / 2, game.size.y / 2 - 70);
     _textTimeComponent.position = Vector2(15, 20);
-    _textScoreComponent.position = Vector2(game.size.x / 2, game.size.y / 2 + 25);
+    _textScoreComponent.position = Vector2(
+      game.size.x / 2,
+      game.size.y / 2 + 25,
+    );
     _textScoreComponent.text = 'Score: ${game.getScore()}';
 
-    _buttonLeaderboard.position = Vector2(game.size.x / 2, game.size.y / 2 + 110);
+    _buttonLeaderboard.position = Vector2(
+      game.size.x / 2,
+      game.size.y / 2 + 110,
+    );
 
     _textNewGameComponent.position = game.isDesktop
         ? Vector2(game.size.x - 15, game.size.y - 15)
@@ -205,7 +223,10 @@ class GameOverPage extends Component with TapCallbacks, HasGameReference<MainRou
 
       game.render(canvas);
 
-      final image = await recorder.endRecording().toImage(game.size.x.toInt(), game.size.y.toInt());
+      final image = await recorder.endRecording().toImage(
+        game.size.x.toInt(),
+        game.size.y.toInt(),
+      );
       final byteData = await image.toByteData(format: ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
 
@@ -214,7 +235,7 @@ class GameOverPage extends Component with TapCallbacks, HasGameReference<MainRou
       final imageFile = File(imagePath);
       await imageFile.writeAsBytes(pngBytes);
     } catch (e) {
-      if (kDebugMode) print(e.toString());
+      if (kDebugMode) AppLogger.d(e.toString());
     }
   }
 }

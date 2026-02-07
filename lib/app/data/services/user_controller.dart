@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:get/get.dart';
+import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
-import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
 import 'package:hash/core/network/api_endpoints.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class UserController extends GetxController {
   // ───────── USER DATA ─────────
@@ -30,25 +31,40 @@ class UserController extends GetxController {
 
   var isLoading = false.obs;
 
-  /// 🧲 Fetch user by **ID** and store both profile and id
-  Future<void> fetchUserData(String idValue) async {
+  Future<Map<String, dynamic>?> fetchUserData(String idValue) async {
     isLoading.value = true;
-    final url = Uri.parse('${ApiEndpoints.checkUserExistsInAPI}$idValue');
-
+    final url = '${ApiEndpoints.checkUserExistsInAPI}$idValue';
+    AppLogger.d('url to backend $url');
     try {
-      final response = await http.get(url);
+      final dio = locator<NetworkProvider>().noAuth();
+      final response = await dio.get(url);
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final fetchedUser = User.fromJson(data['user']); // ✅ RIGHT
-        id.value = data['user']['id']
-            .toString(); // ✅ Ensure ID is stored correctly
+        final data = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
+        AppLogger.d("✅ fetchUserData → backend id: ${data}");
+
+        final fetchedUser = User.fromJson(data['user']);
+        id.value = data['user']['id'].toString(); // ✅ backend userId
 
         setUserData(fetchedUser);
-      } else {}
+
+        AppLogger.d("✅ fetchUserData → backend id: ${id.value}");
+
+        return data['user']; // 🔥 THIS WAS MISSING
+      } else {
+        AppLogger.d("❌ fetchUserData failed: ${response.data}");
+        return null;
+      }
+    } catch (e) {
+      AppLogger.d("❌ fetchUserData exception: $e");
+      return null;
     } finally {
       isLoading.value = false;
     }
   }
+
 
   /// ✅ Replace entire user object
   void setUserData(User fetchedUser) {
@@ -73,4 +89,3 @@ class UserController extends GetxController {
   /// 👤 Getter for current User ID
   String get userId => id.value;
 }
-

@@ -2,14 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'models/minigame_model.dart';
+import 'score/mini_game_score_service.dart';
 
 class MiniGameCard extends StatelessWidget {
   final MiniGame game;
+  final bool scoresLoaded;
+  final MiniGameScoreService scoreService;
 
-  const MiniGameCard({super.key, required this.game});
+  const MiniGameCard({
+    super.key,
+    required this.game,
+    required this.scoresLoaded,
+    required this.scoreService,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final gameKey = game.id ?? game.title;
     return BounceTap(
       onTap: game.onTap,
       child: SizedBox(
@@ -31,8 +40,9 @@ class MiniGameCard extends StatelessWidget {
                   ),
                 ],
                 image: DecorationImage(
-                  image: AssetImage(game.imageUrl), // use Image.asset for local icons
+                  image: game.icon,
                   fit: BoxFit.cover,
+                  filterQuality: FilterQuality.medium,
                 ),
               ),
             ),
@@ -49,6 +59,16 @@ class MiniGameCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            const SizedBox(height: 2),
+            if (scoresLoaded)
+              Text(
+                'Best: ${scoreService.bestScore(gameKey)}',
+                style: GoogleFonts.inter(
+                  color: Colors.white38,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
           ],
         ),
       ),

@@ -15,7 +15,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   @override
-  void initState() { 
+  void initState() {
     super.initState();
   }
 
@@ -31,7 +31,9 @@ class _MainScreenState extends State<MainScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               BoardWidget(),
-              Center(child: SizedBox(width: 50, height: 50, child: DiceWidget())),
+              Center(
+                child: SizedBox(width: 50, height: 50, child: DiceWidget()),
+              ),
             ],
           ),
           Consumer<LudoProvider>(
@@ -43,12 +45,31 @@ class _MainScreenState extends State<MainScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Image.asset("assets/ludo/images/thankyou.gif"),
-                          const Text("Thank you for playing 😙", style: TextStyle(color: Colors.white, fontSize: 20), textAlign: TextAlign.center),
-                          Text("The Winners is: ${value.winners.map((e) => e.name.toUpperCase()).join(", ")}", style: const TextStyle(color: Colors.white, fontSize: 30), textAlign: TextAlign.center),
+                          const Text(
+                            "Thank you for playing 😙",
+                            style: TextStyle(color: Colors.white, fontSize: 20),
+                            textAlign: TextAlign.center,
+                          ),
+                          Text(
+                            "The Winners is: ${value.winners.map((e) => e.name.toUpperCase()).join(", ")}",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                           const Divider(color: Colors.white),
-                          const Text("This game made with Flutter ❤️ by Mochamad Nizwar Syafuan", style: TextStyle(color: Colors.white, fontSize: 15), textAlign: TextAlign.center),
+                          const Text(
+                            "This game made with Flutter ❤️ by Mochamad Nizwar Syafuan",
+                            style: TextStyle(color: Colors.white, fontSize: 15),
+                            textAlign: TextAlign.center,
+                          ),
                           const SizedBox(height: 20),
-                          const Text("Refresh your browser to play again", style: TextStyle(color: Colors.white, fontSize: 10), textAlign: TextAlign.center),
+                          const Text(
+                            "Refresh your browser to play again",
+                            style: TextStyle(color: Colors.white, fontSize: 10),
+                            textAlign: TextAlign.center,
+                          ),
                         ],
                       ),
                     ),

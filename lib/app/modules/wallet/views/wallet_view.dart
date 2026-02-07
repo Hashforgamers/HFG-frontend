@@ -35,6 +35,8 @@ class _WalletPage extends StatefulWidget {
 }
 
 class __WalletPageState extends State<_WalletPage> {
+  bool _showTxnErrorDetails = false;
+
   @override
   void initState() {
     BlocProvider.of<TransactionCubit>(context).getTransactionHistory();
@@ -52,11 +54,159 @@ class __WalletPageState extends State<_WalletPage> {
           return WalletScreen(transactions: state.transactions);
         }
         if (state is TransactionError) {
-          return const Center(child: Text('Error'));
+          return _buildTransactionErrorScreen(context, state.message);
         }
-        return const Center(child: Text('Error'));
+        return _buildTransactionErrorScreen(
+          context,
+          'Something went wrong. Please try again.',
+        );
       },
     );
+  }
+
+  Widget _buildTransactionErrorScreen(
+    BuildContext context,
+    String message,
+  ) {
+    final normalized = _normalizeTransactionError(message);
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        centerTitle: true,
+        title: Text(
+          'Wallet',
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: GestureDetector(
+          onTap: () => Get.back(),
+          child: const Icon(Icons.arrow_back, color: Colors.white),
+        ),
+      ),
+      body: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111111),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF00D701).withOpacity(0.35),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF00D701).withOpacity(0.1),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFF00D701),
+                size: 52,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Could not load transactions',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                normalized,
+                style: GoogleFonts.inter(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () =>
+                    BlocProvider.of<TransactionCubit>(context)
+                        .getTransactionHistory(),
+                icon: const Icon(Icons.refresh, color: Colors.black),
+                label: Text(
+                  'Retry',
+                  style: GoogleFonts.inter(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xff00D701),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () {
+                  setState(() => _showTxnErrorDetails = !_showTxnErrorDetails);
+                },
+                child: Text(
+                  _showTxnErrorDetails ? 'Hide details' : 'Show details',
+                  style: GoogleFonts.inter(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              if (_showTxnErrorDetails) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.35),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.1),
+                    ),
+                  ),
+                  child: SelectableText(
+                    message,
+                    style: GoogleFonts.sourceCodePro(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _normalizeTransactionError(String message) {
+    final lower = message.toLowerCase();
+    if (lower.contains('unauthorized') || lower.contains('401')) {
+      return 'Your session has expired. Please log in again to view your transaction history.';
+    }
+    if (message.trim().isEmpty) {
+      return 'Something went wrong while loading your transactions.';
+    }
+    return message;
   }
 }
 

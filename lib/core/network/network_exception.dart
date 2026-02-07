@@ -1,4 +1,4 @@
-// network_exceptions.dart
+// network_exception.dart
 import 'package:dio/dio.dart';
 
 class NetworkException implements Exception {

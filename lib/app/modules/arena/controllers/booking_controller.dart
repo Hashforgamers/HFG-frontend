@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class BookingController extends GetxController {
   final isLoading = false.obs;
@@ -45,14 +46,14 @@ class BookingController extends GetxController {
       });
 
       // Log the filtered and sorted slots for debugging
-      print('Filtered and sorted ${availableSlots.length} slots out of ${rawSlots.length} total slots');
+      AppLogger.d('Filtered and sorted ${availableSlots.length} slots out of ${rawSlots.length} total slots');
       for (var slot in availableSlots.take(3)) {
-        print('Slot: ${slot['start_time']} - ${slot['end_time']}, Available: ${slot['available_slot']}');
+        AppLogger.d('Slot: ${slot['start_time']} - ${slot['end_time']}, Available: ${slot['available_slot']}');
       }
 
       return availableSlots;
     } catch (e) {
-      print('Error filtering and sorting slots: $e');
+      AppLogger.d('Error filtering and sorting slots: $e');
       return rawSlots; // Return original list if error occurs
     }
   }
@@ -75,7 +76,7 @@ class BookingController extends GetxController {
         }
       }
     } catch (e) {
-      print('Error parsing time string: $timeStr, error: $e');
+      AppLogger.d('Error parsing time string: $timeStr, error: $e');
     }
     return DateTime(2000, 1, 1, 0, 0); // Default to midnight if parsing fails
   }
@@ -133,7 +134,7 @@ class BookingController extends GetxController {
         return isAvailable && isTimeAvailable && availableConsoles > 0;
       }).toList();
     } catch (e) {
-      print('Error getting filtered slots: $e');
+      AppLogger.d('Error getting filtered slots: $e');
       return slots.toList();
     }
   }
@@ -153,7 +154,7 @@ class BookingController extends GetxController {
         },
       );
     } catch (e) {
-      print('Error calculating total available consoles: $e');
+      AppLogger.d('Error calculating total available consoles: $e');
       return 0;
     }
   }
@@ -169,7 +170,7 @@ class BookingController extends GetxController {
     try {
       return slots.indexWhere((s) => s['slot_id'] == slot['slot_id'] || s['id'] == slot['id']);
     } catch (e) {
-      print('Error getting original slot index: $e');
+      AppLogger.d('Error getting original slot index: $e');
       return 0;
     }
   }
@@ -238,6 +239,6 @@ class BookingController extends GetxController {
 
   /// Log errors
   void _logError(String message) {
-    print(message);
+    AppLogger.d(message);
   }
 }

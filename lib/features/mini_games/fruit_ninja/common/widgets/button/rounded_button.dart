@@ -60,14 +60,14 @@ class RoundedButton extends PositionComponent with TapCallbacks {
     this.sizeX = 190,
     super.anchor = Anchor.center,
   }) : _textDrawable = TextPaint(
-          style: const TextStyle(
-            fontSize: 23,
-            color: AppColors.white,
-            fontWeight: FontWeight.w800,
-            fontFamily: 'Insan',
-            letterSpacing: 2.0,
-          ),
-        ).toTextPainter(text) {
+         style: const TextStyle(
+           fontSize: 23,
+           color: AppColors.white,
+           fontWeight: FontWeight.w800,
+           fontFamily: 'Insan',
+           letterSpacing: 2.0,
+         ),
+       ).toTextPainter(text) {
     // Sets the button size
     size = Vector2(sizeX, 50);
 
@@ -85,8 +85,10 @@ class RoundedButton extends PositionComponent with TapCallbacks {
 
     // Paint for the border of the button
     _borderPaint = Paint()
-      ..style = PaintingStyle.stroke // Border style
-      ..strokeWidth = 3 // Border thickness
+      ..style = PaintingStyle
+          .stroke // Border style
+      ..strokeWidth =
+          3 // Border thickness
       ..color = borderColor;
   }
 

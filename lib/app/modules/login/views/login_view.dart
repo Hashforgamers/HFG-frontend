@@ -8,6 +8,7 @@ import 'package:hash/core/service_locator.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:hash/core/utils/haptics.dart';
 import '../../../../utils/widgets/loader.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
 import '../controllers/login_controller.dart';
@@ -342,6 +343,7 @@ class LoginView extends StatelessWidget {
                       onPressed: controller.isStartingPhone.value
                           ? null
                           : () async {
+                        await Haptics.medium();
                         await controller.startPhoneSignIn();
                       },
                       style: ElevatedButton.styleFrom(
@@ -392,18 +394,25 @@ class LoginView extends StatelessWidget {
 
                   // Countdown + Resend
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Obx(() => Text(
-                        controller.secondsLeft.value > 0
-                            ? 'Resend in ${controller.secondsLeft.value}s'
-                            : 'Didn’t get the code?',
-                        style: GoogleFonts.inter(color: Colors.white60, fontSize: 13),
-                      )),
+                      Expanded(
+                        child: Obx(
+                          () => Text(
+                            controller.secondsLeft.value > 0
+                                ? 'Resend in ${controller.secondsLeft.value}s'
+                                : 'Didn’t get the code?',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(color: Colors.white60, fontSize: 13),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       TextButton(
                         onPressed: controller.secondsLeft.value > 0
                             ? null
                             : () async {
+                          await Haptics.selection();
                           await controller.resendCode();
                         },
                         child: Text(
@@ -426,6 +435,7 @@ class LoginView extends StatelessWidget {
                       onPressed: controller.isVerifyingOtp.value
                           ? null
                           : () async {
+                        await Haptics.medium();
                         await controller.verifyOtpAndSignIn();
                       },
                       style: ElevatedButton.styleFrom(

@@ -17,6 +17,8 @@ import '../Widgets/plant.dart';
 import '../Widgets/score_board.dart';
 import '../Widgets/zombie.dart';
 import '../routes.dart';
+import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/features/mini_games/score/mini_game_score_service.dart';
 
 class PlantVsZombie extends StatefulWidget {
   @override
@@ -27,7 +29,7 @@ class _PlantVsZombieState extends State<PlantVsZombie> {
   PlantHandler _plant = PlantHandler(-0.90, 0.2);
   Bullethandler _bullet = Bullethandler(5, 5);
   ZombieHandler _zombie = ZombieHandler(1.1, 1);
-  late Timer _zombieTimer, _bulletTimer;
+  Timer? _zombieTimer, _bulletTimer;
   int score = 0;
 
   /// move the plant up Y↑
@@ -71,7 +73,7 @@ class _PlantVsZombieState extends State<PlantVsZombie> {
             (_bullet.y - _zombie.y).abs() < 0.2) {
           timer.cancel();
           if (_zombieTimer != null) {
-            _zombieTimer.cancel();
+            _zombieTimer?.cancel();
           }
           _bullet.initCords(5, 5);
           _calculateScore();
@@ -98,12 +100,16 @@ class _PlantVsZombieState extends State<PlantVsZombie> {
         if ((_plant.x - _zombie.x).abs() < 0.05) {
           timer.cancel();
           if (_bulletTimer != null) {
-            _bulletTimer.cancel();
+            _bulletTimer?.cancel();
           }
-          print("Game Over");
+          AppLogger.d("Game Over");
+          MiniGameScoreService().recordScore('plant_vs_zombie', score);
           Navigator.pushNamedAndRemoveUntil(
-              context, Routes.game_over, (route) => false,
-              arguments: score);
+            context,
+            Routes.game_over,
+            (route) => false,
+            arguments: score,
+          );
         }
       });
     }
@@ -122,16 +128,18 @@ class _PlantVsZombieState extends State<PlantVsZombie> {
   }
 
   @override
+  void dispose() {
+    _zombieTimer?.cancel();
+    _bulletTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: Container(
-          child: Column(
-            children: [
-              _garden(),
-              _gameControllers(),
-            ],
-          ),
+          child: Column(children: [_garden(), _gameControllers()]),
         ),
       ),
     );
@@ -149,10 +157,11 @@ class _PlantVsZombieState extends State<PlantVsZombie> {
             Row(
               children: [
                 ControllerButton(
-                    icon: Icons.arrow_upward,
-                    onTap: () {
-                      _moveUp(_plant);
-                    }),
+                  icon: Icons.arrow_upward,
+                  onTap: () {
+                    _moveUp(_plant);
+                  },
+                ),
                 SizedBox(width: 15.0),
                 ControllerButton(
                   icon: Icons.arrow_downward,
@@ -162,9 +171,7 @@ class _PlantVsZombieState extends State<PlantVsZombie> {
                 ),
               ],
             ),
-            ScoreBoard(
-              score: score,
-            ),
+            ScoreBoard(score: score),
             ControllerButton(
               icon: FontAwesomeIcons.meteor,
               onTap: _shootBullet,
@@ -180,13 +187,14 @@ class _PlantVsZombieState extends State<PlantVsZombie> {
     return Expanded(
       flex: 5,
       child: Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage(Assets.garden),
-              fit: BoxFit.cover,
-            ),
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(Assets.garden),
+            fit: BoxFit.cover,
           ),
-          child: _players()),
+        ),
+        child: _players(),
+      ),
     );
   }
 

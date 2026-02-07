@@ -25,6 +25,7 @@ import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import '/themes/app_theme.dart';
 import 'firebase_options.dart';
+import 'app/modules/shop_new/controllers/shop_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +64,7 @@ void main() async {
   Get.put(DeepLinkController());
   // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
+  Get.put(ShopController(), permanent: true);
 
   runApp(MyApp());
 }

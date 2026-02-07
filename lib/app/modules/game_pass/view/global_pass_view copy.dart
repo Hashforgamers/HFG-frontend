@@ -7,9 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
-import 'package:http/http.dart' as http;
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/app/data/services/user_controller.dart';
@@ -19,6 +19,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 import '../../../../utils/widgets/loader.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 enum GlobalPassCardType { rightImage, leftImage }
 
@@ -161,18 +162,17 @@ class _GlobalPassViewState extends State<GlobalPassView> {
       "receipt": receiptId,
     };
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(payload),
-    );
+    final dio = locator<NetworkProvider>().noAuth();
+    final response = await dio.post(url, data: payload);
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = response.data is String
+          ? jsonDecode(response.data as String)
+          : response.data;
       return data['id'];
-    } else {
-      throw Exception('Failed to create payment order: ${response.body}');
     }
+
+    throw Exception('Failed to create payment order: ${response.data}');
   }
 
   @override
@@ -240,7 +240,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    print("pass image $image");
+    AppLogger.d("pass image $image");
     return BounceTap(
       onTap: pass.isBought == true ? null : onTap,
       child: Container(

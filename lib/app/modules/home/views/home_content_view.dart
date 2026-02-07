@@ -12,8 +12,10 @@ import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
-import 'package:hash/app/modules/hash_store/pages/hash_store_home_page.dart';
+import 'package:hash/app/modules/home/widgets/home_game_on_india_banner.dart';
+import 'package:hash/app/modules/home/widgets/home_game_pass_card.dart';
 import 'package:hash/app/modules/home/widgets/optimized_app_bar.dart';
+import 'package:hash/app/modules/home/widgets/welcome_aboard_dialog.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
 import 'package:hash/app/modules/profile/user_profile_view.dart';
@@ -21,21 +23,19 @@ import 'package:hash/app/modules/refferal/views/referral_view_with_controller.da
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:hash/app/modules/tournaments_section/pages/tournaments_home_view.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
-import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:hash/features/mini_games/mini_game_section.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/modules/home/widgets/refer_friend_modal.dart';
+import 'package:hash/app/data/models/user_model.dart';
+import 'package:hash/core/utils/haptics.dart';
 
-import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
-import '../../../../features/mini_games/mini_game_section.dart';
-import '../../../../utils/widgets/bounce_tap_widget.dart';
-import '../../arena/views/payment_success.dart';
 import '../../support/support_screen.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -74,6 +74,7 @@ class _HomeContentViewState extends State<HomeContentView>
   bool isInitialized = false;
   bool _isRefreshing = false;
   bool showReferModal = false;
+  bool _fcmRegistered = false;
 
   // Cached widgets for better performance
   Widget? _cachedAppBar;
@@ -82,7 +83,7 @@ class _HomeContentViewState extends State<HomeContentView>
 
   // Visibility tracking for lazy loading
   final Map<String, bool> _sectionVisibility = {};
-final prefs = locator<SharedPreferences>();
+  final prefs = locator<SharedPreferences>();
 
   @override
   bool get wantKeepAlive => true;
@@ -147,8 +148,6 @@ final prefs = locator<SharedPreferences>();
   }
 
   void _initializeData() {
-    // Register FCM token immediately
-    BlocProvider.of<FcmCubit>(context).registerFCMToken();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
       _trackHomeScreenViewed();
@@ -188,249 +187,11 @@ final prefs = locator<SharedPreferences>();
       context: context,
       barrierDismissible: false,
       builder: (_) {
-        return Dialog(
-          insetPadding: EdgeInsets.zero,
-          backgroundColor: Colors.transparent,
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: SweepGradient(
-                center: Alignment.center,
-                startAngle: 0.0,
-                endAngle: 6.28319, // 2 * pi
-                colors: [
-                  Color(0xFF1541A3), // 22%
-                  Color(0xFF070C29), // 28%
-                  Color(0xFF040309), // 66%
-                  Color(0xFF060A22), // 73%
-                  Color(0xFF8320C3), // 97%
-                  Color(0xFF1541A3), // repeat start to close loop
-                ],
-                stops: [
-                  0.22,
-                  0.28,
-                  0.66,
-                  0.73,
-                  0.97,
-                  1.0,
-                ],
-                transform: GradientRotation(-1), // -90° in radians (π/2)
-              ),
-            ),
-            child: Stack(
-              children: [
-                ///Added individual icons
-                // Example:
-                Positioned(
-                  top: 50,
-                  left: 20,
-                  child: Transform.rotate(
-                    angle: 0.4,
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62),
-                  ),
-                ),
-                Positioned(
-                  top: 5,
-                  right: -70,
-                  child: Transform(
-                    transform: Matrix4.identity()..scale(-1.0, 1.0),
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 82, fit: BoxFit.fill,),
-                  ),
-                ),
-                Positioned(
-                  top: 280,
-                  right: -30,
-                  child: Transform.rotate(
-                    angle: 0.4,
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 72, fit: BoxFit.fill,),
-                  ),
-                ),
-                Positioned(
-                  bottom: 120,
-                  right: -80,
-                  child: Transform(
-                    transform: Matrix4.identity()..scale(-1.0, 1.0),
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62, fit: BoxFit.fill,),
-                  ),
-                ),
-                Positioned(
-                  bottom: -20,
-                  right: 150,
-                  child: Transform.rotate(
-                    angle: 0.4,
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62, fit: BoxFit.fill,),
-                  ),
-                ),
-                Positioned(
-                  bottom: 30,
-                  left: 20,
-                  child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 52, fit: BoxFit.fill,),
-                ),
-                Positioned(
-                  bottom: 170,
-                  left: -20,
-                  child: Transform.rotate(
-                    angle: 0.4,
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62, fit: BoxFit.fill,),
-                  ),
-                ),
-
-                Positioned(
-                  top: -20,
-                  left: 180,
-                  child: Transform(
-                    transform: Matrix4.identity()..scale(-1.0, 1.0)..rotateZ(-0.3),
-                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
-                  ),
-                ),
-                Positioned(
-                  top: 110,
-                  right: -30,
-                  child: Transform.rotate(
-                    angle: 0.3,
-                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 85, fit: BoxFit.cover,),
-                  ),
-                ),
-                Positioned(
-                  bottom: 250,
-                  right: -100,
-                  child: Transform(
-                    transform: Matrix4.identity()
-                      ..scale(-1.0, 1.0)
-                      ..rotateZ(0.4),
-                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
-                  ),
-                ),
-                Positioned(
-                  bottom: 30,
-                  right: -75,
-                  child: Transform(
-                    transform: Matrix4.identity()
-                      ..scale(-1.0, 1.0)
-                      ..rotateZ(0.4),
-                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
-                  ),
-                ),
-                Positioned(
-                  bottom: 115,
-                  left: 55,
-                  child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 52, fit: BoxFit.cover,),
-                ),
-                Positioned(
-                  top: 220,
-                  left: 5,
-                  child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 52, fit: BoxFit.cover,),
-                ),
-
-                // Main content
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        "Welcome Aboard!",
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 25),
-
-                      // Gift box image
-                      Image.asset(
-                        "assets/welcome_aboard_images/gift_box.png",
-                        height: 160,
-                        fit: BoxFit.fill,
-                      ),
-
-                      const SizedBox(height: 25),
-
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  "You’ve unlocked ",
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold
-                                  ),
-                                ),
-                                Text(" ₹30 bonus crate! 🎁", style: TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold),),
-                              ],
-                            ),
-                            Text("Use it to book your favourite café today!", style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 40),
-
-                      GestureDetector(
-                        onTap: ()async{
-                          Navigator.of(context).pop();
-                          await Get.find<WalletController>().claimDropCrate();                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(30),
-                          child: Stack(
-                            children: [
-                              // Frosted background blur
-                              BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                child: Container(
-                                  width: 280,
-                                  height: 50,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(30),
-                                    border: Border.all(
-                                      width: 1.5,
-                                      style: BorderStyle.solid,
-                                      color: Colors.white.withOpacity(0.3), // base glass stroke
-                                    ),
-                                  ),
-                                  child: ShaderMask(
-                                    shaderCallback: (Rect bounds) {
-                                      return LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          Colors.white.withOpacity(0.8), // reflection
-                                          Colors.transparent,            // fades away
-                                          Colors.white.withOpacity(0.4),
-                                        ],
-                                        stops: const [0.0, 0.5, 1.0],
-                                      ).createShader(bounds);
-                                    },
-                                    blendMode: BlendMode.srcATop,
-                                    child: const Text(
-                                      "Claim in Drop Crate",
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+        return WelcomeAboardDialog(
+          onClaim: () async {
+            await Haptics.success();
+            await Get.find<WalletController>().claimDropCrate();
+          },
         );
       },
     );
@@ -443,35 +204,45 @@ final prefs = locator<SharedPreferences>();
     setState(() => _isRefreshing = true);
 
     try {
-      // Optimized parallel API calls with proper error handling
-      await Future.wait([
-        _fetchUserDataIfNeeded(),
-        _refreshWalletIfReady(),
-        bookingController.fetchUserBookings(),
-        BlocProvider.of<HashCoinCubit>(context).getHashCoin(),
-      ], eagerError: false).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          return [];
-        },
-      );
+      final hasUser = await _fetchUserDataIfNeeded();
+      if (hasUser) {
+        if (!_fcmRegistered) {
+          await BlocProvider.of<FcmCubit>(context).registerFCMToken();
+          _fcmRegistered = true;
+        }
+        await _refreshWalletIfReady();
+        await bookingController.fetchUserBookings();
+        await BlocProvider.of<HashCoinCubit>(context).getHashCoin();
+      }
       if (!mounted) return;
 
       setState(() => isInitialized = true);
     } catch (e) {
-      debugPrint('Error refreshing data: $e');
+      AppLogger.e('Error refreshing data: $e');
     } finally {
-      if (!mounted) return;
-      setState(() => _isRefreshing = false);
+      if (mounted) {
+        setState(() => _isRefreshing = false);
+      }
     }
   }
 
-  Future<void> _fetchUserDataIfNeeded() async {
+  Future<bool> _fetchUserDataIfNeeded() async {
     final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
+    if (currentUser == null) return false;
+
+    // Refresh backend session + JWT before any authed calls.
+    final apiUser = await remoteRepo.checkUserExistsInAPI(currentUser.uid);
+
+    if (apiUser != null && mounted) {
+      // push into controller without a second network call
+      userController.setUserData(User.fromJson(apiUser));
+      final backendId = apiUser['id'] ?? apiUser['user_id'] ?? currentUser.uid;
+      userController.id.value = backendId.toString();
+    } else {
+      // fall back to existing fetch (no-auth) for safety
       await userController.fetchUserData(currentUser.uid);
-      await _refreshWalletIfReady();
     }
+    return true;
   }
 
   Future<void> _refreshWalletIfReady() async {
@@ -530,12 +301,12 @@ final prefs = locator<SharedPreferences>();
     super.build(context);
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Get.to(HashStoreHomePage());
-        },
-        child: Icon(Icons.shopping_cart),
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: () {
+      //     Get.to(HashStoreHomePage());
+      //   },
+      //   child: Icon(Icons.shopping_cart),
+      // ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
         backgroundColor: Colors.black,
@@ -559,9 +330,11 @@ final prefs = locator<SharedPreferences>();
                       children: [
                         const SizedBox(height: _sectionGap), // top padding
                         ..._intersperse([
-
                           // 🔷 1. Game Pass – Monetization + Core use
-                          _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+                          _buildLazyLoadedSection(
+                            'gamePass',
+                            _buildGamePassContainer(),
+                          ),
 
                           // 🔷 2. Café Section – Main booking action
                           _buildLazyLoadedSection('cafe', CafeSection()),
@@ -570,28 +343,43 @@ final prefs = locator<SharedPreferences>();
                           ContactSupport(),
 
                           // 🔷 4. Mini Games – Retention boost (engaging short content)
-                          // _buildLazyLoadedSection('miniGames', const MiniGamesSection()),
+                          _buildLazyLoadedSection(
+                            'miniGames',
+                            const MiniGamesSection(),
+                          ),
 
                           // 🔷 5. Refer & Earn – Growth lever
-                          _buildLazyLoadedSection('referral', _buildReferFriendModal()),
+                          _buildLazyLoadedSection(
+                            'referral',
+                            _buildReferFriendModal(),
+                          ),
 
                           // 🔷 6. Viral Shorts – Fun scroll content, lower intent
-                          _buildLazyLoadedSection('shorts', ViralShotsSection()),
+                          _buildLazyLoadedSection(
+                            'shorts',
+                            ViralShotsSection(),
+                          ),
 
                           // 🔷 7. Gamer News – Passive consumption
-                          _buildLazyLoadedSection('news', const GamerNewsSection()),
+                          _buildLazyLoadedSection(
+                            'news',
+                            const GamerNewsSection(),
+                          ),
 
                           // 🔷 8. Games List – Browse-only for now (assuming no play feature)
-                          _buildLazyLoadedSection('games', const GamesSection()),
+                          _buildLazyLoadedSection(
+                            'games',
+                            const GamesSection(),
+                          ),
 
                           // 🔷 9. GameOn India Banner – Occasional promo
-                          _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
-
+                          _buildLazyLoadedSection(
+                            'gameOnIndia',
+                            _buildGameOnIndiaBanner(),
+                          ),
                         ], const SizedBox(height: _sectionGap)),
                         const SizedBox(height: _sectionGap), // bottom padding
                       ],
-
-
                     ),
                   ),
                 ),
@@ -648,22 +436,23 @@ final prefs = locator<SharedPreferences>();
       centerTitle: false,
       leading: Obx(
         () => Padding(
-          padding: const EdgeInsets.only(left: 10,top: 5),
+          padding: const EdgeInsets.only(left: 10, top: 5),
           child: userController.isLoading.value
               ? _buildShimmerAvatar()
               : GestureDetector(
-            onTap: (){
-              Get.to(UserProfileView());
-            },
-            child: _buildOptimizedUserAvatar(userController.user.value.photoUrl),
-          ),
+                  onTap: () {
+                    Get.to(UserProfileView());
+                  },
+                  child: _buildOptimizedUserAvatar(
+                    userController.user.value.photoUrl,
+                  ),
+                ),
         ),
       ),
       title: Obx(
         () => Padding(
           padding: const EdgeInsets.only(top: 15.0),
           child: Column(
-
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -721,7 +510,8 @@ final prefs = locator<SharedPreferences>();
         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
             ? CachedNetworkImageProvider(
                 photoUrl,
-                errorListener: (error) => print('Avatar image error: $error'),
+                errorListener: (error) =>
+                    AppLogger.d('Avatar image error: $error'),
               )
             : const NetworkImage(
                     'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
@@ -735,95 +525,8 @@ final prefs = locator<SharedPreferences>();
   Widget _buildGamePassContainer() {
     if (_cachedGamePassContainer != null) return _cachedGamePassContainer!;
 
-    _cachedGamePassContainer = BounceTap(
-      // onTap: () => Get.to(() => PaymentSuccessScreen(
-      //   dateText: "2/8/25",
-      //   timeText: "11:45 pm",
-      //   totalText: "₹500",
-      //   email: "test00@gmail.com",
-      //   onViewInvoice: () {
-      //     // Navigate to invoice screen or open a link
-      //   },
-      // ),),
-      // onTap: () => Get.to(() => FruitCuttingScreen()),
+    _cachedGamePassContainer = HomeGamePassCard(
       onTap: () => Get.to(() => GamePassViewPage()),
-      child: Container(
-        height: 200,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFF6DFB60), width: 1),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: CachedNetworkImage(
-                imageUrl:
-                    'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075177/gamepassbg_jkkq7b.png',
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                // cacheWidth: 400, // Optimize memory usage
-                placeholder: (_, _) =>
-                    const Center(child: RainbowGlowingLoader(size: 40)),
-                errorWidget: (_, _, _) => Container(
-                  color: Colors.grey,
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.image_not_supported,
-                    color: Colors.white54,
-                    size: 40,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 20,
-              top: 40,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pay with Hash Pass',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Get the digital membership card now.\nUse at any participating gaming cafe.',
-                    style: GoogleFonts.inter(color: Colors.white, fontSize: 10),
-                  ),
-                  const SizedBox(height: 32),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 6,
-                      horizontal: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: const Color(0xFF75F94C),
-                        width: 1.5,
-                      ),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Text(
-                      'Know More',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
 
     return _cachedGamePassContainer!;
@@ -962,30 +665,11 @@ final prefs = locator<SharedPreferences>();
   //   return _cachedGameOnIndiaBanner!;
   // }
   Widget _buildGameOnIndiaBanner() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 5.0),
-      child: Center(
-        child: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [
-              Color(0xFFFF9933), // Saffron
-              Colors.white, // White
-              Color(0xFF138808), // Green
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ).createShader(bounds),
-          child: Text(
-            'Game On, India!',
-            style: GoogleFonts.tulpenOne(
-              fontSize: 100,
-              fontWeight: FontWeight.normal,
-              color: Colors.white, // Text color required for ShaderMask
-            ),
-          ),
-        ),
-      ),
-    );
+    if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
+
+    _cachedGameOnIndiaBanner = const HomeGameOnIndiaBanner();
+
+    return _cachedGameOnIndiaBanner!;
   }
 
   Widget _buildShimmerAvatar() {

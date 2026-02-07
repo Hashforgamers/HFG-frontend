@@ -90,11 +90,19 @@ class BoardWidget extends StatelessWidget {
             if (key == "home") {
               playersPawn.addAll(
                 pawnsValue.map((e) {
-                  var player = value.players.firstWhere((element) => element.type == e.type);
+                  var player = value.players.firstWhere(
+                    (element) => element.type == e.type,
+                  );
                   return AnimatedPositioned(
                     key: ValueKey("${e.type.name}_${e.index}"),
-                    left: LudoPath.stepBox(ludoBoard(context), player.homePath[e.index][0]),
-                    top: LudoPath.stepBox(ludoBoard(context), player.homePath[e.index][1]),
+                    left: LudoPath.stepBox(
+                      ludoBoard(context),
+                      player.homePath[e.index][0],
+                    ),
+                    top: LudoPath.stepBox(
+                      ludoBoard(context),
+                      player.homePath[e.index][1],
+                    ),
                     width: boxStepSize(context),
                     height: boxStepSize(context),
                     duration: const Duration(milliseconds: 200),
@@ -105,38 +113,44 @@ class BoardWidget extends StatelessWidget {
             } else {
               // This is for every pawn in path (not in home)
               // I'm so lazy, so make it simple h3h3
-              List<double> coordinates = key.replaceAll("[", "").replaceAll("]", "").split(",").map((e) => double.parse(e.trim())).toList();
+              List<double> coordinates = key
+                  .replaceAll("[", "")
+                  .replaceAll("]", "")
+                  .split(",")
+                  .map((e) => double.parse(e.trim()))
+                  .toList();
 
               if (pawnsValue.length == 1) {
                 // This is for 1 pawn in 1 box
                 var e = pawnsValue.first;
-                playersPawn.add(AnimatedPositioned(
-                  key: ValueKey("${e.type.name}_${e.index}"),
-                  duration: const Duration(milliseconds: 200),
-                  left: LudoPath.stepBox(ludoBoard(context), coordinates[0]),
-                  top: LudoPath.stepBox(ludoBoard(context), coordinates[1]),
-                  width: boxStepSize(context),
-                  height: boxStepSize(context),
-                  child: pawnsValue.first,
-                ));
+                playersPawn.add(
+                  AnimatedPositioned(
+                    key: ValueKey("${e.type.name}_${e.index}"),
+                    duration: const Duration(milliseconds: 200),
+                    left: LudoPath.stepBox(ludoBoard(context), coordinates[0]),
+                    top: LudoPath.stepBox(ludoBoard(context), coordinates[1]),
+                    width: boxStepSize(context),
+                    height: boxStepSize(context),
+                    child: pawnsValue.first,
+                  ),
+                );
               } else {
                 // This is for more than 1 pawn in 1 box
                 playersPawn.addAll(
-                  List.generate(
-                    pawnsValue.length,
-                    (index) {
-                      var e = pawnsValue[index];
-                      return AnimatedPositioned(
-                        key: ValueKey("${e.type.name}_${e.index}"),
-                        duration: const Duration(milliseconds: 200),
-                        left: LudoPath.stepBox(ludoBoard(context), coordinates[0]) + (index * 3),
-                        top: LudoPath.stepBox(ludoBoard(context), coordinates[1]),
-                        width: boxStepSize(context) - 5,
-                        height: boxStepSize(context),
-                        child: pawnsValue[index],
-                      );
-                    },
-                  ),
+                  List.generate(pawnsValue.length, (index) {
+                    var e = pawnsValue[index];
+                    return AnimatedPositioned(
+                      key: ValueKey("${e.type.name}_${e.index}"),
+                      duration: const Duration(milliseconds: 200),
+                      left:
+                          LudoPath.stepBox(ludoBoard(context), coordinates[0]) +
+                          (index * 3),
+                      top: LudoPath.stepBox(ludoBoard(context), coordinates[1]),
+                      width: boxStepSize(context) - 5,
+                      height: boxStepSize(context),
+                      child: pawnsValue[index],
+                    );
+                  }),
                 );
               }
             }
@@ -149,7 +163,12 @@ class BoardWidget extends StatelessWidget {
               children: [
                 ...playersPawn,
                 ...winners(context, value.winners),
-                turnIndicator(context, value.currentPlayer.type, value.currentPlayer.color, value.gameState),
+                turnIndicator(
+                  context,
+                  value.currentPlayer.type,
+                  value.currentPlayer.color,
+                  value.gameState,
+                ),
               ],
             ),
           );
@@ -159,7 +178,12 @@ class BoardWidget extends StatelessWidget {
   }
 
   ///This is for the turn indicator widget
-  Widget turnIndicator(BuildContext context, LudoPlayerType turn, Color color, LudoGameState stage) {
+  Widget turnIndicator(
+    BuildContext context,
+    LudoPlayerType turn,
+    Color color,
+    LudoGameState stage,
+  ) {
     //0 is left, 1 is right
     int x = 0;
     //0 is top, 1 is bottom
@@ -209,76 +233,97 @@ class BoardWidget extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.all(boxStepSize(context)),
           child: Container(
-              alignment: Alignment.center,
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)),
-              child: RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(style: TextStyle(fontSize: 8, color: color), children: [
-                  const TextSpan(text: "Your turn!\n", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  TextSpan(text: stageText, style: const TextStyle(color: Colors.black)),
-                ]),
-              )),
+            alignment: Alignment.center,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)),
+            child: RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: TextStyle(fontSize: 8, color: color),
+                children: [
+                  const TextSpan(
+                    text: "Your turn!\n",
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  TextSpan(
+                    text: stageText,
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
   ///This is for the winner widget
-  List<Widget> winners(BuildContext context, List<LudoPlayerType> winners) => List.generate(
-        winners.length,
-        (index) {
-          Widget crownImage = Image.asset("assets/ludo/images/games/ludo/crown/1st.png");
+  List<Widget> winners(BuildContext context, List<LudoPlayerType> winners) =>
+      List.generate(winners.length, (index) {
+        Widget crownImage = Image.asset(
+          "assets/ludo/images/games/ludo/crown/1st.png",
+        );
 
-          //0 is left, 1 is right
-          int x = 0;
-          //0 is top, 1 is bottom
-          int y = 0;
+        //0 is left, 1 is right
+        int x = 0;
+        //0 is top, 1 is bottom
+        int y = 0;
 
-          if (index == 0) {
-            crownImage = Image.asset("assets/ludo/images/images/crown/1st.png", fit: BoxFit.cover);
-          } else if (index == 1) {
-            crownImage = Image.asset("assets/ludo/images/crown/2nd.png", fit: BoxFit.cover);
-          } else if (index == 2) {
-            crownImage = Image.asset("assets/ludo/images/crown/3rd.png", fit: BoxFit.cover);
-          } else {
-            return Container();
-          }
-
-          switch (winners[index]) {
-            case LudoPlayerType.green:
-              x = 0;
-              y = 0;
-              break;
-            case LudoPlayerType.yellow:
-              x = 1;
-              y = 0;
-              break;
-            case LudoPlayerType.blue:
-              x = 1;
-              y = 1;
-              break;
-            case LudoPlayerType.red:
-              x = 0;
-              y = 1;
-              break;
-          }
-          return Positioned(
-            top: y == 0 ? 0 : null,
-            left: x == 0 ? 0 : null,
-            right: x == 1 ? 0 : null,
-            bottom: y == 1 ? 0 : null,
-            width: ludoBoard(context) * .4,
-            height: ludoBoard(context) * .4,
-            child: Padding(
-              padding: EdgeInsets.all(boxStepSize(context)),
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)),
-                child: crownImage,
-              ),
-            ),
+        if (index == 0) {
+          crownImage = Image.asset(
+            "assets/ludo/images/images/crown/1st.png",
+            fit: BoxFit.cover,
           );
-        },
-      );
+        } else if (index == 1) {
+          crownImage = Image.asset(
+            "assets/ludo/images/crown/2nd.png",
+            fit: BoxFit.cover,
+          );
+        } else if (index == 2) {
+          crownImage = Image.asset(
+            "assets/ludo/images/crown/3rd.png",
+            fit: BoxFit.cover,
+          );
+        } else {
+          return Container();
+        }
+
+        switch (winners[index]) {
+          case LudoPlayerType.green:
+            x = 0;
+            y = 0;
+            break;
+          case LudoPlayerType.yellow:
+            x = 1;
+            y = 0;
+            break;
+          case LudoPlayerType.blue:
+            x = 1;
+            y = 1;
+            break;
+          case LudoPlayerType.red:
+            x = 0;
+            y = 1;
+            break;
+        }
+        return Positioned(
+          top: y == 0 ? 0 : null,
+          left: x == 0 ? 0 : null,
+          right: x == 1 ? 0 : null,
+          bottom: y == 1 ? 0 : null,
+          width: ludoBoard(context) * .4,
+          height: ludoBoard(context) * .4,
+          child: Padding(
+            padding: EdgeInsets.all(boxStepSize(context)),
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: crownImage,
+            ),
+          ),
+        );
+      });
 }

@@ -337,15 +337,15 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isInCart
-              ? const Color(0xFF338125).withOpacity(0.3)
+              ? const Color(0xFF338125).withValues(alpha: 0.3)
               : Colors.transparent,
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
             color: isInCart
-                ? const Color(0xFF338125).withOpacity(0.1)
-                : Colors.black.withOpacity(0.3),
+                ? const Color(0xFF338125).withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -363,7 +363,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -423,7 +423,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF338125).withOpacity(0.1),
+                          color: const Color(0xFF338125).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -445,10 +445,10 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
             if (isInCart)
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF338125).withOpacity(0.1),
+                  color: const Color(0xFF338125).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: const Color(0xFF338125).withOpacity(0.3),
+                    color: const Color(0xFF338125).withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -548,7 +548,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF338125).withOpacity(0.3),
+              color: const Color(0xFF338125).withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -582,12 +582,12 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFF338125).withOpacity(0.3),
+          color: const Color(0xFF338125).withValues(alpha: 0.3),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -606,7 +606,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF338125).withOpacity(0.1),
+                      color: const Color(0xFF338125).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -808,7 +808,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF338125).withOpacity(0.3),
+              color: const Color(0xFF338125).withValues(alpha: 0.3),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),

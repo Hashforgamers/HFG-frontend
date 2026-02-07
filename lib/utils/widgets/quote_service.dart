@@ -1,14 +1,17 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:dio/dio.dart';
 
 class QuoteService {
   final String apiUrl = "https://ultima.rest/api/random";
+  final Dio _dio = Dio();
 
   Future<Quote> fetchQuote() async {
-    final response = await http.get(Uri.parse(apiUrl));
+    final response = await _dio.get(apiUrl);
 
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
+      final data = response.data is String
+          ? json.decode(response.data as String)
+          : response.data;
       return Quote.fromJson(data);
     } else {
       throw Exception('Failed to load quote');

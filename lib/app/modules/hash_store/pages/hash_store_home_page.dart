@@ -22,6 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../home/widgets/optimized_app_bar.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class HashStoreHomePage extends StatefulWidget {
   const HashStoreHomePage({super.key});
@@ -213,7 +214,7 @@ class _HashStoreHomePageState extends State<HashStoreHomePage> {
         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
             ? CachedNetworkImageProvider(
           photoUrl,
-          errorListener: (error) => print('Avatar image error: $error'),
+          errorListener: (error) => AppLogger.d('Avatar image error: $error'),
         )
             : const NetworkImage(
           'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
@@ -240,7 +241,7 @@ class _HashStoreHomePageState extends State<HashStoreHomePage> {
   }) {
     return BounceTap(
       onTap: () {
-        print('Tapped $title');
+        AppLogger.d('Tapped $title');
       },
       child: Container(
         height: 170,
@@ -308,7 +309,7 @@ class _HashStoreHomePageState extends State<HashStoreHomePage> {
                         const Spacer(),
                         BounceTap(
                           onTap: () {
-                            print('Add to Cart: $title');
+                            AppLogger.d('Add to Cart: $title');
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),

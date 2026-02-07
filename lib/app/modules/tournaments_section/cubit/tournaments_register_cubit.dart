@@ -1,11 +1,12 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 part 'tournaments_register_state.dart';
 
 class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
   TournamentsRegisterCubit() : super(TournamentsRegisterInitial()) {
-    print('🟩 TournamentsRegisterCubit created');
+    AppLogger.d('🟩 TournamentsRegisterCubit created');
   }
 
   Future<void> registerTeam({

@@ -39,13 +39,10 @@ abstract class SimpleButton extends PositionComponent with TapCallbacks {
   /// - `action`: The function to be called when the button is tapped.
   ///
   /// The button is sized to 40x40 pixels with a border and icon.
-  SimpleButton(
-    this._iconPath, {
-    super.position,
-    this.action,
-  }) : super(
-          size: Vector2.all(40), // Sets the button's size to 40x40
-        );
+  SimpleButton(this._iconPath, {super.position, this.action})
+    : super(
+        size: Vector2.all(40), // Sets the button's size to 40x40
+      );
 
   /// Renders the button on the canvas.
   ///
@@ -55,10 +52,7 @@ abstract class SimpleButton extends PositionComponent with TapCallbacks {
   void render(Canvas canvas) {
     // Draw the button's border with rounded corners (radius of 8).
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        size.toRect(),
-        const Radius.circular(8),
-      ),
+      RRect.fromRectAndRadius(size.toRect(), const Radius.circular(8)),
       _borderPaint,
     );
 
@@ -75,13 +69,15 @@ abstract class SimpleButton extends PositionComponent with TapCallbacks {
   /// Resets the icon color to gray when the button is released.
   @override
   void onTapUp(TapUpEvent event) {
-    _iconPaint.color = AppColors.strokeGray; // Change back to gray on tap release
+    _iconPaint.color =
+        AppColors.strokeGray; // Change back to gray on tap release
     action?.call();
   }
 
   /// Resets the icon color to gray when the tap is canceled.
   @override
   void onTapCancel(TapCancelEvent event) {
-    _iconPaint.color = AppColors.strokeGray; // Revert to gray if tap is canceled
+    _iconPaint.color =
+        AppColors.strokeGray; // Revert to gray if tap is canceled
   }
 }

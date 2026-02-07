@@ -1,15 +1,15 @@
-// ignore_for_file: avoid_print
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hash/app/modules/arena/views/search_result.dart';
+import 'package:hash/config/app_keys.dart';
+import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
@@ -17,9 +17,8 @@ import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:location/location.dart' as loc;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:geocoding/geocoding.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart' hide NetworkProvider;
 import 'package:url_launcher/url_launcher.dart';
-import 'package:http/http.dart' as http;
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import '../../../../utils/service.dart';
 import '../../../../utils/widgets/loader.dart';
@@ -66,9 +65,10 @@ class _ArenaViewState extends State<ArenaView> {
 
   /// Directions API response cache  (cafeId  ->  distance / duration)
   final Map<String, Map<String, String>> _distanceCache = {};
+  final Map<String, Future<Map<String, String>>> _distanceFutureCache = {};
 
   /// ⚠️  Replace with build-time env variable or secure storage
-  static const _gmapsKey = 'AIzaSyAIeaszJ60ZcjL9hNYpsQ_JD8w8J2vnmuQ';
+  static const _gmapsKey = AppKeys.googleMapsApiKey;
   bool _mapReady = false; // NEW
   bool _playedZoom = false; // NEW
 
@@ -478,6 +478,7 @@ class _ArenaViewState extends State<ArenaView> {
     const fallback = {'distance': '--', 'duration': '--'};
 
     if (_userLatLng == null) return fallback;
+    if (_gmapsKey.isEmpty) return fallback;
 
     final cached = _distanceCache[id];
     if (cached != null) return cached;
@@ -490,10 +491,13 @@ class _ArenaViewState extends State<ArenaView> {
         '&mode=driving'
         '&key=$_gmapsKey',
       );
-      final res = await http.get(url);
+      final dio = locator<NetworkProvider>().noAuth();
+      final res = await dio.get(url.toString());
 
       if (res.statusCode == 200) {
-        final data = json.decode(res.body) as Map<String, dynamic>;
+        final data = res.data is String
+            ? json.decode(res.data as String) as Map<String, dynamic>
+            : res.data as Map<String, dynamic>;
         final routes = (data['routes'] as List?) ?? const [];
         if (routes.isNotEmpty) {
           final leg = routes[0]['legs'][0];
@@ -508,6 +512,13 @@ class _ArenaViewState extends State<ArenaView> {
     }
 
     return _distanceCache[id] = Map<String, String>.from(fallback);
+  }
+
+  Future<Map<String, String>> _distanceFuture(String id, LatLng? pos) {
+    if (pos == null) {
+      return Future.value({'distance': '--', 'duration': '--'});
+    }
+    return _distanceFutureCache[id] ??= _distanceInfo(pos, id);
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -622,28 +633,27 @@ class _ArenaViewState extends State<ArenaView> {
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Obx(() {
-          return Column(
-            children: [
-              // Map with rounded top corners
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(8),
-                  topRight: Radius.circular(8),
-                ),
-                child: SizedBox(
-                  height: size * 0.55,
-                  width: double.infinity,
-                  child: Stack(
-                    children: [
-                      GoogleMap(
+        child: Column(
+          children: [
+            // Map with rounded top corners
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+              child: SizedBox(
+                height: size * 0.55,
+                width: double.infinity,
+                child: Stack(
+                  children: [
+                    Obx(
+                      () => GoogleMap(
                         initialCameraPosition: const CameraPosition(
                           target: LatLng(20, 77),
                           zoom: 4,
                         ),
-                        myLocationEnabled: _hasLocationPermission, // was: true
-                        myLocationButtonEnabled:
-                            _hasLocationPermission, // add this
+                        myLocationEnabled: _hasLocationPermission,
+                        myLocationButtonEnabled: _hasLocationPermission,
                         markers: markers.toSet(),
                         polylines: polylines.toSet(),
                         onMapCreated: (ctrl) async {
@@ -662,157 +672,145 @@ class _ArenaViewState extends State<ArenaView> {
                               await _mapCtr.setMapStyle(_mapStyle);
                             }
                           } catch (e) {
-                            debugPrint(
-                              'setMapStyle error: $e',
-                            ); // helps catch invalid JSON
+                            debugPrint('setMapStyle error: $e');
                           }
 
                           _tryPlayZoom();
                         },
                         zoomControlsEnabled: false,
                       ),
+                    ),
 
-                      // Search bar
-                      Positioned(
-                        top: 20,
-                        left: 16,
-                        right: 16,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: TextField(
-                            controller: _searchCtl,
-                            style: GoogleFonts.inter(color: Colors.white),
-                            cursorColor: const Color(0xff338125),
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(
-                                Icons.search,
-                                color: Colors.white70,
-                              ),
-                              hintText: 'Search location',
-                              hintStyle: GoogleFonts.inter(
-                                color: Colors.white70,
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 16,
-                              ),
+                    // Search bar
+                    Positioned(
+                      top: 20,
+                      left: 16,
+                      right: 16,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: TextField(
+                          controller: _searchCtl,
+                          style: GoogleFonts.inter(color: Colors.white),
+                          cursorColor: const Color(0xff338125),
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: Colors.white70,
                             ),
-                            // onSubmitted: (_) => _searchAndGo(),
-                            onTap: () {
-                              Get.to(SearchResult());
-                            },
+                            hintText: 'Search location',
+                            hintStyle: GoogleFonts.inter(
+                              color: Colors.white70,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 16,
+                            ),
                           ),
+                          onTap: () => Get.to(SearchResult()),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              // Nearby Cafes Section
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(8),
-                      topRight: Radius.circular(8),
-                    ),
+            ),
+            // Nearby Cafes Section
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8),
+                    topRight: Radius.circular(8),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildCafeHeader(),
-                      Expanded(
-                        child: Obx(
-                          () => _filteredCafes.isEmpty
-                              ? Center(
-                                  child: SingleChildScrollView(
-                                    reverse: true,
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (_userState != null)
-                                          Text(
-                                            'No cafes available in $_userState',
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildCafeHeader(),
+                    Expanded(
+                      child: Obx(
+                        () => _filteredCafes.isEmpty
+                            ? Center(
+                                child: SingleChildScrollView(
+                                  reverse: true,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (_userState != null)
+                                        Text(
+                                          'No cafes available in $_userState',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 14,
+                                            color: Colors.white70,
+                                          ),
+                                        )
+                                      else
+                                        RainbowLoadingBar(),
+                                      const SizedBox(height: 8),
+                                      if (_userState != null)
+                                        GestureDetector(
+                                          onTap: () {
+                                            _showingAllCafes.value = true;
+                                            _filteredCafes.assignAll(
+                                              _cafeCtr.cybercafes
+                                                  .cast<Map<String, dynamic>>(),
+                                            );
+                                          },
+                                          child: Text(
+                                            'Show all cafes',
                                             style: GoogleFonts.inter(
                                               fontSize: 14,
-                                              color: Colors.white70,
-                                            ),
-                                          )
-                                        else
-                                          RainbowLoadingBar(),
-                                        const SizedBox(height: 8),
-                                        if (_userState != null)
-                                          GestureDetector(
-                                            onTap: () {
-                                              _showingAllCafes.value = true;
-                                              _filteredCafes.assignAll(
-                                                _cafeCtr.cybercafes
-                                                    .cast<
-                                                      Map<String, dynamic>
-                                                    >(),
-                                              );
-                                            },
-                                            child: Text(
-                                              'Show all cafes',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 14,
-                                                color: const Color(0xff338125),
-                                              ),
+                                              color: const Color(0xff338125),
                                             ),
                                           ),
-                                      ],
-                                    ),
+                                        ),
+                                    ],
                                   ),
-                                )
-                              : ListView.separated(
-                                  scrollDirection: Axis.horizontal,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(width: 20),
-                                  itemCount: _filteredCafes.length,
-                                  itemBuilder: (_, i) {
-                                    final cafe = _filteredCafes[i];
-                                    final imgs =
-                                        (cafe['images'] as List?) ?? const [];
-                                    final img = imgs.isEmpty
-                                        ? 'https://next-level.gg/assets/cafes/11.jpg'
-                                        : (imgs.first is Map &&
-                                                  (imgs.first as Map)['url'] !=
-                                                      null
-                                              ? (imgs.first as Map)['url']
-                                                    as String
-                                              : 'https://next-level.gg/assets/cafes/11.jpg');
-                                    final pos = _latLngFromCafe(
-                                      cafe,
-                                    ); // safe now
-                                    final id = '${cafe['id'] ?? cafe.hashCode}';
-                                    return _buildCafeCard(
-                                      id,
-                                      pos,
-                                      img,
-                                      cafe,
-                                      imgs,
-                                    );
-                                  },
                                 ),
-                        ),
+                              )
+                            : ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 20),
+                                itemCount: _filteredCafes.length,
+                                itemBuilder: (_, i) {
+                                  final cafe = _filteredCafes[i];
+                                  final imgs =
+                                      (cafe['images'] as List?) ?? const [];
+                                  final img = imgs.isEmpty
+                                      ? 'https://next-level.gg/assets/cafes/11.jpg'
+                                      : (imgs.first is Map &&
+                                              (imgs.first as Map)['url'] != null
+                                          ? (imgs.first as Map)['url'] as String
+                                          : 'https://next-level.gg/assets/cafes/11.jpg');
+                                  final pos = _latLngFromCafe(cafe);
+                                  final id = '${cafe['id'] ?? cafe.hashCode}';
+                                  return _buildCafeCard(
+                                    id,
+                                    pos,
+                                    img,
+                                    cafe,
+                                    imgs,
+                                  );
+                                },
+                              ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          );
-        }),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -851,7 +849,7 @@ class _ArenaViewState extends State<ArenaView> {
         height: 140, // a touch taller for breathing room
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           color: Colors.black,
         ),
         clipBehavior: Clip.antiAlias,
@@ -967,12 +965,7 @@ class _ArenaViewState extends State<ArenaView> {
 
                             // Distance + duration (or placeholders)
                             FutureBuilder<Map<String, String>>(
-                              future: pos == null
-                                  ? Future.value({
-                                      'distance': '--',
-                                      'duration': '--',
-                                    })
-                                  : _distanceInfo(pos, id),
+                              future: _distanceFuture(id, pos),
                               builder: (_, snap) {
                                 final dist = snap.data?['distance'] ?? '--';
                                 final dur = snap.data?['duration'] ?? '--';
@@ -1009,14 +1002,17 @@ class _ArenaViewState extends State<ArenaView> {
                               child: SizedBox(
                                 height: 36,
                                 child: ElevatedButton.icon(
-                                  onPressed: (pos == null)
+                                  onPressed: pos == null
                                       ? null
-                                      : () => _drawRoute(pos!),
+                                      : () {
+                                          final p = pos;
+                                          _drawRoute(p);
+                                        },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xff338125),
                                     disabledBackgroundColor: const Color(
                                       0xff338125,
-                                    ).withOpacity(0.35),
+                                    ).withValues(alpha: 0.35),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -1046,19 +1042,22 @@ class _ArenaViewState extends State<ArenaView> {
                               child: SizedBox(
                                 height: 36,
                                 child: ElevatedButton.icon(
-                                  onPressed: (pos == null)
+                                  onPressed: pos == null
                                       ? null
-                                      : () => _openExternalMaps(pos!),
+                                      : () {
+                                          final p = pos;
+                                          _openExternalMaps(p);
+                                        },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white.withOpacity(
-                                      0.13,
-                                    ),
-                                    disabledBackgroundColor: Colors.white
-                                        .withOpacity(0.08),
+                                    backgroundColor:
+                                        Colors.white.withValues(alpha: 0.13),
+                                    disabledBackgroundColor:
+                                        Colors.white.withValues(alpha: 0.08),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                       side: BorderSide(
-                                        color: Colors.white.withOpacity(0.13),
+                                        color:
+                                            Colors.white.withValues(alpha: 0.13),
                                       ),
                                     ),
                                     padding: const EdgeInsets.symmetric(
@@ -1103,7 +1102,7 @@ class _ArenaViewState extends State<ArenaView> {
     child: Container(
       width: 1,
       height: 10,
-      color: Colors.white.withOpacity(0.35),
+      color: Colors.white.withValues(alpha: 0.35),
     ),
   );
 
@@ -1134,7 +1133,7 @@ class _ArenaViewState extends State<ArenaView> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xff338125).withOpacity(0.2),
+                    color: const Color(0xff338125).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: const Color(0xff338125)),
                   ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hash/core/utils/haptics.dart';
 
 class BounceTap extends StatefulWidget {
   final Widget child;
@@ -15,7 +16,7 @@ class _BounceTapState extends State<BounceTap> {
   double _scale = 1.0;
 
   void _shrink() {
-    HapticFeedback.lightImpact();
+    Haptics.selection();
     setState(() => _scale = 0.95);
   }
 

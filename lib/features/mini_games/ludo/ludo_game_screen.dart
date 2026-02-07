@@ -29,18 +29,54 @@ class _LudoRootState extends State<_LudoRoot> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.wait([
-        precacheImage(const AssetImage("assets/ludo/images/thankyou.gif"), context),
-        precacheImage(const AssetImage("assets/ludo/images/board.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/1.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/2.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/3.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/4.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/5.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/6.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/draw.gif"), context),
-        precacheImage(const AssetImage("assets/ludo/images/crown/1st.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/crown/2nd.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/crown/3rd.png"), context),
+        precacheImage(
+          const AssetImage("assets/ludo/images/thankyou.gif"),
+          context,
+        ),
+        precacheImage(
+          const AssetImage("assets/ludo/images/board.png"),
+          context,
+        ),
+        precacheImage(
+          const AssetImage("assets/ludo/images/dice/1.png"),
+          context,
+        ),
+        precacheImage(
+          const AssetImage("assets/ludo/images/dice/2.png"),
+          context,
+        ),
+        precacheImage(
+          const AssetImage("assets/ludo/images/dice/3.png"),
+          context,
+        ),
+        precacheImage(
+          const AssetImage("assets/ludo/images/dice/4.png"),
+          context,
+        ),
+        precacheImage(
+          const AssetImage("assets/ludo/images/dice/5.png"),
+          context,
+        ),
+        precacheImage(
+          const AssetImage("assets/ludo/images/dice/6.png"),
+          context,
+        ),
+        precacheImage(
+          const AssetImage("assets/ludo/images/dice/draw.gif"),
+          context,
+        ),
+        precacheImage(
+          const AssetImage("assets/ludo/images/crown/1st.png"),
+          context,
+        ),
+        precacheImage(
+          const AssetImage("assets/ludo/images/crown/2nd.png"),
+          context,
+        ),
+        precacheImage(
+          const AssetImage("assets/ludo/images/crown/3rd.png"),
+          context,
+        ),
       ]);
     });
   }

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class GlassSearchBar extends StatefulWidget {
   const GlassSearchBar({super.key});
@@ -24,7 +25,7 @@ class _GlassSearchBarState extends State<GlassSearchBar> {
         final latLng = LatLng(res[0].latitude, res[0].longitude);
         // Notify listeners with coordinates
         // You can use an event bus or controller if needed
-        print('Navigate to: $latLng');
+        AppLogger.d('Navigate to: $latLng');
       }
     } catch (_) {
       Get.snackbar('Error', 'Location not found');
@@ -41,9 +42,9 @@ class _GlassSearchBarState extends State<GlassSearchBar> {
           height: 50,
           padding: const EdgeInsets.symmetric(horizontal: 18),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(.15),
+            color: Colors.black.withValues(alpha: .15),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: const Color(0xff338125).withOpacity(.2)),
+            border: Border.all(color: const Color(0xff338125).withValues(alpha: .2)),
           ),
           child: Row(
             children: [

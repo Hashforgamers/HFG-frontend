@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 part 'get_game_pass_state.dart';
 
@@ -37,11 +38,11 @@ class GetGamePassCubit extends Cubit<GetGamePassState> {
       final userData = await remoteRepo.getUserFromPreferences();
       if (userData != null) {
         final userId = userData['id']?.toString() ?? '0';
-        print('Fetching game pass history for user: $userId');
+        AppLogger.d('Fetching game pass history for user: $userId');
         final response = await remoteRepo.getUserActiveGamePass(userId: userId);
-        print('Game pass history response: ${response.length} items');
+        AppLogger.d('Game pass history response: ${response.length} items');
         if (response.isNotEmpty) {
-          print('First pass: ${response.first.name} - ${response.first.validFrom} to ${response.first.validTo}');
+          AppLogger.d('First pass: ${response.first.name} - ${response.first.validFrom} to ${response.first.validTo}');
           emit(GetGamePassLoaded(gamePass: response));
         } else {
           emit(GetGamePassError(message: 'No game pass history found'));
@@ -50,7 +51,7 @@ class GetGamePassCubit extends Cubit<GetGamePassState> {
         emit(GetGamePassError(message: 'User not found'));
       }
     } catch (e) {
-      print('Error in getGamePassHistory: $e');
+      AppLogger.d('Error in getGamePassHistory: $e');
       emit(GetGamePassError(message: 'Failed to load game pass history: $e'));
     }
   }

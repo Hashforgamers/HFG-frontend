@@ -7,9 +7,9 @@ import '../Layouts/Pages/page_settings.dart';
 import '../Layouts/Pages/page_start_screen.dart';
 import '../Resources/strings.dart';
 
-class AppRoute{
-  Route? generateRoute(RouteSettings settings){
-    switch(settings.name){
+class AppRoute {
+  Route? generateRoute(RouteSettings settings) {
+    switch (settings.name) {
       case Str.home:
         return MaterialPageRoute(builder: (_) => FlappyBirds());
       case Str.gamePage:
@@ -23,17 +23,17 @@ class AppRoute{
     }
   }
 
-  static Route<dynamic> _errorRoute (){
-    return MaterialPageRoute(builder: (context) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Text("Error Page"),
-          backgroundColor: Colors.redAccent,
-        ),
-        body: Center(
-          child: Text("Error"),
-        ),
-      );
-    },);
+  static Route<dynamic> _errorRoute() {
+    return MaterialPageRoute(
+      builder: (context) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text("Error Page"),
+            backgroundColor: Colors.redAccent,
+          ),
+          body: Center(child: Text("Error")),
+        );
+      },
+    );
   }
 }

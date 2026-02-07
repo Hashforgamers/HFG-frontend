@@ -7,14 +7,13 @@
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
-import 'package:flame/game.dart' hide Game; // Hides the Game class to avoid naming conflicts.
+import 'package:flame/game.dart'
+    hide Game; // Hides the Game class to avoid naming conflicts.
 import 'package:flame/rendering.dart';
 import 'package:flame/text.dart';
 
 import '../../core/configs/theme/app_colors.dart';
 import '../../main_router_game.dart';
-
-
 
 /// This class represents the route for the pause screen in the game.
 class PauseRoute extends Route {
@@ -43,8 +42,10 @@ class PauseRoute extends Route {
 }
 
 /// This class represents the pause page displayed when the game is paused.
-class GamePausePage extends Component with TapCallbacks, HasGameReference<MainRouterGame> {
-  late TextComponent _textComponent; // Text component to show the "PAUSED" message.
+class GamePausePage extends Component
+    with TapCallbacks, HasGameReference<MainRouterGame> {
+  late TextComponent
+  _textComponent; // Text component to show the "PAUSED" message.
 
   /// Load the components for the pause page.
   @override

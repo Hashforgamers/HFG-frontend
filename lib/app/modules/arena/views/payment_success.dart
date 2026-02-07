@@ -173,7 +173,7 @@ class _GlowBadge extends StatelessWidget {
           shape: BoxShape.circle,
           color: accentColor,
           boxShadow: [
-            BoxShadow(color: accentColor.withOpacity(0.35), blurRadius: 40, spreadRadius: 2),
+            BoxShadow(color: accentColor.withValues(alpha: 0.35), blurRadius: 40, spreadRadius: 2),
           ],
         ),
         child:  Image.asset('assets/checkmark.png'),

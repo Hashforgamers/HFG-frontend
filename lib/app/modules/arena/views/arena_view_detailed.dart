@@ -1,19 +1,19 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_consoles_section.dart';
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_header.dart';
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_info_section.dart';
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_reviews_section.dart';
 import 'package:hash/app/modules/arena/views/booking_screen.dart';
 import 'package:hash/app/modules/arena/views/menu_view.dart';
-import 'dart:ui';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
-
-import '../../../../utils/widgets/loader.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import '../controllers/games_controller.dart';
 
 class ArenaDetailView extends StatefulWidget {
@@ -49,18 +49,19 @@ class ArenaDetailView extends StatefulWidget {
 }
 
 class _ArenaDetailViewState extends State<ArenaDetailView> {
-  final CafeGamesController _gamesController = Get.put(CafeGamesController());
+  late final CafeGamesController _gamesController;
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
-
-  int currentPage = 0;
-  late PageController pageController;
 
   @override
   void initState() {
     super.initState();
-    pageController = PageController();
+    _gamesController = Get.put(
+      CafeGamesController(),
+      tag: 'vendor_${widget.vendorId}',
+    );
     _gamesController.fetchGames(widget.vendorId);
+    _gamesController.fetchPasses(widget.vendorId);
 
     // Track cafe images viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -71,14 +72,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   @override
   void dispose() {
-    pageController.dispose();
+    Get.delete<CafeGamesController>(tag: 'vendor_${widget.vendorId}');
     super.dispose();
   }
 
   bool _hasFoodAmenity(List<dynamic> amenities) {
     return amenities.any((a) {
       if (a is! Map) return false;
-      final available = a['available'] == true;
+      final available = _truthy(a['available'] ?? a['is_available']);
       final name = (a['name'] ?? '')
           .toString()
           .toLowerCase()
@@ -93,6 +94,50 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           name.contains('cafe') ||
           name.contains('kitchen');
       return available && isFood;
+    });
+  }
+
+  bool _truthy(dynamic value) {
+    if (value == null) return true;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final v = value.toLowerCase().trim();
+      return v == 'true' || v == '1' || v == 'yes';
+    }
+    return true;
+  }
+
+  Widget _buildPassesSection() {
+    return Obx(() {
+      final passes = _gamesController.passes;
+      if (_gamesController.isPassesLoading.value || passes.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Passes',
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...passes.map(
+            (p) => _PassCard(
+              name: p.name ?? 'Pass',
+              price: (p.price ?? 0).toDouble(),
+              totalHours: p.totalHour ?? 0,
+              daysValid: p.daysValid ?? 0,
+              description: p.description ?? '',
+            ),
+          ),
+        ],
+      );
     });
   }
 
@@ -112,112 +157,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           ListView(
             padding: EdgeInsets.zero,
             children: [
-              SizedBox(
-                height: 260,
-                child: Stack(
-                  children: [
-                    PageView.builder(
-                      controller: pageController,
-                      itemCount: imageUrls.length,
-                      onPageChanged: (index) {
-                        setState(() {
-                          currentPage = index;
-                        });
-                      },
-                      itemBuilder: (context, index) => CachedNetworkImage(
-                        imageUrl: imageUrls[index],
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            const Center(child: RainbowGlowingLoader(size: 40)),
-                        errorWidget: (_, _, _) => Container(
-                          color: Colors.grey,
-                          alignment: Alignment.center,
-                          child: Icon(
-                            Icons.image_not_supported,
-                            size: 40,
-                            color: Colors.white54,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    Positioned(
-                      top: 40,
-                      left: 16,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.18),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.white,
-                                size: 32,
-                              ),
-                              onPressed: () => Navigator.of(context).pop(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 40,
-                      right: 16,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.18),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.share,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                              onPressed: () {},
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 16,
-                      left: 0,
-                      right: 0,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          imageUrls.length,
-                          (index) => Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: 28,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: currentPage == index
-                                  ? const Color(0xff338125)
-                                  : Colors.white24,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              ArenaDetailHeader(
+                imageUrls: imageUrls,
+                onBack: () => Navigator.of(context).pop(),
+                onShare: () {},
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -227,162 +170,20 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.title,
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xff181818),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.location_on,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    widget.address,
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xff181818),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.access_time,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    widget.openingHours,
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                    ArenaDetailInfoSection(
+                      title: widget.title,
+                      address: widget.address,
+                      openingHours: widget.openingHours,
                     ),
                     const SizedBox(height: 24),
-                    Text(
-                      "Available Consoles",
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 70,
-                      child: GetX<CafeGamesController>(
-                        builder: (controller) {
-                          if (controller.isLoading.value) {
-                            return const Center(child: RainbowLoadingBar());
-                          }
-
-                          final List<dynamic> consoles = controller.games
-                              .where((game) =>
-                          game['game_name'] != null &&
-                              (game['total_slots'] ?? 0) > 0)
-                              .toList();
-
-                          if (consoles.isEmpty) {
-                            return const Center(
-                              child: Text(
-                                "No consoles available",
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                            );
-                          }
-                          if (consoles.isEmpty) {
-                            // Fallback to hardcoded consoles
-                            return ListView(
-                              scrollDirection: Axis.horizontal,
-                              children: [
-                                _consoleIcon(
-                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png',
-                                  "PC",
-                                ),
-                                _consoleIcon(
-                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png',
-                                  "XBOX",
-                                ),
-                                _consoleIcon(
-                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png',
-                                  "PS5",
-                                ),
-                                _consoleIcon(
-                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/vr_rzqkbq.png',
-                                  "VR",
-                                ),
-                              ],
-                            );
-                          }
-
-                          return ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: consoles.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 0),
-                            itemBuilder: (context, index) {
-                              final Map<String, dynamic> console = consoles[index];
-                              final String name =
-                                  console['game_name']?.toString().toUpperCase() ?? 'UNKNOWN';
-                              final String iconPath =
-                              _getConsoleIcon(console['game_name']?.toString() ?? '');
-
-                              return _consoleIcon(iconPath, name);
-                            },
-                          );
-
-                        },
-                      ),
+                    ArenaDetailConsolesSection(
+                      isLoading: _gamesController.isLoading,
+                      games: _gamesController.games,
                     ),
                     const SizedBox(height: 24),
-                    gameTitlesGrid(),
+                    _buildPassesSection(),
+                    const SizedBox(height: 24),
+                    gameTitlesGrid(_gamesController),
                     const SizedBox(height: 24),
                     amenitiesGrid(widget.amenities, excludeFood: hasFood),
                     if (hasFood) ...[
@@ -438,35 +239,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
                     const SizedBox(height: 24),
 
-                    Text(
-                      "Reviews",
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...widget.reviews.map(
-                      (review) => Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xff181818),
-                          border: Border.all(color: const Color(0xff2D2D2D)),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                          ),
-                          title: Text(
-                            review.toString(),
-                            style: GoogleFonts.inter(color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ),
+                    ArenaDetailReviewsSection(reviews: widget.reviews),
                     const SizedBox(height: 80),
                   ],
                 ),
@@ -481,6 +254,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               child: GetX<CafeGamesController>(
+                init: _gamesController,
                 builder: (controller) {
                   return SizedBox(
                     width: double.infinity,
@@ -833,12 +607,12 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                               duration: const Duration(milliseconds: 200),
                               decoration: BoxDecoration(
                                 color: isSelected && isAvailable
-                                    ? const Color(0xFF338125).withOpacity(0.15)
+                                    ? const Color(0xFF338125)
+                                        .withValues(alpha: 0.15)
                                     : (isAvailable
                                           ? const Color(0xFF232323)
-                                          : const Color(
-                                              0xFF232323,
-                                            ).withOpacity(0.5)),
+                                          : const Color(0xFF232323)
+                                              .withValues(alpha: 0.5)),
                                 borderRadius: BorderRadius.circular(8),
                                 border: isSelected && isAvailable
                                     ? Border.all(
@@ -1034,30 +808,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     );
   }
 
-  Widget _consoleIcon(String path, String label) {
-    return Padding(
-      padding: EdgeInsets.only(right: 20.w),
-      child: Column(
-        children: [
-          CachedNetworkImage(
-            imageUrl: path,
-            height: 48.h,
-            width: 48.w,
-            placeholder: (_, _) =>
-                const Center(child: RainbowGlowingLoader(size: 20)),
-            errorWidget: (_, _, _) =>
-                const Icon(Icons.error, color: Colors.red),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 11),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget rowInfo(IconData icon, String text) => Row(
     children: [
       Icon(icon, size: 18, color: Colors.white70),
@@ -1147,60 +897,30 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     ],
   );
 
-  Widget gameTitlesGrid() {
-    // Hardcoded popular games with their images
-    final List<Map<String, String>> hardcodedGames = [
-      {
-        'name': 'Valorant',
-        'image':
-            'https://freelogopng.com/images/all_img/1664302216valorant-logo-png.png',
-      },
-      {
-        'name': 'CS2',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg',
-      },
-      {
-        'name': 'Dota 2',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/570/header.jpg',
-      },
-      {
-        'name': 'FIFA 24',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/1506830/header.jpg',
-      },
-      {
-        'name': 'PUBG',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/578080/header.jpg',
-      },
-      {
-        'name': 'Fortnite',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/945360/header.jpg',
-      },
-      {
-        'name': 'Apex Legends',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/header.jpg',
-      },
-      {
-        'name': 'Rocket League',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/252950/header.jpg',
-      },
-      {
-        'name': 'Overwatch 2',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/2357570/header.jpg',
-      },
-      {
-        'name': 'League of Legends',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/12170/header.jpg',
-      },
-    ];
+  Widget gameTitlesGrid(CafeGamesController controller) {
+    const placeholderImage =
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png';
+
+    String _gameName(Map<String, dynamic> game) =>
+        (game['game_name'] ?? game['name'] ?? game['title'] ?? 'Game')
+            .toString();
+
+    String _gameImage(Map<String, dynamic> game) {
+      final orderedKeys = [
+        'image_url',
+        'image',
+        'game_image',
+        'game_image_url',
+        'thumbnail',
+        'cover',
+        'logo',
+      ];
+      for (final key in orderedKeys) {
+        final v = game[key];
+        if (v is String && v.trim().isNotEmpty) return v;
+      }
+      return placeholderImage;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1212,35 +932,93 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         const SizedBox(height: 12),
         SizedBox(
           height: 160,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: hardcodedGames.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 2),
-            itemBuilder: (context, index) {
-              final game = hardcodedGames[index];
+          child: Obx(() {
+            if (controller.isLoading.value) {
+              return const Center(child: RainbowLoadingBar());
+            }
 
-              return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 5.0,
-                  vertical: 8.0,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
+            final List<dynamic> games = controller.games;
+            if (games.isEmpty) {
+              return Center(
+                child: Text(
+                  'Games will appear here once the cafe adds them.',
+                  style: GoogleFonts.inter(
+                    color: Colors.white70,
+                    fontSize: 12,
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      game['image']!,
-                      width: 80,
-                      height: 112,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                  textAlign: TextAlign.center,
                 ),
               );
-            },
-          ),
+            }
+
+            return ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: games.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 2),
+              itemBuilder: (context, index) {
+                final Map<String, dynamic> game =
+                    Map<String, dynamic>.from(games[index]);
+                final name = _gameName(game);
+                final image = _gameImage(game);
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5.0,
+                    vertical: 4.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: image,
+                            width: 90,
+                            height: 100,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => Container(
+                              width: 90,
+                              height: 100,
+                              color: const Color(0xff1A1A1A),
+                              child: const Center(
+                                child: RainbowLoadingBar(),
+                              ),
+                            ),
+                            errorWidget: (_, __, ___) => Container(
+                              width: 90,
+                              height: 100,
+                              color: const Color(0xff1A1A1A),
+                              child: Image.network(
+                                placeholderImage,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        width: 90,
+                        height: 16,
+                        child: _MarqueeText(
+                          text: name,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          }),
         ),
       ],
     );
@@ -1288,9 +1066,26 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   }
 
   Widget amenitiesGrid(List<dynamic> amenities, {bool excludeFood = false}) {
-    final filtered = amenities.where((item) {
-      if (item is! Map) return false;
-      if (item['available'] != true) return false;
+    // Normalize amenities: accept maps or strings from API
+    final normalized = amenities.map((item) {
+      if (item is Map) {
+        return {
+          'name':
+              item['name'] ?? item['amenity'] ?? item['amenity_name'] ?? '',
+          'available': item['available'] ??
+              item['is_available'] ??
+              item['isAvailable'] ??
+              true,
+        };
+      }
+      if (item is String) {
+        return {'name': item, 'available': true};
+      }
+      return null;
+    }).whereType<Map<String, dynamic>>().toList();
+
+    final filtered = normalized.where((item) {
+      if (!_truthy(item['available'])) return false;
       final name = (item['name'] ?? '').toString().toLowerCase();
       if (excludeFood &&
           (name == 'food' ||
@@ -1300,8 +1095,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               name.contains('cafe'))) {
         return false;
       }
-      return true;
+      return name.isNotEmpty;
     }).toList();
+    final display = filtered.isNotEmpty
+        ? filtered
+        : normalized
+            .where((item) => (item['name'] ?? '').toString().trim().isNotEmpty)
+            .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1318,10 +1118,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           height: 90,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: filtered.length,
+            itemCount: display.length,
             separatorBuilder: (_, __) => const SizedBox(width: 16),
             itemBuilder: (context, index) {
-              final item = filtered[index];
+              final item = display[index];
               final name = item['name']?.toString() ?? '';
               final displayName = name
                   .replaceAll('_', ' ')
@@ -1500,5 +1300,203 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
     // Default to PC
     return 'PC';
+  }
+}
+
+class _PassCard extends StatelessWidget {
+  final String name;
+  final double price;
+  final int totalHours;
+  final int daysValid;
+  final String description;
+
+  const _PassCard({
+    required this.name,
+    required this.price,
+    required this.totalHours,
+    required this.daysValid,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF141414),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$totalHours hrs • $daysValid days',
+                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+                ),
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: GoogleFonts.inter(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '₹${price.toStringAsFixed(0)}',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6DFB60),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Buy',
+                  style: GoogleFonts.inter(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MarqueeText extends StatefulWidget {
+  const _MarqueeText({
+    required this.text,
+    required this.style,
+    this.blankSpace = 20,
+    this.velocity = 30,
+  });
+
+  final String text;
+  final TextStyle style;
+  final double blankSpace;
+  final double velocity; // pixels per second
+
+  @override
+  State<_MarqueeText> createState() => _MarqueeTextState();
+}
+
+class _MarqueeTextState extends State<_MarqueeText>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double _measureTextWidth(String text, TextStyle style) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    return painter.width;
+  }
+
+  void _startAnimation(Duration duration) {
+    if (_controller.duration != duration || !_controller.isAnimating) {
+      _controller.duration = duration;
+      _controller.repeat();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        final textWidth = _measureTextWidth(widget.text, widget.style);
+        if (textWidth <= maxWidth) {
+          _controller.stop();
+          return Text(
+            widget.text,
+            style: widget.style,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          );
+        }
+
+        final distance = textWidth + widget.blankSpace;
+        final seconds = distance / widget.velocity;
+        _startAnimation(Duration(milliseconds: (seconds * 1000).round()));
+
+        return ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.centerLeft,
+            minWidth: maxWidth,
+            maxWidth: double.infinity,
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (_, __) {
+                final offset = -distance * _controller.value;
+                return Transform.translate(
+                  offset: Offset(offset, 0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(widget.text, style: widget.style),
+                      SizedBox(width: widget.blankSpace),
+                      Text(widget.text, style: widget.style),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
   }
 }

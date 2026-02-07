@@ -16,8 +16,8 @@ class NetworkConfig {
   Dio get dio {
     var options = BaseOptions(
       baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 45),
+      receiveTimeout: const Duration(seconds: 45),
       headers: baseHeaders,
     );
 
@@ -35,13 +35,12 @@ class NetworkConfig {
       ),
     );
 
-    // Add retry interceptor for 500 errors
-    dio.interceptors.add(RetryInterceptor());
-
+    dio.interceptors.add(RetryInterceptor(dio: dio));
     dio.interceptors.add(AuthInterceptor(dio));
 
     return dio;
   }
+
 
   static Future<NetworkConfig> auth({
     bool forceRefresh = false,
@@ -95,8 +94,8 @@ class NetworkProvider {
   NetworkProvider() {
     var options = BaseOptions(
       baseUrl: ApiEndpoints.baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 45),
+      receiveTimeout: const Duration(seconds: 45),
     );
 
     _dio = Dio(options);
@@ -113,9 +112,9 @@ class NetworkProvider {
       ),
     );
 
-    // Add retry interceptor for 500 errors
-    _dio.interceptors.add(RetryInterceptor());
+    _dio.interceptors.add(RetryInterceptor(dio: _dio));
   }
+
 
   Future<Dio> auth() async {
     try {
@@ -139,5 +138,18 @@ class NetworkProvider {
   Dio noAuth({Map<String, dynamic>? headers}) {
     _dio.options.headers = headers ?? {'Content-Type': 'application/json'};
     return _dio;
+  }
+
+  Dio noAuthQuiet({Map<String, dynamic>? headers}) {
+    final options = BaseOptions(
+      baseUrl: ApiEndpoints.baseUrl,
+      connectTimeout: const Duration(seconds: 45),
+      receiveTimeout: const Duration(seconds: 45),
+      headers: headers ?? {'Content-Type': 'application/json'},
+    );
+
+    final dio = Dio(options);
+    dio.interceptors.add(RetryInterceptor(dio: dio));
+    return dio;
   }
 }

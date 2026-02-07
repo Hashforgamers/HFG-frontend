@@ -66,8 +66,8 @@ class GetPassModel {
       isBought: json['is_bought'] as bool?,
       vendorImages: json['vendor_images'] != null
           ? (json['vendor_images'] as List)
-              .map((e) => VendorImages.fromJson(e))
-              .toList()
+                .map((e) => VendorImages.fromJson(e))
+                .toList()
           : null,
     );
   }
@@ -220,10 +220,7 @@ class VendorImages {
   final int id;
   final String url;
 
-  VendorImages({
-    required this.id,
-    required this.url,
-  });
+  VendorImages({required this.id, required this.url});
 
   factory VendorImages.fromJson(Map<String, dynamic> json) {
     return VendorImages(id: json['id'], url: json['url']);
