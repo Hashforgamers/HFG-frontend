@@ -17,7 +17,8 @@ import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:location/location.dart' as loc;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:geocoding/geocoding.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart' hide NetworkProvider;
+import 'package:flutter_polyline_points/flutter_polyline_points.dart'
+    hide NetworkProvider;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import '../../../../utils/service.dart';
@@ -42,6 +43,8 @@ class _ArenaViewState extends State<ArenaView> {
 
   late GoogleMapController _mapCtr;
   final loc.Location _loc = loc.Location();
+  StreamSubscription<loc.LocationData>? _locationSub;
+  late final Worker _cafesWorker;
   bool _hasLocationPermission = false; // add
 
   final RxSet<Marker> markers = <Marker>{}.obs;
@@ -103,19 +106,35 @@ class _ArenaViewState extends State<ArenaView> {
   void initState() {
     super.initState();
     _loadAssets();
+    _cafesWorker = ever<List<dynamic>>(_cafeCtr.cybercafes, (_) {
+      _applyCafeFilterAndRefresh();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _initLocation();
-      await _cafeCtr.fetchCybercafes();
-      await _getUserStateAndFilterCafes();
-      _addUserMarker();
-      _refreshCafeMarkers();
+      if (!mounted) return;
+      if (_cafeCtr.cybercafes.isEmpty && !_cafeCtr.isLoading.value) {
+        await _cafeCtr.fetchCybercafes();
+      }
+      if (!mounted) return;
+      if (_userLatLng != null) {
+        await _getUserStateAndFilterCafes();
+      } else {
+        _applyCafeFilterAndRefresh();
+      }
     });
   }
 
   @override
   void dispose() {
+    _locationSub?.cancel();
+    _cafesWorker.dispose();
     _searchCtl.dispose();
     _camDebounce?.cancel();
+    if (_mapReady) {
+      try {
+        _mapCtr.dispose();
+      } catch (_) {}
+    }
     super.dispose();
   }
 
@@ -151,6 +170,14 @@ class _ArenaViewState extends State<ArenaView> {
     _markerCafeHighlighted = BitmapDescriptor.defaultMarkerWithHue(
       BitmapDescriptor.hueRed,
     );
+
+    if (!mounted) return;
+    if (_mapReady && _mapStyle.isNotEmpty) {
+      try {
+        await _mapCtr.setMapStyle(_mapStyle);
+      } catch (_) {}
+    }
+    _refreshCafeMarkers();
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -187,13 +214,15 @@ class _ArenaViewState extends State<ArenaView> {
       _tryPlayZoom();
 
       // Optional: first valid update via stream
-      _loc.onLocationChanged.listen((d) {
+      _locationSub?.cancel();
+      _locationSub = _loc.onLocationChanged.listen((d) {
         final la = d.latitude, lo = d.longitude;
         if (la != null && lo != null) {
           if (_userLatLng == null) {
             _userLatLng = LatLng(la, lo);
             _addUserMarker();
             _tryPlayZoom();
+            _locationSub?.cancel();
           }
         }
       });
@@ -207,12 +236,12 @@ class _ArenaViewState extends State<ArenaView> {
   /* ────────────────────────────────────────────────────────────────────────── */
 
   void _smoothMoveCamera(LatLng? target, {double zoom = 15}) {
-    if (!_mapReady) return; // add this
+    if (!_mapReady || target == null) return;
     _camDebounce?.cancel();
     _camDebounce = Timer(const Duration(milliseconds: 280), () {
       _mapCtr.animateCamera(
         CameraUpdate.newCameraPosition(
-          CameraPosition(target: target!, zoom: zoom),
+          CameraPosition(target: target, zoom: zoom),
         ),
       );
     });
@@ -436,23 +465,44 @@ class _ArenaViewState extends State<ArenaView> {
   }
 
   void _addUserMarker() {
-    if (_userLatLng == null) return;
-    markers.add(
-      Marker(
-        markerId: const MarkerId('me'),
-        position: _userLatLng!,
-        icon: _markerUser ?? BitmapDescriptor.defaultMarker,
-      ),
-    );
+    _refreshCafeMarkers();
+  }
+
+  void _applyCafeFilterAndRefresh() {
+    if (_showingAllCafes.value || _userState == null || _userState!.isEmpty) {
+      _filteredCafes.assignAll(
+        _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
+      );
+    } else {
+      _filterCafesByState();
+    }
+    _refreshCafeMarkers();
+  }
+
+  void _pruneDistanceCaches() {
+    final visibleIds = _filteredCafes
+        .map((c) => '${c['id'] ?? c.hashCode}')
+        .toSet();
+    _distanceCache.removeWhere((key, _) => !visibleIds.contains(key));
+    _distanceFutureCache.removeWhere((key, _) => !visibleIds.contains(key));
   }
 
   void _refreshCafeMarkers() {
-    markers.removeWhere((m) => m.markerId.value.startsWith('cafe_'));
+    final nextMarkers = <Marker>{};
+    if (_userLatLng != null) {
+      nextMarkers.add(
+        Marker(
+          markerId: const MarkerId('me'),
+          position: _userLatLng!,
+          icon: _markerUser ?? BitmapDescriptor.defaultMarker,
+        ),
+      );
+    }
     for (final cafe in _filteredCafes) {
       final id = '${cafe['id'] ?? cafe.hashCode}';
       final pos = _latLngFromCafe(cafe);
       if (pos == null) continue; // skip invalid
-      markers.add(
+      nextMarkers.add(
         Marker(
           markerId: MarkerId('cafe_$id'),
           position: pos,
@@ -468,6 +518,10 @@ class _ArenaViewState extends State<ArenaView> {
         ),
       );
     }
+    markers
+      ..clear()
+      ..addAll(nextMarkers);
+    _pruneDistanceCaches();
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -526,7 +580,7 @@ class _ArenaViewState extends State<ArenaView> {
   /* ────────────────────────────────────────────────────────────────────────── */
 
   Future<void> _drawRoute(LatLng dest) async {
-    if (_userLatLng == null) return;
+    if (_userLatLng == null || !_mapReady) return;
 
     final request = PolylineRequest(
       origin: PointLatLng(_userLatLng!.latitude, _userLatLng!.longitude),
@@ -597,9 +651,7 @@ class _ArenaViewState extends State<ArenaView> {
 
   Future<void> _getUserStateAndFilterCafes() async {
     if (_userLatLng == null) {
-      _filteredCafes.assignAll(
-        _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
-      );
+      _applyCafeFilterAndRefresh();
       return;
     }
 
@@ -619,7 +671,7 @@ class _ArenaViewState extends State<ArenaView> {
         _userState = placemarks.first.administrativeArea;
 
         // Filter cafes based on state
-        _filterCafesByState();
+        _applyCafeFilterAndRefresh();
       } else {}
     } finally {
       _isLocationFiltering.value = false;
@@ -701,9 +753,7 @@ class _ArenaViewState extends State<ArenaView> {
                               color: Colors.white70,
                             ),
                             hintText: 'Search location',
-                            hintStyle: GoogleFonts.inter(
-                              color: Colors.white70,
-                            ),
+                            hintStyle: GoogleFonts.inter(color: Colors.white70),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 16,
@@ -761,6 +811,7 @@ class _ArenaViewState extends State<ArenaView> {
                                               _cafeCtr.cybercafes
                                                   .cast<Map<String, dynamic>>(),
                                             );
+                                            _refreshCafeMarkers();
                                           },
                                           child: Text(
                                             'Show all cafes',
@@ -789,9 +840,11 @@ class _ArenaViewState extends State<ArenaView> {
                                   final img = imgs.isEmpty
                                       ? 'https://next-level.gg/assets/cafes/11.jpg'
                                       : (imgs.first is Map &&
-                                              (imgs.first as Map)['url'] != null
-                                          ? (imgs.first as Map)['url'] as String
-                                          : 'https://next-level.gg/assets/cafes/11.jpg');
+                                                (imgs.first as Map)['url'] !=
+                                                    null
+                                            ? (imgs.first as Map)['url']
+                                                  as String
+                                            : 'https://next-level.gg/assets/cafes/11.jpg');
                                   final pos = _latLngFromCafe(cafe);
                                   final id = '${cafe['id'] ?? cafe.hashCode}';
                                   return _buildCafeCard(
@@ -1049,15 +1102,17 @@ class _ArenaViewState extends State<ArenaView> {
                                           _openExternalMaps(p);
                                         },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                        Colors.white.withValues(alpha: 0.13),
-                                    disabledBackgroundColor:
-                                        Colors.white.withValues(alpha: 0.08),
+                                    backgroundColor: Colors.white.withValues(
+                                      alpha: 0.13,
+                                    ),
+                                    disabledBackgroundColor: Colors.white
+                                        .withValues(alpha: 0.08),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                       side: BorderSide(
-                                        color:
-                                            Colors.white.withValues(alpha: 0.13),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.13,
+                                        ),
                                       ),
                                     ),
                                     padding: const EdgeInsets.symmetric(
@@ -1157,13 +1212,14 @@ class _ArenaViewState extends State<ArenaView> {
                     if (_showingAllCafes.value) {
                       // Switch back to filtered view
                       _showingAllCafes.value = false;
-                      _filterCafesByState();
+                      _applyCafeFilterAndRefresh();
                     } else {
                       // Show all cafes
                       _showingAllCafes.value = true;
                       _filteredCafes.assignAll(
                         _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
                       );
+                      _refreshCafeMarkers();
                     }
                   },
                   child: Text(
