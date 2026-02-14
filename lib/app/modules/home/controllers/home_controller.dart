@@ -40,11 +40,8 @@ class HomeController extends GetxController {
 
   // --- Initialize Pre-cache ---
   void _initializeScreenCache() {
+    // Keep initial home load light; lazily create other heavy tabs on demand.
     _screenCache[0] = const HomeContentView();
-    _screenCache[1] = const ArenaView();
-    _screenCache[2] = PastBookingsScreen();
-    _screenCache[3] = _buildTournamentScreen();
-    _screenCache[4] = const UserProfileView();
   }
 
   // --- Handle Bottom Navigation Tap ---
@@ -81,7 +78,9 @@ class HomeController extends GetxController {
 
     // --- End transition after animation ---
     Future.delayed(const Duration(milliseconds: 100), () {
-      isScreenTransitioning.value = false;
+      if (!isClosed) {
+        isScreenTransitioning.value = false;
+      }
     });
   }
 

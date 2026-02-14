@@ -50,6 +50,7 @@ class _HomeContentViewState extends State<HomeContentView>
   late final BookingController bookingController;
   late final LoginController loginController;
   late final UserController userController;
+  late final WalletController walletController;
   late final SegmentSdkService segmentService;
 
   // Animation controllers
@@ -80,6 +81,12 @@ class _HomeContentViewState extends State<HomeContentView>
   Widget? _cachedAppBar;
   Widget? _cachedGamePassContainer;
   Widget? _cachedGameOnIndiaBanner;
+  late final Widget _cachedCafeSection;
+  late final Widget _cachedSupportSection;
+  late final Widget _cachedMiniGamesSection;
+  late final Widget _cachedShortsSection;
+  late final Widget _cachedNewsSection;
+  late final Widget _cachedGamesSection;
 
   // Visibility tracking for lazy loading
   final Map<String, bool> _sectionVisibility = {};
@@ -92,6 +99,7 @@ class _HomeContentViewState extends State<HomeContentView>
   void initState() {
     super.initState();
     _initializeControllers();
+    _initializeSections();
     _initializeAnimations();
     _initializeScrollController();
     _initializeData();
@@ -114,7 +122,6 @@ class _HomeContentViewState extends State<HomeContentView>
     _fadeController.dispose();
     _slideController.dispose();
     _scrollController.dispose();
-    _initAuthToken();
     super.dispose();
   }
 
@@ -122,7 +129,18 @@ class _HomeContentViewState extends State<HomeContentView>
     bookingController = Get.find<BookingController>();
     loginController = Get.find<LoginController>();
     userController = Get.find<UserController>();
+    walletController = Get.find<WalletController>();
     segmentService = locator<SegmentSdkService>();
+  }
+
+  void _initializeSections() {
+    // Reuse long-lived section widgets to avoid rebuilding heavy trees.
+    _cachedCafeSection = CafeSection();
+    _cachedSupportSection = const ContactSupport();
+    _cachedMiniGamesSection = const MiniGamesSection();
+    _cachedShortsSection = ViralShotsSection();
+    _cachedNewsSection = const GamerNewsSection();
+    _cachedGamesSection = const GamesSection();
   }
 
   void _initializeAnimations() {
@@ -136,19 +154,13 @@ class _HomeContentViewState extends State<HomeContentView>
     );
   }
 
-  void _initAuthToken() async {
-    final uid = await remoteRepo.getUIDFromPreferences();
-    if (uid.isNotEmpty) {
-      await remoteRepo.checkUserExistsInAPI(uid);
-    }
-  }
-
   void _initializeScrollController() {
     _scrollController = ScrollController()..addListener(_onScrollChanged);
   }
 
   void _initializeData() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _refreshData();
       _trackHomeScreenViewed();
       _startAnimations();
@@ -202,21 +214,31 @@ class _HomeContentViewState extends State<HomeContentView>
 
     if (!mounted) return;
     setState(() => _isRefreshing = true);
+    final fcmCubit = BlocProvider.of<FcmCubit>(context);
+    final hashCoinCubit = BlocProvider.of<HashCoinCubit>(context);
 
     try {
       final hasUser = await _fetchUserDataIfNeeded();
       if (hasUser) {
+        final tasks = <Future<void>>[
+          _refreshWalletIfReady(),
+          bookingController.fetchUserBookings(),
+          hashCoinCubit.getHashCoin(),
+        ];
         if (!_fcmRegistered) {
-          await BlocProvider.of<FcmCubit>(context).registerFCMToken();
-          _fcmRegistered = true;
+          tasks.add(
+            fcmCubit.registerFCMToken().then((_) {
+              _fcmRegistered = true;
+            }),
+          );
         }
-        await _refreshWalletIfReady();
-        await bookingController.fetchUserBookings();
-        await BlocProvider.of<HashCoinCubit>(context).getHashCoin();
+        await Future.wait(tasks);
       }
       if (!mounted) return;
 
-      setState(() => isInitialized = true);
+      if (!isInitialized) {
+        setState(() => isInitialized = true);
+      }
     } catch (e) {
       AppLogger.e('Error refreshing data: $e');
     } finally {
@@ -246,7 +268,6 @@ class _HomeContentViewState extends State<HomeContentView>
   }
 
   Future<void> _refreshWalletIfReady() async {
-    final walletController = Get.find<WalletController>();
     if (walletController.isWalletReady) {
       await walletController.refreshWallet();
     }
@@ -314,7 +335,7 @@ class _HomeContentViewState extends State<HomeContentView>
           controller: _scrollController,
           physics: const BouncingScrollPhysics(),
           slivers: [
-            OptimizedAppBar(),
+            const OptimizedAppBar(),
             SliverToBoxAdapter(
               child: FadeTransition(
                 opacity: _fadeController,
@@ -337,15 +358,15 @@ class _HomeContentViewState extends State<HomeContentView>
                           ),
 
                           // 🔷 2. Café Section – Main booking action
-                          _buildLazyLoadedSection('cafe', CafeSection()),
+                          _buildLazyLoadedSection('cafe', _cachedCafeSection),
 
                           // 🔷 3. Contact Support – High trust & user concern item
-                          ContactSupport(),
+                          _cachedSupportSection,
 
                           // 🔷 4. Mini Games – Retention boost (engaging short content)
                           _buildLazyLoadedSection(
                             'miniGames',
-                            const MiniGamesSection(),
+                            _cachedMiniGamesSection,
                           ),
 
                           // 🔷 5. Refer & Earn – Growth lever
@@ -357,20 +378,14 @@ class _HomeContentViewState extends State<HomeContentView>
                           // 🔷 6. Viral Shorts – Fun scroll content, lower intent
                           _buildLazyLoadedSection(
                             'shorts',
-                            ViralShotsSection(),
+                            _cachedShortsSection,
                           ),
 
                           // 🔷 7. Gamer News – Passive consumption
-                          _buildLazyLoadedSection(
-                            'news',
-                            const GamerNewsSection(),
-                          ),
+                          _buildLazyLoadedSection('news', _cachedNewsSection),
 
                           // 🔷 8. Games List – Browse-only for now (assuming no play feature)
-                          _buildLazyLoadedSection(
-                            'games',
-                            const GamesSection(),
-                          ),
+                          _buildLazyLoadedSection('games', _cachedGamesSection),
 
                           // 🔷 9. GameOn India Banner – Occasional promo
                           _buildLazyLoadedSection(

@@ -13,10 +13,28 @@ class HomeView extends StatefulWidget {
   State<HomeView> createState() => _HomeViewState();
 }
 
-class _HomeViewState extends State<HomeView>
-    with SingleTickerProviderStateMixin {
+class _HomeViewState extends State<HomeView> {
   final HomeController controller = Get.find();
   final ShopController shopController = Get.find<ShopController>();
+  bool _didApplyTabArgument = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didApplyTabArgument) return;
+    _didApplyTabArgument = true;
+
+    final args = Get.arguments;
+    if (args is Map && args['tabIndex'] is int) {
+      final targetIndex = args['tabIndex'] as int;
+      if (controller.selectedIndex.value != targetIndex) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          controller.onItemTapped(targetIndex);
+        });
+      }
+    }
+  }
 
   void _openShopSection(int sectionIndex) {
     if (!HomeController.isHashShopReleased) {
@@ -36,14 +54,7 @@ class _HomeViewState extends State<HomeView>
 
   @override
   Widget build(BuildContext context) {
-    // 🔹 Read tabIndex argument if provided (default = 0)
-    final args = Get.arguments;
-    if (args != null && args['tabIndex'] != null) {
-      final int targetIndex = args['tabIndex'] as int;
-      if (controller.selectedIndex.value != targetIndex) {
-        Future.microtask(() => controller.onItemTapped(targetIndex));
-      }
-    }
+    final screenWidth = MediaQuery.sizeOf(context).width;
     return Scaffold(
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
@@ -136,9 +147,7 @@ class _HomeViewState extends State<HomeView>
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 320),
                       curve: Curves.easeOutCubic,
-                      width: isShopMenuOpen
-                          ? MediaQuery.of(context).size.width
-                          : 84,
+                      width: isShopMenuOpen ? screenWidth : 84,
                       height: isShopMenuOpen ? 52 : 46,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.horizontal(
@@ -171,16 +180,16 @@ class _HomeViewState extends State<HomeView>
                             offset: const Offset(0, 3),
                           ),
                           BoxShadow(
-                            color: const Color(0xFF7A44C0).withValues(
-                              alpha: 0.24,
-                            ),
+                            color: const Color(
+                              0xFF7A44C0,
+                            ).withValues(alpha: 0.24),
                             blurRadius: 10,
                             offset: const Offset(0, 0),
                           ),
                           BoxShadow(
-                            color: const Color(0xFF56C785).withValues(
-                              alpha: 0.14,
-                            ),
+                            color: const Color(
+                              0xFF56C785,
+                            ).withValues(alpha: 0.14),
                             blurRadius: 8,
                             offset: const Offset(0, 0),
                           ),
@@ -232,8 +241,10 @@ class _HomeViewState extends State<HomeView>
                               duration: const Duration(milliseconds: 280),
                               curve: Curves.easeOutCubic,
                               width: isShopMenuOpen
-                                  ? (MediaQuery.of(context).size.width - 140)
-                                        .clamp(0.0, double.infinity)
+                                  ? (screenWidth - 140).clamp(
+                                      0.0,
+                                      double.infinity,
+                                    )
                                   : 0,
                               margin: EdgeInsets.only(
                                 left: isShopMenuOpen ? 8 : 0,
