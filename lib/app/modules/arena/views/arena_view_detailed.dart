@@ -491,8 +491,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     required BuildContext context,
     required email,
     List<Map<String, dynamic>>? cartItems,
-  }) {
-    // Check if shop is open before showing booking options
+  }) async {
+    final safeEmail = (email ?? widget.email).toString();
+    // Check if shop is open before showing booking options.
     if (!_gamesController.shopOpen.value) {
       Get.snackbar(
         'Shop Closed',
@@ -506,29 +507,226 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       );
       return Future.value(null);
     }
-    final List<dynamic> consoles = _gamesController.games.toList();
 
-    final List<Map<String, dynamic>> slots = consoles.map((console) {
-      final Map<String, dynamic> consoleMap = console as Map<String, dynamic>;
+    // If user taps quickly before initial fetch completes, refresh once.
+    if (_gamesController.games.isEmpty || _gamesController.isLoading.value) {
+      await _gamesController.fetchGames(widget.vendorId);
+      if (!context.mounted) {
+        return Future.value(null);
+      }
+    }
 
-      final consoleName = consoleMap['game_name']?.toString() ?? '';
-      final consoleId = consoleMap['id'];
+    int? asInt(dynamic v) {
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      if (v == null) return null;
+      return int.tryParse(v.toString());
+    }
 
-      return {
-        'label': consoleName.toUpperCase(),
-        'icon': _getConsoleIcon(consoleName),
-        'price': consoleMap['single_slot_price'] ?? 0,
-        'available': consoleMap['total_slots'] ?? 0,
-        'console_id': consoleId,
-        'console_name': consoleName,
-        'game_label': _getConsoleType(consoleName),
-        'opening_days': consoleMap['opening_days'] ?? [],
-      };
-    }).toList();
+    double asDouble(dynamic v) {
+      if (v is double) return v;
+      if (v is int) return v.toDouble();
+      return double.tryParse(v?.toString() ?? '') ?? 0;
+    }
+
+    dynamic readAny(Map<String, dynamic> map, List<String> keys) {
+      for (final key in keys) {
+        if (map.containsKey(key) && map[key] != null) {
+          return map[key];
+        }
+      }
+      return null;
+    }
+
+    int availabilityCount(dynamic v, {int fallback = 1}) {
+      if (v is bool) return v ? 1 : 0;
+      if (v is num) return v.toInt();
+      if (v is String) {
+        final raw = v.trim().toLowerCase();
+        if (raw == 'true' || raw == 'yes') return 1;
+        if (raw == 'false' || raw == 'no') return 0;
+        return int.tryParse(raw) ?? fallback;
+      }
+      return fallback;
+    }
+
+    final Map<String, List<Map<String, dynamic>>> gamesByConsole = {};
+
+    void upsertGame({
+      required String gameName,
+      required String genre,
+      required String imageUrl,
+      required String rawConsoleType,
+      required int bookingId,
+      required double price,
+      required int availableCount,
+    }) {
+      final consoleType = _normalizeConsoleType(rawConsoleType);
+      if (consoleType.isEmpty) return;
+      final list = gamesByConsole.putIfAbsent(consoleType, () => []);
+      final existingIndex = list.indexWhere(
+        (item) => item['game_id'] == bookingId && item['title'] == gameName,
+      );
+      if (existingIndex >= 0) {
+        list[existingIndex]['available'] =
+            (list[existingIndex]['available'] as int? ?? 0) + availableCount;
+        if ((list[existingIndex]['price'] as double? ?? 0) <= 0 && price > 0) {
+          list[existingIndex]['price'] = price;
+        }
+        return;
+      }
+
+      list.add({
+        'title': gameName.isEmpty ? 'Game' : gameName,
+        'genre': genre,
+        'image_url': imageUrl,
+        'console_type': consoleType,
+        'game_id': bookingId,
+        'price': price,
+        'available': availableCount,
+      });
+    }
+
+    for (final g in _gamesController.games) {
+      if (g is! Map) continue;
+      final gameMap = Map<String, dynamic>.from(g);
+      final gameName = (readAny(gameMap, ['game_name', 'name', 'title']) ?? '')
+          .toString()
+          .trim();
+      final genre = (gameMap['genre'] ?? '').toString().trim();
+      final imageUrl =
+          (readAny(gameMap, [
+                    'image_url',
+                    'game_image',
+                    'game_image_url',
+                    'image',
+                  ]) ??
+                  '')
+              .toString()
+              .trim();
+      final fallbackPrice = asDouble(
+        readAny(gameMap, ['single_slot_price', 'avg_price', 'price_per_hour']),
+      );
+      final fallbackBookingId = asInt(
+        readAny(gameMap, [
+          'booking_game_id',
+          'bookingGameId',
+          'vendor_game_id',
+          'vendorGameId',
+          'game_id',
+          'id',
+        ]),
+      );
+
+      final gameConsoles = gameMap['consoles'];
+      if (gameConsoles is List && gameConsoles.isNotEmpty) {
+        for (final c in gameConsoles) {
+          if (c is! Map) continue;
+          final consoleMap = Map<String, dynamic>.from(c);
+          final rawConsoleType =
+              (readAny(consoleMap, ['console_type', 'consoleType', 'type']) ??
+                      readAny(gameMap, ['game_platform', 'platform']) ??
+                      'pc')
+                  .toString();
+          final bookingId =
+              asInt(
+                readAny(consoleMap, [
+                  'booking_game_id',
+                  'bookingGameId',
+                  'vendor_game_id',
+                  'vendorGameId',
+                  'game_id',
+                  'id',
+                ]),
+              ) ??
+              fallbackBookingId;
+          if (bookingId == null) continue;
+          final price = asDouble(
+            readAny(consoleMap, ['price_per_hour']) ?? fallbackPrice,
+          );
+          final available = availabilityCount(
+            readAny(consoleMap, ['is_available', 'available']) ?? true,
+          );
+          upsertGame(
+            gameName: gameName,
+            genre: genre,
+            imageUrl: imageUrl,
+            rawConsoleType: rawConsoleType,
+            bookingId: bookingId,
+            price: price,
+            availableCount: available,
+          );
+        }
+        continue;
+      }
+
+      final fallbackConsoleType =
+          (readAny(gameMap, [
+                    'console_type',
+                    'consoleType',
+                    'type',
+                    'game_platform',
+                    'platform',
+                  ]) ??
+                  '')
+              .toString();
+      if (fallbackConsoleType.isEmpty || fallbackBookingId == null) {
+        continue;
+      }
+      final fallbackAvailable = availabilityCount(
+        readAny(gameMap, ['is_available', 'available']) ??
+            gameMap['total_slots'],
+        fallback: asInt(gameMap['total_slots']) ?? 1,
+      );
+      upsertGame(
+        gameName: gameName,
+        genre: genre,
+        imageUrl: imageUrl,
+        rawConsoleType: fallbackConsoleType,
+        bookingId: fallbackBookingId,
+        price: fallbackPrice,
+        availableCount: fallbackAvailable,
+      );
+    }
+
+    final List<Map<String, dynamic>> consoleOptions = [];
+    for (final entry in gamesByConsole.entries) {
+      final games = entry.value;
+      if (games.isEmpty) continue;
+      var availableGames = 0;
+      var totalAvailable = 0;
+      double minPrice = 0;
+      for (final game in games) {
+        final available = game['available'] as int? ?? 0;
+        final price = game['price'] as double? ?? 0;
+        if (available > 0) availableGames++;
+        totalAvailable += available;
+        if (price > 0 && (minPrice == 0 || price < minPrice)) {
+          minPrice = price;
+        }
+      }
+
+      consoleOptions.add({
+        'type': entry.key,
+        'label': _consoleDisplayLabel(entry.key),
+        'icon': _getConsoleIcon(entry.key),
+        'total_games': games.length,
+        'available_games': availableGames,
+        'total_available': totalAvailable,
+        'starting_price': minPrice,
+      });
+    }
+
+    consoleOptions.sort((a, b) {
+      final aAvailable = a['available_games'] as int? ?? 0;
+      final bAvailable = b['available_games'] as int? ?? 0;
+      if (aAvailable != bAvailable) return bAvailable.compareTo(aAvailable);
+      return (a['label'] as String).compareTo(b['label'] as String);
+    });
 
     int selectedIndex = 0;
-    for (int i = 0; i < slots.length; i++) {
-      if (slots[i]['available'] > 0) {
+    for (int i = 0; i < consoleOptions.length; i++) {
+      if ((consoleOptions[i]['available_games'] as int? ?? 0) > 0) {
         selectedIndex = i;
         break;
       }
@@ -544,238 +742,577 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            final double maxHeight = MediaQuery.of(context).size.height * 0.45;
-            return Padding(
-              padding: MediaQuery.of(context).viewInsets,
-              child: Container(
-                height: maxHeight,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+            final double maxHeight = MediaQuery.of(context).size.height * 0.5;
+            final bool canContinue = consoleOptions.isNotEmpty;
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: MediaQuery.of(context).viewInsets,
+                child: SizedBox(
+                  height: maxHeight,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Choose console type',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 26,
+                              ),
+                              onPressed: () => Navigator.of(context).pop(),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (consoleOptions.isEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF232323),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'No console types available right now.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                color: Colors.white70,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        if (consoleOptions.isNotEmpty)
+                          Expanded(
+                            child: GridView.builder(
+                              itemCount: consoleOptions.length,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: 10,
+                                    crossAxisSpacing: 10,
+                                    childAspectRatio: 1.65,
+                                  ),
+                              itemBuilder: (context, index) {
+                                final option = consoleOptions[index];
+                                final isSelected = selectedIndex == index;
+                                final availableGames =
+                                    option['available_games'] as int? ?? 0;
+                                final totalGames =
+                                    option['total_games'] as int? ?? 0;
+                                final startPrice =
+                                    option['starting_price'] as double? ?? 0;
+                                final hasAvailable = availableGames > 0;
+                                return GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      selectedIndex = index;
+                                    });
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? const Color(
+                                              0xFF338125,
+                                            ).withValues(alpha: 0.16)
+                                          : const Color(0xFF232323),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? const Color(0xFF338125)
+                                            : Colors.white12,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            CachedNetworkImage(
+                                              imageUrl: (option['icon'] ?? '')
+                                                  .toString(),
+                                              height: 24,
+                                              width: 24,
+                                              placeholder: (_, _) =>
+                                                  const SizedBox(
+                                                    height: 16,
+                                                    width: 16,
+                                                    child: RainbowGlowingLoader(
+                                                      size: 10,
+                                                    ),
+                                                  ),
+                                              errorWidget: (_, _, _) =>
+                                                  const Icon(
+                                                    Icons.videogame_asset,
+                                                    color: Colors.white70,
+                                                    size: 20,
+                                                  ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                (option['label'] ?? '')
+                                                    .toString(),
+                                                overflow: TextOverflow.ellipsis,
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          '$availableGames/$totalGames games available',
+                                          style: GoogleFonts.inter(
+                                            color: hasAvailable
+                                                ? Colors.white70
+                                                : Colors.redAccent,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        if (startPrice > 0) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Starts at ₹${startPrice.toStringAsFixed(startPrice % 1 == 0 ? 0 : 1)}/hr',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white70,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: canContinue
+                                ? () async {
+                                    final selectedConsole =
+                                        consoleOptions[selectedIndex];
+                                    final selectedType =
+                                        (selectedConsole['type'] ?? '')
+                                            .toString();
+                                    final selectedGames =
+                                        List<Map<String, dynamic>>.from(
+                                          gamesByConsole[selectedType] ??
+                                              const <Map<String, dynamic>>[],
+                                        );
+                                    Navigator.of(context).pop();
+                                    if (!mounted) return;
+                                    await Future.delayed(
+                                      const Duration(milliseconds: 140),
+                                    );
+                                    if (!mounted) return;
+                                    _showAvailableGamesBottomSheet(
+                                      context: this.context,
+                                      email: safeEmail,
+                                      consoleType: selectedType,
+                                      games: selectedGames,
+                                      cartItems: cartItems,
+                                    );
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF338125),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              disabledBackgroundColor: Colors.grey.shade800,
+                            ),
+                            child: Text(
+                              'Choose Game',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                child: SingleChildScrollView(
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<dynamic> _showAvailableGamesBottomSheet({
+    required BuildContext context,
+    required String email,
+    required String consoleType,
+    required List<Map<String, dynamic>> games,
+    List<Map<String, dynamic>>? cartItems,
+  }) {
+    int? asInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value == null) return null;
+      return int.tryParse(value.toString());
+    }
+
+    String formatPrice(double value) {
+      if (value <= 0) return 'Price not available';
+      return value % 1 == 0
+          ? '₹${value.toInt()}/hr'
+          : '₹${value.toStringAsFixed(1)}/hr';
+    }
+
+    int selectedIndex = 0;
+    for (int i = 0; i < games.length; i++) {
+      if ((games[i]['available'] as int? ?? 0) > 0) {
+        selectedIndex = i;
+        break;
+      }
+    }
+
+    final consoleLabel = _consoleDisplayLabel(consoleType);
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF181818),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final maxHeight = MediaQuery.of(context).size.height * 0.62;
+            final canContinue =
+                games.isNotEmpty &&
+                (games[selectedIndex]['available'] as int? ?? 0) > 0;
+            return SafeArea(
+              top: false,
+              child: SizedBox(
+                height: maxHeight,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Book your slot',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                          Material(
+                            color: const Color(0xFF232323),
+                            borderRadius: BorderRadius.circular(10),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                if (!mounted) return;
+                                Future.delayed(
+                                  const Duration(milliseconds: 120),
+                                  () {
+                                    if (!mounted) return;
+                                    showBookSlotBottomSheet(
+                                      context: this.context,
+                                      email: email,
+                                      cartItems: cartItems,
+                                    );
+                                  },
+                                );
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Icon(
+                                  Icons.arrow_back,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Choose game • $consoleLabel',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           IconButton(
                             icon: const Icon(
                               Icons.close,
                               color: Colors.white,
-                              size: 28,
+                              size: 26,
                             ),
                             onPressed: () => Navigator.of(context).pop(),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 10,
-                              crossAxisSpacing: 10,
-                              childAspectRatio: 1.7,
+                      if (games.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF232323),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'No games available for $consoleLabel right now.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
                             ),
-                        itemCount: slots.length,
-                        itemBuilder: (context, index) {
-                          final slot = slots[index];
-                          final isSelected = selectedIndex == index;
-                          final isAvailable = slot['available'] > 0;
-                          return GestureDetector(
-                            onTap: isAvailable
-                                ? () {
-                                    setState(() {
-                                      selectedIndex = index;
-                                    });
-                                  }
-                                : null,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              decoration: BoxDecoration(
-                                color: isSelected && isAvailable
-                                    ? const Color(0xFF338125)
-                                        .withValues(alpha: 0.15)
-                                    : (isAvailable
-                                          ? const Color(0xFF232323)
-                                          : const Color(0xFF232323)
-                                              .withValues(alpha: 0.5)),
-                                borderRadius: BorderRadius.circular(8),
-                                border: isSelected && isAvailable
-                                    ? Border.all(
-                                        color: const Color(0xFF338125),
-                                        width: 2,
-                                      )
-                                    : Border.all(
-                                        color: Colors.transparent,
-                                        width: 2,
-                                      ),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 10,
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      CachedNetworkImage(
-                                        imageUrl: slot['icon'],
-                                        height: 22,
-                                        width: 22,
-                                        placeholder: (_, _) => const Center(
-                                          child: RainbowGlowingLoader(size: 10),
-                                        ),
-                                        errorWidget: (_, _, _) => const Icon(
-                                          Icons.error,
-                                          color: Colors.red,
-                                        ),
-                                      ),
+                          ),
+                        ),
+                      if (games.isNotEmpty)
+                        Expanded(
+                          child: ListView.separated(
+                            itemCount: games.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final game = games[index];
+                              final isSelected = selectedIndex == index;
+                              final available = game['available'] as int? ?? 0;
+                              final isAvailable = available > 0;
+                              final price = game['price'] as double? ?? 0;
+                              final title = (game['title'] ?? 'Game')
+                                  .toString()
+                                  .trim();
+                              final genre = (game['genre'] ?? '')
+                                  .toString()
+                                  .trim();
+                              final imageUrl = (game['image_url'] ?? '')
+                                  .toString()
+                                  .trim();
 
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          slot['label'],
-                                          overflow: TextOverflow.ellipsis,
-                                          style: GoogleFonts.inter(
-                                            color: isAvailable
-                                                ? Colors.white
-                                                : Colors.white54,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                              return GestureDetector(
+                                onTap: isAvailable
+                                    ? () => setState(() {
+                                        selectedIndex = index;
+                                      })
+                                    : null,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: isSelected && isAvailable
+                                        ? const Color(
+                                            0xFF338125,
+                                          ).withValues(alpha: 0.16)
+                                        : const Color(0xFF232323),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isSelected && isAvailable
+                                          ? const Color(0xFF338125)
+                                          : Colors.white12,
+                                      width: 1.4,
+                                    ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  Row(
+                                  child: Row(
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 7,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF181818),
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          '₹ ${slot['price']}',
-                                          style: GoogleFonts.inter(
-                                            color: isAvailable
-                                                ? Colors.white
-                                                : Colors.white54,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 11,
-                                          ),
-                                        ),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: imageUrl.isNotEmpty
+                                            ? CachedNetworkImage(
+                                                imageUrl: imageUrl,
+                                                height: 56,
+                                                width: 56,
+                                                fit: BoxFit.cover,
+                                                placeholder: (_, _) => Container(
+                                                  height: 56,
+                                                  width: 56,
+                                                  color: const Color(
+                                                    0xFF1A1A1A,
+                                                  ),
+                                                  child: const Center(
+                                                    child: RainbowGlowingLoader(
+                                                      size: 12,
+                                                    ),
+                                                  ),
+                                                ),
+                                                errorWidget: (_, _, _) =>
+                                                    Container(
+                                                      height: 56,
+                                                      width: 56,
+                                                      color: const Color(
+                                                        0xFF1A1A1A,
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.sports_esports,
+                                                        color: Colors.white54,
+                                                        size: 24,
+                                                      ),
+                                                    ),
+                                              )
+                                            : Container(
+                                                height: 56,
+                                                width: 56,
+                                                color: const Color(0xFF1A1A1A),
+                                                child: const Icon(
+                                                  Icons.sports_esports,
+                                                  color: Colors.white54,
+                                                  size: 24,
+                                                ),
+                                              ),
                                       ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 7,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: isAvailable
-                                              ? const Color(0xFF181818)
-                                              : const Color(0xFF3A2323),
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                        ),
-                                        child: Row(
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            Icon(
-                                              isAvailable
-                                                  ? Icons.check_circle
-                                                  : Icons.cancel,
-                                              color: isAvailable
-                                                  ? Colors.white
-                                                  : Colors.redAccent,
-                                              size: 8,
-                                            ),
-                                            const SizedBox(width: 2),
                                             Text(
-                                              '${slot['available']} Available',
+                                              title,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                               style: GoogleFonts.inter(
                                                 color: isAvailable
                                                     ? Colors.white
-                                                    : Colors.redAccent,
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 10,
+                                                    : Colors.white54,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            if (genre.isNotEmpty) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                genre,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white60,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                            const SizedBox(height: 6),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 3,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: isAvailable
+                                                    ? const Color(0xFF181818)
+                                                    : const Color(0xFF3A2323),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                '$available available',
+                                                style: GoogleFonts.inter(
+                                                  color: isAvailable
+                                                      ? Colors.white70
+                                                      : Colors.redAccent,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        formatPrice(price),
+                                        style: GoogleFonts.inter(
+                                          color: isAvailable
+                                              ? Colors.white
+                                              : Colors.white54,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       const SizedBox(height: 10),
                       SizedBox(
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
-                          onPressed: slots[selectedIndex]['available'] > 0
+                          onPressed: canContinue
                               ? () {
-                                  final consoleId =
-                                      slots[selectedIndex]['console_id'];
-                                  if (consoleId != null && consoleId is int) {
-                                    try {
-                                      Get.to(
-                                        BookingScreen(
+                                  final selectedGame = games[selectedIndex];
+                                  final selectedGameId = asInt(
+                                    selectedGame['game_id'],
+                                  );
+                                  if (selectedGameId == null) {
+                                    _showSafeErrorSnackBar(
+                                      context,
+                                      'Game ID not found for booking',
+                                    );
+                                    return;
+                                  }
+
+                                  try {
+                                    Navigator.of(context).pop();
+                                    if (!mounted) return;
+                                    Navigator.of(this.context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => BookingScreen(
                                           email: email,
-                                          consoleType:
-                                              slots[selectedIndex]['game_label'] ??
-                                              '',
+                                          consoleType: _getConsoleType(
+                                            consoleType,
+                                          ),
                                           title: widget.title,
-                                          gameId: consoleId,
+                                          gameId: selectedGameId,
                                           vendorId: widget.vendorId,
                                           cartItems: cartItems ?? [],
                                         ),
-                                      );
-                                    } catch (e) {
-                                      Get.snackbar(
-                                        'Error',
-                                        'Failed to open booking screen',
-                                        snackPosition: SnackPosition.BOTTOM,
-                                        backgroundColor: Colors.red,
-                                        colorText: Colors.white,
-                                      );
-                                    }
-                                  } else {
-                                    Get.snackbar(
-                                      'Error',
-                                      'Console ID not found or invalid',
-                                      snackPosition: SnackPosition.BOTTOM,
-                                      backgroundColor: Colors.red,
-                                      colorText: Colors.white,
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    debugPrint(
+                                      'Failed to open booking screen: $e',
+                                    );
+                                    _showSafeErrorSnackBar(
+                                      context,
+                                      'Failed to open booking screen',
                                     );
                                   }
                                 }
@@ -806,6 +1343,64 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         );
       },
     );
+  }
+
+  String _normalizeConsoleType(String consoleName) {
+    final name = consoleName.toLowerCase().trim();
+    if (name.isEmpty) return '';
+    if (name.contains('playstation') || name.contains('ps')) return 'ps5';
+    if (name.contains('xbox')) return 'xbox';
+    if (name.contains('vr') || name.contains('virtual')) return 'vr';
+    if (name.contains('nintendo') || name.contains('switch')) return 'nintendo';
+    if (name.contains('pc') || name.contains('computer')) return 'pc';
+    return name;
+  }
+
+  String _consoleDisplayLabel(String consoleName) {
+    switch (_normalizeConsoleType(consoleName)) {
+      case 'ps5':
+        return 'PS5';
+      case 'xbox':
+        return 'XBOX';
+      case 'vr':
+        return 'VR';
+      case 'nintendo':
+        return 'NINTENDO';
+      case 'pc':
+        return 'PC';
+      default:
+        return consoleName.toUpperCase();
+    }
+  }
+
+  void _showSafeErrorSnackBar(BuildContext context, String message) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger != null) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final fallbackContext = Get.context;
+    if (fallbackContext != null && Overlay.maybeOf(fallbackContext) != null) {
+      Get.snackbar(
+        'Error',
+        message,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    debugPrint('Unable to show snackbar: $message');
   }
 
   Widget rowInfo(IconData icon, String text) => Row(
@@ -942,10 +1537,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               return Center(
                 child: Text(
                   'Games will appear here once the cafe adds them.',
-                  style: GoogleFonts.inter(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
               );
@@ -956,8 +1548,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               itemCount: games.length,
               separatorBuilder: (_, __) => const SizedBox(width: 2),
               itemBuilder: (context, index) {
-                final Map<String, dynamic> game =
-                    Map<String, dynamic>.from(games[index]);
+                final Map<String, dynamic> game = Map<String, dynamic>.from(
+                  games[index],
+                );
                 final name = _gameName(game);
                 final image = _gameImage(game);
 
@@ -984,9 +1577,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                               width: 90,
                               height: 100,
                               color: const Color(0xff1A1A1A),
-                              child: const Center(
-                                child: RainbowLoadingBar(),
-                              ),
+                              child: const Center(child: RainbowLoadingBar()),
                             ),
                             errorWidget: (_, __, ___) => Container(
                               width: 90,
@@ -1067,22 +1658,26 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   Widget amenitiesGrid(List<dynamic> amenities, {bool excludeFood = false}) {
     // Normalize amenities: accept maps or strings from API
-    final normalized = amenities.map((item) {
-      if (item is Map) {
-        return {
-          'name':
-              item['name'] ?? item['amenity'] ?? item['amenity_name'] ?? '',
-          'available': item['available'] ??
-              item['is_available'] ??
-              item['isAvailable'] ??
-              true,
-        };
-      }
-      if (item is String) {
-        return {'name': item, 'available': true};
-      }
-      return null;
-    }).whereType<Map<String, dynamic>>().toList();
+    final normalized = amenities
+        .map((item) {
+          if (item is Map) {
+            return {
+              'name':
+                  item['name'] ?? item['amenity'] ?? item['amenity_name'] ?? '',
+              'available':
+                  item['available'] ??
+                  item['is_available'] ??
+                  item['isAvailable'] ??
+                  true,
+            };
+          }
+          if (item is String) {
+            return {'name': item, 'available': true};
+          }
+          return null;
+        })
+        .whereType<Map<String, dynamic>>()
+        .toList();
 
     final filtered = normalized.where((item) {
       if (!_truthy(item['available'])) return false;
@@ -1100,8 +1695,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     final display = filtered.isNotEmpty
         ? filtered
         : normalized
-            .where((item) => (item['name'] ?? '').toString().trim().isNotEmpty)
-            .toList();
+              .where(
+                (item) => (item['name'] ?? '').toString().trim().isNotEmpty,
+              )
+              .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

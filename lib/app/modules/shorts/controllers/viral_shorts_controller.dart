@@ -20,12 +20,29 @@ class YouTubeShort {
   });
 
   factory YouTubeShort.fromJson(Map<String, dynamic> json) {
+    String asString(dynamic value) => (value ?? '').toString().trim();
+
+    final dynamic thumbnailRaw = json['thumbnail'];
+    String thumbnail = '';
+    if (thumbnailRaw is Map) {
+      final staticThumb = asString(thumbnailRaw['static']);
+      thumbnail = staticThumb.isNotEmpty
+          ? staticThumb
+          : asString(thumbnailRaw['rich']);
+    } else {
+      thumbnail = asString(thumbnailRaw);
+    }
+
+    final channel = json['channel'] is Map
+        ? Map<String, dynamic>.from(json['channel'])
+        : const <String, dynamic>{};
+
     return YouTubeShort(
-      title:        json['title'],
-      link:         json['link'],
-      thumbnail:    json['thumbnail']['static'],
-      channelName:  json['channel']['name'],
-      channelImage: json['channel']['thumbnail'],
+      title: asString(json['title']),
+      link: asString(json['link']),
+      thumbnail: thumbnail,
+      channelName: asString(channel['name']),
+      channelImage: asString(channel['thumbnail']),
     );
   }
 }
@@ -48,23 +65,83 @@ class ApiService {
 
   Future<List<YouTubeShort>> fetch(String query) async {
     final key = _getRandomKey();
+    AppLogger.i(
+      '[Shorts] Fetch started. query="$query", keys=${_apiKeys.length}',
+    );
     if (key == null) {
-      AppLogger.w('SERPAPI_KEYS not set; skipping shorts fetch.');
+      AppLogger.w(
+        '[Shorts] SERPAPI_KEYS not set; skipping shorts fetch. Add --dart-define=SERPAPI_KEYS=key1,key2',
+      );
       return [];
     }
+
     final url = '$_base?engine=youtube&search_query=$query&api_key=$key';
-    final res = await _dio.get(url);
+    try {
+      final res = await _dio.get(url);
+      AppLogger.i('[Shorts] Response status=${res.statusCode}');
 
-    if (res.statusCode == 200) {
-      final data = res.data is String
-          ? json.decode(res.data as String)
-          : res.data;
-      final List results = data['video_results'];
-      final filtered = results.where((e) => (e['live'] ?? false) == false).toList();
-      return filtered.map((e) => YouTubeShort.fromJson(e)).toList();
+      if (res.statusCode == 200) {
+        final data = res.data is String
+            ? json.decode(res.data as String)
+            : res.data;
+
+        if (data is! Map) {
+          AppLogger.w('[Shorts] Unexpected response shape.');
+          return [];
+        }
+        final mapData = Map<String, dynamic>.from(data);
+
+        if (mapData['error'] != null) {
+          AppLogger.w('[Shorts] API error: ${mapData['error']}');
+        }
+
+        final List<dynamic> results =
+            (mapData['video_results'] as List?) ??
+            (mapData['shorts_results'] as List?) ??
+            const <dynamic>[];
+
+        AppLogger.i('[Shorts] Raw results count=${results.length}');
+
+        final filtered = results.where((e) {
+          if (e is! Map) return false;
+          return (e['live'] ?? false) == false;
+        }).toList();
+
+        final parsed = <YouTubeShort>[];
+        for (final item in filtered) {
+          if (item is! Map) continue;
+          try {
+            final short = YouTubeShort.fromJson(
+              Map<String, dynamic>.from(item),
+            );
+            if (short.link.isEmpty || short.title.isEmpty) continue;
+            parsed.add(short);
+          } catch (e, st) {
+            AppLogger.e(
+              '[Shorts] Failed to parse one short item',
+              error: e,
+              stackTrace: st,
+            );
+          }
+        }
+
+        AppLogger.i('[Shorts] Parsed shorts count=${parsed.length}');
+        return parsed;
+      }
+
+      AppLogger.w('[Shorts] Non-200 response: ${res.statusCode}');
+      throw Exception('Failed to load YouTube shorts');
+    } on DioException catch (e, st) {
+      AppLogger.e(
+        '[Shorts] Network error while fetching shorts',
+        error: e.response?.data ?? e.message,
+        stackTrace: st,
+      );
+      rethrow;
+    } catch (e, st) {
+      AppLogger.e('[Shorts] Unexpected fetch error', error: e, stackTrace: st);
+      rethrow;
     }
-
-    throw Exception('Failed to load YouTube shorts');
   }
 }
 
@@ -83,7 +160,9 @@ class YouTubeShortsController extends GetxController {
   Future<void> _load() async {
     try {
       shorts.value = await _api.fetch('Gaming Shorts');
-    } catch (e) {
+      AppLogger.i('[Shorts] Loaded in controller. count=${shorts.length}');
+    } catch (e, st) {
+      AppLogger.e('[Shorts] Controller load failed', error: e, stackTrace: st);
     } finally {
       isLoading(false);
     }

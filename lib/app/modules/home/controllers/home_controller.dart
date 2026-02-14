@@ -1,13 +1,19 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
-import 'package:hash/app/modules/shop/views/shop_view.dart';
+import 'package:hash/app/modules/shop_new/view/shop_view.dart';
+import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_home_view.dart';
 import '../../arena/views/arena_view.dart';
 import '../../profile/user_profile_view.dart';
+import '../views/feature_coming_soon_view.dart';
 import '../views/home_content_view.dart';
 
 class HomeController extends GetxController {
+  // Keep feature implementations in code, route through flags until release.
+  static const bool isHashShopReleased = false;
+  static const bool isTournamentReleased = false;
+
   // --- Reactive states ---
   final selectedIndex = 0.obs;
   final currentScreen = Rx<Widget>(const HomeContentView());
@@ -37,8 +43,7 @@ class HomeController extends GetxController {
     _screenCache[0] = const HomeContentView();
     _screenCache[1] = const ArenaView();
     _screenCache[2] = PastBookingsScreen();
-    // _screenCache[3] = const ShopView();
-    _screenCache[3] = const TournamentsHomeView();
+    _screenCache[3] = _buildTournamentScreen();
     _screenCache[4] = const UserProfileView();
   }
 
@@ -51,16 +56,12 @@ class HomeController extends GetxController {
     // --- Prevent double-tap on same tab ---
     if (selectedIndex.value == index) return;
     lastScreenChangeTime = now;
+    Haptics.navigation();
 
-    // --- Hash Shop Handling (Middle Icon) ---
-    // if (index == 2) {
-    //   // Toggle slide bar instead of switching screen
-    //   toggleShop();
-    //   return;
-    // }
-
-    // --- Close Shop bar when navigating elsewhere ---
-    if (isShopOpen.value) {
+    // --- Keep shop bar aligned with selected tab ---
+    if (index == 2 && isHashShopReleased) {
+      isShopOpen.value = true;
+    } else if (isShopOpen.value) {
       isShopOpen.value = false;
     }
 
@@ -93,15 +94,33 @@ class HomeController extends GetxController {
         return const ArenaView();
       case 2:
         return PastBookingsScreen();
-      // case 3:
-      //   return const ShopView();
       case 3:
-        return const TournamentsHomeView();
+        return _buildTournamentScreen();
       case 4:
         return const UserProfileView();
       default:
         return const HomeContentView();
     }
+  }
+
+  Widget _buildHashShopScreen() {
+    if (isHashShopReleased) return const ShopMenuView();
+    return const FeatureComingSoonView(
+      title: 'HashShop Coming Soon',
+      description:
+          'HashShop is under final polish and will be available in a later release.',
+      icon: Icons.shopping_bag_outlined,
+    );
+  }
+
+  Widget _buildTournamentScreen() {
+    if (isTournamentReleased) return const TournamentsHomeView();
+    return const FeatureComingSoonView(
+      title: 'Tournaments Coming Soon',
+      description:
+          'Tournament mode is being prepared and will be enabled in a later release.',
+      icon: Icons.emoji_events_outlined,
+    );
   }
 
   // --- Limit cache size ---

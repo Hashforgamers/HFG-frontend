@@ -7,6 +7,12 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
+bool _shouldSkipVerboseNetworkLog(RequestOptions options) {
+  final url = options.uri.toString().toLowerCase();
+  // Avoid dumping full gaming cafe payload in console.
+  return url.contains('/api/vendor/getallgamingcafe');
+}
+
 class NetworkConfig {
   final String baseUrl;
   final Map<String, String> baseHeaders;
@@ -32,6 +38,7 @@ class NetworkConfig {
         error: true,
         compact: true,
         maxWidth: 90,
+        filter: (options, args) => !_shouldSkipVerboseNetworkLog(options),
       ),
     );
 
@@ -40,7 +47,6 @@ class NetworkConfig {
 
     return dio;
   }
-
 
   static Future<NetworkConfig> auth({
     bool forceRefresh = false,
@@ -109,12 +115,12 @@ class NetworkProvider {
         error: true,
         compact: true,
         maxWidth: 90,
+        filter: (options, args) => !_shouldSkipVerboseNetworkLog(options),
       ),
     );
 
     _dio.interceptors.add(RetryInterceptor(dio: _dio));
   }
-
 
   Future<Dio> auth() async {
     try {

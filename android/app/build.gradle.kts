@@ -27,7 +27,7 @@ val flutterVersionName   =  localProps["flutter.versionName"] ?: "1.0"
 /* ───────── android block ───────── */
 android {
     namespace = "com.hfg.hash"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
     lint {
         disable.add("PackagedPrivateKey")
@@ -36,9 +36,9 @@ android {
     }
     defaultConfig {
         applicationId = "com.hfg.hash"
-        minSdk = 23                                  // bumped for Firebase Auth
+        minSdk = flutter.minSdkVersion                                  // bumped for Firebase Auth
         targetSdk = 35
-        versionCode = 25
+        versionCode = flutterVersionCode
         versionName = flutterVersionName.toString()
     }
 

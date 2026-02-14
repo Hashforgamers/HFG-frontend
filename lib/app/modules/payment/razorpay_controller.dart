@@ -15,6 +15,7 @@ import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/extra_services_model.dart';
 import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/core/utils/haptics.dart';
 import 'package:intl/intl.dart';
 
 enum PaymentType { slotBooking, passPurchase }
@@ -73,6 +74,7 @@ class RazorpayController extends GetxController {
       isPaymentInProgress(true); // ★ start spinner sooner
       paymentStatus.value = 'Opening payment gateway…';
       _currentPaymentType = paymentType; // Store the payment type
+      Haptics.cta();
 
       // Track payment initiated event
       segmentService.onPaymentInitiated(
@@ -102,6 +104,7 @@ class RazorpayController extends GetxController {
   // ─────────────────────────── Handlers ───────────────────────────
   void _handlePaymentSuccess(PaymentSuccessResponse r) async {
     paymentStatus.value = 'Payment successful! Confirming booking…';
+    Haptics.criticalSuccess();
 
     // Track hash pass purchased event
     segmentService.onHashPassPurchased(
@@ -169,6 +172,7 @@ class RazorpayController extends GetxController {
   }
 
   void _handlePaymentError(PaymentFailureResponse r) {
+    Haptics.criticalError();
     // Track payment failed event
     segmentService.onPaymentFailed(
       reason: r.message ?? 'Unknown error',
@@ -188,6 +192,7 @@ class RazorpayController extends GetxController {
   }
 
   void _handleExternalWallet(ExternalWalletResponse r) {
+    Haptics.medium();
     Get.snackbar(
       'External Wallet',
       r.walletName ?? '',
@@ -263,6 +268,7 @@ class RazorpayController extends GetxController {
         ),
       );
       _reset();
+      Haptics.error();
       Get.snackbar(
         'Error',
         'Failed to confirm booking: $e',

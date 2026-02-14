@@ -289,11 +289,41 @@ class RemoteRepo implements RemoteRepoInterface {
 
   @override
   Future<Map<String, dynamic>> fetchVendorGames(int vendorId) async {
-    // New dashboard API: GET /vendor/<vendor_id>/vendor-games
-    final dio = await networkProvider.auth(); // needs bearer token per spec
+    // Dashboard vendor-games drives UI cards, booking service ids drive slot API.
+    final dashboardDio = await networkProvider.auth();
+    final bookingDio = networkProvider.noAuth();
     try {
-      final response =
-          await dio.get(ApiEndpoints.vendorGamesByVendorId('$vendorId'));
+      final response = await dashboardDio.get(
+        ApiEndpoints.vendorGamesByVendorId('$vendorId'),
+      );
+
+      final Map<String, int> bookingGameIdByPlatform = {};
+      try {
+        final legacyResponse = await bookingDio.get(
+          '${ApiEndpoints.vendorGames}/$vendorId',
+        );
+        if (legacyResponse.statusCode == 200 && legacyResponse.data is Map) {
+          final legacyGames =
+              (legacyResponse.data['games'] as List?) ?? const [];
+          for (final item in legacyGames) {
+            if (item is! Map) continue;
+            final map = Map<String, dynamic>.from(item);
+            final id = map['id'];
+            if (id is! num) continue;
+            final rawPlatform =
+                (map['game_name'] ??
+                        map['game_platform'] ??
+                        map['platform_type'] ??
+                        '')
+                    .toString();
+            final normalizedPlatform = _normalizePlatform(rawPlatform);
+            if (normalizedPlatform.isEmpty) continue;
+            bookingGameIdByPlatform[normalizedPlatform] = id.toInt();
+          }
+        }
+      } catch (e) {
+        debugPrint('Legacy booking game mapping unavailable: $e');
+      }
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data is List ? response.data : [];
@@ -302,12 +332,40 @@ class RemoteRepo implements RemoteRepoInterface {
         final normalizedGames = data.map<Map<String, dynamic>>((item) {
           final game = (item is Map ? item['game'] : null) ?? {};
           final consoles = (item is Map ? item['consoles'] : []) ?? [];
+
+          final normalizedConsoles = <Map<String, dynamic>>[];
+          if (consoles is List) {
+            for (final c in consoles) {
+              if (c is! Map) continue;
+              final console = Map<String, dynamic>.from(c);
+              final consoleType = _normalizePlatform(
+                (console['console_type'] ?? console['consoleType'] ?? '')
+                    .toString(),
+              );
+              final bookingGameId = bookingGameIdByPlatform[consoleType];
+              if (bookingGameId != null) {
+                console['booking_game_id'] = bookingGameId;
+              }
+              normalizedConsoles.add(console);
+            }
+          }
+
+          final fallbackPlatform = normalizedConsoles.isNotEmpty
+              ? (normalizedConsoles.first['console_type'] ??
+                        normalizedConsoles.first['consoleType'] ??
+                        game['platform'] ??
+                        '')
+                    .toString()
+              : (game['platform'] ?? '').toString();
+          final gameBookingId =
+              bookingGameIdByPlatform[_normalizePlatform(fallbackPlatform)];
+
           double? derivedPrice;
           if (item is Map && item['avg_price'] != null) {
             derivedPrice = (item['avg_price'] as num).toDouble();
-          } else if (consoles is List && consoles.isNotEmpty) {
-            final first = consoles.first;
-            if (first is Map && first['price_per_hour'] != null) {
+          } else if (normalizedConsoles.isNotEmpty) {
+            final first = normalizedConsoles.first;
+            if (first['price_per_hour'] != null) {
               derivedPrice = (first['price_per_hour'] as num).toDouble();
             }
           }
@@ -319,7 +377,8 @@ class RemoteRepo implements RemoteRepoInterface {
             'image_url': game['image_url'],
             'total_slots': item is Map ? item['total_consoles'] ?? 0 : 0,
             'single_slot_price': derivedPrice ?? 0,
-            'consoles': consoles,
+            'booking_game_id': gameBookingId,
+            'consoles': normalizedConsoles,
           };
         }).toList();
 
@@ -336,6 +395,15 @@ class RemoteRepo implements RemoteRepoInterface {
       print('Error fetching vendor games: $e');
       rethrow;
     }
+  }
+
+  String _normalizePlatform(String value) {
+    final v = value.toLowerCase().trim();
+    if (v.isEmpty) return '';
+    if (v.contains('ps') || v.contains('playstation')) return 'ps5';
+    if (v.contains('xbox')) return 'xbox';
+    if (v.contains('vr') || v.contains('virtual')) return 'vr';
+    return 'pc';
   }
 
   @override

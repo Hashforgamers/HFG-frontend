@@ -2,15 +2,13 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hash/app/modules/about/about_page.dart';
-import 'package:hash/app/modules/game_pass/page/game_pass_page.dart';
-import 'package:hash/app/modules/hash_coin/pages/hash_coin_page.dart';
 import 'package:hash/app/modules/need_help/need_help_page.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
@@ -38,33 +36,56 @@ class _UserProfileViewState extends State<UserProfileView> {
         userController.user.value.contact?.electronicAddress?.emailId ?? '';
 
     return Scaffold(
-      bottomNavigationBar: Container(
-        height: 120,
-        child: Column(
-          children: [_buildLogoutButton(), _buildDeleteButton(userController)],
-        ),
-      ),
+      backgroundColor: Colors.black,
       appBar: AppBar(
         centerTitle: false,
         title: Text(
           'Profile',
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         backgroundColor: Colors.black,
+        elevation: 0,
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF121212),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildLogoutButton(),
+                const SizedBox(height: 10),
+                _buildDeleteButton(userController),
+              ],
+            ),
+          ),
+        ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(10.0),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         child: ListView(
           children: [
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             _buildProfileHeader(userController),
-            const SizedBox(height: 30),
+            const SizedBox(height: 24),
+            _buildSectionLabel('Account'),
             _buildProfileOption(
               icon: CupertinoIcons.person,
               title: 'Profile',
+              subtitle: 'Manage your personal details',
               onTap: () {
                 Get.to(ProfileView());
-                // Handle view orders
               },
             ),
             // _buildProfileOption(
@@ -93,6 +114,7 @@ class _UserProfileViewState extends State<UserProfileView> {
             _buildProfileOption(
               icon: CupertinoIcons.person_2,
               title: 'Refer & Earn',
+              subtitle: 'Invite your squad and earn rewards',
               onTap: () {
                 // Track referral initiated event
                 segmentService.onReferralViewed(email: email);
@@ -114,9 +136,12 @@ class _UserProfileViewState extends State<UserProfileView> {
             //     // Handle change password
             //   },
             // ),
+            const SizedBox(height: 10),
+            _buildSectionLabel('Support'),
             _buildProfileOption(
               icon: Icons.question_mark,
               title: 'Need Help',
+              subtitle: 'Get help with bookings and payments',
               onTap: () {
                 // Track help requested event
                 segmentService.onHelpRequested(email: email);
@@ -128,6 +153,7 @@ class _UserProfileViewState extends State<UserProfileView> {
             _buildProfileOption(
               icon: Icons.info_outline,
               title: 'About Us',
+              subtitle: 'Learn about Hash For Gamers',
               onTap: () {
                 Get.to(AboutPage());
               },
@@ -139,8 +165,23 @@ class _UserProfileViewState extends State<UserProfileView> {
             //     // Handle about
             //   },
             // ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionLabel(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        title,
+        style: GoogleFonts.inter(
+          color: Colors.white70,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.6,
         ),
       ),
     );
@@ -153,30 +194,120 @@ class _UserProfileViewState extends State<UserProfileView> {
       }
 
       final user = userController.user.value;
+      final photoUrl = user.photoUrl?.trim() ?? '';
+      final hasPhoto = photoUrl.isNotEmpty;
+      final name = (user.name ?? '').trim();
+      final displayName = name.isEmpty ? 'Hash Player' : name;
+      final email = user.contact?.electronicAddress?.emailId ?? '';
+      final gameTag = user.gameUserName?.trim() ?? '';
 
-      return Column(
-        children: [
-          const CircleAvatar(
-            radius: 50,
-            backgroundImage: CachedNetworkImageProvider(
-              'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png', // Replace with actual profile image URL
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF101010), Color(0xFF171717), Color(0xFF102010)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 82,
+              height: 82,
+              padding: const EdgeInsets.all(3),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [Color(0xff00D701), Color(0xFF1C8D28)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: CircleAvatar(
+                backgroundColor: const Color(0xFF101010),
+                backgroundImage: hasPhoto
+                    ? CachedNetworkImageProvider(photoUrl)
+                    : null,
+                child: hasPhoto
+                    ? null
+                    : const Icon(
+                        CupertinoIcons.person_fill,
+                        color: Color(0xff00D701),
+                        size: 36,
+                      ),
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            user.name!,
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (email.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(color: Colors.white60),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x222B8A3E),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0x5540D656)),
+                    ),
+                    child: Text(
+                      gameTag.isEmpty
+                          ? 'Game ID: Not set'
+                          : 'Game ID: $gameTag',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFC6FFC6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            user.contact?.electronicAddress?.emailId ?? "",
-            style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Material(
+              color: Colors.white10,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Get.to(ProfileView()),
+                child: const Padding(
+                  padding: EdgeInsets.all(9),
+                  child: Icon(
+                    CupertinoIcons.pencil,
+                    color: Color(0xff00D701),
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     });
   }
@@ -184,23 +315,80 @@ class _UserProfileViewState extends State<UserProfileView> {
   Widget _buildProfileOption({
     required IconData icon,
     required String title,
+    String? subtitle,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.green),
-      title: Text(
-        title,
-        style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: const Color(0xFF141414),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0x2216A34A),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: const Color(0xff00D701), size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (subtitle != null && subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: GoogleFonts.inter(
+                              color: Colors.white60,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    CupertinoIcons.chevron_forward,
+                    color: Colors.white54,
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
-      trailing: const Icon(CupertinoIcons.forward, color: Colors.white70),
-      onTap: onTap,
     );
   }
 
   Widget _buildLogoutButton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
-      child: ElevatedButton(
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton.icon(
         onPressed: () async {
           try {
             final googleSignIn = GoogleSignIn();
@@ -223,15 +411,24 @@ class _UserProfileViewState extends State<UserProfileView> {
             );
           }
         },
-
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.green,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          minimumSize: const Size(double.infinity, 50),
+          backgroundColor: const Color(0xff00D701),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
-        child: Text(
+        icon: const Icon(
+          CupertinoIcons.square_arrow_right,
+          color: Colors.white,
+          size: 18,
+        ),
+        label: Text(
           'Logout',
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
@@ -239,19 +436,30 @@ class _UserProfileViewState extends State<UserProfileView> {
 
   // inside UserProfileView
   Widget _buildDeleteButton(UserController userController) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
-      child: OutlinedButton(
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: OutlinedButton.icon(
         onPressed: () =>
-            showBlackCupertinoDeleteDialog(Get.context!, userController),
+            showBlackCupertinoDeleteDialog(context, userController),
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Colors.red, width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          minimumSize: const Size(double.infinity, 50),
+          side: const BorderSide(color: Color(0xFFCC3A3A), width: 1.2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
-        child: const Text(
+        icon: const Icon(
+          CupertinoIcons.delete_solid,
+          color: Color(0xFFEE6A6A),
+          size: 18,
+        ),
+        label: Text(
           'Delete Account',
-          style: TextStyle(color: Colors.red, fontSize: 18),
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEE6A6A),
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

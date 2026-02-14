@@ -77,32 +77,70 @@ class GameService {
     int pageSize = 20,
   }) async {
     if (_apiKey.isEmpty) {
-      if (kDebugMode) {
-        AppLogger.w('RAWG_API_KEY is not set; skipping game fetch.');
-      }
+      AppLogger.w(
+        '[GamesByDevelopers] RAWG_API_KEY is not set; skipping fetch. Add --dart-define=RAWG_API_KEY=...',
+      );
       return (items: const <Game>[], hasMore: false);
     }
 
     final uri = Uri.parse(
       '$_baseUrl/games?key=$_apiKey&page=$page&page_size=$pageSize&ordering=-added',
     );
-    final res = await _dio.get<String>(uri.toString());
+    AppLogger.i('[GamesByDevelopers] Fetching page=$page pageSize=$pageSize');
 
-    if (res.statusCode != 200 || res.data == null) {
-      if (kDebugMode) {
-        AppLogger.d('RAWG error ${res.statusCode}: ${res.data}');
+    try {
+      final res = await _dio.get<String>(uri.toString());
+      AppLogger.i('[GamesByDevelopers] Response status=${res.statusCode}');
+
+      if (res.statusCode != 200 || res.data == null) {
+        if (kDebugMode) {
+          final bodySnippet = (res.data ?? '').toString();
+          AppLogger.d(
+            '[GamesByDevelopers] RAWG error ${res.statusCode}: ${bodySnippet.length > 250 ? bodySnippet.substring(0, 250) : bodySnippet}',
+          );
+        }
+        return (items: const <Game>[], hasMore: false);
       }
+
+      Map<String, dynamic> map;
+      try {
+        map = json.decode(res.data!) as Map<String, dynamic>;
+      } catch (e, st) {
+        AppLogger.e(
+          '[GamesByDevelopers] Failed to decode RAWG payload',
+          error: e,
+          stackTrace: st,
+        );
+        return (items: const <Game>[], hasMore: false);
+      }
+
+      if (map['error'] != null) {
+        AppLogger.w('[GamesByDevelopers] RAWG API error: ${map['error']}');
+      }
+
+      // Parse off-main-thread
+      final items = await compute(_parseGames, res.data!);
+      final hasMore = map['next'] != null; // detect "next" presence
+      AppLogger.i(
+        '[GamesByDevelopers] Parsed ${items.length} items. hasMore=$hasMore',
+      );
+
+      return (items: items, hasMore: hasMore);
+    } on DioException catch (e, st) {
+      AppLogger.e(
+        '[GamesByDevelopers] Network error while calling RAWG',
+        error: e.response?.data ?? e.message,
+        stackTrace: st,
+      );
+      return (items: const <Game>[], hasMore: false);
+    } catch (e, st) {
+      AppLogger.e(
+        '[GamesByDevelopers] Unexpected fetch error',
+        error: e,
+        stackTrace: st,
+      );
       return (items: const <Game>[], hasMore: false);
     }
-
-    // Parse off-main-thread
-    final items = await compute(_parseGames, res.data!);
-
-    // detect "next" presence to continue
-    final map = json.decode(res.data!) as Map<String, dynamic>;
-    final hasMore = map['next'] != null;
-
-    return (items: items, hasMore: hasMore);
   }
 
   void dispose() {}
@@ -121,12 +159,17 @@ class GamesController extends GetxController {
   final _segmentService = locator<SegmentSdkService>();
   final _fbEventsService = locator<FbEventsService>();
 
-
-
   final _palette = const <Color>[
-    Color(0xff710000), Color(0xff0e213f), Color(0xff37ebf3), Color(0xffcb1dcd),
-    Color(0xff1b5e20), Color(0xff0d47a1), Color(0xff4a148c), Color(0xffbf360c),
-    Color(0xff006064), Color(0xff3e2723),
+    Color(0xff710000),
+    Color(0xff0e213f),
+    Color(0xff37ebf3),
+    Color(0xffcb1dcd),
+    Color(0xff1b5e20),
+    Color(0xff0d47a1),
+    Color(0xff4a148c),
+    Color(0xffbf360c),
+    Color(0xff006064),
+    Color(0xff3e2723),
   ];
 
   final Set<int> _seen = <int>{};
@@ -158,6 +201,9 @@ class GamesController extends GetxController {
       final deduped = resp.items.where((g) => _seen.add(g.id)).toList();
 
       games.assignAll(deduped);
+      AppLogger.i(
+        '[GamesByDevelopers] Initial load done. fetched=${resp.items.length} unique=${deduped.length}',
+      );
 
       // Fire once when we have content
       if (deduped.isNotEmpty && !_sentPreferences) {
@@ -171,6 +217,15 @@ class GamesController extends GetxController {
       _prefetchNextThumbnails();
 
       _hasMore = resp.hasMore;
+      if (deduped.isEmpty) {
+        AppLogger.w('[GamesByDevelopers] No games available on initial load.');
+      }
+    } catch (e, st) {
+      AppLogger.e(
+        '[GamesByDevelopers] Initial load failed',
+        error: e,
+        stackTrace: st,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -189,6 +244,15 @@ class GamesController extends GetxController {
         _prefetchNextThumbnails();
       }
       _hasMore = resp.hasMore;
+      AppLogger.i(
+        '[GamesByDevelopers] Load more page=$nextPage added=${add.length} hasMore=$_hasMore',
+      );
+    } catch (e, st) {
+      AppLogger.e(
+        '[GamesByDevelopers] Load more failed',
+        error: e,
+        stackTrace: st,
+      );
     } finally {
       isLoadingMore.value = false;
     }
@@ -263,7 +327,10 @@ class _GamesSectionState extends State<GamesSection> {
         Text(
           'GAMES BY DEVELOPERS',
           style: GoogleFonts.inter(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 20),
         Obx(() {
@@ -272,7 +339,10 @@ class _GamesSectionState extends State<GamesSection> {
           }
           if (ctrl.games.isEmpty) {
             return Center(
-              child: Text('No games found', style: GoogleFonts.inter(color: Colors.white)),
+              child: Text(
+                'No games found',
+                style: GoogleFonts.inter(color: Colors.white),
+              ),
             );
           }
 
@@ -284,14 +354,16 @@ class _GamesSectionState extends State<GamesSection> {
               padding: const EdgeInsets.symmetric(horizontal: 2),
               physics: const BouncingScrollPhysics(),
               itemCount: ctrl.hasMore
-                  ? ctrl.games.length + 1 // trailing loader cell
+                  ? ctrl.games.length +
+                        1 // trailing loader cell
                   : ctrl.games.length,
               separatorBuilder: (_, __) => const SizedBox(width: _gap),
               itemBuilder: (context, i) {
                 if (i >= ctrl.games.length) {
                   // loader cell
                   return const SizedBox(
-                    width: 40, height: 40,
+                    width: 40,
+                    height: 40,
                     child: Center(child: RainbowLoadingBar()),
                   );
                 }
@@ -313,12 +385,16 @@ class GameCard extends StatelessWidget {
   final Game game;
   final Color backgroundColor;
 
-  const GameCard({super.key, required this.game, required this.backgroundColor});
+  const GameCard({
+    super.key,
+    required this.game,
+    required this.backgroundColor,
+  });
   Widget hqCachedImage({
     required BuildContext context,
     required String url,
-    required double renderWidth,   // logical px of the widget
-    required double renderHeight,  // logical px of the widget
+    required double renderWidth, // logical px of the widget
+    required double renderHeight, // logical px of the widget
     BoxFit fit = BoxFit.cover,
     BorderRadius? radius,
     Widget? placeholder,
@@ -336,18 +412,19 @@ class GameCard extends StatelessWidget {
       imageBuilder: (ctx, provider) => Image(
         image: provider,
         fit: fit,
-        filterQuality: FilterQuality.high,  // <— sharper scaling
+        filterQuality: FilterQuality.high, // <— sharper scaling
       ),
       fit: fit, // also used if imageBuilder not invoked yet
-      placeholder: (_, __) => placeholder ??
-          Container(color: const Color(0xFF1A1A1A)),
-      errorWidget: (_, __, ___) => error ??
-          const Icon(Icons.image_not_supported, color: Colors.white54),
+      placeholder: (_, __) =>
+          placeholder ?? Container(color: const Color(0xFF1A1A1A)),
+      errorWidget: (_, __, ___) =>
+          error ?? const Icon(Icons.image_not_supported, color: Colors.white54),
     );
 
     if (radius == null) return img;
     return ClipRRect(borderRadius: radius, child: img);
   }
+
   @override
   Widget build(BuildContext context) {
     final segment = locator<SegmentSdkService>();
@@ -355,7 +432,10 @@ class GameCard extends StatelessWidget {
 
     return BounceTap(
       onTap: () {
-        segment.onGameDetailsViewed(gameId: game.id.toString(), cafeId: 'general');
+        segment.onGameDetailsViewed(
+          gameId: game.id.toString(),
+          cafeId: 'general',
+        );
         fb.onGameDetailsViewed(gameId: game.id.toString(), cafeId: 'general');
 
         Get.snackbar(
@@ -383,28 +463,39 @@ class GameCard extends StatelessWidget {
               child: game.backgroundImage.isEmpty
                   ? Container(color: const Color(0xFF1A1A1A))
                   : hqCachedImage(
-                context: context,
-                url: game.backgroundImage,
-                renderWidth: 115,           // widget logical width
-                renderHeight: 150,          // widget logical height
-                fit: BoxFit.cover,
-              ),
+                      context: context,
+                      url: game.backgroundImage,
+                      renderWidth: 115, // widget logical width
+                      renderHeight: 150, // widget logical height
+                      fit: BoxFit.cover,
+                    ),
             ),
 
             // Frosted footer
             Positioned(
-              left: 0, right: 0, bottom: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(15), bottom: Radius.circular(20)),
+                  top: Radius.circular(15),
+                  bottom: Radius.circular(20),
+                ),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 8,
+                    ),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                        colors: [Colors.black.withOpacity(0.0), Colors.black.withOpacity(0.85)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.0),
+                          Colors.black.withOpacity(0.85),
+                        ],
                       ),
                     ),
                     child: Column(
@@ -413,21 +504,33 @@ class GameCard extends StatelessWidget {
                         Text(
                           game.name,
                           style: GoogleFonts.inter(
-                              color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 6),
                         Text(
                           game.released,
-                          style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 6),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: List.generate(
                             4,
-                                (_) => const Icon(Icons.star, color: Color(0xFFE6D009), size: 12),
+                            (_) => const Icon(
+                              Icons.star,
+                              color: Color(0xFFE6D009),
+                              size: 12,
+                            ),
                           ),
                         ),
                       ],

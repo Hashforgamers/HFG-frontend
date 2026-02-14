@@ -9,6 +9,7 @@ import 'package:hash/core/service_locator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/utils/haptics.dart';
 
 class SignUpController extends GetxController {
   var nameController = TextEditingController();
@@ -32,7 +33,6 @@ class SignUpController extends GetxController {
   final fbEventsService = locator<FbEventsService>();
   final remoteRepo = locator<RemoteRepoInterface>();
 
-  @override
   Future<void> signUp() async {
     User? currentUser = _auth.currentUser;
     if (currentUser == null) {
@@ -76,7 +76,7 @@ class SignUpController extends GetxController {
         },
       };
 
-      final response = await remoteRepo.signUp(userData);
+      await remoteRepo.signUp(userData);
 
       // Track referral joined event if referral code was used
       if (referralCodeController.text.isNotEmpty) {
@@ -185,6 +185,7 @@ class SignUpController extends GetxController {
         countryController.text = place.country ?? '';
       }
     } else if (status.isDenied || status.isPermanentlyDenied) {
+      Haptics.warning();
       Get.snackbar(
         'Location Permission',
         'Location access denied. Enable from settings if needed.',
@@ -195,6 +196,7 @@ class SignUpController extends GetxController {
   }
 
   void _showError(String msg) {
+    Haptics.error();
     Get.snackbar(
       'Error',
       msg,

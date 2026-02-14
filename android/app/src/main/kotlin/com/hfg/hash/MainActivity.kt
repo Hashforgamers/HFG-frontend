@@ -20,7 +20,7 @@ private val CHANNEL = "secure_channel"
                         result.success(pem)
                     }
                     "getPublicKey" -> {
-                        val pem = readPemFile(resources.openRawResource(R.raw.public))
+                        val pem = readPemFile(resources.openRawResource(R.raw.public_key))
                         result.success(pem)
                     }
                     else -> result.notImplemented()

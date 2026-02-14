@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
@@ -8,6 +7,7 @@ import '../../../data/services/user_controller.dart';
 import '../../../data/models/wallet_model.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/core/utils/haptics.dart';
 
 /// WalletController manages wallet operations including balance fetching,
 /// top-up, and withdrawal functionality with proper error handling and analytics.
@@ -107,16 +107,11 @@ class WalletController extends GetxController {
 
     try {
       final result = await _remoteRepo.fetchWallet(userId: userId);
-      
-      if (result != null) {
-        final walletModel = WalletModel.fromJson(result);
-        _wallet.value = walletModel;
-        
-        // Track wallet viewed event (safely)
-        Future.microtask(() => _trackWalletViewed());
-      } else {
-        _handleError('Failed to fetch wallet data');
-      }
+      final walletModel = WalletModel.fromJson(result);
+      _wallet.value = walletModel;
+
+      // Track wallet viewed event (safely)
+      Future.microtask(() => _trackWalletViewed());
     } catch (e) {
       _handleError('Error fetching wallet: $e');
     } finally {
@@ -154,30 +149,19 @@ class WalletController extends GetxController {
     _clearError();
 
     try {
-      final topUpRequest = TopUpRequest(
-        amount: amount,
-        paymentId: paymentId,
-      );
-
-      final result = await _remoteRepo.addFunds(
+      await _remoteRepo.addFunds(
         userId: userId,
         amount: amount.toInt(),
         paymentId: paymentId,
       );
+      // Track successful top-up
+      _trackTopUpSuccess(amount, paymentId);
 
-      if (result != null) {
-        // Track successful top-up
-        _trackTopUpSuccess(amount, paymentId);
-        
-        // Refresh wallet balance
-        await fetchWallet();
-        
-        // _showSuccessMessage('Wallet credited successfully');
-        return true;
-      } else {
-        _handleError('Top-up failed');
-        return false;
-      }
+      // Refresh wallet balance
+      await fetchWallet();
+
+      // _showSuccessMessage('Wallet credited successfully');
+      return true;
     } catch (e) {
       _handleError('Error confirming top-up: $e');
       return false;
@@ -264,16 +248,10 @@ class WalletController extends GetxController {
     _clearError();
 
     try {
-      final result = await _remoteRepo.validateFunds(paymentLinkId);
-      
-      if (result != null) {
-        // Refresh wallet balance after successful validation
-        await fetchWallet();
-        return true;
-      } else {
-        _handleError('Fund validation failed');
-        return false;
-      }
+      await _remoteRepo.validateFunds(paymentLinkId);
+      // Refresh wallet balance after successful validation
+      await fetchWallet();
+      return true;
     } catch (e) {
       _handleError('Error validating funds: $e');
       return false;
@@ -310,12 +288,14 @@ class WalletController extends GetxController {
 
   void _handleError(String message) {
     _errorMessage.value = message;
+    Haptics.error();
     AppLogger.d('❌ WalletController Error: $message');
   }
 
   void _showSuccessMessage(String message) {
     // Use Future.microtask to avoid calling during build
     Future.microtask(() {
+      Haptics.success();
       Get.snackbar(
         'Success',
         message,
@@ -329,6 +309,7 @@ class WalletController extends GetxController {
   void _showErrorMessage(String message) {
     // Use Future.microtask to avoid calling during build
     Future.microtask(() {
+      Haptics.error();
       Get.snackbar(
         'Error',
         message,

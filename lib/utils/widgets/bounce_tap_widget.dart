@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:hash/core/utils/haptics.dart';
 
 class BounceTap extends StatefulWidget {

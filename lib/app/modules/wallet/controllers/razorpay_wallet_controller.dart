@@ -10,6 +10,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/service/segment_sdk_service.dart';
 import '../../../../core/service_locator.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../data/services/user_controller.dart';
 import 'wallet_controller.dart';
 
@@ -62,7 +63,9 @@ class RazorpayWalletController extends GetxController {
     try {
       _razorpay.open(options);
       isPaying.value = true;
+      Haptics.cta();
     } catch (e) {
+      Haptics.error();
       Get.snackbar("Error", e.toString());
       isPaying.value = false;
     }
@@ -98,6 +101,7 @@ class RazorpayWalletController extends GetxController {
   /// Called when payment is successful
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
     final paymentId = response.paymentId ?? 'Unknown';
+    Haptics.criticalSuccess();
 
     // Track add money success event
     segmentService.onAddMoneySuccess(
@@ -116,6 +120,7 @@ class RazorpayWalletController extends GetxController {
     );
 
     if (!success) {
+      Haptics.error();
       Get.snackbar(
         "Error",
         "Failed to credit wallet. Please contact support.",
@@ -129,12 +134,14 @@ class RazorpayWalletController extends GetxController {
 
   /// Called when payment fails
   void _handlePaymentError(PaymentFailureResponse response) {
+    Haptics.criticalError();
     Get.snackbar("Payment Failed", response.message ?? "Try again later");
     isPaying.value = false;
   }
 
   /// Called when user selects external wallet like Paytm
   void _handleExternalWallet(ExternalWalletResponse response) {
+    Haptics.warning();
     Get.snackbar("Wallet", response.walletName ?? "External Wallet");
     isPaying.value = false;
   }
