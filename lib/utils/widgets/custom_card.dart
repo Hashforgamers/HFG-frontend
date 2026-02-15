@@ -110,7 +110,7 @@ class _CardPainter extends CustomPainter {
     if (hover) {
       // green glow identical to Tailwind shadow-[0_0_20px_#1fff96]
       canvas.drawShadow(
-          path, const Color(0xFF1FFF96).withOpacity(.6), 12, false);
+          path, const Color(0xff00DC00).withOpacity(.6), 12, false);
     }
 
     // background fill

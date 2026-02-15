@@ -66,7 +66,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
   }
 
 // Colors
-  static const _green = Color(0xFF338125);
+  static const _green = Color(0xff00DC00);
   static const _yellow = Color(0xFFF5C042);
   static const _red = Color(0xFFE2584E);
 
@@ -144,7 +144,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                     await inAppReview.openStoreListing();
                   },
                   child: const Text(
-                      "Rate Us", style: TextStyle(color: Colors.green)),
+                      "Rate Us", style: TextStyle(color: const Color(0xff00DC00))),
                 ),
               ],
             );
@@ -181,7 +181,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                 final InAppReview inAppReview = InAppReview.instance;
                 await inAppReview.openStoreListing();
               },
-              child: const Text("Rate Us", style: TextStyle(color: Colors.green)),
+              child: const Text("Rate Us", style: TextStyle(color: const Color(0xff00DC00))),
             ),
           ],
         );
@@ -227,7 +227,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                           : CupertinoIcons.sort_up_circle,
                       key: ValueKey(_sortOrder),
                       size: 20,
-                      color: Colors.green,
+                      color: const Color(0xff00DC00),
                     ),
                   ),
                 ),
@@ -268,7 +268,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
               // Make indicator fill only tab label, not full width
               indicatorSize: TabBarIndicatorSize.tab,
 
-              labelColor: const Color(0xFF93F80A),
+              labelColor: const Color(0xff00DC00),
               unselectedLabelColor: Colors.white70,
               labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
               unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),
@@ -375,7 +375,7 @@ class _BookingsList extends StatelessWidget {
       //           await ctr.fetchUserBookings();
       //         },
       //         style: ElevatedButton.styleFrom(
-      //           backgroundColor: const Color(0xFF338125),
+      //           backgroundColor: const Color(0xff00DC00),
       //           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       //           shape: RoundedRectangleBorder(
       //             borderRadius: BorderRadius.circular(8),
@@ -432,7 +432,7 @@ class _BookingsList extends StatelessWidget {
                   homeController.onItemTapped(1);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF93F80A),
+                  backgroundColor: const Color(0xff00DC00),
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -458,7 +458,7 @@ class _BookingsList extends StatelessWidget {
         final ctr = Get.find<BookingController>();
         await ctr.fetchUserBookings();
       },
-      color: const Color(0xFF338125),
+      color: const Color(0xff00DC00),
       backgroundColor: const Color(0xFF1D1D1F),
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
@@ -583,7 +583,7 @@ class BookingTicketCard extends StatelessWidget {
       Get.snackbar(
         'Success',
         result, // Use the API response message
-        backgroundColor: Colors.green.withValues(alpha: 0.8),
+        backgroundColor: const Color(0xff00DC00).withValues(alpha: 0.8),
         colorText: Colors.white,
         duration: const Duration(seconds: 3),
         snackPosition: SnackPosition.TOP,
@@ -635,7 +635,7 @@ class BookingTicketCard extends StatelessWidget {
     }
     Color _accentForStatus(String s) {
       final v = s.toLowerCase();
-      if (v.contains('confirm') || v.contains('success')) return const Color(0xFF338125); // green
+      if (v.contains('confirm') || v.contains('success')) return const Color(0xff00DC00); // green
       if (v.contains('pend') || v.contains('await') || v.contains('unpaid')) return const Color(0xFFF5C042); // yellow
       return Colors.white; // default for any other/unknown
     }
@@ -704,7 +704,7 @@ class BookingTicketCard extends StatelessWidget {
                               }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF338125),
+                              backgroundColor: const Color(0xff00DC00),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
                                 vertical: 2,

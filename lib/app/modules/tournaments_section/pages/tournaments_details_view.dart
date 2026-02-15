@@ -119,13 +119,13 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: Colors.transparent,
-                      border: Border.all(color: const Color(0xFF6DFB60), width: 1.5),
+                      border: Border.all(color: const Color(0xff00DC00), width: 1.5),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       (t['status'] as String?)?.toLowerCase() ?? '',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF6DFB60),
+                        color: const Color(0xff00DC00),
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -346,7 +346,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                               ? const LinearGradient(
                             colors: [
                               Color(0xFFFBA544),
-                              Color(0xFF6DFB60),
+                              Color(0xff00DC00),
                             ],
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
@@ -508,7 +508,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
             ],
           ),
           const Spacer(),
-          const Icon(Icons.check_circle, color: Color(0xFF00C853), size: 28),
+          const Icon(Icons.check_circle, color: Color(0xff00DC00), size: 28),
         ],
       ),
     );
@@ -588,7 +588,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.star, color: Colors.green, size: 10),
+                      Icon(Icons.star, color: const Color(0xff00DC00), size: 10),
                       SizedBox(width: 5),
                       Text("${team['points'] ?? '0'} Points", style: GoogleFonts.inter(fontSize: 12)),
                     ],
@@ -767,7 +767,7 @@ class ExpandedTeamListView extends StatelessWidget {
                   SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.star, color: Colors.green, size: 11),
+                      Icon(Icons.star, color: const Color(0xff00DC00), size: 11),
                       SizedBox(width: 2),
                       Text(
                         "${team['points']} Points",

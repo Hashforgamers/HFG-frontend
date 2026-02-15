@@ -224,20 +224,20 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: const [
-                Icon(Icons.person, color: Colors.green, size: 16),
+                Icon(Icons.person, color: const Color(0xff00DC00), size: 16),
                 SizedBox(width: 4),
                 Text('You', style: TextStyle(color: Colors.white)),
               ]),
               Row(
                 children: const [
-                  Icon(Icons.star, color: Colors.green, size: 16),
+                  Icon(Icons.star, color: const Color(0xff00DC00), size: 16),
                   SizedBox(width: 4),
                   Text('100 Points', style: TextStyle(color: Colors.grey)),
                 ],
               ),
               Row(
                 children: const [
-                  Icon(Icons.emoji_events, color: Colors.green, size: 16),
+                  Icon(Icons.emoji_events, color: const Color(0xff00DC00), size: 16),
                   SizedBox(width: 4),
                   Text('2 Matches Won', style: TextStyle(color: Colors.grey)),
                 ],

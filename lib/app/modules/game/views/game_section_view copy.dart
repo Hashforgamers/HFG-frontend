@@ -79,7 +79,7 @@ class GamesController extends GetxController {
   final List<Color> _colors = [
     Colors.red[900]!,
     Colors.blue[900]!,
-    Colors.green[900]!,
+    const Color(0xff00DC00),
     Colors.purple[900]!,
     Colors.orange[900]!,
     Colors.cyan[900]!,
@@ -225,7 +225,7 @@ class GameCard extends StatelessWidget {
           'Game Details',
           'Viewing details for ${game.name}',
           snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(0xff00DC00),
           colorText: Colors.white,
         );
       },

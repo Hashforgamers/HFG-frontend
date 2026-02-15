@@ -30,7 +30,7 @@ class DifficultySettings extends StatelessWidget {
                   write("level", barrierMovement);
                 },
                 "Easy",
-                Colors.green.shade300,
+                const Color(0xff00DC00),
               ),
               gameButton(
                 () {

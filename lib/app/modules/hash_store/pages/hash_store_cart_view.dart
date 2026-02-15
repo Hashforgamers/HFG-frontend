@@ -141,7 +141,7 @@ class _HashStoreCartViewState extends State<HashStoreCartView> {
                                       width: MediaQuery.of(context).size.width,
                                       decoration: BoxDecoration(
                                         border: Border.all(
-                                          color: Colors.green,
+                                          color: const Color(0xff00DC00),
                                           width: 1.5,
                                         ),
                                         borderRadius: BorderRadius.circular(20),
@@ -151,7 +151,7 @@ class _HashStoreCartViewState extends State<HashStoreCartView> {
                                         children: [
                                           Text(
                                             "Check Out",
-                                            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                                            style: TextStyle(color: const Color(0xff00DC00), fontWeight: FontWeight.bold),
                                           ),
                                         ],
                                       ),
@@ -243,7 +243,7 @@ class _HashStoreCartViewState extends State<HashStoreCartView> {
                         Text(
                           "₹$price",
                           style: GoogleFonts.inter(
-                            color: Colors.green,
+                            color: const Color(0xff00DC00),
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),

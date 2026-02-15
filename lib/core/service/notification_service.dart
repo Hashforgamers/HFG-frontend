@@ -1,14 +1,17 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 import 'package:get/get.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 
 class NotificationController extends GetxController {
   final FirebaseMessaging _fm = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _fln = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _fln =
+      FlutterLocalNotificationsPlugin();
   final segmentService = locator<SegmentSdkService>();
 
   RxString fcmToken = ''.obs;
@@ -22,10 +25,15 @@ class NotificationController extends GetxController {
   Future<void> _initializeNotifications() async {
     // 1) Ask permissions (iOS) + foreground presentation
     final settings = await _fm.requestPermission(
-      alert: true, badge: true, sound: true, provisional: false,
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
     );
     await _fm.setForegroundNotificationPresentationOptions(
-      alert: true, badge: true, sound: true,
+      alert: true,
+      badge: true,
+      sound: true,
     );
 
     // 2) Init local notifications (Android + iOS)
@@ -36,11 +44,15 @@ class NotificationController extends GetxController {
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
-    const initSettings = InitializationSettings(android: androidInit, iOS: iosInit);
+    const initSettings = InitializationSettings(
+      android: androidInit,
+      iOS: iosInit,
+    );
 
     await _fln.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse r) => _onSelectNotification(r.payload),
+      onDidReceiveNotificationResponse: (NotificationResponse r) =>
+          _onSelectNotification(r.payload),
     );
 
     // 3) Android channels (guard for platform)
@@ -66,7 +78,8 @@ class NotificationController extends GetxController {
   Future<void> _initTokens(NotificationSettings settings) async {
     final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
 
-    if (isIOS && settings.authorizationStatus == AuthorizationStatus.authorized) {
+    if (isIOS &&
+        settings.authorizationStatus == AuthorizationStatus.authorized) {
       // Wait (briefly) for APNs token
       String? apns = await _fm.getAPNSToken();
       final deadline = DateTime.now().add(const Duration(seconds: 10));
@@ -90,26 +103,39 @@ class NotificationController extends GetxController {
 
   Future<void> _createAndroidChannels() async {
     const contest = AndroidNotificationChannel(
-      'contest_channel', 'Contest Notifications',
+      'contest_channel',
+      'Contest Notifications',
       description: 'Notifications for contests and tournaments',
       importance: Importance.high,
     );
     const offer = AndroidNotificationChannel(
-      'offer_channel', 'Offer Notifications',
+      'offer_channel',
+      'Offer Notifications',
       description: 'Promotions, discounts, and deals',
       importance: Importance.high,
     );
     const system = AndroidNotificationChannel(
-      'system_channel', 'System Alerts',
+      'system_channel',
+      'System Alerts',
       description: 'System notifications and updates',
       importance: Importance.high,
     );
+    const chat = AndroidNotificationChannel(
+      'chat_channel',
+      'Chat Messages',
+      description: 'Notifications for incoming chat messages',
+      importance: Importance.high,
+    );
 
-    final androidPlugin = _fln.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _fln
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (androidPlugin != null) {
       await androidPlugin.createNotificationChannel(contest);
       await androidPlugin.createNotificationChannel(offer);
       await androidPlugin.createNotificationChannel(system);
+      await androidPlugin.createNotificationChannel(chat);
     }
   }
 
@@ -117,11 +143,11 @@ class NotificationController extends GetxController {
     // Default values
     final notif = message.notification;
     final title = notif?.title ?? (message.data['title'] ?? '');
-    final body  = notif?.body  ?? (message.data['body']  ?? '');
+    final body = notif?.body ?? (message.data['body'] ?? '');
     String channelId = switch (message.data['type']) {
       'contest' => 'contest_channel',
-      'offer'   => 'offer_channel',
-      _         => 'system_channel',
+      'offer' => 'offer_channel',
+      _ => 'system_channel',
     };
 
     // Track receipt
@@ -133,8 +159,10 @@ class NotificationController extends GetxController {
     // Android details
     final android = AndroidNotificationDetails(
       channelId,
-      channelId == 'contest_channel' ? 'Contest Notifications'
-          : channelId == 'offer_channel' ? 'Offer Notifications'
+      channelId == 'contest_channel'
+          ? 'Contest Notifications'
+          : channelId == 'offer_channel'
+          ? 'Offer Notifications'
           : 'System Alerts',
       channelDescription: 'Channel for $channelId',
       importance: Importance.max,
@@ -143,7 +171,9 @@ class NotificationController extends GetxController {
 
     // iOS details
     const ios = DarwinNotificationDetails(
-      presentAlert: true, presentBadge: true, presentSound: true,
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
     );
 
     final details = NotificationDetails(android: android, iOS: ios);
@@ -160,12 +190,24 @@ class NotificationController extends GetxController {
   Future<void> _onSelectNotification(String? payload) async {
     if (payload == null || payload.isEmpty) return;
 
+    if (payload.startsWith('chat:')) {
+      final roomId = payload.replaceFirst('chat:', '').trim();
+      if (roomId.isNotEmpty) {
+        Get.toNamed(AppRoutes.CHAT, arguments: {'roomId': roomId});
+      } else {
+        Get.toNamed(AppRoutes.CHAT);
+      }
+      return;
+    }
+
     segmentService.onPushNotificationClicked(
       campaignId: '',
       screenTarget: payload,
     );
 
-    // Example: Get.toNamed(payload);
+    if (payload.startsWith('/')) {
+      Get.toNamed(payload);
+    }
   }
 
   void _handleMessageNavigation(RemoteMessage message) {
@@ -177,5 +219,37 @@ class NotificationController extends GetxController {
       );
       // Get.toNamed(route);
     }
+  }
+
+  Future<void> showChatNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    const android = AndroidNotificationDetails(
+      'chat_channel',
+      'Chat Messages',
+      channelDescription: 'Notifications for incoming chat messages',
+      importance: Importance.max,
+      priority: Priority.high,
+      category: AndroidNotificationCategory.message,
+    );
+
+    const ios = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      interruptionLevel: InterruptionLevel.active,
+      threadIdentifier: 'chat_messages',
+    );
+
+    final details = const NotificationDetails(android: android, iOS: ios);
+    await _fln.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      details,
+      payload: payload ?? AppRoutes.CHAT,
+    );
   }
 }

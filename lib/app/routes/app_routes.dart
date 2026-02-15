@@ -8,4 +8,5 @@ abstract class AppRoutes {
   static const PAGE2 = '/page2';
   static const WALLET = '/wallet';
   static const NEED_HELP = '/need-help';
+  static const CHAT = '/chat';
 }

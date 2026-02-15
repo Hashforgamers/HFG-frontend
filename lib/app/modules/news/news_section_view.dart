@@ -250,7 +250,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
   }
 
   Widget _buildGameNewsCard({required GameNewsItem item}) {
-    final accent = const Color(0xFF6DFB60);
+    final accent = const Color(0xff00DC00);
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
@@ -267,7 +267,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Color(0x1AFFFFFF), Color(0x1A64BD55)],
+            colors: [Color(0x1AFFFFFF), Color(0x1A00DC00)],
           ),
           border: Border.all(color: Colors.white.withOpacity(0.15)),
           borderRadius: BorderRadius.circular(20),

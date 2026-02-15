@@ -197,7 +197,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
 
   Widget _buildCafePassCard(BuildContext context, GetPassModel pass) {
     final Color accentColor = pass.name.toLowerCase().contains('24')
-        ? Colors.greenAccent
+        ? const Color(0xff00DC00)
         : pass.name.toLowerCase().contains('7')
         ? Colors.purpleAccent
         : Colors.blueAccent;

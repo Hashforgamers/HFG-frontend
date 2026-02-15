@@ -368,7 +368,7 @@ class LoginView extends StatelessWidget {
                               await controller.startPhoneSignIn();
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D32),
+                        backgroundColor: const Color(0xff00DC00),
                         disabledBackgroundColor: const Color(
                           0xFF2E7D32,
                         ).withOpacity(0.4),
@@ -485,7 +485,7 @@ class LoginView extends StatelessWidget {
                               await controller.verifyOtpAndSignIn();
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D32),
+                        backgroundColor: const Color(0xff00DC00),
                         disabledBackgroundColor: const Color(
                           0xFF2E7D32,
                         ).withOpacity(0.4),

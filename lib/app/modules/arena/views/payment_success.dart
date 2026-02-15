@@ -12,7 +12,7 @@ class PaymentSuccessScreen extends StatelessWidget {
     required this.totalText,
     required this.email,
     this.onViewInvoice,
-    this.accentColor = const Color(0xFF2EE66A),
+    this.accentColor = const Color(0xff00DC00),
   });
 
   final String paymentId;

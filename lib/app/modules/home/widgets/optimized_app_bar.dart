@@ -39,7 +39,7 @@ class OptimizedAppBar extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [
                   const Color(0xFFFFFFFF).withOpacity(0.1),
-                  const Color(0xFF64BD55).withOpacity(0.2),
+                  const Color(0xff00DC00).withOpacity(0.2),
                 ],
               ),
               borderRadius: BorderRadius.circular(25),
@@ -114,7 +114,7 @@ class OptimizedAppBar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF6DFB60), width: 2),
+        border: Border.all(color: const Color(0xff00DC00), width: 2),
       ),
       child: CircleAvatar(
         radius: size / 2,

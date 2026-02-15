@@ -314,7 +314,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
                       style: ElevatedButton.styleFrom(
                         backgroundColor: controller.shopOpen.value
-                            ? const Color(0xff338125)
+                            ? const Color(0xff00DC00)
                             : Colors.grey.shade600,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -433,7 +433,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                           width: 120,
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: Color(0xFF6DFB60),
+                              color: Color(0xff00DC00),
                               width: 1.5,
                             ),
                             borderRadius: BorderRadius.circular(25),
@@ -832,13 +832,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                     decoration: BoxDecoration(
                                       color: isSelected
                                           ? const Color(
-                                              0xFF338125,
+                                              0xFF00DC00,
                                             ).withValues(alpha: 0.16)
                                           : const Color(0xFF232323),
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(
                                         color: isSelected
-                                            ? const Color(0xFF338125)
+                                            ? const Color(0xff00DC00)
                                             : Colors.white12,
                                         width: 1.5,
                                       ),
@@ -946,7 +946,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                   }
                                 : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF338125),
+                              backgroundColor: const Color(0xff00DC00),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -1136,13 +1136,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                   decoration: BoxDecoration(
                                     color: isSelected && isAvailable
                                         ? const Color(
-                                            0xFF338125,
+                                            0xFF00DC00,
                                           ).withValues(alpha: 0.16)
                                         : const Color(0xFF232323),
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                       color: isSelected && isAvailable
-                                          ? const Color(0xFF338125)
+                                          ? const Color(0xff00DC00)
                                           : Colors.white12,
                                       width: 1.4,
                                     ),
@@ -1318,7 +1318,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                 }
                               : null,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF338125),
+                            backgroundColor: const Color(0xff00DC00),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -1980,7 +1980,7 @@ class _PassCard extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6DFB60),
+                  color: const Color(0xff00DC00),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(

@@ -32,7 +32,7 @@ class ProfileView extends StatelessWidget {
           onTap: () {
             Get.back();
           },
-          child: const Icon(Icons.arrow_back, color: Color(0xff00D701)),
+          child: const Icon(Icons.arrow_back, color: Color(0xff00DC00)),
         ),
       ),
       body: Obx(() {
@@ -128,7 +128,7 @@ class ProfileView extends StatelessWidget {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff00D701),
+                    backgroundColor: const Color(0xff00DC00),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -208,13 +208,13 @@ class ProfileView extends StatelessWidget {
         decoration: InputDecoration(
           labelText: labelText,
           labelStyle: GoogleFonts.inter(color: Colors.white70),
-          prefixIcon: Icon(icon, color: const Color(0xff00D701)),
+          prefixIcon: Icon(icon, color: const Color(0xff00DC00)),
           enabledBorder: OutlineInputBorder(
             borderSide: const BorderSide(color: Colors.white70),
             borderRadius: BorderRadius.circular(10),
           ),
           focusedBorder: OutlineInputBorder(
-            borderSide: const BorderSide(color: Color(0xff00D701)),
+            borderSide: const BorderSide(color: Color(0xff00DC00)),
             borderRadius: BorderRadius.circular(10),
           ),
         ),

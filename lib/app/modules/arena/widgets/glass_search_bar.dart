@@ -44,17 +44,17 @@ class _GlassSearchBarState extends State<GlassSearchBar> {
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: .15),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: const Color(0xff338125).withValues(alpha: .2)),
+            border: Border.all(color: const Color(0xff00DC00).withValues(alpha: .2)),
           ),
           child: Row(
             children: [
-              const Icon(Icons.search, color: Color(0xff338125)),
+              const Icon(Icons.search, color: Color(0xff00DC00)),
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
                   controller: _searchCtl,
                   style: GoogleFonts.inter(color: Colors.white),
-                  cursorColor: const Color(0xff338125),
+                  cursorColor: const Color(0xff00DC00),
                   decoration: InputDecoration(
                     hintText: 'Search location',
                     hintStyle: GoogleFonts.inter(color: Colors.white70),
@@ -67,7 +67,7 @@ class _GlassSearchBarState extends State<GlassSearchBar> {
                 icon: const Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 18,
-                  color: Color(0xff338125),
+                  color: Color(0xff00DC00),
                 ),
                 onPressed: _searchAndGo,
               ),

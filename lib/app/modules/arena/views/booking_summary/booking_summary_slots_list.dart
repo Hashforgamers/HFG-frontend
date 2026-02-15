@@ -62,7 +62,7 @@ class BookingSummarySlotsList extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
-                  color: const Color(0xFF6DFB60),
+                  color: const Color(0xff00DC00),
                 ),
               ),
             ],

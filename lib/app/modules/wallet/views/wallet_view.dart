@@ -98,11 +98,11 @@ class __WalletPageState extends State<_WalletPage> {
             color: const Color(0xFF111111),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFF00D701).withOpacity(0.35),
+              color: const Color(0xff00DC00).withOpacity(0.35),
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF00D701).withOpacity(0.1),
+                color: const Color(0xff00DC00).withOpacity(0.1),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
@@ -113,7 +113,7 @@ class __WalletPageState extends State<_WalletPage> {
             children: [
               const Icon(
                 Icons.warning_amber_rounded,
-                color: Color(0xFF00D701),
+                color: Color(0xff00DC00),
                 size: 52,
               ),
               const SizedBox(height: 16),
@@ -149,7 +149,7 @@ class __WalletPageState extends State<_WalletPage> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff00D701),
+                  backgroundColor: const Color(0xff00DC00),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -306,7 +306,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     style: GoogleFonts.inter(color: Colors.black),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff00D701),
+                    backgroundColor: const Color(0xff00DC00),
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
                 ),
@@ -320,7 +320,7 @@ class _WalletScreenState extends State<WalletScreen> {
             walletCtr.refreshWallet();
             BlocProvider.of<TransactionCubit>(context).getTransactionHistory();
           },
-          color: const Color(0xff00D701),
+          color: const Color(0xff00DC00),
           backgroundColor: Colors.black,
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
@@ -368,7 +368,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 walletCtr.formattedBalance,
                 style: GoogleFonts.orbitron(
                   fontSize: 32,
-                  color: const Color(0xff00D701),
+                  color: const Color(0xff00DC00),
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -650,7 +650,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 "${_isCreditTransaction(transaction) ? '+' : '-'}₹${transaction.amount.toStringAsFixed(2)}",
                 style: GoogleFonts.inter(
                   color: _isCreditTransaction(transaction)
-                      ? const Color(0xff00D701)
+                      ? const Color(0xff00DC00)
                       : Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -676,7 +676,7 @@ class _WalletScreenState extends State<WalletScreen> {
       case 'credit':
       case 'add':
       case 'topup':
-        return Colors.green;
+        return const Color(0xff00DC00);
       case 'debit':
       case 'withdraw':
       case 'deduct':
@@ -819,7 +819,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 "${transaction.type == TransactionType.credit ? '+' : '-'}₹${transaction.amount.toStringAsFixed(2)}",
                 style: GoogleFonts.inter(
                   color: transaction.type == TransactionType.credit
-                      ? const Color(0xff00D701)
+                      ? const Color(0xff00DC00)
                       : Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -841,7 +841,7 @@ class _WalletScreenState extends State<WalletScreen> {
     // Different colors for different transaction types
     switch (transaction.type) {
       case TransactionType.credit:
-        return Colors.green;
+        return const Color(0xff00DC00);
       case TransactionType.debit:
         return Colors.red;
       case TransactionType.withdrawal:
@@ -953,7 +953,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                   prefixIcon: Icon(
                     PhosphorIcons.currencyInr(),
-                    color: const Color(0xff00D701),
+                    color: const Color(0xff00DC00),
                     size: 20,
                   ),
                   filled: true,
@@ -984,7 +984,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff00D701),
+                  backgroundColor: const Color(0xff00DC00),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

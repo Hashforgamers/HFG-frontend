@@ -65,7 +65,7 @@ class _ShopViewState extends State<ShopView> {
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
       timeInSecForIosWeb: 1,
-      backgroundColor: Colors.green,
+      backgroundColor: const Color(0xff00DC00),
       textColor: Colors.white,
       fontSize: 16.0,
     );
@@ -265,7 +265,7 @@ class _ShopViewState extends State<ShopView> {
                       Text(
                         '₹${product.price}',
                         style: GoogleFonts.inter(
-                          color: Colors.greenAccent,
+                          color: const Color(0xff00DC00),
                           fontSize: 14,
                         ),
                       ),
@@ -320,7 +320,7 @@ class _ShopViewState extends State<ShopView> {
                         _handlePreRegistration(product);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xff338125),
+                        backgroundColor: const Color(0xff00DC00),
                         shape: ContinuousRectangleBorder(
                           borderRadius: BorderRadius.circular(28),
                         ),

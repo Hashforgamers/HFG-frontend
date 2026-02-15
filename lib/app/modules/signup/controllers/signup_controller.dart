@@ -105,7 +105,7 @@ class SignUpController extends GetxController {
       // Get.snackbar(
       //   'Success',
       //   response['message'] ?? 'Signup successful',
-      //   backgroundColor: Colors.green,
+      //   backgroundColor: const Color(0xff00DC00),
       //   colorText: Colors.white,
       // );
 

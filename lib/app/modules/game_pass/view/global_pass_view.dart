@@ -249,7 +249,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
     required VoidCallback onTap,
   }) {
     final Color accentColor = pass.passType.toLowerCase().contains('daily')
-        ? Colors.greenAccent
+        ? const Color(0xff00DC00)
         : pass.passType.toLowerCase().contains('weekly')
         ? Colors.purpleAccent
         : Colors.blueAccent;

@@ -337,14 +337,14 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isInCart
-              ? const Color(0xFF338125).withValues(alpha: 0.3)
+              ? const Color(0xff00DC00).withValues(alpha: 0.3)
               : Colors.transparent,
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
             color: isInCart
-                ? const Color(0xFF338125).withValues(alpha: 0.1)
+                ? const Color(0xff00DC00).withValues(alpha: 0.1)
                 : Colors.black.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
@@ -423,13 +423,13 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF338125).withValues(alpha: 0.1),
+                          color: const Color(0xff00DC00).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           'Rs. ${menuItem.price?.toStringAsFixed(0) ?? '0'}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF338125),
+                            color: const Color(0xff00DC00),
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -445,10 +445,10 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
             if (isInCart)
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF338125).withValues(alpha: 0.1),
+                  color: const Color(0xff00DC00).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: const Color(0xFF338125).withValues(alpha: 0.3),
+                    color: const Color(0xff00DC00).withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -516,7 +516,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: const Color(0xFF338125),
+          color: const Color(0xff00DC00),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: Colors.white, size: 16),
@@ -541,14 +541,14 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF338125), Color(0xFF2E7D32)],
+            colors: [Color(0xff00DC00), Color(0xff00DC00)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF338125).withValues(alpha: 0.3),
+              color: const Color(0xff00DC00).withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -582,7 +582,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFF338125).withValues(alpha: 0.3),
+          color: const Color(0xff00DC00).withValues(alpha: 0.3),
           width: 1.5,
         ),
         boxShadow: [
@@ -606,12 +606,12 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF338125).withValues(alpha: 0.1),
+                      color: const Color(0xff00DC00).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
                       Icons.shopping_cart,
-                      color: Color(0xFF338125),
+                      color: Color(0xff00DC00),
                       size: 20,
                     ),
                   ),
@@ -644,7 +644,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
                       Text(
                         'Rs. ${getTotalPrice().toStringAsFixed(0)}',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF338125),
+                          color: const Color(0xff00DC00),
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -655,7 +655,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
                         duration: const Duration(milliseconds: 200),
                         child: const Icon(
                           Icons.keyboard_arrow_up,
-                          color: Color(0xFF338125),
+                          color: Color(0xff00DC00),
                           size: 20,
                         ),
                       ),
@@ -767,7 +767,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
               Text(
                 'Qty: ${item['qty'] ?? 0}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF338125),
+                  color: const Color(0xff00DC00),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -776,7 +776,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
               Text(
                 'Rs. ${((item['price'] ?? 0.0) * (item['qty'] ?? 1)).toStringAsFixed(0)}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF338125),
+                  color: const Color(0xff00DC00),
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -801,14 +801,14 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
         height: 50,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF338125), Color(0xFF2E7D32)],
+            colors: [Color(0xff00DC00), Color(0xff00DC00)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF338125).withValues(alpha: 0.3),
+              color: const Color(0xff00DC00).withValues(alpha: 0.3),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),

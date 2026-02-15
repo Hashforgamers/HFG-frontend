@@ -22,10 +22,10 @@ class BookingSummaryPaymentOptionChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF338125) : Colors.grey.shade800,
+          color: isSelected ? const Color(0xff00DC00) : Colors.grey.shade800,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? const Color(0xFF338125) : Colors.grey.shade700,
+            color: isSelected ? const Color(0xff00DC00) : Colors.grey.shade700,
           ),
         ),
         child: Row(

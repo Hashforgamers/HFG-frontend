@@ -146,7 +146,7 @@ class ViralShotsSection extends StatelessWidget {
                     onPressed: () => Get.to(() => ShortVideoPlayer(
                         shorts: controller.shorts, initialIndex: index)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xff00D701),
+                      backgroundColor: const Color(0xff00DC00),
                       minimumSize: const Size(0, 26),
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       shape: RoundedRectangleBorder(

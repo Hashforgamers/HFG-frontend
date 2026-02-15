@@ -194,7 +194,7 @@ class _SignUpViewState extends State<SignUpView> {
                   children: [
                     TextSpan(
                       text: 'Login',
-                      style: GoogleFonts.inter(color: const Color(0xFF3AFF6B)),
+                      style: GoogleFonts.inter(color: const Color(0xff00DC00)),
                     )
                   ],
                 ),
@@ -259,7 +259,7 @@ class _SignUpViewState extends State<SignUpView> {
           fillColor: Colors.grey.shade900,
           contentPadding: _pad,
           enabledBorder: _border(readOnly ? Colors.grey.shade700 : const Color(0x3FFFFFFF)),
-          focusedBorder: _border(readOnly ? Colors.grey.shade700 : const Color(0xFF3AFF6B)),
+          focusedBorder: _border(readOnly ? Colors.grey.shade700 : const Color(0xff00DC00)),
         ),
         validator: (v) {
           // Validators will not run for OAuth because the fields are not rendered.
@@ -303,7 +303,7 @@ class _SignUpViewState extends State<SignUpView> {
           // counterText: '', // hides 0/10 counter
           contentPadding: _pad,
           enabledBorder: _border(const Color(0x3FFFFFFF)),
-          focusedBorder: _border(const Color(0xFF3AFF6B)),
+          focusedBorder: _border(const Color(0xff00DC00)),
         ),
         inputFormatters: [
           // Only numbers and max 10 digits
@@ -339,7 +339,7 @@ class _SignUpViewState extends State<SignUpView> {
           labelStyle: GoogleFonts.inter(color: Colors.white70),
           contentPadding: _pad,
           enabledBorder: _border(const Color(0x3FFFFFFF)),
-          focusedBorder: _border(const Color(0xFF3AFF6B)),
+          focusedBorder: _border(const Color(0xff00DC00)),
         ),
         validator: (v) {
           if (v == null || v.trim().isEmpty) return 'Enter Game Username';
@@ -362,7 +362,7 @@ class _SignUpViewState extends State<SignUpView> {
   //         labelStyle: GoogleFonts.inter(color: Colors.white70),
   //         contentPadding: _pad,
   //         enabledBorder: _border(const Color(0x3FFFFFFF)),
-  //         focusedBorder: _border(const Color(0xFF3AFF6B)),
+  //         focusedBorder: _border(const Color(0xff00DC00)),
   //       ),
   //       items: const [
   //         DropdownMenuItem(value: 'Male', child: Text('Male')),
@@ -424,7 +424,7 @@ class _SignUpViewState extends State<SignUpView> {
           hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 13, fontWeight: FontWeight.w100),
           contentPadding: _pad.copyWith(top: 10, bottom: 10),
           enabledBorder: _border(const Color(0x2FFFFFFF)),
-          focusedBorder: _border(const Color(0xFF3AFF6B)),
+          focusedBorder: _border(const Color(0xff00DC00)),
         ),
       ),
     );

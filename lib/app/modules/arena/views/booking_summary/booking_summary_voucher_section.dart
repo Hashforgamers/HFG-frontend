@@ -70,7 +70,7 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                           onTap: onReload,
                           child: const Icon(
                             CupertinoIcons.refresh,
-                            color: Colors.green,
+                            color: const Color(0xff00DC00),
                             size: 20,
                           ),
                         ),
@@ -86,10 +86,10 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.08),
+                  color: const Color(0xff00DC00).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: Colors.green.withValues(alpha: 0.3),
+                    color: const Color(0xff00DC00).withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -97,7 +97,7 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                   children: [
                     const Icon(
                       Icons.check_circle,
-                      color: Colors.green,
+                      color: const Color(0xff00DC00),
                       size: 20,
                     ),
                     const SizedBox(width: 10),
@@ -108,14 +108,14 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                           Text(
                             'Applied: ${applied.code}',
                             style: GoogleFonts.inter(
-                              color: Colors.green,
+                              color: const Color(0xff00DC00),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
                             '${applied.discountPercentage}% discount active',
                             style: GoogleFonts.inter(
-                              color: Colors.green.withValues(alpha: 0.8),
+                              color: const Color(0xff00DC00).withValues(alpha: 0.8),
                               fontSize: 12,
                             ),
                           ),
@@ -151,7 +151,7 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                       icon: const Icon(
                         Icons.close,
                         size: 18,
-                        color: Colors.green,
+                        color: const Color(0xff00DC00),
                       ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -212,7 +212,7 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
                         borderSide: const BorderSide(
-                          color: Color(0xFF338125),
+                          color: Color(0xff00DC00),
                           width: 1,
                         ),
                       ),
@@ -233,7 +233,7 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       border: Border.all(
-                        color: const Color(0xFF338125),
+                        color: const Color(0xff00DC00),
                         width: 1,
                       ),
                       borderRadius: BorderRadius.circular(25),
@@ -349,7 +349,7 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                                           : 'Inactive',
                                   style: GoogleFonts.inter(
                                     color: canApply
-                                        ? Colors.green
+                                        ? const Color(0xff00DC00)
                                         : isActive
                                             ? Colors.orange
                                             : Colors.red,

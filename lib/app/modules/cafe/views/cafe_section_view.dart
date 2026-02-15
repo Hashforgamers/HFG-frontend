@@ -298,7 +298,7 @@ class _CafeSectionState extends State<CafeSection> {
                       style: GoogleFonts.lato(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
-                        color: Colors.green,
+                        color: const Color(0xff00DC00),
                       ),
                     ),
                     const Icon(Icons.arrow_right_outlined),
@@ -550,7 +550,7 @@ class _CafeSectionState extends State<CafeSection> {
                                           Icons.circle,
                                           size: 8,
                                           color: isOpen
-                                              ? Colors.greenAccent
+                                              ? const Color(0xff00DC00)
                                               : Colors.redAccent,
                                         ),
                                         const SizedBox(width: 6),

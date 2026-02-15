@@ -118,7 +118,7 @@ class _GamePassViewState extends State<GamePassView>
       toolbarHeight: 70,
       backgroundColor: Colors.transparent,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Color(0xff00D701)),
+        icon: const Icon(Icons.arrow_back, color: Color(0xff00DC00)),
         onPressed: () {
           Get.back();
         },
@@ -142,7 +142,7 @@ class _GamePassViewState extends State<GamePassView>
         indicator: const BoxDecoration(),
         indicatorColor: Colors.transparent,
         dividerColor: Colors.transparent,
-        labelColor: const Color(0xFF338125),
+        labelColor: const Color(0xff00DC00),
         unselectedLabelColor: const Color(0xFF505050),
         labelStyle: GoogleFonts.inter(
           fontSize: 16,

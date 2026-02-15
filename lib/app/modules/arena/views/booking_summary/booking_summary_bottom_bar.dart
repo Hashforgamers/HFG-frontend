@@ -50,9 +50,9 @@ class BookingSummaryBottomBar extends StatelessWidget {
               duration: const Duration(milliseconds: 300),
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFF338125),
+                color: const Color(0xff00DC00),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF338125)),
+                border: Border.all(color: const Color(0xff00DC00)),
               ),
               child: ElevatedButton(
                 onPressed: isProcessing ? null : onPressed,

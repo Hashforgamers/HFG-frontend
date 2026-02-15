@@ -174,7 +174,7 @@ class _HashStoreOrdersViewState extends State<HashStoreOrdersView> {
                     Text(
                       "₹$price",
                       style: GoogleFonts.inter(
-                        color: Colors.green,
+                        color: const Color(0xff00DC00),
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),

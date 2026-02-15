@@ -46,15 +46,15 @@ class _FeaturePill extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF338125).withValues(alpha: .22),
+            const Color(0xff00DC00).withValues(alpha: .22),
             const Color(0xFF1A1A1A).withValues(alpha: .22),
           ],
         ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF338125).withValues(alpha: .35)),
+        border: Border.all(color: const Color(0xff00DC00).withValues(alpha: .35)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF338125).withValues(alpha: .12),
+            color: const Color(0xff00DC00).withValues(alpha: .12),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -63,7 +63,7 @@ class _FeaturePill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(_iconFor(label), size: 14, color: const Color(0xFF7FF16A)),
+          Icon(_iconFor(label), size: 14, color: const Color(0xff00DC00)),
           const SizedBox(width: 6),
           Text(
             label,
@@ -71,7 +71,7 @@ class _FeaturePill extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF7FF16A),
+              color: const Color(0xff00DC00),
               letterSpacing: .1,
             ),
           ),

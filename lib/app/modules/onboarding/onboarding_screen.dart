@@ -30,7 +30,7 @@ class OnboardingScreen extends StatelessWidget {
                     const SizedBox(height: 50),
                     Text("Book a slot",
                         style: GoogleFonts.orbitron(
-                            color: const Color(0xff6DFB60),
+                            color: const Color(0xff00DC00),
                             fontSize: 22,
                             fontWeight: FontWeight.bold)),
                     Text("at your Favourite\nGaming Cafe",
@@ -60,7 +60,7 @@ class OnboardingScreen extends StatelessWidget {
                     const SizedBox(height: 50),
                     Text("Refer & Earn",
                         style: GoogleFonts.orbitron(
-                            color: const Color(0xff6DFB60),
+                            color: const Color(0xff00DC00),
                             fontSize: 22,
                             fontWeight: FontWeight.bold)),
                     Text("Hash Coins",
@@ -91,7 +91,7 @@ class OnboardingScreen extends StatelessWidget {
                     const SizedBox(height: 50),
                     Text("Participate",
                         style: GoogleFonts.orbitron(
-                            color: const Color(0xff6DFB60),
+                            color: const Color(0xff00DC00),
                             fontSize: 22,
                             fontWeight: FontWeight.bold)),
                     Text("in Sick Tournaments",

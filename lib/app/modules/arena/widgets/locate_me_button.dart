@@ -20,7 +20,7 @@ class LocateMeButton extends StatelessWidget {
       child: FloatingActionButton(
         heroTag: 'locateMe',
         mini: true,
-        backgroundColor: const Color(0xff338125),
+        backgroundColor: const Color(0xff00DC00),
         onPressed: userLatLng == null ? null : moveCamera,
         child: const Icon(Icons.my_location, color: Colors.black),
       ),

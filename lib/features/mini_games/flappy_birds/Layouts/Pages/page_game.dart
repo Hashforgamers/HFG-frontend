@@ -231,7 +231,7 @@ class _GamePageState extends State<GamePage> {
                 resetGame();
               },
               "try again",
-              Colors.green,
+              const Color(0xff00DC00),
             ),
           ],
         );

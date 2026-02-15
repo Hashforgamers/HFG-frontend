@@ -57,7 +57,7 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
               Get.snackbar(
                 "✅ Registration Successful!",
                 "Team '${state.data['team']}' has been registered.",
-                backgroundColor: Colors.green,
+                backgroundColor: const Color(0xff00DC00),
                 colorText: Colors.white,
               );
               Get.back(); // optional navigation back

@@ -58,7 +58,7 @@ class ViewDetailScreen extends StatelessWidget {
   Color _statusColor(String rawStatus) {
     final status = rawStatus.toLowerCase();
     if (status.contains('confirm') || status.contains('success')) {
-      return const Color(0xFF3CD17F);
+      return const Color(0xff00DC00);
     }
     if (status.contains('cancel') || status.contains('fail')) {
       return const Color(0xFFE45858);
@@ -141,7 +141,7 @@ class ViewDetailScreen extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: const Color(0xFF8BD67A), size: 16),
+          Icon(icon, color: const Color(0xff00DC00), size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -215,7 +215,7 @@ class ViewDetailScreen extends StatelessWidget {
           Text(
             'Rs ${totalPrice.toStringAsFixed(0)}',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AF186),
+              color: const Color(0xff00DC00),
               fontWeight: FontWeight.w700,
               fontSize: 13,
             ),
@@ -357,7 +357,7 @@ class ViewDetailScreen extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFA7F39A),
+                          color: const Color(0xff00DC00),
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -368,7 +368,7 @@ class ViewDetailScreen extends StatelessWidget {
                           const Icon(
                             Icons.location_on_rounded,
                             size: 16,
-                            color: Color(0xFF67D956),
+                            color: Color(0xff00DC00),
                           ),
                           const SizedBox(width: 5),
                           Expanded(
@@ -439,7 +439,7 @@ class ViewDetailScreen extends StatelessWidget {
                                   icon: Icons.currency_rupee_rounded,
                                   label: 'Amount',
                                   value: 'Rs ${price.toStringAsFixed(0)}',
-                                  valueColor: const Color(0xFF9AF186),
+                                  valueColor: const Color(0xff00DC00),
                                 ),
                               ),
                               SizedBox(
@@ -602,7 +602,7 @@ class ViewDetailScreen extends StatelessWidget {
                       Text(
                         '#HashforGamers',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF3C8D2F),
+                          color: const Color(0xff00DC00),
                           fontWeight: FontWeight.w800,
                           fontSize: 20,
                         ),

@@ -459,12 +459,12 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: isTimeAvailable
-                        ? Colors.green.withValues(alpha: 0.2)
+                        ? const Color(0xff00DC00).withValues(alpha: 0.2)
                         : Colors.grey.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isTimeAvailable
-                          ? Colors.green.withValues(alpha: 0.5)
+                          ? const Color(0xff00DC00).withValues(alpha: 0.5)
                           : Colors.grey.withValues(alpha: 0.5),
                     ),
                   ),
@@ -476,8 +476,8 @@ class _BookingScreenState extends State<BookingScreen> {
                         : 'Available',
                     style: GoogleFonts.inter(
                       color: isTimeAvailable
-                          ? Colors.green
-                          : (isCurrentDate ? Colors.grey : Colors.green),
+                          ? const Color(0xff00DC00)
+                          : (isCurrentDate ? Colors.grey : const Color(0xff00DC00)),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -595,11 +595,11 @@ class _BookingScreenState extends State<BookingScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFF338125)
+                ? const Color(0xff00DC00)
                 : const Color(0xff2D2D2D),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? Colors.greenAccent : Colors.grey.shade700,
+              color: isSelected ? const Color(0xff00DC00) : Colors.grey.shade700,
             ),
           ),
           child: Text(
@@ -656,7 +656,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 Text(
                   '₹${totalPrice.toInt()}',
                   style: GoogleFonts.inter(
-                    color: Colors.green,
+                    color: const Color(0xff00DC00),
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
@@ -668,7 +668,7 @@ class _BookingScreenState extends State<BookingScreen> {
               onPressed: totalSelectedSlots > 0 ? onProceed : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: totalSelectedSlots > 0
-                    ? const Color(0xFF338125)
+                    ? const Color(0xff00DC00)
                     : Colors.grey,
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(

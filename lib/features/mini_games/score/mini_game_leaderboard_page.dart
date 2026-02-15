@@ -255,7 +255,7 @@ class MiniGameLeaderboardPage extends StatelessWidget {
           Text(
             '${data.totalScore} pts',
             style: GoogleFonts.orbitron(
-              color: Colors.greenAccent,
+              color: const Color(0xff00DC00),
               fontSize: 13,
               fontWeight: FontWeight.bold,
             ),

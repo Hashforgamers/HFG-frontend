@@ -54,8 +54,8 @@ Screenshot (if any):
                 Color(0xFF00FFFF),
                 Color(0xFFFF00FF),
                 Color(0xFF0072FF),
-                Color(0xFF00FF94),
-                Color(0xFF00FF94),
+                Color(0xff00DC00),
+                Color(0xff00DC00),
               ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -126,13 +126,13 @@ Screenshot (if any):
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
                                     width: 1,
-                                    color: const Color(0xFF00FF94),
+                                    color: const Color(0xff00DC00),
                                   ),
                                 ),
                                 child: ShaderMask(
                                   shaderCallback: (bounds) => const LinearGradient(
                                     colors: [
-                                      Color(0xFF00FF94),
+                                      Color(0xff00DC00),
                                       Color(0xFF00C6FF)
                                     ],
                                     begin: Alignment.topLeft,

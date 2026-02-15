@@ -196,7 +196,7 @@ class ProductCard extends StatelessWidget {
             const SizedBox(height: 5),
             Text(
               '₹${product.price}',
-              style: GoogleFonts.inter(color: Colors.greenAccent, fontSize: 14),
+              style: GoogleFonts.inter(color: const Color(0xff00DC00), fontSize: 14),
             ),
           ],
         ),
@@ -222,7 +222,7 @@ class ProductCard extends StatelessWidget {
           ElevatedButton(
             onPressed: () => _showComingSoonToast(),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xff00D701),
+              backgroundColor: const Color(0xff00DC00),
               shape: ContinuousRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),

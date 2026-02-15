@@ -14,7 +14,7 @@ class HomeGameOnIndiaBanner extends StatelessWidget {
             colors: [
               Color(0xFFFF9933),
               Colors.white,
-              Color(0xFF138808),
+              Color(0xff00DC00),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,

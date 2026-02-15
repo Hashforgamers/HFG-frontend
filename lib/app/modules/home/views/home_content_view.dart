@@ -439,7 +439,7 @@ class _HomeContentViewState extends State<HomeContentView>
                 end: Alignment.bottomCenter,
                 colors: [
                   const Color(0xFFFFFFFF).withOpacity(0.1),
-                  const Color(0xFF64BD55).withOpacity(0.2),
+                  const Color(0xff00DC00).withOpacity(0.2),
                 ],
               ),
               borderRadius: BorderRadius.circular(25),
@@ -518,7 +518,7 @@ class _HomeContentViewState extends State<HomeContentView>
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF6DFB60), width: 2),
+        border: Border.all(color: const Color(0xff00DC00), width: 2),
       ),
       child: CircleAvatar(
         radius: size / 2,
@@ -567,7 +567,7 @@ class _HomeContentViewState extends State<HomeContentView>
   //               end: Alignment.bottomCenter,
   //               colors: [
   //                 const Color(0xFFFFFFFF).withOpacity(0.1),
-  //                 const Color(0xFF64BD55).withOpacity(0.2),
+  //                 const Color(0xff00DC00).withOpacity(0.2),
   //               ],
   //             ),
   //             borderRadius: BorderRadius.circular(25),
@@ -638,7 +638,7 @@ class _HomeContentViewState extends State<HomeContentView>
   //     height: size,
   //     decoration: BoxDecoration(
   //       shape: BoxShape.circle,
-  //       border: Border.all(color: const Color(0xFF6DFB60), width: 2),
+  //       border: Border.all(color: const Color(0xff00DC00), width: 2),
   //     ),
   //     child: CircleAvatar(
   //       radius: size / 2,
@@ -663,7 +663,7 @@ class _HomeContentViewState extends State<HomeContentView>
   //       width: double.infinity,
   //       decoration: BoxDecoration(
   //         color: Colors.transparent,
-  //         border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
+  //         border: Border.all(color: const Color(0xff00DC00), width: 1.5),
   //         borderRadius: BorderRadius.circular(50),
   //       ),
   //       child: Center(
@@ -671,7 +671,7 @@ class _HomeContentViewState extends State<HomeContentView>
   //           'Game On, India!',
   //           style: GoogleFonts.inter(
   //             fontSize: 16,
-  //             color: const Color(0xFF75F94C),
+  //             color: const Color(0xff00DC00),
   //           ),
   //         ),
   //       ),

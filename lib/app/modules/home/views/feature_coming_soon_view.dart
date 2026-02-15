@@ -72,7 +72,7 @@ class FeatureComingSoonView extends StatelessWidget {
                   Text(
                     'Stay tuned for launch updates.',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF7BDDAA),
+                      color: const Color(0xff00DC00),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),

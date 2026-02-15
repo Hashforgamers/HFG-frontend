@@ -139,12 +139,12 @@ class GlobalBottomSheetService {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.1),
+                                    color: const Color(0xff00DC00).withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Stack(alignment: Alignment.center,
                                     children: [
-                                      const Icon(Icons.hexagon, color: Colors.green, size: 28),
+                                      const Icon(Icons.hexagon, color: const Color(0xff00DC00), size: 28),
                                       Text('H',style: TextStyle( color: Colors.black),),
 
                                     ],
@@ -166,7 +166,7 @@ class GlobalBottomSheetService {
                                       _formatHashCoins(hashCoin),
                                       style: GoogleFonts.inter(
                                         fontSize: 32,
-                                        color: Colors.green,
+                                        color: const Color(0xff00DC00),
                                         fontWeight: FontWeight.w800,
                                       ),
                                     ),
@@ -220,7 +220,7 @@ class GlobalBottomSheetService {
                                         borderRadius: BorderRadius.circular(16),
                                         border: Border.all(
                                           color: isSelected
-                                              ? Colors.green
+                                              ? const Color(0xff00DC00)
                                               : hasEnough
                                                   ? Colors.white.withOpacity(0.2)
                                                   : Colors.grey.withOpacity(0.3),
@@ -253,7 +253,7 @@ class GlobalBottomSheetService {
                                                     if (isSelected)
                                                       Padding(
                                                         padding: const EdgeInsets.only(left: 8.0),
-                                                        child: Icon(Icons.check_circle, color: Colors.green, size: 18),
+                                                        child: Icon(Icons.check_circle, color: const Color(0xff00DC00), size: 18),
                                                       ),
                                                   ],
                                                 ),
@@ -269,14 +269,14 @@ class GlobalBottomSheetService {
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                                   decoration: BoxDecoration(
-                                                    color: hasEnough ? Colors.green.withOpacity(0.15) : Colors.grey.withOpacity(0.15),
+                                                    color: hasEnough ? const Color(0xff00DC00).withValues(alpha: 0.15) : Colors.grey.withOpacity(0.15),
                                                     borderRadius: BorderRadius.circular(8),
                                                   ),
                                                   child: Text(
                                                     code,
                                                     style: GoogleFonts.inter(
                                                       fontSize: 13,
-                                                      color: hasEnough ? Colors.green : Colors.grey,
+                                                      color: hasEnough ? const Color(0xff00DC00) : Colors.grey,
                                                       fontWeight: FontWeight.w700,
                                                     ),
                                                   ),
@@ -305,7 +305,7 @@ class GlobalBottomSheetService {
                                                     });
                                                   }
                                                 : null,
-                                            activeColor: Colors.green,
+                                            activeColor: const Color(0xff00DC00),
                                           ),
                                         ],
                                       ),
@@ -331,7 +331,7 @@ class GlobalBottomSheetService {
                                     padding: const EdgeInsets.symmetric(vertical: 18),
                                     decoration: BoxDecoration(
                                       color: (selectedVoucher != null && !isLoading)
-                                          ? Colors.green
+                                          ? const Color(0xff00DC00)
                                           : Colors.grey.withOpacity(0.3),
                                       borderRadius: BorderRadius.circular(16),
                                     ),
@@ -448,7 +448,7 @@ class GlobalBottomSheetService {
           message,
           style: GoogleFonts.inter(fontWeight: FontWeight.w600),
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xff00DC00),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),

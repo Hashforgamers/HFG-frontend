@@ -93,7 +93,7 @@ class ReferralController extends GetxController {
       _showSnackbar(
         'Success',
         'Voucher created successfully!',
-        const Color(0xff4CAF50),
+        const Color(0xff00DC00),
       );
     } catch (e) {
       errorMessage.value = 'Failed to create voucher: $e';

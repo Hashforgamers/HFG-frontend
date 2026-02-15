@@ -324,7 +324,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               content: Text(
                 'Voucher applied! ${voucher.discountPercentage}% discount',
               ),
-              backgroundColor: Colors.green,
+              backgroundColor: const Color(0xff00DC00),
             ),
           );
         } else {
@@ -444,7 +444,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               },
               child: const Text(
                 "Rate Us",
-                style: TextStyle(color: Colors.green),
+                style: TextStyle(color: const Color(0xff00DC00)),
               ),
             ),
           ],
@@ -746,7 +746,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   //       width: double.infinity,
   //       decoration: BoxDecoration(
   //         color: Colors.transparent,
-  //         border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
+  //         border: Border.all(color: const Color(0xff00DC00), width: 1.5),
   //         borderRadius: BorderRadius.circular(50),
   //       ),
   //       child: Center(
@@ -754,7 +754,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   //           '+ Select your meal',
   //           style: GoogleFonts.inter(
   //             fontSize: 16,
-  //             color: const Color(0xFF75F94C),
+  //             color: const Color(0xff00DC00),
   //           ),
   //         ),
   //       ),
@@ -977,7 +977,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text("Booking created. Please pay at café counter."),
-            backgroundColor: Colors.green.shade600,
+            backgroundColor: const Color(0xff00DC00),
             duration: const Duration(seconds: 4),
           ),
         );
@@ -1174,7 +1174,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(successMessage), backgroundColor: Colors.green),
+        SnackBar(content: Text(successMessage), backgroundColor: const Color(0xff00DC00)),
       );
 
       // Clear selected slots after successful booking

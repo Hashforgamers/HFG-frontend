@@ -96,17 +96,17 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF338125).withValues(alpha: 0.1),
+                  color: const Color(0xff00DC00).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: const Color(0xFF338125).withValues(alpha: 0.3),
+                    color: const Color(0xff00DC00).withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
                   children: [
                     const Icon(
                       Icons.check_circle,
-                      color: Color(0xFF338125),
+                      color: Color(0xff00DC00),
                       size: 20,
                     ),
                     const SizedBox(width: 10),
@@ -118,7 +118,7 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
                             'Selected: ${selectedGamePass.value!.name}',
                             style: GoogleFonts.inter(
                               fontSize: 14,
-                              color: const Color(0xFF6DFB60),
+                              color: const Color(0xff00DC00),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -139,7 +139,7 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
                         'Change',
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          color: const Color(0xFF6DFB60),
+                          color: const Color(0xff00DC00),
                           fontWeight: FontWeight.w500,
                         ),
                       ),

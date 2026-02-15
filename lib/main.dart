@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
+import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/core/service/deeplink_service.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -44,9 +45,7 @@ void main() async {
     accentColor: Colors.purpleAccent,
   );
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
@@ -60,6 +59,7 @@ void main() async {
   // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
   Get.put(ShopController(), permanent: true);
+  Get.put(ChatService(), permanent: true);
 
   runApp(const MyApp());
 }
@@ -76,16 +76,12 @@ class MyApp extends StatelessWidget {
     // );
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (context) => HashCoinCubit(),
-        ),
-        BlocProvider(
-          create: (context) => FcmCubit(),
-        ),
+        BlocProvider(create: (context) => HashCoinCubit()),
+        BlocProvider(create: (context) => FcmCubit()),
       ],
       child: ScrollConfiguration(
         behavior: NoGlowScrollBehavior(),
-        child:  GetMaterialApp(
+        child: GetMaterialApp(
           debugShowCheckedModeBanner: true, // Show debug banner for dev
           title: FlavorConfig.instance.appName,
           theme: AppTheme.dark,

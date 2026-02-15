@@ -228,14 +228,14 @@ class _CafeSectionState extends State<CafeSection> {
                                         Icon(Icons.circle,
                                             size: 8,
                                             color: isOpen
-                                                ? Colors.greenAccent
+                                                ? const Color(0xff00DC00)
                                                 : Colors.redAccent),
                                         const SizedBox(width: 4),
                                         Text(
                                           isOpen ? 'Open' : 'Closed',
                                           style: GoogleFonts.inter(
                                               color: isOpen
-                                                  ? Colors.greenAccent
+                                                  ? const Color(0xff00DC00)
                                                   : Colors.redAccent,
                                               fontSize: 12),
                                         ),

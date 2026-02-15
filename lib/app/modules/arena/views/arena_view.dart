@@ -604,7 +604,7 @@ class _ArenaViewState extends State<ArenaView> {
       ..add(
         Polyline(
           polylineId: const PolylineId('route'),
-          color: const Color(0xff338125),
+          color: const Color(0xff00DC00),
           width: 6,
           points: pts,
         ),
@@ -746,7 +746,7 @@ class _ArenaViewState extends State<ArenaView> {
                         child: TextField(
                           controller: _searchCtl,
                           style: GoogleFonts.inter(color: Colors.white),
-                          cursorColor: const Color(0xff338125),
+                          cursorColor: const Color(0xff00DC00),
                           decoration: InputDecoration(
                             prefixIcon: const Icon(
                               Icons.search,
@@ -817,7 +817,7 @@ class _ArenaViewState extends State<ArenaView> {
                                             'Show all cafes',
                                             style: GoogleFonts.inter(
                                               fontSize: 14,
-                                              color: const Color(0xff338125),
+                                              color: const Color(0xff00DC00),
                                             ),
                                           ),
                                         ),
@@ -977,7 +977,7 @@ class _ArenaViewState extends State<ArenaView> {
                 child: Builder(
                   builder: (_) {
                     final bool isOpen = _isShopOpen(cafe);
-                    final Color openColor = isOpen ? Colors.green : Colors.red;
+                    final Color openColor = isOpen ? const Color(0xff00DC00) : Colors.red;
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1062,9 +1062,9 @@ class _ArenaViewState extends State<ArenaView> {
                                           _drawRoute(p);
                                         },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xff338125),
+                                    backgroundColor: const Color(0xff00DC00),
                                     disabledBackgroundColor: const Color(
-                                      0xff338125,
+                                      0xff00DC00,
                                     ).withValues(alpha: 0.35),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
@@ -1188,16 +1188,16 @@ class _ArenaViewState extends State<ArenaView> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xff338125).withValues(alpha: 0.2),
+                    color: const Color(0xff00DC00).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xff338125)),
+                    border: Border.all(color: const Color(0xff00DC00)),
                   ),
                   child: Text(
                     _showingAllCafes.value
                         ? '${_filteredCafes.length} total'
                         : '${_filteredCafes.length} found',
                     style: GoogleFonts.inter(
-                      color: const Color(0xff338125),
+                      color: const Color(0xff00DC00),
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1225,7 +1225,7 @@ class _ArenaViewState extends State<ArenaView> {
                   child: Text(
                     _showingAllCafes.value ? 'Show local' : 'Show all',
                     style: GoogleFonts.inter(
-                      color: const Color(0xff338125),
+                      color: const Color(0xff00DC00),
                       fontSize: 12,
                     ),
                   ),

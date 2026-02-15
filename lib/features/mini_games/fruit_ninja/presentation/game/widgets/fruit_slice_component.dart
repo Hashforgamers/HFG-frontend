@@ -30,7 +30,7 @@ class FruitSliceComponent extends ParticleSystemComponent {
               AppColors.darkOrange,
               Colors.red,
               Colors.yellow,
-              Colors.green,
+              const Color(0xff00DC00),
               Colors.blue,
             ];
 

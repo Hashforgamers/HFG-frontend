@@ -131,7 +131,7 @@ class GetPassModel {
     if (status == 'expired' || progressValue >= 1.0) {
       return 0xFFFBA544; // Orange for expired
     } else if (status == 'active' || progressValue > 0.0) {
-      return 0xFF6DFB60; // Green for active
+      return 0xFF00DC00; // Green for active
     } else {
       return 0xFFE6D009; // Yellow for pending
     }

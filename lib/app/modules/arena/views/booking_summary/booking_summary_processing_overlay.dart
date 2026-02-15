@@ -28,7 +28,7 @@ class BookingSummaryProcessingOverlay extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF338125)),
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xff00DC00)),
             ),
             const SizedBox(height: 16),
             Text(

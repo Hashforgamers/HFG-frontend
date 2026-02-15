@@ -57,14 +57,14 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
                               height: 20,
                               width: 20,
                               child: CupertinoActivityIndicator(
-                                color: Colors.green,
+                                color: const Color(0xff00DC00),
                               ),
                             )
                           : IconButton(
                               onPressed: onRefresh,
                               icon: const Icon(
                                 Icons.refresh,
-                                color: Colors.green,
+                                color: const Color(0xff00DC00),
                               ),
                             ),
                     ),
@@ -176,12 +176,12 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFF338125).withValues(alpha: 0.2)
+                              ? const Color(0xff00DC00).withValues(alpha: 0.2)
                               : const Color(0xFF2A2A2A),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSelected
-                                ? const Color(0xFF338125)
+                                ? const Color(0xff00DC00)
                                 : isExpired
                                     ? Colors.red.withValues(alpha: 0.3)
                                     : Colors.grey.withValues(alpha: 0.3),
@@ -222,7 +222,7 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
                                 if (isSelected)
                                   const Icon(
                                     Icons.check_circle,
-                                    color: Color(0xFF338125),
+                                    color: Color(0xff00DC00),
                                     size: 24,
                                   ),
                               ],
@@ -268,7 +268,7 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
                                       decoration: BoxDecoration(
                                         color: isExpired
                                             ? Colors.red.withValues(alpha: 0.2)
-                                            : const Color(0xFF338125)
+                                            : const Color(0xff00DC00)
                                                 .withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
@@ -277,7 +277,7 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
                                         style: GoogleFonts.inter(
                                           color: isExpired
                                               ? Colors.red
-                                              : const Color(0xFF338125),
+                                              : const Color(0xff00DC00),
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -317,7 +317,7 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
                                 backgroundColor: Colors.grey.withValues(alpha: 0.3),
                                 valueColor:
                                     const AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF338125),
+                                  Color(0xff00DC00),
                                 ),
                               ),
                             ],
@@ -365,7 +365,7 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
                             }
                           : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF338125),
+                        backgroundColor: const Color(0xff00DC00),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(

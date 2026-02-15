@@ -89,9 +89,9 @@
 //                         fieldWidth: 44,
 //                         inactiveColor: Colors.white24,
 //                         inactiveFillColor: Colors.black,
-//                         activeColor: Colors.greenAccent,
+//                         activeColor: const Color(0xff00DC00),
 //                         activeFillColor: Colors.black87,
-//                         selectedColor: Colors.greenAccent,
+//                         selectedColor: const Color(0xff00DC00),
 //                         selectedFillColor: Colors.black,
 //                       ),
 //                       onCompleted: (_) => _verifyOtp(), // auto-trigger
@@ -139,7 +139,7 @@
 //                       onPressed: login.isLoading.value ? null : _resendOtp,
 //                       child: Text(
 //                         'Resend OTP',
-//                         style: GoogleFonts.inter(color: const Color(0xFF3AFF6B)),
+//                         style: GoogleFonts.inter(color: const Color(0xff00DC00)),
 //                       ),
 //                     ),
 //                   ],

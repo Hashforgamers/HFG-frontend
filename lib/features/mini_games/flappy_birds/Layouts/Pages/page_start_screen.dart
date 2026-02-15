@@ -61,7 +61,7 @@ Column _buttons() {
         buttonType: "text",
         height: 60,
         width: 278,
-        icon: Icon(Icons.play_arrow_rounded, size: 60, color: Colors.green),
+        icon: Icon(Icons.play_arrow_rounded, size: 60, color: const Color(0xff00DC00)),
         onTap: () => Get.to(() => GamePage()), // direct navigation
       ),
       Row(

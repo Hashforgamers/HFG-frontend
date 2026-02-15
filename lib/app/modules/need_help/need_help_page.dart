@@ -22,7 +22,7 @@ class NeedHelpPage extends StatelessWidget {
         backgroundColor: Colors.black,
         leading: GestureDetector(
           onTap: () => Get.back(),
-          child: const Icon(Icons.arrow_back, color: Color(0xff00D701)),
+          child: const Icon(Icons.arrow_back, color: Color(0xff00DC00)),
         ),
       ),
       body: Container(
@@ -92,10 +92,10 @@ class NeedHelpPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xff00D701).withOpacity(0.2),
+                color: const Color(0xff00DC00).withOpacity(0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: const Color(0xff00D701), size: 24),
+              child: Icon(icon, color: const Color(0xff00DC00), size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -114,7 +114,7 @@ class NeedHelpPage extends StatelessWidget {
                   Text(
                     subtitle,
                     style: GoogleFonts.inter(
-                      color: const Color(0xff00D701),
+                      color: const Color(0xff00DC00),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),

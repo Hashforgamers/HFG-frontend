@@ -91,7 +91,7 @@ class SearchResultCard extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: isOpen ? const Color(0xff338125) : Colors.red,
+                          color: isOpen ? const Color(0xff00DC00) : Colors.red,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -184,7 +184,7 @@ class SearchResultCard extends StatelessWidget {
                                 ? distanceLabel
                                 : '$distanceLabel • $etaLabel',
                             style: GoogleFonts.inter(
-                              color: const Color(0xff338125),
+                              color: const Color(0xff00DC00),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -199,7 +199,7 @@ class SearchResultCard extends StatelessWidget {
                           ElevatedButton(
                             onPressed: isOpen ? onViewDetails : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xff338125),
+                              backgroundColor: const Color(0xff00DC00),
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),

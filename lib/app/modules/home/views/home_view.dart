@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
+import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/utils/haptics.dart';
 import '../controllers/home_controller.dart';
 
@@ -16,7 +20,41 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   final HomeController controller = Get.find();
   final ShopController shopController = Get.find<ShopController>();
+  final ChatService chatService = Get.find<ChatService>();
   bool _didApplyTabArgument = false;
+  bool _didSyncChatProfile = false;
+  bool _isHomeScrolling = false;
+  Timer? _fabExpandTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncChatProfile();
+  }
+
+  Future<void> _syncChatProfile() async {
+    if (_didSyncChatProfile || !chatService.isLoggedIn) return;
+    _didSyncChatProfile = true;
+    await chatService.ensureCurrentUserProfile();
+    await chatService.startChatNotifications();
+  }
+
+  Future<void> _openChatInbox() async {
+    if (!chatService.isLoggedIn) {
+      Get.snackbar(
+        'Chat',
+        'Please sign in to use chat.',
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    await Haptics.medium();
+    await chatService.ensureCurrentUserProfile();
+    if (!mounted) return;
+    await Get.toNamed(AppRoutes.CHAT);
+  }
 
   @override
   void didChangeDependencies() {
@@ -52,9 +90,42 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
+  bool _handleHomeScrollNotification(ScrollNotification notification) {
+    if (controller.selectedIndex.value != 0) return false;
+    if (notification.metrics.axis != Axis.vertical) return false;
+
+    if (notification is ScrollStartNotification ||
+        notification is ScrollUpdateNotification) {
+      _fabExpandTimer?.cancel();
+      if (!_isHomeScrolling && mounted) {
+        setState(() => _isHomeScrolling = true);
+      }
+      return false;
+    }
+
+    if (notification is ScrollEndNotification ||
+        (notification is UserScrollNotification &&
+            notification.direction == ScrollDirection.idle)) {
+      _fabExpandTimer?.cancel();
+      _fabExpandTimer = Timer(const Duration(milliseconds: 180), () {
+        if (!mounted || !_isHomeScrolling) return;
+        setState(() => _isHomeScrolling = false);
+      });
+    }
+
+    return false;
+  }
+
+  @override
+  void dispose() {
+    _fabExpandTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
+    const neonGreen = Color(0xff00DC00);
     return Scaffold(
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
@@ -71,12 +142,65 @@ class _HomeViewState extends State<HomeView> {
           );
         },
         child: Obx(() {
-          return RepaintBoundary(
+          final screen = RepaintBoundary(
             key: ValueKey(controller.selectedIndex.value),
             child: controller.currentScreen.value,
           );
+
+          if (controller.selectedIndex.value != 0) {
+            if (_isHomeScrolling) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted || !_isHomeScrolling) return;
+                setState(() => _isHomeScrolling = false);
+              });
+            }
+            return screen;
+          }
+
+          return NotificationListener<ScrollNotification>(
+            onNotification: _handleHomeScrollNotification,
+            child: screen,
+          );
         }),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Obx(() {
+        if (controller.selectedIndex.value != 0) {
+          return const SizedBox.shrink();
+        }
+
+        return FloatingActionButton.extended(
+          heroTag: 'home_chat_fab',
+          isExtended: !_isHomeScrolling,
+          extendedPadding: const EdgeInsets.symmetric(horizontal: 16),
+          backgroundColor: Colors.black,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: neonGreen, width: 1.6),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
+              bottomLeft: Radius.circular(28),
+              bottomRight: Radius.circular(0),
+            ),
+          ),
+          onPressed: _openChatInbox,
+          icon: Image.asset(
+            'assets/chat.png',
+            width: 20,
+            height: 20,
+            color: neonGreen,
+            fit: BoxFit.contain,
+          ),
+          label: Text(
+            'Chat',
+            style: GoogleFonts.inter(
+              color: neonGreen,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        );
+      }),
 
       // --- Bottom bar with Hash Shop slide animation ---
       bottomNavigationBar: Obx(() {
@@ -106,7 +230,7 @@ class _HomeViewState extends State<HomeView> {
               selectedFontSize: 0,
               unselectedFontSize: 0,
               backgroundColor: Colors.black,
-              selectedItemColor: const Color(0xff338125),
+              selectedItemColor: const Color(0xff00DC00),
               unselectedItemColor: Colors.grey[800],
               items: <BottomNavigationBarItem>[
                 _buildNavigationItem(
@@ -304,7 +428,7 @@ class _HomeViewState extends State<HomeView> {
   }) {
     final selected = controller.selectedIndex.value == 3
         ? Color(0xffFBA544)
-        : Color(0xff338125);
+        : Color(0xff00DC00);
     final unselected = Colors.grey[800];
 
     if (isSpecial) {
@@ -349,7 +473,7 @@ class _HomeViewState extends State<HomeView> {
   }) {
     final activeBg = LinearGradient(
       colors: [
-        const Color(0xFF3CD17F).withValues(alpha: 0.22),
+        const Color(0xff00DC00).withValues(alpha: 0.22),
         const Color(0xFF7A44C0).withValues(alpha: 0.20),
       ],
       begin: Alignment.topLeft,

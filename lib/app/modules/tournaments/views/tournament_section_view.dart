@@ -137,7 +137,7 @@ class TournamentCard extends StatelessWidget {
                       // Handle tournament button tap
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xff00D701),
+                      backgroundColor: const Color(0xff00DC00),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),

@@ -16,6 +16,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:hash/app/modules/chat/services/chat_service.dart';
 
 import '../../../data/models/user_model.dart';
 import '../../../data/services/user_controller.dart' as userModel;
@@ -24,7 +25,9 @@ import 'package:hash/core/utils/app_logger.dart';
 
 class LoginController extends GetxController {
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
-  final userModel.UserController userController = Get.put(userModel.UserController());
+  final userModel.UserController userController = Get.put(
+    userModel.UserController(),
+  );
   final remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
@@ -39,7 +42,16 @@ class LoginController extends GetxController {
 
   // default India; UI can change it
   final selectedDialCode = '+91'.obs;
-  final supportedDialCodes = const ['+1', '+44', '+61', '+65', '+81', '+91', '+971', '+974'];
+  final supportedDialCodes = const [
+    '+1',
+    '+44',
+    '+61',
+    '+65',
+    '+81',
+    '+91',
+    '+971',
+    '+974',
+  ];
 
   final isStartingPhone = false.obs;
   final isVerifyingOtp = false.obs;
@@ -63,7 +75,11 @@ class LoginController extends GetxController {
   Future<void> startPhoneSignIn() async {
     final raw = phoneController.text.trim();
     if (raw.isEmpty) {
-      Get.snackbar('Phone', 'Please enter your phone number', colorText: Colors.white);
+      Get.snackbar(
+        'Phone',
+        'Please enter your phone number',
+        colorText: Colors.white,
+      );
       return;
     }
     final phone = '${selectedDialCode.value}$raw';
@@ -73,31 +89,43 @@ class LoginController extends GetxController {
       await _auth.verifyPhoneNumber(
         phoneNumber: phone,
         timeout: const Duration(seconds: 60),
-        verificationCompleted: (firebase_auth.PhoneAuthCredential credential) async {
-          try {
-            final cred = await _auth.signInWithCredential(credential);
-            final user = cred.user;
-            if (user == null) {
-              _showErrorSnackbar('Phone Sign-In failed', 'No user returned.');
-              return;
-            }
-            // Persist + track
-            await _persistSession(
-              uid: user.uid,
-              name: user.displayName ?? '',
-              email: user.email ?? '',
-              photoUrl: user.photoURL ?? '',
-              provider: 'phone',
-            );
-            segmentService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
-            fbEventsService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
+        verificationCompleted:
+            (firebase_auth.PhoneAuthCredential credential) async {
+              try {
+                final cred = await _auth.signInWithCredential(credential);
+                final user = cred.user;
+                if (user == null) {
+                  _showErrorSnackbar(
+                    'Phone Sign-In failed',
+                    'No user returned.',
+                  );
+                  return;
+                }
+                // Persist + track
+                await _persistSession(
+                  uid: user.uid,
+                  name: user.displayName ?? '',
+                  email: user.email ?? '',
+                  photoUrl: user.photoURL ?? '',
+                  provider: 'phone',
+                );
+                segmentService.onLoginSuccess(
+                  userId: user.uid,
+                  loginMethod: 'phone',
+                  deviceId: '',
+                );
+                fbEventsService.onLoginSuccess(
+                  userId: user.uid,
+                  loginMethod: 'phone',
+                  deviceId: '',
+                );
 
-            Get.back(); // Close sheet
-            await _handleUserNavigation(user, phoneNumber: phone);
-          } catch (e) {
-            _showErrorSnackbar('Auto Verify Failed', e.toString());
-          }
-        },
+                Get.back(); // Close sheet
+                await _handleUserNavigation(user, phoneNumber: phone);
+              } catch (e) {
+                _showErrorSnackbar('Auto Verify Failed', e.toString());
+              }
+            },
         verificationFailed: (firebase_auth.FirebaseAuthException e) {
           _showErrorSnackbar('Verification Failed', e.message ?? e.code);
         },
@@ -105,7 +133,11 @@ class LoginController extends GetxController {
           _verificationId = verificationId;
           otpSent.value = true;
           _startCountdown(60);
-          Get.snackbar('OTP Sent', 'We have sent an OTP to $phone', colorText: Colors.white);
+          Get.snackbar(
+            'OTP Sent',
+            'We have sent an OTP to $phone',
+            colorText: Colors.white,
+          );
         },
         codeAutoRetrievalTimeout: (String verificationId) {
           _verificationId = verificationId;
@@ -121,11 +153,19 @@ class LoginController extends GetxController {
   Future<void> verifyOtpAndSignIn() async {
     final code = otpController.text.trim();
     if (code.length != 6) {
-      Get.snackbar('Invalid OTP', 'Enter the 6-digit code', colorText: Colors.white);
+      Get.snackbar(
+        'Invalid OTP',
+        'Enter the 6-digit code',
+        colorText: Colors.white,
+      );
       return;
     }
     if (_verificationId == null) {
-      Get.snackbar('Error', 'Verification session expired, try resending.', colorText: Colors.white);
+      Get.snackbar(
+        'Error',
+        'Verification session expired, try resending.',
+        colorText: Colors.white,
+      );
       return;
     }
 
@@ -150,11 +190,20 @@ class LoginController extends GetxController {
         photoUrl: user.photoURL ?? '',
         provider: 'phone',
       );
-      segmentService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
-      fbEventsService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
+      segmentService.onLoginSuccess(
+        userId: user.uid,
+        loginMethod: 'phone',
+        deviceId: '',
+      );
+      fbEventsService.onLoginSuccess(
+        userId: user.uid,
+        loginMethod: 'phone',
+        deviceId: '',
+      );
 
       Get.back(); // close sheet
-      final fullPhone = '${selectedDialCode.value}${phoneController.text.trim()}';
+      final fullPhone =
+          '${selectedDialCode.value}${phoneController.text.trim()}';
       await _handleUserNavigation(user, phoneNumber: fullPhone);
     } on firebase_auth.FirebaseAuthException catch (e) {
       _showErrorSnackbar('Verification Failed', e.message ?? e.code);
@@ -192,7 +241,8 @@ class LoginController extends GetxController {
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return; // cancelled
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       final credential = firebase_auth.GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
@@ -207,8 +257,16 @@ class LoginController extends GetxController {
         return;
       }
 
-      segmentService.onLoginSuccess(userId: user.uid, loginMethod: 'google', deviceId: '');
-      fbEventsService.onLoginSuccess(userId: user.uid, loginMethod: 'google', deviceId: '');
+      segmentService.onLoginSuccess(
+        userId: user.uid,
+        loginMethod: 'google',
+        deviceId: '',
+      );
+      fbEventsService.onLoginSuccess(
+        userId: user.uid,
+        loginMethod: 'google',
+        deviceId: '',
+      );
 
       await _persistSession(
         uid: user.uid,
@@ -239,7 +297,10 @@ class LoginController extends GetxController {
       final nonce = _sha256ofString(rawNonce);
 
       final appleCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
         nonce: nonce,
       );
 
@@ -258,15 +319,24 @@ class LoginController extends GetxController {
         return;
       }
 
-      segmentService.onLoginSuccess(userId: user.uid, loginMethod: 'apple', deviceId: '');
-      fbEventsService.onLoginSuccess(userId: user.uid, loginMethod: 'apple', deviceId: '');
+      segmentService.onLoginSuccess(
+        userId: user.uid,
+        loginMethod: 'apple',
+        deviceId: '',
+      );
+      fbEventsService.onLoginSuccess(
+        userId: user.uid,
+        loginMethod: 'apple',
+        deviceId: '',
+      );
 
       final fullName = [
         appleCredential.givenName ?? '',
-        appleCredential.familyName ?? ''
+        appleCredential.familyName ?? '',
       ].where((s) => s.trim().isNotEmpty).join(' ').trim();
 
-      if (fullName.isNotEmpty && (user.displayName == null || user.displayName!.trim().isEmpty)) {
+      if (fullName.isNotEmpty &&
+          (user.displayName == null || user.displayName!.trim().isEmpty)) {
         await user.updateDisplayName(fullName);
         await user.reload();
       }
@@ -333,12 +403,21 @@ class LoginController extends GetxController {
     await prefs.setBool('isLoggedIn', true);
     // Optionally persist provider if you need it elsewhere:
     // await prefs.setString('hfg_login_provider', provider);
+
+    if (Get.isRegistered<ChatService>()) {
+      final chatService = Get.find<ChatService>();
+      await chatService.ensureCurrentUserProfile();
+      await chatService.startChatNotifications();
+    }
   }
 
   // ────────────────────────────────────────────────────────────────────────────
   // NAVIGATION / USER FETCH
   // ────────────────────────────────────────────────────────────────────────────
-  Future<void> _handleUserNavigation(firebase_auth.User user, {String? phoneNumber}) async {
+  Future<void> _handleUserNavigation(
+    firebase_auth.User user, {
+    String? phoneNumber,
+  }) async {
     try {
       final userData = await remoteRepo.checkUserExistsInAPI(user.uid);
 
@@ -373,7 +452,6 @@ class LoginController extends GetxController {
     }
   }
 
-
   void _showErrorSnackbar(String title, String? message) {
     Get.snackbar(
       title,
@@ -397,9 +475,13 @@ class LoginController extends GetxController {
 // Helpers for Apple Sign-In
 // ──────────────────────────────────────────────────────────────────────────────
 String _generateNonce([int length = 32]) {
-  final charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+  final charset =
+      '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
   final random = Random.secure();
-  return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
+  return List.generate(
+    length,
+    (_) => charset[random.nextInt(charset.length)],
+  ).join();
 }
 
 String _sha256ofString(String input) {

@@ -46,7 +46,7 @@ class TournamentDetailView extends StatelessWidget {
   Widget _buildInfoIcon(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, color: Colors.green),
+        Icon(icon, color: const Color(0xff00DC00)),
         const SizedBox(width: 5),
         Text(text, style: GoogleFonts.inter(color: Colors.white)),
       ],

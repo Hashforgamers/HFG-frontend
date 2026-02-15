@@ -100,7 +100,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
             'Success',
             'Your cafe request has been submitted successfully! We will review it shortly.',
             snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
+            backgroundColor: const Color(0xff00DC00),
             colorText: Colors.white,
             duration: const Duration(seconds: 3),
             margin: const EdgeInsets.all(16),

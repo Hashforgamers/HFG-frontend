@@ -111,7 +111,7 @@ class _ArenaDetailHeaderState extends State<ArenaDetailHeader> {
                     height: 6,
                     decoration: BoxDecoration(
                       color: _currentPage == index
-                          ? const Color(0xff338125)
+                          ? const Color(0xff00DC00)
                           : Colors.white24,
                       borderRadius: BorderRadius.circular(3),
                     ),

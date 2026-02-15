@@ -180,7 +180,7 @@ class ShopSection extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.transparent,
                         border: Border.all(
-                          color: const Color(0xFF75F94C),
+                          color: const Color(0xff00DC00),
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(25),
@@ -225,7 +225,7 @@ class ShopSection extends StatelessWidget {
                       horizontal: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00DC00),
+                      color: const Color(0xff00DC00),
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(
@@ -317,7 +317,7 @@ class ProductCard extends StatelessWidget {
             const SizedBox(height: 5),
             Text(
               '₹${product.price}',
-              style: GoogleFonts.inter(color: Colors.greenAccent, fontSize: 14),
+              style: GoogleFonts.inter(color: const Color(0xff00DC00), fontSize: 14),
             ),
           ],
         ),
@@ -343,7 +343,7 @@ class ProductCard extends StatelessWidget {
           ElevatedButton(
             onPressed: () => _showComingSoonToast(),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xff00D701),
+              backgroundColor: const Color(0xff00DC00),
               shape: ContinuousRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),

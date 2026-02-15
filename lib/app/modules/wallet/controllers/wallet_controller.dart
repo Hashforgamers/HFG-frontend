@@ -299,7 +299,7 @@ class WalletController extends GetxController {
       Get.snackbar(
         'Success',
         message,
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xff00DC00),
         colorText: Colors.white,
         duration: const Duration(seconds: 3),
       );

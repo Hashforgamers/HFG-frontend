@@ -36,12 +36,12 @@ class SearchResultFilters extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xff338125)
+                      ? const Color(0xff00DC00)
                       : Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected
-                        ? const Color(0xff338125)
+                        ? const Color(0xff00DC00)
                         : Colors.white.withValues(alpha: 0.2),
                   ),
                 ),

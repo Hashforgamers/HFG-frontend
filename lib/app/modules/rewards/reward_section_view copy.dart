@@ -38,7 +38,7 @@ class RewardsSection extends StatelessWidget {
             CupertinoIcons.hexagon,
             "$hashCoin",
             "Hash Coins",
-            const Color(0xff338125),
+            const Color(0xff00DC00),
           ),
         ),
         GestureDetector(

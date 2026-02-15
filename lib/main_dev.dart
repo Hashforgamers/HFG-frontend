@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
+import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/core/service/deeplink_service.dart';
@@ -46,9 +47,7 @@ void main() async {
     accentColor: Colors.blueAccent,
   );
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
@@ -62,6 +61,7 @@ void main() async {
   // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
   Get.put(ShopController(), permanent: true);
+  Get.put(ChatService(), permanent: true);
 
   runApp(const MyApp());
 }
@@ -73,15 +73,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (context) => HashCoinCubit(),
-        ),
-        BlocProvider(
-          create: (context) => FcmCubit(),
-        ),
-        BlocProvider(
-          create: (context) =>  GamePassCubit(),
-        ),
+        BlocProvider(create: (context) => HashCoinCubit()),
+        BlocProvider(create: (context) => FcmCubit()),
+        BlocProvider(create: (context) => GamePassCubit()),
       ],
       child: ScrollConfiguration(
         behavior: NoGlowScrollBehavior(),

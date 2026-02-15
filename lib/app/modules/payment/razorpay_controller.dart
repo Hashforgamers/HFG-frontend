@@ -165,7 +165,7 @@ class RazorpayController extends GetxController {
         'Success!',
         'Pass purchased successfully!',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xff00DC00),
         colorText: Colors.white,
       );
     }

@@ -53,7 +53,7 @@ class _RainbowLoadingBarState extends State<RainbowLoadingBar>
                   Colors.red,
                   Colors.orange,
                   Colors.yellow,
-                  Colors.green,
+                  const Color(0xff00DC00),
                   Colors.blue,
                   Colors.indigo,
                   Colors.purple,

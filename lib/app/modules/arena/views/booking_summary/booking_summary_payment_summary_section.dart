@@ -67,7 +67,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
             _paymentRow(
               'Discount',
               '-₹${discount.toStringAsFixed(2)}',
-              color: Colors.green,
+              color: const Color(0xff00DC00),
             ),
           _paymentRow('GST', '₹0.00'),
           Divider(

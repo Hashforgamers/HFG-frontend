@@ -51,7 +51,7 @@ class _EventBannerState extends State<EventBanner> {
           'Event',
           'Event banner clicked!',
           snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(0xff00DC00),
           colorText: Colors.white,
         );
       },
@@ -61,7 +61,7 @@ class _EventBannerState extends State<EventBanner> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           gradient: const LinearGradient(
-            colors: [Color(0xFF338125), Color(0xFF2E7D32)],
+            colors: [Color(0xff00DC00), Color(0xff00DC00)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

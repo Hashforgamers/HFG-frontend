@@ -235,7 +235,7 @@ class WelcomeAboardDialog extends StatelessWidget {
                               ' ₹30 bonus crate! 🎁',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.green,
+                                color: const Color(0xff00DC00),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -280,9 +280,9 @@ class WelcomeAboardDialog extends StatelessWidget {
                                 shaderCallback: (bounds) =>
                                     const LinearGradient(
                                   colors: [
-                                    Color(0xFF6DFB60),
-                                    Color(0xFF75F94C),
-                                    Color(0xFF00DC00),
+                                    Color(0xff00DC00),
+                                    Color(0xff00DC00),
+                                    Color(0xff00DC00),
                                   ],
                                 ).createShader(bounds),
                                 child: const Text(

@@ -163,7 +163,7 @@ class ViralShotsSection extends StatelessWidget {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xff75F94C),
+                      backgroundColor: const Color(0xff00DC00),
                       minimumSize: const Size(0, 26),
                       padding: const EdgeInsets.symmetric(
                         vertical: 8,

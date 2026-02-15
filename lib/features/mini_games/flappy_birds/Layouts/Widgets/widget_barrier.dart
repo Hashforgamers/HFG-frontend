@@ -23,8 +23,8 @@ class Barrier extends StatelessWidget {
         height: (size.height) / (4 * barrierHeight) / 2,
         width: size.width * barrierWidth / 2,
         decoration: BoxDecoration(
-          color: Colors.green,
-          border: Border.all(width: 10, color: Colors.green.shade900),
+          color: const Color(0xff00DC00),
+          border: Border.all(width: 10, color: const Color(0xff00DC00)),
           borderRadius: BorderRadius.circular(16),
         ),
       ),

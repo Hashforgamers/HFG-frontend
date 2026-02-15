@@ -66,7 +66,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           onTap: () {
             Get.back();
           },
-          child: const Icon(Icons.arrow_back, color: Color(0xff00D701)),
+          child: const Icon(Icons.arrow_back, color: Color(0xff00DC00)),
         ),
         actions: [
           GestureDetector(
@@ -148,7 +148,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                     Text(
                                       '₹${product.price.toStringAsFixed(2)}',
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xff00D701),
+                                        color: const Color(0xff00DC00),
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -179,7 +179,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             Text(
                               'Availability: ${product.availability.inStock ? "In Stock" : "Out of Stock"}',
                               style: GoogleFonts.inter(
-                                color: const Color(0xff00D701),
+                                color: const Color(0xff00DC00),
                                 fontSize: 16,
                               ),
                             ),
@@ -263,7 +263,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     // Handle product buy now tap
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff00D701),
+                    backgroundColor: const Color(0xff00DC00),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),

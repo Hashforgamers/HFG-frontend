@@ -20,7 +20,7 @@ class HomeGamePassCard extends StatelessWidget {
         height: 200,
         width: double.infinity,
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFF6DFB60), width: 1),
+          border: Border.all(color: const Color(0xff00DC00), width: 1),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Stack(
@@ -73,7 +73,7 @@ class HomeGamePassCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: const Color(0xFF75F94C),
+                        color: const Color(0xff00DC00),
                         width: 1.5,
                       ),
                       borderRadius: BorderRadius.circular(25),

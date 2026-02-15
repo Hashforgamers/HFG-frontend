@@ -1,12 +1,11 @@
 import 'package:clarity_flutter/clarity_flutter.dart';
-import 'package:device_preview/device_preview.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
+import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/core/service/deeplink_service.dart';
@@ -14,7 +13,6 @@ import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/utils/scroll_behaviour.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'app/data/services/user_controller.dart';
 import 'app/modules/arena/controllers/booking_controller.dart';
@@ -65,6 +63,7 @@ void main() async {
   // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
   Get.put(ShopController(), permanent: true);
+  Get.put(ChatService(), permanent: true);
 
   runApp(MyApp());
 }
@@ -93,7 +92,7 @@ class MyApp extends StatelessWidget {
           ],
           child: ScrollConfiguration(
             behavior: NoGlowScrollBehavior(),
-            child:  ClarityWidget(
+            child: ClarityWidget(
               clarityConfig: config,
               app: GetMaterialApp(
                 debugShowCheckedModeBanner: true, // Show debug banner for dev

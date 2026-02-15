@@ -221,7 +221,7 @@ class _UserProfileViewState extends State<UserProfileView> {
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  colors: [Color(0xff00D701), Color(0xFF1C8D28)],
+                  colors: [Color(0xff00DC00), Color(0xff00DC00)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -235,7 +235,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                     ? null
                     : const Icon(
                         CupertinoIcons.person_fill,
-                        color: Color(0xff00D701),
+                        color: Color(0xff00DC00),
                         size: 36,
                       ),
               ),
@@ -280,7 +280,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFC6FFC6),
+                        color: const Color(0xff00DC00),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -300,7 +300,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                   padding: EdgeInsets.all(9),
                   child: Icon(
                     CupertinoIcons.pencil,
-                    color: Color(0xff00D701),
+                    color: Color(0xff00DC00),
                     size: 18,
                   ),
                 ),
@@ -342,7 +342,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                       color: const Color(0x2216A34A),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(icon, color: const Color(0xff00D701), size: 20),
+                    child: Icon(icon, color: const Color(0xff00DC00), size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -412,7 +412,7 @@ class _UserProfileViewState extends State<UserProfileView> {
           }
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xff00D701),
+          backgroundColor: const Color(0xff00DC00),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

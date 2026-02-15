@@ -46,14 +46,14 @@ class BookingSummaryCartSection extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF338125).withValues(alpha: 0.2),
+                  color: const Color(0xff00DC00).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   summaryText,
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: const Color(0xFF6DFB60),
+                    color: const Color(0xff00DC00),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -96,14 +96,14 @@ class BookingSummaryCartSection extends StatelessWidget {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF338125).withValues(alpha: 0.2),
+                            color: const Color(0xff00DC00).withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
                             summaryText,
                             style: GoogleFonts.inter(
                               fontSize: 12,
-                              color: const Color(0xFF6DFB60),
+                              color: const Color(0xff00DC00),
                             ),
                           ),
                         ),
@@ -133,7 +133,7 @@ class BookingSummaryCartSection extends StatelessWidget {
                             Text(
                               '₹${total.toStringAsFixed(2)}',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF6DFB60),
+                                color: const Color(0xff00DC00),
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               ),

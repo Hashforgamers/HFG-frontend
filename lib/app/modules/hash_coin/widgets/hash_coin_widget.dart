@@ -433,7 +433,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                       icon: Icons.trending_up,
                       label: 'Total Earned',
                       value: _formatHashCoins((widget.hashCoin * 1.5).toInt()),
-                      color: Colors.green,
+                      color: const Color(0xff00DC00),
                     ),
                   ),
                   const SizedBox(width: 20),
@@ -815,7 +815,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
           message,
           style: GoogleFonts.inter(fontWeight: FontWeight.w600),
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xff00DC00),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
