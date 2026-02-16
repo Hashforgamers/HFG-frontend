@@ -244,7 +244,7 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       if (e is DioException) {
-        // If it's a retryable error, let the interceptor handle it
+        // If it's a retryable error, let the intercep
         if (ApiErrorHandler.shouldRetry(e)) {
           rethrow; // Let the retry interceptor handle it
         }

@@ -17,12 +17,6 @@ val keystoreProps = Properties().apply {
     val file = rootProject.file("key.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
-val localProps = Properties().apply {
-    val file = rootProject.file("local.properties")
-    if (file.exists()) file.inputStream().use { load(it) }
-}
-val flutterVersionCode   = (localProps["flutter.versionCode"] ?: "1").toString().toInt()
-val flutterVersionName   =  localProps["flutter.versionName"] ?: "1.0"
 
 /* ───────── android block ───────── */
 android {
@@ -38,8 +32,9 @@ android {
         applicationId = "com.hfg.hash"
         minSdk = flutter.minSdkVersion                                  // bumped for Firebase Auth
         targetSdk = 35
-        versionCode = flutterVersionCode
-        versionName = flutterVersionName.toString()
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+
     }
 
     /* signing (release) */
