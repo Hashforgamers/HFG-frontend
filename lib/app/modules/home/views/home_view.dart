@@ -1,7 +1,11 @@
 import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/hash_store/pages/hash_store_cart_view.dart';
+import 'package:hash/app/modules/hash_store/pages/hash_store_home_page.dart';
+import 'package:hash/app/modules/hash_store/pages/hash_store_orders_view.dart';
 import '../controllers/home_controller.dart';
 
 class HomeView extends StatefulWidget {
@@ -163,7 +167,7 @@ class _HomeViewState extends State<HomeView>
                         children: [
                           // Left side: Hash App / Hash Shop toggle
                           GestureDetector(
-                            onTap: controller.toggleShop,
+                            onTap: controller.onHashShopMainTap,
                             child: Row(
                               children: [
                                 if (isShopMenuOpen)
@@ -186,14 +190,39 @@ class _HomeViewState extends State<HomeView>
                           Expanded(
                             child: Row(mainAxisSize: MainAxisSize.max,
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [                                const SizedBox(width: 10),
+                              children: [
 
-                                _shopIcon(Icons.category),
-                                const SizedBox(width: 10),
-                                _shopIcon(Icons.shopping_bag),
-                                const SizedBox(width: 10),
-                                _shopIcon(Icons.gif_box_rounded),
-                                const SizedBox(width: 10),
+                                _shopIcon(
+                                  icon: Icons.storefront_outlined,
+                                  index: 0,
+                                  onTap: () {
+                                    controller.hashIndex.value = 0;
+                                  },
+                                ),
+
+                                _shopIcon(
+                                  icon: Icons.category,
+                                  index: 1,
+                                  onTap: () {
+                                    controller.hashIndex.value = 1;
+                                  },
+                                ),
+
+                                _shopIcon(
+                                  icon: Icons.shopping_cart,
+                                  index: 2,
+                                  onTap: () {
+                                    controller.hashIndex.value = 2;
+                                  },
+                                ),
+
+                                _shopIcon(
+                                  icon: CupertinoIcons.cube_fill,
+                                  index: 3,
+                                  onTap: () {
+                                    controller.hashIndex.value = 3;
+                                  },
+                                ),
 
                               ],
                             ),
@@ -255,7 +284,44 @@ class _HomeViewState extends State<HomeView>
   }
 
   // --- Shop Icons ---
-  Widget _shopIcon(IconData icon) {
-    return Icon(icon, color: Colors.white, size: 22);
+  // Widget _shopIcon(IconData icon) {
+  //   return Icon(icon, color: Colors.white, size: 22);
+  // }
+
+
+  // Widget _shopIcon({
+  //   required IconData icon,
+  //   required VoidCallback onTap,
+  // }) {
+  //   return GestureDetector(
+  //     onTap: onTap,
+  //     behavior: HitTestBehavior.opaque,
+  //     child: Icon(
+  //       icon,
+  //       color: Colors.white,
+  //       size: 22,
+  //     ),
+  //   );
+  // }
+  Widget _shopIcon({
+    required IconData icon,
+    required int index,
+    required VoidCallback onTap,
+  }) {
+    final isSelected = controller.hashIndex.value == index;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Icon(
+        icon,
+        size: 22,
+        color: isSelected
+            ? const Color(0xff6DFB60) // ✅ Green when selected
+            : Colors.white,
+      ),
+    );
   }
+
+
 }

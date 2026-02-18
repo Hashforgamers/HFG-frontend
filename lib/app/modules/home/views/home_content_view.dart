@@ -530,12 +530,6 @@ final prefs = locator<SharedPreferences>();
     super.build(context);
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Get.to(HashStoreHomePage());
-        },
-        child: Icon(Icons.shopping_cart),
-      ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
         backgroundColor: Colors.black,

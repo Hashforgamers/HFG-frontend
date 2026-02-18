@@ -41,12 +41,6 @@ class _HashStoreCartViewState extends State<HashStoreCartView> {
       child: BlocBuilder<HashStoreCartCubit, HashStoreCartState>(
         builder: (context, state) {
           return Scaffold(
-            floatingActionButton: FloatingActionButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => HashStoreOrdersView()));
-              },
-              child: const Icon(Icons.arrow_forward),
-            ),
             body: Stack(
               children: [
                 // Main content

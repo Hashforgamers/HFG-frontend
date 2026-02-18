@@ -71,78 +71,118 @@ class _TournamentsLeaderboardViewState
   }
 
   Widget _buildLeaderboardList(List<Map<String, dynamic>> leaderboard) {
-    return ListView.separated(
+    return ListView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      itemCount: leaderboard.length,
-      separatorBuilder: (_, __) => const Divider(
-        color: Colors.white10,
-        height: 12,
-      ),
-      itemBuilder: (context, index) {
-        final player = leaderboard[index];
-        final rank = player['rank'];
-        final name = player['player'];
-        final points = player['points'];
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+      children: [
+        // Scrollable PNG image at the top
+        Image.asset(
+          'assets/hash_store_images/leaderboard_img.png',
+          height: 170,
+          fit: BoxFit.contain,
+        ),
 
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        const SizedBox(height: 20),
+
+        // Main leaderboard container
+        Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
+            border: Border.all(color: Colors.white30, width: 1.2),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: rank == 1
-                  ? Colors.amber
-                  : rank == 2
-                  ? Colors.grey
-                  : rank == 3
-                  ? Colors.brown
-                  : Colors.white10,
-              width: 1.2,
-            ),
           ),
-          child: Row(
+          child: Column(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: rank == 1
-                    ? Colors.amber
-                    : rank == 2
-                    ? Colors.grey
-                    : rank == 3
-                    ? Colors.brown
-                    : Colors.white12,
-                child: Text(
-                  '$rank',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  name,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              Text(
-                '$points pts',
-                style: GoogleFonts.orbitron(
-                  color: Colors.greenAccent,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+
+              ...List.generate(leaderboard.length, (index) {
+                final player = leaderboard[index];
+                final rank = player['rank'];
+                final name = player['player'];
+                final points = player['points'];
+                final matchesWon = player['matchesWon'];
+
+                return Column(
+                  children: [
+
+                    // Each row
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 17),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 40,
+                            child: Text(
+                              '$rank',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 25,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundImage: NetworkImage(player["photoUrl"] ?? ""),
+                            backgroundColor: Colors.white12,
+                          ),
+                          const SizedBox(width: 14),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  const Icon(Icons.star,
+                                      color: Colors.green, size: 11),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '$points pts',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.grey,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '$matchesWon Matches Won',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.grey,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Add divider except after last row
+                    if (index != leaderboard.length - 1)
+                      Divider(
+                        color: Colors.white24,
+                        thickness: 0.6,
+                        height: 0,
+                        indent: 30,
+                        endIndent: 30,
+                      ),
+                  ],
+                );
+              }),
             ],
           ),
-        );
-      },
+        )
+      ],
     );
   }
+
+
 }

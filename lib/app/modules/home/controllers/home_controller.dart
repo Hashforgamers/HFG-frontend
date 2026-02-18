@@ -1,9 +1,13 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
+import 'package:hash/app/modules/hash_store/pages/categories_view.dart';
+import 'package:hash/app/modules/hash_store/pages/hash_store_home_page.dart';
+import 'package:hash/app/modules/hash_store/widgets/hash_store_container.dart';
 import 'package:hash/app/modules/shop/views/shop_view.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_home_view.dart';
 import '../../arena/views/arena_view.dart';
+import '../../hash_store/pages/hash_store_cart_view.dart';
 import '../../profile/user_profile_view.dart';
 import '../views/home_content_view.dart';
 
@@ -13,6 +17,7 @@ class HomeController extends GetxController {
   final currentScreen = Rx<Widget>(const HomeContentView());
   final isShopOpen = false.obs;
   final isScreenTransitioning = false.obs;
+  final hashIndex = 0.obs; // 0 = Hash Home
 
   // --- Performance & Cache ---
   final Map<int, Widget> _screenCache = {};
@@ -32,6 +37,25 @@ class HomeController extends GetxController {
     isShopOpen.toggle();
   }
 
+  void onHashShopMainTap() {
+    if (!isShopOpen.value) {
+      // 🔹 Enter Hash Shop
+      isShopOpen.value = true;
+      selectedIndex.value = 4;
+      hashIndex.value = 0;
+      currentScreen.value = const HashStoreContainer();
+    } else {
+      // 🔹 EXIT Hash Shop → go back to Main Home
+      isShopOpen.value = false;
+      hashIndex.value = 0;
+
+      selectedIndex.value = 0;
+      currentScreen.value = const HomeContentView();
+    }
+  }
+
+
+
   // --- Initialize Pre-cache ---
   void _initializeScreenCache() {
     _screenCache[0] = const HomeContentView();
@@ -39,50 +63,84 @@ class HomeController extends GetxController {
     _screenCache[2] = PastBookingsScreen();
     // _screenCache[3] = const ShopView();
     _screenCache[3] = const TournamentsHomeView();
-    _screenCache[4] = const UserProfileView();
+    // _screenCache[4] = const UserProfileView();
+    _screenCache[4] = const HashStoreContainer();
+
   }
 
   // --- Handle Bottom Navigation Tap ---
+  // void onItemTapped(int index) {
+  //   // --- Debounce to avoid flicker ---
+  //   final now = DateTime.now().millisecondsSinceEpoch;
+  //   if (now - lastScreenChangeTime < 300) return;
+  //
+  //   // --- Prevent double-tap on same tab ---
+  //   if (selectedIndex.value == index) return;
+  //   lastScreenChangeTime = now;
+  //
+  //   // --- Hash Shop Handling (Middle Icon) ---
+  //   // if (index == 2) {
+  //   //   // Toggle slide bar instead of switching screen
+  //   //   toggleShop();
+  //   //   return;
+  //   // }
+  //
+  //   // --- Close Shop bar when navigating elsewhere ---
+  //   if (isShopOpen.value) {
+  //     isShopOpen.value = false;
+  //   }
+  //
+  //   // --- Begin transition ---
+  //   isScreenTransitioning.value = true;
+  //   selectedIndex.value = index;
+  //
+  //   // --- Use cached screen or build new ---
+  //   if (_screenCache.containsKey(index)) {
+  //     currentScreen.value = _screenCache[index]!;
+  //   } else {
+  //     final newScreen = _createScreenForIndex(index);
+  //     _screenCache[index] = newScreen;
+  //     currentScreen.value = newScreen;
+  //     _manageCacheSize();
+  //   }
+  //
+  //   // --- End transition after animation ---
+  //   Future.delayed(const Duration(milliseconds: 100), () {
+  //     isScreenTransitioning.value = false;
+  //   });
+  // }
+
   void onItemTapped(int index) {
-    // --- Debounce to avoid flicker ---
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (now - lastScreenChangeTime < 300) return;
-
-    // --- Prevent double-tap on same tab ---
-    if (selectedIndex.value == index) return;
-    lastScreenChangeTime = now;
-
-    // --- Hash Shop Handling (Middle Icon) ---
-    // if (index == 2) {
-    //   // Toggle slide bar instead of switching screen
-    //   toggleShop();
-    //   return;
-    // }
-
-    // --- Close Shop bar when navigating elsewhere ---
-    if (isShopOpen.value) {
+    if (isShopOpen.value && index != 4) {
       isShopOpen.value = false;
     }
 
-    // --- Begin transition ---
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - lastScreenChangeTime < 300) return;
+
+    lastScreenChangeTime = now;
+
+    // 🟣 HASH SHOP TAB
+    if (index == 4) {
+      isShopOpen.value = true;
+      hashIndex.value = 0; // ✅ Always start from Hash Home
+    } else {
+      isShopOpen.value = false;
+    }
+
+    if (selectedIndex.value == index) return;
+
     isScreenTransitioning.value = true;
     selectedIndex.value = index;
 
-    // --- Use cached screen or build new ---
-    if (_screenCache.containsKey(index)) {
-      currentScreen.value = _screenCache[index]!;
-    } else {
-      final newScreen = _createScreenForIndex(index);
-      _screenCache[index] = newScreen;
-      currentScreen.value = newScreen;
-      _manageCacheSize();
-    }
+    currentScreen.value =
+        _screenCache[index] ?? _createScreenForIndex(index);
 
-    // --- End transition after animation ---
     Future.delayed(const Duration(milliseconds: 100), () {
       isScreenTransitioning.value = false;
     });
   }
+
 
   // --- Create new screen if not cached ---
   Widget _createScreenForIndex(int index) {
@@ -97,8 +155,10 @@ class HomeController extends GetxController {
       //   return const ShopView();
       case 3:
         return const TournamentsHomeView();
+      // case 4:
+      //   return const UserProfileView();
       case 4:
-        return const UserProfileView();
+        return const HashStoreContainer();
       default:
         return const HomeContentView();
     }

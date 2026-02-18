@@ -45,12 +45,6 @@ class _HashStoreHomePageState extends State<HashStoreHomePage> {
       child: BlocBuilder<HashStoreHomeCubit, HashStoreHomeState>(
         builder: (context, state) {
           return Scaffold(
-            floatingActionButton: FloatingActionButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => CategoriesView()));
-              },
-              child: Icon(Icons.arrow_forward),
-            ),
             body: Stack(
               children: [
                 // Main content

@@ -38,17 +38,22 @@ class _UserProfileViewState extends State<UserProfileView> {
         userController.user.value.contact?.electronicAddress?.emailId ?? '';
 
     return Scaffold(
-      bottomNavigationBar: Container(
-        height: 120,
-        child: Column(
-          children: [_buildLogoutButton(), _buildDeleteButton(userController)],
-        ),
-      ),
+      // bottomNavigationBar: Container(
+      //   height: 120,
+      //   child: Column(
+      //     children: [_buildLogoutButton(), _buildDeleteButton(userController)],
+      //   ),
+      // ),
       appBar: AppBar(
         centerTitle: false,
-        title: Text(
-          'Profile',
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+        leading: GestureDetector(
+          onTap: (){
+            Get.back();
+          },
+          child: Icon(
+            Icons.arrow_back_ios_rounded,
+            color: Colors.grey,
+          ),
         ),
         backgroundColor: Colors.black,
       ),
@@ -91,6 +96,13 @@ class _UserProfileViewState extends State<UserProfileView> {
             //   },
             // ),
             _buildProfileOption(
+              icon: Icons.shopping_bag,
+              title: 'Hash Shop',
+              onTap: () {
+                // Navigate
+              },
+            ),
+            _buildProfileOption(
               icon: CupertinoIcons.person_2,
               title: 'Refer & Earn',
               onTap: () {
@@ -132,6 +144,13 @@ class _UserProfileViewState extends State<UserProfileView> {
                 Get.to(AboutPage());
               },
             ),
+            _buildProfileOption(
+              icon: Icons.settings_outlined,
+              title: 'Settings',
+              onTap: () {
+                // Handle settings
+              },
+            ),
             // _buildProfileOption(
             //   icon: CupertinoIcons.info,
             //   title: 'About',
@@ -165,16 +184,16 @@ class _UserProfileViewState extends State<UserProfileView> {
           const SizedBox(height: 20),
           Text(
             user.name!,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.orbitron(
               color: Colors.white,
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 10),
           Text(
             user.contact?.electronicAddress?.emailId ?? "",
-            style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
+            style: GoogleFonts.orbitron(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
           ),
         ],
       );
@@ -187,75 +206,75 @@ class _UserProfileViewState extends State<UserProfileView> {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: Colors.green),
+      leading: Icon(icon, color: Colors.white70),
       title: Text(
         title,
-        style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
+        style: GoogleFonts.orbitron(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
       ),
       trailing: const Icon(CupertinoIcons.forward, color: Colors.white70),
       onTap: onTap,
     );
   }
 
-  Widget _buildLogoutButton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
-      child: ElevatedButton(
-        onPressed: () async {
-          try {
-            final googleSignIn = GoogleSignIn();
-            if (await googleSignIn.isSignedIn()) {
-              await googleSignIn.signOut();
-            }
-
-            await FirebaseAuth.instance.signOut(); // clear Firebase session
-
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.clear(); // remove all local data
-
-            Get.offAllNamed(AppRoutes.LOGIN);
-          } catch (e) {
-            Get.snackbar(
-              'Logout Error',
-              e.toString(),
-              backgroundColor: Colors.red,
-              colorText: Colors.white,
-            );
-          }
-        },
-
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.green,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          minimumSize: const Size(double.infinity, 50),
-        ),
-        child: Text(
-          'Logout',
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
-        ),
-      ),
-    );
-  }
-
-  // inside UserProfileView
-  Widget _buildDeleteButton(UserController userController) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
-      child: OutlinedButton(
-        onPressed: () =>
-            showBlackCupertinoDeleteDialog(Get.context!, userController),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Colors.red, width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          minimumSize: const Size(double.infinity, 50),
-        ),
-        child: const Text(
-          'Delete Account',
-          style: TextStyle(color: Colors.red, fontSize: 18),
-        ),
-      ),
-    );
-  }
+  // Widget _buildLogoutButton() {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+  //     child: ElevatedButton(
+  //       onPressed: () async {
+  //         try {
+  //           final googleSignIn = GoogleSignIn();
+  //           if (await googleSignIn.isSignedIn()) {
+  //             await googleSignIn.signOut();
+  //           }
+  //
+  //           await FirebaseAuth.instance.signOut(); // clear Firebase session
+  //
+  //           final prefs = await SharedPreferences.getInstance();
+  //           await prefs.clear(); // remove all local data
+  //
+  //           Get.offAllNamed(AppRoutes.LOGIN);
+  //         } catch (e) {
+  //           Get.snackbar(
+  //             'Logout Error',
+  //             e.toString(),
+  //             backgroundColor: Colors.red,
+  //             colorText: Colors.white,
+  //           );
+  //         }
+  //       },
+  //
+  //       style: ElevatedButton.styleFrom(
+  //         backgroundColor: Colors.green,
+  //         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+  //         minimumSize: const Size(double.infinity, 50),
+  //       ),
+  //       child: Text(
+  //         'Logout',
+  //         style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
+  //       ),
+  //     ),
+  //   );
+  // }
+  //
+  // // inside UserProfileView
+  // Widget _buildDeleteButton(UserController userController) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+  //     child: OutlinedButton(
+  //       onPressed: () =>
+  //           showBlackCupertinoDeleteDialog(Get.context!, userController),
+  //       style: OutlinedButton.styleFrom(
+  //         side: const BorderSide(color: Colors.red, width: 1.5),
+  //         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+  //         minimumSize: const Size(double.infinity, 50),
+  //       ),
+  //       child: const Text(
+  //         'Delete Account',
+  //         style: TextStyle(color: Colors.red, fontSize: 18),
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Future<void> showDeleteAccountDialog(
     BuildContext context,

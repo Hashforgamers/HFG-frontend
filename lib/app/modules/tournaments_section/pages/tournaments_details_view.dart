@@ -781,7 +781,6 @@ class ExpandedTeamListView extends StatelessWidget {
                   ),
                 ],
               ),
-
               Spacer(),
             ],
           ),
