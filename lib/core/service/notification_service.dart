@@ -1,12 +1,107 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
+import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/firebase_options.dart';
+
+const AndroidNotificationChannel _contestChannel = AndroidNotificationChannel(
+  'contest_channel',
+  'Contest Notifications',
+  description: 'Notifications for contests and tournaments',
+  importance: Importance.high,
+);
+const AndroidNotificationChannel _offerChannel = AndroidNotificationChannel(
+  'offer_channel',
+  'Offer Notifications',
+  description: 'Promotions, discounts, and deals',
+  importance: Importance.high,
+);
+const AndroidNotificationChannel _systemChannel = AndroidNotificationChannel(
+  'system_channel',
+  'System Alerts',
+  description: 'System notifications and updates',
+  importance: Importance.high,
+);
+const AndroidNotificationChannel _chatChannel = AndroidNotificationChannel(
+  'chat_channel',
+  'Chat Messages',
+  description: 'Notifications for incoming chat messages',
+  importance: Importance.high,
+);
+
+String _channelIdFromType(String? type) {
+  return switch (type) {
+    'contest' => _contestChannel.id,
+    'offer' => _offerChannel.id,
+    'chat' => _chatChannel.id,
+    _ => _systemChannel.id,
+  };
+}
+
+String _channelNameFromId(String channelId) {
+  return switch (channelId) {
+    'contest_channel' => 'Contest Notifications',
+    'offer_channel' => 'Offer Notifications',
+    'chat_channel' => 'Chat Messages',
+    _ => 'System Alerts',
+  };
+}
+
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  final fln = FlutterLocalNotificationsPlugin();
+  const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const iosInit = DarwinInitializationSettings();
+  const initSettings = InitializationSettings(android: androidInit, iOS: iosInit);
+  await fln.initialize(initSettings);
+
+  final androidPlugin = fln
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >();
+  if (androidPlugin != null) {
+    await androidPlugin.createNotificationChannel(_contestChannel);
+    await androidPlugin.createNotificationChannel(_offerChannel);
+    await androidPlugin.createNotificationChannel(_systemChannel);
+    await androidPlugin.createNotificationChannel(_chatChannel);
+  }
+
+  final notif = message.notification;
+  final title = notif?.title ?? (message.data['title'] ?? '').toString();
+  final body = notif?.body ?? (message.data['body'] ?? '').toString();
+  if (title.isEmpty && body.isEmpty) return;
+
+  final channelId = _channelIdFromType(message.data['type']?.toString());
+  final details = NotificationDetails(
+    android: AndroidNotificationDetails(
+      channelId,
+      _channelNameFromId(channelId),
+      channelDescription: 'Channel for $channelId',
+      importance: Importance.max,
+      priority: Priority.high,
+    ),
+    iOS: const DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    ),
+  );
+
+  await fln.show(
+    DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    title,
+    body,
+    details,
+    payload: message.data['route']?.toString() ?? '',
+  );
+}
 
 class NotificationController extends GetxController {
   final FirebaseMessaging _fm = FirebaseMessaging.instance;
@@ -63,6 +158,7 @@ class NotificationController extends GetxController {
     // 4) Message streams
     FirebaseMessaging.onMessage.listen(_showLocalNotification);
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageNavigation);
+    unawaited(_handleInitialMessage());
 
     // 5) Tokens (wait for APNs on iOS, then get FCM)
     await _initTokens(settings);
@@ -102,40 +198,15 @@ class NotificationController extends GetxController {
   }
 
   Future<void> _createAndroidChannels() async {
-    const contest = AndroidNotificationChannel(
-      'contest_channel',
-      'Contest Notifications',
-      description: 'Notifications for contests and tournaments',
-      importance: Importance.high,
-    );
-    const offer = AndroidNotificationChannel(
-      'offer_channel',
-      'Offer Notifications',
-      description: 'Promotions, discounts, and deals',
-      importance: Importance.high,
-    );
-    const system = AndroidNotificationChannel(
-      'system_channel',
-      'System Alerts',
-      description: 'System notifications and updates',
-      importance: Importance.high,
-    );
-    const chat = AndroidNotificationChannel(
-      'chat_channel',
-      'Chat Messages',
-      description: 'Notifications for incoming chat messages',
-      importance: Importance.high,
-    );
-
     final androidPlugin = _fln
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
     if (androidPlugin != null) {
-      await androidPlugin.createNotificationChannel(contest);
-      await androidPlugin.createNotificationChannel(offer);
-      await androidPlugin.createNotificationChannel(system);
-      await androidPlugin.createNotificationChannel(chat);
+      await androidPlugin.createNotificationChannel(_contestChannel);
+      await androidPlugin.createNotificationChannel(_offerChannel);
+      await androidPlugin.createNotificationChannel(_systemChannel);
+      await androidPlugin.createNotificationChannel(_chatChannel);
     }
   }
 
@@ -144,11 +215,7 @@ class NotificationController extends GetxController {
     final notif = message.notification;
     final title = notif?.title ?? (message.data['title'] ?? '');
     final body = notif?.body ?? (message.data['body'] ?? '');
-    String channelId = switch (message.data['type']) {
-      'contest' => 'contest_channel',
-      'offer' => 'offer_channel',
-      _ => 'system_channel',
-    };
+    final channelId = _channelIdFromType(message.data['type']?.toString());
 
     // Track receipt
     segmentService.onPushNotificationReceived(
@@ -159,11 +226,7 @@ class NotificationController extends GetxController {
     // Android details
     final android = AndroidNotificationDetails(
       channelId,
-      channelId == 'contest_channel'
-          ? 'Contest Notifications'
-          : channelId == 'offer_channel'
-          ? 'Offer Notifications'
-          : 'System Alerts',
+      _channelNameFromId(channelId),
       channelDescription: 'Channel for $channelId',
       importance: Importance.max,
       priority: Priority.high,
@@ -185,6 +248,12 @@ class NotificationController extends GetxController {
       details,
       payload: message.data['route'] ?? '',
     );
+  }
+
+  Future<void> _handleInitialMessage() async {
+    final initialMessage = await _fm.getInitialMessage();
+    if (initialMessage == null) return;
+    _handleMessageNavigation(initialMessage);
   }
 
   Future<void> _onSelectNotification(String? payload) async {

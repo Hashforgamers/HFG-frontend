@@ -263,7 +263,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                           child: SizedBox(
                             width: 20,
                             height: 20,
-                            child: RainbowLoadingBar(
+                            child: AppLinearLoader(
 
                             ),
                           ),
@@ -286,7 +286,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: RainbowLoadingBar(
+                              child: AppLinearLoader(
 
                               ),
                             )
@@ -308,7 +308,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
             Container(
               color: Colors.black.withValues(alpha: 0.5),
               child: const Center(
-                child: RainbowLoadingBar()
+                child: AppLinearLoader()
               ),
             ),
         ],

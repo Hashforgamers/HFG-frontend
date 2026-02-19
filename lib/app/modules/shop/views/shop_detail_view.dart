@@ -91,7 +91,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
-          return  Center(child: RainbowLoadingBar());
+          return  Center(child: AppLinearLoader());
         } else if (controller.errorMessage.isNotEmpty) {
           return Center(child: Text(controller.errorMessage.value));
         } else if (controller.product.value != null) {
@@ -239,7 +239,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     width: double.infinity,
                     fit: BoxFit.contain,
                     placeholder: (context, url) =>
-                        const Center(child: RainbowLoadingBar()),
+                        const Center(child: AppLinearLoader()),
                     errorWidget: (context, url, error) =>
                         const Icon(Icons.error),
                   ),

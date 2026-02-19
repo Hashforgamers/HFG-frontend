@@ -16,10 +16,10 @@ class SearchResultFilters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 37,
+      height: 44,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         itemCount: filters.length,
         itemBuilder: (context, index) {
           final filter = filters[index];
@@ -31,8 +31,8 @@ class SearchResultFilters extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 3,
+                  horizontal: 15,
+                  vertical: 7,
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
@@ -49,6 +49,7 @@ class SearchResultFilters extends StatelessWidget {
                   filter,
                   style: GoogleFonts.inter(
                     color: isSelected ? Colors.white : Colors.white70,
+                    fontSize: 12,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),

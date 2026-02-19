@@ -243,7 +243,7 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                           ? const SizedBox(
                               height: 16,
                               width: 16,
-                              child: RainbowLoadingBar(),
+                              child: AppLinearLoader(),
                             )
                           : Text(
                               'Apply',

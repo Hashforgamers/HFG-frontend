@@ -70,9 +70,9 @@ class TournamentsAppBar extends StatelessWidget {
             children: [
               Text(
                 'Hey, ${userController.user.value.gameUserName}!',
-                style: GoogleFonts.orbitron(
+                style: GoogleFonts.inter(
                   color: Colors.white,
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
                 overflow: TextOverflow.ellipsis,

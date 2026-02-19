@@ -48,7 +48,7 @@ class __WalletPageState extends State<_WalletPage> {
     return BlocBuilder<TransactionCubit, TransactionState>(
       builder: (context, state) {
         if (state is TransactionLoading) {
-          return const Center(child: RainbowLoadingBar());
+          return const Center(child: AppLinearLoader());
         }
         if (state is TransactionLoaded) {
           return WalletScreen(transactions: state.transactions);
@@ -268,7 +268,7 @@ class _WalletScreenState extends State<WalletScreen> {
       body: Obx(() {
         if (walletCtr.isLoading) {
           return const Center(
-            child: RainbowLoadingBar(),
+            child: AppLinearLoader(),
           );
         }
 

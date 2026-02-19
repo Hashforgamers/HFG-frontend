@@ -342,7 +342,7 @@ class GlobalBottomSheetService {
                                               const SizedBox(
                                                 width: 20,
                                                 height: 20,
-                                                child: RainbowLoadingBar(
+                                                child: AppLinearLoader(
                                                ),
                                               ),
                                               const SizedBox(width: 12),
@@ -485,7 +485,7 @@ class GlobalBottomSheetService {
              SizedBox(
               width: 20,
               height: 20,
-              child: RainbowLoadingBar(
+              child: AppLinearLoader(
 
               ),
             ),

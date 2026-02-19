@@ -281,7 +281,7 @@ class _ReferralViewWithControllerState
                           return SizedBox(
                             height: 18,
                             width: 18,
-                            child: RainbowLoadingBar(),
+                            child: AppLinearLoader(),
                           );
                         }
                         final value = state is HashCoinLoaded
@@ -611,7 +611,7 @@ class _ReferralViewWithControllerState
                     ? SizedBox(
                         height: 16,
                         width: 16,
-                        child: RainbowLoadingBar(),
+                        child: AppLinearLoader(),
                       )
                     : GestureDetector(
                         onTap: () => controller.getVoucher(),
@@ -664,7 +664,7 @@ class _ReferralViewWithControllerState
             () => controller.isLoading.value
                 ? SizedBox(
                     width: double.infinity,
-                    child: Center(child: RainbowLoadingBar()),
+                    child: Center(child: AppLinearLoader()),
                   )
                 : SizedBox(
                     width: double.infinity,

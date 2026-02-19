@@ -289,7 +289,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
           Expanded(
             child: Obx(() {
               if (ctr.isLoading.value) {
-                return Center(child: RainbowLoadingBar());
+                return Center(child: AppLinearLoader());
               }
 
               return TabBarView(

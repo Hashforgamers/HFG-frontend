@@ -30,7 +30,7 @@ class ArenaDetailConsolesSection extends StatelessWidget {
           height: 70,
           child: Obx(() {
             if (isLoading.value) {
-              return const Center(child: RainbowLoadingBar());
+              return const Center(child: AppLinearLoader());
             }
 
             // Build unique console types from vendor games list

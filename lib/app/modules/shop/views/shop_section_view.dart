@@ -388,7 +388,7 @@ class ProductCard extends StatelessWidget {
               width: Get.width * 0.45,
               height: 150,
               placeholder: (context, url) =>
-                  Center(child: RainbowLoadingBar()),
+                  Center(child: AppLinearLoader()),
               errorWidget: (context, url, error) =>
                   const Icon(Icons.error, color: Colors.red),
             ),

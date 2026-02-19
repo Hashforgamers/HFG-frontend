@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hash/utils/widgets/loader.dart';
+import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
 
 import '../cubit/tournaments_leaderboard_cubit.dart';
 
 class TournamentsLeaderboardView extends StatefulWidget {
-  const TournamentsLeaderboardView({super.key});
+  const TournamentsLeaderboardView({super.key, required this.eventId});
+
+  final String eventId;
 
   @override
   State<TournamentsLeaderboardView> createState() =>
@@ -21,17 +21,25 @@ class _TournamentsLeaderboardViewState
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) =>
-      TournamentsLeaderboardCubit()..fetchLeaderboard(),
+          TournamentsLeaderboardCubit()
+            ..fetchLeaderboard(eventId: widget.eventId),
       child: Scaffold(
         extendBodyBehindAppBar: true,
         appBar: AppBar(
           leading: IconButton(
-            onPressed: (){
+            onPressed: () {
               Navigator.pop(context);
             },
-            icon: Icon(Icons.arrow_back_ios_rounded, color: Colors.white,),
+            icon: Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
           ),
-          title: Text('Leaderboard', style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),),
+          title: Text(
+            'Leaderboard',
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           backgroundColor: Colors.transparent,
         ),
         body: Container(
@@ -46,24 +54,27 @@ class _TournamentsLeaderboardViewState
             ),
           ),
           child: SafeArea(
-            child: BlocBuilder<TournamentsLeaderboardCubit,
-                TournamentsLeaderboardState>(
-              builder: (context, state) {
-                if (state is TournamentsLeaderboardLoading) {
-                  return const Center(child: RainbowLoadingBar());
-                } else if (state is TournamentsLeaderboardLoaded) {
-                  return _buildLeaderboardList(state.leaderboard);
-                } else if (state is TournamentsLeaderboardError) {
-                  return Center(
-                    child: Text(
-                      'Error: ${state.message}',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
+            child:
+                BlocBuilder<
+                  TournamentsLeaderboardCubit,
+                  TournamentsLeaderboardState
+                >(
+                  builder: (context, state) {
+                    if (state is TournamentsLeaderboardLoading) {
+                      return const TournamentsLoader.screen();
+                    } else if (state is TournamentsLeaderboardLoaded) {
+                      return _buildLeaderboardList(state.leaderboard);
+                    } else if (state is TournamentsLeaderboardError) {
+                      return Center(
+                        child: Text(
+                          'Error: ${state.message}',
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
           ),
         ),
       ),
@@ -75,10 +86,8 @@ class _TournamentsLeaderboardViewState
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: leaderboard.length,
-      separatorBuilder: (_, __) => const Divider(
-        color: Colors.white10,
-        height: 12,
-      ),
+      separatorBuilder: (_, __) =>
+          const Divider(color: Colors.white10, height: 12),
       itemBuilder: (context, index) {
         final player = leaderboard[index];
         final rank = player['rank'];

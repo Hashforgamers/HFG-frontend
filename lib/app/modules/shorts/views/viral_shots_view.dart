@@ -8,7 +8,7 @@ import '../controllers/viral_shorts_controller.dart';
 import 'short_video_player.dart';
 
 class ViralShotsSection extends StatelessWidget {
-  final controller = Get.put(YouTubeShortsController());
+  final YouTubeShortsController controller = Get.put(YouTubeShortsController());
 
   ViralShotsSection({super.key});
 
@@ -40,12 +40,13 @@ class ViralShotsSection extends StatelessWidget {
           return SizedBox(
             height: 220,
             child: ListView.separated(
+              cacheExtent: 600,
               scrollDirection: Axis.horizontal,
               itemCount: controller.shorts.length,
-              separatorBuilder: (_, __) => SizedBox(width: 20),
+              separatorBuilder: (_, __) => const SizedBox(width: 20),
               itemBuilder: (context, index) {
                 final short = controller.shorts[index];
-                return _buildItem(short, index);
+                return RepaintBoundary(child: _buildItem(short, index));
               },
             ),
           );

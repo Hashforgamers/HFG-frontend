@@ -125,7 +125,7 @@ class ReferFriendModal extends StatelessWidget {
       placeholder: (context, url) => Container(
         color: const Color(0xFF0E130F),
         alignment: Alignment.center,
-        child: const RainbowLoadingBar(),
+        child: const AppLinearLoader(),
       ),
       errorWidget: (context, url, error) => Container(
         color: const Color(0xFF0E130F),

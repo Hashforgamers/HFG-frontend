@@ -99,7 +99,7 @@ class TournamentCard extends StatelessWidget {
               width: double.infinity,
               fit: BoxFit.cover,
               placeholder: (context, url) =>
-                  Center(child: RainbowLoadingBar()),
+                  Center(child: AppLinearLoader()),
               errorWidget: (context, url, error) => const Icon(Icons.error),
             ),
           ),

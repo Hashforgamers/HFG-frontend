@@ -186,7 +186,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
     return BlocBuilder<GamePassCubit, GamePassState>(
       builder: (context, state) {
         if (state is GamePassLoading) {
-          return const Center(child: RainbowLoadingBar());
+          return const Center(child: AppLinearLoader());
         }
 
         if (state is GamePassError) {
@@ -394,7 +394,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
                                     ? const SizedBox(
                                         width: 16,
                                         height: 16,
-                                        child: RainbowLoadingBar(),
+                                        child: AppLinearLoader(),
                                       )
                                     : Text(
                                         pass.isBought == true

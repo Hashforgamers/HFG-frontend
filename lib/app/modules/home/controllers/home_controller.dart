@@ -12,7 +12,7 @@ import '../views/home_content_view.dart';
 class HomeController extends GetxController {
   // Keep feature implementations in code, route through flags until release.
   static const bool isHashShopReleased = false;
-  static const bool isTournamentReleased = false;
+  static const bool isTournamentReleased = true;
 
   // --- Reactive states ---
   final selectedIndex = 0.obs;

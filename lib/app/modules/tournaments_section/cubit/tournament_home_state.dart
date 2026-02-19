@@ -7,10 +7,11 @@ abstract class TournamentHomeState extends Equatable {
 }
 
 class TournamentHomeInitial extends TournamentHomeState {}
+
 class TournamentHomeLoading extends TournamentHomeState {}
 
 class TournamentHomeLoaded extends TournamentHomeState {
-  final List<Map<String, dynamic>> tournaments;
+  final List<TournamentModel> tournaments;
   const TournamentHomeLoaded({required this.tournaments});
   @override
   List<Object?> get props => [tournaments];

@@ -150,6 +150,9 @@ class YouTubeShortsController extends GetxController {
   final shorts = <YouTubeShort>[].obs;
   final isLoading = true.obs;
   final _api = ApiService();
+  static List<YouTubeShort>? _cachedShorts;
+  static DateTime? _lastFetchedAt;
+  static const Duration _cacheTtl = Duration(minutes: 10);
 
   @override
   void onInit() {
@@ -159,7 +162,20 @@ class YouTubeShortsController extends GetxController {
 
   Future<void> _load() async {
     try {
-      shorts.value = await _api.fetch('Gaming Shorts');
+      final now = DateTime.now();
+      final hasFreshCache =
+          _cachedShorts != null &&
+          _lastFetchedAt != null &&
+          now.difference(_lastFetchedAt!) < _cacheTtl;
+      if (hasFreshCache) {
+        shorts.value = _cachedShorts!;
+        AppLogger.i('[Shorts] Loaded from cache. count=${shorts.length}');
+        return;
+      }
+
+      shorts.value = await _api.fetch('Esports Shorts');
+      _cachedShorts = shorts.toList(growable: false);
+      _lastFetchedAt = now;
       AppLogger.i('[Shorts] Loaded in controller. count=${shorts.length}');
     } catch (e, st) {
       AppLogger.e('[Shorts] Controller load failed', error: e, stackTrace: st);

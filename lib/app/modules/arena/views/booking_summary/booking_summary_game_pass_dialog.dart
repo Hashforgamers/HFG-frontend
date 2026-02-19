@@ -79,7 +79,7 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
             const SizedBox(height: 16),
             Obx(() {
               if (isLoading.value) {
-                return const Center(child: RainbowLoadingBar());
+                return const Center(child: AppLinearLoader());
               }
 
               if (errorMessage.value.isNotEmpty) {

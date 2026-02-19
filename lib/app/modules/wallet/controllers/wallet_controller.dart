@@ -218,21 +218,23 @@ class WalletController extends GetxController {
       _setLoading(false);
     }
   }
-  Future<void> claimDropCrate() async {
+  Future<bool> claimDropCrate() async {
     String userId = _userController.userId.trim();
 
 
     if (userId.isEmpty) {
       _handleError('User ID missing');
-      return;
+      return false;
     }
 
     try {
       await _remoteRepo.claimDropCrateBonus(userId: userId, amount: 30);
       await fetchWallet(); // Refresh balance
       // _showSuccessMessage("🎉 ₹30 Drop Crate claimed!");
+      return true;
     } catch (e) {
       _showErrorMessage("❌ Claim failed: ${e.toString()}");
+      return false;
     }
   }
 

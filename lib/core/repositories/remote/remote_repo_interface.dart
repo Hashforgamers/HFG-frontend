@@ -139,4 +139,32 @@ abstract class RemoteRepoInterface {
   Future<String> makePurchasePassPayment({
     required PurchasePassModel purchasePassModel,
   });
+
+  Future<List<Map<String, dynamic>>> fetchPublicEvents();
+  Future<Map<String, dynamic>> fetchEventById({required String eventId});
+  Future<Map<String, dynamic>> createEventTeam({
+    required String eventId,
+    required int userId,
+    required String teamName,
+    required bool isIndividual,
+  });
+  Future<Map<String, dynamic>> joinEventTeam({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  });
+  Future<Map<String, dynamic>> leaveEventTeam({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  });
+  Future<Map<String, dynamic>> registerEventTeam({
+    required String eventId,
+    required int userId,
+    required String teamId,
+  });
+  Future<List<Map<String, dynamic>>> fetchEventTeamMembers({
+    required String eventId,
+    required String teamId,
+  });
 }

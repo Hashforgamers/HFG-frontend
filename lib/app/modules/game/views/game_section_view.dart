@@ -83,8 +83,15 @@ class GameService {
       return (items: const <Game>[], hasMore: false);
     }
 
+    final now = DateTime.now();
+    final fromDate =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final future = DateTime(now.year + 2, now.month, now.day);
+    final toDate =
+        '${future.year.toString().padLeft(4, '0')}-${future.month.toString().padLeft(2, '0')}-${future.day.toString().padLeft(2, '0')}';
+
     final uri = Uri.parse(
-      '$_baseUrl/games?key=$_apiKey&page=$page&page_size=$pageSize&ordering=-added',
+      '$_baseUrl/games?key=$_apiKey&page=$page&page_size=$pageSize&dates=$fromDate,$toDate&ordering=released',
     );
     AppLogger.i('[GamesByDevelopers] Fetching page=$page pageSize=$pageSize');
 
@@ -364,7 +371,7 @@ class _GamesSectionState extends State<GamesSection> {
                   return const SizedBox(
                     width: 40,
                     height: 40,
-                    child: Center(child: RainbowLoadingBar()),
+                    child: Center(child: AppLinearLoader()),
                   );
                 }
                 final g = ctrl.games[i];

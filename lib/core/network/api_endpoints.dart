@@ -133,4 +133,19 @@ class ApiEndpoints {
   // Get Transaction History
   static String get getTransactionHistory =>
       '$userOnboardBaseUrl/api/users/transactions';
+
+  // Tournament / Events
+  static String get eventsPublic => '$userOnboardBaseUrl/api/events/public';
+  static String eventById(String eventId) =>
+      '$userOnboardBaseUrl/api/events/$eventId';
+  static String eventTeams(String eventId) =>
+      '$userOnboardBaseUrl/api/events/$eventId/teams';
+  static String eventRegister(String eventId) =>
+      '$userOnboardBaseUrl/api/events/$eventId/register';
+  static String eventTeamJoin(String eventId, String teamId) =>
+      '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId/join';
+  static String eventTeamLeave(String eventId, String teamId) =>
+      '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId/leave';
+  static String eventTeamMembers(String eventId, String teamId) =>
+      '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId/members';
 }

@@ -2,25 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/tournaments_section/cubit/tournaments_register_cubit.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
-import '../cubit/tournaments_register_cubit.dart';
 
-class TournamentsRegisterView extends StatefulWidget {
+class TournamentsJoinTeamView extends StatefulWidget {
+  const TournamentsJoinTeamView({super.key, required this.tournament});
+
   final TournamentModel tournament;
 
-  const TournamentsRegisterView({super.key, required this.tournament});
-
   @override
-  State<TournamentsRegisterView> createState() =>
-      _TournamentsRegisterViewState();
+  State<TournamentsJoinTeamView> createState() =>
+      _TournamentsJoinTeamViewState();
 }
 
-class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
+class _TournamentsJoinTeamViewState extends State<TournamentsJoinTeamView> {
   late final TournamentsRegisterCubit _cubit;
-
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController teamNameController = TextEditingController();
+  final TextEditingController _teamIdController = TextEditingController();
 
   @override
   void initState() {
@@ -31,15 +29,12 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
   @override
   void dispose() {
     _cubit.close();
-    nameController.dispose();
-    teamNameController.dispose();
+    _teamIdController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final t = widget.tournament;
-
     return BlocProvider.value(
       value: _cubit,
       child: Scaffold(
@@ -51,12 +46,12 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    "Team '${state.data['team']}' has been registered.",
+                    "You've joined team ${state.data['team_id'] ?? ''}.",
                   ),
                   backgroundColor: const Color(0xff00DC00),
                 ),
               );
-              Get.back(); // optional navigation back
+              Get.back();
             } else if (state is TournamentsRegisterError) {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -68,8 +63,9 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
             }
           },
           builder: (context, state) {
+            final isLoading = state is TournamentsRegisterLoading;
+            final t = widget.tournament;
             return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -85,34 +81,49 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Register Now",
-                          style: GoogleFonts.inter(
+                          'Join Team',
+                          style: GoogleFonts.orbitron(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 18,
+                            fontSize: 20,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         Text(
-                          "(You will be the leader by default)",
+                          'Enter the Team ID shared by your leader.',
                           style: GoogleFonts.inter(
-                            color: Colors.orangeAccent,
-                            fontSize: 12,
+                            color: const Color(0xFFC9C9C9),
+                            fontSize: 13,
+                            height: 1.5,
                           ),
                         ),
                         const SizedBox(height: 20),
-
-                        _buildLabel("Your Name"),
-                        const SizedBox(height: 10),
-                        GradientTextField(controller: nameController),
-
-                        const SizedBox(height: 12),
-                        _buildLabel("Team Name"),
-                        const SizedBox(height: 10),
-                        GradientTextField(controller: teamNameController),
-
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF121212), Color(0xFF1A1A1A)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildLabel('Team ID'),
+                              const SizedBox(height: 10),
+                              _buildTextField(
+                                controller: _teamIdController,
+                                hint: 'Ex: 123',
+                              ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 30),
-                        _buildRegisterButton(state),
+                        _buildJoinButton(isLoading),
                       ],
                     ),
                   ),
@@ -125,12 +136,12 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
     );
   }
 
-  Widget _buildHeaderBanner(String? bannerPath) {
+  Widget _buildHeaderBanner(String imagePath) {
     return Stack(
       children: [
         ClipRRect(
           child: Image.asset(
-            bannerPath ?? 'assets/hash_store_images/tournament_banner.png',
+            imagePath,
             height: 220,
             width: double.infinity,
             fit: BoxFit.cover,
@@ -168,103 +179,20 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
   Widget _buildLabel(String text) => Text(
     text,
     style: GoogleFonts.inter(
-      fontSize: 15,
+      fontSize: 14,
       color: Colors.white,
       fontWeight: FontWeight.bold,
     ),
   );
 
-  Widget _buildRegisterButton(TournamentsRegisterState state) {
-    final isLoading = state is TournamentsRegisterLoading;
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF8A241), Color(0xFFC06701)],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: ElevatedButton(
-        onPressed: isLoading
-            ? null
-            : () {
-                _submitCreateTeam(context);
-              },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          minimumSize: const Size(double.infinity, 50),
-        ),
-        child: isLoading
-            ? const TournamentsLoader.button()
-            : Text(
-                '+ Create your Team',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-      ),
-    );
-  }
-
-  void _submitCreateTeam(BuildContext context) {
-    final leaderName = nameController.text.trim();
-    final teamName = teamNameController.text.trim();
-
-    if (leaderName.isEmpty) {
-      _showValidationError(context, 'Leader name is required.');
-      return;
-    }
-    if (leaderName.length < 3) {
-      _showValidationError(
-        context,
-        'Leader name must be at least 3 characters.',
-      );
-      return;
-    }
-    if (teamName.isEmpty) {
-      _showValidationError(context, 'Team name is required.');
-      return;
-    }
-    if (teamName.length < 3) {
-      _showValidationError(context, 'Team name must be at least 3 characters.');
-      return;
-    }
-
-    _cubit.registerTeam(
-      eventId: widget.tournament.id,
-      leaderName: leaderName,
-      teamName: teamName,
-    );
-  }
-
-  void _showValidationError(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
-    );
-  }
-}
-
-class GradientTextField extends StatelessWidget {
-  final String? hint;
-  final TextEditingController controller;
-
-  const GradientTextField({super.key, this.hint, required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+  }) {
     return Container(
       padding: const EdgeInsets.all(1.2),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         gradient: const LinearGradient(
           colors: [Color(0xff6A6969), Color(0xff323232)],
         ),
@@ -272,7 +200,7 @@ class GradientTextField extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.black,
-          borderRadius: BorderRadius.circular(19),
+          borderRadius: BorderRadius.circular(15),
         ),
         child: TextField(
           controller: controller,
@@ -288,6 +216,64 @@ class GradientTextField extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildJoinButton(bool isLoading) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF8A241), Color(0xFFC06701)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(15),
+      ),
+        child: ElevatedButton(
+        onPressed: isLoading
+            ? null
+            : () {
+                _submitJoinTeam(context);
+              },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          minimumSize: const Size(double.infinity, 50),
+        ),
+        child: isLoading
+            ? const TournamentsLoader.button()
+            : Text(
+                'Join Team',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+      ),
+    );
+  }
+
+  void _submitJoinTeam(BuildContext context) {
+    final teamId = _teamIdController.text.trim();
+    if (teamId.isEmpty) {
+      _showValidationError(context, 'Team ID is required.');
+      return;
+    }
+    if (teamId.length < 2) {
+      _showValidationError(context, 'Team ID looks invalid.');
+      return;
+    }
+    _cubit.joinTeam(eventId: widget.tournament.id, teamId: teamId);
+  }
+
+  void _showValidationError(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
     );
   }
 }

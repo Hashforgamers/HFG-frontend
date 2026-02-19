@@ -14,6 +14,45 @@ class RainbowLoadingBar extends StatefulWidget {
   State<RainbowLoadingBar> createState() => _RainbowLoadingBarState();
 }
 
+class AppLoaderSize {
+  static const double screenWidth = 180.0;
+  static const double screenHeight = 4.0;
+  static const double buttonWidth = 100.0;
+  static const double buttonHeight = 3.0;
+}
+
+class AppLinearLoader extends StatelessWidget {
+  final double width;
+  final double height;
+  final bool centered;
+
+  const AppLinearLoader({
+    super.key,
+    this.width = AppLoaderSize.screenWidth,
+    this.height = AppLoaderSize.screenHeight,
+    this.centered = false,
+  });
+
+  const AppLinearLoader.screen({super.key})
+    : width = AppLoaderSize.screenWidth,
+      height = AppLoaderSize.screenHeight,
+      centered = true;
+
+  const AppLinearLoader.button({super.key})
+    : width = AppLoaderSize.buttonWidth,
+      height = AppLoaderSize.buttonHeight,
+      centered = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final loader = RepaintBoundary(
+      child: RainbowLoadingBar(width: width, height: height),
+    );
+    if (!centered) return loader;
+    return Center(child: loader);
+  }
+}
+
 class _RainbowLoadingBarState extends State<RainbowLoadingBar>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;

@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SignUpController extends GetxController {
   var nameController = TextEditingController();
@@ -110,6 +111,8 @@ class SignUpController extends GetxController {
       // );
 
       await fetchUserData();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('new_user_bonus_pending', true);
       Get.offAllNamed('/home');
     } catch (e) {
       _showError('Signup failed: $e');

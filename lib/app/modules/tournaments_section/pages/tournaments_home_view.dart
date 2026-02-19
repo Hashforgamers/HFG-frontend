@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_leaderboard_view.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_app_bar.dart';
-import 'package:hash/utils/widgets/loader.dart';
+import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/services/user_controller.dart';
@@ -21,7 +22,6 @@ class TournamentsHomeView extends StatefulWidget {
 }
 
 class _TournamentsHomeViewState extends State<TournamentsHomeView> {
-
   late final TournamentHomeCubit _cubit;
 
   final userController = Get.find<UserController>();
@@ -60,7 +60,10 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
                 child: BlocBuilder<TournamentHomeCubit, TournamentHomeState>(
                   builder: (context, state) {
                     if (state is TournamentHomeLoading) {
-                      return const Center(child: RainbowLoadingBar());
+                      return SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.6,
+                        child: const TournamentsLoader.screen(),
+                      );
                     } else if (state is TournamentHomeLoaded) {
                       return _buildBodyContent(state.tournaments);
                     } else if (state is TournamentHomeError) {
@@ -82,7 +85,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
     );
   }
 
-  Widget _buildBodyContent(List<Map<String, dynamic>> tournaments) {
+  Widget _buildBodyContent(List<TournamentModel> tournaments) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -116,13 +119,13 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         const SizedBox(height: 16),
         _buildYourPosition(),
         const SizedBox(height: 16),
-        _buildLeaderboardButton(),
+        _buildLeaderboardButton(tournaments),
         const SizedBox(height: 32),
       ],
     );
   }
 
-  Widget _buildTournamentList(List<Map<String, dynamic>> tournaments) {
+  Widget _buildTournamentList(List<TournamentModel> tournaments) {
     if (tournaments.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 16.0),
@@ -148,12 +151,14 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
     );
   }
 
-  Widget _buildTournamentCard(Map<String, dynamic> t) {
+  Widget _buildTournamentCard(TournamentModel t) {
     final dateFormat = DateFormat('d MMM');
-    final start = t['startDate'] as DateTime;
-    final end = t['endDate'] as DateTime;
-    final dateRange = '${dateFormat.format(start)} - ${dateFormat.format(end)}';
-    final String imagePath = t['imageUrl'] as String;
+    final start = t.startDate;
+    final end = t.endDate;
+    final dateRange = (start != null && end != null)
+        ? '${dateFormat.format(start)} - ${dateFormat.format(end)}'
+        : 'Date TBA';
+    final String imagePath = t.imageUrl;
 
     return GestureDetector(
       onTap: () {
@@ -179,7 +184,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  t['title'] as String,
+                  t.title,
                   style: GoogleFonts.inter(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -223,11 +228,13 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: const [
-                Icon(Icons.person, color: const Color(0xff00DC00), size: 16),
-                SizedBox(width: 4),
-                Text('You', style: TextStyle(color: Colors.white)),
-              ]),
+              Row(
+                children: const [
+                  Icon(Icons.person, color: const Color(0xff00DC00), size: 16),
+                  SizedBox(width: 4),
+                  Text('You', style: TextStyle(color: Colors.white)),
+                ],
+              ),
               Row(
                 children: const [
                   Icon(Icons.star, color: const Color(0xff00DC00), size: 16),
@@ -237,7 +244,11 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
               ),
               Row(
                 children: const [
-                  Icon(Icons.emoji_events, color: const Color(0xff00DC00), size: 16),
+                  Icon(
+                    Icons.emoji_events,
+                    color: const Color(0xff00DC00),
+                    size: 16,
+                  ),
                   SizedBox(width: 4),
                   Text('2 Matches Won', style: TextStyle(color: Colors.grey)),
                 ],
@@ -251,7 +262,8 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
     );
   }
 
-  Widget _buildLeaderboardButton() {
+  Widget _buildLeaderboardButton(List<TournamentModel> tournaments) {
+    final tournamentId = tournaments.isNotEmpty ? tournaments.first.id : '';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
@@ -265,14 +277,15 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         ),
         child: ElevatedButton(
           onPressed: () {
-            // TODO: Navigate to Leaderboard
-            Get.to(TournamentsLeaderboardView());
+            if (tournamentId.isEmpty) return;
+            Get.to(() => TournamentsLeaderboardView(eventId: tournamentId));
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
             minimumSize: const Size(double.infinity, 50),
           ),
           child: Row(
@@ -310,18 +323,19 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         radius: size / 2,
         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
             ? CachedNetworkImageProvider(
-          photoUrl,
-          errorListener: (error) => AppLogger.d('Avatar image error: $error'),
-        )
+                photoUrl,
+                errorListener: (error) =>
+                    AppLogger.d('Avatar image error: $error'),
+              )
             : const NetworkImage(
-          'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-        ) as ImageProvider,
+                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
+                  )
+                  as ImageProvider,
         backgroundColor: Colors.white,
       ),
     );
   }
 }
-
 
 //---------------Tab button & TabsSection-------------------
 class _TabButton extends StatelessWidget {
@@ -338,10 +352,10 @@ class _TabButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(5),
         gradient: isSelected
             ? const LinearGradient(
-          colors: [Color(0xFFE6D009), Color(0xFFFBA544)],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        )
+                colors: [Color(0xFFE6D009), Color(0xFFFBA544)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              )
             : null,
         color: isSelected ? null : Colors.white38,
       ),
@@ -384,9 +398,7 @@ class _TabsSectionState extends State<_TabsSection> {
                 GestureDetector(
                   onTap: () {
                     setState(() => selectedIndex = index);
-                    context
-                        .read<TournamentHomeCubit>()
-                        .filterTournaments(text);
+                    context.read<TournamentHomeCubit>().filterTournaments(text);
                   },
                   child: _TabButton(text: text, isSelected: isSelected),
                 ),
@@ -400,15 +412,14 @@ class _TabsSectionState extends State<_TabsSection> {
   }
 }
 
-
 //----------------------GradientText-------------------------
 class GradientText extends StatelessWidget {
   const GradientText(
-      this.text, {
-        super.key,
-        this.fontSize = 32,
-        this.fontWeight = FontWeight.bold,
-      });
+    this.text, {
+    super.key,
+    this.fontSize = 32,
+    this.fontWeight = FontWeight.bold,
+  });
 
   final String text;
   final double fontSize;

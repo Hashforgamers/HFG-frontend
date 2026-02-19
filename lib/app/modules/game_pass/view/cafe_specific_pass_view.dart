@@ -166,10 +166,10 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
       builder: (context, state) {
         // Handle initial state - show loading to prevent flash of old data
         if (state is GamePassInitial) {
-          return const Center(child: RainbowLoadingBar());
+          return const Center(child: AppLinearLoader());
         }
         if (state is GamePassLoading) {
-          return const Center(child: RainbowLoadingBar());
+          return const Center(child: AppLinearLoader());
         }
         if (state is GamePassError) {
           return _buildError(context, state.message);
@@ -348,7 +348,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                                     ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: RainbowLoadingBar(),
+                                  child: AppLinearLoader(),
                                 )
                                     : Text(
                                   pass.isBought == true

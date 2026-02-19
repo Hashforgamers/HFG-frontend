@@ -850,7 +850,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
              SizedBox(
               width: 20,
               height: 20,
-              child: RainbowLoadingBar(
+              child: AppLinearLoader(
 
               ),
             ),

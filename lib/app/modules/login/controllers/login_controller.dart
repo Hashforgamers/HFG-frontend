@@ -419,6 +419,10 @@ class LoginController extends GetxController {
     String? phoneNumber,
   }) async {
     try {
+      userController.setGoogleUserData(
+        name: user.displayName ?? '',
+        photoUrl: user.photoURL ?? '',
+      );
       final userData = await remoteRepo.checkUserExistsInAPI(user.uid);
 
       if (userData != null) {

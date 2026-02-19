@@ -48,3 +48,7 @@ android_old/
 *.hprof
 /android/**/*.jks
 *.jks
+
+# Local env secrets
+.env*.json
+!.env.example.json

@@ -400,7 +400,7 @@ class _SignUpViewState extends State<SignUpView> {
                 ? const SizedBox(
                 width: 18,
                 height: 18,
-                child: RainbowLoadingBar())
+                child: AppLinearLoader())
                 : Text(
               'Sign Up',
               style: GoogleFonts.inter(color: Colors.white),

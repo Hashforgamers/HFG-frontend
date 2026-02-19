@@ -39,6 +39,9 @@ class GameNewsItem {
 class NewsController extends GetxController {
   final isLoading = false.obs;
   final items = <GameNewsItem>[].obs;
+  static List<GameNewsItem>? _cachedItems;
+  static DateTime? _cacheTime;
+  static const Duration _cacheTtl = Duration(minutes: 10);
 
   int _page = 1;
   final int _pageSize = 20;
@@ -46,6 +49,7 @@ class NewsController extends GetxController {
   bool _busy = false;
 
   final Set<String> _seen = <String>{};
+  final Map<int, List<GameNewsItem>> _prefetchedByPage = <int, List<GameNewsItem>>{};
   final Dio _dio = locator<NetworkProvider>().noAuth();
   final List<String> _apiKeys = AppKeys.newsApiKeys;
 
@@ -65,16 +69,33 @@ class NewsController extends GetxController {
 
   Future<void> loadInitial() async {
     if (_busy) return;
+    final now = DateTime.now();
+    final hasFreshCache =
+        _cachedItems != null &&
+        _cacheTime != null &&
+        now.difference(_cacheTime!) < _cacheTtl;
+    if (hasFreshCache) {
+      items.assignAll(_cachedItems!);
+      _seen
+        ..clear()
+        ..addAll(items.map((item) => item.url));
+      _hasMore = true;
+      return;
+    }
+
     _busy = true;
     isLoading.value = true;
     _page = 1;
     _hasMore = true;
     _seen.clear();
     items.clear();
+    _prefetchedByPage.clear();
 
     try {
       final batch = await _fetchPage(_page);
       items.addAll(batch);
+      _cachedItems = items.toList(growable: false);
+      _cacheTime = now;
       _silentPrefetchNext();
     } finally {
       isLoading.value = false;
@@ -87,12 +108,19 @@ class NewsController extends GetxController {
     _busy = true;
     try {
       final next = _page + 1;
-      final batch = await _fetchPage(next);
+      List<GameNewsItem> batch = _prefetchedByPage.remove(next) ?? const <GameNewsItem>[];
+      if (batch.isEmpty) {
+        batch = await _fetchPage(next);
+      } else {
+        batch = batch.where((a) => _seen.add(a.url)).toList(growable: false);
+      }
       if (batch.isEmpty) {
         _hasMore = false;
       } else {
         _page = next;
         items.addAll(batch);
+        _cachedItems = items.toList(growable: false);
+        _cacheTime = DateTime.now();
         _silentPrefetchNext();
       }
     } finally {
@@ -100,7 +128,7 @@ class NewsController extends GetxController {
     }
   }
 
-  Future<List<GameNewsItem>> _fetchPage(int page) async {
+  Future<List<GameNewsItem>> _fetchPage(int page, {bool markSeen = true}) async {
     final uri = Uri.parse(
       'https://newsapi.org/v2/everything'
           '?q=(gaming OR "video game" OR esports)'
@@ -138,7 +166,7 @@ class NewsController extends GetxController {
     final list = (data['articles'] as List? ?? const [])
         .map((e) => GameNewsItem.fromJson(e as Map<String, dynamic>))
         .where((a) => a.title.isNotEmpty && a.url.isNotEmpty)
-        .where((a) => _seen.add(a.url))
+        .where((a) => markSeen ? _seen.add(a.url) : true)
         .toList();
 
     return list;
@@ -148,7 +176,10 @@ class NewsController extends GetxController {
     Future.microtask(() async {
       if (_hasMore && !_busy) {
         try {
-          await _fetchPage(_page + 1);
+          final nextPage = _page + 1;
+          if (_prefetchedByPage.containsKey(nextPage)) return;
+          final prefetched = await _fetchPage(nextPage, markSeen: false);
+          _prefetchedByPage[nextPage] = prefetched;
         } catch (_) {}
       }
     });

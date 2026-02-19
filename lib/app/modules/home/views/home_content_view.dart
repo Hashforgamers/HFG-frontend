@@ -76,6 +76,7 @@ class _HomeContentViewState extends State<HomeContentView>
   bool _isRefreshing = false;
   bool showReferModal = false;
   bool _fcmRegistered = false;
+  bool _welcomeClaimGateHandled = false;
 
   // Cached widgets for better performance
   Widget? _cachedAppBar;
@@ -103,16 +104,6 @@ class _HomeContentViewState extends State<HomeContentView>
     _initializeAnimations();
     _initializeScrollController();
     _initializeData();
-
-    // 🔹Check if Welcome Aboard popup was already shown
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      bool shown = prefs.getBool('welcome_shown') ?? false;
-
-      if (!shown) {
-        _showWelcomePopup(context); // your function
-        await prefs.setBool('welcome_shown', true);
-      }
-    });
   }
 
   @override
@@ -202,11 +193,44 @@ class _HomeContentViewState extends State<HomeContentView>
         return WelcomeAboardDialog(
           onClaim: () async {
             await Haptics.success();
-            await Get.find<WalletController>().claimDropCrate();
+            final claimed = await Get.find<WalletController>().claimDropCrate();
+            if (!claimed) return;
+
+            final backendUserId = userController.userId.trim();
+            final firebaseUid =
+                firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
+            final userKey = backendUserId.isNotEmpty ? backendUserId : firebaseUid;
+            if (userKey.isNotEmpty) {
+              await prefs.setBool('drop_crate_claimed_$userKey', true);
+            }
+            await prefs.setBool('new_user_bonus_pending', false);
           },
         );
       },
     );
+  }
+
+  Future<void> _maybeShowWelcomePopupForNewUser() async {
+    if (_welcomeClaimGateHandled || !mounted) return;
+    _welcomeClaimGateHandled = true;
+
+    final pending = prefs.getBool('new_user_bonus_pending') ?? false;
+    if (!pending) return;
+
+    final backendUserId = userController.userId.trim();
+    final firebaseUid = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
+    final userKey = backendUserId.isNotEmpty ? backendUserId : firebaseUid;
+    if (userKey.isEmpty) return;
+
+    final claimedKey = 'drop_crate_claimed_$userKey';
+    final alreadyClaimed = prefs.getBool(claimedKey) ?? false;
+    if (alreadyClaimed) {
+      await prefs.setBool('new_user_bonus_pending', false);
+      return;
+    }
+
+    if (!mounted) return;
+    _showWelcomePopup(context);
   }
 
   Future<void> _refreshData() async {
@@ -220,6 +244,7 @@ class _HomeContentViewState extends State<HomeContentView>
     try {
       final hasUser = await _fetchUserDataIfNeeded();
       if (hasUser) {
+        await _maybeShowWelcomePopupForNewUser();
         final tasks = <Future<void>>[
           _refreshWalletIfReady(),
           bookingController.fetchUserBookings(),

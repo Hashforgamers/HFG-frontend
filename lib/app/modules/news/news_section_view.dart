@@ -1,9 +1,9 @@
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -52,7 +52,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     if (dragOffset.abs() > 50) {
       if (dragOffset < 0 && currentIndex < total - 1) {
         // Swipe up → next
-        HapticFeedback.mediumImpact(); // 🔥 add haptic feedback here
+        Haptics.navigation();
         setState(() => slidingOutIndex = currentIndex);
         Future.delayed(const Duration(milliseconds: 160), () {
           setState(() {
@@ -61,12 +61,14 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
           });
           _maybeLoadMore();
           _prefetchCover(currentIndex + 1);
+          _prefetchCover(currentIndex + 2);
         });
       } else if (dragOffset > 0 && currentIndex > 0) {
         // Swipe down → previous
-        HapticFeedback.lightImpact(); // optional, lighter haptic for down-swipe
+        Haptics.selection();
         _slideDownController.forward(from: 1.0);
         setState(() => currentIndex--);
+        _prefetchCover(currentIndex + 1);
       }
     }
     setState(() => dragOffset = 0.0);
@@ -140,7 +142,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       }
 
       if (controller.items.isEmpty) {
-        return SizedBox();
+        return const SizedBox.shrink();
       }
 
       final list = controller.items;
@@ -219,7 +221,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                 padding: const EdgeInsets.only(top: 6),
                 child: SizedBox(
                   height: 16, width: 16,
-                  child: const RainbowLoadingBar(),
+                  child: const AppLinearLoader(),
                 ),
               ),
             ),
@@ -257,10 +259,11 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       onTap: () async {
         if (item.url.isEmpty) return;
         final uri = Uri.parse(item.url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
-      },
+                if (await canLaunchUrl(uri)) {
+                  Haptics.selection();
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
       child: Container(
         height: 150,
         width: 400,
@@ -278,7 +281,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                 child: const SizedBox.expand(),
               ),
             ),

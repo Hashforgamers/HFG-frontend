@@ -30,12 +30,16 @@ class _SearchResultState extends State<SearchResult> {
   // Controllers
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _searchFocusNode = FocusNode();
   late final CybercafesController _cafeController;
 
   // State
   bool _isSearching = false;
+  bool _isSearchFocused = false;
   String _currentQuery = '';
   Timer? _debounce;
+  Worker? _cafesWorker;
+  List<Map<String, dynamic>> _visibleResults = [];
 
   // Filters
   String _selectedFilter = 'All';
@@ -67,6 +71,12 @@ class _SearchResultState extends State<SearchResult> {
 
     _searchController.text = widget.searchQuery ?? '';
     _currentQuery = widget.searchQuery ?? '';
+    _searchFocusNode.addListener(() {
+      if (!mounted) return;
+      setState(() => _isSearchFocused = _searchFocusNode.hasFocus);
+    });
+    _scrollController.addListener(_onScroll);
+    _cafesWorker = ever(_cafeController.cybercafes, (_) => _recomputeResults());
 
     _initLocation();
     _loadCafes(initial: true);
@@ -75,6 +85,9 @@ class _SearchResultState extends State<SearchResult> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _cafesWorker?.dispose();
+    _scrollController.removeListener(_onScroll);
+    _searchFocusNode.dispose();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -102,6 +115,7 @@ class _SearchResultState extends State<SearchResult> {
         _userLat = ld.latitude;
         _userLng = ld.longitude;
       });
+      _recomputeResults();
     } catch (_) {
       // ignore and proceed without distances
     }
@@ -115,9 +129,11 @@ class _SearchResultState extends State<SearchResult> {
       // await _cafeController.searchCybercafes(query: _currentQuery);
       // else:
       await _cafeController.fetchCybercafes();
+      _recomputeResults();
     } finally {
-      if (!mounted) return;
-      setState(() => _isSearching = false);
+      if (mounted) {
+        setState(() => _isSearching = false);
+      }
     }
   }
 
@@ -274,24 +290,118 @@ class _SearchResultState extends State<SearchResult> {
     return _fallbackImages[index % _fallbackImages.length];
   }
 
+  String _normalizeFeatureLabel(dynamic value) {
+    var raw = value?.toString().trim() ?? '';
+    if (raw.isEmpty) return '';
+    raw = raw
+        .replaceAll('{', '')
+        .replaceAll('}', '')
+        .replaceAll('[', '')
+        .replaceAll(']', '')
+        .replaceAll('"', '')
+        .replaceAll("'", '')
+        .trim();
+    if (raw.isEmpty) return '';
+    return raw
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return word;
+          return '${word[0].toUpperCase()}${word.substring(1)}';
+        })
+        .join(' ');
+  }
+
+  List<String> _extractFeatureValues(dynamic source) {
+    final values = <String>[];
+    if (source == null) return values;
+
+    if (source is String) {
+      final parts = source.split(RegExp(r'[,|/]'));
+      for (final part in parts) {
+        final label = _normalizeFeatureLabel(part);
+        if (label.isNotEmpty) values.add(label);
+      }
+      return values;
+    }
+
+    if (source is List) {
+      for (final item in source) {
+        values.addAll(_extractFeatureValues(item));
+      }
+      return values;
+    }
+
+    if (source is Map) {
+      final candidateKeys = [
+        'name',
+        'title',
+        'facility',
+        'feature',
+        'amenity',
+        'label',
+        'value',
+      ];
+      for (final key in candidateKeys) {
+        final v = source[key];
+        if (v == null) continue;
+        values.addAll(_extractFeatureValues(v));
+      }
+      if (values.isEmpty) {
+        for (final v in source.values) {
+          values.addAll(_extractFeatureValues(v));
+        }
+      }
+      return values;
+    }
+
+    final label = _normalizeFeatureLabel(source);
+    if (label.isNotEmpty) values.add(label);
+    return values;
+  }
+
   List<String> _features(Map<String, dynamic> cafe) {
-    final f = <String>[];
-    final games = cafe['games'];
-    if (games is List) {
-      for (final g in games.take(3)) {
-        if (g != null) f.add(g.toString());
+    final normalized = <String>[];
+    final seen = <String>{};
+
+    void addFrom(dynamic source, {int? limit}) {
+      if (source == null) return;
+      for (final item in _extractFeatureValues(source)) {
+        final clean = item.trim();
+        if (clean.isEmpty) continue;
+        final key = clean.toLowerCase();
+        if (seen.contains(key)) continue;
+        seen.add(key);
+        normalized.add(clean);
+        if (limit != null && normalized.length >= limit) return;
       }
     }
-    final amenities = cafe['amenities'];
-    if (amenities is List) {
-      for (final a in amenities.take(2)) {
-        if (a != null) f.add(a.toString());
-      }
+
+    addFrom(cafe['facilities'], limit: 6);
+    addFrom(cafe['features'], limit: 6);
+    addFrom(cafe['amenities'], limit: 6);
+    addFrom(cafe['services'], limit: 6);
+    addFrom(cafe['tags'], limit: 6);
+
+    final details = cafe['vendor_details'];
+    if (details is Map) {
+      addFrom(details['facilities'], limit: 6);
+      addFrom(details['features'], limit: 6);
+      addFrom(details['amenities'], limit: 6);
     }
-    if (f.isEmpty) {
-      f.addAll(['Gaming PCs', 'High-speed Internet', 'Gaming Setup']);
+
+    final profile = cafe['profile'];
+    if (profile is Map) {
+      addFrom(profile['facilities'], limit: 6);
+      addFrom(profile['features'], limit: 6);
+      addFrom(profile['amenities'], limit: 6);
     }
-    return f;
+
+    addFrom(cafe['games'], limit: 6);
+
+    if (normalized.isEmpty) {
+      normalized.addAll(['Gaming PCs', 'High-Speed Internet', 'Gaming Setup']);
+    }
+    return normalized.take(6).toList();
   }
 
   // Distance + ETA (cached)
@@ -314,15 +424,27 @@ class _SearchResultState extends State<SearchResult> {
     );
   }
 
-  // ────────────────────────────── derived results ─────────────────────────────
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.extentAfter < 600) {
+      _maybeLoadMore();
+    }
+  }
 
-  List<Map<String, dynamic>> get _filteredResults {
-    List<Map<String, dynamic>> results = _cafeController.cybercafes
-        .cast<Map<String, dynamic>>();
+  void _maybeLoadMore() {
+    // No paginated endpoint yet; kept as hook for future server-side pagination.
+  }
+
+  // ────────────────────────────── derived results ─────────────────────────────
+  void _recomputeResults() {
+    // IMPORTANT: clone before sorting/filtering to avoid mutating RxList in-place.
+    List<Map<String, dynamic>> results = List<Map<String, dynamic>>.from(
+      _cafeController.cybercafes.cast<Map<String, dynamic>>(),
+    );
 
     // search client-side (name/address)
     if (_currentQuery.isNotEmpty) {
-      final q = _currentQuery.toLowerCase();
+      final q = _currentQuery.trim().toLowerCase();
       results = results.where((cafe) {
         final name = (cafe['cafe_name'] ?? '').toString().toLowerCase();
         final addr = _safeAddress(cafe).toLowerCase();
@@ -354,20 +476,30 @@ class _SearchResultState extends State<SearchResult> {
       }).toList();
     }
 
-    // sort by distance if Nearby (requires user location)
-    if (_selectedFilter == 'Nearby' && _hasLocationPermission) {
+    // always sort nearest first when user location is available
+    if (_hasLocationPermission) {
+      final distByCafe = <String, double>{};
       results.sort((a, b) {
         final (la, loa) = _cafeLatLng(a);
         final (lb, lob) = _cafeLatLng(b);
         if (la == null || loa == null) return 1;
         if (lb == null || lob == null) return -1;
-        final da = _haversineKm(_userLat!, _userLng!, la, loa);
-        final db = _haversineKm(_userLat!, _userLng!, lb, lob);
+        final ka = '${la.toStringAsFixed(5)},${loa.toStringAsFixed(5)}';
+        final kb = '${lb.toStringAsFixed(5)},${lob.toStringAsFixed(5)}';
+        final da = distByCafe.putIfAbsent(
+          ka,
+          () => _haversineKm(_userLat!, _userLng!, la, loa),
+        );
+        final db = distByCafe.putIfAbsent(
+          kb,
+          () => _haversineKm(_userLat!, _userLng!, lb, lob),
+        );
         return da.compareTo(db);
       });
     }
 
-    return results;
+    if (!mounted) return;
+    setState(() => _visibleResults = results);
   }
 
   // ───────────────────────────────── UI ──────────────────────────────────────
@@ -385,6 +517,8 @@ class _SearchResultState extends State<SearchResult> {
             ),
             SearchResultSearchBar(
               controller: _searchController,
+              focusNode: _searchFocusNode,
+              isFocused: _isSearchFocused,
               onChanged: _onSearchChanged,
               onSubmitted: (_) => _loadCafes(),
               onClear: _clearSearch,
@@ -393,7 +527,10 @@ class _SearchResultState extends State<SearchResult> {
             SearchResultFilters(
               filters: _filters,
               selected: _selectedFilter,
-              onSelected: (filter) => setState(() => _selectedFilter = filter),
+              onSelected: (filter) {
+                setState(() => _selectedFilter = filter);
+                _recomputeResults();
+              },
             ),
             Expanded(
               child: RefreshIndicator(
@@ -410,9 +547,10 @@ class _SearchResultState extends State<SearchResult> {
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 250), () {
+    _debounce = Timer(const Duration(milliseconds: 180), () {
       if (!mounted) return;
-      setState(() => _currentQuery = value);
+      _currentQuery = value;
+      _recomputeResults();
     });
   }
 
@@ -422,6 +560,7 @@ class _SearchResultState extends State<SearchResult> {
       _currentQuery = '';
       _selectedFilter = 'All';
     });
+    _recomputeResults();
   }
 
   Widget _buildResults() {
@@ -430,14 +569,14 @@ class _SearchResultState extends State<SearchResult> {
         return const Center(child: RainbowGlowingLoader(size: 50));
       }
 
-      final items = _filteredResults;
+      final items = _visibleResults;
       if (items.isEmpty) {
         return const SearchResultEmptyState();
       }
 
       return ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         itemCount: items.length,
         itemBuilder: (context, index) =>
             RepaintBoundary(child: _buildResultCard(items[index], index)),

@@ -801,7 +801,7 @@ class _ArenaViewState extends State<ArenaView> {
                                           ),
                                         )
                                       else
-                                        RainbowLoadingBar(),
+                                        AppLinearLoader(),
                                       const SizedBox(height: 8),
                                       if (_userState != null)
                                         GestureDetector(

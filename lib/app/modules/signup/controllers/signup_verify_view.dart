@@ -122,7 +122,7 @@
 //                               ),
 //                             ),
 //                             child: Obx(() => login.isLoading.value
-//                                 ? const RainbowLoadingBar(width: 280, height: 2)
+//                                 ? const AppLinearLoader(width: 280, height: 2)
 //                                 : Text(
 //                                     'Verify OTP',
 //                                     style: GoogleFonts.inter(
@@ -153,7 +153,7 @@
 //               ? Container(
 //                   color: Colors.black.withOpacity(0.55),
 //                   child: const Center(
-//                     child: RainbowLoadingBar(
+//                     child: AppLinearLoader(
 //                       valueColor:
 //                           AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
 //                     ),

@@ -1529,7 +1529,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           height: 160,
           child: Obx(() {
             if (controller.isLoading.value) {
-              return const Center(child: RainbowLoadingBar());
+              return const Center(child: AppLinearLoader());
             }
 
             final List<dynamic> games = controller.games;
@@ -1577,7 +1577,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                               width: 90,
                               height: 100,
                               color: const Color(0xff1A1A1A),
-                              child: const Center(child: RainbowLoadingBar()),
+                              child: const Center(child: AppLinearLoader()),
                             ),
                             errorWidget: (_, __, ___) => Container(
                               width: 90,

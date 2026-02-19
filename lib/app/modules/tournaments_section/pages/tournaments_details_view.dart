@@ -5,23 +5,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
+import 'package:hash/app/modules/tournaments_section/models/tournament_team_model.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_join_team_view.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_register_view.dart';
-import 'package:hash/app/modules/tournaments_section/widgets/glassy_border_container.dart';
-import 'package:hash/app/modules/tournaments_section/widgets/tournaments_app_bar.dart';
-import 'package:hash/utils/widgets/loader.dart';
-import 'package:intl/intl.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_members_view.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../data/services/user_controller.dart';
 import '../cubit/tournaments_details_cubit.dart';
 import 'package:hash/core/utils/app_logger.dart';
 
 class TournamentsDetailsView extends StatefulWidget {
-  final Map<String, dynamic> tournament;
+  final TournamentModel tournament;
 
-  const TournamentsDetailsView({
-    super.key,
-    required this.tournament,
-  });
+  const TournamentsDetailsView({super.key, required this.tournament});
 
   @override
   State<TournamentsDetailsView> createState() => _TournamentsDetailsViewState();
@@ -53,14 +51,15 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
           physics: const BouncingScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
-              child: BlocBuilder<TournamentsDetailsCubit, TournamentsDetailsState>(
-                builder: (context, state) {
-                  if (state is TournamentsDetailsLoaded) {
-                    return _buildBodyContent(state.tournament);
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
+              child:
+                  BlocBuilder<TournamentsDetailsCubit, TournamentsDetailsState>(
+                    builder: (context, state) {
+                      if (state is TournamentsDetailsLoaded) {
+                        return _buildBodyContent(state.tournament);
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
             ),
           ],
         ),
@@ -68,18 +67,11 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
     );
   }
 
-  Widget _buildBodyContent(Map<String, dynamic> t) {
-    final dateFormat = DateFormat('d MMM');
-    final start = t['startDate'] as DateTime?;
-    final end = t['endDate'] as DateTime?;
-    final dateRange = start != null && end != null
-        ? '${dateFormat.format(start)} - ${dateFormat.format(end)}'
-        : '';
-
+  Widget _buildBodyContent(TournamentModel t) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeaderBanner(t['banner'] ?? t['imageUrl']),
+        _buildHeaderBanner(t.banner.isNotEmpty ? t.banner : t.imageUrl),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Column(
@@ -87,7 +79,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
             children: [
               // Title
               Text(
-                t['title'] ?? '',
+                t.title,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.orbitron(
                   color: Colors.white,
@@ -102,28 +94,40 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.white38),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      "Rs. ${t['entryFee'] ?? '0'}",
-                      style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                      "Rs. ${t.entryFee}",
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
 
                   // STATUS BADGE – ALWAYS GREEN
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.transparent,
-                      border: Border.all(color: const Color(0xff00DC00), width: 1.5),
+                      border: Border.all(
+                        color: const Color(0xff00DC00),
+                        width: 1.5,
+                      ),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      (t['status'] as String?)?.toLowerCase() ?? '',
+                      t.statusLabel.toLowerCase(),
                       style: GoogleFonts.inter(
                         color: const Color(0xff00DC00),
                         fontSize: 11,
@@ -133,10 +137,13 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                   ),
 
                   const SizedBox(width: 8),
-                  if (t['timeLeft'] != null && t['timeLeft'].toString().isNotEmpty)
+                  if (t.timeLeft.isNotEmpty)
                     Text(
-                      "Starts in ${t['timeLeft']}",
-                      style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+                      "Starts in ${t.timeLeft}",
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                 ],
               ),
@@ -148,7 +155,6 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
               //     style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
               //   ),
               // ],
-
               const SizedBox(height: 25),
 
               // Stats Row
@@ -161,9 +167,18 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatItem(t['prizePool']?.toString() ?? '-', 'assets/hash_store_images/points.png'),
-                    _buildStatItem(t['players']?.toString() ?? '-', 'assets/hash_store_images/points.png'),
-                    _buildStatItem(t['teamMode']?.toString() ?? '-', 'assets/hash_store_images/points.png'),
+                    _buildStatItem(
+                      t.prizePool,
+                      'assets/hash_store_images/points.png',
+                    ),
+                    _buildStatItem(
+                      t.players,
+                      'assets/hash_store_images/points.png',
+                    ),
+                    _buildStatItem(
+                      t.teamMode,
+                      'assets/hash_store_images/points.png',
+                    ),
                   ],
                 ),
               ),
@@ -186,17 +201,27 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                 ),
                 child: ElevatedButton(
                   onPressed: () {
-                    Get.to(TournamentsRegisterView(tournament: widget.tournament));
+                    if (t.teams.isNotEmpty) {
+                      Get.to(() => TournamentsJoinTeamView(tournament: t));
+                    } else {
+                      Get.to(() => TournamentsRegisterView(tournament: t));
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
                     minimumSize: const Size(double.infinity, 50),
                   ),
                   child: Text(
                     'Register Now',
-                    style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
@@ -211,7 +236,6 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
       ],
     );
   }
-
 
   Widget _buildHeaderBanner(String? bannerPath) {
     return Stack(
@@ -228,10 +252,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
           height: 220,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                Colors.black.withOpacity(0.7),
-                Colors.transparent,
-              ],
+              colors: [Colors.black.withOpacity(0.7), Colors.transparent],
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
             ),
@@ -243,7 +264,11 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
           child: CircleAvatar(
             backgroundColor: Colors.black45,
             child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white, size: 18),
+              icon: const Icon(
+                Icons.arrow_back_ios_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
               onPressed: () => Get.back(),
             ),
           ),
@@ -268,12 +293,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
   Widget _buildStatItem(String value, String assetPath) {
     return Column(
       children: [
-        Image.asset(
-          assetPath,
-          height: 50,
-          width: 50,
-          fit: BoxFit.contain,
-        ),
+        Image.asset(assetPath, height: 50, width: 50, fit: BoxFit.contain),
         const SizedBox(height: 8),
         Text(
           value,
@@ -287,7 +307,8 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
     );
   }
 
-  int selectedTabIndex = 0; // Add this in your _TournamentsDetailsViewState class
+  int selectedTabIndex =
+      0; // Add this in your _TournamentsDetailsViewState class
 
   Widget _buildTabs() {
     final List<String> tabs = ["Overview", "Teams", "Rules", "Technical"];
@@ -327,11 +348,10 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                         child: Text(
                           tabs[index],
                           style: GoogleFonts.inter(
-                            color: isActive
-                                ? Colors.white
-                                : Colors.white54,
-                            fontWeight:
-                            isActive ? FontWeight.bold : FontWeight.w500,
+                            color: isActive ? Colors.white : Colors.white54,
+                            fontWeight: isActive
+                                ? FontWeight.bold
+                                : FontWeight.w500,
                             fontSize: 13,
                           ),
                         ),
@@ -344,16 +364,19 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                         decoration: BoxDecoration(
                           gradient: isActive
                               ? const LinearGradient(
-                            colors: [
-                              Color(0xFFFBA544),
-                              Color(0xff00DC00),
-                            ],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          )
+                                  colors: [
+                                    Color(0xFFFBA544),
+                                    Color(0xff00DC00),
+                                  ],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                )
                               : const LinearGradient(
-                            colors: [Colors.transparent, Colors.transparent],
-                          ),
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.transparent,
+                                  ],
+                                ),
                         ),
                       ),
                     ],
@@ -367,14 +390,14 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
     );
   }
 
-  Widget _buildTabContent(Map<String, dynamic> t) {
+  Widget _buildTabContent(TournamentModel t) {
     switch (selectedTabIndex) {
       case 0:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              t['description'] ?? 'No description available.',
+              t.description,
               textAlign: TextAlign.start,
               style: GoogleFonts.inter(
                 color: const Color(0xFFC9C9C9),
@@ -384,13 +407,13 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
             ),
             SizedBox(height: 15),
             Text(
-              "Hosted by ${t['hostedBy'] ?? 'Hash'}",
+              "Hosted by ${t.hostedBy}",
               style: GoogleFonts.inter(color: Colors.grey, fontSize: 13),
             ),
           ],
         );
       case 1:
-        final teams = t['teams'] as List<dynamic>? ?? [];
+        final teams = t.teams;
 
         return Column(
           children: [
@@ -419,16 +442,21 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => ExpandedTeamListView(teams: teams),
+                            builder: (_) => ExpandedTeamListView(
+                              tournament: t,
+                              teams: teams,
+                            ),
                           ),
                         );
                       },
                       child: Container(
                         padding: EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
+                        decoration: BoxDecoration(shape: BoxShape.circle),
+                        child: Image.asset(
+                          "assets/hash_store_images/expand_icon.png",
+                          height: 32,
+                          width: 32,
                         ),
-                        child: Image.asset("assets/hash_store_images/expand_icon.png", height: 32, width: 32,),
                       ),
                     ),
                   ),
@@ -439,19 +467,18 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
         );
       case 2:
         return Text(
-          'Rules:\n${t['rules'] ?? 'No rules provided.'}',
+          'Rules:\n${t.rules}',
           style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
         );
       case 3:
         return Text(
-          'Technical Details:\n${t['technical'] ?? 'No technical info provided.'}',
+          'Technical Details:\n${t.technical}',
           style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
         );
       default:
         return const SizedBox.shrink();
     }
   }
-
 
   Widget _buildRegisterButton() {
     return Container(
@@ -471,7 +498,9 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           minimumSize: const Size(double.infinity, 50),
         ),
         child: Row(
@@ -479,7 +508,11 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
           children: [
             Text(
               'Register Now',
-              style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
             const SizedBox(width: 8),
             const Icon(Icons.north_east, color: Colors.white, size: 22),
@@ -503,8 +536,18 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
-              Text('You', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-              Text('Registered Player', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              Text(
+                'You',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'Registered Player',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
             ],
           ),
           const Spacer(),
@@ -527,18 +570,17 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
         radius: size / 2,
         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
             ? CachedNetworkImageProvider(
-          photoUrl,
-          errorListener: (error) => AppLogger.d('Avatar error: $error'),
-        )
-            : const AssetImage(
-          'assets/hash_store_images/tournament_banner.png',
-        ) as ImageProvider,
+                photoUrl,
+                errorListener: (error) => AppLogger.d('Avatar error: $error'),
+              )
+            : const AssetImage('assets/hash_store_images/tournament_banner.png')
+                  as ImageProvider,
         backgroundColor: Colors.white,
       ),
     );
   }
 
-  Widget _buildGlassContainer(Map<String, dynamic> team) {
+  Widget _buildGlassContainer(TournamentTeamModel team) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: BackdropFilter(
@@ -550,7 +592,11 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.white12, Colors.white24, Colors.white30.withOpacity(0.3)],
+              colors: [
+                Colors.white12,
+                Colors.white24,
+                Colors.white30.withOpacity(0.3),
+              ],
             ),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(width: 0.5, color: Colors.white30),
@@ -558,8 +604,11 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
           child: Row(
             children: [
               Text(
-                team['rank'] ?? '-',
-                style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold),
+                team.rank,
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               SizedBox(width: 10),
               Container(
@@ -571,16 +620,22 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                 ),
                 child: CircleAvatar(
                   radius: 20,
-                  backgroundImage: (team['photoUrl'] != null && team['photoUrl'].isNotEmpty)
-                      ? AssetImage(team['photoUrl'])
-                      : const AssetImage('assets/hash_store_images/team_fallback.png')
-                  as ImageProvider,
+                  backgroundImage: team.photoUrl.isNotEmpty
+                      ? AssetImage(team.photoUrl)
+                      : const AssetImage(
+                              'assets/hash_store_images/team_fallback.png',
+                            )
+                            as ImageProvider,
                 ),
               ),
               SizedBox(width: 15),
               Text(
-                team['name'] ?? 'Unknown',
-                style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                team.name,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Spacer(),
               Column(
@@ -588,13 +643,20 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.star, color: const Color(0xff00DC00), size: 10),
+                      Icon(
+                        Icons.star,
+                        color: const Color(0xff00DC00),
+                        size: 10,
+                      ),
                       SizedBox(width: 5),
-                      Text("${team['points'] ?? '0'} Points", style: GoogleFonts.inter(fontSize: 12)),
+                      Text(
+                        "${team.points} Points",
+                        style: GoogleFonts.inter(fontSize: 12),
+                      ),
                     ],
                   ),
                   Text(
-                    "${team['matchesWon'] ?? '0'} Matches Won",
+                    "${team.matchesWon} Matches Won",
                     style: GoogleFonts.inter(fontSize: 12),
                   ),
                 ],
@@ -605,13 +667,17 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
       ),
     );
   }
-
 }
 
 class ExpandedTeamListView extends StatelessWidget {
-  final List<dynamic> teams;
+  final TournamentModel tournament;
+  final List<TournamentTeamModel> teams;
 
-  const ExpandedTeamListView({super.key, required this.teams});
+  const ExpandedTeamListView({
+    super.key,
+    required this.tournament,
+    required this.teams,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -621,19 +687,21 @@ class ExpandedTeamListView extends StatelessWidget {
         backgroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
-          onPressed: (){
+          onPressed: () {
             Navigator.pop(context);
           },
-          icon: Icon(Icons.arrow_back_ios_rounded, color: Colors.white,),
+          icon: Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
-        title: Text('Teams', style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),),
-        iconTheme: IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.share),
-            onPressed: () {},
+        title: Text(
+          'Teams',
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
           ),
-        ],
+        ),
+        iconTheme: IconThemeData(color: Colors.white),
+        actions: [IconButton(icon: Icon(Icons.share), onPressed: () {})],
       ),
 
       body: Stack(
@@ -658,9 +726,7 @@ class ExpandedTeamListView extends StatelessWidget {
               onTap: () => Navigator.pop(context),
               child: Container(
                 padding: const EdgeInsets.all(3),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                ),
+                decoration: const BoxDecoration(shape: BoxShape.circle),
                 child: Image.asset(
                   "assets/hash_store_images/shrink_icon.png",
                   height: 32,
@@ -674,32 +740,117 @@ class ExpandedTeamListView extends StatelessWidget {
 
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Container(
-          height: 50,
-          decoration: BoxDecoration(
-            border: Border.all(color: Color(0xFFC06701)),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Color(0xFFC06701)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Get.to(
+                      () => TournamentsRegisterView(tournament: tournament),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "+ Create Team",
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
               ),
             ),
-            child: Text(
-              "+ Create your Team",
-              style: TextStyle(color: Colors.white, fontSize: 16),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xff00DC00)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Get.to(
+                      () => TournamentsJoinTeamView(tournament: tournament),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "Join Team",
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildExpandedTeamGlassContainer(BuildContext context, Map<String, dynamic> team) {
+  void _shareTeam(BuildContext context, TournamentTeamModel team) {
+    if (team.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Team ID unavailable'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    SharePlus.instance.share(
+      ShareParams(
+        text:
+            'Join my team "${team.name}" on HashForGamers. Team ID: ${team.id}',
+      ),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Team ID shared'),
+        backgroundColor: Color(0xff00DC00),
+      ),
+    );
+  }
+
+  void _openMembers(BuildContext context, TournamentTeamModel team) {
+    if (team.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Team ID unavailable for members'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    Get.to(
+      () => TournamentsTeamMembersView(
+        eventId: tournament.id,
+        teamId: team.id,
+        teamName: team.name,
+      ),
+    );
+  }
+
+  Widget _buildExpandedTeamGlassContainer(
+    BuildContext context,
+    TournamentTeamModel team,
+  ) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: BackdropFilter(
@@ -722,9 +873,8 @@ class ExpandedTeamListView extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Rank
               Text(
-                team['rank'] ?? '-',
+                team.rank,
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -732,8 +882,6 @@ class ExpandedTeamListView extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 14),
-
-              // Avatar
               Container(
                 width: 50,
                 height: 50,
@@ -743,52 +891,81 @@ class ExpandedTeamListView extends StatelessWidget {
                 ),
                 child: CircleAvatar(
                   radius: 25,
-                  backgroundImage: (team['photoUrl'] != null && team['photoUrl'].isNotEmpty)
-                      ? AssetImage(team['photoUrl'])
-                      : const AssetImage('assets/hash_store_images/team_fallback.png')
-                  as ImageProvider,
+                  backgroundImage: team.photoUrl.isNotEmpty
+                      ? AssetImage(team.photoUrl)
+                      : const AssetImage(
+                              'assets/hash_store_images/team_fallback.png',
+                            )
+                            as ImageProvider,
                 ),
               ),
-
               SizedBox(width: 16),
-
-              // Name + Stats
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    team['name'] ?? 'Unknown',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      team.name,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.star, color: const Color(0xff00DC00), size: 11),
-                      SizedBox(width: 2),
-                      Text(
-                        "${team['points']} Points",
-                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ID: ${team.id.isEmpty ? 'N/A' : team.id}',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 11,
                       ),
-                      SizedBox(width: 6),
-                      Text(
-                        "${team['matchesWon']} Matches Won",
-                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                    SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.star,
+                          color: const Color(0xff00DC00),
+                          size: 11,
+                        ),
+                        SizedBox(width: 2),
+                        Text(
+                          "${team.points} Points",
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          "${team.matchesWon} Matches Won",
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => _openMembers(context, team),
+                          child: const Text('View Members'),
+                        ),
+                        TextButton(
+                          onPressed: () => _shareTeam(context, team),
+                          child: const Text('Share Team ID'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-
-              Spacer(),
             ],
           ),
         ),
       ),
     );
   }
-
 }

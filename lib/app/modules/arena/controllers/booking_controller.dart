@@ -1,7 +1,9 @@
 import 'package:get/get.dart';
+import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/app_logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BookingController extends GetxController {
   final isLoading = false.obs;
@@ -25,11 +27,14 @@ class BookingController extends GetxController {
   }
 
   /// Filter and sort time slots based on start time
-  List<Map<String, dynamic>> filterAndSortTimeSlots(List<Map<String, dynamic>> rawSlots) {
+  List<Map<String, dynamic>> filterAndSortTimeSlots(
+    List<Map<String, dynamic>> rawSlots,
+  ) {
     try {
       // Filter out slots that are not available
       final availableSlots = rawSlots.where((slot) {
-        final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+        final bool isAvailable =
+            slot['is_available'] ?? slot['isAvailable'] ?? true;
         return isAvailable;
       }).toList();
 
@@ -37,18 +42,22 @@ class BookingController extends GetxController {
       availableSlots.sort((a, b) {
         final startTimeA = a['start_time'] ?? '';
         final startTimeB = b['start_time'] ?? '';
-        
+
         // Parse time strings (format: "HH:mm:ss")
         final timeA = _parseTimeString(startTimeA);
         final timeB = _parseTimeString(startTimeB);
-        
+
         return timeA.compareTo(timeB);
       });
 
       // Log the filtered and sorted slots for debugging
-      AppLogger.d('Filtered and sorted ${availableSlots.length} slots out of ${rawSlots.length} total slots');
+      AppLogger.d(
+        'Filtered and sorted ${availableSlots.length} slots out of ${rawSlots.length} total slots',
+      );
       for (var slot in availableSlots.take(3)) {
-        AppLogger.d('Slot: ${slot['start_time']} - ${slot['end_time']}, Available: ${slot['available_slot']}');
+        AppLogger.d(
+          'Slot: ${slot['start_time']} - ${slot['end_time']}, Available: ${slot['available_slot']}',
+        );
       }
 
       return availableSlots;
@@ -64,15 +73,21 @@ class BookingController extends GetxController {
       if (timeStr.isEmpty) {
         return DateTime(2000, 1, 1, 0, 0);
       }
-      
+
       final parts = timeStr.split(':');
       if (parts.length >= 2) {
         final hour = int.parse(parts[0]);
         final minute = int.parse(parts[1]);
-        
+
         // Validate hour and minute ranges
         if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
-          return DateTime(2000, 1, 1, hour, minute); // Use arbitrary date for time comparison
+          return DateTime(
+            2000,
+            1,
+            1,
+            hour,
+            minute,
+          ); // Use arbitrary date for time comparison
         }
       }
     } catch (e) {
@@ -118,19 +133,24 @@ class BookingController extends GetxController {
   List<Map<String, dynamic>> getFilteredSlots(String selectedDate) {
     try {
       final isCurrentDate = selectedDate == _getCurrentDateString();
-      
+
       return slots.where((slot) {
         // First check if slot is available from API
-        final bool isAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
-        
+        final bool isAvailable =
+            slot['is_available'] ?? slot['isAvailable'] ?? true;
+
         // Then check if slot is available based on current time (only for current date)
-        final bool isTimeAvailable = isCurrentDate ? isSlotAvailableNow(slot) : true;
-        
+        final bool isTimeAvailable = isCurrentDate
+            ? isSlotAvailableNow(slot)
+            : true;
+
         // Also check if there are actually available consoles for this slot
-        final int availableConsoles = slot['available_slot'] ?? 
-                                    slot['availableSlot'] ?? 
-                                    slot['available_slots'] ?? 0;
-        
+        final int availableConsoles =
+            slot['available_slot'] ??
+            slot['availableSlot'] ??
+            slot['available_slots'] ??
+            0;
+
         return isAvailable && isTimeAvailable && availableConsoles > 0;
       }).toList();
     } catch (e) {
@@ -143,16 +163,14 @@ class BookingController extends GetxController {
   int getTotalAvailableConsoles(String selectedDate) {
     try {
       final availableSlots = getFilteredSlots(selectedDate);
-      return availableSlots.fold<int>(
-        0,
-        (sum, slot) {
-          final int availableConsoles = slot['available_slot'] ??
-                                      slot['availableSlot'] ??
-                                      slot['available_slots'] ??
-                                      0;
-          return sum + availableConsoles;
-        },
-      );
+      return availableSlots.fold<int>(0, (sum, slot) {
+        final int availableConsoles =
+            slot['available_slot'] ??
+            slot['availableSlot'] ??
+            slot['available_slots'] ??
+            0;
+        return sum + availableConsoles;
+      });
     } catch (e) {
       AppLogger.d('Error calculating total available consoles: $e');
       return 0;
@@ -168,7 +186,9 @@ class BookingController extends GetxController {
   /// Get the original index of a slot in the main slots list
   int getOriginalSlotIndex(Map<String, dynamic> slot) {
     try {
-      return slots.indexWhere((s) => s['slot_id'] == slot['slot_id'] || s['id'] == slot['id']);
+      return slots.indexWhere(
+        (s) => s['slot_id'] == slot['slot_id'] || s['id'] == slot['id'],
+      );
     } catch (e) {
       AppLogger.d('Error getting original slot index: $e');
       return 0;
@@ -224,6 +244,7 @@ class BookingController extends GetxController {
     try {
       final bookings = await _remoteRepo.fetchUserBookings();
       userBookings.assignAll(bookings);
+      await _syncBackendUserIdFromBookings(bookings);
     } catch (e) {
       _logError('Error fetching bookings: $e');
       userBookings.clear();
@@ -240,5 +261,26 @@ class BookingController extends GetxController {
   /// Log errors
   void _logError(String message) {
     AppLogger.d(message);
+  }
+
+  Future<void> _syncBackendUserIdFromBookings(
+    List<Map<String, dynamic>> bookings,
+  ) async {
+    if (bookings.isEmpty) return;
+
+    final dynamic rawUserId =
+        bookings.first['user_id'] ?? bookings.first['userId'];
+    final String userId = rawUserId?.toString().trim() ?? '';
+    if (userId.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_id', userId);
+
+    if (Get.isRegistered<UserController>()) {
+      final userController = Get.find<UserController>();
+      userController.id.value = userId;
+    }
+
+    AppLogger.d('✅ Synced backend user_id from bookings: $userId');
   }
 }

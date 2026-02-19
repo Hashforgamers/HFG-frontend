@@ -141,7 +141,7 @@ class _ShopViewState extends State<ShopView> {
         ],
       ),
       body: isLoading
-          ? Center(child: RainbowLoadingBar())
+          ? Center(child: AppLinearLoader())
           : errorMessage.isNotEmpty
           ? Center(
               child: Text(

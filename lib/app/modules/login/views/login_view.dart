@@ -226,7 +226,7 @@ class LoginView extends StatelessWidget {
             () => controller.isLoading.value
                 ? Container(
                     color: Colors.black.withOpacity(0.8),
-                    child: const Center(child: RainbowLoadingBar()),
+                    child: const Center(child: AppLinearLoader()),
                   )
                 : const SizedBox.shrink(),
           ),

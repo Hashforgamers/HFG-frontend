@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/api_error_handler.dart';
-import 'package:hash/core/network/error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
@@ -236,7 +235,19 @@ class RemoteRepo implements RemoteRepoInterface {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
-        return data.map((e) => e as Map<String, dynamic>).toList();
+        final bookings = data.map((e) => e as Map<String, dynamic>).toList();
+
+        if (bookings.isNotEmpty) {
+          final rawUserId =
+              bookings.first['user_id'] ?? bookings.first['userId'];
+          final userId = rawUserId?.toString().trim() ?? '';
+          if (userId.isNotEmpty) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('user_id', userId);
+          }
+        }
+
+        return bookings;
       } else {
         throw Exception(
           'Failed to fetch bookings. Status code: ${response.statusCode}',
@@ -1245,5 +1256,212 @@ class RemoteRepo implements RemoteRepoInterface {
       debugPrint('Error making purchase pass payment: $e');
       rethrow;
     }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchPublicEvents() async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(ApiEndpoints.eventsPublic);
+      if (response.statusCode == 200) {
+        return _extractDynamicList(
+          response.data,
+          candidateKeys: const ['events', 'data', 'results', 'items'],
+        );
+      }
+      throw Exception(
+        'Failed to fetch events. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching public events: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchEventById({required String eventId}) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(ApiEndpoints.eventById(eventId));
+      if (response.statusCode == 200) {
+        if (response.data is Map<String, dynamic>) {
+          final map = response.data as Map<String, dynamic>;
+          if (map['event'] is Map<String, dynamic>) {
+            return Map<String, dynamic>.from(map['event'] as Map);
+          }
+          if (map['data'] is Map<String, dynamic>) {
+            return Map<String, dynamic>.from(map['data'] as Map);
+          }
+          return map;
+        }
+        throw Exception('Unexpected event response format');
+      }
+      throw Exception(
+        'Failed to fetch event details. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching event details: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> createEventTeam({
+    required String eventId,
+    required int userId,
+    required String teamName,
+    required bool isIndividual,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventTeams(eventId),
+        data: {
+          'user_id': userId,
+          'name': teamName,
+          'is_individual': isIndividual,
+        },
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to create team. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error creating event team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> joinEventTeam({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventTeamJoin(eventId, teamId),
+        data: {'user_id': userId},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to join team. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error joining event team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> leaveEventTeam({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.delete(
+        ApiEndpoints.eventTeamLeave(eventId, teamId),
+        data: {'user_id': userId},
+      );
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to leave team. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error leaving event team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> registerEventTeam({
+    required String eventId,
+    required int userId,
+    required String teamId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventRegister(eventId),
+        data: {'user_id': userId, 'team_id': teamId},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to register team. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error registering event team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchEventTeamMembers({
+    required String eventId,
+    required String teamId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(
+        ApiEndpoints.eventTeamMembers(eventId, teamId),
+      );
+      if (response.statusCode == 200) {
+        return _extractDynamicList(
+          response.data,
+          candidateKeys: const ['members', 'users', 'team_members', 'data'],
+        );
+      }
+      throw Exception(
+        'Failed to fetch team members. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching event team members: $e');
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> _asMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return {'data': value};
+  }
+
+  List<Map<String, dynamic>> _extractDynamicList(
+    dynamic payload, {
+    required List<String> candidateKeys,
+  }) {
+    if (payload is List) {
+      return payload
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+
+    if (payload is Map) {
+      for (final key in candidateKeys) {
+        final value = payload[key];
+        if (value is List) {
+          return value
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+      }
+    }
+
+    return const <Map<String, dynamic>>[];
   }
 }
