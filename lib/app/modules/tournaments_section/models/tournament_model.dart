@@ -62,6 +62,7 @@ class TournamentModel {
         json['registration_fee'] ??
         json['fee'] ??
         '0';
+    final currency = (json['currency'] ?? 'INR').toString();
     final maxPlayers = _toInt(json['max_players'] ?? json['maxPlayers']);
     final currentPlayers = _toInt(
       json['players_count'] ?? json['current_players'] ?? json['playersCount'],
@@ -73,21 +74,25 @@ class TournamentModel {
       imageUrl:
           (json['imageUrl'] ??
                   json['image_url'] ??
+                  json['banner_image_url'] ??
                   json['thumbnail'] ??
                   'assets/hash_store_images/tournament_img1.png')
               .toString(),
       banner:
           (json['banner'] ??
+                  json['banner_image_url'] ??
                   json['banner_url'] ??
                   json['cover_image'] ??
                   json['imageUrl'] ??
                   json['image_url'] ??
                   'assets/hash_store_images/tournament_banner.png')
               .toString(),
-      startDate: _parseDate(json['startDate'] ?? json['start_date']),
-      endDate: _parseDate(json['endDate'] ?? json['end_date']),
-      status: _parseStatus(json['status']),
-      entryFee: entryFee.toString(),
+      startDate: _parseDate(
+        json['startDate'] ?? json['start_date'] ?? json['start_at'],
+      ),
+      endDate: _parseDate(json['endDate'] ?? json['end_date'] ?? json['end_at']),
+      status: _parseStatus(json['status'] ?? json['flag']),
+      entryFee: _formatEntryFee(entryFee, currency),
       prizePool: (json['prizePool'] ?? json['prize_pool'] ?? '-').toString(),
       players: maxPlayers != null
           ? '${currentPlayers ?? 0}/$maxPlayers'
@@ -201,5 +206,15 @@ class TournamentModel {
           .toList();
     }
     return const <Map<String, dynamic>>[];
+  }
+
+  static String _formatEntryFee(dynamic fee, String currency) {
+    final amount = num.tryParse(fee.toString()) ?? 0;
+    if (amount == 0) return 'Free';
+    final symbol = currency.toUpperCase() == 'INR' ? '₹' : '$currency ';
+    if (amount % 1 == 0) {
+      return '$symbol${amount.toInt()}';
+    }
+    return '$symbol$amount';
   }
 }

@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:hash/app/modules/live/views/live_stream_screen.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -269,6 +270,14 @@ class NotificationController extends GetxController {
       return;
     }
 
+    if (payload.startsWith('live:')) {
+      final streamId = payload.replaceFirst('live:', '').trim();
+      if (streamId.isNotEmpty) {
+        Get.to(() => LiveStreamScreen(streamId: streamId));
+      }
+      return;
+    }
+
     segmentService.onPushNotificationClicked(
       campaignId: '',
       screenTarget: payload,
@@ -319,6 +328,36 @@ class NotificationController extends GetxController {
       body,
       details,
       payload: payload ?? AppRoutes.CHAT,
+    );
+  }
+
+  Future<void> showLiveNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    const android = AndroidNotificationDetails(
+      'contest_channel',
+      'Contest Notifications',
+      channelDescription: 'Notifications for contests and tournaments',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const ios = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      interruptionLevel: InterruptionLevel.active,
+    );
+
+    const details = NotificationDetails(android: android, iOS: ios);
+    await _fln.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      details,
+      payload: payload ?? '',
     );
   }
 }

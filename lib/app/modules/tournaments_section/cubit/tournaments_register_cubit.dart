@@ -103,6 +103,55 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
     }
   }
 
+  Future<void> registerWithExistingTeam({
+    required String eventId,
+    required String teamId,
+  }) async {
+    emit(TournamentsRegisterLoading());
+    try {
+      if (teamId.trim().isEmpty) {
+        throw Exception('Team ID is required.');
+      }
+      final userId = await _resolveUserId();
+      if (userId == null || userId <= 0) {
+        throw Exception('User not found. Please login again.');
+      }
+      final response = await remoteRepo.registerEventTeam(
+        eventId: eventId,
+        userId: userId,
+        teamId: teamId.trim(),
+      );
+      emit(
+        TournamentsRegisterSuccess(
+          data: <String, dynamic>{
+            ...response,
+            'team_id': teamId.trim(),
+            'action': 'register_existing_team',
+          },
+        ),
+      );
+    } catch (e) {
+      emit(TournamentsRegisterError(message: _cleanError(e)));
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchMyTeamsForEvent(
+    String eventId,
+  ) async {
+    final userId = await _resolveUserId();
+    if (userId == null || userId <= 0) {
+      throw Exception('User not found. Please login again.');
+    }
+    final teams = await remoteRepo.fetchUserTeams(userId: userId);
+    return teams.where((team) {
+      final teamEventId = (team['event_id'] ?? team['eventId'] ?? '')
+          .toString()
+          .trim();
+      return teamEventId == eventId;
+    }).toList();
+  }
+
   String _extractTeamId(Map<String, dynamic> payload) {
     final directId = payload['team_id'] ?? payload['id'];
     if (directId != null && directId.toString().isNotEmpty) {

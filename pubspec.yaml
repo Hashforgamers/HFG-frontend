@@ -181,6 +181,8 @@ flutter:
 
     - assets/welcome_aboard_images/
     - assets/hash_store_images/
+    - assets/live_splash.mp4
+    - assets/videos/live_splash.mp4
 
   #   - images/a_dot_ham.jpeg
 

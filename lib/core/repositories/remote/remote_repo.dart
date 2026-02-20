@@ -1431,6 +1431,76 @@ class RemoteRepo implements RemoteRepoInterface {
     }
   }
 
+  @override
+  Future<List<Map<String, dynamic>>> fetchUserTeams({
+    required int userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(ApiEndpoints.userTeams(userId));
+      if (response.statusCode == 200) {
+        return _extractDynamicList(
+          response.data,
+          candidateKeys: const ['teams', 'data', 'results', 'items'],
+        );
+      }
+      throw Exception(
+        'Failed to fetch user teams. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching user teams: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateEventTeam({
+    required String eventId,
+    required String teamId,
+    required String teamName,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.patch(
+        ApiEndpoints.eventTeam(eventId, teamId),
+        data: {'name': teamName},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to update team. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error updating event team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> addEventTeamMember({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventTeamMembers(eventId, teamId),
+        data: {'user_id': userId},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to add team member. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error adding event team member: $e');
+      rethrow;
+    }
+  }
+
   Map<String, dynamic> _asMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) {

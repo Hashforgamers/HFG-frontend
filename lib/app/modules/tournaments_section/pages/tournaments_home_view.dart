@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_leaderboard_view.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_members_view.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_app_bar.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
 import 'package:intl/intl.dart';
@@ -65,7 +66,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
                         child: const TournamentsLoader.screen(),
                       );
                     } else if (state is TournamentHomeLoaded) {
-                      return _buildBodyContent(state.tournaments);
+                      return _buildBodyContent(state.tournaments, state.myTeams);
                     } else if (state is TournamentHomeError) {
                       return Center(
                         child: Text(
@@ -85,7 +86,10 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
     );
   }
 
-  Widget _buildBodyContent(List<TournamentModel> tournaments) {
+  Widget _buildBodyContent(
+    List<TournamentModel> tournaments,
+    List<Map<String, dynamic>> myTeams,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -104,6 +108,8 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         const _TabsSection(),
         const SizedBox(height: 16),
         _buildTournamentList(tournaments),
+        const SizedBox(height: 18),
+        _buildMyTeamsSection(myTeams),
         const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -151,6 +157,127 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
     );
   }
 
+  Widget _buildMyTeamsSection(List<Map<String, dynamic>> myTeams) {
+    if (myTeams.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "My Teams",
+            style: GoogleFonts.orbitron(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...myTeams.take(6).map((team) {
+            final teamName = (team['team_name'] ?? 'Team').toString();
+            final teamId = (team['team_id'] ?? '').toString();
+            final eventId = (team['event_id'] ?? '').toString();
+            final role = (team['role'] ?? '').toString();
+            final count = (team['member_count'] ?? 0).toString();
+            final roleText = role.isEmpty ? 'Member' : role;
+            return InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () {
+                if (eventId.isEmpty || teamId.isEmpty) return;
+                Get.to(
+                  () => TournamentsTeamMembersView(
+                    eventId: eventId,
+                    teamId: teamId,
+                    teamName: teamName,
+                  ),
+                );
+              },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF111111), Color(0xFF1A1A1A)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xff00DC00).withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.groups_rounded,
+                        color: Color(0xff00DC00),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            teamName,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'ID: $teamId',
+                            style: GoogleFonts.inter(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: Text(
+                        '$count • $roleText',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTournamentCard(TournamentModel t) {
     final dateFormat = DateFormat('d MMM');
     final start = t.startDate;
@@ -159,28 +286,82 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         ? '${dateFormat.format(start)} - ${dateFormat.format(end)}'
         : 'Date TBA';
     final String imagePath = t.imageUrl;
+    final ImageProvider tournamentImage = imagePath.startsWith('http')
+        ? NetworkImage(imagePath)
+        : AssetImage(imagePath) as ImageProvider;
 
     return GestureDetector(
       onTap: () {
         Get.to(() => TournamentsDetailsView(tournament: t));
       },
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 150,
-            height: 220,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              image: DecorationImage(
-                image: AssetImage(imagePath),
-                fit: BoxFit.cover,
+          Stack(
+            children: [
+              Container(
+                width: 158,
+                height: 208,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  image: DecorationImage(
+                    image: tournamentImage,
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
-            ),
+              Positioned(
+                left: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _statusColor(t.status).withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    t.statusLabel.toUpperCase(),
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 8,
+                bottom: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    t.entryFee,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           SizedBox(
-            width: 160,
+            width: 158,
+            height: 58,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -197,6 +378,14 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
                 Text(
                   dateRange,
                   style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  t.teamMode,
+                  style: GoogleFonts.inter(color: Colors.white54, fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -204,6 +393,19 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         ],
       ),
     );
+  }
+
+  Color _statusColor(TournamentStatus status) {
+    switch (status) {
+      case TournamentStatus.live:
+        return const Color(0xFFE74C3C);
+      case TournamentStatus.upcoming:
+        return const Color(0xFF3498DB);
+      case TournamentStatus.completed:
+        return const Color(0xFF7F8C8D);
+      case TournamentStatus.unknown:
+        return const Color(0xFF5D5D5D);
+    }
   }
 
   Widget _buildYourPosition() {

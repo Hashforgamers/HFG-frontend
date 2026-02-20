@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatUserModel {
+  static const Duration onlineFreshnessWindow = Duration(seconds: 75);
   final String uid;
   final String displayName;
   final String username;
   final String email;
   final String photoUrl;
+  final int? backendUserId;
   final bool isOnline;
   final DateTime updatedAt;
   final DateTime? lastSeenAt;
@@ -16,12 +18,17 @@ class ChatUserModel {
     required this.username,
     required this.email,
     required this.photoUrl,
+    this.backendUserId,
     required this.isOnline,
     required this.updatedAt,
     required this.lastSeenAt,
   });
 
   factory ChatUserModel.fromMap(Map<String, dynamic> map) {
+    final lastSeenAt = _parseDateTime(map['last_seen_at']);
+    final now = DateTime.now();
+    final freshEnough = lastSeenAt != null &&
+        now.difference(lastSeenAt) <= onlineFreshnessWindow;
     return ChatUserModel(
       uid: (map['uid'] ?? '').toString(),
       displayName: (map['display_name'] ?? map['name'] ?? 'Player').toString(),
@@ -30,9 +37,10 @@ class ChatUserModel {
               .toString(),
       email: (map['email'] ?? '').toString(),
       photoUrl: (map['photo_url'] ?? '').toString(),
-      isOnline: map['is_online'] == true,
+      backendUserId: _parseInt(map['backend_user_id'] ?? map['user_id'] ?? map['id']),
+      isOnline: map['is_online'] == true && freshEnough,
       updatedAt: _parseDateTime(map['updated_at']) ?? DateTime.now(),
-      lastSeenAt: _parseDateTime(map['last_seen_at']),
+      lastSeenAt: lastSeenAt,
     );
   }
 
@@ -48,6 +56,7 @@ class ChatUserModel {
       'username': username,
       'email': email,
       'photo_url': photoUrl,
+      'backend_user_id': backendUserId,
       'is_online': isOnline,
       'updated_at': Timestamp.fromDate(updatedAt),
       'last_seen_at': lastSeenAt == null
@@ -63,5 +72,12 @@ class ChatUserModel {
     if (raw is int) return DateTime.fromMillisecondsSinceEpoch(raw);
     if (raw is String) return DateTime.tryParse(raw);
     return null;
+  }
+
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString().trim());
   }
 }

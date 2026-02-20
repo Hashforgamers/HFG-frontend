@@ -137,15 +137,24 @@ class _TournamentsJoinTeamViewState extends State<TournamentsJoinTeamView> {
   }
 
   Widget _buildHeaderBanner(String imagePath) {
+    final resolvedPath = imagePath.trim();
+    final isNetwork = resolvedPath.startsWith('http');
     return Stack(
       children: [
         ClipRRect(
-          child: Image.asset(
-            imagePath,
-            height: 220,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          ),
+          child: isNetwork
+              ? Image.network(
+                  resolvedPath,
+                  height: 220,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                )
+              : Image.asset(
+                  resolvedPath,
+                  height: 220,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
         ),
         Container(
           height: 220,

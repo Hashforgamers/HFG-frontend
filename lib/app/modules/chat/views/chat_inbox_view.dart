@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/models/chat_room_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/theme/chat_palette.dart';
@@ -270,6 +271,15 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                       final room = rooms[index];
                       final title = room.displayTitleFor(currentUid);
                       final subtitle = room.subtitleFor(currentUid);
+                      final typingPeers = room.typingUserIds
+                          .where((id) => id != currentUid)
+                          .toList();
+                      final otherId = room.isGroup
+                          ? ''
+                          : room.members.firstWhere(
+                              (id) => id != currentUid,
+                              orElse: () => '',
+                            );
                       final stamp = room.lastMessageAt ?? room.updatedAt;
                       final prefix = title.isEmpty
                           ? 'C'
@@ -341,15 +351,52 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                           ),
                                         ),
                                         const SizedBox(height: 4),
-                                        Text(
-                                          subtitle,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: GoogleFonts.inter(
-                                            color: ChatPalette.textSecondary,
-                                            fontSize: 12,
+                                        if (room.isGroup)
+                                          Text(
+                                            typingPeers.isNotEmpty
+                                                ? 'typing...'
+                                                : subtitle,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.inter(
+                                              color: typingPeers.isNotEmpty
+                                                  ? const Color(0xff00DC00)
+                                                  : ChatPalette.textSecondary,
+                                              fontSize: 12,
+                                            ),
+                                          )
+                                        else
+                                          StreamBuilder<ChatUserModel?>(
+                                            stream: _chatService
+                                                .streamUserById(otherId),
+                                            builder: (context, snap) {
+                                              final user = snap.data;
+                                              final status = typingPeers
+                                                      .isNotEmpty
+                                                  ? 'typing...'
+                                                  : user == null
+                                                  ? subtitle
+                                                  : user.isOnline
+                                                  ? 'Online'
+                                                  : user.lastSeenAt == null
+                                                  ? subtitle
+                                                  : 'Last seen ${_formatTime(user.lastSeenAt!)}';
+                                              return Text(
+                                                status,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: GoogleFonts.inter(
+                                                  color: typingPeers.isNotEmpty
+                                                      ? const Color(0xff00DC00)
+                                                      : user?.isOnline == true
+                                                      ? const Color(0xff00DC00)
+                                                      : ChatPalette
+                                                            .textSecondary,
+                                                  fontSize: 12,
+                                                ),
+                                              );
+                                            },
                                           ),
-                                        ),
                                       ],
                                     ),
                                   ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:app_links/app_links.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_invite_join_view.dart';
 import 'package:hash/core/utils/app_logger.dart';
 
 class DeepLinkController extends GetxController {
@@ -38,6 +39,29 @@ class DeepLinkController extends GetxController {
   }
 
   void _navigateToDeepLink(Uri uri) {
+    final isCustomSchemeTeamJoin =
+        uri.host.toLowerCase() == 'team' &&
+        uri.pathSegments.any((segment) => segment.toLowerCase() == 'join');
+    final isWebTeamJoin =
+        uri.pathSegments.any((segment) => segment.toLowerCase() == 'team') &&
+        uri.pathSegments.any((segment) => segment.toLowerCase() == 'join');
+    final isTeamJoinLink =
+        isCustomSchemeTeamJoin ||
+        isWebTeamJoin ||
+        uri.pathSegments.any((segment) => segment.toLowerCase() == 'team-join');
+    if (isTeamJoinLink) {
+      final eventId = uri.queryParameters['event_id'] ?? '';
+      final teamId = uri.queryParameters['team_id'] ?? '';
+      if (eventId.isNotEmpty && teamId.isNotEmpty) {
+        Get.to(
+          () => TournamentsTeamInviteJoinView(
+            eventId: eventId,
+            teamId: teamId,
+          ),
+        );
+        return;
+      }
+    }
     if (uri.pathSegments.contains('contest')) {
       Get.toNamed('/contestPage', arguments: {'id': uri.queryParameters['id']});
     } else if (uri.pathSegments.contains('offer')) {

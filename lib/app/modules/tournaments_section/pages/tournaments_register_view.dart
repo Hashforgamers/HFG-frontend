@@ -126,15 +126,25 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
   }
 
   Widget _buildHeaderBanner(String? bannerPath) {
+    final imagePath =
+        (bannerPath ?? 'assets/hash_store_images/tournament_banner.png').trim();
+    final isNetwork = imagePath.startsWith('http');
     return Stack(
       children: [
         ClipRRect(
-          child: Image.asset(
-            bannerPath ?? 'assets/hash_store_images/tournament_banner.png',
-            height: 220,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          ),
+          child: (isNetwork
+              ? Image.network(
+                  imagePath,
+                  height: 220,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                )
+              : Image.asset(
+                  imagePath,
+                  height: 220,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                )),
         ),
         Container(
           height: 220,

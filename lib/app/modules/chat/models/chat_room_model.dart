@@ -13,6 +13,7 @@ class ChatRoomModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? lastMessageAt;
+  final List<String> typingUserIds;
 
   const ChatRoomModel({
     required this.id,
@@ -27,6 +28,7 @@ class ChatRoomModel {
     required this.createdAt,
     required this.updatedAt,
     required this.lastMessageAt,
+    required this.typingUserIds,
   });
 
   bool get isGroup => type == 'group';
@@ -86,6 +88,7 @@ class ChatRoomModel {
       lastMessageAt:
           _parseDateTime(map['last_message_at']) ??
           _parseDateTime(map['client_last_message_at']),
+      typingUserIds: _stringList(map['typing_uids']),
     );
   }
 

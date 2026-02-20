@@ -30,6 +30,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>hash</string>
+				<string>hashforgamers</string>
 				<string>com.googleusercontent.apps.376797794992-ikpq7h5o7flrhgmm53otlf1sm973489h</string>
 			</array>
 			<key>FirebaseAppDelegateProxyEnabled</key>

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:flutter/widgets.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
@@ -13,7 +14,7 @@ import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 
-class ChatService extends GetxService {
+class ChatService extends GetxService with WidgetsBindingObserver {
   static const _usersCollection = 'chat_users';
   static const _roomsCollection = 'chat_rooms';
   static const _messagesCollection = 'messages';
@@ -27,6 +28,8 @@ class ChatService extends GetxService {
   final Map<String, String> _lastSeenMessageIdByRoom = {};
   final Set<String> _primedRooms = {};
   String? _activeNotificationUid;
+  Timer? _presenceHeartbeat;
+  static const Duration _presenceHeartbeatInterval = Duration(seconds: 30);
 
   CollectionReference<Map<String, dynamic>> get _usersRef =>
       _firestore.collection(_usersCollection);
@@ -41,6 +44,7 @@ class ChatService extends GetxService {
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
     _authSub = _auth.authStateChanges().listen((user) {
       if (user == null) {
         stopChatNotifications();
@@ -50,7 +54,36 @@ class ChatService extends GetxService {
     });
     if (currentUid != null) {
       startChatNotifications();
+      _startPresenceHeartbeat();
+      unawaited(updatePresence(isOnline: true));
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (currentUid == null) return;
+    if (state == AppLifecycleState.resumed) {
+      _startPresenceHeartbeat();
+      unawaited(updatePresence(isOnline: true));
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      _stopPresenceHeartbeat();
+      unawaited(updatePresence(isOnline: false));
+    }
+  }
+
+  void _startPresenceHeartbeat() {
+    _presenceHeartbeat?.cancel();
+    _presenceHeartbeat = Timer.periodic(_presenceHeartbeatInterval, (_) {
+      unawaited(updatePresence(isOnline: true));
+    });
+  }
+
+  void _stopPresenceHeartbeat() {
+    _presenceHeartbeat?.cancel();
+    _presenceHeartbeat = null;
   }
 
   Future<void> ensureCurrentUserProfile() async {
@@ -72,6 +105,24 @@ class ChatService extends GetxService {
       'last_seen_at': FieldValue.serverTimestamp(),
       'updated_at': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  Future<void> updatePresence({required bool isOnline}) async {
+    final uid = currentUid;
+    if (uid == null) return;
+    await _usersRef.doc(uid).set({
+      'is_online': isOnline,
+      'last_seen_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Stream<ChatUserModel?> streamUserById(String uid) {
+    if (uid.trim().isEmpty) return Stream.value(null);
+    return _usersRef.doc(uid).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return ChatUserModel.fromDoc(doc);
+    });
   }
 
   Future<void> startChatNotifications() async {
@@ -315,6 +366,7 @@ class ChatService extends GetxService {
         .map((snapshot) {
           final messages = snapshot.docs.map(ChatMessageModel.fromDoc).toList();
           messages.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          unawaited(markRoomMessagesSeen(roomId));
           return messages;
         });
   }
@@ -619,6 +671,7 @@ class ChatService extends GetxService {
       'sender_name': senderName,
       'text': trimmedText,
       'type': 'text',
+      'seen_by': [uid],
       'created_at': FieldValue.serverTimestamp(),
       'client_created_at': now,
     });
@@ -633,6 +686,49 @@ class ChatService extends GetxService {
     }, SetOptions(merge: true));
 
     await batch.commit();
+  }
+
+  Future<void> markRoomMessagesSeen(String roomId) async {
+    final uid = currentUid;
+    if (uid == null) return;
+    final snap = await _roomsRef
+        .doc(roomId)
+        .collection(_messagesCollection)
+        .orderBy('created_at', descending: true)
+        .limit(40)
+        .get();
+    final batch = _firestore.batch();
+    var changed = false;
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final senderId = (data['sender_id'] ?? '').toString();
+      if (senderId == uid) continue;
+      final seenBy = ((data['seen_by'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList();
+      if (seenBy.contains(uid)) continue;
+      batch.set(doc.reference, {
+        'seen_by': FieldValue.arrayUnion([uid]),
+      }, SetOptions(merge: true));
+      changed = true;
+    }
+    if (changed) {
+      await batch.commit();
+    }
+  }
+
+  Future<void> setTyping({
+    required String roomId,
+    required bool isTyping,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) return;
+    await _roomsRef.doc(roomId).set({
+      'typing_uids': isTyping
+          ? FieldValue.arrayUnion([uid])
+          : FieldValue.arrayRemove([uid]),
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   void _listenForRoomLatestMessage(String currentUidValue, ChatRoomModel room) {
@@ -847,6 +943,9 @@ class ChatService extends GetxService {
           : username.trim(),
       email: email.trim(),
       photoUrl: photoUrl.trim(),
+      backendUserId: _parseInt(
+        _readNested(raw, ['id']) ?? _readNested(raw, ['user_id']),
+      ),
       isOnline: false,
       updatedAt: DateTime.now(),
       lastSeenAt: null,
@@ -860,6 +959,13 @@ class ChatService extends GetxService {
       current = current[key];
     }
     return current;
+  }
+
+  int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString().trim());
   }
 
   Future<void> _upsertUsersToFirestore(List<ChatUserModel> users) async {
@@ -969,6 +1075,9 @@ class ChatService extends GetxService {
 
   @override
   void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopPresenceHeartbeat();
+    unawaited(updatePresence(isOnline: false));
     _authSub?.cancel();
     stopChatNotifications();
     super.onClose();

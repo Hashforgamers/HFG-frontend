@@ -376,43 +376,26 @@ class _HomeContentViewState extends State<HomeContentView>
                       children: [
                         const SizedBox(height: _sectionGap), // top padding
                         ..._intersperse([
-                          // 🔷 1. Game Pass – Monetization + Core use
                           _buildLazyLoadedSection(
                             'gamePass',
                             _buildGamePassContainer(),
                           ),
-
-                          // 🔷 2. Café Section – Main booking action
                           _buildLazyLoadedSection('cafe', _cachedCafeSection),
-
-                          // 🔷 3. Contact Support – High trust & user concern item
                           _cachedSupportSection,
-
-                          // 🔷 4. Mini Games – Retention boost (engaging short content)
                           _buildLazyLoadedSection(
                             'miniGames',
                             _cachedMiniGamesSection,
                           ),
-
-                          // 🔷 5. Refer & Earn – Growth lever
                           _buildLazyLoadedSection(
                             'referral',
                             _buildReferFriendModal(),
                           ),
-
-                          // 🔷 6. Viral Shorts – Fun scroll content, lower intent
                           _buildLazyLoadedSection(
                             'shorts',
                             _cachedShortsSection,
                           ),
-
-                          // 🔷 7. Gamer News – Passive consumption
                           _buildLazyLoadedSection('news', _cachedNewsSection),
-
-                          // 🔷 8. Games List – Browse-only for now (assuming no play feature)
                           _buildLazyLoadedSection('games', _cachedGamesSection),
-
-                          // 🔷 9. GameOn India Banner – Occasional promo
                           _buildLazyLoadedSection(
                             'gameOnIndia',
                             _buildGameOnIndiaBanner(),

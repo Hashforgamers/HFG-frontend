@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
+import 'package:hash/app/modules/home/controllers/app_mode_controller.dart';
 import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/utils/haptics.dart';
@@ -29,6 +30,10 @@ class _HomeViewState extends State<HomeView> {
   @override
   void initState() {
     super.initState();
+    final appModeController = Get.isRegistered<AppModeController>()
+        ? Get.find<AppModeController>()
+        : Get.put(AppModeController(), permanent: true);
+    appModeController.setMode(AppMode.hub);
     _syncChatProfile();
   }
 

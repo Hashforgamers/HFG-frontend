@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/tournaments_section/cubit/tournaments_register_cubit.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_members_view.dart';
 
 class TournamentsTeamLookupView extends StatefulWidget {
@@ -15,9 +16,19 @@ class TournamentsTeamLookupView extends StatefulWidget {
 
 class _TournamentsTeamLookupViewState extends State<TournamentsTeamLookupView> {
   final TextEditingController _teamIdController = TextEditingController();
+  late final TournamentsRegisterCubit _cubit;
+  late Future<List<Map<String, dynamic>>> _myTeamsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _cubit = TournamentsRegisterCubit();
+    _myTeamsFuture = _cubit.fetchMyTeamsForEvent(widget.eventId);
+  }
 
   @override
   void dispose() {
+    _cubit.close();
     _teamIdController.dispose();
     super.dispose();
   }
@@ -51,6 +62,64 @@ class _TournamentsTeamLookupViewState extends State<TournamentsTeamLookupView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              FutureBuilder<List<Map<String, dynamic>>>(
+                future: _myTeamsFuture,
+                builder: (context, snapshot) {
+                  final teams = snapshot.data ?? const <Map<String, dynamic>>[];
+                  if (teams.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'My Teams',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...teams.map((team) {
+                        final teamId = (team['team_id'] ?? '').toString();
+                        final teamName =
+                            (team['team_name'] ?? 'Team').toString();
+                        final members = (team['member_count'] ?? 0).toString();
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                          ),
+                          title: Text(
+                            teamName,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Team ID: $teamId • Members: $members',
+                            style: GoogleFonts.inter(color: Colors.white70),
+                          ),
+                          trailing: const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            color: Colors.white54,
+                            size: 14,
+                          ),
+                          onTap: () {
+                            Get.to(
+                              () => TournamentsTeamMembersView(
+                                eventId: widget.eventId,
+                                teamId: teamId,
+                                teamName: teamName,
+                              ),
+                            );
+                          },
+                        );
+                      }),
+                      const SizedBox(height: 16),
+                    ],
+                  );
+                },
+              ),
               Text(
                 'Find Team Members',
                 style: GoogleFonts.orbitron(

@@ -10,11 +10,19 @@ import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/profile/user_profile_view.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
+import 'package:hash/app/modules/home/widgets/app_mode_segmented_toggle.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/core/utils/app_logger.dart';
 
 class OptimizedAppBar extends StatelessWidget {
-  const OptimizedAppBar({super.key});
+  final Color gradientBottomColor;
+  final Color avatarBorderColor;
+
+  const OptimizedAppBar({
+    super.key,
+    this.gradientBottomColor = const Color(0xff00DC00),
+    this.avatarBorderColor = const Color(0xff00DC00),
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +35,7 @@ class OptimizedAppBar extends StatelessWidget {
       ),
       elevation: 0,
       pinned: false,
-      expandedHeight: 60,
+      expandedHeight: 118,
       flexibleSpace: ClipRRect(
         borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
@@ -38,8 +46,8 @@ class OptimizedAppBar extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0xFFFFFFFF).withOpacity(0.1),
-                  const Color(0xff00DC00).withOpacity(0.2),
+                  const Color(0xFFFFFFFF).withValues(alpha: 0.1),
+                  gradientBottomColor.withValues(alpha: 0.2),
                 ],
               ),
               borderRadius: BorderRadius.circular(25),
@@ -103,6 +111,13 @@ class OptimizedAppBar extends StatelessWidget {
           ),
         ),
       ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(52),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+          child: const AppModeSegmentedToggle(compact: true),
+        ),
+      ),
     );
   }
 
@@ -114,7 +129,7 @@ class OptimizedAppBar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xff00DC00), width: 2),
+        border: Border.all(color: avatarBorderColor, width: 2),
       ),
       child: CircleAvatar(
         radius: size / 2,

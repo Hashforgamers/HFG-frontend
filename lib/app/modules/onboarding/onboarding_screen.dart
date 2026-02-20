@@ -16,7 +16,7 @@ class OnboardingScreen extends StatelessWidget {
             globalBackgroundColor: Colors.black,
             showSkipButton: false, // hide built-in skip
             pages: [
-              PageViewModel(useScrollView: false,                decoration: PageDecoration(pageMargin:EdgeInsets.only(bottom: 0)),
+              PageViewModel(useScrollView: true,                decoration: PageDecoration(pageMargin:EdgeInsets.only(bottom: 0)),
 
                 titleWidget: const SizedBox.shrink(),
                 bodyWidget: Column(
@@ -46,7 +46,7 @@ class OnboardingScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              PageViewModel(useScrollView: false,                decoration: PageDecoration(pageMargin:EdgeInsets.only(bottom: 0)),
+              PageViewModel(useScrollView: true,                decoration: PageDecoration(pageMargin:EdgeInsets.only(bottom: 0)),
 
                 titleWidget: const SizedBox.shrink(),
                 bodyWidget: Column(
@@ -76,7 +76,7 @@ class OnboardingScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              PageViewModel(useScrollView: false,
+              PageViewModel(useScrollView: true,
                 titleWidget: const SizedBox.shrink(),
                 decoration: PageDecoration(pageMargin:EdgeInsets.only(bottom: 0)),
                 bodyWidget: Column(

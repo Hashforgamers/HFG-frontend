@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/models/chat_message_model.dart';
 import 'package:hash/app/modules/chat/models/chat_room_model.dart';
+import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/theme/chat_palette.dart';
 import 'package:hash/app/modules/chat/views/chat_group_details_view.dart';
@@ -24,9 +27,11 @@ class _ChatRoomViewState extends State<ChatRoomView> {
   static const Color _neonGreen = Color(0xff00DC00);
 
   bool _isSending = false;
+  bool _isTyping = false;
 
   @override
   void dispose() {
+    unawaited(_chatService.setTyping(roomId: widget.roomId, isTyping: false));
     _messageController.dispose();
     _messageFocus.dispose();
     super.dispose();
@@ -53,6 +58,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     try {
       await _chatService.sendTextMessage(roomId: widget.roomId, text: text);
       _messageController.clear();
+      await _chatService.setTyping(roomId: widget.roomId, isTyping: false);
+      _isTyping = false;
       Haptics.light();
     } catch (e) {
       if (!mounted) return;
@@ -139,6 +146,24 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              if (isMine)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        message.seenBy.length > 1
+                            ? Icons.done_all_rounded
+                            : Icons.done_rounded,
+                        size: 14,
+                        color: message.seenBy.length > 1
+                            ? _neonGreen
+                            : ChatPalette.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
@@ -166,6 +191,15 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 style: GoogleFonts.inter(color: ChatPalette.textPrimary),
                 minLines: 1,
                 maxLines: 4,
+                onChanged: (value) async {
+                  final nextTyping = value.trim().isNotEmpty;
+                  if (nextTyping == _isTyping) return;
+                  _isTyping = nextTyping;
+                  await _chatService.setTyping(
+                    roomId: widget.roomId,
+                    isTyping: nextTyping,
+                  );
+                },
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _sendMessage(),
                 decoration: InputDecoration(
@@ -238,34 +272,99 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             final title = room == null || currentUid == null
                 ? 'Chat'
                 : room.displayTitleFor(currentUid);
-            final subtitle = room == null
-                ? null
-                : room.isGroup
-                ? '${room.members.length} members'
-                : 'Direct chat';
+            final typingPeers = room?.typingUserIds
+                    .where((id) => id != currentUid)
+                    .toList() ??
+                const [];
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: ChatPalette.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+            if (room == null) {
+              return Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: ChatPalette.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
-                if (subtitle != null)
+              );
+            }
+
+            if (room.isGroup) {
+              final subtitle = typingPeers.isNotEmpty
+                  ? 'typing...'
+                  : '${room.members.length} members';
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: ChatPalette.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   Text(
                     subtitle,
                     style: GoogleFonts.inter(
-                      color: ChatPalette.textSecondary,
+                      color: typingPeers.isNotEmpty
+                          ? _neonGreen
+                          : ChatPalette.textSecondary,
                       fontSize: 11,
                     ),
                   ),
-              ],
+                ],
+              );
+            }
+
+            final otherId = room.members.firstWhere(
+              (id) => id != currentUid,
+              orElse: () => '',
+            );
+            return StreamBuilder<ChatUserModel?>(
+              stream: _chatService.streamUserById(otherId),
+              builder: (context, otherSnap) {
+                final other = otherSnap.data;
+                final subtitle = typingPeers.isNotEmpty
+                    ? 'typing...'
+                    : other == null
+                    ? 'Offline'
+                    : other.isOnline
+                    ? 'Online'
+                    : other.lastSeenAt == null
+                    ? 'Last seen recently'
+                    : 'Last seen ${_formatTime(other.lastSeenAt!)}';
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: ChatPalette.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        color: typingPeers.isNotEmpty
+                            ? _neonGreen
+                            : other?.isOnline == true
+                            ? _neonGreen
+                            : ChatPalette.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                );
+              },
             );
           },
         ),

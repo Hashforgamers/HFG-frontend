@@ -12,9 +12,13 @@ class TournamentHomeLoading extends TournamentHomeState {}
 
 class TournamentHomeLoaded extends TournamentHomeState {
   final List<TournamentModel> tournaments;
-  const TournamentHomeLoaded({required this.tournaments});
+  final List<Map<String, dynamic>> myTeams;
+  const TournamentHomeLoaded({
+    required this.tournaments,
+    this.myTeams = const [],
+  });
   @override
-  List<Object?> get props => [tournaments];
+  List<Object?> get props => [tournaments, myTeams];
 }
 
 class TournamentHomeError extends TournamentHomeState {

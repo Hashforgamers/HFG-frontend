@@ -167,4 +167,15 @@ abstract class RemoteRepoInterface {
     required String eventId,
     required String teamId,
   });
+  Future<List<Map<String, dynamic>>> fetchUserTeams({required int userId});
+  Future<Map<String, dynamic>> updateEventTeam({
+    required String eventId,
+    required String teamId,
+    required String teamName,
+  });
+  Future<Map<String, dynamic>> addEventTeamMember({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  });
 }

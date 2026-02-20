@@ -8,6 +8,7 @@ class ChatMessageModel {
   final String text;
   final String type;
   final DateTime createdAt;
+  final List<String> seenBy;
 
   const ChatMessageModel({
     required this.id,
@@ -17,6 +18,7 @@ class ChatMessageModel {
     required this.text,
     required this.type,
     required this.createdAt,
+    required this.seenBy,
   });
 
   factory ChatMessageModel.fromMap(Map<String, dynamic> map) {
@@ -31,7 +33,13 @@ class ChatMessageModel {
           _parseDateTime(map['created_at']) ??
           _parseDateTime(map['client_created_at']) ??
           DateTime.now(),
+      seenBy: _stringList(map['seen_by']),
     );
+  }
+
+  static List<String> _stringList(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw.map((e) => e.toString()).toList();
   }
 
   factory ChatMessageModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
