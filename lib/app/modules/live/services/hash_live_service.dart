@@ -60,8 +60,44 @@ class HashLiveService extends GetxService {
         (userCtrl?.user.value.photoUrl ?? _auth.currentUser?.photoURL ?? '')
             .toString();
 
+    final requestedId = (streamId ?? '').trim();
+
+    final liveByHostSnap = await _streamsRef
+        .where('host_uid', isEqualTo: uid)
+        .where('is_live', isEqualTo: true)
+        .limit(1)
+        .get();
+    final existingLiveId =
+        liveByHostSnap.docs.isNotEmpty ? liveByHostSnap.docs.first.id : '';
+
+    if (existingLiveId.isNotEmpty &&
+        requestedId.isNotEmpty &&
+        requestedId != existingLiveId) {
+      throw Exception('You already have an active live stream. End it first.');
+    }
+    if (existingLiveId.isNotEmpty && requestedId.isEmpty) {
+      streamId = existingLiveId;
+    }
+
+    final hostRef = _firestore.collection(_hosts).doc(uid);
+    final hostSnap = await hostRef.get();
+    final hostData = hostSnap.data() ?? <String, dynamic>{};
+    final activeStreamId = (hostData['active_stream_id'] ?? '').toString();
+    final hostIsLive = hostData['is_live'] == true;
+
+    if (hostIsLive && activeStreamId.isNotEmpty) {
+      final activeStreamSnap = await _streamsRef.doc(activeStreamId).get();
+      final activeIsLive = activeStreamSnap.data()?['is_live'] == true;
+      if (activeIsLive && requestedId.isNotEmpty && requestedId != activeStreamId) {
+        throw Exception('You already have an active live stream. End it first.');
+      }
+      if (activeIsLive && requestedId.isEmpty) {
+        streamId = activeStreamId;
+      }
+    }
+
     final now = FieldValue.serverTimestamp();
-    final doc = streamId == null || streamId.isEmpty
+    final doc = (streamId == null || streamId.isEmpty)
         ? _streamsRef.doc()
         : _streamsRef.doc(streamId);
 
@@ -253,11 +289,62 @@ class HashLiveService extends GetxService {
     });
   }
 
+  Stream<List<Map<String, dynamic>>> watchHostFollowers(String hostUid) {
+    return _firestore
+        .collection(_hosts)
+        .doc(hostUid)
+        .collection('followers')
+        .orderBy('followed_at', descending: true)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      if (snapshot.docs.isEmpty) return <Map<String, dynamic>>[];
+
+      final users = await Future.wait(
+        snapshot.docs.map((doc) async {
+          final uid = doc.id;
+          final chatUser = await _firestore.collection('chat_users').doc(uid).get();
+          final chatData = chatUser.data() ?? <String, dynamic>{};
+
+          if (chatData.isEmpty) {
+            final hostDoc = await _firestore.collection(_hosts).doc(uid).get();
+            final hostData = hostDoc.data() ?? <String, dynamic>{};
+            return <String, dynamic>{
+              'uid': uid,
+              'name': (hostData['name'] ?? 'Player').toString(),
+              'username': '',
+              'photo_url': (hostData['photo_url'] ?? '').toString(),
+            };
+          }
+
+          return <String, dynamic>{
+            'uid': uid,
+            'name': (chatData['display_name'] ?? chatData['name'] ?? 'Player').toString(),
+            'username': (chatData['username'] ?? '').toString(),
+            'photo_url': (chatData['photo_url'] ?? '').toString(),
+          };
+        }),
+      );
+
+      return users;
+    });
+  }
+
   Stream<int> watchHostTotalStreams(String hostUid) {
     return _streamsRef
         .where('host_uid', isEqualTo: hostUid)
         .snapshots()
         .map((snapshot) => snapshot.docs.length);
+  }
+
+  Stream<List<LiveStreamModel>> watchHostStreams(String hostUid) {
+    return _streamsRef
+        .where('host_uid', isEqualTo: hostUid)
+        .snapshots()
+        .map((snapshot) {
+      final items = snapshot.docs.map(LiveStreamModel.fromDoc).toList()
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      return items;
+    });
   }
 
   Stream<List<UpcomingStreamModel>> watchUpcomingStreams() {

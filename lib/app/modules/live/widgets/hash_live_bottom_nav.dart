@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/live/widgets/live_ui.dart';
 
@@ -24,18 +25,18 @@ class HashLiveBottomNav extends StatelessWidget {
       unselectedItemColor: Colors.white54,
       items: const [
         BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home),
+          icon: ImageIcon(AssetImage('assets/navbar_icons/Vector (1).png')),
+          activeIcon: ImageIcon(AssetImage('assets/navbar_icons/Vector (1).png')),
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.videocam_outlined),
-          activeIcon: Icon(Icons.videocam),
+          icon: Icon(CupertinoIcons.dot_radiowaves_left_right),
+          activeIcon: Icon(CupertinoIcons.dot_radiowaves_left_right),
           label: 'Live',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline_rounded),
-          activeIcon: Icon(Icons.person),
+          icon: Icon(CupertinoIcons.person),
+          activeIcon: Icon(CupertinoIcons.person_fill),
           label: 'Host',
         ),
       ],

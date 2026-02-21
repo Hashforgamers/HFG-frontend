@@ -8,6 +8,7 @@ import 'package:hash/app/modules/live/controllers/hash_live_controller.dart';
 import 'package:hash/app/modules/live/models/live_stream_model.dart';
 import 'package:hash/app/modules/live/models/upcoming_stream_model.dart';
 import 'package:hash/app/modules/live/services/hash_live_service.dart';
+import 'package:hash/app/modules/live/utils/live_youtube_utils.dart';
 import 'package:hash/app/modules/live/views/live_stream_screen.dart';
 import 'package:hash/app/modules/live/widgets/hash_live_bottom_nav.dart';
 import 'package:hash/app/modules/live/widgets/live_ui.dart';
@@ -67,7 +68,10 @@ class _HashLiveRootState extends State<HashLiveRoot> {
           builder: (context, snapshot) {
             final activeStreamId = (snapshot.data?['active_stream_id'] ?? '').toString();
             final isLive = snapshot.data?['is_live'] == true;
-            if (activeStreamId.isEmpty || !isLive) return const SizedBox.shrink();
+            final shouldShow = _controller.selectedTab.value == 0;
+            if (activeStreamId.isEmpty || !isLive || !shouldShow) {
+              return const SizedBox.shrink();
+            }
 
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -96,9 +100,12 @@ class _HashLiveRootState extends State<HashLiveRoot> {
                   const SizedBox(height: 8),
                 ],
                 FloatingActionButton(
-                  backgroundColor: LiveUi.accent,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
                   onPressed: () => setState(() => _showLiveHostActions = !_showLiveHostActions),
-                  child: Icon(_showLiveHostActions ? Icons.close : Icons.live_tv_rounded, color: Colors.white),
+                  child: _showLiveHostActions
+                      ? const Icon(Icons.close, color: Colors.white)
+                      : _liveBadgeFab(),
                 ),
               ],
             );
@@ -135,6 +142,62 @@ class _HashLiveRootState extends State<HashLiveRoot> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _liveBadgeFab() {
+    const ring = Color(0xFFFF3B30);
+    const ringSoft = Color(0xFFFF6B61);
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1A1F28), Color(0xFF0B0D11)],
+        ),
+        border: Border.all(color: ringSoft, width: 1.8),
+        boxShadow: [
+          BoxShadow(color: ring.withValues(alpha: 0.34), blurRadius: 14, spreadRadius: 1),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 12, offset: const Offset(0, 6)),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white10, width: 1),
+            ),
+          ),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: ring.withValues(alpha: 0.18),
+              border: Border.all(color: ring, width: 1.2),
+              boxShadow: [BoxShadow(color: ring.withValues(alpha: 0.45), blurRadius: 10)],
+            ),
+            child: Center(
+              child: Text(
+                'LIVE',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -546,6 +609,7 @@ class _HostTab extends StatelessWidget {
                             child: _hostStatTile(
                               title: 'Followers',
                               stream: service.watchHostFollowersCount(uid),
+                              onTap: () => _showFollowersSheet(context, service, uid),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -561,7 +625,48 @@ class _HostTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Text('My Upcoming Streams', style: GoogleFonts.inter(color: LiveUi.softText, fontWeight: FontWeight.w700)),
+                Row(
+                  children: [
+                    Text('Posts', style: GoogleFonts.inter(color: LiveUi.softText, fontWeight: FontWeight.w700)),
+                    const Spacer(),
+                    Text(
+                      'Studio profile',
+                      style: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                StreamBuilder<List<LiveStreamModel>>(
+                  stream: service.watchHostStreams(uid),
+                  builder: (context, snap) {
+                    final posts = snap.data ?? const <LiveStreamModel>[];
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(10),
+                          child: CircularProgressIndicator(color: LiveUi.accentSoft),
+                        ),
+                      );
+                    }
+                    if (posts.isEmpty) {
+                      return _emptyState('No stream posts yet.');
+                    }
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: posts.length,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 0.85,
+                      ),
+                      itemBuilder: (_, i) => _hostPostCard(posts[i]),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                Text('Upcoming', style: GoogleFonts.inter(color: LiveUi.softText, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 StreamBuilder<List<UpcomingStreamModel>>(
                   stream: service.watchUpcomingStreams(),
@@ -584,31 +689,243 @@ class _HostTab extends StatelessWidget {
     );
   }
 
+  Widget _hostPostCard(LiveStreamModel item) {
+    final thumb = LiveYoutubeUtils.thumbnailUrl(item.youtubeUrl);
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => Get.to(() => LiveStreamScreen(streamId: item.id)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (thumb != null)
+                      CachedNetworkImage(
+                        imageUrl: thumb,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, _, _) => Container(color: const Color(0xFF1E2630)),
+                      )
+                    else
+                      Container(color: const Color(0xFF1E2630)),
+                    Container(color: Colors.black.withValues(alpha: 0.25)),
+                    if (item.isLive)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF3B30),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'LIVE',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${item.viewerCount} watching • ${item.game}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _hostStatTile({
     required String title,
     required Stream<int> stream,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: StreamBuilder<int>(
+          stream: stream,
+          builder: (_, snap) {
+            final value = snap.data ?? 0;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('$value', style: GoogleFonts.orbitron(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                    if (onTap != null) ...[
+                      const Spacer(),
+                      const Icon(Icons.chevron_right_rounded, color: Colors.white54, size: 18),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(title, style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
+              ],
+            );
+          },
+        ),
       ),
-      child: StreamBuilder<int>(
-        stream: stream,
-        builder: (_, snap) {
-          final value = snap.data ?? 0;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('$value', style: GoogleFonts.orbitron(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              Text(title, style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
-            ],
-          );
-        },
+    );
+  }
+
+  void _showFollowersSheet(
+    BuildContext context,
+    HashLiveService service,
+    String hostUid,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0E1116),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
+      builder: (context) {
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.62,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Followers',
+                    style: GoogleFonts.orbitron(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: service.watchHostFollowers(hostUid),
+                      builder: (context, snapshot) {
+                        final followers = snapshot.data ?? const <Map<String, dynamic>>[];
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(color: LiveUi.accentSoft),
+                          );
+                        }
+                        if (followers.isEmpty) {
+                          return Center(
+                            child: Text(
+                              'No followers yet.',
+                              style: GoogleFonts.inter(color: Colors.white70),
+                            ),
+                          );
+                        }
+                        return ListView.separated(
+                          itemCount: followers.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (_, i) {
+                            final item = followers[i];
+                            final name = (item['name'] ?? 'Player').toString();
+                            final username = (item['username'] ?? '').toString();
+                            final photo = (item['photo_url'] ?? '').toString();
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.white10),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 18,
+                                    backgroundImage: photo.isNotEmpty
+                                        ? CachedNetworkImageProvider(photo)
+                                        : null,
+                                    backgroundColor: LiveUi.surface,
+                                    child: photo.isEmpty
+                                        ? const Icon(Icons.person, color: Colors.white, size: 18)
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        if (username.isNotEmpty)
+                                          Text(
+                                            '@$username',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -782,6 +1099,7 @@ class _StanLiveCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final thumb = LiveYoutubeUtils.thumbnailUrl(stream.youtubeUrl);
     return GestureDetector(
       onTap: () => Get.to(() => LiveStreamScreen(streamId: stream.id)),
       child: Container(
@@ -794,22 +1112,61 @@ class _StanLiveCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
               child: Container(
                 height: 165,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF2C3E50), Color(0xFF111111)],
-                  ),
-                ),
+                decoration: const BoxDecoration(color: Color(0xFF111111)),
                 child: Stack(
                   children: [
+                    if (thumb != null)
+                      Positioned.fill(
+                        child: CachedNetworkImage(
+                          imageUrl: thumb,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF2C3E50), Color(0xFF111111)],
+                              ),
+                            ),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF2C3E50), Color(0xFF111111)],
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Positioned.fill(
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF2C3E50), Color(0xFF111111)],
+                            ),
+                          ),
+                        ),
+                      ),
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.28),
+                      ),
+                    ),
                     const Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white70, size: 54)),
                     Positioned(
                       top: 10,
                       left: 10,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: LiveUi.accent, borderRadius: BorderRadius.circular(10)),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF3B30),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                         child: Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
                       ),
                     ),

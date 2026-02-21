@@ -47,6 +47,12 @@ class LiveYoutubeUtils {
 
   static bool isSupportedUrl(String input) => extractVideoId(input) != null;
 
+  static String? thumbnailUrl(String input) {
+    final id = extractVideoId(input);
+    if (id == null || id.isEmpty) return null;
+    return 'https://img.youtube.com/vi/$id/hqdefault.jpg';
+  }
+
   static String _sanitize(String value) {
     final cleaned = value.split('?').first.split('&').first.trim();
     return cleaned;
