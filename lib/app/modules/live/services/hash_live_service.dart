@@ -27,11 +27,14 @@ class HashLiveService extends GetxService {
   bool _inboxListenerStarted = false;
 
   Stream<List<LiveStreamModel>> watchLiveStreams() {
-    return _streamsRef
-        .where('is_live', isEqualTo: true)
-        .orderBy('updated_at', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map(LiveStreamModel.fromDoc).toList());
+    return _streamsRef.snapshots().map((snapshot) {
+      final streams = snapshot.docs
+          .map(LiveStreamModel.fromDoc)
+          .where((item) => item.isLive)
+          .toList()
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      return streams;
+    });
   }
 
   Future<String> startOrUpdateLive({
@@ -87,12 +90,17 @@ class HashLiveService extends GetxService {
       'updated_at': now,
     }, SetOptions(merge: true));
 
-    await _markUpcomingAsStartedAndNotify(
-      hostUid: uid,
-      streamId: doc.id,
-      title: title.trim(),
-      game: game.trim(),
-    );
+    try {
+      await _markUpcomingAsStartedAndNotify(
+        hostUid: uid,
+        streamId: doc.id,
+        title: title.trim(),
+        game: game.trim(),
+      );
+    } catch (_) {
+      // Non-blocking side-effect. Stream creation should still succeed even if
+      // alert/index logic fails.
+    }
 
     return doc.id;
   }

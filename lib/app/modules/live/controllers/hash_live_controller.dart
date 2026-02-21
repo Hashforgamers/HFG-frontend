@@ -76,7 +76,7 @@ class HashLiveController extends GetxController {
       _showSuccess('You are live now.');
       return streamId;
     } catch (e) {
-      _showError('Failed to start live. Please try again.');
+      _showError(_cleanError(e, fallback: 'Failed to start live. Please try again.'));
       return null;
     } finally {
       isSubmitting.value = false;
@@ -116,7 +116,7 @@ class HashLiveController extends GetxController {
       _showSuccess('Stream scheduled successfully.');
       return upcomingId;
     } catch (e) {
-      _showError('Failed to schedule stream. Please try again.');
+      _showError(_cleanError(e, fallback: 'Failed to schedule stream. Please try again.'));
       return null;
     } finally {
       isSubmitting.value = false;
@@ -179,5 +179,17 @@ class HashLiveController extends GetxController {
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
     );
+  }
+
+  String _cleanError(Object error, {required String fallback}) {
+    final raw = error.toString().replaceFirst('Exception: ', '').trim();
+    if (raw.isEmpty) return fallback;
+    if (raw.toLowerCase().contains('permission-denied')) {
+      return 'Permission denied for live stream write. Check Firestore rules.';
+    }
+    if (raw.toLowerCase().contains('failed-precondition')) {
+      return 'Database index missing. Please create the required Firestore index.';
+    }
+    return raw;
   }
 }

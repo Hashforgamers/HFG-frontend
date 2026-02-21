@@ -8,6 +8,7 @@ import 'package:hash/app/modules/live/models/live_stream_model.dart';
 import 'package:hash/app/modules/live/services/hash_live_service.dart';
 import 'package:hash/app/modules/live/utils/live_youtube_utils.dart';
 import 'package:hash/app/modules/live/widgets/live_ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class LiveStreamScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
   late final HashLiveController _controller;
   YoutubePlayerController? _youtubeController;
   String? _videoId;
+  bool _showPlaybackFallback = false;
 
   @override
   void initState() {
@@ -57,11 +59,31 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
     if (newId == null || newId.isEmpty) return;
     if (_videoId == newId && _youtubeController != null) return;
     _videoId = newId;
+    _showPlaybackFallback = false;
     _youtubeController?.dispose();
     _youtubeController = YoutubePlayerController(
       initialVideoId: newId,
-      flags: const YoutubePlayerFlags(autoPlay: true, mute: false, isLive: true),
+      flags: const YoutubePlayerFlags(
+        autoPlay: true,
+        mute: false,
+        isLive: true,
+        disableDragSeek: true,
+        enableCaption: false,
+      ),
     );
+    _youtubeController!.addListener(() {
+      final value = _youtubeController!.value;
+      if (!mounted) return;
+      if (value.hasError) {
+        setState(() => _showPlaybackFallback = true);
+        return;
+      }
+      if (value.playerState == PlayerState.playing) {
+        if (_showPlaybackFallback) {
+          setState(() => _showPlaybackFallback = false);
+        }
+      }
+    });
   }
 
   Future<void> _sendMessage() async {
@@ -124,10 +146,31 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
                               alignment: Alignment.center,
                               child: Text('Invalid YouTube link', style: GoogleFonts.inter(color: Colors.white70)),
                             )
-                          : YoutubePlayer(
-                              controller: _youtubeController!,
-                              showVideoProgressIndicator: true,
-                              progressIndicatorColor: LiveUi.accentSoft,
+                          : Stack(
+                              children: [
+                                YoutubePlayer(
+                                  controller: _youtubeController!,
+                                  showVideoProgressIndicator: true,
+                                  progressIndicatorColor: LiveUi.accentSoft,
+                                ),
+                                if (_showPlaybackFallback)
+                                  Positioned.fill(
+                                    child: Container(
+                                      color: Colors.black54,
+                                      alignment: Alignment.center,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () async {
+                                          final uri = Uri.tryParse(stream.youtubeUrl.trim());
+                                          if (uri != null) {
+                                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                          }
+                                        },
+                                        icon: const Icon(Icons.open_in_new),
+                                        label: const Text('Open in YouTube'),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                     ),
                   ),
