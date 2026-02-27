@@ -2,123 +2,161 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+
+    <!-- Basic App Info -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+
+    <key>CFBundleDisplayName</key>
+    <string>$(APP_DISPLAY_NAME)</string>
+
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+
+    <key>CFBundleName</key>
+    <string>Hash</string>
+
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+
+    <key>CFBundleShortVersionString</key>
+    <string>$(FLUTTER_BUILD_NAME)</string>
+
+    <key>CFBundleVersion</key>
+    <string>$(FLUTTER_BUILD_NUMBER)</string>
+
+    <!-- Facebook Configuration -->
+    <key>FacebookAppID</key>
+    <string>1755915261664066</string>
+
+    <key>FacebookClientToken</key>
+    <string>ef176e72dcf69f0d3f9d791237249300</string>
+
+    <key>FacebookDisplayName</key>
+    <string>hashforgamers</string>
+
+    <!-- URL Schemes -->
+    <key>CFBundleURLTypes</key>
+    <array>
+
+        <!-- Facebook -->
+        <dict>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>fb1755915261664066</string>
+            </array>
+        </dict>
+
+        <!-- Custom Deep Links -->
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>hash</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>hash</string>
+                <string>hashforgamers</string>
+            </array>
+        </dict>
+
+        <!-- Google Sign-In -->
+        <dict>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>com.googleusercontent.apps.376797794992-ikpq7h5o7flrhgmm53otlf1sm973489h</string>
+                <string>app-1-376797794992-ios-a86e2e341999671fd82175</string>
+                <string>com.googleusercontent.apps.376797794992-5cvgge6qmfms06rr1bkj22ibn06tstns</string>
+            </array>
+        </dict>
+
+    </array>
+
+    <!-- Required for Facebook Login + SDK -->
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>fbapi</string>
+        <string>fb-messenger-api</string>
+        <string>fbauth2</string>
+        <string>fbshareextension</string>
+        <string>tel</string>
+        <string>telprompt</string>
+    </array>
+
+    <!-- App Tracking Transparency -->
+    <key>NSUserTrackingUsageDescription</key>
+    <string>We use your data to deliver relevant ads and measure campaign performance.</string>
+
+    <!-- SKAdNetwork (Meta Required) -->
+    <key>SKAdNetworkItems</key>
+    <array>
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>v9wttpbfk9.skadnetwork</string>
+        </dict>
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>n38lu8286q.skadnetwork</string>
+        </dict>
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>cstr6suwn9.skadnetwork</string>
+        </dict>
+    </array>
+
+    <!-- Location & Permissions -->
+    <key>NSCameraUsageDescription</key>
+    <string>Hash for Gamers needs camera access to scan café QR codes.</string>
+
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Some features may require microphone access.</string>
+
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Allow access to share your café experience.</string>
+
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>We use your location to show nearby gaming cafés.</string>
+
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>We use location to improve café discovery and directions.</string>
+
+    <key>NSLocationTemporaryUsageDescriptionDictionary</key>
+    <dict>
+        <key>NearbyCafes</key>
+        <string>We need precise location briefly to find cafés near you.</string>
+    </dict>
+
+    <!-- Background Modes -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>remote-notification</string>
+        <string>fetch</string>
+    </array>
+
+    <!-- Orientation -->
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+
+    <key>io.flutter.embedded_views_preview</key>
+    <string>YES</string>
+
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
-	<string>$(APP_DISPLAY_NAME)</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>Hash</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$(FLUTTER_BUILD_NAME)</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>hash</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>hash</string>
-				<string>hashforgamers</string>
-				<string>com.googleusercontent.apps.376797794992-ikpq7h5o7flrhgmm53otlf1sm973489h</string>
-			</array>
-			<key>FirebaseAppDelegateProxyEnabled</key>
-			<true/>
-			<key>SignInWithApple</key>
-			<true/>
-		</dict>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>app-1-376797794992-ios-a86e2e341999671fd82175</string>
-			</array>
-		</dict>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.376797794992-5cvgge6qmfms06rr1bkj22ibn06tstns</string>
-			</array>
-		</dict>
-	</array>
-	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>FacebookClientToken</key>
-	<string>ef176e72dcf69f0d3f9d791237249300</string>
-	<key>GMSApiKey</key>
-	<string>AIzaSyDjaI5XOoq4r0AbJVfDSz9tiQqLGBC_yNU</string>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>tel</string>
-		<string>telprompt</string>
-	</array>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-	</dict>
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_dartobservatory._tcp</string>
-		<string>_flutter._tcp</string>
-	</array>
-	<key>NSCameraUsageDescription</key>
-	<string>Hash for Gamers needs camera access to scan café QR codes and allow photo/video capture.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Hash for Gamers needs access to the local network to communicate with nearby devices during development and debugging.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Hash for Gamers may access your location in the background to keep café results and directions accurate if you return shortly after switching apps.</string>
-	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
-	<dict>
-		<key>NearbyCafes</key>
-		<string>We need precise location briefly to find cafés near you.</string>
-	</dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Hash for Gamers uses your location to show nearby gaming cafés, directions, and location-aware offers while you use the app.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Some features may require microphone access for media or voice-related functionality.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Allow saving images or videos from the app to your library.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Allow access to choose photos or videos to share your café experience.</string>
-	<key>NSUserAuthenticationUsageDescription</key>
-	<string>Sign in to your account securely using Apple.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>This identifier will be used to sign in.</string>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-		<string>fetch</string>
-	</array>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-		<string>UIInterfaceOrientationPortrait</string>
-	</array>
-	<key>io.flutter.embedded_views_preview</key>
-	<string>YES</string>
 </dict>
 </plist>
