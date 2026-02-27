@@ -36,7 +36,7 @@ class GlobalPassView extends StatefulWidget {
 }
 
 class _GlobalPassViewState extends State<GlobalPassView> {
-  final RazorpayController _razorpayController = Get.put(RazorpayController());
+  late final RazorpayController _razorpayController;
   final UserController _userController = Get.find<UserController>();
   final _remoteRepo = locator<RemoteRepoInterface>();
   final _segmentService = locator<SegmentSdkService>();
@@ -48,6 +48,9 @@ class _GlobalPassViewState extends State<GlobalPassView> {
   @override
   void initState() {
     super.initState();
+    _razorpayController = Get.isRegistered<RazorpayController>()
+        ? Get.find<RazorpayController>()
+        : Get.put(RazorpayController());
     _setupPaymentListeners();
   }
 
@@ -117,6 +120,9 @@ class _GlobalPassViewState extends State<GlobalPassView> {
       );
       await Haptics.medium();
 
+      // Store pass info before opening checkout so success callback always has context.
+      _razorpayController.setPassIdForPurchase(pass.id);
+
       // Open Razorpay checkout
       _razorpayController.openCheckout(
         orderId: orderId,
@@ -132,8 +138,13 @@ class _GlobalPassViewState extends State<GlobalPassView> {
         paymentType: PaymentType.passPurchase,
       );
 
-      // Store pass info for payment success handling
-      _razorpayController.bookingIdList.value = [int.parse(pass.id)];
+      // Keep numeric fallback for legacy flows.
+      final passIdAsInt = int.tryParse(pass.id);
+      if (passIdAsInt != null) {
+        _razorpayController.bookingIdList.value = [passIdAsInt];
+      } else {
+        _razorpayController.bookingIdList.clear();
+      }
       // Clear slot IDs for pass purchases since passes don't have slots
       _razorpayController.slotIdsList.clear();
     } catch (e) {
@@ -171,11 +182,12 @@ class _GlobalPassViewState extends State<GlobalPassView> {
     final dio = locator<NetworkProvider>().noAuth();
     final response = await dio.post(url, data: payload);
 
-    if (response.statusCode == 200) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       final data = response.data is String
           ? jsonDecode(response.data as String)
           : response.data;
-      return data['id'];
+      final orderId = (data['id'] ?? data['order_id'] ?? '').toString();
+      if (orderId.isNotEmpty) return orderId;
     }
 
     throw Exception('Failed to create payment order: ${response.data}');

@@ -142,6 +142,9 @@ abstract class RemoteRepoInterface {
 
   Future<List<Map<String, dynamic>>> fetchPublicEvents();
   Future<Map<String, dynamic>> fetchEventById({required String eventId});
+  Future<List<Map<String, dynamic>>> fetchEventLeaderboard({
+    required String eventId,
+  });
   Future<Map<String, dynamic>> createEventTeam({
     required String eventId,
     required int userId,
@@ -168,6 +171,9 @@ abstract class RemoteRepoInterface {
     required String teamId,
   });
   Future<List<Map<String, dynamic>>> fetchUserTeams({required int userId});
+  Future<Map<String, List<Map<String, dynamic>>>> fetchJoinedTournaments({
+    required int userId,
+  });
   Future<Map<String, dynamic>> updateEventTeam({
     required String eventId,
     required String teamId,

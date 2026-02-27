@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
@@ -21,6 +22,7 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
     required String leaderName,
     required String teamName,
     List<String> players = const [],
+    String? paymentReference,
   }) async {
     emit(TournamentsRegisterLoading());
     try {
@@ -60,6 +62,7 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
         "team": teamName,
         "leader": leaderName,
         "players": players.where((e) => e.trim().isNotEmpty).toList(),
+        "payment_reference": paymentReference ?? '',
       };
 
       emit(TournamentsRegisterSuccess(data: result));
@@ -106,6 +109,7 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
   Future<void> registerWithExistingTeam({
     required String eventId,
     required String teamId,
+    String? paymentReference,
   }) async {
     emit(TournamentsRegisterLoading());
     try {
@@ -127,6 +131,7 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
             ...response,
             'team_id': teamId.trim(),
             'action': 'register_existing_team',
+            'payment_reference': paymentReference ?? '',
           },
         ),
       );
@@ -144,12 +149,26 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
       throw Exception('User not found. Please login again.');
     }
     final teams = await remoteRepo.fetchUserTeams(userId: userId);
-    return teams.where((team) {
-      final teamEventId = (team['event_id'] ?? team['eventId'] ?? '')
-          .toString()
-          .trim();
-      return teamEventId == eventId;
+    final normalizedEventId = eventId.trim().toLowerCase();
+    final filtered = teams.where((team) {
+      final teamEventId =
+          (team['event_id'] ??
+                  team['eventId'] ??
+                  (team['event'] is Map<String, dynamic>
+                      ? team['event']['id']
+                      : null) ??
+                  (team['tournament'] is Map<String, dynamic>
+                      ? team['tournament']['id']
+                      : null) ??
+                  '')
+              .toString()
+              .trim()
+              .toLowerCase();
+      return teamEventId == normalizedEventId;
     }).toList();
+
+    if (filtered.isNotEmpty) return filtered;
+    return teams;
   }
 
   String _extractTeamId(Map<String, dynamic> payload) {
@@ -186,6 +205,26 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
   }
 
   Future<int?> _resolveUserId() async {
+    if (Get.isRegistered<UserController>()) {
+      final controller = Get.find<UserController>();
+      final fromController = _parseUserIdFromDynamic(controller.userId);
+      if (fromController != null && fromController > 0) {
+        return fromController;
+      }
+    }
+
+    final fid = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (fid.isNotEmpty) {
+      final apiUser = await remoteRepo.checkUserExistsInAPI(fid);
+      final fromApi = _parseUserIdFromDynamic(apiUser);
+      if (fromApi != null && fromApi > 0) {
+        if (Get.isRegistered<UserController>()) {
+          Get.find<UserController>().id.value = fromApi.toString();
+        }
+        return fromApi;
+      }
+    }
+
     final userData = await remoteRepo.getUserFromPreferences();
     final fromUserData = _parseUserIdFromDynamic(userData);
     if (fromUserData != null && fromUserData > 0) {
@@ -196,14 +235,6 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
     final fromPrefs = _parseUserIdFromDynamic(prefs.getString('user_id'));
     if (fromPrefs != null && fromPrefs > 0) {
       return fromPrefs;
-    }
-
-    if (Get.isRegistered<UserController>()) {
-      final controller = Get.find<UserController>();
-      final fromController = _parseUserIdFromDynamic(controller.userId);
-      if (fromController != null && fromController > 0) {
-        return fromController;
-      }
     }
 
     return null;

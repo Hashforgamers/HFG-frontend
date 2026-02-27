@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:facebook_app_events/facebook_app_events.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -30,6 +31,7 @@ class SignUpController extends GetxController {
   var avatarPath = ''.obs;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final facebookAppEvents = FacebookAppEvents();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
   final remoteRepo = locator<RemoteRepoInterface>();
@@ -78,6 +80,7 @@ class SignUpController extends GetxController {
       };
 
       await remoteRepo.signUp(userData);
+      await facebookAppEvents.logEvent(name: "fb_mobile_complete_registration");
 
       // Track referral joined event if referral code was used
       if (referralCodeController.text.isNotEmpty) {

@@ -150,6 +150,10 @@ class ApiEndpoints {
       '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId/members';
   static String eventTeam(String eventId, String teamId) =>
       '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId';
+  static String eventLeaderboard(String eventId) =>
+      '$userOnboardBaseUrl/api/events/$eventId/leaderboard';
   static String userTeams(int userId) =>
       '$userOnboardBaseUrl/api/users/$userId/teams';
+  static String userJoinedTournaments(int userId) =>
+      '$userOnboardBaseUrl/api/users/$userId/tournaments/joined';
 }

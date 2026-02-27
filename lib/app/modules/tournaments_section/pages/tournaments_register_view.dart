@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournament_registration_result_pages.dart';
+import 'package:hash/app/modules/tournaments_section/services/tournament_payment_service.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
 import '../cubit/tournaments_register_cubit.dart';
 
@@ -18,22 +20,17 @@ class TournamentsRegisterView extends StatefulWidget {
 
 class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
   late final TournamentsRegisterCubit _cubit;
+  final TournamentPaymentService _paymentService = TournamentPaymentService();
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController teamNameController = TextEditingController();
+  bool _isPaymentProcessing = false;
+  bool _isBlockingLoaderVisible = false;
 
   @override
   void initState() {
     super.initState();
     _cubit = TournamentsRegisterCubit();
-  }
-
-  @override
-  void dispose() {
-    _cubit.close();
-    nameController.dispose();
-    teamNameController.dispose();
-    super.dispose();
   }
 
   @override
@@ -46,18 +43,18 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
         backgroundColor: Colors.black,
         body: BlocConsumer<TournamentsRegisterCubit, TournamentsRegisterState>(
           listener: (context, state) {
-            if (state is TournamentsRegisterSuccess) {
+            if (state is TournamentsRegisterLoading) {
+              _showBlockingLoader();
+            } else if (state is TournamentsRegisterSuccess) {
+              _hideBlockingLoader();
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    "Team '${state.data['team']}' has been registered.",
-                  ),
-                  backgroundColor: const Color(0xff00DC00),
+              Get.to(
+                () => TournamentRegistrationSuccessPage(
+                  tournamentTitle: widget.tournament.title,
                 ),
               );
-              Get.back(); // optional navigation back
             } else if (state is TournamentsRegisterError) {
+              _hideBlockingLoader();
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -185,7 +182,7 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
   );
 
   Widget _buildRegisterButton(TournamentsRegisterState state) {
-    final isLoading = state is TournamentsRegisterLoading;
+    final isLoading = state is TournamentsRegisterLoading || _isPaymentProcessing;
 
     return Container(
       width: double.infinity,
@@ -201,7 +198,7 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
         onPressed: isLoading
             ? null
             : () {
-                _submitCreateTeam(context);
+              _submitCreateTeam(context);
               },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
@@ -225,41 +222,129 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
     );
   }
 
-  void _submitCreateTeam(BuildContext context) {
+  Future<void> _submitCreateTeam(BuildContext context) async {
     final leaderName = nameController.text.trim();
     final teamName = teamNameController.text.trim();
 
     if (leaderName.isEmpty) {
-      _showValidationError(context, 'Leader name is required.');
+      _showValidationError('Leader name is required.');
       return;
     }
     if (leaderName.length < 3) {
-      _showValidationError(
-        context,
-        'Leader name must be at least 3 characters.',
-      );
+      _showValidationError('Leader name must be at least 3 characters.');
       return;
     }
     if (teamName.isEmpty) {
-      _showValidationError(context, 'Team name is required.');
+      _showValidationError('Team name is required.');
       return;
     }
     if (teamName.length < 3) {
-      _showValidationError(context, 'Team name must be at least 3 characters.');
+      _showValidationError('Team name must be at least 3 characters.');
       return;
+    }
+
+    setState(() => _isPaymentProcessing = true);
+    String? paymentReference;
+    try {
+      paymentReference = await _paymentService.payRegistrationFee(
+        context: context,
+        tournament: widget.tournament,
+      );
+      if (!mounted) return;
+      if (paymentReference == null) {
+        _openPaymentFailedPage('Payment was not completed.');
+        return;
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString().replaceFirst('Exception: ', '');
+      _openPaymentFailedPage(
+        message.trim().isEmpty
+            ? 'Unable to start payment. Please try again.'
+            : message,
+      );
+      return;
+    } finally {
+      if (mounted) {
+        setState(() => _isPaymentProcessing = false);
+      }
     }
 
     _cubit.registerTeam(
       eventId: widget.tournament.id,
       leaderName: leaderName,
       teamName: teamName,
+      paymentReference: paymentReference,
     );
   }
 
-  void _showValidationError(BuildContext context, String message) {
+  void _showValidationError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
     );
+  }
+
+  void _showBlockingLoader() {
+    if (!mounted || _isBlockingLoaderVisible) return;
+    _isBlockingLoaderVisible = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return PopScope(
+          canPop: false,
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              decoration: BoxDecoration(
+                color: const Color(0xFF121212),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const TournamentsLoader.button(),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Finalizing registration...',
+                    style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _hideBlockingLoader() {
+    if (!mounted || !_isBlockingLoaderVisible) return;
+    _isBlockingLoaderVisible = false;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (navigator.canPop()) {
+      navigator.pop();
+    }
+  }
+
+  Future<void> _openPaymentFailedPage(String message) async {
+    final retry = await Get.to<bool>(
+      () => TournamentPaymentFailedPage(message: message),
+    );
+    if (retry == true && mounted) {
+      await _submitCreateTeam(context);
+    }
+  }
+
+  @override
+  void dispose() {
+    _hideBlockingLoader();
+    _cubit.close();
+    nameController.dispose();
+    teamNameController.dispose();
+    super.dispose();
   }
 }
 

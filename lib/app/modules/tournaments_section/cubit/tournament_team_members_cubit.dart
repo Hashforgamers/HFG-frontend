@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
@@ -69,6 +70,26 @@ class TournamentTeamMembersCubit extends Cubit<TournamentTeamMembersState> {
   }
 
   Future<int?> resolveCurrentUserId() async {
+    if (Get.isRegistered<UserController>()) {
+      final controller = Get.find<UserController>();
+      final fromController = _parseUserIdFromDynamic(controller.userId);
+      if (fromController != null && fromController > 0) {
+        return fromController;
+      }
+    }
+
+    final fid = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (fid.isNotEmpty) {
+      final apiUser = await remoteRepo.checkUserExistsInAPI(fid);
+      final fromApi = _parseUserIdFromDynamic(apiUser);
+      if (fromApi != null && fromApi > 0) {
+        if (Get.isRegistered<UserController>()) {
+          Get.find<UserController>().id.value = fromApi.toString();
+        }
+        return fromApi;
+      }
+    }
+
     final userData = await remoteRepo.getUserFromPreferences();
     final fromUserData = _parseUserIdFromDynamic(userData);
     if (fromUserData != null && fromUserData > 0) {
@@ -81,13 +102,6 @@ class TournamentTeamMembersCubit extends Cubit<TournamentTeamMembersState> {
       return fromPrefs;
     }
 
-    if (Get.isRegistered<UserController>()) {
-      final controller = Get.find<UserController>();
-      final fromController = _parseUserIdFromDynamic(controller.userId);
-      if (fromController != null && fromController > 0) {
-        return fromController;
-      }
-    }
     return null;
   }
 

@@ -1306,6 +1306,28 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> fetchEventLeaderboard({
+    required String eventId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(ApiEndpoints.eventLeaderboard(eventId));
+      if (response.statusCode == 200) {
+        return _extractDynamicList(
+          response.data,
+          candidateKeys: const ['leaderboard', 'teams', 'data', 'results'],
+        );
+      }
+      throw Exception(
+        'Failed to fetch leaderboard. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching event leaderboard: $e');
+      rethrow;
+    }
+  }
+
+  @override
   Future<Map<String, dynamic>> createEventTeam({
     required String eventId,
     required int userId,
@@ -1449,6 +1471,64 @@ class RemoteRepo implements RemoteRepoInterface {
       );
     } catch (e) {
       debugPrint('Error fetching user teams: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, List<Map<String, dynamic>>>> fetchJoinedTournaments({
+    required int userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(ApiEndpoints.userJoinedTournaments(userId));
+      if (response.statusCode == 200) {
+        final payload = _asMap(response.data);
+        List<Map<String, dynamic>> extract(List<String> keys) {
+          dynamic raw;
+          for (final key in keys) {
+            if (payload.containsKey(key)) {
+              raw = payload[key];
+              break;
+            }
+          }
+          if (raw is List) {
+            return raw
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+          }
+          return const <Map<String, dynamic>>[];
+        }
+
+        final live = extract(const ['live', 'Live']);
+        final upcoming = extract(const ['upcoming', 'Upcoming']);
+        final completed = extract(const ['completed', 'Completed']);
+        final directAll = extract(const ['all', 'All', 'joined']);
+
+        final mergedAll = directAll.isNotEmpty
+            ? directAll
+            : [...live, ...upcoming, ...completed];
+
+        final dedupedAll = <String, Map<String, dynamic>>{};
+        for (final item in mergedAll) {
+          final id = (item['id'] ?? item['event_id'] ?? '').toString().trim();
+          final key = id.isNotEmpty ? id : item.toString();
+          dedupedAll[key] = item;
+        }
+
+        return {
+          'all': dedupedAll.values.toList(),
+          'live': live,
+          'upcoming': upcoming,
+          'completed': completed,
+        };
+      }
+      throw Exception(
+        'Failed to fetch joined tournaments. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching joined tournaments: $e');
       rethrow;
     }
   }

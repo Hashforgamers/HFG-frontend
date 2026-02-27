@@ -39,6 +39,7 @@ class TournamentsDetailsCubit extends Cubit<TournamentsDetailsState> {
 
   TournamentModel _mergeTournament(TournamentModel incoming) {
     return incoming.copyWith(
+      isJoined: _initialTournament.isJoined || incoming.isJoined,
       imageUrl: incoming.imageUrl.isEmpty
           ? _initialTournament.imageUrl
           : incoming.imageUrl,

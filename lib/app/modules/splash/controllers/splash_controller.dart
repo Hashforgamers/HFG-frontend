@@ -6,7 +6,6 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/service/segment_sdk_service.dart';
-import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/update_service.dart'; // ← NEW
 import '../../../routes/app_routes.dart';
@@ -16,23 +15,32 @@ import 'package:hash/core/utils/app_logger.dart';
 class SplashController extends GetxController {
   final UserController userController = Get.find();
   final segmentService = locator<SegmentSdkService>();
-  final fbEventsService = locator<FbEventsService>();
   bool _navigated = false;
   Timer? _fallbackTimer;
 
   @override
   void onReady() {
     super.onReady();
-    segmentService.onAppLaunch();
-    fbEventsService.onAppLaunch();
+    // Schedule fallback first so startup can never hang on splash.
+    _fallbackTimer = Timer(const Duration(seconds: 6), () {
+      AppLogger.d('Splash fallback fired -> login');
+      _safeNavigate(AppRoutes.LOGIN);
+    });
 
     // Run after first frame so Get.context is available
     WidgetsBinding.instance.addPostFrameCallback((_) => _boot());
 
-    // Hard fallback: if nothing navigates within 8s, go to onboarding.
-    _fallbackTimer = Timer(const Duration(seconds: 8), () {
-      _safeNavigate(AppRoutes.ONBOARDING);
-    });
+    // Non-blocking analytics; failures must not affect routing.
+    unawaited(_trackAppLaunchSafely());
+  }
+
+  Future<void> _trackAppLaunchSafely() async {
+    try {
+      await segmentService.onAppLaunch();
+    } catch (e, st) {
+      AppLogger.d('Segment launch tracking failed: $e');
+      AppLogger.d('$st');
+    }
   }
 
   Future<void> _boot() async {
@@ -57,7 +65,7 @@ class SplashController extends GetxController {
     } catch (e, st) {
       AppLogger.d('Splash routing error: $e');
       AppLogger.d('$st');
-      _safeNavigate(AppRoutes.ONBOARDING);
+      _safeNavigate(AppRoutes.LOGIN);
     }
   }
 
@@ -76,7 +84,7 @@ class SplashController extends GetxController {
 
       _safeNavigate(AppRoutes.HOME);
     } else {
-      _safeNavigate(AppRoutes.ONBOARDING);
+      _safeNavigate(AppRoutes.LOGIN);
     }
   }
 
@@ -95,6 +103,7 @@ class SplashController extends GetxController {
     if (_navigated) return;
     _navigated = true;
     _fallbackTimer?.cancel();
+    AppLogger.d('Splash navigating to $route');
     Get.offAllNamed(route);
   }
 }

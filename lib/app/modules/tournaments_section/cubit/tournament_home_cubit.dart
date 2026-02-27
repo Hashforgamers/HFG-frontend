@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
@@ -13,17 +14,48 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
   TournamentHomeCubit() : super(TournamentHomeInitial());
 
   final remoteRepo = locator<RemoteRepoInterface>();
-  List<TournamentModel> _allTournaments = [];
+  List<TournamentModel> _allJoinableTournaments = [];
+  final Map<String, List<TournamentModel>> _joinedByTab = {
+    'All': const [],
+    'Live': const [],
+    'Upcoming': const [],
+    'Completed': const [],
+  };
 
   Future<void> fetchTournaments() async {
     emit(TournamentHomeLoading());
     try {
+      final userId = await _resolveUserId();
       final events = await remoteRepo.fetchPublicEvents();
-      final tournaments = events.map(TournamentModel.fromJson).toList();
-      final myTeams = await _fetchMyTeamsSafe();
+      final joinable = events.map(TournamentModel.fromJson).toList();
+      _allJoinableTournaments = joinable;
 
-      _allTournaments = tournaments;
-      emit(TournamentHomeLoaded(tournaments: tournaments, myTeams: myTeams));
+      List<TournamentModel> joinedAll = const [];
+      if (userId != null && userId > 0) {
+        final joinedPayload = await remoteRepo.fetchJoinedTournaments(userId: userId);
+        _joinedByTab['All'] = (joinedPayload['all'] ?? const [])
+            .map((e) => TournamentModel.fromJson({...e, 'is_joined': true}))
+            .toList();
+        _joinedByTab['Live'] = (joinedPayload['live'] ?? const [])
+            .map((e) => TournamentModel.fromJson({...e, 'is_joined': true}))
+            .toList();
+        _joinedByTab['Upcoming'] = (joinedPayload['upcoming'] ?? const [])
+            .map((e) => TournamentModel.fromJson({...e, 'is_joined': true}))
+            .toList();
+        _joinedByTab['Completed'] = (joinedPayload['completed'] ?? const [])
+            .map((e) => TournamentModel.fromJson({...e, 'is_joined': true}))
+            .toList();
+        joinedAll = _joinedByTab['All'] ?? const [];
+      }
+
+      final myTeams = await _fetchMyTeamsSafe();
+      emit(
+        TournamentHomeLoaded(
+          tournaments: joinedAll,
+          joinableTournaments: _allJoinableTournaments,
+          myTeams: myTeams,
+        ),
+      );
     } catch (e) {
       emit(TournamentHomeError(message: e.toString()));
     }
@@ -32,24 +64,12 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
   void filterTournaments(String category) {
     if (state is! TournamentHomeLoaded) return;
     final currentState = state as TournamentHomeLoaded;
-
-    if (category == 'All') {
-      emit(
-        TournamentHomeLoaded(
-          tournaments: _allTournaments,
-          myTeams: currentState.myTeams,
-        ),
-      );
-      return;
-    }
-
-    final filtered = _allTournaments
-        .where((t) => t.matchesFilter(category))
-        .toList();
+    final filtered = _joinedByTab[category] ?? const <TournamentModel>[];
 
     emit(
       TournamentHomeLoaded(
         tournaments: filtered,
+        joinableTournaments: currentState.joinableTournaments,
         myTeams: currentState.myTeams,
       ),
     );
@@ -66,6 +86,26 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
   }
 
   Future<int?> _resolveUserId() async {
+    if (Get.isRegistered<UserController>()) {
+      final controller = Get.find<UserController>();
+      final fromController = _parseUserIdFromDynamic(controller.userId);
+      if (fromController != null && fromController > 0) {
+        return fromController;
+      }
+    }
+
+    final fid = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (fid.isNotEmpty) {
+      final apiUser = await remoteRepo.checkUserExistsInAPI(fid);
+      final fromApi = _parseUserIdFromDynamic(apiUser);
+      if (fromApi != null && fromApi > 0) {
+        if (Get.isRegistered<UserController>()) {
+          Get.find<UserController>().id.value = fromApi.toString();
+        }
+        return fromApi;
+      }
+    }
+
     final userData = await remoteRepo.getUserFromPreferences();
     final fromUserData = _parseUserIdFromDynamic(userData);
     if (fromUserData != null && fromUserData > 0) {
@@ -78,13 +118,6 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
       return fromPrefs;
     }
 
-    if (Get.isRegistered<UserController>()) {
-      final controller = Get.find<UserController>();
-      final fromController = _parseUserIdFromDynamic(controller.userId);
-      if (fromController != null && fromController > 0) {
-        return fromController;
-      }
-    }
     return null;
   }
 

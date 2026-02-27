@@ -141,7 +141,9 @@ class NewsController extends GetxController {
     final key = _getRandomKey(); // pick a random key each call
     if (key == null) {
       if (kDebugMode) {
-        AppLogger.w('NEWS_API_KEYS not set; skipping news fetch.');
+        AppLogger.w(
+          'NEWS_API_KEYS not set; skipping news fetch. Set AppKeys.newsApiKeys in lib/config/app_keys.dart.',
+        );
       }
       return const [];
     }

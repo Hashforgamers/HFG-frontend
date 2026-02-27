@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -33,6 +34,7 @@ class _SignUpViewState extends State<SignUpView> {
           (p) => p.providerId == 'apple.com' || p.providerId == 'google.com',
     );
   }
+  bool get _isIos => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
   void initState() {
@@ -311,18 +313,16 @@ class _SignUpViewState extends State<SignUpView> {
           LengthLimitingTextInputFormatter(10),
         ],
         validator: (v) {
-          if (!readOnly && (v == null || v
-              .trim()
-              .isEmpty)) {
+          final value = v?.trim() ?? '';
+          if (readOnly) return null;
+          if (value.isEmpty) {
+            if (_isIos) return null;
             return 'Enter Mobile Number';
           }
-          if (!readOnly && v!.length < 7) {
+          if (value.length < 7) {
             return 'Enter valid number';
-            if (!readOnly && v?.length != 10) {
-              return 'Enter valid 10-digit number';
-            }
-            return null;
           }
+          return null;
         })
     );
   }

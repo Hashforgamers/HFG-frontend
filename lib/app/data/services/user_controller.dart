@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'package:get/get.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/utils/app_logger.dart';
@@ -33,16 +31,6 @@ class UserController extends GetxController {
 
   var isLoading = false.obs;
 
-  String _firstNonEmpty(List<String?> values) {
-    for (final value in values) {
-      final text = value?.trim() ?? '';
-      if (text.isNotEmpty && text.toLowerCase() != 'null') {
-        return text;
-      }
-    }
-    return '';
-  }
-
   Future<Map<String, dynamic>?> fetchUserData(String idValue) async {
     isLoading.value = true;
     final url = '${ApiEndpoints.checkUserExistsInAPI}$idValue';
@@ -58,15 +46,6 @@ class UserController extends GetxController {
         AppLogger.d("✅ fetchUserData → backend id: ${data}");
 
         final fetchedUser = User.fromJson(data['user']);
-        final prefs = await SharedPreferences.getInstance();
-        final photoFromPrefs = prefs.getString('photoUrl');
-        final photoFromFirebase = firebase_auth.FirebaseAuth.instance.currentUser?.photoURL;
-        fetchedUser.photoUrl = _firstNonEmpty([
-          fetchedUser.photoUrl,
-          photoFromPrefs,
-          photoFromFirebase,
-          user.value.photoUrl,
-        ]);
         id.value = data['user']['id'].toString(); // ✅ backend userId
 
         setUserData(fetchedUser);
@@ -89,12 +68,6 @@ class UserController extends GetxController {
 
   /// ✅ Replace entire user object
   void setUserData(User fetchedUser) {
-    final mergedPhoto = _firstNonEmpty([
-      fetchedUser.photoUrl,
-      user.value.photoUrl,
-      firebase_auth.FirebaseAuth.instance.currentUser?.photoURL,
-    ]);
-    fetchedUser.photoUrl = mergedPhoto;
     user.value = fetchedUser;
   }
 

@@ -9,8 +9,11 @@ import 'package:hash/app/modules/tournaments_section/models/tournament_model.dar
 import 'package:hash/app/modules/tournaments_section/models/tournament_team_model.dart';
 import 'package:hash/app/modules/tournaments_section/cubit/tournaments_register_cubit.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_join_team_view.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournament_registration_result_pages.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_register_view.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_members_view.dart';
+import 'package:hash/app/modules/tournaments_section/services/tournament_payment_service.dart';
+import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../data/services/user_controller.dart';
@@ -29,6 +32,8 @@ class TournamentsDetailsView extends StatefulWidget {
 class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
   late final TournamentsDetailsCubit _cubit;
   final userController = Get.find<UserController>();
+  final TournamentPaymentService _paymentService = TournamentPaymentService();
+  bool _isBlockingLoaderVisible = false;
 
   @override
   void initState() {
@@ -38,6 +43,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
 
   @override
   void dispose() {
+    _hideBlockingLoader();
     _cubit.close();
     super.dispose();
   }
@@ -193,33 +199,52 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
 
               const SizedBox(height: 25),
 
-              //Register Button
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Color(0xFFC06701)),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: ElevatedButton(
-                  onPressed: () => _handleRegisterNow(t),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+              if (!t.isJoined && t.status == TournamentStatus.upcoming)
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Color(0xFFC06701)),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () => _handleRegisterNow(t),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      minimumSize: const Size(double.infinity, 50),
                     ),
-                    minimumSize: const Size(double.infinity, 50),
+                    child: Text(
+                      'Register Now',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: double.infinity,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF161616),
+                    border: Border.all(color: Colors.white12),
+                    borderRadius: BorderRadius.circular(15),
                   ),
                   child: Text(
-                    'Register Now',
+                    'Already Joined',
                     style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      color: const Color(0xff00DC00),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
                     ),
                   ),
                 ),
-              ),
 
               // const SizedBox(height: 40),
 
@@ -674,6 +699,28 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
   }
 
   Future<void> _handleRegisterNow(TournamentModel tournament) async {
+    if (tournament.status != TournamentStatus.upcoming) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registration is only available for upcoming tournaments.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (tournament.isJoined) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You have already joined this tournament.'),
+          backgroundColor: Color(0xff00DC00),
+        ),
+      );
+      return;
+    }
+
     final registerCubit = TournamentsRegisterCubit();
     try {
       final myTeams = await registerCubit.fetchMyTeamsForEvent(tournament.id);
@@ -822,27 +869,102 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
   }) async {
     final registerCubit = TournamentsRegisterCubit();
     try {
+      final paymentReference = await _paymentService.payRegistrationFee(
+        context: context,
+        tournament: tournament,
+      );
+      if (!mounted) return;
+      if (paymentReference == null) {
+        final retry = await Get.to<bool>(
+          () => const TournamentPaymentFailedPage(
+            message: 'Payment was not completed.',
+          ),
+        );
+        if (retry == true && mounted) {
+          await _registerUsingExistingTeam(
+            tournament: tournament,
+            teamId: teamId,
+            teamName: teamName,
+          );
+        }
+        return;
+      }
+
+      _showBlockingLoader();
       await registerCubit.registerWithExistingTeam(
         eventId: tournament.id,
         teamId: teamId,
+        paymentReference: paymentReference,
       );
+      _hideBlockingLoader();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Registered "$teamName" in this tournament.'),
-          backgroundColor: const Color(0xff00DC00),
+      await Get.to(
+        () => TournamentRegistrationSuccessPage(
+          tournamentTitle: tournament.title,
         ),
       );
-    } catch (_) {
+    } catch (e) {
+      _hideBlockingLoader();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to register with selected team.'),
-          backgroundColor: Colors.redAccent,
+      final retry = await Get.to<bool>(
+        () => TournamentPaymentFailedPage(
+          message: e.toString().replaceFirst('Exception: ', '').isEmpty
+              ? 'Unable to complete payment or registration.'
+              : e.toString().replaceFirst('Exception: ', ''),
         ),
       );
+      if (retry == true && mounted) {
+        await _registerUsingExistingTeam(
+          tournament: tournament,
+          teamId: teamId,
+          teamName: teamName,
+        );
+      }
     } finally {
       await registerCubit.close();
+    }
+  }
+
+  void _showBlockingLoader() {
+    if (!mounted || _isBlockingLoaderVisible) return;
+    _isBlockingLoaderVisible = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            decoration: BoxDecoration(
+              color: const Color(0xFF121212),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const TournamentsLoader.button(),
+                const SizedBox(height: 10),
+                Text(
+                  'Finalizing registration...',
+                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _hideBlockingLoader() {
+    if (!mounted || !_isBlockingLoaderVisible) return;
+    _isBlockingLoaderVisible = false;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (navigator.canPop()) {
+      navigator.pop();
     }
   }
 }

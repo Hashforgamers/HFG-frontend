@@ -13,20 +13,16 @@ class TournamentsLeaderboardCubit extends Cubit<TournamentsLeaderboardState> {
   Future<void> fetchLeaderboard({required String eventId}) async {
     emit(TournamentsLeaderboardLoading());
     try {
-      final event = await remoteRepo.fetchEventById(eventId: eventId);
-      final dynamic teams = event['teams'] ?? event['leaderboard'] ?? [];
+      final teams = await remoteRepo.fetchEventLeaderboard(eventId: eventId);
 
       final leaderboard = <Map<String, dynamic>>[];
-      if (teams is List) {
-        for (var index = 0; index < teams.length; index++) {
-          final item = teams[index];
-          if (item is! Map) continue;
-          leaderboard.add({
-            'rank': item['rank'] ?? item['position'] ?? (index + 1),
-            'player': item['name'] ?? item['team_name'] ?? 'Team ${index + 1}',
-            'points': item['points'] ?? item['score'] ?? 0,
-          });
-        }
+      for (var index = 0; index < teams.length; index++) {
+        final item = teams[index];
+        leaderboard.add({
+          'rank': item['rank'] ?? item['position'] ?? (index + 1),
+          'player': item['name'] ?? item['team_name'] ?? 'Team ${index + 1}',
+          'points': item['points'] ?? item['score'] ?? 0,
+        });
       }
 
       emit(TournamentsLeaderboardLoaded(leaderboard: leaderboard));

@@ -20,6 +20,7 @@ class TournamentModel {
   final String rules;
   final String technical;
   final List<TournamentTeamModel> teams;
+  final bool? _isJoined;
 
   const TournamentModel({
     required this.id,
@@ -39,7 +40,10 @@ class TournamentModel {
     required this.rules,
     required this.technical,
     required this.teams,
-  });
+    bool? isJoined = false,
+  }) : _isJoined = isJoined;
+
+  bool get isJoined => _isJoined ?? false;
 
   factory TournamentModel.fromJson(Map<String, dynamic> json) {
     final teamsPayload = _extractList(
@@ -112,6 +116,7 @@ class TournamentModel {
       technical: (json['technical'] ?? 'Technical details coming soon.')
           .toString(),
       teams: teams,
+      isJoined: _toBool(json['is_joined']),
     );
   }
 
@@ -133,6 +138,7 @@ class TournamentModel {
     String? rules,
     String? technical,
     List<TournamentTeamModel>? teams,
+    bool? isJoined,
   }) {
     return TournamentModel(
       id: id ?? this.id,
@@ -152,6 +158,7 @@ class TournamentModel {
       rules: rules ?? this.rules,
       technical: technical ?? this.technical,
       teams: teams ?? this.teams,
+      isJoined: isJoined ?? this.isJoined,
     );
   }
 
@@ -196,6 +203,16 @@ class TournamentModel {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse(value.toString());
+  }
+
+  static bool _toBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    return false;
   }
 
   static List<Map<String, dynamic>> _extractList(dynamic payload) {

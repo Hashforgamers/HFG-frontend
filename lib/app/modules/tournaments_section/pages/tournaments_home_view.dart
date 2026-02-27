@@ -66,7 +66,11 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
                         child: const TournamentsLoader.screen(),
                       );
                     } else if (state is TournamentHomeLoaded) {
-                      return _buildBodyContent(state.tournaments, state.myTeams);
+                      return _buildBodyContent(
+                        state.tournaments,
+                        state.joinableTournaments,
+                        state.myTeams,
+                      );
                     } else if (state is TournamentHomeError) {
                       return Center(
                         child: Text(
@@ -87,7 +91,8 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
   }
 
   Widget _buildBodyContent(
-    List<TournamentModel> tournaments,
+    List<TournamentModel> joinedTournaments,
+    List<TournamentModel> joinableTournaments,
     List<Map<String, dynamic>> myTeams,
   ) {
     return Column(
@@ -96,7 +101,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            "Tournaments",
+            "Joined Tournaments",
             style: GoogleFonts.orbitron(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -107,7 +112,27 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         const SizedBox(height: 10),
         const _TabsSection(),
         const SizedBox(height: 16),
-        _buildTournamentList(tournaments),
+        _buildTournamentList(
+          joinedTournaments,
+          emptyText: 'No joined tournaments in this section',
+        ),
+        const SizedBox(height: 18),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            "All Tournaments (Join)",
+            style: GoogleFonts.orbitron(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _buildTournamentList(
+          joinableTournaments,
+          emptyText: 'No tournaments available to join',
+        ),
         const SizedBox(height: 18),
         _buildMyTeamsSection(myTeams),
         const SizedBox(height: 16),
@@ -125,19 +150,22 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         const SizedBox(height: 16),
         _buildYourPosition(),
         const SizedBox(height: 16),
-        _buildLeaderboardButton(tournaments),
+        _buildLeaderboardButton(joinableTournaments),
         const SizedBox(height: 32),
       ],
     );
   }
 
-  Widget _buildTournamentList(List<TournamentModel> tournaments) {
+  Widget _buildTournamentList(
+    List<TournamentModel> tournaments, {
+    required String emptyText,
+  }) {
     if (tournaments.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16.0),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Text(
-          'No tournaments found',
-          style: TextStyle(color: Colors.white70),
+          emptyText,
+          style: const TextStyle(color: Colors.white70),
         ),
       );
     }

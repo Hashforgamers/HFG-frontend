@@ -27,10 +27,17 @@ class GetVendorPassesModel {
   });
 
   factory GetVendorPassesModel.fromMap(Map<String, dynamic> map) {
+    double? parsePrice(dynamic value) {
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value.trim());
+      return null;
+    }
+
     return GetVendorPassesModel(
-      id: map['id']?.toString(),
-      name: map['name']?.toString(),
-      price: (map['price'] as num?)?.toDouble(),
+      id: (map['id'] ?? map['pass_id'] ?? map['cafe_pass_id'] ?? map['_id'])
+          ?.toString(),
+      name: (map['name'] ?? map['title'] ?? map['pass_name'])?.toString(),
+      price: parsePrice(map['price'] ?? map['amount'] ?? map['pass_price']),
       passMode: map['pass_mode']?.toString(),
       totalHour: map['total_hours'] is num
           ? (map['total_hours'] as num).toInt()

@@ -78,7 +78,7 @@ class GameService {
   }) async {
     if (_apiKey.isEmpty) {
       AppLogger.w(
-        '[GamesByDevelopers] RAWG_API_KEY is not set; skipping fetch. Add --dart-define=RAWG_API_KEY=...',
+        '[GamesByDevelopers] RAWG_API_KEY is not set; skipping fetch. Set AppKeys.rawgApiKey in lib/config/app_keys.dart.',
       );
       return (items: const <Game>[], hasMore: false);
     }

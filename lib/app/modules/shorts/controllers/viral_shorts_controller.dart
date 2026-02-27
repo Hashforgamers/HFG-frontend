@@ -70,7 +70,7 @@ class ApiService {
     );
     if (key == null) {
       AppLogger.w(
-        '[Shorts] SERPAPI_KEYS not set; skipping shorts fetch. Add --dart-define=SERPAPI_KEYS=key1,key2',
+        '[Shorts] SERPAPI_KEYS not set; skipping shorts fetch. Set AppKeys.serpApiKeys in lib/config/app_keys.dart.',
       );
       return [];
     }
@@ -173,7 +173,7 @@ class YouTubeShortsController extends GetxController {
         return;
       }
 
-      shorts.value = await _api.fetch('Esports Shorts');
+      shorts.value = await _api.fetch('Trending Gaming Shorts');
       _cachedShorts = shorts.toList(growable: false);
       _lastFetchedAt = now;
       AppLogger.i('[Shorts] Loaded in controller. count=${shorts.length}');

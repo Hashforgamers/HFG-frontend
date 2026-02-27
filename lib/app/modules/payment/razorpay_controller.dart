@@ -21,7 +21,7 @@ import 'package:intl/intl.dart';
 enum PaymentType { slotBooking, passPurchase }
 
 class RazorpayController extends GetxController {
-  late Razorpay _razorpay;
+  Razorpay? _razorpay;
   final _remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
@@ -34,20 +34,32 @@ class RazorpayController extends GetxController {
   RxBool isPaymentInProgress = false.obs;
   RxString paymentStatus = ''.obs;
   PaymentType? _currentPaymentType;
+  String? _passIdForPurchase;
 
   @override
   void onInit() {
     super.onInit();
+    _initializeRazorpayIfNeeded();
+  }
+
+  @override
+  void onClose() {
+    _razorpay?.clear();
+    _razorpay = null;
+    super.onClose();
+  }
+
+  void _initializeRazorpayIfNeeded() {
+    if (_razorpay != null) return;
     _razorpay = Razorpay()
       ..on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess)
       ..on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError)
       ..on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
-  @override
-  void onClose() {
-    _razorpay.clear();
-    super.onClose();
+  void setPassIdForPurchase(String passId) {
+    final normalized = passId.trim();
+    _passIdForPurchase = normalized.isEmpty ? null : normalized;
   }
 
   // ─────────────────────────── Checkout ───────────────────────────
@@ -61,6 +73,7 @@ class RazorpayController extends GetxController {
     PaymentType paymentType =
         PaymentType.slotBooking, // Default to slot booking
   }) {
+    _initializeRazorpayIfNeeded();
     final options = {
       'key': ApiEndpoints.razorpayKeyWallet,
       'amount': (amount * 100).toInt(),
@@ -88,14 +101,14 @@ class RazorpayController extends GetxController {
         paymentMethodSelected: 'razorpay',
       );
 
-      _razorpay.open(options);
+      _razorpay?.open(options);
     } catch (e) {
       isPaymentInProgress(false);
       paymentStatus.value = '';
       _currentPaymentType = null;
       Get.snackbar(
         'Checkout Error',
-        'Failed to open Razorpay.',
+        'Failed to open Razorpay: $e',
         snackPosition: SnackPosition.BOTTOM,
       );
     }
@@ -150,11 +163,18 @@ class RazorpayController extends GetxController {
       );
     } else if (_currentPaymentType == PaymentType.passPurchase) {
       final user = await _remoteRepo.getUserFromPreferences();
+      final passId =
+          _passIdForPurchase ??
+          (bookingIdList.isNotEmpty ? bookingIdList.first.toString() : null);
+
+      if (passId == null || passId.isEmpty) {
+        throw Exception('Missing pass id for purchase.');
+      }
 
       await _remoteRepo.purchasePass(
         userId: user?['id'].toString() ?? '',
         passModel: PurchasePassModel(
-          cafePassId: bookingIdList.first.toString(),
+          cafePassId: passId,
           paymentId: r.paymentId!,
           paymentMode: 'gateway',
         ),
@@ -282,6 +302,7 @@ class RazorpayController extends GetxController {
     isPaymentInProgress(false);
     paymentStatus.value = '';
     _currentPaymentType = null;
+    _passIdForPurchase = null;
     bookingIdList.clear();
     slotIdsList.clear();
     cartItemsList.clear();
