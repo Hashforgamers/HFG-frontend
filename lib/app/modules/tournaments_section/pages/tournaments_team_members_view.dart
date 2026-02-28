@@ -25,10 +25,12 @@ class TournamentsTeamMembersView extends StatefulWidget {
       _TournamentsTeamMembersViewState();
 }
 
-class _TournamentsTeamMembersViewState extends State<TournamentsTeamMembersView> {
+class _TournamentsTeamMembersViewState
+    extends State<TournamentsTeamMembersView> {
   late final TournamentTeamMembersCubit _cubit;
   late final TextEditingController _teamNameController;
   late String _teamName;
+  int? _currentUserId;
 
   @override
   void initState() {
@@ -37,6 +39,7 @@ class _TournamentsTeamMembersViewState extends State<TournamentsTeamMembersView>
       ..fetchTeamMembers(eventId: widget.eventId, teamId: widget.teamId);
     _teamName = widget.teamName;
     _teamNameController = TextEditingController(text: widget.teamName);
+    _loadCurrentUserId();
   }
 
   @override
@@ -44,6 +47,14 @@ class _TournamentsTeamMembersViewState extends State<TournamentsTeamMembersView>
     _teamNameController.dispose();
     _cubit.close();
     super.dispose();
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    final userId = await _cubit.resolveCurrentUserId();
+    if (!mounted) return;
+    setState(() {
+      _currentUserId = userId;
+    });
   }
 
   @override
@@ -73,6 +84,10 @@ class _TournamentsTeamMembersViewState extends State<TournamentsTeamMembersView>
               icon: const Icon(Icons.person_add_alt_1),
             ),
             IconButton(
+              onPressed: _confirmLeaveTeam,
+              icon: const Icon(Icons.logout_rounded),
+            ),
+            IconButton(
               onPressed: () => _shareTeamInvite(context),
               icon: const Icon(Icons.share),
             ),
@@ -90,56 +105,131 @@ class _TournamentsTeamMembersViewState extends State<TournamentsTeamMembersView>
             children: [
               _buildTeamHeader(context),
               Expanded(
-                child: BlocBuilder<TournamentTeamMembersCubit, TournamentTeamMembersState>(
-                  builder: (context, state) {
-                    if (state is TournamentTeamMembersLoading) {
-                      return const TournamentsLoader.screen();
-                    }
-                    if (state is TournamentTeamMembersError) {
-                      return Center(
-                        child: Text(
-                          state.message,
-                          style: const TextStyle(color: Colors.white70),
-                          textAlign: TextAlign.center,
-                        ),
-                      );
-                    }
-                    if (state is TournamentTeamMembersLoaded) {
-                      if (state.members.isEmpty) {
-                        return const Center(
-                          child: Text(
-                            'No members found for this team.',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        );
-                      }
-                      return ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: state.members.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final member = state.members[index];
-                          final name =
-                              (member['name'] ??
-                                      member['user_name'] ??
-                                      member['username'] ??
-                                      member['email'] ??
-                                      'Member ${index + 1}')
-                                  .toString();
-                          final role =
-                              (member['role'] ?? member['team_role'] ?? '')
-                                  .toString();
-                          return _buildMemberCard(
-                            index: index,
-                            name: name,
-                            role: role,
+                child:
+                    BlocBuilder<
+                      TournamentTeamMembersCubit,
+                      TournamentTeamMembersState
+                    >(
+                      builder: (context, state) {
+                        if (state is TournamentTeamMembersLoading) {
+                          return const TournamentsLoader.screen();
+                        }
+                        if (state is TournamentTeamMembersError) {
+                          return Center(
+                            child: Text(
+                              state.message,
+                              style: const TextStyle(color: Colors.white70),
+                              textAlign: TextAlign.center,
+                            ),
                           );
-                        },
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
+                        }
+                        if (state is TournamentTeamMembersLoaded) {
+                          if (state.members.isEmpty) {
+                            return const Center(
+                              child: Text(
+                                'No members found for this team.',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            );
+                          }
+                          return ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: state.members.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final member = state.members[index];
+                              final gameUsername =
+                                  (member['gameUserName'] ??
+                                          member['game_username'] ??
+                                          member['game_user_name'] ??
+                                          member['username'] ??
+                                          member['user_name'] ??
+                                          '')
+                                      .toString()
+                                      .trim();
+                              final name =
+                                  (member['name'] ??
+                                          member['display_name'] ??
+                                          member['displayName'] ??
+                                          member['full_name'] ??
+                                          (gameUsername.isNotEmpty
+                                              ? gameUsername
+                                              : member['email']) ??
+                                          'Player')
+                                      .toString()
+                                      .trim();
+                              final role =
+                                  (member['role'] ?? member['team_role'] ?? '')
+                                      .toString();
+                              final memberUserId = _parseInt(
+                                member['user_id'] ??
+                                    member['userId'] ??
+                                    member['id'],
+                              );
+                              final isCaptain = _isCurrentUserCaptain(
+                                state.members,
+                              );
+                              final memberRole = role.trim().toLowerCase();
+                              final canRemove =
+                                  isCaptain &&
+                                  memberUserId != null &&
+                                  memberUserId != _currentUserId &&
+                                  memberRole != 'captain';
+
+                              final card = _buildMemberCard(
+                                index: index,
+                                name: name,
+                                gameUsername: gameUsername,
+                                role: role,
+                              );
+                              if (!canRemove) return card;
+
+                              return Dismissible(
+                                key: ValueKey('member_$memberUserId'),
+                                direction: DismissDirection.endToStart,
+                                confirmDismiss: (_) =>
+                                    _confirmForceRemoveMember(
+                                      memberUserId: memberUserId,
+                                      memberName: name,
+                                      fromSwipe: true,
+                                    ),
+                                background: Container(
+                                  margin: const EdgeInsets.only(bottom: 0),
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.person_remove_alt_1_rounded,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Remove',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                child: card,
+                              );
+                            },
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
               ),
             ],
           ),
@@ -177,14 +267,6 @@ class _TournamentsTeamMembersViewState extends State<TournamentsTeamMembersView>
                       fontSize: 14,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Team ID: ${widget.teamId}',
-                    style: GoogleFonts.inter(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -206,50 +288,169 @@ class _TournamentsTeamMembersViewState extends State<TournamentsTeamMembersView>
   Widget _buildMemberCard({
     required int index,
     required String name,
+    required String gameUsername,
     required String role,
   }) {
+    final displayRole = role.isEmpty
+        ? (index == 0 ? 'Leader' : 'Member')
+        : role;
+    final isLeader = displayRole.toLowerCase() == 'leader' || index == 0;
+    final cleanUsername = gameUsername.trim();
+    final initials = _initialsForText(name);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1C),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: index == 0 ? const Color(0xff00DC00) : Colors.white10,
-          width: 1.2,
+        gradient: LinearGradient(
+          colors: isLeader
+              ? [const Color(0xFF1C2219), const Color(0xFF151515)]
+              : [const Color(0xFF1A1A1A), const Color(0xFF131313)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: Colors.white12,
-            child: Text(
-              '${index + 1}',
-              style: const TextStyle(color: Colors.white),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(1.4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: isLeader
+                        ? [const Color(0xff00DC00), const Color(0xFF6CFF6C)]
+                        : [Colors.white30, Colors.white10],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: const Color(0xFF0F0F0F),
+                  child: Text(
+                    initials,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0B0B0B),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: Colors.white24, width: 0.8),
+                  ),
+                  child: Text(
+                    '#${index + 1}',
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    if (isLeader)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 6),
+                        child: Icon(
+                          Icons.workspace_premium_rounded,
+                          size: 14,
+                          color: Color(0xff00DC00),
+                        ),
+                      ),
+                  ],
+                ),
+                if (cleanUsername.isNotEmpty &&
+                    cleanUsername.toLowerCase() != name.toLowerCase())
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Text(
+                      cleanUsername.startsWith('@')
+                          ? cleanUsername
+                          : '@$cleanUsername',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: Colors.white60,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              name,
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              color: isLeader
+                  ? const Color(0xff00DC00).withValues(alpha: 0.14)
+                  : Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: isLeader ? const Color(0xff00DC00) : Colors.white12,
               ),
             ),
-          ),
-          Text(
-            role.isEmpty ? (index == 0 ? 'Leader' : 'Member') : role,
-            style: GoogleFonts.inter(
-              color: const Color(0xff00DC00),
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
+            child: Text(
+              displayRole,
+              style: GoogleFonts.inter(
+                color: isLeader ? const Color(0xff00DC00) : Colors.white70,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _initialsForText(String value) {
+    final source = value.trim();
+    if (source.isEmpty) return 'U';
+    final parts = source.split(RegExp(r'\s+')).where((e) => e.isNotEmpty);
+    if (parts.isEmpty) return 'U';
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
   }
 
   Future<void> _openEditTeamDialog() async {
@@ -284,7 +485,7 @@ class _TournamentsTeamMembersViewState extends State<TournamentsTeamMembersView>
                   setState(() {
                     _teamName = _teamNameController.text.trim();
                   });
-                  Navigator.pop(context);
+                  Navigator.of(this.context).pop();
                   ScaffoldMessenger.of(this.context).showSnackBar(
                     const SnackBar(
                       content: Text('Team updated successfully'),
@@ -294,7 +495,9 @@ class _TournamentsTeamMembersViewState extends State<TournamentsTeamMembersView>
                 } catch (e) {
                   ScaffoldMessenger.of(this.context).showSnackBar(
                     SnackBar(
-                      content: Text(e.toString().replaceFirst('Exception: ', '')),
+                      content: Text(
+                        e.toString().replaceFirst('Exception: ', ''),
+                      ),
                       backgroundColor: Colors.redAccent,
                     ),
                   );
@@ -308,126 +511,626 @@ class _TournamentsTeamMembersViewState extends State<TournamentsTeamMembersView>
     );
   }
 
+  Future<void> _confirmLeaveTeam() async {
+    final shouldLeave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF171717),
+          title: const Text(
+            'Leave Team',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Text(
+            'Do you want to leave "$_teamName"?',
+            style: GoogleFonts.inter(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Leave'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLeave != true) return;
+
+    final userId = await _cubit.resolveCurrentUserId();
+    if (userId == null || userId <= 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to identify current user.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _cubit.leaveTeam(
+        eventId: widget.eventId,
+        teamId: widget.teamId,
+        userId: userId,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You left the team successfully.'),
+          backgroundColor: Color(0xff00DC00),
+        ),
+      );
+      Navigator.of(context).maybePop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
   Future<void> _openAddMemberSheet() async {
     final chatService = Get.find<ChatService>();
-    final searchController = TextEditingController();
     List<ChatUserModel> results = const [];
+    bool isSearching = false;
+    int? invitingUserId;
+    String inlineError = '';
+    String queryText = '';
+    bool isSheetActive = true;
+    final existingMemberIds = _existingMemberIds();
+
+    final inviterUserId = await _cubit.resolveCurrentUserId();
+    if (inviterUserId == null || inviterUserId <= 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to identify your user account. Please re-login.',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
 
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF101010),
+      backgroundColor: const Color(0xFF0C0C0C),
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
             Future<void> runSearch(String value) async {
               final q = value.trim();
+              if (!isSheetActive) return;
               if (q.length < 2) {
-                setModalState(() => results = const []);
+                if (!isSheetActive || !context.mounted) return;
+                setModalState(() {
+                  queryText = value;
+                  results = const [];
+                  isSearching = false;
+                  inlineError = '';
+                });
                 return;
               }
-              final users = await chatService.searchUsers(q, limit: 20);
-              setModalState(() => results = users);
+              if (!isSheetActive) return;
+              setModalState(() {
+                queryText = value;
+                isSearching = true;
+                inlineError = '';
+              });
+              try {
+                final users = await chatService.searchUsers(q, limit: 20);
+                if (!isSheetActive || !context.mounted) return;
+                setModalState(() {
+                  results = users;
+                });
+              } catch (_) {
+                if (!isSheetActive || !context.mounted) return;
+                setModalState(() {
+                  inlineError = 'Unable to search users right now.';
+                });
+              } finally {
+                if (isSheetActive && context.mounted) {
+                  setModalState(() {
+                    isSearching = false;
+                  });
+                }
+              }
             }
 
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 12,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: searchController,
-                    style: const TextStyle(color: Colors.white),
-                    onChanged: runSearch,
-                    decoration: const InputDecoration(
-                      hintText: 'Search username/email',
-                      hintStyle: TextStyle(color: Colors.white54),
-                      prefixIcon: Icon(Icons.search, color: Colors.white70),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 280,
-                    child: ListView.builder(
-                      itemCount: results.length,
-                      itemBuilder: (_, index) {
-                        final user = results[index];
-                        return ListTile(
-                          title: Text(
-                            user.displayName,
+            return SafeArea(
+              top: false,
+              child: AnimatedPadding(
+                duration: const Duration(milliseconds: 120),
+                curve: Curves.easeOut,
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+                ),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.72,
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xff00DC00,
+                              ).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.person_add_alt_1_rounded,
+                              color: Color(0xff00DC00),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Invite Teammate',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                Text(
+                                  'Search by username or email and send invite',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white60,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(1),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xff2E2E2E), Color(0xff3D3D3D)],
+                          ),
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF171717),
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                          child: TextField(
                             style: const TextStyle(color: Colors.white),
+                            onChanged: runSearch,
+                            decoration: const InputDecoration(
+                              hintText: 'Search username/email',
+                              hintStyle: TextStyle(color: Colors.white54),
+                              prefixIcon: Icon(
+                                Icons.search,
+                                color: Colors.white70,
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: 14,
+                              ),
+                            ),
                           ),
-                          subtitle: Text(
-                            user.username.isNotEmpty
-                                ? '@${user.username}'
-                                : user.email,
-                            style: const TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (inlineError.isNotEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.25),
+                            ),
                           ),
-                          trailing: TextButton(
-                            onPressed: () async {
-                              final memberId =
-                                  user.backendUserId ??
-                                  int.tryParse(user.uid);
-                              if (memberId == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('User ID not available for invite'),
-                                    backgroundColor: Colors.redAccent,
+                          child: Text(
+                            inlineError,
+                            style: GoogleFonts.inter(
+                              color: Colors.red.shade200,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      SizedBox(
+                        height: 280,
+                        child: isSearching
+                            ? const Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    color: Color(0xff00DC00),
                                   ),
-                                );
-                                return;
-                              }
-                              try {
-                                await _cubit.addTeamMemberByUserId(
-                                  eventId: widget.eventId,
-                                  teamId: widget.teamId,
-                                  userId: memberId,
-                                );
-                                if (!mounted) return;
-                                Navigator.pop(context);
-                                _cubit.fetchTeamMembers(
-                                  eventId: widget.eventId,
-                                  teamId: widget.teamId,
-                                );
-                                ScaffoldMessenger.of(this.context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Added ${user.displayName}'),
-                                    backgroundColor: const Color(0xff00DC00),
+                                ),
+                              )
+                            : results.isEmpty
+                            ? Center(
+                                child: Text(
+                                  queryText.trim().length < 2
+                                      ? 'Type at least 2 letters to search'
+                                      : 'No users found',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white60,
+                                    fontWeight: FontWeight.w500,
                                   ),
-                                );
-                              } catch (e) {
-                                ScaffoldMessenger.of(this.context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      e.toString().replaceFirst('Exception: ', ''),
+                                ),
+                              )
+                            : ListView.separated(
+                                itemCount: results.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(height: 8),
+                                itemBuilder: (_, index) {
+                                  final user = results[index];
+                                  final memberId =
+                                      user.backendUserId ??
+                                      int.tryParse(user.uid);
+                                  final canInvite = memberId != null;
+                                  final isInviting =
+                                      memberId != null &&
+                                      invitingUserId == memberId;
+                                  final isAlreadyMember =
+                                      memberId != null &&
+                                      existingMemberIds.contains(memberId);
+
+                                  return Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF171717),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.white10),
                                     ),
-                                    backgroundColor: Colors.redAccent,
-                                  ),
-                                );
-                              }
-                            },
-                            child: const Text('Add'),
-                          ),
-                        );
-                      },
-                    ),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 20,
+                                          backgroundColor: Colors.white12,
+                                          child: Text(
+                                            _initialsForUser(user),
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                user.displayName,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                user.username.isNotEmpty
+                                                    ? '@${user.username}'
+                                                    : user.email,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white70,
+                                                  fontWeight: FontWeight.w500,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ElevatedButton(
+                                          onPressed:
+                                              !canInvite ||
+                                                  isInviting ||
+                                                  isAlreadyMember
+                                              ? null
+                                              : () async {
+                                                  if (!isSheetActive) return;
+                                                  setModalState(() {
+                                                    invitingUserId = memberId;
+                                                    inlineError = '';
+                                                  });
+                                                  try {
+                                                    await _cubit
+                                                        .inviteTeamMember(
+                                                          eventId:
+                                                              widget.eventId,
+                                                          teamId: widget.teamId,
+                                                          inviterUserId:
+                                                              inviterUserId,
+                                                          invitedUserId:
+                                                              memberId,
+                                                        );
+                                                    if (!isSheetActive ||
+                                                        !context.mounted) {
+                                                      return;
+                                                    }
+                                                    if (!mounted) return;
+                                                    isSheetActive = false;
+                                                    Navigator.of(
+                                                      this.context,
+                                                    ).pop();
+                                                    _cubit.fetchTeamMembers(
+                                                      eventId: widget.eventId,
+                                                      teamId: widget.teamId,
+                                                    );
+                                                    ScaffoldMessenger.of(
+                                                      this.context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Invite sent to ${user.displayName}',
+                                                        ),
+                                                        backgroundColor:
+                                                            const Color(
+                                                              0xff00DC00,
+                                                            ),
+                                                      ),
+                                                    );
+                                                  } catch (e) {
+                                                    if (!isSheetActive ||
+                                                        !context.mounted) {
+                                                      return;
+                                                    }
+                                                    setModalState(() {
+                                                      invitingUserId = null;
+                                                      inlineError = e
+                                                          .toString()
+                                                          .replaceFirst(
+                                                            'Exception: ',
+                                                            '',
+                                                          );
+                                                    });
+                                                  }
+                                                },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(
+                                              0xff00DC00,
+                                            ),
+                                            foregroundColor: Colors.black,
+                                            disabledBackgroundColor:
+                                                isAlreadyMember
+                                                ? const Color(
+                                                    0xff00DC00,
+                                                  ).withValues(alpha: 0.2)
+                                                : Colors.white12,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
+                                            minimumSize: const Size(82, 36),
+                                          ),
+                                          child: isAlreadyMember
+                                              ? const Icon(
+                                                  Icons.check_rounded,
+                                                  size: 16,
+                                                  color: Color(0xff00DC00),
+                                                )
+                                              : isInviting
+                                              ? const SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2.2,
+                                                        color: Colors.black,
+                                                      ),
+                                                )
+                                              : Text(
+                                                  'Invite',
+                                                  style: GoogleFonts.inter(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             );
           },
         );
       },
+    ).whenComplete(() {
+      isSheetActive = false;
+    });
+  }
+
+  Set<int> _existingMemberIds() {
+    final state = _cubit.state;
+    if (state is! TournamentTeamMembersLoaded) return <int>{};
+    final ids = <int>{};
+    for (final member in state.members) {
+      final raw =
+          member['id'] ??
+          member['user_id'] ??
+          member['userId'] ??
+          member['member_id'] ??
+          member['memberId'];
+      final parsed = _parseInt(raw);
+      if (parsed != null && parsed > 0) {
+        ids.add(parsed);
+      }
+    }
+    return ids;
+  }
+
+  bool _isCurrentUserCaptain(List<Map<String, dynamic>> members) {
+    final current = _currentUserId;
+    if (current == null || current <= 0) return false;
+    for (final member in members) {
+      final memberId = _parseInt(
+        member['user_id'] ?? member['userId'] ?? member['id'],
+      );
+      if (memberId != current) continue;
+      final role = (member['role'] ?? member['team_role'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      if (role == 'captain') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<bool> _confirmForceRemoveMember({
+    required int memberUserId,
+    required String memberName,
+    bool fromSwipe = false,
+  }) async {
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF171717),
+          title: const Text(
+            'Remove Member',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Text(
+            'Remove $memberName from this team?',
+            style: GoogleFonts.inter(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
     );
-    searchController.dispose();
+
+    if (shouldRemove != true) return false;
+    final actingUserId = _currentUserId;
+    if (actingUserId == null || actingUserId <= 0) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to identify current user.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return false;
+    }
+
+    try {
+      await _cubit.remoteRepo.forceRemoveEventTeamMember(
+        eventId: widget.eventId,
+        teamId: widget.teamId,
+        actingUserId: actingUserId,
+        targetUserId: memberUserId,
+      );
+      if (!mounted) return false;
+      _cubit.fetchTeamMembers(eventId: widget.eventId, teamId: widget.teamId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$memberName removed from team'),
+          backgroundColor: const Color(0xff00DC00),
+        ),
+      );
+      return fromSwipe;
+    } catch (e) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return false;
+    }
+  }
+
+  int? _parseInt(dynamic source) {
+    if (source == null) return null;
+    if (source is int) return source;
+    if (source is num) return source.toInt();
+    return int.tryParse(source.toString().trim());
+  }
+
+  String _initialsForUser(ChatUserModel user) {
+    final source = user.displayName.trim().isNotEmpty
+        ? user.displayName.trim()
+        : (user.username.trim().isNotEmpty ? user.username.trim() : 'U');
+    final parts = source.split(RegExp(r'\s+')).where((e) => e.isNotEmpty);
+    if (parts.isEmpty) return 'U';
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
   }
 
   void _shareTeamInvite(BuildContext context) {
@@ -449,4 +1152,3 @@ class _TournamentsTeamMembersViewState extends State<TournamentsTeamMembersView>
     );
   }
 }
-

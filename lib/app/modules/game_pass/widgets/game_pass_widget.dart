@@ -66,6 +66,21 @@ class _VendorPassesWidgetState extends State<VendorPassesWidget> {
     try {
       final orderId = await _createOrder((amount * 100).toInt());
       _lastOrderId = orderId;
+      final phone =
+          (_userController.user.value.contact?.electronicAddress?.mobileNo ??
+                  '')
+              .replaceAll(RegExp(r'[^0-9+]'), '')
+              .trim();
+      final email =
+          (_userController.user.value.contact?.electronicAddress?.emailId ?? '')
+              .trim();
+      final prefill = <String, dynamic>{};
+      if (phone.isNotEmpty) {
+        prefill['contact'] = phone;
+      }
+      if (email.isNotEmpty) {
+        prefill['email'] = email;
+      }
       _razorpay.open({
         'key': ApiEndpoints.razorpayKeyWallet,
         'amount': (amount * 100).toInt(),
@@ -74,14 +89,7 @@ class _VendorPassesWidgetState extends State<VendorPassesWidget> {
             : 'HashForGamers',
         'description': 'Purchase Pass - ${pass.name ?? 'Game Pass'}',
         'order_id': orderId,
-        'prefill': {
-          'contact':
-              _userController.user.value.contact?.electronicAddress?.mobileNo ??
-              '',
-          'email':
-              _userController.user.value.contact?.electronicAddress?.emailId ??
-              '',
-        },
+        if (prefill.isNotEmpty) 'prefill': prefill,
       });
     } catch (e) {
       _endPayment();
@@ -128,7 +136,9 @@ class _VendorPassesWidgetState extends State<VendorPassesWidget> {
         userId: _userController.userId,
         passModel: PurchasePassModel(
           cafePassId: passId,
-          paymentId: response.paymentId ?? 'PAY_${DateTime.now().millisecondsSinceEpoch}',
+          paymentId:
+              response.paymentId ??
+              'PAY_${DateTime.now().millisecondsSinceEpoch}',
           paymentMode: 'gateway',
         ),
       );

@@ -10,10 +10,12 @@ class TournamentsTeamInviteJoinView extends StatefulWidget {
     super.key,
     required this.eventId,
     required this.teamId,
+    this.inviteId = '',
   });
 
   final String eventId;
   final String teamId;
+  final String inviteId;
 
   @override
   State<TournamentsTeamInviteJoinView> createState() =>
@@ -46,10 +48,24 @@ class _TournamentsTeamInviteJoinViewState
 
   Future<void> _joinAndLoad() async {
     try {
-      await _registerCubit.joinTeam(
-        eventId: widget.eventId,
-        teamId: widget.teamId,
-      );
+      if (widget.inviteId.trim().isNotEmpty) {
+        final currentUserId = await _membersCubit.resolveCurrentUserId();
+        if (currentUserId == null || currentUserId <= 0) {
+          throw Exception('Unable to identify your user account.');
+        }
+        await _membersCubit.remoteRepo.respondToEventTeamInvite(
+          eventId: widget.eventId,
+          teamId: widget.teamId,
+          inviteId: widget.inviteId.trim(),
+          userId: currentUserId,
+          action: 'accept',
+        );
+      } else {
+        await _registerCubit.joinTeam(
+          eventId: widget.eventId,
+          teamId: widget.teamId,
+        );
+      }
       final members = await _membersCubit.remoteRepo.fetchEventTeamMembers(
         eventId: widget.eventId,
         teamId: widget.teamId,
@@ -60,8 +76,8 @@ class _TournamentsTeamInviteJoinViewState
         _members = members;
         if (members.isNotEmpty) {
           final first = members.first;
-          _teamName =
-              (first['team_name'] ?? first['name'] ?? _teamName).toString();
+          _teamName = (first['team_name'] ?? first['name'] ?? _teamName)
+              .toString();
         }
       });
     } catch (e) {
@@ -109,7 +125,11 @@ class _TournamentsTeamInviteJoinViewState
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.check_circle_rounded, color: Color(0xff00DC00), size: 86),
+        const Icon(
+          Icons.check_circle_rounded,
+          color: Color(0xff00DC00),
+          size: 86,
+        ),
         const SizedBox(height: 14),
         Text(
           'Joined Team Successfully',
@@ -173,7 +193,11 @@ class _TournamentsTeamInviteJoinViewState
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 72),
+        const Icon(
+          Icons.error_outline_rounded,
+          color: Colors.redAccent,
+          size: 72,
+        ),
         const SizedBox(height: 12),
         Text(
           'Unable to join team',
@@ -190,12 +214,8 @@ class _TournamentsTeamInviteJoinViewState
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
-        OutlinedButton(
-          onPressed: _joinAndLoad,
-          child: const Text('Try Again'),
-        ),
+        OutlinedButton(onPressed: _joinAndLoad, child: const Text('Try Again')),
       ],
     );
   }
 }
-

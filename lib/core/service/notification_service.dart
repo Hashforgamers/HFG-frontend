@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hash/app/modules/live/views/live_stream_screen.dart';
+import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -60,7 +61,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final fln = FlutterLocalNotificationsPlugin();
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const iosInit = DarwinInitializationSettings();
-  const initSettings = InitializationSettings(android: androidInit, iOS: iosInit);
+  const initSettings = InitializationSettings(
+    android: androidInit,
+    iOS: iosInit,
+  );
   await fln.initialize(initSettings);
 
   final androidPlugin = fln
@@ -75,11 +79,27 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 
   final notif = message.notification;
-  final title = notif?.title ?? (message.data['title'] ?? '').toString();
-  final body = notif?.body ?? (message.data['body'] ?? '').toString();
+  final type = (message.data['type'] ?? '').toString();
+  String title = notif?.title ?? (message.data['title'] ?? '').toString();
+  String body = notif?.body ?? (message.data['body'] ?? '').toString();
+  if (type == 'new_notification') {
+    if (title.trim().isEmpty) {
+      title = 'Team Invite';
+    }
+    if (body.trim().isEmpty) {
+      final inviteStatus = (message.data['invite_status'] ?? 'pending')
+          .toString()
+          .toLowerCase();
+      body = inviteStatus == 'accepted'
+          ? 'Your team invite was accepted.'
+          : inviteStatus == 'rejected'
+          ? 'Your team invite was rejected.'
+          : 'You have a new team invite.';
+    }
+  }
   if (title.isEmpty && body.isEmpty) return;
 
-  final channelId = _channelIdFromType(message.data['type']?.toString());
+  final channelId = _channelIdFromType(type);
   final details = NotificationDetails(
     android: AndroidNotificationDetails(
       channelId,
@@ -100,7 +120,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     title,
     body,
     details,
-    payload: message.data['route']?.toString() ?? '',
+    payload: (message.data['route']?.toString().isNotEmpty == true)
+        ? message.data['route']!.toString()
+        : ((message.data['type']?.toString() == 'new_notification')
+              ? AppRoutes.NOTIFICATIONS
+              : ''),
   );
 }
 
@@ -111,6 +135,7 @@ class NotificationController extends GetxController {
   final segmentService = locator<SegmentSdkService>();
 
   RxString fcmToken = ''.obs;
+  final Set<String> _shownNotificationKeys = <String>{};
 
   @override
   void onInit() {
@@ -214,9 +239,32 @@ class NotificationController extends GetxController {
   void _showLocalNotification(RemoteMessage message) {
     // Default values
     final notif = message.notification;
-    final title = notif?.title ?? (message.data['title'] ?? '');
-    final body = notif?.body ?? (message.data['body'] ?? '');
-    final channelId = _channelIdFromType(message.data['type']?.toString());
+    String title = (notif?.title ?? (message.data['title'] ?? '')).toString();
+    String body = (notif?.body ?? (message.data['body'] ?? '')).toString();
+    final type = message.data['type']?.toString() ?? '';
+    if (type == 'new_notification') {
+      if (title.trim().isEmpty) {
+        title = 'Team Invite';
+      }
+      if (body.trim().isEmpty) {
+        final inviteStatus = (message.data['invite_status'] ?? 'pending')
+            .toString()
+            .toLowerCase();
+        body = inviteStatus == 'accepted'
+            ? 'Your team invite was accepted.'
+            : inviteStatus == 'rejected'
+            ? 'Your team invite was rejected.'
+            : 'You have a new team invite.';
+      }
+    }
+    final channelId = _channelIdFromType(type);
+
+    if (type == 'new_notification' &&
+        Get.isRegistered<AppNotificationsController>()) {
+      Get.find<AppNotificationsController>().onPushNotificationData(
+        message.data,
+      );
+    }
 
     // Track receipt
     segmentService.onPushNotificationReceived(
@@ -242,13 +290,43 @@ class NotificationController extends GetxController {
 
     final details = NotificationDetails(android: android, iOS: ios);
 
+    final payload = (message.data['route']?.toString().isNotEmpty == true)
+        ? message.data['route']!.toString()
+        : (type == 'new_notification' ? AppRoutes.NOTIFICATIONS : '');
+    final dedupeKey = _notificationDedupeKey(message, title: title, body: body);
+    if (dedupeKey.isNotEmpty && _shownNotificationKeys.contains(dedupeKey)) {
+      return;
+    }
+    if (dedupeKey.isNotEmpty) {
+      _shownNotificationKeys.add(dedupeKey);
+      if (_shownNotificationKeys.length > 150) {
+        _shownNotificationKeys.remove(_shownNotificationKeys.first);
+      }
+    }
+
     _fln.show(
-      notif.hashCode,
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
       title,
       body,
       details,
-      payload: message.data['route'] ?? '',
+      payload: payload,
     );
+  }
+
+  String _notificationDedupeKey(
+    RemoteMessage message, {
+    required String title,
+    required String body,
+  }) {
+    final fromDataId = (message.data['notification_id'] ?? '')
+        .toString()
+        .trim();
+    if (fromDataId.isNotEmpty) return fromDataId;
+    final messageId = (message.messageId ?? '').trim();
+    if (messageId.isNotEmpty) return messageId;
+    final sentAt = message.sentTime?.millisecondsSinceEpoch.toString() ?? '';
+    final fallback = '$title|$body|$sentAt'.trim();
+    return fallback;
   }
 
   Future<void> _handleInitialMessage() async {
@@ -290,6 +368,18 @@ class NotificationController extends GetxController {
 
   void _handleMessageNavigation(RemoteMessage message) {
     final route = message.data['route'];
+    final type = message.data['type']?.toString() ?? '';
+
+    if (type == 'new_notification') {
+      if (Get.isRegistered<AppNotificationsController>()) {
+        Get.find<AppNotificationsController>().onPushNotificationData(
+          message.data,
+        );
+      }
+      Get.toNamed(AppRoutes.NOTIFICATIONS, arguments: message.data);
+      return;
+    }
+
     if (route is String && route.isNotEmpty) {
       segmentService.onPushNotificationClicked(
         campaignId: message.data['campaign_id'] ?? '',

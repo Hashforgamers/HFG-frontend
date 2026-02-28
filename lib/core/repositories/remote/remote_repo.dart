@@ -310,16 +310,24 @@ class RemoteRepo implements RemoteRepoInterface {
       );
 
       final Map<String, int> bookingGameIdByPlatform = {};
+      bool? legacyShopOpen;
+      final List<Map<String, dynamic>> legacyGamesForFallback = [];
       try {
         final legacyResponse = await bookingDio.get(
           '${ApiEndpoints.vendorGames}/$vendorId',
         );
         if (legacyResponse.statusCode == 200 && legacyResponse.data is Map) {
+          legacyShopOpen = _parseLooseBool(
+            legacyResponse.data['shop_open'] ??
+                legacyResponse.data['is_open'] ??
+                legacyResponse.data['open_close_flag'],
+          );
           final legacyGames =
               (legacyResponse.data['games'] as List?) ?? const [];
           for (final item in legacyGames) {
             if (item is! Map) continue;
             final map = Map<String, dynamic>.from(item);
+            legacyGamesForFallback.add(map);
             final id = map['id'];
             if (id is! num) continue;
             final rawPlatform =
@@ -394,9 +402,42 @@ class RemoteRepo implements RemoteRepoInterface {
           };
         }).toList();
 
+        if (normalizedGames.isEmpty && legacyGamesForFallback.isNotEmpty) {
+          for (final legacy in legacyGamesForFallback) {
+            final platform =
+                (legacy['game_platform'] ??
+                        legacy['platform_type'] ??
+                        legacy['game_name'] ??
+                        '')
+                    .toString();
+            final bookingId = legacy['id'];
+            if (bookingId is! num) continue;
+            normalizedGames.add({
+              'game_name': (legacy['game_name'] ?? 'Game').toString(),
+              'game_platform': platform,
+              'genre': (legacy['genre'] ?? '').toString(),
+              'image_url': (legacy['image_url'] ?? '').toString(),
+              'total_slots': legacy['total_slots'] ?? 1,
+              'single_slot_price': (legacy['single_slot_price'] is num)
+                  ? (legacy['single_slot_price'] as num).toDouble()
+                  : 0.0,
+              'booking_game_id': bookingId.toInt(),
+              'consoles': <Map<String, dynamic>>[],
+            });
+          }
+        }
+
+        final bool? dashboardShopOpen = response.data is Map<String, dynamic>
+            ? _parseLooseBool(
+                response.data['shop_open'] ??
+                    response.data['is_open'] ??
+                    response.data['open_close_flag'],
+              )
+            : null;
+
         return {
           'games': normalizedGames,
-          'shop_open': true, // API doesn't send; default to open
+          'shop_open': legacyShopOpen ?? dashboardShopOpen,
         };
       } else {
         throw Exception(
@@ -416,6 +457,20 @@ class RemoteRepo implements RemoteRepoInterface {
     if (v.contains('xbox')) return 'xbox';
     if (v.contains('vr') || v.contains('virtual')) return 'vr';
     return 'pc';
+  }
+
+  bool? _parseLooseBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value == 1;
+    if (value is String) {
+      final v = value.trim().toLowerCase();
+      if (v == 'true' || v == '1' || v == 'yes' || v == 'open') return true;
+      if (v == 'false' || v == '0' || v == 'no' || v == 'closed') {
+        return false;
+      }
+    }
+    return null;
   }
 
   @override
@@ -463,9 +518,14 @@ class RemoteRepo implements RemoteRepoInterface {
         "payment_id": paymentId,
         "book_date": bookDate,
         "payment_mode": paymentMode,
-        "use_pass": isGamePass,
-        "user_pass_id": userPassId,
       };
+
+      if (isGamePass) {
+        requestData["use_pass"] = true;
+        if (userPassId != null && userPassId.trim().isNotEmpty) {
+          requestData["user_pass_id"] = userPassId.trim();
+        }
+      }
 
       // Add voucher code if provided
       if (voucherCode != null && voucherCode.isNotEmpty) {
@@ -491,6 +551,12 @@ class RemoteRepo implements RemoteRepoInterface {
           'Failed to confirm booking. Status code: ${response.statusCode}',
         );
       }
+    } on DioException catch (e) {
+      if (ApiErrorHandler.shouldRetry(e)) {
+        rethrow;
+      }
+      final errorMessage = ApiErrorHandler.extractErrorMessage(e);
+      throw Exception(errorMessage);
     } catch (e) {
       print('Error confirming booking: $e');
       rethrow;
@@ -1599,6 +1665,148 @@ class RemoteRepo implements RemoteRepoInterface {
     }
   }
 
+  @override
+  Future<Map<String, dynamic>> forceRemoveEventTeamMember({
+    required String eventId,
+    required String teamId,
+    required int actingUserId,
+    required int targetUserId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.delete(
+        ApiEndpoints.eventTeamForceRemoveMember(eventId, teamId, targetUserId),
+        data: {'user_id': actingUserId},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to remove team member. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        _extractDioMessage(e, fallback: 'Unable to remove member from team.'),
+      );
+    } catch (e) {
+      debugPrint('Error force removing event team member: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> inviteUserToEventTeam({
+    required String eventId,
+    required String teamId,
+    required int inviterUserId,
+    required int invitedUserId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventTeamInvite(eventId, teamId),
+        data: {
+          'inviter_user_id': inviterUserId,
+          'invited_user_id': invitedUserId,
+        },
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to invite user. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        _extractDioMessage(e, fallback: 'Unable to invite user.'),
+      );
+    } catch (e) {
+      debugPrint('Error inviting user to team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> respondToEventTeamInvite({
+    required String eventId,
+    required String teamId,
+    required String inviteId,
+    required int userId,
+    required String action,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventTeamInviteRespond(eventId, teamId, inviteId),
+        data: {'user_id': userId, 'action': action},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to respond to invite. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        _extractDioMessage(e, fallback: 'Unable to process invite response.'),
+      );
+    } catch (e) {
+      debugPrint('Error responding to event invite: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchUserNotifications({
+    int limit = 50,
+    bool unreadOnly = false,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(
+        ApiEndpoints.userNotifications(limit: limit, unreadOnly: unreadOnly),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to fetch notifications. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        _extractDioMessage(e, fallback: 'Unable to fetch notifications.'),
+      );
+    } catch (e) {
+      debugPrint('Error fetching notifications: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> markNotificationAsRead({
+    required String notificationId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.patch(
+        ApiEndpoints.markNotificationRead(notificationId),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to mark notification as read. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        _extractDioMessage(e, fallback: 'Unable to mark notification as read.'),
+      );
+    } catch (e) {
+      debugPrint('Error marking notification as read: $e');
+      rethrow;
+    }
+  }
+
   Map<String, dynamic> _asMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) {
@@ -1631,5 +1839,24 @@ class RemoteRepo implements RemoteRepoInterface {
     }
 
     return const <Map<String, dynamic>>[];
+  }
+
+  String _extractDioMessage(DioException error, {required String fallback}) {
+    if (ApiErrorHandler.shouldRetry(error)) {
+      return fallback;
+    }
+    final responseData = error.response?.data;
+    if (responseData is Map) {
+      final map = Map<String, dynamic>.from(responseData);
+      final message =
+          map['message']?.toString().trim() ??
+          map['error']?.toString().trim() ??
+          map['detail']?.toString().trim();
+      if (message != null && message.isNotEmpty) {
+        return message;
+      }
+    }
+    final parsed = ApiErrorHandler.extractErrorMessage(error).trim();
+    return parsed.isEmpty ? fallback : parsed;
   }
 }

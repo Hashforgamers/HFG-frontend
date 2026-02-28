@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:hash/app/modules/chat/views/chat_inbox_view.dart';
+import 'package:hash/app/modules/notifications/views/notifications_view.dart';
 import 'package:hash/app/modules/shop/views/shop_view.dart';
 import 'package:hash/app/modules/tournaments/views/tournament_view.dart';
 import '../modules/home/bindings/home_binding.dart';
@@ -42,5 +43,9 @@ class AppPages {
     GetPage(name: AppRoutes.WALLET, page: () => const WalletPage()),
     GetPage(name: AppRoutes.NEED_HELP, page: () => const NeedHelpPage()),
     GetPage(name: AppRoutes.CHAT, page: () => const ChatInboxView()),
+    GetPage(
+      name: AppRoutes.NOTIFICATIONS,
+      page: () => const NotificationsView(),
+    ),
   ];
 }

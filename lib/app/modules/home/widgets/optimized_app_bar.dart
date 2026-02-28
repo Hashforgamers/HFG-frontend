@@ -8,9 +8,11 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
+import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
 import 'package:hash/app/modules/profile/user_profile_view.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/home/widgets/app_mode_segmented_toggle.dart';
+import 'package:hash/app/routes/app_routes.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/core/utils/app_logger.dart';
 
@@ -27,6 +29,10 @@ class OptimizedAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final userController = Get.find<UserController>();
+    final notificationsController =
+        Get.isRegistered<AppNotificationsController>()
+        ? Get.find<AppNotificationsController>()
+        : Get.put(AppNotificationsController(), permanent: true);
 
     return SliverAppBar(
       backgroundColor: Colors.transparent,
@@ -58,20 +64,22 @@ class OptimizedAppBar extends StatelessWidget {
       leadingWidth: 55,
       centerTitle: false,
       leading: Obx(
-            () => Padding(
+        () => Padding(
           padding: const EdgeInsets.only(left: 10, top: 5),
           child: userController.isLoading.value
               ? _buildShimmerAvatar()
               : GestureDetector(
-            onTap: (){
-              Get.to(UserProfileView());
-            },
-            child: _buildOptimizedUserAvatar(userController.user.value.photoUrl),
-          ),
+                  onTap: () {
+                    Get.to(UserProfileView());
+                  },
+                  child: _buildOptimizedUserAvatar(
+                    userController.user.value.photoUrl,
+                  ),
+                ),
         ),
       ),
       title: Obx(
-            () => Padding(
+        () => Padding(
           padding: const EdgeInsets.only(top: 15.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,10 +112,53 @@ class OptimizedAppBar extends StatelessWidget {
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 10),
-          child: BlocBuilder<HashCoinCubit, HashCoinState>(
-            builder: (_, state) => RewardsSection(
-              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
-            ),
+          child: Row(
+            children: [
+              Obx(() {
+                final unread = notificationsController.unreadCount.value;
+                return IconButton(
+                  onPressed: () => Get.toNamed(AppRoutes.NOTIFICATIONS),
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(
+                        Icons.notifications_none_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      if (unread > 0)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xff00DC00),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Text(
+                              unread > 99 ? '99+' : '$unread',
+                              style: GoogleFonts.inter(
+                                color: Colors.black,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }),
+              BlocBuilder<HashCoinCubit, HashCoinState>(
+                builder: (_, state) => RewardsSection(
+                  hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -135,12 +186,14 @@ class OptimizedAppBar extends StatelessWidget {
         radius: size / 2,
         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
             ? CachedNetworkImageProvider(
-          photoUrl,
-          errorListener: (error) => AppLogger.d('Avatar image error: $error'),
-        )
+                photoUrl,
+                errorListener: (error) =>
+                    AppLogger.d('Avatar image error: $error'),
+              )
             : const NetworkImage(
-          'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-        ) as ImageProvider,
+                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
+                  )
+                  as ImageProvider,
         backgroundColor: Colors.white,
       ),
     );

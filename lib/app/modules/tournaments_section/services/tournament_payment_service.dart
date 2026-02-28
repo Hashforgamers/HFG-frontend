@@ -35,6 +35,15 @@ class TournamentPaymentService {
       final user = _getUserDetails();
       final completer = Completer<String?>();
       razorpay = Razorpay();
+      final prefill = <String, dynamic>{};
+      final normalizedPhone = user.$1.replaceAll(RegExp(r'[^0-9+]'), '').trim();
+      final normalizedEmail = user.$2.trim();
+      if (normalizedPhone.isNotEmpty) {
+        prefill['contact'] = normalizedPhone;
+      }
+      if (normalizedEmail.isNotEmpty) {
+        prefill['email'] = normalizedEmail;
+      }
 
       void completeOnce(String? paymentId) {
         if (!completer.isCompleted) completer.complete(paymentId);
@@ -75,10 +84,7 @@ class TournamentPaymentService {
         'name': user.$3,
         'description': 'Tournament Registration - ${tournament.title}',
         'order_id': orderId,
-        'prefill': {
-          'contact': user.$1,
-          'email': user.$2,
-        },
+        if (prefill.isNotEmpty) 'prefill': prefill,
         'theme': {'color': '#C06701'},
       });
       Haptics.cta();
@@ -101,7 +107,8 @@ class TournamentPaymentService {
   }
 
   Future<String> _createRazorpayOrder(double amount) async {
-    final receiptId = "tournament_rcpt_${DateTime.now().millisecondsSinceEpoch}";
+    final receiptId =
+        "tournament_rcpt_${DateTime.now().millisecondsSinceEpoch}";
     final url = '${FlavorConfig.getBaseUrl('booking')}/api/create_order';
     final payload = {
       'amount': (amount * 100).toInt(),
@@ -127,7 +134,9 @@ class TournamentPaymentService {
     final user = Get.find<UserController>().user.value;
     final contact = user.contact?.electronicAddress?.mobileNo ?? '';
     final email = user.contact?.electronicAddress?.emailId ?? '';
-    final name = (user.name ?? '').trim().isEmpty ? 'HashForGamers' : user.name!;
+    final name = (user.name ?? '').trim().isEmpty
+        ? 'HashForGamers'
+        : user.name!;
     return (contact, email, name);
   }
 

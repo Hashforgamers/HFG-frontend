@@ -276,7 +276,7 @@ class LoginController extends GetxController {
         provider: 'google',
       );
 
-      await _handleUserNavigation(user);
+      await _handleUserNavigation(user, autoSignupIfMissing: true);
     } catch (e) {
       _showErrorSnackbar('Google Sign-In failed', e.toString());
     } finally {
@@ -417,6 +417,7 @@ class LoginController extends GetxController {
   Future<void> _handleUserNavigation(
     firebase_auth.User user, {
     String? phoneNumber,
+    bool autoSignupIfMissing = false,
   }) async {
     try {
       userController.setGoogleUserData(
@@ -426,21 +427,33 @@ class LoginController extends GetxController {
       final userData = await remoteRepo.checkUserExistsInAPI(user.uid);
 
       if (userData != null) {
-        // save backend id immediately
-        if (userData['id'] != null) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('user_id', userData['id'].toString());
+        await _finalizeExistingUserLogin(userData);
+        Get.offAllNamed(AppRoutes.HOME);
+        return;
+      }
 
-          AppLogger.d("✅ Backend userId saved: ${userData['id']}");
+      if (autoSignupIfMissing) {
+        final autoSignupDone = await _attemptAutoSignup(
+          user,
+          phoneNumber: phoneNumber,
+        );
+        if (!autoSignupDone) return;
+
+        final createdUserData = await remoteRepo.checkUserExistsInAPI(user.uid);
+        if (createdUserData == null) {
+          _showErrorSnackbar(
+            'Signup failed',
+            'Account created but user profile could not be fetched. Please try again.',
+          );
+          return;
         }
 
-        // push into UserController without refetch
-        final fetchedUser = User.fromJson(userData);
-        userController.setUserData(fetchedUser);
-        userController.id.value = userData['id'].toString();
-
+        await _finalizeExistingUserLogin(createdUserData);
         Get.offAllNamed(AppRoutes.HOME);
-      } else {
+        return;
+      }
+
+      {
         Get.offAllNamed(
           AppRoutes.SIGNUP,
           arguments: {
@@ -454,6 +467,86 @@ class LoginController extends GetxController {
     } catch (e) {
       _showErrorSnackbar('Error', 'Failed to complete login: $e');
     }
+  }
+
+  Future<void> _finalizeExistingUserLogin(Map<String, dynamic> userData) async {
+    if (userData['id'] != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', userData['id'].toString());
+      AppLogger.d("✅ Backend userId saved: ${userData['id']}");
+    }
+
+    final fetchedUser = User.fromJson(userData);
+    userController.setUserData(fetchedUser);
+    userController.id.value = userData['id'].toString();
+  }
+
+  Future<bool> _attemptAutoSignup(
+    firebase_auth.User user, {
+    String? phoneNumber,
+  }) async {
+    try {
+      final displayName = (user.displayName ?? '').trim();
+      final fallbackName = displayName.isNotEmpty
+          ? displayName
+          : ((user.email ?? '').split('@').first.trim().isNotEmpty
+                ? (user.email ?? '').split('@').first.trim()
+                : 'Hash Player');
+      final gameUserName = _generateAutoGameUserName(fallbackName);
+
+      final userData = {
+        "fid": user.uid,
+        "avatar_path": user.photoURL ?? '',
+        "name": fallbackName,
+        "gender": "Male",
+        "dob": "",
+        "gameUserName": gameUserName,
+        "referral_code": "",
+        "contact": {
+          "physicalAddress": {
+            "address_type": "home",
+            "addressLine1": "",
+            "addressLine2": "",
+            "pincode": "",
+            "State": "",
+            "Country": "",
+            "is_active": true,
+          },
+          "electronicAddress": {
+            "mobileNo": (phoneNumber ?? user.phoneNumber ?? '').trim(),
+            "emailId": (user.email ?? '').trim(),
+          },
+        },
+      };
+
+      AppLogger.d('🆕 Auto signup started for Google user: ${user.uid}');
+      await remoteRepo.signUp(userData);
+      AppLogger.d('✅ Auto signup success for Google user: ${user.uid}');
+      return true;
+    } catch (e) {
+      AppLogger.e('❌ Auto signup failed for Google user ${user.uid}: $e');
+      _showErrorSnackbar(
+        'Signup failed',
+        'Could not complete auto-signup. Please continue with signup manually.',
+      );
+      Get.offAllNamed(
+        AppRoutes.SIGNUP,
+        arguments: {
+          'name': user.displayName ?? '',
+          'email': user.email ?? '',
+          'photoUrl': user.photoURL ?? '',
+          'phoneNumber': phoneNumber ?? user.phoneNumber ?? '',
+        },
+      );
+      return false;
+    }
+  }
+
+  String _generateAutoGameUserName(String baseName) {
+    final compact = baseName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+    final safeBase = compact.isEmpty ? 'Hash' : compact;
+    final rand = Random();
+    return '${safeBase}Gamer${rand.nextInt(900) + 100}';
   }
 
   void _showErrorSnackbar(String title, String? message) {

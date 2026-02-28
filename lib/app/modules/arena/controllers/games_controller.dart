@@ -17,7 +17,10 @@ class CafeGamesController extends GetxController {
     try {
       final data = await _remoteRepo.fetchVendorGames(vendorId);
       games.value = data['games'];
-      shopOpen.value = data['shop_open'];
+      shopOpen.value = _parseShopOpen(
+        data['shop_open'],
+        fallback: games.isNotEmpty,
+      );
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -27,6 +30,20 @@ class CafeGamesController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  bool _parseShopOpen(dynamic value, {required bool fallback}) {
+    if (value is bool) return value;
+    if (value is num) return value == 1;
+    if (value is String) {
+      final v = value.trim().toLowerCase();
+      if (v == 'true' || v == '1' || v == 'open' || v == 'yes') return true;
+      if (v == 'false' || v == '0' || v == 'closed' || v == 'no') {
+        return false;
+      }
+    }
+    // Fallback: do not block booking flow when API omits this flag.
+    return fallback;
   }
 
   Future<void> fetchPasses(int vendorId) async {

@@ -8,6 +8,7 @@ import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
+import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
 import 'package:hash/core/service/deeplink_service.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -59,6 +60,7 @@ void main() async {
   Get.put(BookingController());
   Get.put(GamesController(), permanent: true);
   Get.put(NotificationController());
+  Get.put(AppNotificationsController(), permanent: true);
   Get.put(DeepLinkController());
   // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());

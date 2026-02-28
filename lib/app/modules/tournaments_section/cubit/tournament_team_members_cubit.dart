@@ -69,6 +69,61 @@ class TournamentTeamMembersCubit extends Cubit<TournamentTeamMembersState> {
     );
   }
 
+  Future<void> inviteTeamMember({
+    required String eventId,
+    required String teamId,
+    required int inviterUserId,
+    required int invitedUserId,
+  }) async {
+    if (invitedUserId <= 0 || inviterUserId <= 0) {
+      throw Exception('Invalid user selected for invite.');
+    }
+    if (inviterUserId == invitedUserId) {
+      throw Exception('You cannot invite yourself.');
+    }
+    await remoteRepo.inviteUserToEventTeam(
+      eventId: eventId,
+      teamId: teamId,
+      inviterUserId: inviterUserId,
+      invitedUserId: invitedUserId,
+    );
+  }
+
+  Future<void> leaveTeam({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  }) async {
+    if (userId <= 0) {
+      throw Exception('Invalid user for leave team.');
+    }
+    await remoteRepo.leaveEventTeam(
+      eventId: eventId,
+      teamId: teamId,
+      userId: userId,
+    );
+  }
+
+  Future<void> forceRemoveMember({
+    required String eventId,
+    required String teamId,
+    required int actingUserId,
+    required int targetUserId,
+  }) async {
+    if (actingUserId <= 0 || targetUserId <= 0) {
+      throw Exception('Invalid user for remove action.');
+    }
+    if (actingUserId == targetUserId) {
+      throw Exception('You cannot remove yourself.');
+    }
+    await remoteRepo.forceRemoveEventTeamMember(
+      eventId: eventId,
+      teamId: teamId,
+      actingUserId: actingUserId,
+      targetUserId: targetUserId,
+    );
+  }
+
   Future<int?> resolveCurrentUserId() async {
     if (Get.isRegistered<UserController>()) {
       final controller = Get.find<UserController>();

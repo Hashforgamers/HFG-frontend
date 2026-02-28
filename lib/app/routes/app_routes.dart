@@ -9,4 +9,5 @@ abstract class AppRoutes {
   static const WALLET = '/wallet';
   static const NEED_HELP = '/need-help';
   static const CHAT = '/chat';
+  static const NOTIFICATIONS = '/notifications';
 }

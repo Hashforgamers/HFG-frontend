@@ -217,12 +217,21 @@ class _SearchResultState extends State<SearchResult> {
   }
 
   bool _isShopOpen(Map<String, dynamic> cafe) {
-    final shopOpen = cafe['shop_open'];
-    if (shopOpen != null) {
-      if (shopOpen is bool) return shopOpen;
-      if (shopOpen is String) return shopOpen.toLowerCase() == 'true';
-      if (shopOpen is num) return shopOpen == 1;
+    final apiFlagKeys = [
+      'shop_open',
+      'is_open',
+      'isOpen',
+      'open_close_flag',
+      'currently_open',
+      'is_available',
+    ];
+    for (final key in apiFlagKeys) {
+      final parsed = _parseApiBool(cafe[key]);
+      if (parsed != null) {
+        return parsed;
+      }
     }
+
     final status = cafe['status']?.toString().toLowerCase();
     if (status != null) {
       if (status == 'active' ||
@@ -234,14 +243,26 @@ class _SearchResultState extends State<SearchResult> {
       if (status == 'pending_verification') {
         return _isCurrentlyOpen(cafe);
       }
+      if (status == 'closed' || status == 'inactive') {
+        return false;
+      }
     }
-    final isOpen = cafe['is_open'];
-    if (isOpen != null) {
-      if (isOpen is bool) return isOpen;
-      if (isOpen is String) return isOpen.toLowerCase() == 'true';
-      if (isOpen is num) return isOpen == 1;
-    }
+
     return _isCurrentlyOpen(cafe);
+  }
+
+  bool? _parseApiBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value == 1;
+    if (value is String) {
+      final v = value.trim().toLowerCase();
+      if (v == 'true' || v == '1' || v == 'yes' || v == 'open') return true;
+      if (v == 'false' || v == '0' || v == 'no' || v == 'closed') {
+        return false;
+      }
+    }
+    return null;
   }
 
   String _safeAddress(Map<String, dynamic> cafe) {
@@ -631,17 +652,15 @@ class _SearchResultState extends State<SearchResult> {
                   openingHours: '9 AM - 12 AM', // TODO: plug real hours
                   availableGames: featsAll,
                   amenities: featsAll,
-                  phone: (cafe['phone'] ??
-                          cafe['contact_number'] ??
-                          'Phone not available')
-                      .toString(),
+                  phone:
+                      (cafe['phone'] ??
+                              cafe['contact_number'] ??
+                              'Phone not available')
+                          .toString(),
                   email: (cafe['email'] ?? 'Email not available').toString(),
-                  ownerName:
-                      (cafe['owner_name'] ?? 'Owner not available').toString(),
-                  reviews: const [
-                    'Great place!',
-                    'Loved it!',
-                  ],
+                  ownerName: (cafe['owner_name'] ?? 'Owner not available')
+                      .toString(),
+                  reviews: const ['Great place!', 'Loved it!'],
                   vendorId: cafe['vendor_id'],
                 ),
               );

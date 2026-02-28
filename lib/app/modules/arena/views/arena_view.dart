@@ -349,29 +349,34 @@ class _ArenaViewState extends State<ArenaView> {
   }
 
   bool _isShopOpen(Map<String, dynamic> cafe) {
-    // Check for shop_open field (most common)
-    final shopOpen = cafe['shop_open'];
-    if (shopOpen != null) {
-      return shopOpen == true || shopOpen == 'true' || shopOpen == 1;
+    final apiFlagKeys = [
+      'shop_open',
+      'is_open',
+      'isOpen',
+      'open_close_flag',
+      'currently_open',
+      'is_available',
+    ];
+    for (final key in apiFlagKeys) {
+      final parsed = _parseApiBool(cafe[key]);
+      if (parsed != null) {
+        return parsed;
+      }
     }
 
     // Check for status field
     final status = cafe['status'];
     if (status != null) {
+      final statusText = status.toString().toLowerCase();
       // For pending_verification status, determine based on opening hours
-      if (status == 'pending_verification') {
+      if (statusText == 'pending_verification') {
         return _isCurrentlyOpen(cafe);
       }
-      return status == 'active' ||
-          status == 'verified' ||
-          status == 'open' ||
-          status == 'operational';
-    }
-
-    // Check for is_open field
-    final isOpen = cafe['is_open'];
-    if (isOpen != null) {
-      return isOpen == true || isOpen == 'true' || isOpen == 1;
+      if (statusText == 'closed' || statusText == 'inactive') return false;
+      return statusText == 'active' ||
+          statusText == 'verified' ||
+          statusText == 'open' ||
+          statusText == 'operational';
     }
 
     // Check for operating_status field
@@ -388,6 +393,20 @@ class _ArenaViewState extends State<ArenaView> {
 
     // Determine status based on opening/closing times
     return _isCurrentlyOpen(cafe);
+  }
+
+  bool? _parseApiBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value == 1;
+    if (value is String) {
+      final v = value.trim().toLowerCase();
+      if (v == 'true' || v == '1' || v == 'yes' || v == 'open') return true;
+      if (v == 'false' || v == '0' || v == 'no' || v == 'closed') {
+        return false;
+      }
+    }
+    return null;
   }
 
   bool _isCurrentlyOpen(Map<String, dynamic> cafe) {
@@ -977,7 +996,9 @@ class _ArenaViewState extends State<ArenaView> {
                 child: Builder(
                   builder: (_) {
                     final bool isOpen = _isShopOpen(cafe);
-                    final Color openColor = isOpen ? const Color(0xff00DC00) : Colors.red;
+                    final Color openColor = isOpen
+                        ? const Color(0xff00DC00)
+                        : Colors.red;
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

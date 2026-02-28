@@ -9,8 +9,9 @@ class HashLiveController extends GetxController {
   static const int _minTitleLength = 3;
   static const int _maxTitleLength = 80;
 
-  final HashLiveService _service =
-      Get.isRegistered<HashLiveService>() ? Get.find<HashLiveService>() : Get.put(HashLiveService(), permanent: true);
+  final HashLiveService _service = Get.isRegistered<HashLiveService>()
+      ? Get.find<HashLiveService>()
+      : Get.put(HashLiveService(), permanent: true);
 
   final selectedTab = 0.obs;
   final isSubmitting = false.obs;
@@ -76,7 +77,9 @@ class HashLiveController extends GetxController {
       _showSuccess('You are live now.');
       return streamId;
     } catch (e) {
-      _showError(_cleanError(e, fallback: 'Failed to start live. Please try again.'));
+      _showError(
+        _cleanError(e, fallback: 'Failed to start live. Please try again.'),
+      );
       return null;
     } finally {
       isSubmitting.value = false;
@@ -116,20 +119,35 @@ class HashLiveController extends GetxController {
       _showSuccess('Stream scheduled successfully.');
       return upcomingId;
     } catch (e) {
-      _showError(_cleanError(e, fallback: 'Failed to schedule stream. Please try again.'));
+      _showError(
+        _cleanError(
+          e,
+          fallback: 'Failed to schedule stream. Please try again.',
+        ),
+      );
       return null;
     } finally {
       isSubmitting.value = false;
     }
   }
 
-  Future<void> endLive() async {
-    if (activeStreamId.value.isEmpty) return;
+  Future<void> endLive({String? streamId}) async {
     try {
       isSubmitting.value = true;
-      await _service.endLive(activeStreamId.value);
+      final targetStreamId =
+          (streamId ?? activeStreamId.value).trim().isNotEmpty
+          ? (streamId ?? activeStreamId.value).trim()
+          : await _service.resolveCurrentHostActiveStreamId();
+
+      if (targetStreamId.isEmpty) {
+        _showError('No active stream found to end.');
+        return;
+      }
+
+      await _service.endLive(targetStreamId);
       activeStreamId.value = '';
       isHost.value = false;
+      _showSuccess('Live stream ended.');
     } catch (e) {
       _showError('Failed to end live stream.');
     } finally {

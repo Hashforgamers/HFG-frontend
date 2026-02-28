@@ -28,11 +28,12 @@ class HashLiveService extends GetxService {
 
   Stream<List<LiveStreamModel>> watchLiveStreams() {
     return _streamsRef.snapshots().map((snapshot) {
-      final streams = snapshot.docs
-          .map(LiveStreamModel.fromDoc)
-          .where((item) => item.isLive)
-          .toList()
-        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      final streams =
+          snapshot.docs
+              .map(LiveStreamModel.fromDoc)
+              .where((item) => item.isLive)
+              .toList()
+            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
       return streams;
     });
   }
@@ -67,8 +68,9 @@ class HashLiveService extends GetxService {
         .where('is_live', isEqualTo: true)
         .limit(1)
         .get();
-    final existingLiveId =
-        liveByHostSnap.docs.isNotEmpty ? liveByHostSnap.docs.first.id : '';
+    final existingLiveId = liveByHostSnap.docs.isNotEmpty
+        ? liveByHostSnap.docs.first.id
+        : '';
 
     if (existingLiveId.isNotEmpty &&
         requestedId.isNotEmpty &&
@@ -88,8 +90,12 @@ class HashLiveService extends GetxService {
     if (hostIsLive && activeStreamId.isNotEmpty) {
       final activeStreamSnap = await _streamsRef.doc(activeStreamId).get();
       final activeIsLive = activeStreamSnap.data()?['is_live'] == true;
-      if (activeIsLive && requestedId.isNotEmpty && requestedId != activeStreamId) {
-        throw Exception('You already have an active live stream. End it first.');
+      if (activeIsLive &&
+          requestedId.isNotEmpty &&
+          requestedId != activeStreamId) {
+        throw Exception(
+          'You already have an active live stream. End it first.',
+        );
       }
       if (activeIsLive && requestedId.isEmpty) {
         streamId = activeStreamId;
@@ -155,6 +161,27 @@ class HashLiveService extends GetxService {
     }, SetOptions(merge: true));
   }
 
+  Future<String> resolveCurrentHostActiveStreamId() async {
+    final uid = currentUid;
+    if (uid == null) return '';
+
+    final hostSnap = await _firestore.collection(_hosts).doc(uid).get();
+    final activeFromHost = (hostSnap.data()?['active_stream_id'] ?? '')
+        .toString()
+        .trim();
+    if (activeFromHost.isNotEmpty) return activeFromHost;
+
+    final liveByHostSnap = await _streamsRef
+        .where('host_uid', isEqualTo: uid)
+        .where('is_live', isEqualTo: true)
+        .limit(1)
+        .get();
+    if (liveByHostSnap.docs.isNotEmpty) {
+      return liveByHostSnap.docs.first.id;
+    }
+    return '';
+  }
+
   Stream<LiveStreamModel?> watchStream(String streamId) {
     return _streamsRef.doc(streamId).snapshots().map((doc) {
       if (!doc.exists) return null;
@@ -193,15 +220,12 @@ class HashLiveService extends GetxService {
     await _firestore.runTransaction((txn) async {
       final streamRef = _streamsRef.doc(streamId);
       final streamSnap = await txn.get(streamRef);
-      final current = (streamSnap.data()?['viewer_count'] as num?)?.toInt() ?? 0;
-      txn.set(
-        streamRef,
-        {
-          'viewer_count': current > 0 ? current - 1 : 0,
-          'updated_at': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      final current =
+          (streamSnap.data()?['viewer_count'] as num?)?.toInt() ?? 0;
+      txn.set(streamRef, {
+        'viewer_count': current > 0 ? current - 1 : 0,
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     });
   }
 
@@ -297,36 +321,44 @@ class HashLiveService extends GetxService {
         .orderBy('followed_at', descending: true)
         .snapshots()
         .asyncMap((snapshot) async {
-      if (snapshot.docs.isEmpty) return <Map<String, dynamic>>[];
+          if (snapshot.docs.isEmpty) return <Map<String, dynamic>>[];
 
-      final users = await Future.wait(
-        snapshot.docs.map((doc) async {
-          final uid = doc.id;
-          final chatUser = await _firestore.collection('chat_users').doc(uid).get();
-          final chatData = chatUser.data() ?? <String, dynamic>{};
+          final users = await Future.wait(
+            snapshot.docs.map((doc) async {
+              final uid = doc.id;
+              final chatUser = await _firestore
+                  .collection('chat_users')
+                  .doc(uid)
+                  .get();
+              final chatData = chatUser.data() ?? <String, dynamic>{};
 
-          if (chatData.isEmpty) {
-            final hostDoc = await _firestore.collection(_hosts).doc(uid).get();
-            final hostData = hostDoc.data() ?? <String, dynamic>{};
-            return <String, dynamic>{
-              'uid': uid,
-              'name': (hostData['name'] ?? 'Player').toString(),
-              'username': '',
-              'photo_url': (hostData['photo_url'] ?? '').toString(),
-            };
-          }
+              if (chatData.isEmpty) {
+                final hostDoc = await _firestore
+                    .collection(_hosts)
+                    .doc(uid)
+                    .get();
+                final hostData = hostDoc.data() ?? <String, dynamic>{};
+                return <String, dynamic>{
+                  'uid': uid,
+                  'name': (hostData['name'] ?? 'Player').toString(),
+                  'username': '',
+                  'photo_url': (hostData['photo_url'] ?? '').toString(),
+                };
+              }
 
-          return <String, dynamic>{
-            'uid': uid,
-            'name': (chatData['display_name'] ?? chatData['name'] ?? 'Player').toString(),
-            'username': (chatData['username'] ?? '').toString(),
-            'photo_url': (chatData['photo_url'] ?? '').toString(),
-          };
-        }),
-      );
+              return <String, dynamic>{
+                'uid': uid,
+                'name':
+                    (chatData['display_name'] ?? chatData['name'] ?? 'Player')
+                        .toString(),
+                'username': (chatData['username'] ?? '').toString(),
+                'photo_url': (chatData['photo_url'] ?? '').toString(),
+              };
+            }),
+          );
 
-      return users;
-    });
+          return users;
+        });
   }
 
   Stream<int> watchHostTotalStreams(String hostUid) {
@@ -337,10 +369,9 @@ class HashLiveService extends GetxService {
   }
 
   Stream<List<LiveStreamModel>> watchHostStreams(String hostUid) {
-    return _streamsRef
-        .where('host_uid', isEqualTo: hostUid)
-        .snapshots()
-        .map((snapshot) {
+    return _streamsRef.where('host_uid', isEqualTo: hostUid).snapshots().map((
+      snapshot,
+    ) {
       final items = snapshot.docs.map(LiveStreamModel.fromDoc).toList()
         ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
       return items;
@@ -353,8 +384,9 @@ class HashLiveService extends GetxService {
         .orderBy('start_at', descending: false)
         .limit(40)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map(UpcomingStreamModel.fromDoc).toList());
+        .map(
+          (snapshot) => snapshot.docs.map(UpcomingStreamModel.fromDoc).toList(),
+        );
   }
 
   Future<String> scheduleUpcomingStream({
@@ -370,7 +402,9 @@ class HashLiveService extends GetxService {
         ? Get.find<UserController>()
         : null;
     final hostName =
-        (userCtrl?.user.value.gameUserName ?? _auth.currentUser?.displayName ?? 'Host')
+        (userCtrl?.user.value.gameUserName ??
+                _auth.currentUser?.displayName ??
+                'Host')
             .toString()
             .trim();
     final hostPhoto =
@@ -481,39 +515,39 @@ class HashLiveService extends GetxService {
         .where('target_uid', isEqualTo: uid)
         .snapshots()
         .listen((snapshot) async {
-      final notification = Get.isRegistered<NotificationController>()
-          ? Get.find<NotificationController>()
-          : null;
-      if (notification == null) return;
+          final notification = Get.isRegistered<NotificationController>()
+              ? Get.find<NotificationController>()
+              : null;
+          if (notification == null) return;
 
-      final docs = snapshot.docs
-          .where((doc) => doc.data()['seen'] != true)
-          .toList()
-        ..sort((a, b) {
-          final aTs = a.data()['created_at'];
-          final bTs = b.data()['created_at'];
-          final aMs = aTs is Timestamp ? aTs.millisecondsSinceEpoch : 0;
-          final bMs = bTs is Timestamp ? bTs.millisecondsSinceEpoch : 0;
-          return bMs.compareTo(aMs);
+          final docs =
+              snapshot.docs.where((doc) => doc.data()['seen'] != true).toList()
+                ..sort((a, b) {
+                  final aTs = a.data()['created_at'];
+                  final bTs = b.data()['created_at'];
+                  final aMs = aTs is Timestamp ? aTs.millisecondsSinceEpoch : 0;
+                  final bMs = bTs is Timestamp ? bTs.millisecondsSinceEpoch : 0;
+                  return bMs.compareTo(aMs);
+                });
+
+          for (final doc in docs) {
+            final data = doc.data();
+            final title = (data['title'] ?? 'Live Now').toString();
+            final body = (data['body'] ?? 'A stream you joined is live.')
+                .toString();
+            await notification.showLiveNotification(
+              title: title,
+              body: body,
+              payload: (data['stream_id'] ?? '').toString().isNotEmpty
+                  ? 'live:${data['stream_id']}'
+                  : '',
+            );
+            await doc.reference.set({
+              'seen': true,
+              'seen_at': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          }
         });
-
-      for (final doc in docs) {
-        final data = doc.data();
-        final title = (data['title'] ?? 'Live Now').toString();
-        final body = (data['body'] ?? 'A stream you joined is live.').toString();
-        await notification.showLiveNotification(
-          title: title,
-          body: body,
-          payload: (data['stream_id'] ?? '').toString().isNotEmpty
-              ? 'live:${data['stream_id']}'
-              : '',
-        );
-        await doc.reference.set({
-          'seen': true,
-          'seen_at': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-    });
   }
 
   Future<void> _markUpcomingAsStartedAndNotify({
@@ -525,9 +559,12 @@ class HashLiveService extends GetxService {
     final upcomingSnap = await _upcomingRef
         .where('host_uid', isEqualTo: hostUid)
         .where('is_started', isEqualTo: false)
-        .where('start_at',
-            isLessThanOrEqualTo:
-                Timestamp.fromDate(DateTime.now().add(const Duration(hours: 6))))
+        .where(
+          'start_at',
+          isLessThanOrEqualTo: Timestamp.fromDate(
+            DateTime.now().add(const Duration(hours: 6)),
+          ),
+        )
         .limit(20)
         .get();
 
@@ -561,7 +598,8 @@ class HashLiveService extends GetxService {
           'stream_id': streamId,
           'upcoming_id': doc.id,
           'title': 'Stream is live now',
-          'body': '${data['title'] ?? 'A stream'} by ${data['host_name'] ?? 'Host'} just started.',
+          'body':
+              '${data['title'] ?? 'A stream'} by ${data['host_name'] ?? 'Host'} just started.',
           'seen': false,
           'created_at': FieldValue.serverTimestamp(),
         });

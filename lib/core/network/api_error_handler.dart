@@ -2,6 +2,9 @@ import 'package:dio/dio.dart';
 
 class ApiErrorHandler {
   static bool shouldRetry(DioException error) {
+    if (_isDecimalBackendError(error)) {
+      return false;
+    }
     // Retry on network errors and server errors (5xx)
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
@@ -19,6 +22,10 @@ class ApiErrorHandler {
   }
 
   static String extractErrorMessage(DioException error) {
+    if (_isDecimalBackendError(error)) {
+      return 'Wallet payment is temporarily unavailable. Please use UPI/Card or Pay at Cafe.';
+    }
+
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
         return 'Connection timeout. Please try again.';
@@ -50,5 +57,17 @@ class ApiErrorHandler {
       default:
         return 'An error occurred. Please try again.';
     }
+  }
+
+  static bool _isDecimalBackendError(DioException error) {
+    final data = error.response?.data;
+    if (data is Map<String, dynamic>) {
+      final msg = (data['error'] ?? data['message'] ?? '').toString();
+      return msg.contains("name 'Decimal' is not defined");
+    }
+    if (data is String) {
+      return data.contains("name 'Decimal' is not defined");
+    }
+    return false;
   }
 }

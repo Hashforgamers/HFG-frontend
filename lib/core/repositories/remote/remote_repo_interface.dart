@@ -184,4 +184,30 @@ abstract class RemoteRepoInterface {
     required String teamId,
     required int userId,
   });
+  Future<Map<String, dynamic>> forceRemoveEventTeamMember({
+    required String eventId,
+    required String teamId,
+    required int actingUserId,
+    required int targetUserId,
+  });
+  Future<Map<String, dynamic>> inviteUserToEventTeam({
+    required String eventId,
+    required String teamId,
+    required int inviterUserId,
+    required int invitedUserId,
+  });
+  Future<Map<String, dynamic>> respondToEventTeamInvite({
+    required String eventId,
+    required String teamId,
+    required String inviteId,
+    required int userId,
+    required String action,
+  });
+  Future<Map<String, dynamic>> fetchUserNotifications({
+    int limit = 50,
+    bool unreadOnly = false,
+  });
+  Future<Map<String, dynamic>> markNotificationAsRead({
+    required String notificationId,
+  });
 }

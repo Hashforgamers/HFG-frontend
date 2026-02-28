@@ -46,16 +46,22 @@ class RazorpayWalletController extends GetxController {
         userController.user.value.contact?.electronicAddress?.emailId ?? '';
     final userPhone =
         userController.user.value.contact?.electronicAddress?.mobileNo ?? '';
+    final normalizedPhone = userPhone.replaceAll(RegExp(r'[^0-9+]'), '').trim();
+    final normalizedEmail = userEmail.trim();
+    final prefill = <String, dynamic>{};
+    if (normalizedPhone.isNotEmpty) {
+      prefill['contact'] = normalizedPhone;
+    }
+    if (normalizedEmail.isNotEmpty) {
+      prefill['email'] = normalizedEmail;
+    }
 
     final options = {
       'key': ApiEndpoints.razorpayKeyWallet,
       'amount': amountPaise,
       'name': userName,
       'description': 'Wallet Top-up',
-      'prefill': {
-        'contact': userPhone.isNotEmpty ? userPhone : null,
-        'email': userEmail.isNotEmpty ? userEmail : null,
-      },
+      if (prefill.isNotEmpty) 'prefill': prefill,
       'theme': {'color': '#1E88E5'},
       'order_id': orderId,
     };

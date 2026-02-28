@@ -148,12 +148,31 @@ class ApiEndpoints {
       '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId/leave';
   static String eventTeamMembers(String eventId, String teamId) =>
       '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId/members';
+  static String eventTeamForceRemoveMember(
+    String eventId,
+    String teamId,
+    int targetUserId,
+  ) =>
+      '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId/members/$targetUserId/force-remove';
+  static String eventTeamInvite(String eventId, String teamId) =>
+      '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId/invite';
+  static String eventTeamInviteRespond(
+    String eventId,
+    String teamId,
+    String inviteId,
+  ) =>
+      '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId/invites/$inviteId/respond';
   static String eventTeam(String eventId, String teamId) =>
       '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId';
   static String eventLeaderboard(String eventId) =>
       '$userOnboardBaseUrl/api/events/$eventId/leaderboard';
+  static String userNotifications({int limit = 50, bool unreadOnly = false}) =>
+      '$userOnboardBaseUrl/api/users/notifications?limit=$limit&unread_only=$unreadOnly';
+  static String markNotificationRead(String notificationId) =>
+      '$userOnboardBaseUrl/api/users/notifications/$notificationId/read';
   static String userTeams(int userId) =>
       '$userOnboardBaseUrl/api/users/$userId/teams';
   static String userJoinedTournaments(int userId) =>
       '$userOnboardBaseUrl/api/users/$userId/tournaments/joined';
+  static String get userSearch => '$userOnboardBaseUrl/api/users/search';
 }

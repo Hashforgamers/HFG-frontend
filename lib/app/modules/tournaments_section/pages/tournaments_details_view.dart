@@ -7,12 +7,9 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_team_model.dart';
-import 'package:hash/app/modules/tournaments_section/cubit/tournaments_register_cubit.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_join_team_view.dart';
-import 'package:hash/app/modules/tournaments_section/pages/tournament_registration_result_pages.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_register_view.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_members_view.dart';
-import 'package:hash/app/modules/tournaments_section/services/tournament_payment_service.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -34,8 +31,6 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
   late final TournamentsDetailsCubit _cubit;
   late final TournamentsLeaderboardCubit _leaderboardCubit;
   final userController = Get.find<UserController>();
-  final TournamentPaymentService _paymentService = TournamentPaymentService();
-  bool _isBlockingLoaderVisible = false;
 
   @override
   void initState() {
@@ -47,7 +42,6 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
 
   @override
   void dispose() {
-    _hideBlockingLoader();
     _leaderboardCubit.close();
     _cubit.close();
     super.dispose();
@@ -207,31 +201,52 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
               const SizedBox(height: 25),
 
               if (!t.isJoined && t.status == TournamentStatus.upcoming)
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Color(0xFFC06701)),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: () => _handleRegisterNow(t),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
+                Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFC06701)),
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                    child: Text(
-                      'Register Now',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                      child: ElevatedButton(
+                        onPressed: () => _handleRegisterNow(t),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          minimumSize: const Size(double.infinity, 50),
+                        ),
+                        child: Text(
+                          'Register Now',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Get.to(() => TournamentsJoinTeamView(tournament: t));
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white24),
+                          minimumSize: const Size(double.infinity, 46),
+                        ),
+                        child: Text(
+                          'Join Team with ID',
+                          style: GoogleFonts.inter(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
                 )
               else
                 Container(
@@ -463,9 +478,13 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                     padding: EdgeInsets.only(bottom: 60),
                     itemCount: teams.length,
                     itemBuilder: (context, index) {
+                      final team = teams[index];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10.0),
-                        child: _buildGlassContainer(teams[index]),
+                        child: GestureDetector(
+                          onTap: () => _openTeamMembersFromDetails(team),
+                          child: _buildGlassContainer(team),
+                        ),
                       );
                     },
                   ),
@@ -903,261 +922,26 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
       return;
     }
 
-    final registerCubit = TournamentsRegisterCubit();
-    try {
-      final myTeams = await registerCubit.fetchMyTeamsForEvent(tournament.id);
-      if (!mounted) return;
+    Get.to(() => TournamentsRegisterView(tournament: tournament));
+  }
 
-      if (myTeams.isEmpty) {
-        Get.to(() => TournamentsRegisterView(tournament: tournament));
-        return;
-      }
-
-      await showModalBottomSheet<void>(
-        context: context,
-        backgroundColor: const Color(0xFF0F0F0F),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (sheetContext) {
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Join tournament using existing team',
-                    style: GoogleFonts.orbitron(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Select one of your teams for this event.',
-                    style: GoogleFonts.inter(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: myTeams.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (_, index) {
-                        final team = myTeams[index];
-                        final teamId = (team['team_id'] ?? '').toString();
-                        final teamName = (team['team_name'] ?? 'Team')
-                            .toString();
-                        final count = (team['member_count'] ?? 0).toString();
-                        return InkWell(
-                          onTap: () async {
-                            Navigator.pop(sheetContext);
-                            await _registerUsingExistingTeam(
-                              tournament: tournament,
-                              teamId: teamId,
-                              teamName: teamName,
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1A1A1A),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white12),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.groups_rounded,
-                                  color: Color(0xff00DC00),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        teamName,
-                                        style: GoogleFonts.inter(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      Text(
-                                        'ID: $teamId • $count members',
-                                        style: GoogleFonts.inter(
-                                          color: Colors.white70,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  color: Colors.white54,
-                                  size: 14,
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(sheetContext);
-                        Get.to(
-                          () => TournamentsRegisterView(tournament: tournament),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFC06701)),
-                      ),
-                      child: const Text(
-                        '+ Create New Team',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    } catch (e) {
-      if (!mounted) return;
+  void _openTeamMembersFromDetails(TournamentTeamModel team) {
+    if (team.id.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
+        const SnackBar(
+          content: Text('Team ID unavailable for members'),
           backgroundColor: Colors.redAccent,
         ),
       );
-      Get.to(() => TournamentsRegisterView(tournament: tournament));
-    } finally {
-      await registerCubit.close();
+      return;
     }
-  }
-
-  Future<void> _registerUsingExistingTeam({
-    required TournamentModel tournament,
-    required String teamId,
-    required String teamName,
-  }) async {
-    final registerCubit = TournamentsRegisterCubit();
-    try {
-      final paymentReference = await _paymentService.payRegistrationFee(
-        context: context,
-        tournament: tournament,
-      );
-      if (!mounted) return;
-      if (paymentReference == null) {
-        final retry = await Get.to<bool>(
-          () => const TournamentPaymentFailedPage(
-            message: 'Payment was not completed.',
-          ),
-        );
-        if (retry == true && mounted) {
-          await _registerUsingExistingTeam(
-            tournament: tournament,
-            teamId: teamId,
-            teamName: teamName,
-          );
-        }
-        return;
-      }
-
-      _showBlockingLoader();
-      await registerCubit.registerWithExistingTeam(
-        eventId: tournament.id,
-        teamId: teamId,
-        paymentReference: paymentReference,
-      );
-      _hideBlockingLoader();
-      if (!mounted) return;
-      await Get.to(
-        () => TournamentRegistrationSuccessPage(
-          tournamentTitle: tournament.title,
-        ),
-      );
-    } catch (e) {
-      _hideBlockingLoader();
-      if (!mounted) return;
-      final retry = await Get.to<bool>(
-        () => TournamentPaymentFailedPage(
-          message: e.toString().replaceFirst('Exception: ', '').isEmpty
-              ? 'Unable to complete payment or registration.'
-              : e.toString().replaceFirst('Exception: ', ''),
-        ),
-      );
-      if (retry == true && mounted) {
-        await _registerUsingExistingTeam(
-          tournament: tournament,
-          teamId: teamId,
-          teamName: teamName,
-        );
-      }
-    } finally {
-      await registerCubit.close();
-    }
-  }
-
-  void _showBlockingLoader() {
-    if (!mounted || _isBlockingLoaderVisible) return;
-    _isBlockingLoaderVisible = true;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: Center(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 32),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            decoration: BoxDecoration(
-              color: const Color(0xFF121212),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const TournamentsLoader.button(),
-                const SizedBox(height: 10),
-                Text(
-                  'Finalizing registration...',
-                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-        ),
+    Get.to(
+      () => TournamentsTeamMembersView(
+        eventId: widget.tournament.id,
+        teamId: team.id,
+        teamName: team.name,
       ),
     );
-  }
-
-  void _hideBlockingLoader() {
-    if (!mounted || !_isBlockingLoaderVisible) return;
-    _isBlockingLoaderVisible = false;
-    final navigator = Navigator.of(context, rootNavigator: true);
-    if (navigator.canPop()) {
-      navigator.pop();
-    }
   }
 }
 
@@ -1205,7 +989,13 @@ class ExpandedTeamListView extends StatelessWidget {
             itemBuilder: (context, index) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12.0),
-                child: _buildExpandedTeamGlassContainer(context, teams[index]),
+                child: GestureDetector(
+                  onTap: () => _openMembers(context, teams[index]),
+                  child: _buildExpandedTeamGlassContainer(
+                    context,
+                    teams[index],
+                  ),
+                ),
               );
             },
           ),

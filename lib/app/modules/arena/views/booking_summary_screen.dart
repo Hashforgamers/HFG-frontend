@@ -14,9 +14,9 @@ import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_slo
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_user_section.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_voucher_section.dart';
 import 'package:hash/app/modules/arena/views/payment_success.dart';
+import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
 import 'package:hash/app/modules/payment/razorpay_controller.dart';
-import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -307,15 +307,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       );
 
       if (voucher != null) {
-              if (voucher.isActive) {
-        // Check if this is a 100% voucher and validate slot count
-        if (_isHundredPercentVoucher(voucher)) {
-          if (!_canApplyVoucher(voucher)) {
-            _voucherError.value = '100% vouchers can only be used for one slot. Please remove extra slots.';
-            _isApplyingVoucher(false);
-            return;
+        if (voucher.isActive) {
+          // Check if this is a 100% voucher and validate slot count
+          if (_isHundredPercentVoucher(voucher)) {
+            if (!_canApplyVoucher(voucher)) {
+              _voucherError.value =
+                  '100% vouchers can only be used for one slot. Please remove extra slots.';
+              _isApplyingVoucher(false);
+              return;
+            }
           }
-        }
 
           _appliedVoucher.value = voucher;
           _voucherError.value = '';
@@ -346,7 +347,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       if (_isHundredPercentVoucher(voucher) && !_canApplyVoucher(voucher)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('100% vouchers can only be used for one slot. Please remove extra slots.'),
+            content: Text(
+              '100% vouchers can only be used for one slot. Please remove extra slots.',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -387,9 +390,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     // Refresh game passes before showing dialog
     _loadUserGamePasses();
 
-    showDialog(
+    showModalBottomSheet<void>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       builder: (BuildContext context) {
         return BookingSummaryGamePassDialog(
           isLoading: _isLoadingGamePasses,
@@ -398,6 +403,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           selectedGamePass: _selectedGamePass,
           onRefresh: _loadUserGamePasses,
           onProceed: _proceedWithGamePass,
+          onPurchasePasses: () => Get.to(() => const GamePassViewPage()),
         );
       },
     );
@@ -598,86 +604,86 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                  // Text(
-                  //   '${widget.selectedCafeName} - ${widget.consoleType}',
-                  //   style: GoogleFonts.inter(
-                  //     fontSize: 22,
-                  //     fontWeight: FontWeight.w600,
-                  //     color: Colors.white,
-                  //   ),
-                  // ),
-                  // const SizedBox(height: 4),
-                  Text(
-                    '${widget.selectedSlots.length} Slot(s) Selected',
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFFB0B0B0),
+                    // Text(
+                    //   '${widget.selectedCafeName} - ${widget.consoleType}',
+                    //   style: GoogleFonts.inter(
+                    //     fontSize: 22,
+                    //     fontWeight: FontWeight.w600,
+                    //     color: Colors.white,
+                    //   ),
+                    // ),
+                    // const SizedBox(height: 4),
+                    Text(
+                      '${widget.selectedSlots.length} Slot(s) Selected',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFFB0B0B0),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 10),
 
-                  BookingSummarySlotsList(
-                    selectedSlots: widget.selectedSlots,
-                  ),
-                  const SizedBox(height: 5),
-                  BookingSummaryCartSection(
-                    cartItems: validatedCartItems,
-                    summaryText: cartSummary,
-                  ),
-                  // : _buildMealButton(),
-                  const SizedBox(height: 1),
-                  Obx(
-                    () => BookingSummaryUserSection(
-                      userName: userController.user.value.name ?? 'User',
-                      onChangeUser: () {
-                        // Add change logic here
-                      },
+                    BookingSummarySlotsList(
+                      selectedSlots: widget.selectedSlots,
                     ),
-                  ),
+                    const SizedBox(height: 5),
+                    BookingSummaryCartSection(
+                      cartItems: validatedCartItems,
+                      summaryText: cartSummary,
+                    ),
+                    // : _buildMealButton(),
+                    const SizedBox(height: 1),
+                    Obx(
+                      () => BookingSummaryUserSection(
+                        userName: userController.user.value.name ?? 'User',
+                        onChangeUser: () {
+                          // Add change logic here
+                        },
+                      ),
+                    ),
 
-                  const SizedBox(height: 1),
-                  BookingSummaryPaymentMethodSection(
-                    selectedPayment: _selectedPayment,
-                    selectedGamePass: _selectedGamePass,
-                    onSelectPayment: _onPaymentSelected,
-                    onClearSelectedPass: () => _selectedGamePass.value = null,
-                  ),
-                  const SizedBox(height: 1),
-                  BookingSummaryVoucherSection(
-                    voucherController: _voucherController,
-                    isLoadingVouchers: _isLoadingVouchers,
-                    availableVouchers: _availableVouchers,
-                    appliedVoucher: _appliedVoucher,
-                    isApplyingVoucher: _isApplyingVoucher,
-                    voucherError: _voucherError,
-                    onReload: _loadVouchers,
-                    onApply: _applyVoucher,
-                    onRemove: _removeVoucher,
-                    onSelectVoucher: _selectVoucher,
-                    canApplyVoucher: _canApplyVoucher,
-                  ),
-                  const SizedBox(height: 1),
+                    const SizedBox(height: 1),
+                    BookingSummaryPaymentMethodSection(
+                      selectedPayment: _selectedPayment,
+                      selectedGamePass: _selectedGamePass,
+                      onSelectPayment: _onPaymentSelected,
+                      onClearSelectedPass: () => _selectedGamePass.value = null,
+                    ),
+                    const SizedBox(height: 1),
+                    BookingSummaryVoucherSection(
+                      voucherController: _voucherController,
+                      isLoadingVouchers: _isLoadingVouchers,
+                      availableVouchers: _availableVouchers,
+                      appliedVoucher: _appliedVoucher,
+                      isApplyingVoucher: _isApplyingVoucher,
+                      voucherError: _voucherError,
+                      onReload: _loadVouchers,
+                      onApply: _applyVoucher,
+                      onRemove: _removeVoucher,
+                      onSelectVoucher: _selectVoucher,
+                      canApplyVoucher: _canApplyVoucher,
+                    ),
+                    const SizedBox(height: 1),
 
-                  Obx(() {
-                    final totalPrice = calculateTotalPrice();
-                    final discount = calculateDiscount();
-                    final subtotal = calculateSubtotal();
-                    final slotsSubtotal = calculateSlotsSubtotal();
-                    final cartSubtotal = calculateCartSubtotal();
+                    Obx(() {
+                      final totalPrice = calculateTotalPrice();
+                      final discount = calculateDiscount();
+                      final subtotal = calculateSubtotal();
+                      final slotsSubtotal = calculateSlotsSubtotal();
+                      final cartSubtotal = calculateCartSubtotal();
 
-                    return BookingSummaryPaymentSummarySection(
-                      totalPrice: totalPrice,
-                      discount: discount,
-                      subtotal: subtotal,
-                      slotsSubtotal: slotsSubtotal,
-                      cartSubtotal: cartSubtotal,
-                      hasSlots: widget.selectedSlots.isNotEmpty,
-                      hasCartItems: validatedCartItems.isNotEmpty,
-                    );
-                  }),
+                      return BookingSummaryPaymentSummarySection(
+                        totalPrice: totalPrice,
+                        discount: discount,
+                        subtotal: subtotal,
+                        slotsSubtotal: slotsSubtotal,
+                        cartSubtotal: cartSubtotal,
+                        hasSlots: widget.selectedSlots.isNotEmpty,
+                        hasCartItems: validatedCartItems.isNotEmpty,
+                      );
+                    }),
 
-                  // ─── Payment Method ──────────────────────────────────────────
+                    // ─── Payment Method ──────────────────────────────────────────
                   ],
                 ),
               ),
@@ -689,51 +695,50 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           ],
         ),
       ),
-        bottomNavigationBar: Obx(() {
-          final isProcessing =
-              _isProcessingPayment.value ||
-              _stage.value == PaymentStage.creatingBooking ||
-              _stage.value == PaymentStage.debitingWallet ||
-              _stage.value == PaymentStage.initiatingGateway ||
-              _stage.value == PaymentStage.confirmingVoucher ||
-              _stage.value == PaymentStage.confirmingGamePass ||
-              _stage.value == PaymentStage.openingRazorpay;
+      bottomNavigationBar: Obx(() {
+        final isProcessing =
+            _isProcessingPayment.value ||
+            _stage.value == PaymentStage.creatingBooking ||
+            _stage.value == PaymentStage.debitingWallet ||
+            _stage.value == PaymentStage.initiatingGateway ||
+            _stage.value == PaymentStage.confirmingVoucher ||
+            _stage.value == PaymentStage.confirmingGamePass ||
+            _stage.value == PaymentStage.openingRazorpay;
 
-          final isGamePassSelected = _selectedPayment.value == 'none';
-          final hasSelectedPass = _selectedGamePass.value != null;
-          final showSelectPass = isGamePassSelected && !hasSelectedPass;
+        final isGamePassSelected = _selectedPayment.value == 'none';
+        final hasSelectedPass = _selectedGamePass.value != null;
+        final showSelectPass = isGamePassSelected && !hasSelectedPass;
 
-          return BookingSummaryBottomBar(
-            totalPrice: calculateTotalPrice(),
-            isProcessing: isProcessing,
-            showSelectPass: showSelectPass,
-            onPressed: () {
-              if (showSelectPass) {
-                _showGamePassSelectionDialog();
-              } else if (_selectedPayment.value == 'pay_at_cafe') {
-                handleBooking(
-                  context,
-                  isVoucherApplied: _appliedVoucher.value != null,
-                  useWallet: false,
-                  isGamePass: false,
-                  selectedPassId: null,
-                  isPayAtCafe: true,
-                );
-              } else {
-                handleBooking(
-                  context,
-                  isVoucherApplied: _appliedVoucher.value != null,
-                  useWallet: _selectedPayment.value == 'wallet',
-                  isGamePass: false,
-                  selectedPassId: null,
-                  isPayAtCafe: false,
-                );
-              }
-            },
-          );
-        }),
-      );
-
+        return BookingSummaryBottomBar(
+          totalPrice: calculateTotalPrice(),
+          isProcessing: isProcessing,
+          showSelectPass: showSelectPass,
+          onPressed: () {
+            if (showSelectPass) {
+              _showGamePassSelectionDialog();
+            } else if (_selectedPayment.value == 'pay_at_cafe') {
+              handleBooking(
+                context,
+                isVoucherApplied: _appliedVoucher.value != null,
+                useWallet: false,
+                isGamePass: false,
+                selectedPassId: null,
+                isPayAtCafe: true,
+              );
+            } else {
+              handleBooking(
+                context,
+                isVoucherApplied: _appliedVoucher.value != null,
+                useWallet: _selectedPayment.value == 'wallet',
+                isGamePass: false,
+                selectedPassId: null,
+                isPayAtCafe: false,
+              );
+            }
+          },
+        );
+      }),
+    );
   }
 
   // Widget _buildMealButton() {
@@ -775,11 +780,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
 
     // Check if 100% voucher is applied and validate slot count
-    if (_appliedVoucher.value != null && _isHundredPercentVoucher(_appliedVoucher.value!)) {
+    if (_appliedVoucher.value != null &&
+        _isHundredPercentVoucher(_appliedVoucher.value!)) {
       if (!_canApplyVoucher(_appliedVoucher.value!)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('100% vouchers can only be used for one slot. Please remove extra slots.'),
+            content: Text(
+              '100% vouchers can only be used for one slot. Please remove extra slots.',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -869,7 +877,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   String _parseErrorMessage(dynamic error) {
     try {
-      if (error is DioError) {
+      if (error is DioException) {
         final response = error.response;
         if (response != null) {
           final statusCode = response.statusCode ?? 0;
@@ -900,14 +908,21 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               return 'Server error occurred. Please try again later.';
           }
         }
-      if (error is Exception) {
-        final message = error.toString();
-        if (message.contains('Insufficient wallet balance')) {
-          return 'Insufficient wallet balance. Please add money to your wallet or choose a different payment method.';
+        if (error is Exception) {
+          final message = error.toString();
+          if (message.contains('Insufficient wallet balance')) {
+            return 'Insufficient wallet balance. Please add money to your wallet or choose a different payment method.';
+          }
+          if (message.contains("name 'Decimal' is not defined")) {
+            return 'Wallet service is temporarily unavailable. Please try another payment method or retry in a moment.';
+          }
+          if (message.contains('Wallet payment is temporarily unavailable')) {
+            return 'Wallet service is temporarily unavailable. Please use UPI/Card or Pay at Cafe.';
+          }
+          return message.replaceAll('Exception: ', '');
         }
-        return message.replaceAll('Exception: ', '');
       }
-    }} catch (e) {
+    } catch (e) {
       AppLogger.d('Error parsing exception: $e');
     }
 
@@ -983,12 +998,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         );
         Get.to(
           () => PaymentSuccessScreen(
+            isBookingCreatedOnly: true,
             dateText: DateFormat('yyyy-MM-dd').format(DateTime.now()),
             timeText: "",
             totalText: totalPrice.toString(),
             email: "",
-            onViewInvoice: (){
-              Get.to(const PastBookingsScreen());
+            onViewInvoice: () {
+              Get.offAllNamed('/home', arguments: {'tabIndex': 2});
             },
           ),
         );
@@ -1001,7 +1017,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           bookingIds: bookingIds,
           paymentMode: 'wallet',
           voucherCode: isVoucherApplied ? _appliedVoucher.value!.code : null,
-          totalPrice: totalPrice
+          totalPrice: totalPrice,
         );
         return;
       }
@@ -1013,7 +1029,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           bookingIds: bookingIds,
           paymentMode: 'voucher',
           voucherCode: _appliedVoucher.value!.code,
-            totalPrice: totalPrice,
+          totalPrice: totalPrice,
         );
         return;
       }
@@ -1026,7 +1042,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           paymentMode: 'none',
           isGamePass: isGamePass,
           userPassId: selectedPassId,
-            totalPrice: totalPrice
+          totalPrice: totalPrice,
         );
         return;
       }
@@ -1054,6 +1070,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     } catch (e) {
       // Parse error message properly
       String errorMessage = _parseErrorMessage(e);
+      if (useWallet &&
+          (errorMessage.toLowerCase().contains(
+                'wallet service is temporarily unavailable',
+              ) ||
+              errorMessage.contains("name 'Decimal' is not defined"))) {
+        _selectedPayment.value = 'gateway';
+      }
 
       _stage.value = PaymentStage.error;
       _errorMessage.value = errorMessage;
@@ -1174,7 +1197,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(successMessage), backgroundColor: const Color(0xff00DC00)),
+        SnackBar(
+          content: Text(successMessage),
+          backgroundColor: const Color(0xff00DC00),
+        ),
       );
 
       // Clear selected slots after successful booking
@@ -1189,17 +1215,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           totalText: totalPrice.toString(),
           email: "",
           onViewInvoice: () {
-            Get.to(const PastBookingsScreen());
-            // Then navigate back to home with arena tab selected
-            // This ensures when user presses back, they go to cafe page
-            final homeController = Get.find<HomeController>();
-            homeController.onItemTapped(1); // Select arena/cafe tab
-            Get.offAllNamed('/home'); // Replace all routes with home
+            Get.offAllNamed('/home', arguments: {'tabIndex': 2});
           },
         ),
       );
-
-
     } catch (e) {
       // Release each booking if confirmation fails
       for (final bookingId in bookingIds) {
@@ -1219,6 +1238,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       // Parse error message properly
       String errorMessage = _parseErrorMessage(e);
+      if (paymentMode == 'wallet' &&
+          (errorMessage.toLowerCase().contains(
+                'wallet service is temporarily unavailable',
+              ) ||
+              errorMessage.contains("name 'Decimal' is not defined"))) {
+        _selectedPayment.value = 'gateway';
+      }
 
       // Update payment stage to error
       _stage.value = PaymentStage.error;
@@ -1433,6 +1459,4 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       );
     }
   }
-
-  
 }

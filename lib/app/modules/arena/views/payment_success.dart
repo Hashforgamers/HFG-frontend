@@ -13,6 +13,7 @@ class PaymentSuccessScreen extends StatelessWidget {
     required this.email,
     this.onViewInvoice,
     this.accentColor = const Color(0xff00DC00),
+    this.isBookingCreatedOnly = false,
   });
 
   final String paymentId;
@@ -23,6 +24,7 @@ class PaymentSuccessScreen extends StatelessWidget {
   final String email;
   final VoidCallback? onViewInvoice;
   final Color accentColor;
+  final bool isBookingCreatedOnly;
 
   static const _bg = Color(0xFF0A0F0C);
   static const _text = Colors.white;
@@ -62,17 +64,19 @@ class PaymentSuccessScreen extends StatelessWidget {
         label: 'Time',
         value: _safeValue(timeText),
       ),
-      _TxnItem(
-        icon: Icons.account_balance_wallet_outlined,
-        label: 'Payment Method',
-        value: _safeValue(method, fallback: 'Online'),
-      ),
-      _TxnItem(
-        icon: Icons.confirmation_number_outlined,
-        label: 'Payment ID',
-        value: _safeValue(paymentId),
-        copyable: true,
-      ),
+      if (!isBookingCreatedOnly)
+        _TxnItem(
+          icon: Icons.account_balance_wallet_outlined,
+          label: 'Payment Method',
+          value: _safeValue(method, fallback: 'Online'),
+        ),
+      if (!isBookingCreatedOnly)
+        _TxnItem(
+          icon: Icons.confirmation_number_outlined,
+          label: 'Payment ID',
+          value: _safeValue(paymentId),
+          copyable: true,
+        ),
       if (email.trim().isNotEmpty)
         _TxnItem(
           icon: Icons.alternate_email,
@@ -115,7 +119,9 @@ class PaymentSuccessScreen extends StatelessWidget {
                       _SuccessBadge(accentColor: accentColor),
                       const SizedBox(height: 20),
                       Text(
-                        'Payment Complete',
+                        isBookingCreatedOnly
+                            ? 'Booking Created'
+                            : 'Payment Complete',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.inter(
                           color: _text,
@@ -125,7 +131,9 @@ class PaymentSuccessScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Your booking is confirmed and ready.',
+                        isBookingCreatedOnly
+                            ? 'Your booking is confirmed. Pay at cafe counter.'
+                            : 'Your booking is confirmed and ready.',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.inter(
                           color: _muted,
@@ -135,10 +143,17 @@ class PaymentSuccessScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 18),
                       _PaymentIdChip(
-                        paymentId: _safeValue(paymentId),
+                        paymentId: _safeValue(
+                          isBookingCreatedOnly ? 'BOOKING CREATED' : paymentId,
+                        ),
                         accentColor: accentColor,
-                        onCopy: () =>
-                            _copy(context, paymentId, 'Payment ID copied'),
+                        onCopy: () => _copy(
+                          context,
+                          isBookingCreatedOnly ? 'BOOKING CREATED' : paymentId,
+                          isBookingCreatedOnly
+                              ? 'Booking status copied'
+                              : 'Payment ID copied',
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _AmountCard(

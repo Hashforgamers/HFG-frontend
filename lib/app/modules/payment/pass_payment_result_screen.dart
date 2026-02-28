@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/routes/app_routes.dart';
 
 class PassPaymentResultScreen extends StatelessWidget {
   final bool isSuccess;
@@ -11,10 +12,8 @@ class PassPaymentResultScreen extends StatelessWidget {
     this.message = 'Pass purchased successfully.',
   }) : isSuccess = true;
 
-  const PassPaymentResultScreen.failed({
-    super.key,
-    required this.message,
-  }) : isSuccess = false;
+  const PassPaymentResultScreen.failed({super.key, required this.message})
+    : isSuccess = false;
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +29,13 @@ class PassPaymentResultScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    isSuccess ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                    isSuccess
+                        ? Icons.check_circle_rounded
+                        : Icons.cancel_rounded,
                     size: 96,
-                    color: isSuccess ? const Color(0xff00DC00) : Colors.redAccent,
+                    color: isSuccess
+                        ? const Color(0xff00DC00)
+                        : Colors.redAccent,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -57,7 +60,16 @@ class PassPaymentResultScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => Get.back(),
+                      onPressed: () {
+                        if (isSuccess) {
+                          Get.offAllNamed(
+                            AppRoutes.HOME,
+                            arguments: {'openPasses': true},
+                          );
+                          return;
+                        }
+                        Get.back();
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFC06701),
                         minimumSize: const Size(double.infinity, 52),
@@ -84,4 +96,3 @@ class PassPaymentResultScreen extends StatelessWidget {
     );
   }
 }
-

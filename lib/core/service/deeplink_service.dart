@@ -29,7 +29,7 @@ class DeepLinkController extends GetxController {
 
   void _handleIncomingLinks() {
     _linkSub = _appLinks.uriLinkStream.listen(
-          (Uri uri) {
+      (Uri uri) {
         _navigateToDeepLink(uri);
       },
       onError: (err) {
@@ -52,11 +52,13 @@ class DeepLinkController extends GetxController {
     if (isTeamJoinLink) {
       final eventId = uri.queryParameters['event_id'] ?? '';
       final teamId = uri.queryParameters['team_id'] ?? '';
+      final inviteId = uri.queryParameters['invite_id'] ?? '';
       if (eventId.isNotEmpty && teamId.isNotEmpty) {
         Get.to(
           () => TournamentsTeamInviteJoinView(
             eventId: eventId,
             teamId: teamId,
+            inviteId: inviteId,
           ),
         );
         return;

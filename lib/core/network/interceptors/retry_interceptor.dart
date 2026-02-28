@@ -15,9 +15,9 @@ class RetryInterceptor extends QueuedInterceptorsWrapper {
 
   @override
   Future<void> onError(
-      DioException err,
-      ErrorInterceptorHandler handler,
-      ) async {
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
     final requestOptions = err.requestOptions;
     final retryCount = _getRetryCount(requestOptions);
 
@@ -39,7 +39,7 @@ class RetryInterceptor extends QueuedInterceptorsWrapper {
             contentType: requestOptions.contentType,
             validateStatus: requestOptions.validateStatus,
             receiveDataWhenStatusError:
-            requestOptions.receiveDataWhenStatusError,
+                requestOptions.receiveDataWhenStatusError,
             extra: requestOptions.extra,
             followRedirects: requestOptions.followRedirects,
             maxRedirects: requestOptions.maxRedirects,
@@ -56,9 +56,13 @@ class RetryInterceptor extends QueuedInterceptorsWrapper {
     }
 
     return handler.next(err);
-  } 
+  }
 
   bool _shouldRetry(DioException err) {
+    if (_isDecimalBackendError(err)) {
+      return false;
+    }
+
     if (err.type == DioExceptionType.connectionTimeout ||
         err.type == DioExceptionType.receiveTimeout ||
         err.type == DioExceptionType.sendTimeout) {
@@ -70,6 +74,18 @@ class RetryInterceptor extends QueuedInterceptorsWrapper {
       return true;
     }
 
+    return false;
+  }
+
+  bool _isDecimalBackendError(DioException err) {
+    final data = err.response?.data;
+    if (data is Map<String, dynamic>) {
+      final msg = (data['error'] ?? data['message'] ?? '').toString();
+      return msg.contains("name 'Decimal' is not defined");
+    }
+    if (data is String) {
+      return data.contains("name 'Decimal' is not defined");
+    }
     return false;
   }
 

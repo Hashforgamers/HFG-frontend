@@ -9,8 +9,6 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
-import 'package:hash/app/modules/home/controllers/home_controller.dart';
-import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/extra_services_model.dart';
@@ -74,13 +72,23 @@ class RazorpayController extends GetxController {
         PaymentType.slotBooking, // Default to slot booking
   }) {
     _initializeRazorpayIfNeeded();
+    final normalizedContact = _normalizePhone(contact);
+    final normalizedEmail = email.trim();
+    final prefill = <String, dynamic>{};
+    if (normalizedContact.isNotEmpty) {
+      prefill['contact'] = normalizedContact;
+    }
+    if (normalizedEmail.isNotEmpty) {
+      prefill['email'] = normalizedEmail;
+    }
+
     final options = {
       'key': ApiEndpoints.razorpayKeyWallet,
       'amount': (amount * 100).toInt(),
       'name': name,
       'description': description,
       'order_id': orderId,
-      'prefill': {'contact': contact, 'email': email},
+      if (prefill.isNotEmpty) 'prefill': prefill,
     };
 
     try {
@@ -114,6 +122,11 @@ class RazorpayController extends GetxController {
     }
   }
 
+  String _normalizePhone(String value) {
+    final digits = value.replaceAll(RegExp(r'[^0-9+]'), '').trim();
+    return digits;
+  }
+
   // ─────────────────────────── Handlers ───────────────────────────
   void _handlePaymentSuccess(PaymentSuccessResponse r) async {
     paymentStatus.value = 'Payment successful! Confirming booking…';
@@ -121,11 +134,10 @@ class RazorpayController extends GetxController {
 
     // Track hash pass purchased event
     segmentService.onHashPassPurchased(
-        email:
-            userController.user.value.contact?.electronicAddress?.emailId ??
-            '',
-        // amount: amount,
-      );
+      email:
+          userController.user.value.contact?.electronicAddress?.emailId ?? '',
+      // amount: amount,
+    );
 
     if (bookingIdList.isEmpty) {
       _reset();
@@ -264,19 +276,16 @@ class RazorpayController extends GetxController {
       // Get.find<HomeController>().onItemTapped(1);
       // Get.offAllNamed('/home');
       await Get.to(
-          () => PaymentSuccessScreen(
-            method: paymentMode,
-            dateText: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-            timeText: "",
-            totalText: "",
-            email: "",
-            onViewInvoice: () {
-              Get.to(const PastBookingsScreen());
-              final homeController = Get.find<HomeController>();
-              homeController.onItemTapped(2);
-              Get.offAllNamed('/home', arguments: {'tabIndex':2});
-            },
-          )
+        () => PaymentSuccessScreen(
+          method: paymentMode,
+          dateText: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          timeText: "",
+          totalText: "",
+          email: "",
+          onViewInvoice: () {
+            Get.offAllNamed('/home', arguments: {'tabIndex': 2});
+          },
+        ),
       );
     } catch (e) {
       // here call the release booking api

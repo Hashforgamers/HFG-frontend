@@ -10,6 +10,7 @@ import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/chat/models/chat_message_model.dart';
 import 'package:hash/app/modules/chat/models/chat_room_model.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
+import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -172,47 +173,24 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     final uid = currentUid;
     if (uid == null) return const [];
 
-    await ensureCurrentUserProfile();
     final normalizedQuery = query.trim().toLowerCase();
-    final merged = <String, ChatUserModel>{};
-
-    final localSnapshot = await _usersRef.limit(limit * 4).get();
-    for (final doc in localSnapshot.docs) {
-      final user = ChatUserModel.fromDoc(doc);
-      if (user.uid == uid) continue;
-      if (!_matchesUserQuery(user, normalizedQuery)) continue;
-      merged[user.uid] = user;
-    }
+    if (normalizedQuery.isEmpty) return const [];
 
     final backendUsers = await _searchUsersFromBackend(
-      normalizedQuery,
+      query.trim(),
       limit: limit,
     );
-    for (final user in backendUsers) {
-      if (user.uid == uid) continue;
-      if (!_matchesUserQuery(user, normalizedQuery)) continue;
-      merged[user.uid] = user;
-    }
 
-    final leaderboardUsers = await _searchUsersFromLeaderboard(
-      normalizedQuery,
-      limit: limit * 2,
-    );
-    for (final user in leaderboardUsers) {
-      if (user.uid == uid) continue;
-      if (!_matchesUserQuery(user, normalizedQuery)) continue;
-      merged[user.uid] = user;
-    }
-
-    final users = merged.values.toList()
-      ..sort(
-        (a, b) =>
-            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-      );
-
-    if (users.isNotEmpty) {
-      await _upsertUsersToFirestore(users);
-    }
+    final users =
+        backendUsers
+            .where((user) => user.uid != uid)
+            .where((user) => _matchesUserQuery(user, normalizedQuery))
+            .toList()
+          ..sort(
+            (a, b) => a.displayName.toLowerCase().compareTo(
+              b.displayName.toLowerCase(),
+            ),
+          );
 
     return users.take(limit).toList();
   }
@@ -776,21 +754,17 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   }
 
   Future<List<ChatUserModel>> _searchUsersFromBackend(
-    String normalizedQuery, {
+    String query, {
     required int limit,
   }) async {
+    final q = query.trim();
+    if (q.isEmpty) return const [];
+    final safeLimit = limit.clamp(1, 50);
     try {
       final dio = await locator<NetworkProvider>().auth();
       final response = await dio.get(
-        '',
-        queryParameters: {
-          'search': normalizedQuery,
-          'q': normalizedQuery,
-          'username': normalizedQuery,
-          'email': normalizedQuery,
-          'limit': limit,
-          'page': 1,
-        },
+        ApiEndpoints.userSearch,
+        queryParameters: {'q': q, 'limit': safeLimit, 'page': 1},
       );
 
       final usersRaw = _extractUsersPayload(response.data);
@@ -802,64 +776,9 @@ class ChatService extends GetxService with WidgetsBindingObserver {
         }
       }
 
-      if (users.isNotEmpty) {
-        await _upsertUsersToFirestore(users);
-      }
-
       return users;
     } on DioException {
       return const [];
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  Future<List<ChatUserModel>> _searchUsersFromLeaderboard(
-    String normalizedQuery, {
-    required int limit,
-  }) async {
-    try {
-      final snap = await _firestore
-          .collection('mini_game_leaderboard')
-          .limit(limit)
-          .get();
-
-      final users = <ChatUserModel>[];
-      for (final doc in snap.docs) {
-        final data = doc.data();
-        final uid = _firstNonEmpty([
-          (data['userId'] ?? '').toString(),
-          doc.id,
-        ], fallback: '');
-        if (uid.isEmpty) continue;
-
-        final displayName = _firstNonEmpty([
-          (data['displayName'] ?? '').toString(),
-          (data['username'] ?? '').toString(),
-        ], fallback: 'Player');
-        final username = _firstNonEmpty([
-          (data['username'] ?? '').toString(),
-          _usernameFromDisplayName(displayName),
-        ], fallback: '');
-        final photoUrl = (data['avatarUrl'] ?? '').toString().trim();
-
-        final user = ChatUserModel(
-          uid: uid,
-          displayName: displayName,
-          username: username,
-          email: '',
-          photoUrl: photoUrl,
-          isOnline: false,
-          updatedAt: DateTime.now(),
-          lastSeenAt: null,
-        );
-
-        if (_matchesUserQuery(user, normalizedQuery)) {
-          users.add(user);
-        }
-      }
-
-      return users;
     } catch (_) {
       return const [];
     }
@@ -933,6 +852,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       _readNested(raw, ['photo_url'])?.toString(),
       _readNested(raw, ['avatarUrl'])?.toString(),
       _readNested(raw, ['avatar_url'])?.toString(),
+      _readNested(raw, ['avatar_path'])?.toString(),
     ], fallback: '');
 
     return ChatUserModel(
@@ -966,22 +886,6 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse(value.toString().trim());
-  }
-
-  Future<void> _upsertUsersToFirestore(List<ChatUserModel> users) async {
-    final batch = _firestore.batch();
-    for (final user in users) {
-      batch.set(_usersRef.doc(user.uid), {
-        'uid': user.uid,
-        'display_name': user.displayName,
-        'username': user.username,
-        'email': user.email,
-        'photo_url': user.photoUrl,
-        'is_online': user.isOnline,
-        'updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
-    await batch.commit();
   }
 
   bool _matchesUserQuery(ChatUserModel user, String normalizedQuery) {

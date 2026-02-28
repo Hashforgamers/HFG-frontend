@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/home/controllers/app_mode_controller.dart';
+import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/utils/haptics.dart';
@@ -23,6 +24,7 @@ class _HomeViewState extends State<HomeView> {
   final ShopController shopController = Get.find<ShopController>();
   final ChatService chatService = Get.find<ChatService>();
   bool _didApplyTabArgument = false;
+  bool _didApplyPassesArgument = false;
   bool _didSyncChatProfile = false;
   bool _isHomeScrolling = false;
   Timer? _fabExpandTimer;
@@ -76,6 +78,16 @@ class _HomeViewState extends State<HomeView> {
           controller.onItemTapped(targetIndex);
         });
       }
+    }
+
+    if (args is Map && args['openPasses'] == true && !_didApplyPassesArgument) {
+      _didApplyPassesArgument = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await Future<void>.delayed(const Duration(milliseconds: 220));
+        if (!mounted) return;
+        await Get.to(() => const GamePassViewPage());
+      });
     }
   }
 

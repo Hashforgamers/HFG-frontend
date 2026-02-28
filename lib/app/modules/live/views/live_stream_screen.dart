@@ -20,7 +20,8 @@ class LiveStreamScreen extends StatefulWidget {
   State<LiveStreamScreen> createState() => _LiveStreamScreenState();
 }
 
-class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBindingObserver {
+class _LiveStreamScreenState extends State<LiveStreamScreen>
+    with WidgetsBindingObserver {
   late final HashLiveService _service;
   late final HashLiveController _controller;
   YoutubePlayerController? _youtubeController;
@@ -31,14 +32,19 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _service = Get.isRegistered<HashLiveService>() ? Get.find<HashLiveService>() : Get.put(HashLiveService(), permanent: true);
-    _controller = Get.isRegistered<HashLiveController>() ? Get.find<HashLiveController>() : Get.put(HashLiveController(), permanent: true);
+    _service = Get.isRegistered<HashLiveService>()
+        ? Get.find<HashLiveService>()
+        : Get.put(HashLiveService(), permanent: true);
+    _controller = Get.isRegistered<HashLiveController>()
+        ? Get.find<HashLiveController>()
+        : Get.put(HashLiveController(), permanent: true);
     _service.joinLiveStream(widget.streamId);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       _service.leaveLiveStream(widget.streamId);
     }
     if (state == AppLifecycleState.resumed) {
@@ -100,12 +106,22 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
       builder: (context, snapshot) {
         final stream = snapshot.data;
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(backgroundColor: LiveUi.bg, body: Center(child: CircularProgressIndicator(color: LiveUi.accentSoft)));
+          return const Scaffold(
+            backgroundColor: LiveUi.bg,
+            body: Center(
+              child: CircularProgressIndicator(color: LiveUi.accentSoft),
+            ),
+          );
         }
         if (stream == null) {
           return Scaffold(
             backgroundColor: LiveUi.bg,
-            body: Center(child: Text('Stream not found', style: GoogleFonts.inter(color: Colors.white70))),
+            body: Center(
+              child: Text(
+                'Stream not found',
+                style: GoogleFonts.inter(color: Colors.white70),
+              ),
+            ),
           );
         }
 
@@ -118,7 +134,14 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            title: Text('Hash Live', style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
+            title: Text(
+              'Hash Live',
+              style: GoogleFonts.orbitron(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+              ),
+            ),
             bottom: const PreferredSize(
               preferredSize: Size.fromHeight(56),
               child: Padding(
@@ -141,10 +164,18 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
                       child: _youtubeController == null
                           ? Container(
                               decoration: const BoxDecoration(
-                                gradient: LinearGradient(colors: [Color(0xFF2C3E50), Color(0xFF111111)]),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFF2C3E50),
+                                    Color(0xFF111111),
+                                  ],
+                                ),
                               ),
                               alignment: Alignment.center,
-                              child: Text('Invalid YouTube link', style: GoogleFonts.inter(color: Colors.white70)),
+                              child: Text(
+                                'Invalid YouTube link',
+                                style: GoogleFonts.inter(color: Colors.white70),
+                              ),
                             )
                           : Stack(
                               children: [
@@ -160,9 +191,15 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
                                       alignment: Alignment.center,
                                       child: ElevatedButton.icon(
                                         onPressed: () async {
-                                          final uri = Uri.tryParse(stream.youtubeUrl.trim());
+                                          final uri = Uri.tryParse(
+                                            stream.youtubeUrl.trim(),
+                                          );
                                           if (uri != null) {
-                                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                            await launchUrl(
+                                              uri,
+                                              mode: LaunchMode
+                                                  .externalApplication,
+                                            );
                                           }
                                         },
                                         icon: const Icon(Icons.open_in_new),
@@ -183,35 +220,65 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
                     children: [
                       CircleAvatar(
                         radius: 20,
-                        backgroundImage: stream.hostPhotoUrl.isNotEmpty ? CachedNetworkImageProvider(stream.hostPhotoUrl) : null,
+                        backgroundImage: stream.hostPhotoUrl.isNotEmpty
+                            ? CachedNetworkImageProvider(stream.hostPhotoUrl)
+                            : null,
                         backgroundColor: LiveUi.surface,
-                        child: stream.hostPhotoUrl.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
+                        child: stream.hostPhotoUrl.isEmpty
+                            ? const Icon(Icons.person, color: Colors.white)
+                            : null,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(stream.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700)),
-                            Text('@${stream.hostName} • ${stream.game}', style: LiveUi.body.copyWith(fontSize: 11)),
+                            Text(
+                              stream.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              '@${stream.hostName} • ${stream.game}',
+                              style: LiveUi.body.copyWith(fontSize: 11),
+                            ),
                           ],
                         ),
                       ),
                       if (!isOwnStream)
                         Obx(
                           () => ElevatedButton(
-                            onPressed: _controller.isFollowSubmitting.value ? null : () => _controller.toggleFollow(stream.hostUid),
-                            style: ElevatedButton.styleFrom(backgroundColor: LiveUi.accent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12)),
-                            child: Text(_controller.isFollowingHost.value ? 'Following' : 'Follow'),
+                            onPressed: _controller.isFollowSubmitting.value
+                                ? null
+                                : () =>
+                                      _controller.toggleFollow(stream.hostUid),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: LiveUi.accent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                            ),
+                            child: Text(
+                              _controller.isFollowingHost.value
+                                  ? 'Following'
+                                  : 'Follow',
+                            ),
                           ),
                         )
                       else
                         ElevatedButton(
                           onPressed: () async {
-                            await _controller.endLive();
+                            await _controller.endLive(streamId: stream.id);
                             if (mounted) Get.back();
                           },
-                          style: ElevatedButton.styleFrom(backgroundColor: LiveUi.accent),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: LiveUi.accent,
+                          ),
                           child: const Text('End Live'),
                         ),
                     ],
@@ -222,14 +289,33 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: LiveUi.accent, borderRadius: BorderRadius.circular(12)),
-                        child: Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 10)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: LiveUi.accent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'LIVE',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 10,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       StreamBuilder<int>(
                         stream: _service.watchViewerCount(widget.streamId),
-                        builder: (_, snap) => Text('${snap.data ?? 0} watching', style: GoogleFonts.inter(color: LiveUi.accentSoft, fontWeight: FontWeight.w700)),
+                        builder: (_, snap) => Text(
+                          '${snap.data ?? 0} watching',
+                          style: GoogleFonts.inter(
+                            color: LiveUi.accentSoft,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -239,9 +325,16 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
                   child: StreamBuilder<List<Map<String, dynamic>>>(
                     stream: _service.watchMessages(widget.streamId),
                     builder: (_, snapshotMessages) {
-                      final messages = snapshotMessages.data ?? const <Map<String, dynamic>>[];
+                      final messages =
+                          snapshotMessages.data ??
+                          const <Map<String, dynamic>>[];
                       if (messages.isEmpty) {
-                        return Center(child: Text('No chat yet. Say hello!', style: LiveUi.body));
+                        return Center(
+                          child: Text(
+                            'No chat yet. Say hello!',
+                            style: LiveUi.body,
+                          ),
+                        );
                       }
                       return ListView.builder(
                         reverse: true,
@@ -249,17 +342,30 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
                         itemCount: messages.length,
                         itemBuilder: (_, i) {
                           final message = messages[i];
-                          final name = (message['sender_name'] ?? 'Player').toString();
+                          final name = (message['sender_name'] ?? 'Player')
+                              .toString();
                           final text = (message['text'] ?? '').toString();
                           return Container(
                             margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 9,
+                            ),
                             decoration: LiveUi.cardDecoration(radius: 12),
                             child: RichText(
                               text: TextSpan(
-                                style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+                                style: GoogleFonts.inter(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
                                 children: [
-                                  TextSpan(text: '$name: ', style: const TextStyle(color: LiveUi.accentSoft, fontWeight: FontWeight.w700)),
+                                  TextSpan(
+                                    text: '$name: ',
+                                    style: const TextStyle(
+                                      color: LiveUi.accentSoft,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                   TextSpan(text: text),
                                 ],
                               ),
@@ -272,7 +378,12 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
                 ),
                 Container(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                  decoration: BoxDecoration(color: const Color(0xCC000000), boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 10)]),
+                  decoration: BoxDecoration(
+                    color: const Color(0xCC000000),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black54, blurRadius: 10),
+                    ],
+                  ),
                   child: Row(
                     children: [
                       Expanded(
@@ -286,10 +397,15 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> with WidgetsBinding
                       const SizedBox(width: 8),
                       Container(
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [Color(0xFF2C3E50), Color(0xFF111111)]),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF2C3E50), Color(0xFF111111)],
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: IconButton(onPressed: _sendMessage, icon: const Icon(Icons.send, color: Colors.white)),
+                        child: IconButton(
+                          onPressed: _sendMessage,
+                          icon: const Icon(Icons.send, color: Colors.white),
+                        ),
                       ),
                     ],
                   ),

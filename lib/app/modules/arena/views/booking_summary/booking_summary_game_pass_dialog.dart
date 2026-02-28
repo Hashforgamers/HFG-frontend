@@ -12,6 +12,7 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
   final Rx<GetPassModel?> selectedGamePass;
   final VoidCallback onRefresh;
   final VoidCallback onProceed;
+  final VoidCallback onPurchasePasses;
 
   const BookingSummaryGamePassDialog({
     super.key,
@@ -21,370 +22,392 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
     required this.selectedGamePass,
     required this.onRefresh,
     required this.onProceed,
+    required this.onPurchasePasses,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: const Color(0xFF1A1A1A),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+    final viewHeight = MediaQuery.of(context).size.height;
+    return SafeArea(
+      top: false,
       child: Container(
-        constraints: const BoxConstraints(maxHeight: 500, minHeight: 200),
-        padding: const EdgeInsets.all(20),
+        height: viewHeight * 0.82,
+        decoration: const BoxDecoration(
+          color: Color(0xFF111111),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Select Hash Game Pass',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                Row(
-                  children: [
-                    Obx(
-                      () => isLoading.value
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CupertinoActivityIndicator(
-                                color: const Color(0xff00DC00),
-                              ),
-                            )
-                          : IconButton(
-                              onPressed: onRefresh,
-                              icon: const Icon(
-                                Icons.refresh,
-                                color: const Color(0xff00DC00),
-                              ),
-                            ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ],
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 46,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
-            const SizedBox(height: 16),
-            Obx(() {
-              if (isLoading.value) {
-                return const Center(child: AppLinearLoader());
-              }
-
-              if (errorMessage.value.isNotEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error, color: Colors.red, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          errorMessage.value,
-                          style: GoogleFonts.inter(
-                            color: Colors.red,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              if (userGamePasses.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.gamepad_outlined,
-                        color: Colors.grey.shade400,
-                        size: 48,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'No Compatible Game Passes',
-                        style: GoogleFonts.inter(
-                          color: Colors.grey.shade400,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "You don't have any active game passes that can be used at this cafe.",
-                        style: GoogleFonts.inter(
-                          color: Colors.grey.shade500,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'HASH Passes can be used at any cafe. Cafe-specific passes can only be used at their respective cafes.',
-                        style: GoogleFonts.inter(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return SizedBox(
-                height: 300,
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: userGamePasses.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final pass = userGamePasses[index];
-                    final isSelected = selectedGamePass.value?.id == pass.id;
-                    final isExpired = pass.progressValue >= 1.0;
-
-                    return GestureDetector(
-                      onTap: isExpired
-                          ? null
-                          : () {
-                              selectedGamePass.value = pass;
-                            },
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xff00DC00).withValues(alpha: 0.2)
-                              : const Color(0xFF2A2A2A),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? const Color(0xff00DC00)
-                                : isExpired
-                                    ? Colors.red.withValues(alpha: 0.3)
-                                    : Colors.grey.withValues(alpha: 0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        pass.name,
-                                        style: GoogleFonts.inter(
-                                          color: isExpired
-                                              ? Colors.grey.shade500
-                                              : Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        pass.vendorName,
-                                        style: GoogleFonts.inter(
-                                          color: Colors.grey.shade400,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (isSelected)
-                                  const Icon(
-                                    Icons.check_circle,
-                                    color: Color(0xff00DC00),
-                                    size: 24,
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        pass.expiryText,
-                                        style: GoogleFonts.inter(
-                                          color: isExpired
-                                              ? Colors.red
-                                              : Colors.grey.shade300,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      if (pass.description.isNotEmpty)
-                                        Text(
-                                          pass.description,
-                                          style: GoogleFonts.inter(
-                                            color: Colors.grey.shade400,
-                                            fontSize: 12,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                Column(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isExpired
-                                            ? Colors.red.withValues(alpha: 0.2)
-                                            : const Color(0xff00DC00)
-                                                .withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        isExpired ? 'EXPIRED' : 'ACTIVE',
-                                        style: GoogleFonts.inter(
-                                          color: isExpired
-                                              ? Colors.red
-                                              : const Color(0xff00DC00),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: pass.vendorId == null
-                                            ? Colors.blue.withValues(alpha: 0.2)
-                                            : Colors.orange.withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        pass.vendorId == null ? 'HASH' : 'CAFE',
-                                        style: GoogleFonts.inter(
-                                          color: pass.vendorId == null
-                                              ? Colors.blue
-                                              : Colors.orange,
-                                          fontSize: 8,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            if (!isExpired) ...[
-                              const SizedBox(height: 12),
-                              LinearProgressIndicator(
-                                value: pass.progressValue,
-                                backgroundColor: Colors.grey.withValues(alpha: 0.3),
-                                valueColor:
-                                    const AlwaysStoppedAnimation<Color>(
-                                  Color(0xff00DC00),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            }),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(
-                          color: Colors.grey.withValues(alpha: 0.3),
-                        ),
-                      ),
-                    ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(
                     child: Text(
-                      'Cancel',
+                      'Select Hash Game Pass',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
-                        color: Colors.grey.shade300,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Obx(
-                    () => ElevatedButton(
-                      onPressed: selectedGamePass.value != null
-                          ? () {
-                              Navigator.of(context).pop();
-                              onProceed();
-                            }
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xff00DC00),
-                        foregroundColor: Colors.white,
+                  Obx(
+                    () => isLoading.value
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CupertinoActivityIndicator(
+                              color: Color(0xff00DC00),
+                            ),
+                          )
+                        : IconButton(
+                            onPressed: onRefresh,
+                            icon: const Icon(
+                              Icons.refresh_rounded,
+                              color: Color(0xff00DC00),
+                            ),
+                          ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Obx(() {
+                  if (isLoading.value) {
+                    return const Center(child: AppLinearLoader());
+                  }
+
+                  if (errorMessage.value.isNotEmpty) {
+                    return _ErrorState(
+                      message: errorMessage.value,
+                      onRetry: onRefresh,
+                    );
+                  }
+
+                  if (userGamePasses.isEmpty) {
+                    return _EmptyState(onPurchasePasses: onPurchasePasses);
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    itemCount: userGamePasses.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (_, index) {
+                      final pass = userGamePasses[index];
+                      final isSelected = selectedGamePass.value?.id == pass.id;
+                      final isExpired = pass.progressValue >= 1.0;
+                      return _PassTile(
+                        pass: pass,
+                        isExpired: isExpired,
+                        isSelected: isSelected,
+                        onTap: isExpired
+                            ? null
+                            : () => selectedGamePass.value = pass,
+                      );
+                    },
+                  );
+                }),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              decoration: const BoxDecoration(
+                color: Color(0xFF111111),
+                border: Border(top: BorderSide(color: Colors.white10)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white24),
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
                       ),
                       child: Text(
-                        'Proceed',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                        'Cancel',
+                        style: GoogleFonts.inter(color: Colors.white70),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Obx(
+                      () => ElevatedButton(
+                        onPressed: selectedGamePass.value != null
+                            ? () {
+                                Navigator.of(context).pop();
+                                onProceed();
+                              }
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xff00DC00),
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Proceed',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
                   ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorState({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.redAccent),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            TextButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final VoidCallback onPurchasePasses;
+
+  const _EmptyState({required this.onPurchasePasses});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.gamepad_outlined, color: Colors.grey.shade400, size: 42),
+            const SizedBox(height: 10),
+            Text(
+              'No Compatible Game Passes',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "You don't have active passes for this cafe.",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(color: Colors.white60, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  onPurchasePasses();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xff00DC00),
+                  foregroundColor: Colors.black,
+                ),
+                child: Text(
+                  'View Passes to Purchase',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PassTile extends StatelessWidget {
+  final GetPassModel pass;
+  final bool isExpired;
+  final bool isSelected;
+  final VoidCallback? onTap;
+
+  const _PassTile({
+    required this.pass,
+    required this.isExpired,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isSelected
+        ? const Color(0xff00DC00)
+        : isExpired
+        ? Colors.red.withValues(alpha: 0.35)
+        : Colors.white24;
+    final bgColor = isSelected
+        ? const Color(0xff00DC00).withValues(alpha: 0.12)
+        : const Color(0xFF1E1E1E);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor, width: 1.2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pass.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: isExpired ? Colors.white54 : Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        pass.vendorName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: Colors.white60,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xff00DC00),
+                    size: 22,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    pass.expiryText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: isExpired ? Colors.redAccent : Colors.white70,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _statusChip(
+                  isExpired ? 'EXPIRED' : 'ACTIVE',
+                  isExpired ? Colors.redAccent : const Color(0xff00DC00),
+                ),
+                const SizedBox(width: 6),
+                _statusChip(
+                  pass.vendorId == null ? 'HASH' : 'CAFE',
+                  pass.vendorId == null ? Colors.blue : Colors.orange,
                 ),
               ],
             ),
+            if (!isExpired) ...[
+              const SizedBox(height: 10),
+              LinearProgressIndicator(
+                value: pass.progressValue,
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(8),
+                backgroundColor: Colors.white12,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  Color(0xff00DC00),
+                ),
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statusChip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
