@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:just_audio/just_audio.dart';
 
 class HashSegmentedSwitch extends StatefulWidget {
   final List<String> options;
@@ -30,11 +31,47 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
 
   late int selectedIndex;
   bool _isAnimating = false;
+  AudioPlayer? _tapAudioPlayer;
+  bool _tapAudioReady = false;
+
+  static const String _toggleTapSfxPath = 'assets/audio/sfx/toggle-click.mp3';
 
   @override
   void initState() {
     super.initState();
     selectedIndex = widget.initialIndex;
+    _tapAudioPlayer = AudioPlayer();
+    _prepareTapSound();
+  }
+
+  @override
+  void dispose() {
+    _tapAudioPlayer?.dispose();
+    _tapAudioPlayer = null;
+    super.dispose();
+  }
+
+  Future<void> _prepareTapSound() async {
+    final player = _tapAudioPlayer;
+    if (player == null) return;
+    try {
+      await player.setAsset(_toggleTapSfxPath);
+      await player.setVolume(0.8);
+      _tapAudioReady = true;
+    } catch (_) {
+      _tapAudioReady = false;
+    }
+  }
+
+  void _playTapSound() {
+    final player = _tapAudioPlayer;
+    if (player == null) return;
+    if (!_tapAudioReady) {
+      unawaited(_prepareTapSound());
+      return;
+    }
+    unawaited(player.seek(Duration.zero));
+    unawaited(player.play());
   }
 
   @override
@@ -88,7 +125,10 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
                     ],
                   ),
                   child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 1,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(22),
                       gradient: LinearGradient(
@@ -111,6 +151,7 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
                       onTap: () {
                         if (_isAnimating) return;
                         if (selectedIndex == index) return;
+                        _playTapSound();
                         Haptics.selection();
                         setState(() {
                           selectedIndex = index;
@@ -177,7 +218,7 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
         return IgnorePointer(
           child: AnimatedBuilder(
             animation: animation,
-            builder: (_, __) {
+            builder: (context, child) {
               final rect = Rect.lerp(sourceRect, targetRect, animation.value)!;
               final radius = BorderRadius.lerp(
                 BorderRadius.circular(24),

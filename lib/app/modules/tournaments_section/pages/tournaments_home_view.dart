@@ -5,7 +5,6 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
-import 'package:hash/app/modules/tournaments_section/pages/tournaments_leaderboard_view.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_members_view.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_app_bar.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
@@ -149,8 +148,6 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         ),
         const SizedBox(height: 16),
         _buildYourPosition(),
-        const SizedBox(height: 16),
-        _buildLeaderboardButton(joinableTournaments),
         const SizedBox(height: 32),
       ],
     );
@@ -163,10 +160,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
     if (tournaments.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Text(
-          emptyText,
-          style: const TextStyle(color: Colors.white70),
-        ),
+        child: Text(emptyText, style: const TextStyle(color: Colors.white70)),
       );
     }
 
@@ -488,53 +482,6 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
           const Spacer(),
           const Icon(Icons.north_east, color: Colors.white70),
         ],
-      ),
-    );
-  }
-
-  Widget _buildLeaderboardButton(List<TournamentModel> tournaments) {
-    final tournamentId = tournaments.isNotEmpty ? tournaments.first.id : '';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFF8A241), Color(0xFFC06701)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: ElevatedButton(
-          onPressed: () {
-            if (tournamentId.isEmpty) return;
-            Get.to(() => TournamentsLeaderboardView(eventId: tournamentId));
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            minimumSize: const Size(double.infinity, 50),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Center(
-                  child: Text(
-                    'View Leaderboard',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const Icon(Icons.north_east, color: Colors.white, size: 25),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -64,6 +64,36 @@ class Haptics {
     await _trigger(() => HapticFeedback.vibrate(), minGapMs: 150);
   }
 
+  // Multi-pulse entry feedback: light -> medium -> heavy -> heavy -> medium -> light.
+  static Future<void> liveEnterPulse() async {
+    if (!enabled) return;
+    resetThrottle();
+    await _trigger(() => HapticFeedback.lightImpact(), minGapMs: 0);
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    await _trigger(() => HapticFeedback.mediumImpact(), minGapMs: 0);
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    await _trigger(() => HapticFeedback.heavyImpact(), minGapMs: 0);
+    await Future<void>.delayed(const Duration(milliseconds: 70));
+    await _trigger(() => HapticFeedback.heavyImpact(), minGapMs: 0);
+    await Future<void>.delayed(const Duration(milliseconds: 70));
+    await _trigger(() => HapticFeedback.mediumImpact(), minGapMs: 0);
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    await _trigger(() => HapticFeedback.lightImpact(), minGapMs: 0);
+  }
+
+  // Repeats entry pulses for a short burst window (default 3 seconds).
+  static Future<void> liveEnterBurst({
+    Duration duration = const Duration(seconds: 3),
+  }) async {
+    if (!enabled) return;
+    final endAt = DateTime.now().add(duration);
+    while (DateTime.now().isBefore(endAt)) {
+      await liveEnterPulse();
+      if (DateTime.now().isAfter(endAt)) break;
+      await Future<void>.delayed(const Duration(milliseconds: 220));
+    }
+  }
+
   // Semantic helpers
   static Future<void> tap() async => selection();
   static Future<void> navigation() async => light();

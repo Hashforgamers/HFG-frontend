@@ -18,6 +18,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../data/services/user_controller.dart';
 import '../cubit/tournaments_details_cubit.dart';
+import '../cubit/tournaments_leaderboard_cubit.dart';
 import 'package:hash/core/utils/app_logger.dart';
 
 class TournamentsDetailsView extends StatefulWidget {
@@ -31,6 +32,7 @@ class TournamentsDetailsView extends StatefulWidget {
 
 class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
   late final TournamentsDetailsCubit _cubit;
+  late final TournamentsLeaderboardCubit _leaderboardCubit;
   final userController = Get.find<UserController>();
   final TournamentPaymentService _paymentService = TournamentPaymentService();
   bool _isBlockingLoaderVisible = false;
@@ -39,11 +41,14 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
   void initState() {
     super.initState();
     _cubit = TournamentsDetailsCubit(widget.tournament);
+    _leaderboardCubit = TournamentsLeaderboardCubit()
+      ..fetchLeaderboard(eventId: widget.tournament.id);
   }
 
   @override
   void dispose() {
     _hideBlockingLoader();
+    _leaderboardCubit.close();
     _cubit.close();
     super.dispose();
   }
@@ -196,6 +201,8 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
               _buildTabs(),
               const SizedBox(height: 20),
               _buildTabContent(t),
+              const SizedBox(height: 24),
+              _buildLeaderboardSection(),
 
               const SizedBox(height: 25),
 
@@ -510,6 +517,179 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
     }
   }
 
+  Widget _buildLeaderboardSection() {
+    return BlocProvider.value(
+      value: _leaderboardCubit,
+      child:
+          BlocBuilder<TournamentsLeaderboardCubit, TournamentsLeaderboardState>(
+            builder: (context, state) {
+              if (state is TournamentsLeaderboardLoading) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: TournamentsLoader.button(),
+                );
+              }
+
+              if (state is TournamentsLeaderboardError) {
+                return _buildLeaderboardShell(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 16,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Unable to load leaderboard',
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          state.message,
+                          style: GoogleFonts.inter(
+                            color: Colors.white38,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton(
+                          onPressed: () {
+                            _leaderboardCubit.fetchLeaderboard(
+                              eventId: widget.tournament.id,
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white24),
+                          ),
+                          child: const Text(
+                            'Retry',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              if (state is! TournamentsLeaderboardLoaded ||
+                  state.leaderboard.isEmpty) {
+                return _buildLeaderboardShell(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 16,
+                    ),
+                    child: Text(
+                      'Leaderboard not available yet.',
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final items = state.leaderboard;
+              return _buildLeaderboardShell(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: items.length,
+                  separatorBuilder: (context, index) =>
+                      const Divider(color: Colors.white10, height: 10),
+                  itemBuilder: (context, index) {
+                    final row = items[index];
+                    final rank = row['rank'] ?? (index + 1);
+                    final name = (row['player'] ?? 'Team ${index + 1}')
+                        .toString();
+                    final points = row['points'];
+                    return Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: rank == 1
+                                ? Colors.amber
+                                : rank == 2
+                                ? Colors.grey
+                                : rank == 3
+                                ? Colors.brown
+                                : Colors.white12,
+                          ),
+                          child: Text(
+                            '$rank',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          points == null ? '-' : '$points pts',
+                          style: GoogleFonts.orbitron(
+                            color: const Color(0xff00DC00),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+    );
+  }
+
+  Widget _buildLeaderboardShell({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF151515),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Leaderboard',
+            style: GoogleFonts.orbitron(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+
   Widget _buildRegisterButton() {
     return Container(
       width: double.infinity,
@@ -703,7 +883,9 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Registration is only available for upcoming tournaments.'),
+          content: Text(
+            'Registration is only available for upcoming tournaments.',
+          ),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -756,7 +938,10 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                   const SizedBox(height: 6),
                   Text(
                     'Select one of your teams for this event.',
-                    style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   Flexible(
@@ -767,7 +952,8 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                       itemBuilder: (_, index) {
                         final team = myTeams[index];
                         final teamId = (team['team_id'] ?? '').toString();
-                        final teamName = (team['team_name'] ?? 'Team').toString();
+                        final teamName = (team['team_name'] ?? 'Team')
+                            .toString();
                         final count = (team['member_count'] ?? 0).toString();
                         return InkWell(
                           onTap: () async {
@@ -797,7 +983,8 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         teamName,
@@ -834,7 +1021,9 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                     child: OutlinedButton(
                       onPressed: () {
                         Navigator.pop(sheetContext);
-                        Get.to(() => TournamentsRegisterView(tournament: tournament));
+                        Get.to(
+                          () => TournamentsRegisterView(tournament: tournament),
+                        );
                       },
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Color(0xFFC06701)),
@@ -854,7 +1043,10 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.redAccent,
+        ),
       );
       Get.to(() => TournamentsRegisterView(tournament: tournament));
     } finally {

@@ -16,6 +16,7 @@ import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:hash/core/repositories/model/transaction_history_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/utils/encrypt_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
@@ -1310,19 +1311,34 @@ class RemoteRepo implements RemoteRepoInterface {
     required String eventId,
   }) async {
     final dio = await networkProvider.auth();
+    final endpoint = ApiEndpoints.eventLeaderboard(eventId);
     try {
-      final response = await dio.get(ApiEndpoints.eventLeaderboard(eventId));
+      final response = await dio.get(endpoint);
       if (response.statusCode == 200) {
         return _extractDynamicList(
           response.data,
           candidateKeys: const ['leaderboard', 'teams', 'data', 'results'],
         );
       }
+      AppLogger.e(
+        'Leaderboard API non-200 | eventId=$eventId | status=${response.statusCode} | endpoint=$endpoint | body=${response.data}',
+      );
       throw Exception(
         'Failed to fetch leaderboard. Status code: ${response.statusCode}',
       );
-    } catch (e) {
-      debugPrint('Error fetching event leaderboard: $e');
+    } on DioException catch (e, st) {
+      AppLogger.e(
+        'Leaderboard API DioException | eventId=$eventId | endpoint=$endpoint | status=${e.response?.statusCode} | data=${e.response?.data}',
+        error: e,
+        stackTrace: st,
+      );
+      rethrow;
+    } catch (e, st) {
+      AppLogger.e(
+        'Leaderboard API unexpected error | eventId=$eventId | endpoint=$endpoint',
+        error: e,
+        stackTrace: st,
+      );
       rethrow;
     }
   }
@@ -1481,7 +1497,9 @@ class RemoteRepo implements RemoteRepoInterface {
   }) async {
     final dio = await networkProvider.auth();
     try {
-      final response = await dio.get(ApiEndpoints.userJoinedTournaments(userId));
+      final response = await dio.get(
+        ApiEndpoints.userJoinedTournaments(userId),
+      );
       if (response.statusCode == 200) {
         final payload = _asMap(response.data);
         List<Map<String, dynamic>> extract(List<String> keys) {

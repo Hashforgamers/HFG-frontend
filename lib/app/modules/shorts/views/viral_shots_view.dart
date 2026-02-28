@@ -43,7 +43,7 @@ class ViralShotsSection extends StatelessWidget {
               cacheExtent: 600,
               scrollDirection: Axis.horizontal,
               itemCount: controller.shorts.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 20),
+              separatorBuilder: (context, index) => const SizedBox(width: 20),
               itemBuilder: (context, index) {
                 final short = controller.shorts[index];
                 return RepaintBoundary(child: _buildItem(short, index));
@@ -61,17 +61,18 @@ class ViralShotsSection extends StatelessWidget {
       child: Shimmer.fromColors(
         baseColor: const Color(0xff1E1E1E),
         highlightColor: const Color(0xff2C2C2C),
-        child: Row(
-          children: List.generate(
-            4,
-            (_) => Container(
-              margin: const EdgeInsets.all(5),
-              width: 120,
-              height: 220,
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(10),
-              ),
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: 4,
+          separatorBuilder: (context, index) => const SizedBox(width: 10),
+          itemBuilder: (context, index) => Container(
+            margin: const EdgeInsets.symmetric(vertical: 5),
+            width: 120,
+            height: 220,
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
         ),
@@ -114,7 +115,10 @@ class ViralShotsSection extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.9),
+                  ],
                 ),
               ),
               child: Column(

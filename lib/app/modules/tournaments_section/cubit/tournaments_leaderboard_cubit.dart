@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 
@@ -26,7 +27,12 @@ class TournamentsLeaderboardCubit extends Cubit<TournamentsLeaderboardState> {
       }
 
       emit(TournamentsLeaderboardLoaded(leaderboard: leaderboard));
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.e(
+        'Leaderboard fetch failed for eventId=$eventId',
+        error: e,
+        stackTrace: st,
+      );
       emit(TournamentsLeaderboardError(message: e.toString()));
     }
   }
