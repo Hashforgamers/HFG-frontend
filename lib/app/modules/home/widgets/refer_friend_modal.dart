@@ -78,7 +78,6 @@ class ReferFriendModal extends StatelessWidget {
       height: h,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(_kBorderRadius),
-        border: Border.all(color: _kAccent.withValues(alpha: 0.55), width: 1.6),
         boxShadow: [
           BoxShadow(
             color: _kAccent.withValues(alpha: 0.22),

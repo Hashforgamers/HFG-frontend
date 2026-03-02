@@ -450,6 +450,25 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
+              'Overview',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Battle against top squads, climb ranks, and secure your spot on the leaderboard. Join before slots are filled and be ready at match time.',
+              textAlign: TextAlign.start,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFC9C9C9),
+                fontSize: 13,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
               t.description,
               textAlign: TextAlign.start,
               style: GoogleFonts.inter(
@@ -523,14 +542,60 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
           ],
         );
       case 2:
-        return Text(
-          'Rules:\n${t.rules}',
-          style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Rules',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Fair play is mandatory. No cheating, abusive behavior, account sharing, or exploit usage. Team composition and reporting must follow organizer instructions.',
+              style: GoogleFonts.inter(
+                color: Colors.white70,
+                fontSize: 13,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Event-specific rules:\n${t.rules}',
+              style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+            ),
+          ],
         );
       case 3:
-        return Text(
-          'Technical Details:\n${t.technical}',
-          style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Technical',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ensure stable internet, updated game version, and valid in-game identity before check-in. Late check-ins and disconnected teams may be disqualified.',
+              style: GoogleFonts.inter(
+                color: Colors.white70,
+                fontSize: 13,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Event-specific technical details:\n${t.technical}',
+              style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+            ),
+          ],
         );
       default:
         return const SizedBox.shrink();

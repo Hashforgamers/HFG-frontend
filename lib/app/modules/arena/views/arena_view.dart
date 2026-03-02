@@ -53,6 +53,9 @@ class _ArenaViewState extends State<ArenaView> {
   final _polylinePoints = PolylinePoints(apiKey: _gmapsKey); // was ''
 
   final TextEditingController _searchCtl = TextEditingController();
+  final PageController _cafePageController = PageController(
+    viewportFraction: 0.9,
+  );
   Timer? _camDebounce;
 
   LatLng? _userLatLng;
@@ -129,6 +132,7 @@ class _ArenaViewState extends State<ArenaView> {
     _locationSub?.cancel();
     _cafesWorker.dispose();
     _searchCtl.dispose();
+    _cafePageController.dispose();
     _camDebounce?.cancel();
     if (_mapReady) {
       try {
@@ -496,6 +500,25 @@ class _ArenaViewState extends State<ArenaView> {
       _filterCafesByState();
     }
     _refreshCafeMarkers();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _filteredCafes.isEmpty) return;
+      final targetIndex = _cafePageController.hasClients
+          ? (_cafePageController.page?.round() ?? 0)
+          : 0;
+      final safeIndex = targetIndex.clamp(0, _filteredCafes.length - 1);
+      _focusCafeByIndex(safeIndex);
+    });
+  }
+
+  void _focusCafeByIndex(int index) {
+    if (index < 0 || index >= _filteredCafes.length) return;
+    final cafe = _filteredCafes[index];
+    final id = '${cafe['id'] ?? cafe.hashCode}';
+    final pos = _latLngFromCafe(cafe);
+    if (pos == null) return;
+    _selectedCafeId = id;
+    _smoothMoveCamera(pos, zoom: 16);
+    _refreshCafeMarkers();
   }
 
   void _pruneDistanceCaches() {
@@ -844,13 +867,10 @@ class _ArenaViewState extends State<ArenaView> {
                                   ),
                                 ),
                               )
-                            : ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(width: 20),
+                            : PageView.builder(
+                                controller: _cafePageController,
+                                padEnds: false,
+                                onPageChanged: _focusCafeByIndex,
                                 itemCount: _filteredCafes.length,
                                 itemBuilder: (_, i) {
                                   final cafe = _filteredCafes[i];
@@ -866,12 +886,20 @@ class _ArenaViewState extends State<ArenaView> {
                                             : 'https://next-level.gg/assets/cafes/11.jpg');
                                   final pos = _latLngFromCafe(cafe);
                                   final id = '${cafe['id'] ?? cafe.hashCode}';
-                                  return _buildCafeCard(
-                                    id,
-                                    pos,
-                                    img,
-                                    cafe,
-                                    imgs,
+                                  return Padding(
+                                    padding: EdgeInsets.only(
+                                      left: i == 0 ? 16 : 8,
+                                      right: i == _filteredCafes.length - 1
+                                          ? 16
+                                          : 8,
+                                    ),
+                                    child: _buildCafeCard(
+                                      id,
+                                      pos,
+                                      img,
+                                      cafe,
+                                      imgs,
+                                    ),
                                   );
                                 },
                               ),

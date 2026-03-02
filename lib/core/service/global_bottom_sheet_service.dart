@@ -92,286 +92,348 @@ class GlobalBottomSheetService {
             },
             child: StatefulBuilder(
               builder: (context, setState) {
-                return Container(
-                  height: MediaQuery.of(context).size.height * 0.7,
-                  decoration: const BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(28),
-                      topRight: Radius.circular(28),
+                const accent = Color(0xffFF7A00);
+                return FractionallySizedBox(
+                  heightFactor: 0.78,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Color(0xff0D0D0D),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(28),
+                        topRight: Radius.circular(28),
+                      ),
                     ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(28),
-                      topRight: Radius.circular(28),
-                    ),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Close button
-                            Align(
-                              alignment: Alignment.topRight,
-                              child: GestureDetector(
-                                onTap: () => Navigator.pop(context),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            // HashCoins Balance
-                            Row(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(28),
+                        topRight: Radius.circular(28),
+                      ),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: SafeArea(
+                          top: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xff00DC00).withValues(alpha: 0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Stack(alignment: Alignment.center,
-                                    children: [
-                                      const Icon(Icons.hexagon, color: const Color(0xff00DC00), size: 28),
-                                      Text('H',style: TextStyle( color: Colors.black),),
-
-                                    ],
+                                Center(
+                                  child: Container(
+                                    width: 42,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.22),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                const SizedBox(height: 14),
+                                Row(
                                   children: [
-                                    Text(
-                                      'HashCoins Balance',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 18,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatHashCoins(hashCoin),
-                                      style: GoogleFonts.inter(
-                                        fontSize: 32,
-                                        color: const Color(0xff00DC00),
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Use your HashCoins to unlock exclusive discounts on your bookings',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'Vouchers',
-                              style: GoogleFonts.inter(
-                                fontSize: 20,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Expanded(
-                              child: ListView.separated(
-                                itemCount: vouchers.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                                itemBuilder: (context, i) {
-                                  final voucher = vouchers[i];
-                                  final int requiredCoins = voucher['requiredCoins'] as int;
-                                  final int discount = voucher['discount'] as int;
-                                  final String code = voucher['code'] as String;
-                                  final String desc = voucher['desc'] as String;
-                                  final bool hasEnough = hashCoin >= requiredCoins;
-                                  final bool isSelected = selectedVoucher == i;
-                                  final int coinsNeeded = requiredCoins - hashCoin;
-                                  return GestureDetector(
-                                    onTap: hasEnough
-                                        ? () {
-                                            setState(() {
-                                              selectedVoucher = i;
-                                            });
-                                          }
-                                        : null,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.01),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? const Color(0xff00DC00)
-                                              : hasEnough
-                                                  ? Colors.white.withOpacity(0.2)
-                                                  : Colors.grey.withOpacity(0.3),
-                                          width: isSelected ? 2 : 1,
-                                        ),
-                                      ),
-                                      child: Row(
+                                    Expanded(
+                                      child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Icon(
-                                            Icons.card_giftcard,
-                                            color: hasEnough ? Colors.white : Colors.grey,
-                                            size: 28,
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    Text(
-                                                      'Flat $discount% OFF',
-                                                      style: GoogleFonts.inter(
-                                                        fontSize: 18,
-                                                        fontWeight: FontWeight.w700,
-                                                        color: hasEnough ? Colors.white : Colors.grey,
-                                                      ),
-                                                    ),
-                                                    if (isSelected)
-                                                      Padding(
-                                                        padding: const EdgeInsets.only(left: 8.0),
-                                                        child: Icon(Icons.check_circle, color: const Color(0xff00DC00), size: 18),
-                                                      ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  desc,
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 14,
-                                                    color: hasEnough ? Colors.white70 : Colors.grey,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: hasEnough ? const Color(0xff00DC00).withValues(alpha: 0.15) : Colors.grey.withOpacity(0.15),
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: Text(
-                                                    code,
-                                                    style: GoogleFonts.inter(
-                                                      fontSize: 13,
-                                                      color: hasEnough ? const Color(0xff00DC00) : Colors.grey,
-                                                      fontWeight: FontWeight.w700,
-                                                    ),
-                                                  ),
-                                                ),
-                                                if (!hasEnough)
-                                                  Padding(
-                                                    padding: const EdgeInsets.only(top: 6.0),
-                                                    child: Text(
-                                                      'You need \'${_formatHashCoins(coinsNeeded)}\' more HashCoins to redeem this voucher.',
-                                                      style: GoogleFonts.inter(
-                                                        fontSize: 13,
-                                                        color: Colors.red,
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
+                                          Text(
+                                            'Redeem HashCoins',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 22,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w800,
                                             ),
                                           ),
-                                          Radio<int>(
-                                            value: i,
-                                            groupValue: selectedVoucher,
-                                            onChanged: hasEnough
-                                                ? (val) {
-                                                    setState(() {
-                                                      selectedVoucher = val;
-                                                    });
-                                                  }
-                                                : null,
-                                            activeColor: const Color(0xff00DC00),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Unlock discounts on your next bookings',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 13,
+                                              color: Colors.white70,
+                                            ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            BlocBuilder<CreateOfferCubit, CreateOfferState>(
-                              builder: (context, state) {
-                                final isLoading = state is CreateOfferLoading;
-                                return GestureDetector(
-                                  onTap: (selectedVoucher != null && !isLoading)
-                                      ? () {
-                                          final voucher = vouchers[selectedVoucher!];
-                                          final int discount = voucher['discount'] as int;
-                                          _processRedemption(discount, hashCoin);
-                                        }
-                                      : null,
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(vertical: 18),
-                                    decoration: BoxDecoration(
-                                      color: (selectedVoucher != null && !isLoading)
-                                          ? const Color(0xff00DC00)
-                                          : Colors.grey.withOpacity(0.3),
-                                      borderRadius: BorderRadius.circular(16),
+                                    GestureDetector(
+                                      onTap: () => Navigator.pop(context),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.08),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(Icons.close, color: Colors.white, size: 20),
+                                      ),
                                     ),
-                                    child: isLoading
-                                        ? Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              const SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child: AppLinearLoader(
-                                               ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Text(
-                                                'Processing...',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Colors.white,
-                                                  letterSpacing: 1,
-                                                ),
-                                              ),
-                                            ],
-                                          )
-                                        : Text(
-                                            'Redeem',
-                                            textAlign: TextAlign.center,
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xff2B180C), Color(0xff141414)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: accent.withValues(alpha: 0.35),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: accent.withValues(alpha: 0.16),
+                                        ),
+                                        child: const Icon(Icons.auto_awesome, color: accent, size: 24),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Balance',
                                             style: GoogleFonts.inter(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w700,
-                                              color: Colors.white,
-                                              letterSpacing: 1,
+                                              fontSize: 12,
+                                              color: Colors.white70,
+                                              fontWeight: FontWeight.w500,
                                             ),
                                           ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${_formatHashCoins(hashCoin)} HC',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 24,
+                                              color: accent,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                );
-                              },
+                                ),
+                                const SizedBox(height: 18),
+                                Text(
+                                  'Choose Voucher',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Expanded(
+                                  child: ListView.separated(
+                                    itemCount: vouchers.length,
+                                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                                    itemBuilder: (context, i) {
+                                      final voucher = vouchers[i];
+                                      final int requiredCoins = voucher['requiredCoins'] as int;
+                                      final int discount = voucher['discount'] as int;
+                                      final String code = voucher['code'] as String;
+                                      final String desc = voucher['desc'] as String;
+                                      final bool hasEnough = hashCoin >= requiredCoins;
+                                      final bool isSelected = selectedVoucher == i;
+                                      final int coinsNeeded = requiredCoins - hashCoin;
+                                      return GestureDetector(
+                                        onTap: hasEnough ? () => setState(() => selectedVoucher = i) : null,
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 220),
+                                          padding: const EdgeInsets.all(14),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? accent.withValues(alpha: 0.14)
+                                                : Colors.white.withValues(alpha: 0.03),
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: isSelected
+                                                  ? accent
+                                                  : hasEnough
+                                                      ? Colors.white.withValues(alpha: 0.16)
+                                                      : Colors.white.withValues(alpha: 0.08),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                width: 40,
+                                                height: 40,
+                                                decoration: BoxDecoration(
+                                                  color: hasEnough
+                                                      ? accent.withValues(alpha: 0.16)
+                                                      : Colors.white.withValues(alpha: 0.06),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Icon(
+                                                  Icons.local_offer_rounded,
+                                                  color: hasEnough ? accent : Colors.white54,
+                                                  size: 20,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: Text(
+                                                            '$discount% OFF',
+                                                            style: GoogleFonts.inter(
+                                                              fontSize: 17,
+                                                              fontWeight: FontWeight.w800,
+                                                              color: hasEnough ? Colors.white : Colors.white54,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          '${_formatHashCoins(requiredCoins)} HC',
+                                                          style: GoogleFonts.inter(
+                                                            fontSize: 12,
+                                                            fontWeight: FontWeight.w700,
+                                                            color: hasEnough ? accent : Colors.white54,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      desc,
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 12,
+                                                        color: hasEnough ? Colors.white70 : Colors.white54,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.white.withValues(alpha: 0.08),
+                                                            borderRadius: BorderRadius.circular(8),
+                                                          ),
+                                                          child: Text(
+                                                            code,
+                                                            style: GoogleFonts.inter(
+                                                              fontSize: 11,
+                                                              fontWeight: FontWeight.w700,
+                                                              color: Colors.white70,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        if (!hasEnough) ...[
+                                                          const SizedBox(width: 8),
+                                                          Expanded(
+                                                            child: Text(
+                                                              'Need ${_formatHashCoins(coinsNeeded)} more',
+                                                              style: GoogleFonts.inter(
+                                                                fontSize: 11,
+                                                                color: const Color(0xffFF5A5A),
+                                                                fontWeight: FontWeight.w600,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Icon(
+                                                hasEnough
+                                                    ? (isSelected ? Icons.check_circle : Icons.radio_button_unchecked)
+                                                    : Icons.lock_outline_rounded,
+                                                color: hasEnough
+                                                    ? (isSelected ? accent : Colors.white54)
+                                                    : Colors.white38,
+                                                size: 20,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                BlocBuilder<CreateOfferCubit, CreateOfferState>(
+                                  builder: (context, state) {
+                                    final isLoading = state is CreateOfferLoading;
+                                    final canRedeem = selectedVoucher != null && !isLoading;
+                                    final ctaText = selectedVoucher != null
+                                        ? 'Redeem ${vouchers[selectedVoucher!]['discount']}% OFF'
+                                        : 'Select voucher to continue';
+                                    return GestureDetector(
+                                      onTap: canRedeem
+                                          ? () {
+                                              final voucher = vouchers[selectedVoucher!];
+                                              final int discount = voucher['discount'] as int;
+                                              _processRedemption(discount, hashCoin);
+                                            }
+                                          : null,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 180),
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(14),
+                                          gradient: canRedeem
+                                              ? const LinearGradient(
+                                                  colors: [Color(0xffFF8A1F), Color(0xffFF5F00)],
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                )
+                                              : null,
+                                          color: canRedeem
+                                              ? null
+                                              : Colors.white.withValues(alpha: 0.14),
+                                        ),
+                                        child: isLoading
+                                            ? Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const SizedBox(
+                                                    width: 20,
+                                                    height: 20,
+                                                    child: AppLinearLoader(),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  Text(
+                                                    'Processing...',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                            : Text(
+                                                ctaText,
+                                                textAlign: TextAlign.center,
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),

@@ -32,7 +32,6 @@ class _ReferralViewWithControllerState
   final Color _green = const Color(0xff00DC00);
   final Color _darkCard = const Color(0xFF0F1510);
   final Color _darkCardAlt = const Color(0xFF141E16);
-  final Color _cardBorder = const Color(0xFF2D4A32);
   final Color _mutedText = const Color(0xff00DC00);
   final TextStyle _heading = GoogleFonts.inter(
     color: Colors.white,
@@ -84,7 +83,6 @@ class _ReferralViewWithControllerState
           end: Alignment.bottomRight,
           colors: [_darkCardAlt, _darkCard],
         ),
-        border: Border.all(color: _cardBorder, width: 1.2),
         boxShadow: [
           BoxShadow(
             color: _green.withValues(alpha: 0.05),
@@ -108,7 +106,6 @@ class _ReferralViewWithControllerState
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.34),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,7 +146,6 @@ class _ReferralViewWithControllerState
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.32),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _cardBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1067,7 +1063,7 @@ class _ReferralViewWithControllerState
                       ],
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 14),
                   _earningsCard(),
                   _referralCodeCard(),
                   _howItWorksCard(),
