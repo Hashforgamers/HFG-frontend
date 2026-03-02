@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 
 class ChatPalette {
-  static const Color bgTop = Color(0xFF0B0B0C);
-  static const Color bgBottom = Color(0xFF000000);
+  static const Color bgTop = Color(0xFF15171D);
+  static const Color bgBottom = Color(0xFF0C0E13);
 
-  static const Color surface = Color(0xFF000000);
-  static const Color surfaceAlt = Color(0xFF1C1C1E);
-  static const Color inputFill = Color(0xFF1C1C1E);
-  static const Color border = Color(0xFF2C2C2E);
+  static const Color surface = Color(0xFF1A1D23);
+  static const Color surfaceAlt = Color(0xFF232833);
+  static const Color inputFill = Color(0xFF242934);
+  static const Color border = Color(0xFF363C48);
 
   static const Color textPrimary = Colors.white;
-  static const Color textSecondary = Color(0xFF9A9AA0);
+  static const Color textSecondary = Color(0xFF9EA5B5);
 
-  static const Color primary = Color(0xFF4F8CFF);
-  static const Color primaryDark = Color(0xFF2D5FEA);
-  static const Color accent = Color(0xFFC084FC);
+  static const Color primary = Color(0xFFFF7A00);
+  static const Color primaryDark = Color(0xFFE05A00);
+  static const Color accent = Color(0xFFFFB347);
+  static const Color primaryGlow = Color(0xFFFFA726);
+  static const Color success = Color(0xFF62D281);
 
   static const LinearGradient pageGradient = LinearGradient(
     colors: [bgTop, bgBottom],
@@ -23,13 +25,13 @@ class ChatPalette {
   );
 
   static const LinearGradient cardGradient = LinearGradient(
-    colors: [Color(0xFF1A1A1C), Color(0xFF131315)],
+    colors: [Color(0xFF272C36), Color(0xFF1E222B)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient mineBubbleGradient = LinearGradient(
-    colors: [Color(0xFF2D5FEA), Color(0xFF4F8CFF)],
+    colors: [Color(0xFFFFA726), Color(0xFFFF6D00)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

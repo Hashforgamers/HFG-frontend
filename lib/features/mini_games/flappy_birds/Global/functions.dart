@@ -96,6 +96,14 @@ void init() {
   player.setReleaseMode(ReleaseMode.loop);
 }
 
+Future<void> stopFlappyAudio() async {
+  try {
+    await player.stop();
+  } catch (_) {
+    // Keep navigation/dispose resilient if audio backend is already detached.
+  }
+}
+
 void navigate(context, navigate) {
   switch (navigate) {
     case Str.gamePage:

@@ -12,6 +12,7 @@ import 'package:hash/app/modules/chat/models/chat_room_model.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/network_config.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 
@@ -22,15 +23,18 @@ class ChatService extends GetxService with WidgetsBindingObserver {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
+  final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   StreamSubscription<firebase_auth.User?>? _authSub;
   StreamSubscription<List<ChatRoomModel>>? _roomListSub;
   final Map<String, StreamSubscription<ChatMessageModel?>> _roomMessageSubs =
       {};
   final Map<String, String> _lastSeenMessageIdByRoom = {};
   final Set<String> _primedRooms = {};
+  final Map<String, bool> _unreadRoomById = {};
   String? _activeNotificationUid;
   Timer? _presenceHeartbeat;
   static const Duration _presenceHeartbeatInterval = Duration(seconds: 30);
+  final RxInt unreadRoomCount = 0.obs;
 
   CollectionReference<Map<String, dynamic>> get _usersRef =>
       _firestore.collection(_usersCollection);
@@ -150,7 +154,9 @@ class ChatService extends GetxService with WidgetsBindingObserver {
         _roomMessageSubs.remove(roomId)?.cancel();
         _lastSeenMessageIdByRoom.remove(roomId);
         _primedRooms.remove(roomId);
+        _unreadRoomById.remove(roomId);
       }
+      _recomputeUnreadRoomCount();
     });
   }
 
@@ -164,6 +170,8 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     _roomMessageSubs.clear();
     _lastSeenMessageIdByRoom.clear();
     _primedRooms.clear();
+    _unreadRoomById.clear();
+    unreadRoomCount.value = 0;
   }
 
   Future<List<ChatUserModel>> searchUsers(
@@ -666,6 +674,61 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     await batch.commit();
   }
 
+  Future<void> sendTeamInviteMessage({
+    required String roomId,
+    required String eventId,
+    required String teamId,
+    required String teamName,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to send invites.');
+    }
+
+    final safeEventId = eventId.trim();
+    final safeTeamId = teamId.trim();
+    final safeTeamName = teamName.trim().isEmpty ? 'Team' : teamName.trim();
+    if (safeEventId.isEmpty || safeTeamId.isEmpty) {
+      throw Exception('Invalid team details for sharing.');
+    }
+
+    final senderName = await _resolveCurrentUserNameFromStore(uid);
+    final roomRef = _roomsRef.doc(roomId);
+    final messageRef = roomRef.collection(_messagesCollection).doc();
+    final now = DateTime.now().toIso8601String();
+    final previewText = '$senderName shared a team invite: $safeTeamName';
+
+    final batch = _firestore.batch();
+    batch.set(messageRef, {
+      'id': messageRef.id,
+      'room_id': roomId,
+      'sender_id': uid,
+      'sender_name': senderName,
+      'text': previewText,
+      'type': 'team_invite',
+      'meta': {
+        'event_id': safeEventId,
+        'team_id': safeTeamId,
+        'team_name': safeTeamName,
+        'inviter_uid': uid,
+      },
+      'seen_by': [uid],
+      'created_at': FieldValue.serverTimestamp(),
+      'client_created_at': now,
+    });
+
+    batch.set(roomRef, {
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': now,
+      'last_message': 'Team invite: $safeTeamName',
+      'last_message_sender_id': uid,
+      'last_message_at': FieldValue.serverTimestamp(),
+      'client_last_message_at': now,
+    }, SetOptions(merge: true));
+
+    await batch.commit();
+  }
+
   Future<void> markRoomMessagesSeen(String roomId) async {
     final uid = currentUid;
     if (uid == null) return;
@@ -693,6 +756,10 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     if (changed) {
       await batch.commit();
     }
+    if (_unreadRoomById[roomId] == true) {
+      _unreadRoomById[roomId] = false;
+      _recomputeUnreadRoomCount();
+    }
   }
 
   Future<void> setTyping({
@@ -709,6 +776,39 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     }, SetOptions(merge: true));
   }
 
+  Future<int?> resolveCurrentBackendUserId() async {
+    if (Get.isRegistered<UserController>()) {
+      final controller = Get.find<UserController>();
+      final fromController = _parseInt(controller.userId);
+      if (fromController != null && fromController > 0) {
+        return fromController;
+      }
+    }
+
+    final fid = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (fid.isNotEmpty) {
+      final apiUser = await _remoteRepo.checkUserExistsInAPI(fid);
+      final fromApi = _parseInt(
+        _readNested(apiUser ?? const <String, dynamic>{}, ['id']) ??
+            _readNested(apiUser ?? const <String, dynamic>{}, ['user_id']),
+      );
+      if (fromApi != null && fromApi > 0) {
+        return fromApi;
+      }
+    }
+
+    final userData = await _remoteRepo.getUserFromPreferences();
+    final fromUserData = _parseInt(
+      _readNested(userData ?? const <String, dynamic>{}, ['id']) ??
+          _readNested(userData ?? const <String, dynamic>{}, ['user_id']),
+    );
+    if (fromUserData != null && fromUserData > 0) {
+      return fromUserData;
+    }
+
+    return null;
+  }
+
   void _listenForRoomLatestMessage(String currentUidValue, ChatRoomModel room) {
     if (_roomMessageSubs.containsKey(room.id)) return;
 
@@ -716,6 +816,12 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       message,
     ) {
       if (message == null) return;
+
+      final isUnreadForCurrentUser =
+          message.senderId != currentUidValue &&
+          !message.seenBy.contains(currentUidValue);
+      _unreadRoomById[room.id] = isUnreadForCurrentUser;
+      _recomputeUnreadRoomCount();
 
       final previousMessageId = _lastSeenMessageIdByRoom[room.id];
       final alreadyPrimed = _primedRooms.contains(room.id);
@@ -734,6 +840,10 @@ class ChatService extends GetxService with WidgetsBindingObserver {
         currentUidValue: currentUidValue,
       );
     });
+  }
+
+  void _recomputeUnreadRoomCount() {
+    unreadRoomCount.value = _unreadRoomById.values.where((v) => v).length;
   }
 
   void _notifyIncomingMessage({

@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/features/mini_games/pacman/HomePage.dart';
 import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
-import 'flappy_birds/Layouts/Pages/page_game.dart';
+import 'flappy_birds/Layouts/Pages/page_start_screen.dart';
 import 'mini_game_card.dart';
 import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
 import 'models/minigame_model.dart';
@@ -34,28 +34,40 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
         title: "Fruit Cutting",
         subtitle: "Slice & earn coins",
         icon: const AssetImage("assets/mini_game_icons/fruit_cutting.png"),
-        onTap: () => Get.to(() => FruitCuttingScreen()),
+        onTap: () async {
+          await Get.to(() => FruitCuttingScreen());
+          await _loadScores();
+        },
       ),
       MiniGame(
         id: 'plant_vs_zombie',
         title: "Plant vs Zombie",
         subtitle: "Test gaming knowledge",
         icon: const AssetImage("assets/mini_game_icons/pvz.png"),
-        onTap: () => Get.to(() => PlantVsZombie()),
+        onTap: () async {
+          await Get.to(() => PlantVsZombie());
+          await _loadScores();
+        },
       ),
       MiniGame(
         id: 'pac_man',
         title: "Pac Man",
         subtitle: "Daily rewards",
         icon: const AssetImage("assets/mini_game_icons/pacman.png"),
-        onTap: () => Get.to(() => PacManHome()),
+        onTap: () async {
+          await Get.to(() => PacManHome());
+          await _loadScores();
+        },
       ),
       MiniGame(
         id: 'laggy_bird',
         title: "Laggy Bird",
         subtitle: "Daily rewards",
         icon: const AssetImage("assets/mini_game_icons/flappy_birds.png"),
-        onTap: () => Get.to(() => GamePage()),
+        onTap: () async {
+          await Get.to(() => const FlappyBirds());
+          await _loadScores();
+        },
       ),
     ];
 
@@ -78,7 +90,6 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
 
   @override
   Widget build(BuildContext context) {
-    final scoreService = MiniGameScoreService();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -138,7 +149,6 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
     BuildContext context,
     MiniGameScoreService scoreService,
   ) {
-    String keyFor(MiniGame game) => game.id ?? game.title;
     Get.to(
       () => MiniGameLeaderboardPage(
         scoreService: scoreService,

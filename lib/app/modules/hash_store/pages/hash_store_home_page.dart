@@ -20,6 +20,7 @@ import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
 import '../../home/widgets/optimized_app_bar.dart';
 import 'package:hash/core/utils/app_logger.dart';
@@ -201,6 +202,11 @@ class _HashStoreHomePageState extends State<HashStoreHomePage> {
 
   Widget _buildOptimizedUserAvatar(String? photoUrl) {
     const double size = 40;
+    final effectivePhoto =
+        (photoUrl ?? '').trim().isNotEmpty
+        ? photoUrl!.trim()
+        : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
+              .trim();
 
     return Container(
       width: size,
@@ -211,15 +217,16 @@ class _HashStoreHomePageState extends State<HashStoreHomePage> {
       ),
       child: CircleAvatar(
         radius: size / 2,
-        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+        backgroundImage: effectivePhoto.isNotEmpty
             ? CachedNetworkImageProvider(
-          photoUrl,
+          effectivePhoto,
           errorListener: (error) => AppLogger.d('Avatar image error: $error'),
         )
-            : const NetworkImage(
-          'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-        ) as ImageProvider,
+            : null,
         backgroundColor: Colors.white,
+        child: effectivePhoto.isEmpty
+            ? const Icon(Icons.person_rounded, color: Colors.black54)
+            : null,
       ),
     );
   }

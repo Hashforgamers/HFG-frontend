@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:get/get.dart';
+import 'package:hash/app/modules/chat/models/chat_room_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
@@ -31,6 +34,7 @@ class _TournamentsTeamMembersViewState
   late final TextEditingController _teamNameController;
   late String _teamName;
   int? _currentUserId;
+  ChatService get _chatService => Get.find<ChatService>();
 
   @override
   void initState() {
@@ -86,6 +90,11 @@ class _TournamentsTeamMembersViewState
             IconButton(
               onPressed: _confirmLeaveTeam,
               icon: const Icon(Icons.logout_rounded),
+            ),
+            IconButton(
+              tooltip: 'Share to chat',
+              onPressed: _openShareToChatSheet,
+              icon: const Icon(Icons.forum_rounded),
             ),
             IconButton(
               onPressed: () => _shareTeamInvite(context),
@@ -162,10 +171,22 @@ class _TournamentsTeamMembersViewState
                               final role =
                                   (member['role'] ?? member['team_role'] ?? '')
                                       .toString();
+                              final photoUrl =
+                                  (member['photo_url'] ??
+                                          member['photoUrl'] ??
+                                          member['avatar_path'] ??
+                                          member['avatarUrl'] ??
+                                          '')
+                                      .toString()
+                                      .trim();
                               final memberUserId = _parseInt(
                                 member['user_id'] ??
                                     member['userId'] ??
                                     member['id'],
+                              );
+                              final effectivePhotoUrl = _resolveMemberPhotoUrl(
+                                memberUserId: memberUserId,
+                                memberPhotoUrl: photoUrl,
                               );
                               final isCaptain = _isCurrentUserCaptain(
                                 state.members,
@@ -182,6 +203,7 @@ class _TournamentsTeamMembersViewState
                                 name: name,
                                 gameUsername: gameUsername,
                                 role: role,
+                                photoUrl: effectivePhotoUrl,
                               );
                               if (!canRemove) return card;
 
@@ -290,6 +312,7 @@ class _TournamentsTeamMembersViewState
     required String name,
     required String gameUsername,
     required String role,
+    required String photoUrl,
   }) {
     final displayRole = role.isEmpty
         ? (index == 0 ? 'Leader' : 'Member')
@@ -329,14 +352,19 @@ class _TournamentsTeamMembersViewState
                 ),
                 child: CircleAvatar(
                   radius: 20,
+                  backgroundImage: photoUrl.isNotEmpty
+                      ? CachedNetworkImageProvider(photoUrl)
+                      : null,
                   backgroundColor: const Color(0xFF0F0F0F),
-                  child: Text(
-                    initials,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  child: photoUrl.isEmpty
+                      ? Text(
+                          initials,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        )
+                      : null,
                 ),
               ),
               Positioned(
@@ -439,6 +467,25 @@ class _TournamentsTeamMembersViewState
         ],
       ),
     );
+  }
+
+  String _resolveMemberPhotoUrl({
+    required int? memberUserId,
+    required String memberPhotoUrl,
+  }) {
+    final direct = memberPhotoUrl.trim();
+    if (direct.isNotEmpty) return direct;
+
+    // If this row is current user, prefer Google photo fallback.
+    if (memberUserId != null &&
+        _currentUserId != null &&
+        memberUserId == _currentUserId) {
+      final googlePhoto =
+          (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
+              .trim();
+      if (googlePhoto.isNotEmpty) return googlePhoto;
+    }
+    return '';
   }
 
   String _initialsForText(String value) {
@@ -830,15 +877,23 @@ class _TournamentsTeamMembersViewState
                                       children: [
                                         CircleAvatar(
                                           radius: 20,
+                                          backgroundImage:
+                                              user.photoUrl.trim().isNotEmpty
+                                              ? NetworkImage(
+                                                  user.photoUrl.trim(),
+                                                )
+                                              : null,
                                           backgroundColor: Colors.white12,
-                                          child: Text(
-                                            _initialsForUser(user),
-                                            style: GoogleFonts.inter(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 12,
-                                            ),
-                                          ),
+                                          child: user.photoUrl.trim().isEmpty
+                                              ? Text(
+                                                  _initialsForUser(user),
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 12,
+                                                  ),
+                                                )
+                                              : null,
                                         ),
                                         const SizedBox(width: 10),
                                         Expanded(
@@ -1149,6 +1204,194 @@ class _TournamentsTeamMembersViewState
         content: Text('Team invite shared'),
         backgroundColor: Color(0xff00DC00),
       ),
+    );
+  }
+
+  Future<void> _openShareToChatSheet() async {
+    if (!_chatService.isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please sign in to share via chat.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    await _chatService.ensureCurrentUserProfile();
+    if (!mounted) return;
+
+    final currentUid = _chatService.currentUid ?? '';
+    if (currentUid.isEmpty) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF111111),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: SizedBox(
+            height: MediaQuery.of(sheetContext).size.height * 0.62,
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Share Team to Chat',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: StreamBuilder<List<ChatRoomModel>>(
+                    stream: _chatService.streamCurrentUserRooms(),
+                    builder: (context, snapshot) {
+                      final rooms = snapshot.data ?? const <ChatRoomModel>[];
+                      if (snapshot.connectionState == ConnectionState.waiting &&
+                          rooms.isEmpty) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xff00DC00),
+                          ),
+                        );
+                      }
+                      if (rooms.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'No chats found. Start a chat first.',
+                            style: GoogleFonts.inter(color: Colors.white70),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                        itemCount: rooms.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final room = rooms[index];
+                          final title = room.displayTitleFor(currentUid);
+                          final subtitle = room.subtitleFor(currentUid);
+                          final prefix = title.isNotEmpty
+                              ? title.substring(0, 1).toUpperCase()
+                              : 'C';
+
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () async {
+                                await _chatService.sendTeamInviteMessage(
+                                  roomId: room.id,
+                                  eventId: widget.eventId,
+                                  teamId: widget.teamId,
+                                  teamName: _teamName,
+                                );
+                                if (!mounted) return;
+                                Get.back<void>();
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Shared to $title',
+                                      style: GoogleFonts.inter(),
+                                    ),
+                                    backgroundColor: const Color(0xff00DC00),
+                                  ),
+                                );
+                              },
+                              child: Ink(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: const Color(0xFF1A1A1A),
+                                  border: Border.all(color: Colors.white12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 18,
+                                      backgroundColor: const Color(0xFF2A2A2A),
+                                      child: Text(
+                                        prefix,
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            subtitle,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white60,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Icon(
+                                      Icons.send_rounded,
+                                      color: Color(0xff00DC00),
+                                      size: 18,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

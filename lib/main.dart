@@ -13,6 +13,7 @@ import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/utils/scroll_behaviour.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'app/data/services/user_controller.dart';
 import 'app/modules/arena/controllers/booking_controller.dart';
 import 'app/modules/game/views/game_section_view.dart';
@@ -48,6 +49,10 @@ void main() async {
     accentColor: Colors.purpleAccent,
   );
 
+  await Hive.initFlutter();
+  if (!Hive.isBoxOpen('user')) {
+    await Hive.openBox('user');
+  }
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Setup service locator first before any controllers that depend on it

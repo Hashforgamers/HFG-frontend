@@ -1496,9 +1496,52 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     const placeholderImage =
         'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png';
 
-    String _gameName(Map<String, dynamic> game) =>
-        (game['game_name'] ?? game['name'] ?? game['title'] ?? 'Game')
-            .toString();
+    bool _looksLikeConsoleLabel(String value) {
+      final v = value.trim().toLowerCase();
+      if (v.isEmpty) return true;
+      const invalidLabels = <String>{
+        'n/a',
+        'na',
+        'none',
+        'null',
+        'unknown',
+        '-',
+      };
+      if (invalidLabels.contains(v)) return true;
+      const blocked = <String>{
+        'pc',
+        'xbox',
+        'xbox one',
+        'xbox series',
+        'xbox series s',
+        'xbox series x',
+        'playstation',
+        'play station',
+        'ps',
+        'ps4',
+        'ps5',
+        'vr',
+      };
+      if (blocked.contains(v)) return true;
+      if (v.startsWith('ps') && v.length <= 4) return true;
+      return false;
+    }
+
+    String _gameName(Map<String, dynamic> game) {
+      final candidates = [
+        game['game_name'],
+        game['name'],
+        game['title'],
+        game['gameTitle'],
+      ];
+      for (final c in candidates) {
+        final name = (c ?? '').toString().trim();
+        if (name.isEmpty) continue;
+        if (_looksLikeConsoleLabel(name)) continue;
+        return name;
+      }
+      return '';
+    }
 
     String _gameImage(Map<String, dynamic> game) {
       final orderedKeys = [
@@ -1532,11 +1575,37 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               return const Center(child: AppLinearLoader());
             }
 
-            final List<dynamic> games = controller.games;
-            if (games.isEmpty) {
+            final List<Map<String, String>> displayGames = [];
+
+            for (final item in controller.games) {
+              if (item is! Map) continue;
+              final game = Map<String, dynamic>.from(item);
+              final name = _gameName(game);
+              if (name.isEmpty) continue;
+              displayGames.add({'name': name, 'image': _gameImage(game)});
+            }
+
+            // Fallback to cafe-level games list when vendor-games payload has
+            // platform labels (PC/PS5/XBOX) instead of actual game titles.
+            if (displayGames.isEmpty) {
+              for (final item in widget.availableGames) {
+                final name = item is Map
+                    ? (item['name'] ??
+                          item['game_name'] ??
+                          item['title'] ??
+                          item['game'])
+                          .toString()
+                          .trim()
+                    : item.toString().trim();
+                if (name.isEmpty || _looksLikeConsoleLabel(name)) continue;
+                displayGames.add({'name': name, 'image': placeholderImage});
+              }
+            }
+
+            if (displayGames.isEmpty) {
               return Center(
                 child: Text(
-                  'Games will appear here once the cafe adds them.',
+                  'No games available for now.',
                   style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
@@ -1545,14 +1614,12 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
             return ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: games.length,
+              itemCount: displayGames.length,
               separatorBuilder: (_, __) => const SizedBox(width: 2),
               itemBuilder: (context, index) {
-                final Map<String, dynamic> game = Map<String, dynamic>.from(
-                  games[index],
-                );
-                final name = _gameName(game);
-                final image = _gameImage(game);
+                final item = displayGames[index];
+                final name = item['name'] ?? 'Game';
+                final image = item['image'] ?? placeholderImage;
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(

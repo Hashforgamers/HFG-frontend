@@ -7,6 +7,9 @@ import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/theme/chat_palette.dart';
 import 'package:hash/app/modules/chat/views/chat_room_view.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
 
 class ChatUserPickerView extends StatefulWidget {
@@ -18,6 +21,8 @@ class ChatUserPickerView extends StatefulWidget {
 
 class _ChatUserPickerViewState extends State<ChatUserPickerView> {
   final ChatService _chatService = Get.find<ChatService>();
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
   final TextEditingController _searchController = TextEditingController();
 
   final List<ChatUserModel> _users = <ChatUserModel>[];
@@ -34,6 +39,16 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
     super.initState();
     _searchController.addListener(_onSearchChange);
     _runSearch();
+    unawaited(
+      _segmentService.onCustomEvent('Chat User Picker Viewed', {
+        'source': 'new_chat',
+      }),
+    );
+    unawaited(
+      _fbEventsService.logEvent('Chat User Picker Viewed', {
+        'source': 'new_chat',
+      }),
+    );
   }
 
   @override
@@ -92,6 +107,18 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
     try {
       final roomId = await _chatService.getOrCreateDirectRoom(otherUser: user);
       if (!mounted) return;
+      unawaited(
+        _segmentService.onCustomEvent('Direct Chat Started', {
+          'room_id': roomId,
+          'target_uid': user.uid,
+        }),
+      );
+      unawaited(
+        _fbEventsService.logEvent('Direct Chat Started', {
+          'room_id': roomId,
+          'target_uid': user.uid,
+        }),
+      );
       Haptics.medium();
       Get.off(() => ChatRoomView(roomId: roomId));
     } catch (e) {

@@ -21,6 +21,7 @@ import 'package:hash/app/modules/news/news_section_view.dart';
 import 'package:hash/app/modules/profile/user_profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
+import 'package:hash/app/modules/rewards/widgets/squad_missions_card.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -199,7 +200,9 @@ class _HomeContentViewState extends State<HomeContentView>
             final backendUserId = userController.userId.trim();
             final firebaseUid =
                 firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
-            final userKey = backendUserId.isNotEmpty ? backendUserId : firebaseUid;
+            final userKey = backendUserId.isNotEmpty
+                ? backendUserId
+                : firebaseUid;
             if (userKey.isNotEmpty) {
               await prefs.setBool('drop_crate_claimed_$userKey', true);
             }
@@ -218,7 +221,8 @@ class _HomeContentViewState extends State<HomeContentView>
     if (!pending) return;
 
     final backendUserId = userController.userId.trim();
-    final firebaseUid = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
+    final firebaseUid =
+        firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
     final userKey = backendUserId.isNotEmpty ? backendUserId : firebaseUid;
     if (userKey.isEmpty) return;
 
@@ -387,6 +391,10 @@ class _HomeContentViewState extends State<HomeContentView>
                             _cachedMiniGamesSection,
                           ),
                           _buildLazyLoadedSection(
+                            'squadMissions',
+                            const SquadMissionsCard(),
+                          ),
+                          _buildLazyLoadedSection(
                             'referral',
                             _buildReferFriendModal(),
                           ),
@@ -520,6 +528,10 @@ class _HomeContentViewState extends State<HomeContentView>
 
   Widget _buildOptimizedUserAvatar(String? photoUrl) {
     const double size = 40;
+    final effectivePhoto = (photoUrl ?? '').trim().isNotEmpty
+        ? photoUrl!.trim()
+        : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
+              .trim();
 
     return Container(
       width: size,
@@ -530,17 +542,17 @@ class _HomeContentViewState extends State<HomeContentView>
       ),
       child: CircleAvatar(
         radius: size / 2,
-        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+        backgroundImage: effectivePhoto.isNotEmpty
             ? CachedNetworkImageProvider(
-                photoUrl,
+                effectivePhoto,
                 errorListener: (error) =>
                     AppLogger.d('Avatar image error: $error'),
               )
-            : const NetworkImage(
-                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-                  )
-                  as ImageProvider,
+            : null,
         backgroundColor: Colors.white,
+        child: effectivePhoto.isEmpty
+            ? const Icon(Icons.person_rounded, color: Colors.black54)
+            : null,
       ),
     );
   }

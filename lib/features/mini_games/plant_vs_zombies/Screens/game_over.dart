@@ -6,13 +6,14 @@ import '../Utils/audio_player.dart';
 import '../routes.dart';
 
 class GameOver extends StatelessWidget {
-  _playSound() async {
+  Future<void> _playSound() async {
     await AudioPlayer.playSound(Assets.game_over);
   }
 
   @override
   Widget build(BuildContext context) {
-    final int score = ModalRoute.of(context)?.settings.arguments as int;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final int score = args is int ? args : int.tryParse('$args') ?? 0;
     _playSound();
 
     return Material(
@@ -33,7 +34,7 @@ class GameOver extends StatelessWidget {
               ),
               SizedBox(height: 25.0),
               Text(
-                "Score: ${score ?? 0}",
+                "Score: $score",
                 style: GoogleFonts.pressStart2p(
                   fontSize: 20.0,
                   color: Colors.white,

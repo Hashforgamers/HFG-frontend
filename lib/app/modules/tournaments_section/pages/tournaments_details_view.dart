@@ -12,6 +12,7 @@ import 'package:hash/app/modules/tournaments_section/pages/tournaments_register_
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_members_view.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
 import '../../../data/services/user_controller.dart';
 import '../cubit/tournaments_details_cubit.dart';
@@ -788,6 +789,11 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
 
   Widget _buildOptimizedUserAvatar(String? photoUrl) {
     const double size = 40;
+    final effectivePhoto =
+        (photoUrl ?? '').trim().isNotEmpty
+        ? photoUrl!.trim()
+        : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
+              .trim();
     return Container(
       width: size,
       height: size,
@@ -797,14 +803,16 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
       ),
       child: CircleAvatar(
         radius: size / 2,
-        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+        backgroundImage: effectivePhoto.isNotEmpty
             ? CachedNetworkImageProvider(
-                photoUrl,
+                effectivePhoto,
                 errorListener: (error) => AppLogger.d('Avatar error: $error'),
               )
-            : const AssetImage('assets/hash_store_images/tournament_banner.png')
-                  as ImageProvider,
+            : null,
         backgroundColor: Colors.white,
+        child: effectivePhoto.isEmpty
+            ? const Icon(Icons.person_rounded, color: Colors.black54)
+            : null,
       ),
     );
   }
@@ -850,7 +858,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                 child: CircleAvatar(
                   radius: 20,
                   backgroundImage: team.photoUrl.isNotEmpty
-                      ? AssetImage(team.photoUrl)
+                      ? _teamPhotoProvider(team.photoUrl)
                       : const AssetImage(
                               'assets/hash_store_images/team_fallback.png',
                             )
@@ -942,6 +950,14 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
         teamName: team.name,
       ),
     );
+  }
+
+  ImageProvider _teamPhotoProvider(String value) {
+    final photo = value.trim();
+    if (photo.startsWith('http://') || photo.startsWith('https://')) {
+      return CachedNetworkImageProvider(photo);
+    }
+    return AssetImage(photo);
   }
 }
 
@@ -1176,7 +1192,7 @@ class ExpandedTeamListView extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 25,
                   backgroundImage: team.photoUrl.isNotEmpty
-                      ? AssetImage(team.photoUrl)
+                      ? _teamPhotoProvider(team.photoUrl)
                       : const AssetImage(
                               'assets/hash_store_images/team_fallback.png',
                             )
@@ -1251,5 +1267,13 @@ class ExpandedTeamListView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  ImageProvider _teamPhotoProvider(String value) {
+    final photo = value.trim();
+    if (photo.startsWith('http://') || photo.startsWith('https://')) {
+      return CachedNetworkImageProvider(photo);
+    }
+    return AssetImage(photo);
   }
 }

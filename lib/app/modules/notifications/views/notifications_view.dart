@@ -95,10 +95,13 @@ class _NotificationsViewState extends State<NotificationsView> {
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isRead ? Colors.white10 : const Color(0xff00DC00),
-                      width: isRead ? 1 : 1.2,
-                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,7 +163,7 @@ class _NotificationsViewState extends State<NotificationsView> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        createdAt,
+                        _formatNotificationTime(createdAt),
                         style: GoogleFonts.inter(
                           color: Colors.white38,
                           fontSize: 11,
@@ -220,7 +223,10 @@ class _NotificationsViewState extends State<NotificationsView> {
                                       },
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.white,
-                                  side: const BorderSide(color: Colors.white24),
+                                  side: BorderSide.none,
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.08,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -298,5 +304,63 @@ class _NotificationsViewState extends State<NotificationsView> {
         );
       }),
     );
+  }
+
+  String _formatNotificationTime(String raw) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+
+    final local = parsed.toLocal();
+    final now = DateTime.now();
+    final diff = now.difference(local);
+
+    if (diff.inSeconds < 45) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24 &&
+        now.day == local.day &&
+        now.month == local.month &&
+        now.year == local.year) {
+      return '${diff.inHours}h ago';
+    }
+
+    final yesterday = now.subtract(const Duration(days: 1));
+    final time = _formatTwelveHour(local);
+    if (local.day == yesterday.day &&
+        local.month == yesterday.month &&
+        local.year == yesterday.year) {
+      return 'Yesterday, $time';
+    }
+
+    return '${_dayMonth(local)} • $time';
+  }
+
+  String _formatTwelveHour(DateTime dt) {
+    final hour = dt.hour == 0
+        ? 12
+        : dt.hour > 12
+        ? dt.hour - 12
+        : dt.hour;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final suffix = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $suffix';
+  }
+
+  String _dayMonth(DateTime dt) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final month = months[(dt.month - 1).clamp(0, 11)];
+    return '${dt.day} $month';
   }
 }

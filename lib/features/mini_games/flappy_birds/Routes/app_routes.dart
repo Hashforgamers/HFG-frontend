@@ -19,7 +19,7 @@ class AppRoute {
       case Str.settings:
         return MaterialPageRoute(builder: (_) => Settings());
       default:
-        _errorRoute();
+        return _errorRoute();
     }
   }
 

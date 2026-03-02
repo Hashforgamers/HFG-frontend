@@ -2,8 +2,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hash/app/modules/home/views/home_content_view.dart';
-import 'package:hash/features/mini_games/flappy_birds/Layouts/Pages/page_start_screen.dart';
 import 'package:lottie/lottie.dart';
 import '../../Database/database.dart';
 import '../../Global/constant.dart';
@@ -21,6 +19,24 @@ class GamePage extends StatefulWidget {
 }
 
 class _GamePageState extends State<GamePage> {
+  Timer? _movementTimer;
+  Timer? _scoreTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ensure persisted settings/scores are loaded even when opening game directly.
+    init();
+  }
+
+  @override
+  void dispose() {
+    _movementTimer?.cancel();
+    _scoreTimer?.cancel();
+    stopFlappyAudio();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -118,7 +134,8 @@ class _GamePageState extends State<GamePage> {
   //Start Game Function:
   void startGame() {
     gameHasStarted = true;
-    Timer.periodic(Duration(milliseconds: 35), (timer) {
+    _movementTimer?.cancel();
+    _movementTimer = Timer.periodic(Duration(milliseconds: 35), (timer) {
       height = gravity * time * time + velocity * time;
       setState(() {
         yAxis = initialHeight - height;
@@ -140,17 +157,20 @@ class _GamePageState extends State<GamePage> {
       });
       if (birdIsDead()) {
         timer.cancel();
+        _movementTimer = null;
         _showDialog();
       }
       time += 0.032;
     });
     /* <  Calculate Score  > */
-    Timer.periodic(Duration(seconds: 2), (timer) {
+    _scoreTimer?.cancel();
+    _scoreTimer = Timer.periodic(Duration(seconds: 2), (timer) {
       if (birdIsDead()) {
         // Todo : save the top score in the database  <---
         write("score", topScore);
         MiniGameScoreService().recordScore('laggy_bird', topScore);
         timer.cancel();
+        _scoreTimer = null;
         score = 0;
       } else {
         setState(() {
@@ -183,6 +203,10 @@ class _GamePageState extends State<GamePage> {
   }
 
   void resetGame() {
+    _movementTimer?.cancel();
+    _scoreTimer?.cancel();
+    _movementTimer = null;
+    _scoreTimer = null;
     Navigator.pop(context); // dismisses the alert dialog
     setState(() {
       yAxis = 0;
@@ -218,10 +242,11 @@ class _GamePageState extends State<GamePage> {
             gameButton(
               () {
                 resetGame();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => HomeContentView()),
-                );
+                stopFlappyAudio();
+                // Exit to previous screen instead of pushing a nested home view.
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
               },
               "Exit",
               Colors.grey,

@@ -7,6 +7,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
 import '../../data/models/user_model.dart';
 
@@ -148,35 +149,40 @@ class ProfileView extends StatelessWidget {
   }
 
   Widget _buildProfileHeader(User user) {
+    final photoUrl = (user.photoUrl ?? '').trim().isNotEmpty
+        ? (user.photoUrl ?? '').trim()
+        : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
+              .trim();
+    final hasPhoto = photoUrl.isNotEmpty;
     return Column(
       children: [
-        user.photoUrl != null
+        hasPhoto
             ? CircleAvatar(
-          radius: 50,
-          // backgroundImage: const CachedNetworkImageProvider(
-          //   'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png', // Replace with actual profile image URL
-          // ),
-          backgroundImage: CachedNetworkImageProvider(user.photoUrl!),
-        )
+                radius: 50,
+                // backgroundImage: const CachedNetworkImageProvider(
+                //   'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png', // Replace with actual profile image URL
+                // ),
+                backgroundImage: CachedNetworkImageProvider(photoUrl),
+              )
             : Container(
-          width: 100, // radius * 2
-          height: 100, // radius * 2
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.transparent,
-            border: Border.all(
-              color: Color(0xFF7A44C0), // Change border color as needed
-              width: 2.0,
-            ),
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.person_rounded,
-              color: Color(0xFF7A44C0),
-              size: 70,
-            ),
-          ),
-        ),
+                width: 100, // radius * 2
+                height: 100, // radius * 2
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.transparent,
+                  border: Border.all(
+                    color: Color(0xFF7A44C0), // Change border color as needed
+                    width: 2.0,
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.person_rounded,
+                    color: Color(0xFF7A44C0),
+                    size: 70,
+                  ),
+                ),
+              ),
         const SizedBox(height: 20),
         Text(
           user.name!,

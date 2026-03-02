@@ -12,6 +12,7 @@ import 'package:hash/app/modules/notifications/controllers/app_notifications_con
 import 'package:hash/core/service/deeplink_service.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/utils/scroll_behaviour.dart';
@@ -50,6 +51,10 @@ void main() async {
     accentColor: Colors.blueAccent,
   );
 
+  await Hive.initFlutter();
+  if (!Hive.isBoxOpen('user')) {
+    await Hive.openBox('user');
+  }
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Setup service locator first before any controllers that depend on it

@@ -9,6 +9,11 @@ import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/theme/chat_palette.dart';
 import 'package:hash/app/modules/chat/views/chat_group_details_view.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/squad_missions_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
 
 class ChatRoomView extends StatefulWidget {
@@ -22,12 +27,30 @@ class ChatRoomView extends StatefulWidget {
 
 class _ChatRoomViewState extends State<ChatRoomView> {
   final ChatService _chatService = Get.find<ChatService>();
+  final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
+  final SquadMissionsService _squadMissionsService =
+      locator<SquadMissionsService>();
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocus = FocusNode();
-  static const Color _neonGreen = Color(0xff00DC00);
-
   bool _isSending = false;
   bool _isTyping = false;
+  final Set<String> _joiningInviteMessageIds = <String>{};
+  final Map<String, String> _inviteActionStateByMessageId = <String, String>{};
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      _segmentService.onCustomEvent('Chat Room Viewed', {
+        'room_id': widget.roomId,
+      }),
+    );
+    unawaited(
+      _fbEventsService.logEvent('Chat Room Viewed', {'room_id': widget.roomId}),
+    );
+  }
 
   @override
   void dispose() {
@@ -60,6 +83,20 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       _messageController.clear();
       await _chatService.setTyping(roomId: widget.roomId, isTyping: false);
       _isTyping = false;
+      unawaited(
+        _segmentService.onCustomEvent('Chat Message Sent', {
+          'room_id': widget.roomId,
+          'message_length': text.length,
+          'message_type': 'text',
+        }),
+      );
+      unawaited(
+        _fbEventsService.logEvent('Chat Message Sent', {
+          'room_id': widget.roomId,
+          'message_length': text.length,
+          'message_type': 'text',
+        }),
+      );
       Haptics.light();
     } catch (e) {
       if (!mounted) return;
@@ -81,8 +118,12 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     required bool isMine,
     required bool isGroup,
   }) {
+    if (message.type == 'team_invite') {
+      return _buildTeamInviteCard(message: message, isMine: isMine);
+    }
+
     final alignment = isMine ? Alignment.centerRight : Alignment.centerLeft;
-    final bubbleColor = isMine ? Colors.black : ChatPalette.surfaceAlt;
+    final bubbleColor = isMine ? ChatPalette.primary : ChatPalette.surfaceAlt;
     final textColor = isMine ? Colors.white : ChatPalette.textPrimary;
 
     return Align(
@@ -104,7 +145,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             ),
             border: Border.all(
               color: isMine
-                  ? _neonGreen.withValues(alpha: 0.75)
+                  ? Colors.white.withValues(alpha: 0.2)
                   : ChatPalette.border.withValues(alpha: 0.6),
             ),
           ),
@@ -121,7 +162,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      color: _neonGreen,
+                      color: ChatPalette.accent,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -140,7 +181,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 _formatTime(message.createdAt),
                 style: GoogleFonts.inter(
                   color: isMine
-                      ? _neonGreen.withValues(alpha: 0.82)
+                      ? Colors.white.withValues(alpha: 0.85)
                       : ChatPalette.textSecondary,
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
@@ -158,7 +199,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                             : Icons.done_rounded,
                         size: 14,
                         color: message.seenBy.length > 1
-                            ? _neonGreen
+                            ? Colors.white
                             : ChatPalette.textSecondary,
                       ),
                     ],
@@ -169,6 +210,297 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         ),
       ),
     );
+  }
+
+  Widget _buildTeamInviteCard({
+    required ChatMessageModel message,
+    required bool isMine,
+  }) {
+    final meta = _messageMeta(message);
+    final eventId = (meta['event_id'] ?? '').toString().trim();
+    final teamId = (meta['team_id'] ?? '').toString().trim();
+    final teamName = (meta['team_name'] ?? 'Team').toString().trim();
+    final isLoading = _joiningInviteMessageIds.contains(message.id);
+    final actionState = _inviteActionStateByMessageId[message.id];
+    final isInvalid = eventId.isEmpty || teamId.isEmpty;
+
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.86,
+        ),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF171717), Color(0xFF0F0F0F)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isMine
+                  ? Colors.white.withValues(alpha: 0.22)
+                  : ChatPalette.border.withValues(alpha: 0.7),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: ChatPalette.primary.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.groups_rounded,
+                      size: 16,
+                      color: ChatPalette.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Team Invite',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                teamName.isEmpty ? 'Team' : teamName,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isMine
+                    ? 'You shared this invite in chat.'
+                    : 'Tap join to join this team.',
+                style: GoogleFonts.inter(
+                  color: ChatPalette.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _socialProofChip(
+                    icon: Icons.workspace_premium_rounded,
+                    label: 'Team',
+                    color: ChatPalette.accent,
+                  ),
+                  const SizedBox(width: 6),
+                  StreamBuilder<int>(
+                    stream: _squadMissionsService.watchCurrentStreakForSquad(
+                      squadKey: teamId,
+                    ),
+                    builder: (context, snap) {
+                      final streak = snap.data ?? 0;
+                      return _socialProofChip(
+                        icon: Icons.local_fire_department_rounded,
+                        label: '${streak}d Streak',
+                        color: const Color(0xFFFF8A00),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (actionState != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: actionState == 'joined'
+                        ? ChatPalette.success.withValues(alpha: 0.18)
+                        : Colors.redAccent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: actionState == 'joined'
+                          ? ChatPalette.success
+                          : Colors.redAccent,
+                    ),
+                  ),
+                  child: Text(
+                    actionState == 'joined'
+                        ? 'Joined'
+                        : actionState == 'already_member'
+                        ? 'Already in team'
+                        : 'Unable to join',
+                    style: GoogleFonts.inter(
+                      color: actionState == 'joined'
+                          ? ChatPalette.success
+                          : Colors.redAccent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: (isMine || isLoading || isInvalid)
+                        ? null
+                        : () => _joinTeamInvite(
+                            messageId: message.id,
+                            eventId: eventId,
+                            teamId: teamId,
+                          ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ChatPalette.primary,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.white12,
+                      disabledForegroundColor: Colors.white54,
+                      minimumSize: const Size.fromHeight(36),
+                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            isInvalid ? 'Unavailable' : 'Join Team',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                  ),
+                ),
+              const SizedBox(height: 6),
+              Text(
+                _formatTime(message.createdAt),
+                style: GoogleFonts.inter(
+                  color: ChatPalette.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _socialProofChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.32),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Map<String, dynamic> _messageMeta(ChatMessageModel message) {
+    try {
+      final dynamicMessage = message as dynamic;
+      final raw = dynamicMessage.meta;
+      if (raw is Map<String, dynamic>) return raw;
+      if (raw is Map) return Map<String, dynamic>.from(raw);
+    } catch (_) {}
+    return const <String, dynamic>{};
+  }
+
+  Future<void> _joinTeamInvite({
+    required String messageId,
+    required String eventId,
+    required String teamId,
+  }) async {
+    if (_joiningInviteMessageIds.contains(messageId)) return;
+
+    setState(() {
+      _joiningInviteMessageIds.add(messageId);
+    });
+
+    try {
+      final userId = await _chatService.resolveCurrentBackendUserId();
+      if (userId == null || userId <= 0) {
+        throw Exception('Unable to identify your account. Please relogin.');
+      }
+
+      await _remoteRepo.joinEventTeam(
+        eventId: eventId,
+        teamId: teamId,
+        userId: userId,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _inviteActionStateByMessageId[messageId] = 'joined';
+      });
+      Get.snackbar(
+        'Team Joined',
+        'You have joined the team successfully.',
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final error = e.toString().replaceFirst('Exception: ', '');
+      final lowered = error.toLowerCase();
+      setState(() {
+        _inviteActionStateByMessageId[messageId] =
+            lowered.contains('already') || lowered.contains('member')
+            ? 'already_member'
+            : 'failed';
+      });
+      Get.snackbar(
+        'Unable to Join',
+        error,
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _joiningInviteMessageIds.remove(messageId);
+        });
+      }
+    }
   }
 
   Widget _buildComposer() {
@@ -215,7 +547,19 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(22),
-                    borderSide: BorderSide.none,
+                    borderSide: BorderSide(
+                      color: ChatPalette.border.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide(
+                      color: ChatPalette.border.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: const BorderSide(color: ChatPalette.primary),
                   ),
                 ),
               ),
@@ -227,12 +571,14 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: _isSending
+                      ? ChatPalette.surfaceAlt
+                      : ChatPalette.primary,
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: _isSending
-                        ? _neonGreen.withValues(alpha: 0.35)
-                        : _neonGreen,
+                        ? ChatPalette.primary.withValues(alpha: 0.35)
+                        : ChatPalette.primary,
                     width: 1.6,
                   ),
                 ),
@@ -241,10 +587,10 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                         padding: EdgeInsets.all(12.0),
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: _neonGreen,
+                          color: ChatPalette.primary,
                         ),
                       )
-                    : const Icon(Icons.send_rounded, color: _neonGreen),
+                    : const Icon(Icons.send_rounded, color: Colors.white),
               ),
             ),
           ],
@@ -272,9 +618,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             final title = room == null || currentUid == null
                 ? 'Chat'
                 : room.displayTitleFor(currentUid);
-            final typingPeers = room?.typingUserIds
-                    .where((id) => id != currentUid)
-                    .toList() ??
+            final typingPeers =
+                room?.typingUserIds.where((id) => id != currentUid).toList() ??
                 const [];
 
             if (room == null) {
@@ -311,7 +656,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                     subtitle,
                     style: GoogleFonts.inter(
                       color: typingPeers.isNotEmpty
-                          ? _neonGreen
+                          ? ChatPalette.success
                           : ChatPalette.textSecondary,
                       fontSize: 11,
                     ),
@@ -355,9 +700,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                       subtitle,
                       style: GoogleFonts.inter(
                         color: typingPeers.isNotEmpty
-                            ? _neonGreen
+                            ? ChatPalette.success
                             : other?.isOnline == true
-                            ? _neonGreen
+                            ? ChatPalette.success
                             : ChatPalette.textSecondary,
                         fontSize: 11,
                       ),

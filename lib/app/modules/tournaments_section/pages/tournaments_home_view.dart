@@ -9,6 +9,9 @@ import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_memb
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_app_bar.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/core/service/squad_missions_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 import '../../../data/services/user_controller.dart';
 import '../cubit/tournament_home_cubit.dart';
@@ -23,6 +26,8 @@ class TournamentsHomeView extends StatefulWidget {
 
 class _TournamentsHomeViewState extends State<TournamentsHomeView> {
   late final TournamentHomeCubit _cubit;
+  final SquadMissionsService _squadMissionsService =
+      locator<SquadMissionsService>();
 
   final userController = Get.find<UserController>();
 
@@ -55,32 +60,35 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
           slivers: [
             const TournamentsAppBar(),
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: BlocBuilder<TournamentHomeCubit, TournamentHomeState>(
-                  builder: (context, state) {
-                    if (state is TournamentHomeLoading) {
-                      return SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.6,
-                        child: const TournamentsLoader.screen(),
-                      );
-                    } else if (state is TournamentHomeLoaded) {
-                      return _buildBodyContent(
+              child: BlocBuilder<TournamentHomeCubit, TournamentHomeState>(
+                builder: (context, state) {
+                  if (state is TournamentHomeLoading) {
+                    return SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.72,
+                      child: const Center(child: TournamentsLoader.screen()),
+                    );
+                  } else if (state is TournamentHomeLoaded) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 20.0),
+                      child: _buildBodyContent(
                         state.tournaments,
                         state.joinableTournaments,
                         state.myTeams,
-                      );
-                    } else if (state is TournamentHomeError) {
-                      return Center(
+                      ),
+                    );
+                  } else if (state is TournamentHomeError) {
+                    return SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.72,
+                      child: Center(
                         child: Text(
                           'Error: ${state.message}',
                           style: const TextStyle(color: Colors.white70),
                         ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
               ),
             ),
           ],
@@ -205,6 +213,9 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
             final role = (team['role'] ?? '').toString();
             final count = (team['member_count'] ?? 0).toString();
             final roleText = role.isEmpty ? 'Member' : role;
+            final badgeText = roleText.toLowerCase().contains('captain')
+                ? 'Captain'
+                : 'Member';
             return InkWell(
               borderRadius: BorderRadius.circular(14),
               onTap: () {
@@ -231,17 +242,10 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: const Color(0xff00DC00).withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.groups_rounded,
-                        color: Color(0xff00DC00),
-                      ),
+                    _proofAvatar(
+                      seed: teamName,
+                      icon: Icons.groups_rounded,
+                      color: const Color(0xFFFF7A00),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -258,14 +262,33 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            'ID: $teamId',
-                            style: GoogleFonts.inter(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              _proofChip(
+                                label: badgeText,
+                                icon: badgeText == 'Captain'
+                                    ? Icons.verified_rounded
+                                    : Icons.shield_moon_rounded,
+                                color: badgeText == 'Captain'
+                                    ? const Color(0xFFFFB347)
+                                    : Colors.white70,
+                              ),
+                              const SizedBox(width: 6),
+                              StreamBuilder<int>(
+                                stream: _squadMissionsService
+                                    .watchCurrentStreakForSquad(
+                                      squadKey: teamId,
+                                    ),
+                                builder: (context, snap) {
+                                  final streak = snap.data ?? 0;
+                                  return _proofChip(
+                                    label: '${streak}d',
+                                    icon: Icons.local_fire_department_rounded,
+                                    color: const Color(0xFFFF8A00),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -282,7 +305,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
                         border: Border.all(color: Colors.white10),
                       ),
                       child: Text(
-                        '$count • $roleText',
+                        '$count players',
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 11,
@@ -311,6 +334,8 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
     final ImageProvider tournamentImage = imagePath.startsWith('http')
         ? NetworkImage(imagePath)
         : AssetImage(imagePath) as ImageProvider;
+    final topTeams = t.teams.take(3).toList();
+    final topRank = t.teams.isNotEmpty ? t.teams.first.rank : '-';
 
     return GestureDetector(
       onTap: () {
@@ -357,25 +382,37 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
               Positioned(
                 right: 8,
                 bottom: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.65),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    t.entryFee,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                child: Row(
+                  children: [
+                    _proofChip(
+                      label: '#$topRank',
+                      icon: Icons.emoji_events_rounded,
+                      color: const Color(0xFFFFB347),
                     ),
-                  ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        t.entryFee,
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              if (topTeams.isNotEmpty)
+                Positioned(left: 8, bottom: 8, child: _avatarStack(topTeams)),
             ],
           ),
           const SizedBox(height: 12),
@@ -410,6 +447,97 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _avatarStack(List<dynamic> teams) {
+    return SizedBox(
+      width: 68,
+      height: 22,
+      child: Stack(
+        children: List.generate(teams.length, (index) {
+          final team = teams[index];
+          final left = index * 16.0;
+          final photoUrl = (team.photoUrl ?? '').toString();
+          return Positioned(
+            left: left,
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.black, width: 1.2),
+              ),
+              child: CircleAvatar(
+                radius: 11,
+                backgroundImage: photoUrl.startsWith('http')
+                    ? CachedNetworkImageProvider(photoUrl)
+                    : null,
+                backgroundColor: const Color(0xFF2C2C2C),
+                child: photoUrl.startsWith('http')
+                    ? null
+                    : Text(
+                        (team.name.isNotEmpty ? team.name[0] : 'T')
+                            .toUpperCase(),
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _proofAvatar({
+    required String seed,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        gradient: LinearGradient(
+          colors: [color.withValues(alpha: 0.92), color.withValues(alpha: 0.6)],
+        ),
+      ),
+      child: Icon(icon, color: Colors.white, size: 19),
+    );
+  }
+
+  Widget _proofChip({
+    required String label,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 12),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -488,6 +616,10 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
 
   Widget _buildOptimizedUserAvatar(String? photoUrl) {
     const double size = 40;
+    final effectivePhoto = (photoUrl ?? '').trim().isNotEmpty
+        ? photoUrl!.trim()
+        : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
+              .trim();
 
     return Container(
       width: size,
@@ -498,17 +630,17 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
       ),
       child: CircleAvatar(
         radius: size / 2,
-        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+        backgroundImage: effectivePhoto.isNotEmpty
             ? CachedNetworkImageProvider(
-                photoUrl,
+                effectivePhoto,
                 errorListener: (error) =>
                     AppLogger.d('Avatar image error: $error'),
               )
-            : const NetworkImage(
-                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-                  )
-                  as ImageProvider,
+            : null,
         backgroundColor: Colors.white,
+        child: effectivePhoto.isEmpty
+            ? const Icon(Icons.person_rounded, color: Colors.black54)
+            : null,
       ),
     );
   }
@@ -550,7 +682,7 @@ class _TabButton extends StatelessWidget {
 }
 
 class _TabsSection extends StatefulWidget {
-  const _TabsSection({super.key});
+  const _TabsSection();
 
   @override
   State<_TabsSection> createState() => _TabsSectionState();

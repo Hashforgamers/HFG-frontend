@@ -23,6 +23,7 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:intl/intl.dart';
@@ -76,6 +77,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final HomeController homeController = Get.find();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final squadMissionsService = locator<SquadMissionsService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
   final _networkProvider = locator<NetworkProvider>();
   final prefs = locator<SharedPreferences>();
@@ -1184,6 +1186,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         startTime: startTime,
         duration: duration,
       );
+      squadMissionsService.trackAction(action: SquadMissionAction.playSession);
 
       // Update payment stage to done
       _stage.value = PaymentStage.done;

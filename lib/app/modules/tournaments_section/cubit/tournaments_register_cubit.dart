@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +17,7 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
   }
 
   final remoteRepo = locator<RemoteRepoInterface>();
+  final squadMissionsService = locator<SquadMissionsService>();
 
   Future<void> registerTeam({
     required String eventId,
@@ -65,6 +67,14 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
         "payment_reference": paymentReference ?? '',
       };
 
+      await squadMissionsService.setActiveSquad(
+        squadKey: teamId,
+        squadName: teamName.trim(),
+      );
+      squadMissionsService.trackAction(
+        action: SquadMissionAction.joinTournament,
+      );
+
       emit(TournamentsRegisterSuccess(data: result));
     } catch (e) {
       emit(TournamentsRegisterError(message: _cleanError(e)));
@@ -90,6 +100,11 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
         eventId: eventId,
         teamId: teamId.trim(),
         userId: userId,
+      );
+
+      await squadMissionsService.setActiveSquad(squadKey: teamId.trim());
+      squadMissionsService.trackAction(
+        action: SquadMissionAction.joinTournament,
       );
 
       emit(
@@ -124,6 +139,10 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
         eventId: eventId,
         userId: userId,
         teamId: teamId.trim(),
+      );
+      await squadMissionsService.setActiveSquad(squadKey: teamId.trim());
+      squadMissionsService.trackAction(
+        action: SquadMissionAction.joinTournament,
       );
       emit(
         TournamentsRegisterSuccess(

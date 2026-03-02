@@ -6,11 +6,13 @@ import 'package:crypto/crypto.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
@@ -237,12 +239,23 @@ class LoginController extends GetxController {
   Future<void> googleSignIn() async {
     isLoading.value = true;
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: const <String>[
+          'email',
+          'profile',
+          'https://www.googleapis.com/auth/user.birthday.read',
+          'https://www.googleapis.com/auth/user.gender.read',
+          'https://www.googleapis.com/auth/user.addresses.read',
+        ],
+      );
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return; // cancelled
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
+      final googleProfile = await _fetchGooglePeopleProfile(
+        accessToken: googleAuth.accessToken,
+      );
 
       final credential = firebase_auth.GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
@@ -270,13 +283,23 @@ class LoginController extends GetxController {
 
       await _persistSession(
         uid: user.uid,
-        name: user.displayName ?? '',
+        name:
+            (googleProfile['name']?.toString().trim().isNotEmpty ?? false)
+            ? googleProfile['name'].toString()
+            : (user.displayName ?? ''),
         email: user.email ?? '',
-        photoUrl: user.photoURL ?? '',
+        photoUrl:
+            (googleProfile['photoUrl']?.toString().trim().isNotEmpty ?? false)
+            ? googleProfile['photoUrl'].toString()
+            : (user.photoURL ?? ''),
         provider: 'google',
       );
 
-      await _handleUserNavigation(user, autoSignupIfMissing: true);
+      await _handleUserNavigation(
+        user,
+        autoSignupIfMissing: true,
+        googleProfile: googleProfile,
+      );
     } catch (e) {
       _showErrorSnackbar('Google Sign-In failed', e.toString());
     } finally {
@@ -418,11 +441,34 @@ class LoginController extends GetxController {
     firebase_auth.User user, {
     String? phoneNumber,
     bool autoSignupIfMissing = false,
+    Map<String, dynamic>? googleProfile,
   }) async {
     try {
+      final profile = googleProfile ?? const <String, dynamic>{};
+      final fallbackGameUserName = _generateAutoGameUserName(
+        (profile['name'] ?? user.displayName ?? user.email ?? 'Hash Player')
+            .toString(),
+      );
       userController.setGoogleUserData(
-        name: user.displayName ?? '',
-        photoUrl: user.photoURL ?? '',
+        name:
+            (profile['name']?.toString().trim().isNotEmpty ?? false)
+            ? profile['name'].toString()
+            : (user.displayName ?? ''),
+        photoUrl:
+            (profile['photoUrl']?.toString().trim().isNotEmpty ?? false)
+            ? profile['photoUrl'].toString()
+            : (user.photoURL ?? ''),
+        email: user.email ?? '',
+        gameUserName:
+            (profile['gameUserName']?.toString().trim().isNotEmpty ?? false)
+            ? profile['gameUserName'].toString()
+            : fallbackGameUserName,
+        gender: profile['gender']?.toString(),
+        dob: profile['dob']?.toString(),
+        addressLine1: profile['addressLine1']?.toString(),
+        addressLine2: profile['addressLine2']?.toString(),
+        state: profile['state']?.toString(),
+        country: profile['country']?.toString(),
       );
       final userData = await remoteRepo.checkUserExistsInAPI(user.uid);
 
@@ -436,6 +482,7 @@ class LoginController extends GetxController {
         final autoSignupDone = await _attemptAutoSignup(
           user,
           phoneNumber: phoneNumber,
+          googleProfile: profile,
         );
         if (!autoSignupDone) return;
 
@@ -484,32 +531,43 @@ class LoginController extends GetxController {
   Future<bool> _attemptAutoSignup(
     firebase_auth.User user, {
     String? phoneNumber,
+    Map<String, dynamic>? googleProfile,
   }) async {
     try {
+      final profile = googleProfile ?? const <String, dynamic>{};
       final displayName = (user.displayName ?? '').trim();
-      final fallbackName = displayName.isNotEmpty
+      final fallbackName = (profile['name']?.toString().trim().isNotEmpty ??
+              false)
+          ? profile['name'].toString().trim()
+          : displayName.isNotEmpty
           ? displayName
           : ((user.email ?? '').split('@').first.trim().isNotEmpty
                 ? (user.email ?? '').split('@').first.trim()
                 : 'Hash Player');
-      final gameUserName = _generateAutoGameUserName(fallbackName);
+      final gameUserName =
+          (profile['gameUserName']?.toString().trim().isNotEmpty ?? false)
+          ? profile['gameUserName'].toString().trim()
+          : _generateAutoGameUserName(fallbackName);
 
       final userData = {
         "fid": user.uid,
-        "avatar_path": user.photoURL ?? '',
+        "avatar_path":
+            (profile['photoUrl']?.toString().trim().isNotEmpty ?? false)
+            ? profile['photoUrl'].toString().trim()
+            : (user.photoURL ?? ''),
         "name": fallbackName,
-        "gender": "Male",
-        "dob": "",
+        "gender": (profile['gender'] ?? '').toString(),
+        "dob": (profile['dob'] ?? '').toString(),
         "gameUserName": gameUserName,
         "referral_code": "",
         "contact": {
           "physicalAddress": {
             "address_type": "home",
-            "addressLine1": "",
-            "addressLine2": "",
+            "addressLine1": (profile['addressLine1'] ?? '').toString(),
+            "addressLine2": (profile['addressLine2'] ?? '').toString(),
             "pincode": "",
-            "State": "",
-            "Country": "",
+            "State": (profile['state'] ?? '').toString(),
+            "Country": (profile['country'] ?? '').toString(),
             "is_active": true,
           },
           "electronicAddress": {
@@ -521,6 +579,8 @@ class LoginController extends GetxController {
 
       AppLogger.d('🆕 Auto signup started for Google user: ${user.uid}');
       await remoteRepo.signUp(userData);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('new_user_bonus_pending', true);
       AppLogger.d('✅ Auto signup success for Google user: ${user.uid}');
       return true;
     } catch (e) {
@@ -540,6 +600,102 @@ class LoginController extends GetxController {
       );
       return false;
     }
+  }
+
+  Future<Map<String, dynamic>> _fetchGooglePeopleProfile({
+    required String? accessToken,
+  }) async {
+    final token = (accessToken ?? '').trim();
+    if (token.isEmpty) return const <String, dynamic>{};
+
+    try {
+      final dio = locator<NetworkProvider>().noAuth();
+      final response = await dio.get(
+        'https://people.googleapis.com/v1/people/me',
+        queryParameters: {
+          'personFields': 'names,photos,genders,birthdays,addresses,locations',
+        },
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+
+      if (response.statusCode != 200 || response.data is! Map) {
+        return const <String, dynamic>{};
+      }
+
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final names = (data['names'] as List?) ?? const [];
+      final photos = (data['photos'] as List?) ?? const [];
+      final genders = (data['genders'] as List?) ?? const [];
+      final birthdays = (data['birthdays'] as List?) ?? const [];
+      final addresses = (data['addresses'] as List?) ?? const [];
+      final locations = (data['locations'] as List?) ?? const [];
+
+      final firstNameMap = names.isNotEmpty && names.first is Map
+          ? Map<String, dynamic>.from(names.first as Map)
+          : const <String, dynamic>{};
+      final firstPhotoMap = photos.isNotEmpty && photos.first is Map
+          ? Map<String, dynamic>.from(photos.first as Map)
+          : const <String, dynamic>{};
+      final firstGenderMap = genders.isNotEmpty && genders.first is Map
+          ? Map<String, dynamic>.from(genders.first as Map)
+          : const <String, dynamic>{};
+      final firstBirthdayMap = birthdays.isNotEmpty && birthdays.first is Map
+          ? Map<String, dynamic>.from(birthdays.first as Map)
+          : const <String, dynamic>{};
+      final firstAddressMap = addresses.isNotEmpty && addresses.first is Map
+          ? Map<String, dynamic>.from(addresses.first as Map)
+          : const <String, dynamic>{};
+      final firstLocationMap = locations.isNotEmpty && locations.first is Map
+          ? Map<String, dynamic>.from(locations.first as Map)
+          : const <String, dynamic>{};
+
+      final dob = _formatGoogleDob(firstBirthdayMap['date']);
+      final name = (firstNameMap['displayName'] ?? '').toString().trim();
+      final photoUrl = (firstPhotoMap['url'] ?? '').toString().trim();
+      final gender = (firstGenderMap['value'] ?? '').toString().trim();
+
+      final country = (firstAddressMap['country'] ??
+              firstLocationMap['country'] ??
+              '')
+          .toString()
+          .trim();
+      final state = (firstAddressMap['region'] ?? '').toString().trim();
+      final addressLine1 =
+          (firstAddressMap['formattedValue'] ?? '').toString().trim();
+
+      return <String, dynamic>{
+        'name': name,
+        'photoUrl': photoUrl,
+        'gender': gender,
+        'dob': dob,
+        'addressLine1': addressLine1,
+        'addressLine2': '',
+        'state': state,
+        'country': country,
+        'gameUserName': _generateAutoGameUserName(
+          name.isNotEmpty ? name : 'Hash Player',
+        ),
+      };
+    } catch (e) {
+      AppLogger.d('Google People profile fetch skipped: $e');
+      return const <String, dynamic>{};
+    }
+  }
+
+  String _formatGoogleDob(dynamic rawDate) {
+    if (rawDate is! Map) return '';
+    final date = Map<String, dynamic>.from(rawDate);
+    final year = date['year'];
+    final month = date['month'];
+    final day = date['day'];
+    if (year is int && month is int && day is int) {
+      final mm = month.toString().padLeft(2, '0');
+      final dd = day.toString().padLeft(2, '0');
+      return '$year-$mm-$dd';
+    }
+    return '';
   }
 
   String _generateAutoGameUserName(String baseName) {

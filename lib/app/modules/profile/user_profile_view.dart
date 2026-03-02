@@ -194,7 +194,9 @@ class _UserProfileViewState extends State<UserProfileView> {
       }
 
       final user = userController.user.value;
-      final photoUrl = user.photoUrl?.trim() ?? '';
+      final photoUrl = (user.photoUrl?.trim().isNotEmpty ?? false)
+          ? user.photoUrl!.trim()
+          : (FirebaseAuth.instance.currentUser?.photoURL ?? '').trim();
       final hasPhoto = photoUrl.isNotEmpty;
       final name = (user.name ?? '').trim();
       final displayName = name.isEmpty ? 'Hash Player' : name;

@@ -8,6 +8,8 @@ import 'package:hash/app/modules/live/models/live_stream_model.dart';
 import 'package:hash/app/modules/live/services/hash_live_service.dart';
 import 'package:hash/app/modules/live/utils/live_youtube_utils.dart';
 import 'package:hash/app/modules/live/widgets/live_ui.dart';
+import 'package:hash/core/service/squad_missions_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
@@ -27,6 +29,9 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
   YoutubePlayerController? _youtubeController;
   String? _videoId;
   bool _showPlaybackFallback = false;
+  DateTime? _watchStartedAt;
+  final SquadMissionsService _squadMissionsService =
+      locator<SquadMissionsService>();
 
   @override
   void initState() {
@@ -38,6 +43,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
     _controller = Get.isRegistered<HashLiveController>()
         ? Get.find<HashLiveController>()
         : Get.put(HashLiveController(), permanent: true);
+    _watchStartedAt = DateTime.now();
     _service.joinLiveStream(widget.streamId);
   }
 
@@ -57,6 +63,16 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
     WidgetsBinding.instance.removeObserver(this);
     _youtubeController?.dispose();
     _service.leaveLiveStream(widget.streamId);
+    final startedAt = _watchStartedAt;
+    if (startedAt != null) {
+      final watchedMinutes = DateTime.now().difference(startedAt).inMinutes;
+      if (watchedMinutes > 0) {
+        _squadMissionsService.trackAction(
+          action: SquadMissionAction.watchLive,
+          increment: watchedMinutes,
+        );
+      }
+    }
     super.dispose();
   }
 

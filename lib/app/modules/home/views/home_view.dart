@@ -9,6 +9,9 @@ import 'package:hash/app/modules/home/controllers/app_mode_controller.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
 import 'package:hash/app/routes/app_routes.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
 import '../controllers/home_controller.dart';
 
@@ -57,10 +60,25 @@ class _HomeViewState extends State<HomeView> {
       return;
     }
 
-    await Haptics.medium();
-    await chatService.ensureCurrentUserProfile();
+    final segmentService = locator<SegmentSdkService>();
+    final fbEventsService = locator<FbEventsService>();
+    unawaited(
+      segmentService.onCustomEvent('Chat FAB Clicked', {
+        'source': 'home',
+        'unread_room_count': chatService.unreadRoomCount.value,
+      }),
+    );
+    unawaited(
+      fbEventsService.logEvent('Chat FAB Clicked', {
+        'source': 'home',
+        'unread_room_count': chatService.unreadRoomCount.value,
+      }),
+    );
+
+    unawaited(Haptics.medium());
+    unawaited(chatService.ensureCurrentUserProfile());
     if (!mounted) return;
-    await Get.toNamed(AppRoutes.CHAT);
+    Get.toNamed(AppRoutes.CHAT);
   }
 
   @override
@@ -186,36 +204,72 @@ class _HomeViewState extends State<HomeView> {
           return const SizedBox.shrink();
         }
 
-        return FloatingActionButton.extended(
-          heroTag: 'home_chat_fab',
-          isExtended: !_isHomeScrolling,
-          extendedPadding: const EdgeInsets.symmetric(horizontal: 16),
-          backgroundColor: Colors.black,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            side: BorderSide(color: neonGreen, width: 1.6),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(28),
-              topRight: Radius.circular(28),
-              bottomLeft: Radius.circular(28),
-              bottomRight: Radius.circular(0),
+        final unreadCount = chatService.unreadRoomCount.value;
+
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            FloatingActionButton.extended(
+              heroTag: 'home_chat_fab',
+              isExtended: !_isHomeScrolling,
+              extendedPadding: const EdgeInsets.symmetric(horizontal: 16),
+              backgroundColor: Colors.black,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                side: BorderSide(color: neonGreen, width: 1.6),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(28),
+                  topRight: Radius.circular(28),
+                  bottomLeft: Radius.circular(28),
+                  bottomRight: Radius.circular(0),
+                ),
+              ),
+              onPressed: _openChatInbox,
+              icon: Image.asset(
+                'assets/chat.png',
+                width: 20,
+                height: 20,
+                color: neonGreen,
+                fit: BoxFit.contain,
+              ),
+              label: Text(
+                'Chat',
+                style: GoogleFonts.inter(
+                  color: neonGreen,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-          ),
-          onPressed: _openChatInbox,
-          icon: Image.asset(
-            'assets/chat.png',
-            width: 20,
-            height: 20,
-            color: neonGreen,
-            fit: BoxFit.contain,
-          ),
-          label: Text(
-            'Chat',
-            style: GoogleFonts.inter(
-              color: neonGreen,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+            if (unreadCount > 0)
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: Colors.black, width: 1),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    unreadCount > 99 ? '99+' : '$unreadCount',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         );
       }),
 

@@ -72,10 +72,79 @@ class UserController extends GetxController {
   }
 
   /// ✅ Update Google-auth fields only
-  void setGoogleUserData({required String name, required String photoUrl}) {
+  void setGoogleUserData({
+    required String name,
+    required String photoUrl,
+    String? email,
+    String? gameUserName,
+    String? gender,
+    String? dob,
+    String? addressLine1,
+    String? addressLine2,
+    String? state,
+    String? country,
+  }) {
     user.update((val) {
-      val?.name = name;
-      val?.photoUrl = photoUrl;
+      if (val == null) return;
+      val.name = name;
+      val.photoUrl = photoUrl;
+      if ((email ?? '').trim().isNotEmpty) {
+        val.contact ??= Contact(
+          electronicAddress: ElectronicAddress(emailId: '', mobileNo: ''),
+          physicalAddress: PhysicalAddress(
+            country: '',
+            addressLine1: '',
+            addressLine2: '',
+            state: '',
+          ),
+        );
+        val.contact?.electronicAddress ??= ElectronicAddress(
+          emailId: '',
+          mobileNo: '',
+        );
+        val.contact?.electronicAddress?.emailId = email!.trim();
+      }
+      if ((gameUserName ?? '').trim().isNotEmpty) {
+        val.gameUserName = gameUserName!.trim();
+      }
+      if ((gender ?? '').trim().isNotEmpty) {
+        val.gender = gender!.trim();
+      }
+      if ((dob ?? '').trim().isNotEmpty) {
+        val.dob = dob!.trim();
+      }
+      if ((addressLine1 ?? '').trim().isNotEmpty ||
+          (addressLine2 ?? '').trim().isNotEmpty ||
+          (state ?? '').trim().isNotEmpty ||
+          (country ?? '').trim().isNotEmpty) {
+        val.contact ??= Contact(
+          electronicAddress: ElectronicAddress(emailId: '', mobileNo: ''),
+          physicalAddress: PhysicalAddress(
+            country: '',
+            addressLine1: '',
+            addressLine2: '',
+            state: '',
+          ),
+        );
+        val.contact?.physicalAddress ??= PhysicalAddress(
+          country: '',
+          addressLine1: '',
+          addressLine2: '',
+          state: '',
+        );
+        if ((addressLine1 ?? '').trim().isNotEmpty) {
+          val.contact?.physicalAddress?.addressLine1 = addressLine1!.trim();
+        }
+        if ((addressLine2 ?? '').trim().isNotEmpty) {
+          val.contact?.physicalAddress?.addressLine2 = addressLine2!.trim();
+        }
+        if ((state ?? '').trim().isNotEmpty) {
+          val.contact?.physicalAddress?.state = state!.trim();
+        }
+        if ((country ?? '').trim().isNotEmpty) {
+          val.contact?.physicalAddress?.country = country!.trim();
+        }
+      }
     });
   }
 // inside class UserController extends GetxController {

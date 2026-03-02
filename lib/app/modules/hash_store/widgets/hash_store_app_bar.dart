@@ -11,6 +11,7 @@ import 'package:hash/app/modules/profile/user_profile_view.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/core/utils/app_logger.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
 class HashStoreAppBar extends StatelessWidget {
   const HashStoreAppBar({super.key});
@@ -107,6 +108,11 @@ class HashStoreAppBar extends StatelessWidget {
 
   Widget _buildOptimizedUserAvatar(String? photoUrl) {
     const double size = 40;
+    final effectivePhoto =
+        (photoUrl ?? '').trim().isNotEmpty
+        ? photoUrl!.trim()
+        : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
+              .trim();
 
     return Container(
       width: size,
@@ -117,15 +123,16 @@ class HashStoreAppBar extends StatelessWidget {
       ),
       child: CircleAvatar(
         radius: size / 2,
-        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+        backgroundImage: effectivePhoto.isNotEmpty
             ? CachedNetworkImageProvider(
-          photoUrl,
+          effectivePhoto,
           errorListener: (error) => AppLogger.d('Avatar image error: $error'),
         )
-            : const NetworkImage(
-          'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-        ) as ImageProvider,
+            : null,
         backgroundColor: Colors.white,
+        child: effectivePhoto.isEmpty
+            ? const Icon(Icons.person_rounded, color: Colors.black54)
+            : null,
       ),
     );
   }

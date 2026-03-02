@@ -7,6 +7,7 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/global_bottom_sheet_service.dart';
+import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final locator = GetIt.instance;
@@ -25,7 +26,9 @@ Future<void> setupServiceLocator({bool reset = false}) async {
   }
 
   if (!locator.isRegistered<FlutterSecureStorage>()) {
-    locator.registerSingleton<FlutterSecureStorage>(const FlutterSecureStorage());
+    locator.registerSingleton<FlutterSecureStorage>(
+      const FlutterSecureStorage(),
+    );
   }
 
   if (!locator.isRegistered<AuthDataRepository>()) {
@@ -43,7 +46,7 @@ Future<void> setupServiceLocator({bool reset = false}) async {
     locator.unregister<RemoteRepoInterface>();
   }
   locator.registerLazySingleton<RemoteRepoInterface>(
-        () => RemoteRepo(networkProvider: locator<NetworkProvider>()),
+    () => RemoteRepo(networkProvider: locator<NetworkProvider>()),
   );
 
   if (!locator.isRegistered<SegmentSdkService>()) {
@@ -55,6 +58,14 @@ Future<void> setupServiceLocator({bool reset = false}) async {
   }
 
   if (!locator.isRegistered<GlobalBottomSheetService>()) {
-    locator.registerSingleton<GlobalBottomSheetService>(GlobalBottomSheetService());
+    locator.registerSingleton<GlobalBottomSheetService>(
+      GlobalBottomSheetService(),
+    );
+  }
+
+  if (!locator.isRegistered<SquadMissionsService>()) {
+    locator.registerSingleton<SquadMissionsService>(
+      SquadMissionsService(preferences: locator<SharedPreferences>()),
+    );
   }
 }

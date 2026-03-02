@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,7 +10,12 @@ import 'package:hash/app/modules/chat/theme/chat_palette.dart';
 import 'package:hash/app/modules/chat/views/chat_create_group_view.dart';
 import 'package:hash/app/modules/chat/views/chat_room_view.dart';
 import 'package:hash/app/modules/chat/views/chat_user_picker_view.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
 class ChatInboxView extends StatefulWidget {
   const ChatInboxView({super.key});
@@ -19,16 +26,27 @@ class ChatInboxView extends StatefulWidget {
 
 class _ChatInboxViewState extends State<ChatInboxView> {
   final ChatService _chatService = Get.find<ChatService>();
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
   final TextEditingController _searchController = TextEditingController();
   bool _didHandleInitialRoomNavigation = false;
 
   String _query = '';
+  _InboxFilter _selectedFilter = _InboxFilter.all;
 
   @override
   void initState() {
     super.initState();
     _chatService.ensureCurrentUserProfile();
     _searchController.addListener(_handleSearchChanged);
+    unawaited(
+      _segmentService.onCustomEvent('Chat Inbox Viewed', {
+        'source': 'chat_tab',
+      }),
+    );
+    unawaited(
+      _fbEventsService.logEvent('Chat Inbox Viewed', {'source': 'chat_tab'}),
+    );
   }
 
   @override
@@ -98,9 +116,19 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     List<ChatRoomModel> rooms,
     String currentUid,
   ) {
-    if (_query.isEmpty) return rooms;
+    final filteredByType = rooms.where((room) {
+      switch (_selectedFilter) {
+        case _InboxFilter.groups:
+          return room.isGroup;
+        case _InboxFilter.direct:
+          return !room.isGroup;
+        case _InboxFilter.all:
+          return true;
+      }
+    });
+    if (_query.isEmpty) return filteredByType.toList();
 
-    return rooms.where((room) {
+    return filteredByType.where((room) {
       final title = room.displayTitleFor(currentUid).toLowerCase();
       final subtitle = room.subtitleFor(currentUid).toLowerCase();
       return title.contains(_query) || subtitle.contains(_query);
@@ -110,8 +138,6 @@ class _ChatInboxViewState extends State<ChatInboxView> {
   @override
   Widget build(BuildContext context) {
     final currentUid = _chatService.currentUid;
-    const neonGreen = Color(0xff00DC00);
-
     if (currentUid == null) {
       return Scaffold(
         backgroundColor: ChatPalette.bgBottom,
@@ -119,7 +145,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
           backgroundColor: ChatPalette.surface,
           surfaceTintColor: Colors.transparent,
           title: Text(
-            'Chats',
+            'Hash Hub Chats',
             style: GoogleFonts.inter(
               color: ChatPalette.textPrimary,
               fontWeight: FontWeight.w700,
@@ -145,11 +171,11 @@ class _ChatInboxViewState extends State<ChatInboxView> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: Text(
-          'Chats',
+          'Hash Hub Chats',
           style: GoogleFonts.inter(
             color: ChatPalette.textPrimary,
             fontWeight: FontWeight.w700,
-            fontSize: 18,
+            fontSize: 22,
           ),
         ),
         actions: [
@@ -166,36 +192,15 @@ class _ChatInboxViewState extends State<ChatInboxView> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
           Haptics.medium();
           Get.to(() => const ChatUserPickerView());
         },
-        backgroundColor: Colors.black,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: neonGreen, width: 1.6),
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(28),
-            topRight: Radius.circular(28),
-            bottomLeft: Radius.circular(28),
-            bottomRight: Radius.circular(0),
-          ),
-        ),
-        icon: Image.asset(
-          'assets/chat.png',
-          width: 20,
-          height: 20,
-          color: neonGreen,
-          fit: BoxFit.contain,
-        ),
-        label: Text(
-          'New Chat',
-          style: GoogleFonts.inter(
-            color: neonGreen,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        backgroundColor: ChatPalette.primary,
+        elevation: 10,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: const Icon(Icons.add_rounded, size: 30, color: Colors.white),
       ),
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: ChatPalette.pageGradient),
@@ -222,10 +227,34 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                     vertical: 12,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: BorderSide(
+                      color: ChatPalette.border.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: BorderSide(
+                      color: ChatPalette.border.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: const BorderSide(color: ChatPalette.primary),
                   ),
                 ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                children: [
+                  _buildFilterChip(_InboxFilter.all, 'All'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(_InboxFilter.groups, 'Groups'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(_InboxFilter.direct, 'Direct'),
+                ],
               ),
             ),
             Expanded(
@@ -284,6 +313,8 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                       final prefix = title.isEmpty
                           ? 'C'
                           : title[0].toUpperCase();
+                      final hasAvatar = room.imageUrl.trim().startsWith('http');
+                      final badgeText = room.isGroup ? 'GROUP' : 'DIRECT';
 
                       return Material(
                         color: Colors.transparent,
@@ -296,7 +327,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                           child: Ink(
                             decoration: BoxDecoration(
                               gradient: ChatPalette.cardGradient,
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(18),
                               border: Border.all(
                                 color: ChatPalette.border.withValues(
                                   alpha: 0.6,
@@ -306,7 +337,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
-                                vertical: 10,
+                                vertical: 12,
                               ),
                               child: Row(
                                 children: [
@@ -317,21 +348,62 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                       shape: BoxShape.circle,
                                       color: room.isGroup
                                           ? ChatPalette.accent
-                                          : ChatPalette.primaryDark,
+                                          : ChatPalette.primary,
                                     ),
                                     child: Center(
-                                      child: room.isGroup
+                                      child: hasAvatar
+                                          ? CircleAvatar(
+                                              radius: 19,
+                                              backgroundImage:
+                                                  CachedNetworkImageProvider(
+                                                    room.imageUrl.trim(),
+                                                  ),
+                                            )
+                                          : room.isGroup
                                           ? const Icon(
                                               Icons.groups_rounded,
                                               color: Colors.white,
                                               size: 20,
                                             )
-                                          : Text(
-                                              prefix,
-                                              style: GoogleFonts.inter(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
-                                              ),
+                                          : StreamBuilder<ChatUserModel?>(
+                                              stream: _chatService
+                                                  .streamUserById(otherId),
+                                              builder: (context, snap) {
+                                                final photoFromChat =
+                                                    snap.data?.photoUrl
+                                                        .trim() ??
+                                                    '';
+                                                final selfGoogle =
+                                                    (otherId == currentUid
+                                                            ? firebase_auth
+                                                                  .FirebaseAuth
+                                                                  .instance
+                                                                  .currentUser
+                                                                  ?.photoURL
+                                                            : null)
+                                                        ?.trim() ??
+                                                    '';
+                                                final effectivePhoto =
+                                                    photoFromChat.isNotEmpty
+                                                    ? photoFromChat
+                                                    : selfGoogle;
+                                                if (effectivePhoto.isNotEmpty) {
+                                                  return CircleAvatar(
+                                                    radius: 19,
+                                                    backgroundImage:
+                                                        CachedNetworkImageProvider(
+                                                          effectivePhoto,
+                                                        ),
+                                                  );
+                                                }
+                                                return Text(
+                                                  prefix,
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                );
+                                              },
                                             ),
                                     ),
                                   ),
@@ -350,6 +422,13 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
+                                        const SizedBox(height: 3),
+                                        _proofBadge(
+                                          badgeText,
+                                          room.isGroup
+                                              ? ChatPalette.accent
+                                              : ChatPalette.primary,
+                                        ),
                                         const SizedBox(height: 4),
                                         if (room.isGroup)
                                           Text(
@@ -360,19 +439,20 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                             overflow: TextOverflow.ellipsis,
                                             style: GoogleFonts.inter(
                                               color: typingPeers.isNotEmpty
-                                                  ? const Color(0xff00DC00)
+                                                  ? ChatPalette.success
                                                   : ChatPalette.textSecondary,
                                               fontSize: 12,
                                             ),
                                           )
                                         else
                                           StreamBuilder<ChatUserModel?>(
-                                            stream: _chatService
-                                                .streamUserById(otherId),
+                                            stream: _chatService.streamUserById(
+                                              otherId,
+                                            ),
                                             builder: (context, snap) {
                                               final user = snap.data;
-                                              final status = typingPeers
-                                                      .isNotEmpty
+                                              final status =
+                                                  typingPeers.isNotEmpty
                                                   ? 'typing...'
                                                   : user == null
                                                   ? subtitle
@@ -387,9 +467,9 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                                 overflow: TextOverflow.ellipsis,
                                                 style: GoogleFonts.inter(
                                                   color: typingPeers.isNotEmpty
-                                                      ? const Color(0xff00DC00)
+                                                      ? ChatPalette.success
                                                       : user?.isOnline == true
-                                                      ? const Color(0xff00DC00)
+                                                      ? ChatPalette.success
                                                       : ChatPalette
                                                             .textSecondary,
                                                   fontSize: 12,
@@ -409,6 +489,12 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
+                                  const SizedBox(width: 6),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: ChatPalette.textSecondary,
+                                    size: 18,
+                                  ),
                                 ],
                               ),
                             ),
@@ -425,4 +511,53 @@ class _ChatInboxViewState extends State<ChatInboxView> {
       ),
     );
   }
+
+  Widget _buildFilterChip(_InboxFilter filter, String label) {
+    final selected = _selectedFilter == filter;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedFilter = filter),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: selected ? ChatPalette.primary : ChatPalette.surfaceAlt,
+          border: Border.all(
+            color: selected
+                ? Colors.transparent
+                : ChatPalette.border.withValues(alpha: 0.7),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: selected ? Colors.white : ChatPalette.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _proofBadge(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 9.5,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
 }
+
+enum _InboxFilter { all, groups, direct }

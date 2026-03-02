@@ -141,7 +141,17 @@ class _LiveNowCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CircleAvatar(radius: 14, backgroundColor: Color(0xFF00DC00), child: Icon(Icons.person, size: 14, color: Colors.black)),
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundImage:
+                        (item['photo_url'] ?? '').trim().isNotEmpty
+                        ? NetworkImage((item['photo_url'] ?? '').trim())
+                        : null,
+                    backgroundColor: const Color(0xFF00DC00),
+                    child: (item['photo_url'] ?? '').trim().isEmpty
+                        ? const Icon(Icons.person, size: 14, color: Colors.black)
+                        : null,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(

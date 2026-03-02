@@ -82,6 +82,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final type = (message.data['type'] ?? '').toString();
   String title = notif?.title ?? (message.data['title'] ?? '').toString();
   String body = notif?.body ?? (message.data['body'] ?? '').toString();
+  final roomId = (message.data['room_id'] ?? message.data['chat_room_id'] ?? '')
+      .toString()
+      .trim();
   if (type == 'new_notification') {
     if (title.trim().isEmpty) {
       title = 'Team Invite';
@@ -95,6 +98,17 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           : inviteStatus == 'rejected'
           ? 'Your team invite was rejected.'
           : 'You have a new team invite.';
+    }
+  } else if (type == 'chat') {
+    if (title.trim().isEmpty) {
+      title = (message.data['sender_name'] ??
+              message.data['chat_title'] ??
+              'New message')
+          .toString();
+    }
+    if (body.trim().isEmpty) {
+      body = (message.data['message'] ?? message.data['text'] ?? 'New message')
+          .toString();
     }
   }
   if (title.isEmpty && body.isEmpty) return;
@@ -124,7 +138,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         ? message.data['route']!.toString()
         : ((message.data['type']?.toString() == 'new_notification')
               ? AppRoutes.NOTIFICATIONS
-              : ''),
+              : ((message.data['type']?.toString() == 'chat' &&
+                        roomId.isNotEmpty)
+                    ? 'chat:$roomId'
+                    : '')),
   );
 }
 
@@ -242,6 +259,9 @@ class NotificationController extends GetxController {
     String title = (notif?.title ?? (message.data['title'] ?? '')).toString();
     String body = (notif?.body ?? (message.data['body'] ?? '')).toString();
     final type = message.data['type']?.toString() ?? '';
+    final roomId = (message.data['room_id'] ?? message.data['chat_room_id'] ?? '')
+        .toString()
+        .trim();
     if (type == 'new_notification') {
       if (title.trim().isEmpty) {
         title = 'Team Invite';
@@ -255,6 +275,17 @@ class NotificationController extends GetxController {
             : inviteStatus == 'rejected'
             ? 'Your team invite was rejected.'
             : 'You have a new team invite.';
+      }
+    } else if (type == 'chat') {
+      if (title.trim().isEmpty) {
+        title = (message.data['sender_name'] ??
+                message.data['chat_title'] ??
+                'New message')
+            .toString();
+      }
+      if (body.trim().isEmpty) {
+        body = (message.data['message'] ?? message.data['text'] ?? 'New message')
+            .toString();
       }
     }
     final channelId = _channelIdFromType(type);
@@ -292,7 +323,9 @@ class NotificationController extends GetxController {
 
     final payload = (message.data['route']?.toString().isNotEmpty == true)
         ? message.data['route']!.toString()
-        : (type == 'new_notification' ? AppRoutes.NOTIFICATIONS : '');
+        : (type == 'new_notification'
+              ? AppRoutes.NOTIFICATIONS
+              : (type == 'chat' && roomId.isNotEmpty ? 'chat:$roomId' : ''));
     final dedupeKey = _notificationDedupeKey(message, title: title, body: body);
     if (dedupeKey.isNotEmpty && _shownNotificationKeys.contains(dedupeKey)) {
       return;
@@ -340,6 +373,10 @@ class NotificationController extends GetxController {
 
     if (payload.startsWith('chat:')) {
       final roomId = payload.replaceFirst('chat:', '').trim();
+      segmentService.onPushNotificationClicked(
+        campaignId: 'chat',
+        screenTarget: payload,
+      );
       if (roomId.isNotEmpty) {
         Get.toNamed(AppRoutes.CHAT, arguments: {'roomId': roomId});
       } else {
@@ -369,14 +406,35 @@ class NotificationController extends GetxController {
   void _handleMessageNavigation(RemoteMessage message) {
     final route = message.data['route'];
     final type = message.data['type']?.toString() ?? '';
+    final roomId = (message.data['room_id'] ?? message.data['chat_room_id'] ?? '')
+        .toString()
+        .trim();
 
     if (type == 'new_notification') {
+      segmentService.onPushNotificationClicked(
+        campaignId: message.data['campaign_id'] ?? type,
+        screenTarget: AppRoutes.NOTIFICATIONS,
+      );
       if (Get.isRegistered<AppNotificationsController>()) {
         Get.find<AppNotificationsController>().onPushNotificationData(
           message.data,
         );
       }
       Get.toNamed(AppRoutes.NOTIFICATIONS, arguments: message.data);
+      return;
+    }
+
+    if (type == 'chat') {
+      final target = roomId.isNotEmpty ? 'chat:$roomId' : AppRoutes.CHAT;
+      segmentService.onPushNotificationClicked(
+        campaignId: message.data['campaign_id'] ?? type,
+        screenTarget: target,
+      );
+      if (roomId.isNotEmpty) {
+        Get.toNamed(AppRoutes.CHAT, arguments: {'roomId': roomId});
+      } else {
+        Get.toNamed(AppRoutes.CHAT);
+      }
       return;
     }
 

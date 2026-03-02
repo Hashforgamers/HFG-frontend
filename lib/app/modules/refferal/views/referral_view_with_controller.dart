@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/service/squad_missions_service.dart';
 
 class ReferralViewWithController extends StatefulWidget {
   final String email;
@@ -27,6 +28,7 @@ class _ReferralViewWithControllerState
   final controller = Get.put(ReferralController());
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final squadMissionsService = locator<SquadMissionsService>();
   final Color _green = const Color(0xff00DC00);
   final Color _darkCard = const Color(0xFF0F1510);
   final Color _darkCardAlt = const Color(0xFF141E16);
@@ -215,6 +217,7 @@ class _ReferralViewWithControllerState
       referralCode: referralCode,
       channel: 'share',
     );
+    squadMissionsService.trackAction(action: SquadMissionAction.referFriend);
 
     SharePlus.instance.share(
       ShareParams(
@@ -608,11 +611,7 @@ class _ReferralViewWithControllerState
               Text('Your Vouchers', style: _heading.copyWith(fontSize: 16)),
               Obx(
                 () => controller.isLoadingVouchers.value
-                    ? SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: AppLinearLoader(),
-                      )
+                    ? SizedBox(height: 16, width: 16, child: AppLinearLoader())
                     : GestureDetector(
                         onTap: () => controller.getVoucher(),
                         child: Icon(Icons.refresh, color: _green, size: 20),
