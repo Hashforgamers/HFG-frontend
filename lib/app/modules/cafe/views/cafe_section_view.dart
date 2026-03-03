@@ -80,7 +80,6 @@ class _CafeSectionState extends State<CafeSection> {
 
   final loc.Location _loc = loc.Location();
   double? _userLat, _userLng;
-  bool _hasLocationPermission = false;
   static const _avgCitySpeedKmph = 25; // for ETA calc
 
   String selectedLabel = '';
@@ -130,7 +129,6 @@ class _CafeSectionState extends State<CafeSection> {
 
       if (!mounted) return;
       setState(() {
-        _hasLocationPermission = true;
         _userLat = lat;
         _userLng = lng;
       });
@@ -251,19 +249,56 @@ class _CafeSectionState extends State<CafeSection> {
     return _isCurrentlyOpen(cafe);
   }
 
-  String _openCloseLabel(Map<String, dynamic> cafe) {
-    final openNow = _isShopOpen(cafe);
-    final opening = cafe['opening_time']?.toString() ?? '';
-    final closing = cafe['closing_time']?.toString() ?? '';
-    final hasHours = opening.isNotEmpty && closing.isNotEmpty;
-    final openDisp = hasHours ? _formatTimeForDisplay(opening) : '';
-    final closeDisp = hasHours ? _formatTimeForDisplay(closing) : '';
+  List<Map<String, dynamic>> _sortedCafesByNearest(List<dynamic> raw) {
+    final cafes = raw.cast<Map<String, dynamic>>().toList();
+    if (_userLat == null || _userLng == null) return cafes;
 
-    if (openNow) {
-      return hasHours ? closeDisp : 'Open';
-    } else {
-      return hasHours ? openDisp : 'Closed';
-    }
+    cafes.sort((a, b) {
+      final aLat = _cafeLat(a);
+      final aLng = _cafeLng(a);
+      final bLat = _cafeLat(b);
+      final bLng = _cafeLng(b);
+
+      final aDist = (aLat == null || aLng == null)
+          ? double.infinity
+          : _haversineKm(_userLat!, _userLng!, aLat, aLng);
+      final bDist = (bLat == null || bLng == null)
+          ? double.infinity
+          : _haversineKm(_userLat!, _userLng!, bLat, bLng);
+      return aDist.compareTo(bDist);
+    });
+
+    return cafes;
+  }
+
+  double? _nearestDistanceKm(List<Map<String, dynamic>> cafes) {
+    if (_userLat == null || _userLng == null || cafes.isEmpty) return null;
+    final first = cafes.first;
+    final lat = _cafeLat(first);
+    final lng = _cafeLng(first);
+    if (lat == null || lng == null) return null;
+    return _haversineKm(_userLat!, _userLng!, lat, lng);
+  }
+
+  Widget _comingSoonNearYouBanner() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xffFF8A1F).withValues(alpha: 0.14),
+        border: Border.all(color: const Color(0xffFF8A1F).withValues(alpha: 0.45)),
+      ),
+      child: Text(
+        'Coming Soon Near You',
+        style: GoogleFonts.inter(
+          color: const Color(0xffFFAE5C),
+          fontWeight: FontWeight.w700,
+          fontSize: 12.5,
+        ),
+      ),
+    );
   }
 
   @override
@@ -308,7 +343,6 @@ class _CafeSectionState extends State<CafeSection> {
             ),
           ],
         ),
-
         Obx(() {
           if (widget._cafeController.isLoading.value) {
             return SizedBox(
@@ -347,19 +381,28 @@ class _CafeSectionState extends State<CafeSection> {
               ),
             );
           }
+          final sortedCafes = _sortedCafesByNearest(
+            widget._cafeController.cybercafes,
+          );
+          final nearestKm = _nearestDistanceKm(sortedCafes);
+          final showComingSoon = nearestKm != null && nearestKm > 20;
           final double cardWidth = MediaQuery.of(context).size.width - 30;
 
-          return SizedBox(
-            height: 230,
-            width: MediaQuery.of(context).size.width,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.symmetric(vertical: 16),
-              itemCount: widget._cafeController.cybercafes.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 20),
-              itemBuilder: (context, index) {
-                final cafe = widget._cafeController.cybercafes[index];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showComingSoon) _comingSoonNearYouBanner(),
+              SizedBox(
+                height: 230,
+                width: MediaQuery.of(context).size.width,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  itemCount: sortedCafes.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 20),
+                  itemBuilder: (context, index) {
+                    final cafe = sortedCafes[index];
                 final images = cafe['images'];
                 String imageUrl =
                     'https://next-level.gg/assets/cafes/11.jpg'; // Fallback image
@@ -386,7 +429,6 @@ class _CafeSectionState extends State<CafeSection> {
                   imageUrl = 'https://next-level.gg/assets/cafes/11.jpg';
                 }
                 final isOpen = _isShopOpen(cafe);
-                final openLabel = _openCloseLabel(cafe);
 
                 // Distance + ETA
                 double? km;
@@ -402,8 +444,7 @@ class _CafeSectionState extends State<CafeSection> {
                       ? (km / _avgCitySpeedKmph * 60).round()
                       : null;
                 }
-                return BounceTap(
-                  onTap: () {
+                void openCafeDetails() {
                     // Track gaming cafe viewed event
                     final cafeId = cafe['vendor_id']?.toString() ?? '';
                     final cafeName =
@@ -477,7 +518,10 @@ class _CafeSectionState extends State<CafeSection> {
                         vendorId: cafe['vendor_id'],
                       ),
                     );
-                  },
+                }
+
+                return BounceTap(
+                  onTap: openCafeDetails,
                   child: Container(
                     width: cardWidth,
                     decoration: BoxDecoration(
@@ -635,18 +679,119 @@ class _CafeSectionState extends State<CafeSection> {
                                         ),
                                       ],
                                     ),
+                                    if (index == 0) ...[
+                                      const SizedBox(height: 8),
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(
+                                              0xff00DC00,
+                                            ).withValues(alpha: 0.9),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'Filling Fast',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.black,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
                             ),
                           ),
                         ),
+                        Positioned(
+                          left: 12,
+                          right: 12,
+                          bottom: 12,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: SizedBox(
+                                  height: 38,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(
+                                        sigmaX: 8,
+                                        sigmaY: 8,
+                                      ),
+                                      child: OutlinedButton(
+                                        onPressed: openCafeDetails,
+                                        style: OutlinedButton.styleFrom(
+                                          backgroundColor: const Color(
+                                            0xff00DC00,
+                                          ).withValues(alpha: 0.22),
+                                          foregroundColor: const Color(
+                                            0xff00DC00,
+                                          ),
+                                          side: const BorderSide(
+                                            color: Color(0xff00DC00),
+                                            width: 1.2,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Book Now',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 9,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xffFF8A1F).withValues(
+                                    alpha: 0.9,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '₹30 Credit',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 );
-              },
-            ),
+                  },
+                ),
+              ),
+            ],
           );
         }),
       ],

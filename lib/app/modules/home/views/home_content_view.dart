@@ -380,11 +380,11 @@ class _HomeContentViewState extends State<HomeContentView>
                       children: [
                         const SizedBox(height: _sectionGap), // top padding
                         ..._intersperse([
+                          _buildLazyLoadedSection('cafe', _cachedCafeSection),
                           _buildLazyLoadedSection(
                             'gamePass',
                             _buildGamePassContainer(),
                           ),
-                          _buildLazyLoadedSection('cafe', _cachedCafeSection),
                           _cachedSupportSection,
                           _buildLazyLoadedSection(
                             'miniGames',
