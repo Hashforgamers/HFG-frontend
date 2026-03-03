@@ -42,8 +42,9 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     getRatingBool();
     _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ctr.fetchUserBookings().then((_){
-        if(!hasRated && ctr.userBookings.isNotEmpty){
+      ctr.fetchUserBookings().then((_) {
+        if (!mounted) return;
+        if (!hasRated && ctr.userBookings.isNotEmpty) {
           _maybeShowRatingDialogIfPending();
         }
       });
@@ -112,45 +113,44 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
   }
 
   void _maybeShowRatingDialogIfPending() {
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              backgroundColor: const Color(0xff404040),
-              title: const Text(
-                  "Enjoying our app?", style: TextStyle(color: Colors.white)),
-              content: const Text(
-                  "We’d love your feedback! Please rate us on the Play Store.",
-                  style: TextStyle(color: Colors.white)),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context)
-                        .pop(); // "Maybe later" – do NOT set hasRatedApp
-                    // Next successful payment will set ratePromptPending again.
-                  },
-                  child: const Text(
-                      "Maybe Later", style: TextStyle(color: Colors.white)),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    await prefs.setBool(
-                        'hasRatedApp', true); // never show again
-                    final InAppReview inAppReview = InAppReview.instance;
-                    await inAppReview.openStoreListing();
-                  },
-                  child: const Text(
-                      "Rate Us", style: TextStyle(color: const Color(0xff00DC00))),
-                ),
-              ],
-            );
-          },
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16)),
+          backgroundColor: const Color(0xff404040),
+          title: const Text(
+              "Enjoying our app?", style: TextStyle(color: Colors.white)),
+          content: const Text(
+              "We’d love your feedback! Please rate us on the Play Store.",
+              style: TextStyle(color: Colors.white)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context)
+                    .pop(); // "Maybe later" – do NOT set hasRatedApp
+                // Next successful payment will set ratePromptPending again.
+              },
+              child: const Text(
+                  "Maybe Later", style: TextStyle(color: Colors.white)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await prefs.setBool(
+                    'hasRatedApp', true); // never show again
+                final InAppReview inAppReview = InAppReview.instance;
+                await inAppReview.openStoreListing();
+              },
+              child: const Text(
+                  "Rate Us", style: TextStyle(color: const Color(0xff00DC00))),
+            ),
+          ],
         );
-      }
+      },
+    );
   }
 
   void _showRatingDialog() {

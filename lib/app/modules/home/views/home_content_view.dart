@@ -151,6 +151,18 @@ class _HomeContentViewState extends State<HomeContentView>
   }
 
   void _initializeData() {
+    _sectionVisibility.addAll({
+      'cafe': true,
+      'gamePass': true,
+      'support': true,
+      'miniGames': false,
+      'squadMissions': false,
+      'referral': false,
+      'shorts': false,
+      'news': false,
+      'games': false,
+      'gameOnIndia': false,
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _refreshData();
@@ -169,12 +181,24 @@ class _HomeContentViewState extends State<HomeContentView>
     final position = _scrollController.position;
     final maxScroll = position.maxScrollExtent;
     final currentScroll = position.pixels;
+    bool changed = false;
 
-    final wasSeen = _sectionVisibility['shorts'] ?? false;
-    if (currentScroll > maxScroll * 0.7 && !wasSeen) {
-      _sectionVisibility['shorts'] = true;
-      if (!mounted) return;
-      setState(() {}); // guarded
+    void reveal(String key) {
+      if (_sectionVisibility[key] == true) return;
+      _sectionVisibility[key] = true;
+      changed = true;
+    }
+
+    if (currentScroll > maxScroll * 0.15) reveal('miniGames');
+    if (currentScroll > maxScroll * 0.30) reveal('squadMissions');
+    if (currentScroll > maxScroll * 0.45) reveal('referral');
+    if (currentScroll > maxScroll * 0.60) reveal('shorts');
+    if (currentScroll > maxScroll * 0.72) reveal('news');
+    if (currentScroll > maxScroll * 0.82) reveal('games');
+    if (currentScroll > maxScroll * 0.90) reveal('gameOnIndia');
+
+    if (changed && mounted) {
+      setState(() {});
     }
   }
 
@@ -385,7 +409,10 @@ class _HomeContentViewState extends State<HomeContentView>
                             'gamePass',
                             _buildGamePassContainer(),
                           ),
-                          _cachedSupportSection,
+                          _buildLazyLoadedSection(
+                            'support',
+                            _cachedSupportSection,
+                          ),
                           _buildLazyLoadedSection(
                             'miniGames',
                             _cachedMiniGamesSection,
@@ -424,7 +451,7 @@ class _HomeContentViewState extends State<HomeContentView>
 
   Widget _buildLazyLoadedSection(String sectionKey, Widget child) {
     // Initialize visibility map if not exists
-    _sectionVisibility[sectionKey] ??= true;
+    _sectionVisibility[sectionKey] ??= false;
 
     if (!_sectionVisibility[sectionKey]!) {
       return const SizedBox.shrink();

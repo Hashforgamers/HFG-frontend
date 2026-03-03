@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
@@ -86,11 +87,45 @@ class _ArenaViewState extends State<ArenaView> {
     return t;
   }
 
+  List<Map<String, dynamic>> _sortCafesByDistance(
+    List<Map<String, dynamic>> cafes,
+  ) {
+    if (_userLatLng == null) return cafes;
+    final sorted = List<Map<String, dynamic>>.from(cafes);
+    sorted.sort((a, b) {
+      final aPos = _latLngFromCafe(a);
+      final bPos = _latLngFromCafe(b);
+      final aDist = aPos == null
+          ? double.infinity
+          : _distanceInKm(_userLatLng!, aPos);
+      final bDist = bPos == null
+          ? double.infinity
+          : _distanceInKm(_userLatLng!, bPos);
+      return aDist.compareTo(bDist);
+    });
+    return sorted;
+  }
+
+  double _distanceInKm(LatLng from, LatLng to) {
+    const earthRadiusKm = 6371.0;
+    final dLat = _toRadians(to.latitude - from.latitude);
+    final dLon = _toRadians(to.longitude - from.longitude);
+    final a =
+        (sin(dLat / 2) * sin(dLat / 2)) +
+        cos(_toRadians(from.latitude)) *
+            cos(_toRadians(to.latitude)) *
+            (sin(dLon / 2) * sin(dLon / 2));
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadiusKm * c;
+  }
+
+  double _toRadians(double degree) => degree * (pi / 180.0);
+
   void _filterCafesByState() {
     final user = _normState(_userState);
     if (user.isEmpty) {
       _filteredCafes.assignAll(
-        _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
+        _sortCafesByDistance(_cafeCtr.cybercafes.cast<Map<String, dynamic>>()),
       );
       return;
     }
@@ -98,7 +133,9 @@ class _ArenaViewState extends State<ArenaView> {
       final cafeState = _normState(c['address']?['state']);
       return cafeState == user;
     }).toList();
-    _filteredCafes.assignAll(filtered.cast<Map<String, dynamic>>());
+    _filteredCafes.assignAll(
+      _sortCafesByDistance(filtered.cast<Map<String, dynamic>>()),
+    );
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -494,7 +531,7 @@ class _ArenaViewState extends State<ArenaView> {
   void _applyCafeFilterAndRefresh() {
     if (_showingAllCafes.value || _userState == null || _userState!.isEmpty) {
       _filteredCafes.assignAll(
-        _cafeCtr.cybercafes.cast<Map<String, dynamic>>(),
+        _sortCafesByDistance(_cafeCtr.cybercafes.cast<Map<String, dynamic>>()),
       );
     } else {
       _filterCafesByState();
