@@ -9,6 +9,9 @@ import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/tournaments_section/cubit/tournament_team_members_cubit.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:share_plus/share_plus.dart';
 
 class TournamentsTeamMembersView extends StatefulWidget {
@@ -35,6 +38,8 @@ class _TournamentsTeamMembersViewState
   late String _teamName;
   int? _currentUserId;
   ChatService get _chatService => Get.find<ChatService>();
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
 
   @override
   void initState() {
@@ -964,6 +969,25 @@ class _TournamentsTeamMembersViewState
                                                       eventId: widget.eventId,
                                                       teamId: widget.teamId,
                                                     );
+                                                    _segmentService
+                                                        .onCustomEvent(
+                                                          'Friend Invited',
+                                                          {
+                                                            'inviter_user_id':
+                                                                inviterUserId,
+                                                            'target_user_id':
+                                                                memberId
+                                                                    .toString(),
+                                                            'channel':
+                                                                'team_invite',
+                                                          },
+                                                        );
+                                                    _fbEventsService
+                                                        .onFriendInvited(
+                                                          targetUserId: memberId
+                                                              .toString(),
+                                                          source: 'team_invite',
+                                                        );
                                                     ScaffoldMessenger.of(
                                                       this.context,
                                                     ).showSnackBar(

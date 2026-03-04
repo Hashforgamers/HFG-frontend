@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hash/app/modules/live/views/live_stream_screen.dart';
 import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
 import 'package:hash/app/routes/app_routes.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/firebase_options.dart';
@@ -101,10 +102,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
   } else if (type == 'chat') {
     if (title.trim().isEmpty) {
-      title = (message.data['sender_name'] ??
-              message.data['chat_title'] ??
-              'New message')
-          .toString();
+      title =
+          (message.data['sender_name'] ??
+                  message.data['chat_title'] ??
+                  'New message')
+              .toString();
     }
     if (body.trim().isEmpty) {
       body = (message.data['message'] ?? message.data['text'] ?? 'New message')
@@ -150,6 +152,7 @@ class NotificationController extends GetxController {
   final FlutterLocalNotificationsPlugin _fln =
       FlutterLocalNotificationsPlugin();
   final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
   RxString fcmToken = ''.obs;
   final Set<String> _shownNotificationKeys = <String>{};
@@ -232,6 +235,8 @@ class NotificationController extends GetxController {
       final token = await _fm.getToken();
       if (token != null && token.isNotEmpty) {
         fcmToken.value = token;
+        await _fm.subscribeToTopic('mira_road_users');
+        print("Subscribed to mira_road_users");
         // Send to backend / analytics here
         // segmentService.identifyPushToken(token: token);
       }
@@ -259,9 +264,10 @@ class NotificationController extends GetxController {
     String title = (notif?.title ?? (message.data['title'] ?? '')).toString();
     String body = (notif?.body ?? (message.data['body'] ?? '')).toString();
     final type = message.data['type']?.toString() ?? '';
-    final roomId = (message.data['room_id'] ?? message.data['chat_room_id'] ?? '')
-        .toString()
-        .trim();
+    final roomId =
+        (message.data['room_id'] ?? message.data['chat_room_id'] ?? '')
+            .toString()
+            .trim();
     if (type == 'new_notification') {
       if (title.trim().isEmpty) {
         title = 'Team Invite';
@@ -278,14 +284,16 @@ class NotificationController extends GetxController {
       }
     } else if (type == 'chat') {
       if (title.trim().isEmpty) {
-        title = (message.data['sender_name'] ??
-                message.data['chat_title'] ??
-                'New message')
-            .toString();
+        title =
+            (message.data['sender_name'] ??
+                    message.data['chat_title'] ??
+                    'New message')
+                .toString();
       }
       if (body.trim().isEmpty) {
-        body = (message.data['message'] ?? message.data['text'] ?? 'New message')
-            .toString();
+        body =
+            (message.data['message'] ?? message.data['text'] ?? 'New message')
+                .toString();
       }
     }
     final channelId = _channelIdFromType(type);
@@ -299,6 +307,10 @@ class NotificationController extends GetxController {
 
     // Track receipt
     segmentService.onPushNotificationReceived(
+      title: title,
+      campaignId: message.data['campaign_id'] ?? '',
+    );
+    fbEventsService.onPushNotificationReceived(
       title: title,
       campaignId: message.data['campaign_id'] ?? '',
     );
@@ -370,10 +382,23 @@ class NotificationController extends GetxController {
 
   Future<void> _onSelectNotification(String? payload) async {
     if (payload == null || payload.isEmpty) return;
+    final actionId = payload.hashCode.toString();
+    segmentService.onCustomEvent('Notification Action Taken', {
+      'notification_id': actionId,
+      'action': 'tap',
+    });
+    fbEventsService.onNotificationActionTaken(
+      notificationId: actionId,
+      action: 'tap',
+    );
 
     if (payload.startsWith('chat:')) {
       final roomId = payload.replaceFirst('chat:', '').trim();
       segmentService.onPushNotificationClicked(
+        campaignId: 'chat',
+        screenTarget: payload,
+      );
+      fbEventsService.onPushNotificationClicked(
         campaignId: 'chat',
         screenTarget: payload,
       );
@@ -397,6 +422,10 @@ class NotificationController extends GetxController {
       campaignId: '',
       screenTarget: payload,
     );
+    fbEventsService.onPushNotificationClicked(
+      campaignId: '',
+      screenTarget: payload,
+    );
 
     if (payload.startsWith('/')) {
       Get.toNamed(payload);
@@ -406,12 +435,17 @@ class NotificationController extends GetxController {
   void _handleMessageNavigation(RemoteMessage message) {
     final route = message.data['route'];
     final type = message.data['type']?.toString() ?? '';
-    final roomId = (message.data['room_id'] ?? message.data['chat_room_id'] ?? '')
-        .toString()
-        .trim();
+    final roomId =
+        (message.data['room_id'] ?? message.data['chat_room_id'] ?? '')
+            .toString()
+            .trim();
 
     if (type == 'new_notification') {
       segmentService.onPushNotificationClicked(
+        campaignId: message.data['campaign_id'] ?? type,
+        screenTarget: AppRoutes.NOTIFICATIONS,
+      );
+      fbEventsService.onPushNotificationClicked(
         campaignId: message.data['campaign_id'] ?? type,
         screenTarget: AppRoutes.NOTIFICATIONS,
       );
@@ -430,6 +464,10 @@ class NotificationController extends GetxController {
         campaignId: message.data['campaign_id'] ?? type,
         screenTarget: target,
       );
+      fbEventsService.onPushNotificationClicked(
+        campaignId: message.data['campaign_id'] ?? type,
+        screenTarget: target,
+      );
       if (roomId.isNotEmpty) {
         Get.toNamed(AppRoutes.CHAT, arguments: {'roomId': roomId});
       } else {
@@ -440,6 +478,10 @@ class NotificationController extends GetxController {
 
     if (route is String && route.isNotEmpty) {
       segmentService.onPushNotificationClicked(
+        campaignId: message.data['campaign_id'] ?? '',
+        screenTarget: route,
+      );
+      fbEventsService.onPushNotificationClicked(
         campaignId: message.data['campaign_id'] ?? '',
         screenTarget: route,
       );

@@ -288,15 +288,13 @@ class _HomeViewState extends State<HomeView> {
               enableFeedback: true,
               currentIndex: controller.selectedIndex.value,
               onTap: (index) {
-                if (!controller.isScreenTransitioning.value) {
-                  if (index == 2 && HomeController.isHashShopReleased) {
-                    if (!isShopMenuOpen) {
-                      Haptics.medium();
-                    }
-                    shopController.setShopMenuIndex(0);
+                if (index == 2 && HomeController.isHashShopReleased) {
+                  if (!isShopMenuOpen) {
+                    Haptics.medium();
                   }
-                  controller.onItemTapped(index);
+                  shopController.setShopMenuIndex(0);
                 }
+                controller.onItemTapped(index);
               },
               selectedFontSize: 0,
               unselectedFontSize: 0,

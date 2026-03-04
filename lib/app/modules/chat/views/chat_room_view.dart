@@ -50,6 +50,18 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     unawaited(
       _fbEventsService.logEvent('Chat Room Viewed', {'room_id': widget.roomId}),
     );
+    unawaited(
+      _segmentService.onCustomEvent('Chat Started', {
+        'chat_type': 'room_open',
+        'room_id': widget.roomId,
+      }),
+    );
+    unawaited(
+      _fbEventsService.onChatStarted(
+        chatType: 'room_open',
+        roomId: widget.roomId,
+      ),
+    );
   }
 
   @override
@@ -96,6 +108,12 @@ class _ChatRoomViewState extends State<ChatRoomView> {
           'message_length': text.length,
           'message_type': 'text',
         }),
+      );
+      unawaited(
+        _fbEventsService.onChatMessageSent(
+          roomId: widget.roomId,
+          messageType: 'text',
+        ),
       );
       Haptics.light();
     } catch (e) {

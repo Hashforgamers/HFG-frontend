@@ -88,6 +88,7 @@ dependencies:
   encrypt: ^5.0.1
   package_info_plus: ^8.0.0
   firebase_remote_config: ^5.0.5
+  firebase_analytics: ^11.6.0
   in_app_update: ^4.2.3
   sign_in_with_apple: ^7.0.1
   crypto: ^3.0.6

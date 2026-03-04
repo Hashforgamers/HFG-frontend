@@ -3,11 +3,15 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppNotificationsController extends GetxController {
   final RemoteRepoInterface remoteRepo = locator<RemoteRepoInterface>();
+  final SegmentSdkService segmentService = locator<SegmentSdkService>();
+  final FbEventsService fbEventsService = locator<FbEventsService>();
   Timer? _pollTimer;
 
   final RxList<Map<String, dynamic>> notifications =
@@ -21,6 +25,9 @@ class AppNotificationsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    segmentService.onCustomEvent('Notifications List Viewed', {
+      'source': 'notifications_page',
+    });
     refreshNotifications(silent: true);
     _pollTimer = Timer.periodic(const Duration(seconds: 20), (_) {
       refreshNotifications(silent: true);
@@ -90,6 +97,14 @@ class AppNotificationsController extends GetxController {
     final id = notificationId.trim();
     if (id.isEmpty) return;
     await remoteRepo.markNotificationAsRead(notificationId: id);
+    segmentService.onCustomEvent('Notification Action Taken', {
+      'notification_id': id,
+      'action': 'mark_read',
+    });
+    fbEventsService.onNotificationActionTaken(
+      notificationId: id,
+      action: 'mark_read',
+    );
 
     final idx = notifications.indexWhere((e) => e['id'].toString() == id);
     if (idx >= 0) {
@@ -153,6 +168,14 @@ class AppNotificationsController extends GetxController {
       if (notificationId.isNotEmpty) {
         await markAsRead(notificationId);
       }
+      segmentService.onCustomEvent('Notification Action Taken', {
+        'notification_id': notificationId,
+        'action': normalizedAction,
+      });
+      fbEventsService.onNotificationActionTaken(
+        notificationId: notificationId,
+        action: normalizedAction,
+      );
       await refreshNotifications(silent: true);
     } finally {
       actionNotificationId.value = '';

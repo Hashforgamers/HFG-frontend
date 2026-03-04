@@ -102,6 +102,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   // Payment processing state
   final RxBool _isProcessingPayment = false.obs;
   final RxString _paymentStatus = ''.obs;
+  bool _paymentAttempted = false;
+  bool _paymentCompleted = false;
 
   // Add this field to store the bookingId to slotId mapping
   Map<int, int> _bookingIdToSlotId = {};
@@ -135,6 +137,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   @override
   void dispose() {
+    if (_paymentAttempted && !_paymentCompleted) {
+      segmentService.onCustomEvent('Payment Abandoned', {
+        'booking_id': widget.gameId.toString(),
+        'step': _stage.value.name,
+      });
+      fbEventsService.onPaymentAbandoned(
+        bookingId: widget.gameId.toString(),
+        step: _stage.value.name,
+      );
+    }
     _voucherController.dispose();
     _resetPaymentState();
     _selectedGamePass.value = null;
@@ -322,6 +334,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
           _appliedVoucher.value = voucher;
           _voucherError.value = '';
+          segmentService.onCustomEvent('Coupon Applied', {
+            'coupon_code': voucher.code,
+            'discount_value': voucher.discountPercentage,
+          });
+          fbEventsService.onCouponApplied(
+            couponCode: voucher.code,
+            discountAmount: voucher.discountPercentage.toDouble(),
+          );
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -331,12 +351,36 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             ),
           );
         } else {
+          segmentService.onCustomEvent('Coupon Failed', {
+            'coupon_code': voucher.code,
+            'reason': 'inactive',
+          });
+          fbEventsService.onCouponFailed(
+            couponCode: voucher.code,
+            reason: 'inactive',
+          );
           _voucherError.value = 'This voucher is not active';
         }
       } else {
+        segmentService.onCustomEvent('Coupon Failed', {
+          'coupon_code': _voucherController.text.trim(),
+          'reason': 'invalid',
+        });
+        fbEventsService.onCouponFailed(
+          couponCode: _voucherController.text.trim(),
+          reason: 'invalid',
+        );
         _voucherError.value = 'Invalid voucher code';
       }
     } catch (e) {
+      segmentService.onCustomEvent('Coupon Failed', {
+        'coupon_code': _voucherController.text.trim(),
+        'reason': 'exception',
+      });
+      fbEventsService.onCouponFailed(
+        couponCode: _voucherController.text.trim(),
+        reason: 'exception',
+      );
       _voucherError.value = 'Error applying voucher';
     } finally {
       _isApplyingVoucher(false);
@@ -361,6 +405,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       _voucherController.text = voucher.code;
       _applyVoucher();
     } else {
+      segmentService.onCustomEvent('Coupon Failed', {
+        'coupon_code': voucher.code,
+        'reason': 'inactive',
+      });
+      fbEventsService.onCouponFailed(
+        couponCode: voucher.code,
+        reason: 'inactive',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('This voucher is not active'),
@@ -582,164 +634,199 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     final validatedCartItems = _getValidatedCartItems();
     final cartSummary = _getCartItemsSummary();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      appBar: AppBar(
-        title: Text(
-          '${widget.selectedCafeName} - ${widget.consoleType}',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop || _paymentCompleted) return;
+        segmentService.onCustomEvent('Booking Cancelled', {
+          'booking_id': widget.gameId.toString(),
+          'reason': 'back_pressed',
+        });
+        fbEventsService.onBookingCancelled(
+          bookingId: widget.gameId.toString(),
+          reason: 'back_pressed',
+        );
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0F0F0F),
+        appBar: AppBar(
+          title: Text(
+            '${widget.selectedCafeName} - ${widget.consoleType}',
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
+          backgroundColor: Colors.black,
+          elevation: 1,
+          iconTheme: const IconThemeData(color: Colors.white),
         ),
-        backgroundColor: Colors.black,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Obx(
-        () => Stack(
-          children: [
-            SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Text(
-                    //   '${widget.selectedCafeName} - ${widget.consoleType}',
-                    //   style: GoogleFonts.inter(
-                    //     fontSize: 22,
-                    //     fontWeight: FontWeight.w600,
-                    //     color: Colors.white,
-                    //   ),
-                    // ),
-                    // const SizedBox(height: 4),
-                    Text(
-                      '${widget.selectedSlots.length} Slot(s) Selected',
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFFB0B0B0),
+        body: Obx(
+          () => Stack(
+            children: [
+              SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Text(
+                      //   '${widget.selectedCafeName} - ${widget.consoleType}',
+                      //   style: GoogleFonts.inter(
+                      //     fontSize: 22,
+                      //     fontWeight: FontWeight.w600,
+                      //     color: Colors.white,
+                      //   ),
+                      // ),
+                      // const SizedBox(height: 4),
+                      Text(
+                        '${widget.selectedSlots.length} Slot(s) Selected',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFB0B0B0),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 10),
 
-                    BookingSummarySlotsList(
-                      selectedSlots: widget.selectedSlots,
-                    ),
-                    const SizedBox(height: 5),
-                    BookingSummaryCartSection(
-                      cartItems: validatedCartItems,
-                      summaryText: cartSummary,
-                    ),
-                    // : _buildMealButton(),
-                    const SizedBox(height: 1),
-                    Obx(
-                      () => BookingSummaryUserSection(
-                        userName: userController.user.value.name ?? 'User',
-                        onChangeUser: () {
-                          // Add change logic here
-                        },
+                      BookingSummarySlotsList(
+                        selectedSlots: widget.selectedSlots,
                       ),
-                    ),
+                      const SizedBox(height: 5),
+                      BookingSummaryCartSection(
+                        cartItems: validatedCartItems,
+                        summaryText: cartSummary,
+                      ),
+                      // : _buildMealButton(),
+                      const SizedBox(height: 1),
+                      Obx(
+                        () => BookingSummaryUserSection(
+                          userName: userController.user.value.name ?? 'User',
+                          onChangeUser: () {
+                            // Add change logic here
+                          },
+                        ),
+                      ),
 
-                    const SizedBox(height: 1),
-                    BookingSummaryPaymentMethodSection(
-                      selectedPayment: _selectedPayment,
-                      selectedGamePass: _selectedGamePass,
-                      onSelectPayment: _onPaymentSelected,
-                      onClearSelectedPass: () => _selectedGamePass.value = null,
-                    ),
-                    const SizedBox(height: 1),
-                    BookingSummaryVoucherSection(
-                      voucherController: _voucherController,
-                      isLoadingVouchers: _isLoadingVouchers,
-                      availableVouchers: _availableVouchers,
-                      appliedVoucher: _appliedVoucher,
-                      isApplyingVoucher: _isApplyingVoucher,
-                      voucherError: _voucherError,
-                      onReload: _loadVouchers,
-                      onApply: _applyVoucher,
-                      onRemove: _removeVoucher,
-                      onSelectVoucher: _selectVoucher,
-                      canApplyVoucher: _canApplyVoucher,
-                    ),
-                    const SizedBox(height: 1),
+                      const SizedBox(height: 1),
+                      BookingSummaryPaymentMethodSection(
+                        selectedPayment: _selectedPayment,
+                        selectedGamePass: _selectedGamePass,
+                        onSelectPayment: _onPaymentSelected,
+                        onClearSelectedPass: () =>
+                            _selectedGamePass.value = null,
+                      ),
+                      const SizedBox(height: 1),
+                      BookingSummaryVoucherSection(
+                        voucherController: _voucherController,
+                        isLoadingVouchers: _isLoadingVouchers,
+                        availableVouchers: _availableVouchers,
+                        appliedVoucher: _appliedVoucher,
+                        isApplyingVoucher: _isApplyingVoucher,
+                        voucherError: _voucherError,
+                        onReload: _loadVouchers,
+                        onApply: _applyVoucher,
+                        onRemove: _removeVoucher,
+                        onSelectVoucher: _selectVoucher,
+                        canApplyVoucher: _canApplyVoucher,
+                      ),
+                      const SizedBox(height: 1),
 
-                    Obx(() {
-                      final totalPrice = calculateTotalPrice();
-                      final discount = calculateDiscount();
-                      final subtotal = calculateSubtotal();
-                      final slotsSubtotal = calculateSlotsSubtotal();
-                      final cartSubtotal = calculateCartSubtotal();
+                      Obx(() {
+                        final totalPrice = calculateTotalPrice();
+                        final discount = calculateDiscount();
+                        final subtotal = calculateSubtotal();
+                        final slotsSubtotal = calculateSlotsSubtotal();
+                        final cartSubtotal = calculateCartSubtotal();
 
-                      return BookingSummaryPaymentSummarySection(
-                        totalPrice: totalPrice,
-                        discount: discount,
-                        subtotal: subtotal,
-                        slotsSubtotal: slotsSubtotal,
-                        cartSubtotal: cartSubtotal,
-                        hasSlots: widget.selectedSlots.isNotEmpty,
-                        hasCartItems: validatedCartItems.isNotEmpty,
-                      );
-                    }),
+                        return BookingSummaryPaymentSummarySection(
+                          totalPrice: totalPrice,
+                          discount: discount,
+                          subtotal: subtotal,
+                          slotsSubtotal: slotsSubtotal,
+                          cartSubtotal: cartSubtotal,
+                          hasSlots: widget.selectedSlots.isNotEmpty,
+                          hasCartItems: validatedCartItems.isNotEmpty,
+                        );
+                      }),
 
-                    // ─── Payment Method ──────────────────────────────────────────
-                  ],
+                      // ─── Payment Method ──────────────────────────────────────────
+                    ],
+                  ),
                 ),
               ),
-            ),
-            BookingSummaryProcessingOverlay(
-              isProcessing: _isProcessingPayment.value,
-              status: _paymentStatus.value,
-            ),
-          ],
+              BookingSummaryProcessingOverlay(
+                isProcessing: _isProcessingPayment.value,
+                status: _paymentStatus.value,
+              ),
+            ],
+          ),
         ),
+        bottomNavigationBar: Obx(() {
+          final isProcessing =
+              _isProcessingPayment.value ||
+              _stage.value == PaymentStage.creatingBooking ||
+              _stage.value == PaymentStage.debitingWallet ||
+              _stage.value == PaymentStage.initiatingGateway ||
+              _stage.value == PaymentStage.confirmingVoucher ||
+              _stage.value == PaymentStage.confirmingGamePass ||
+              _stage.value == PaymentStage.openingRazorpay;
+
+          final isGamePassSelected = _selectedPayment.value == 'none';
+          final hasSelectedPass = _selectedGamePass.value != null;
+          final showSelectPass = isGamePassSelected && !hasSelectedPass;
+
+          return BookingSummaryBottomBar(
+            totalPrice: calculateTotalPrice(),
+            isProcessing: isProcessing,
+            showSelectPass: showSelectPass,
+            onPressed: () {
+              if (_stage.value == PaymentStage.error) {
+                segmentService.onCustomEvent('Payment Retry', {
+                  'booking_id': widget.gameId.toString(),
+                  'method': _selectedPayment.value,
+                });
+                fbEventsService.onPaymentRetry(
+                  bookingId: widget.gameId.toString(),
+                  paymentMethod: _selectedPayment.value,
+                );
+              }
+              _paymentAttempted = true;
+              segmentService.onPaymentInitiated(
+                bookingId: widget.gameId.toString(),
+                amount: calculateTotalPrice(),
+                paymentMethodSelected: _selectedPayment.value,
+              );
+              fbEventsService.onPaymentInitiated(
+                bookingId: widget.gameId.toString(),
+                amount: calculateTotalPrice(),
+                paymentMethodSelected: _selectedPayment.value,
+              );
+              if (showSelectPass) {
+                _showGamePassSelectionDialog();
+              } else if (_selectedPayment.value == 'pay_at_cafe') {
+                handleBooking(
+                  context,
+                  isVoucherApplied: _appliedVoucher.value != null,
+                  useWallet: false,
+                  isGamePass: false,
+                  selectedPassId: null,
+                  isPayAtCafe: true,
+                );
+              } else {
+                handleBooking(
+                  context,
+                  isVoucherApplied: _appliedVoucher.value != null,
+                  useWallet: _selectedPayment.value == 'wallet',
+                  isGamePass: false,
+                  selectedPassId: null,
+                  isPayAtCafe: false,
+                );
+              }
+            },
+          );
+        }),
       ),
-      bottomNavigationBar: Obx(() {
-        final isProcessing =
-            _isProcessingPayment.value ||
-            _stage.value == PaymentStage.creatingBooking ||
-            _stage.value == PaymentStage.debitingWallet ||
-            _stage.value == PaymentStage.initiatingGateway ||
-            _stage.value == PaymentStage.confirmingVoucher ||
-            _stage.value == PaymentStage.confirmingGamePass ||
-            _stage.value == PaymentStage.openingRazorpay;
-
-        final isGamePassSelected = _selectedPayment.value == 'none';
-        final hasSelectedPass = _selectedGamePass.value != null;
-        final showSelectPass = isGamePassSelected && !hasSelectedPass;
-
-        return BookingSummaryBottomBar(
-          totalPrice: calculateTotalPrice(),
-          isProcessing: isProcessing,
-          showSelectPass: showSelectPass,
-          onPressed: () {
-            if (showSelectPass) {
-              _showGamePassSelectionDialog();
-            } else if (_selectedPayment.value == 'pay_at_cafe') {
-              handleBooking(
-                context,
-                isVoucherApplied: _appliedVoucher.value != null,
-                useWallet: false,
-                isGamePass: false,
-                selectedPassId: null,
-                isPayAtCafe: true,
-              );
-            } else {
-              handleBooking(
-                context,
-                isVoucherApplied: _appliedVoucher.value != null,
-                useWallet: _selectedPayment.value == 'wallet',
-                isGamePass: false,
-                selectedPassId: null,
-                isPayAtCafe: false,
-              );
-            }
-          },
-        );
-      }),
     );
   }
 
@@ -931,6 +1018,173 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return 'An unexpected error occurred. Please try again.';
   }
 
+  bool _isInsufficientWalletError(String errorMessage) {
+    return errorMessage.toLowerCase().contains('insufficient wallet balance');
+  }
+
+  bool _isWalletServiceError(String errorMessage) {
+    final lower = errorMessage.toLowerCase();
+    return lower.contains('wallet service is temporarily unavailable') ||
+        lower.contains("name 'decimal' is not defined");
+  }
+
+  Future<void> _showPaymentErrorUx(
+    String errorMessage, {
+    required bool fromWallet,
+  }) async {
+    if (!mounted) return;
+
+    final showWalletSheet =
+        fromWallet &&
+        (_isInsufficientWalletError(errorMessage) ||
+            _isWalletServiceError(errorMessage));
+
+    if (showWalletSheet) {
+      final isLowBalance = _isInsufficientWalletError(errorMessage);
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: const Color(0xFF111111),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+        builder: (_) {
+          return SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: Colors.redAccent,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          isLowBalance
+                              ? 'Low Wallet Balance'
+                              : 'Wallet Unavailable',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    isLowBalance
+                        ? 'Your wallet balance is not enough for this booking. Switch to UPI/Card to complete payment now.'
+                        : 'Wallet payment is currently unavailable. Switch to UPI/Card to continue.',
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white24),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            'Close',
+                            style: GoogleFonts.inter(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _selectedPayment.value = 'gateway';
+                            Navigator.of(context).pop();
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                  'Switched to UPI/Card payment.',
+                                ),
+                                backgroundColor: const Color(0xff00DC00),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xff00DC00),
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            'Use UPI/Card',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(errorMessage),
+        backgroundColor: Colors.red.shade600,
+        duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   Future<void> handleBooking(
     BuildContext context, {
     required bool isVoucherApplied,
@@ -990,6 +1244,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       if (isPayAtCafe) {
         _stage.value = PaymentStage.confirmingPayAtCafe;
         _isProcessingPayment(false);
+        _paymentCompleted = true;
+        segmentService.onPaymentSuccess(
+          transactionId: 'PAY_AT_CAFE_${DateTime.now().millisecondsSinceEpoch}',
+          bookingId: bookingIds.first.toString(),
+          paymentGateway: 'pay_at_cafe',
+        );
+        fbEventsService.onPaymentSuccess(
+          transactionId: 'PAY_AT_CAFE_${DateTime.now().millisecondsSinceEpoch}',
+          bookingId: bookingIds.first.toString(),
+          paymentGateway: 'pay_at_cafe',
+        );
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1072,6 +1337,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     } catch (e) {
       // Parse error message properly
       String errorMessage = _parseErrorMessage(e);
+      segmentService.onPaymentFailed(
+        reason: errorMessage,
+        paymentGateway: _selectedPayment.value,
+      );
+      fbEventsService.onPaymentFailed(
+        reason: errorMessage,
+        paymentGateway: _selectedPayment.value,
+      );
       if (useWallet &&
           (errorMessage.toLowerCase().contains(
                 'wallet service is temporarily unavailable',
@@ -1083,51 +1356,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       _stage.value = PaymentStage.error;
       _errorMessage.value = errorMessage;
       _resetButtonState();
-
-      // Show error message with better styling and action button for wallet errors
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  errorMessage,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.red.shade600,
-          duration: const Duration(seconds: 8),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          margin: const EdgeInsets.all(16),
-          action: errorMessage.contains('Insufficient wallet balance')
-              ? SnackBarAction(
-                  label: 'Add Money',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    // Navigate to wallet/add money screen
-                    // You can implement this navigation based on your app structure
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    // Example: Get.toNamed('/wallet');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Navigate to wallet to add money'),
-                        backgroundColor: Colors.blue,
-                      ),
-                    );
-                  },
-                )
-              : null,
-        ),
-      );
+      await _showPaymentErrorUx(errorMessage, fromWallet: useWallet);
     }
   }
 
@@ -1187,6 +1416,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         duration: duration,
       );
       squadMissionsService.trackAction(action: SquadMissionAction.playSession);
+      _paymentCompleted = true;
+      segmentService.onPaymentSuccess(
+        transactionId: "${paymentMode.toUpperCase()}_${bookingIds.first}",
+        bookingId: bookingIds.first.toString(),
+        paymentGateway: paymentMode,
+      );
+      fbEventsService.onPaymentSuccess(
+        transactionId: "${paymentMode.toUpperCase()}_${bookingIds.first}",
+        bookingId: bookingIds.first.toString(),
+        paymentGateway: paymentMode,
+      );
 
       // Update payment stage to done
       _stage.value = PaymentStage.done;
@@ -1241,6 +1481,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       // Parse error message properly
       String errorMessage = _parseErrorMessage(e);
+      segmentService.onPaymentFailed(
+        reason: errorMessage,
+        paymentGateway: paymentMode,
+      );
+      fbEventsService.onPaymentFailed(
+        reason: errorMessage,
+        paymentGateway: paymentMode,
+      );
       if (paymentMode == 'wallet' &&
           (errorMessage.toLowerCase().contains(
                 'wallet service is temporarily unavailable',
@@ -1254,50 +1502,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       _errorMessage.value = errorMessage;
       _resetButtonState();
       _paymentStatus.value = 'Failed to confirm booking';
-
-      // Show error message with better styling and action button for wallet errors
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  errorMessage,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.red.shade600,
-          duration: const Duration(seconds: 8),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          margin: const EdgeInsets.all(16),
-          action: errorMessage.contains('Insufficient wallet balance')
-              ? SnackBarAction(
-                  label: 'Add Money',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    // Navigate to wallet/add money screen
-                    // You can implement this navigation based on your app structure
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    // Example: Get.toNamed('/wallet');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Navigate to wallet to add money'),
-                        backgroundColor: Colors.blue,
-                      ),
-                    );
-                  },
-                )
-              : null,
-        ),
+      await _showPaymentErrorUx(
+        errorMessage,
+        fromWallet: paymentMode == 'wallet',
       );
     }
   }
@@ -1399,67 +1606,29 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         _isProcessingPayment(false);
         _paymentStatus.value = 'Payment order creation failed';
         razorpayController.isPaymentInProgress(false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to create payment order. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
+        await _showPaymentErrorUx(
+          'Failed to create payment order. Please try again.',
+          fromWallet: false,
         );
       }
     } catch (e) {
       // Parse error message properly
       String errorMessage = _parseErrorMessage(e);
+      segmentService.onPaymentFailed(
+        reason: errorMessage,
+        paymentGateway: 'gateway',
+      );
+      fbEventsService.onPaymentFailed(
+        reason: errorMessage,
+        paymentGateway: 'gateway',
+      );
 
       _stage.value = PaymentStage.error;
       _errorMessage.value = errorMessage;
       _resetButtonState();
       _paymentStatus.value = 'Payment initialization failed';
       AppLogger.d('Payment error: $e');
-
-      // Show error message with better styling and action button for wallet errors
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  errorMessage,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.red.shade600,
-          duration: const Duration(seconds: 8),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          margin: const EdgeInsets.all(16),
-          action: errorMessage.contains('Insufficient wallet balance')
-              ? SnackBarAction(
-                  label: 'Add Money',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    // Navigate to wallet/add money screen
-                    // You can implement this navigation based on your app structure
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    // Example: Get.toNamed('/wallet');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Navigate to wallet to add money'),
-                        backgroundColor: Colors.blue,
-                      ),
-                    );
-                  },
-                )
-              : null,
-        ),
-      );
+      await _showPaymentErrorUx(errorMessage, fromWallet: false);
     }
   }
 }

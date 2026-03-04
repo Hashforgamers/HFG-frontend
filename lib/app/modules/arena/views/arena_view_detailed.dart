@@ -14,6 +14,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:hash/utils/widgets/loader.dart';
+import 'package:share_plus/share_plus.dart';
 import '../controllers/games_controller.dart';
 
 class ArenaDetailView extends StatefulWidget {
@@ -67,6 +68,22 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       segmentService.onCafeImagesViewed(cafeId: widget.vendorId.toString());
       fbEventsService.onCafeImagesViewed(cafeId: widget.vendorId.toString());
+      segmentService.onCustomEvent('Cafe Amenities Viewed', {
+        'cafe_id': widget.vendorId.toString(),
+      });
+      fbEventsService.onCafeAmenitiesViewed(cafeId: widget.vendorId.toString());
+      segmentService.onCustomEvent('Cafe Timings Viewed', {
+        'cafe_id': widget.vendorId.toString(),
+      });
+      fbEventsService.onCafeTimingsViewed(cafeId: widget.vendorId.toString());
+      segmentService.onCustomEvent('Cafe Location Viewed', {
+        'cafe_id': widget.vendorId.toString(),
+      });
+      fbEventsService.onCafeLocationViewed(cafeId: widget.vendorId.toString());
+      segmentService.onCustomEvent('Cafe Reviews Viewed', {
+        'cafe_id': widget.vendorId.toString(),
+      });
+      fbEventsService.onCafeReviewsViewed(cafeId: widget.vendorId.toString());
     });
   }
 
@@ -160,7 +177,19 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               ArenaDetailHeader(
                 imageUrls: imageUrls,
                 onBack: () => Navigator.of(context).pop(),
-                onShare: () {},
+                onShare: () {
+                  final shareText =
+                      '${widget.title}\n${widget.address}\nCheck it out on Hash Hub.';
+                  Share.share(shareText);
+                  segmentService.onCustomEvent('Cafe Shared', {
+                    'cafe_id': widget.vendorId.toString(),
+                    'channel': 'system_share',
+                  });
+                  fbEventsService.onCafeShared(
+                    cafeId: widget.vendorId.toString(),
+                    channel: 'system_share',
+                  );
+                },
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -262,6 +291,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     child: ElevatedButton(
                       onPressed: () async {
                         if (!controller.shopOpen.value) {
+                          segmentService.onCustomEvent('Slot Unavailable', {
+                            'cafe_id': widget.vendorId.toString(),
+                            'slot_time': 'shop_closed',
+                          });
+                          fbEventsService.onSlotUnavailable(
+                            cafeId: widget.vendorId.toString(),
+                            slotTime: 'shop_closed',
+                          );
                           Get.snackbar(
                             'Shop Closed',
                             'Shop is closed today, no games available.',
@@ -493,6 +530,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     List<Map<String, dynamic>>? cartItems,
   }) async {
     final safeEmail = (email ?? widget.email).toString();
+    segmentService.onCustomEvent('Cafe Slot Viewed', {
+      'cafe_id': widget.vendorId.toString(),
+      'slot_time': 'all',
+    });
+    fbEventsService.onCafeSlotViewed(
+      cafeId: widget.vendorId.toString(),
+      slotTime: 'all',
+    );
     // Check if shop is open before showing booking options.
     if (!_gamesController.shopOpen.value) {
       Get.snackbar(
@@ -1591,9 +1636,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               for (final item in widget.availableGames) {
                 final name = item is Map
                     ? (item['name'] ??
-                          item['game_name'] ??
-                          item['title'] ??
-                          item['game'])
+                              item['game_name'] ??
+                              item['title'] ??
+                              item['game'])
                           .toString()
                           .trim()
                     : item.toString().trim();

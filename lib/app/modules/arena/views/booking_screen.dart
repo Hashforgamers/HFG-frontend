@@ -35,9 +35,15 @@ class BookingScreen extends StatefulWidget {
 
 class _BookingScreenState extends State<BookingScreen> {
   final BookingController controller = Get.put(BookingController());
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
   late int userId;
   String selectedDate = DateFormat('yyyyMMdd').format(DateTime.now());
   String selectedDateText = DateFormat('dd MMM, yyyy').format(DateTime.now());
+  bool _loggedNoSlots = false;
+  bool _loggedSoldOut = false;
+  final Set<String> _almostFullLoggedSlots = <String>{};
+  final Set<String> _unavailableLoggedSlots = <String>{};
 
   @override
   void initState() {
@@ -145,6 +151,17 @@ class _BookingScreenState extends State<BookingScreen> {
           }
 
           if (controller.slots.isEmpty) {
+            if (!_loggedNoSlots) {
+              _loggedNoSlots = true;
+              _segmentService.onCustomEvent('Cafe Slot Sold Out', {
+                'cafe_id': widget.vendorId.toString(),
+                'slot_time': selectedDate,
+              });
+              _fbEventsService.onCafeSlotSoldOut(
+                cafeId: widget.vendorId.toString(),
+                slotTime: selectedDate,
+              );
+            }
             return Column(
               children: [
                 Expanded(
@@ -192,6 +209,15 @@ class _BookingScreenState extends State<BookingScreen> {
             return isAvailable && isTimeAvailable;
           }).toList();
           if (availableSlots.isEmpty) {
+            if (!_loggedSoldOut) {
+              _loggedSoldOut = true;
+              _segmentService.onCustomEvent('Cafe Fully Booked', {
+                'cafe_id': widget.vendorId.toString(),
+              });
+              _fbEventsService.onCafeFullyBooked(
+                cafeId: widget.vendorId.toString(),
+              );
+            }
             return Column(
               children: [
                 Expanded(
@@ -255,6 +281,10 @@ class _BookingScreenState extends State<BookingScreen> {
             setState(() {
               selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
               selectedDateText = DateFormat('dd MMM, yyyy').format(pickedDate);
+              _loggedNoSlots = false;
+              _loggedSoldOut = false;
+              _almostFullLoggedSlots.clear();
+              _unavailableLoggedSlots.clear();
               controller.fetchSlots(
                 vendorId: widget.vendorId,
                 gameId: widget.gameId,
@@ -359,6 +389,10 @@ class _BookingScreenState extends State<BookingScreen> {
                       selectedDateText = DateFormat(
                         'dd MMM, yyyy',
                       ).format(pickedDate);
+                      _loggedNoSlots = false;
+                      _loggedSoldOut = false;
+                      _almostFullLoggedSlots.clear();
+                      _unavailableLoggedSlots.clear();
                       controller.fetchSlots(
                         vendorId: widget.vendorId,
                         gameId: widget.gameId,
@@ -420,6 +454,32 @@ class _BookingScreenState extends State<BookingScreen> {
     final bool isTimeAvailable = isCurrentDate
         ? controller.isSlotAvailableNow(slot)
         : true;
+    final startTime = (slot['start_time'] ?? '').toString();
+    final slotKey = '${selectedDate}_$startTime';
+    if (availablePCs > 0 &&
+        availablePCs <= 2 &&
+        !_almostFullLoggedSlots.contains(slotKey)) {
+      _almostFullLoggedSlots.add(slotKey);
+      _segmentService.onCustomEvent('Cafe Almost Full', {
+        'cafe_id': widget.vendorId.toString(),
+        'remaining_slots': availablePCs,
+      });
+      _fbEventsService.onCafeAlmostFull(
+        cafeId: widget.vendorId.toString(),
+        availableSlots: availablePCs,
+      );
+    }
+    if (availablePCs <= 0 && !_unavailableLoggedSlots.contains(slotKey)) {
+      _unavailableLoggedSlots.add(slotKey);
+      _segmentService.onCustomEvent('Slot Unavailable', {
+        'cafe_id': widget.vendorId.toString(),
+        'slot_time': startTime,
+      });
+      _fbEventsService.onSlotUnavailable(
+        cafeId: widget.vendorId.toString(),
+        slotTime: startTime,
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -477,7 +537,9 @@ class _BookingScreenState extends State<BookingScreen> {
                     style: GoogleFonts.inter(
                       color: isTimeAvailable
                           ? const Color(0xff00DC00)
-                          : (isCurrentDate ? Colors.grey : const Color(0xff00DC00)),
+                          : (isCurrentDate
+                                ? Colors.grey
+                                : const Color(0xff00DC00)),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -508,7 +570,9 @@ class _BookingScreenState extends State<BookingScreen> {
                 decoration: BoxDecoration(
                   color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -578,6 +642,15 @@ class _BookingScreenState extends State<BookingScreen> {
                 controller.selectedSlots[pcIndex] ?? [];
             controller.selectedSlots[pcIndex]?.add(timeIndex);
             // message = 'Slot selected for ${getConsoleLabel(pcIndex - 1)}';
+            _segmentService.onCustomEvent('Cafe Slot Selected', {
+              'cafe_id': widget.vendorId.toString(),
+              'slot_time': selectedDateText,
+              'console_type': widget.consoleType,
+            });
+            _fbEventsService.onCafeSlotSelected(
+              cafeId: widget.vendorId.toString(),
+              slotTime: selectedDateText,
+            );
           }
 
           // Fluttertoast.showToast(
@@ -599,7 +672,9 @@ class _BookingScreenState extends State<BookingScreen> {
                 : const Color(0xff2D2D2D),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? const Color(0xff00DC00) : Colors.grey.shade700,
+              color: isSelected
+                  ? const Color(0xff00DC00)
+                  : Colors.grey.shade700,
             ),
           ),
           child: Text(
@@ -693,14 +768,11 @@ class _BookingScreenState extends State<BookingScreen> {
 
   void onProceed() {
     // Track game details viewed event when user proceeds with console selection
-    final segmentService = locator<SegmentSdkService>();
-    final fbEventsService = locator<FbEventsService>();
-
-    segmentService.onGameDetailsViewed(
+    _segmentService.onGameDetailsViewed(
       gameId: widget.gameId.toString(),
       cafeId: widget.vendorId.toString(),
     );
-    fbEventsService.onGameDetailsViewed(
+    _fbEventsService.onGameDetailsViewed(
       gameId: widget.gameId.toString(),
       cafeId: widget.vendorId.toString(),
     );
@@ -720,7 +792,7 @@ class _BookingScreenState extends State<BookingScreen> {
       }
     });
 
-    segmentService.onCafeConsoleSelected(
+    _segmentService.onCafeConsoleSelected(
       email: widget.email,
       consoleType: widget.consoleType,
       consoleAmount: selectedSlotDetails.length,
@@ -734,7 +806,7 @@ class _BookingScreenState extends State<BookingScreen> {
         cartItems: widget.cartItems ?? [],
         gameId: widget.gameId,
         vendorId: widget.vendorId,
-        selectedDate:selectedDate
+        selectedDate: selectedDate,
       ),
     );
   }

@@ -13,6 +13,8 @@ import 'package:hash/app/modules/arena/views/search_result/search_result_filters
 import 'package:hash/app/modules/arena/views/search_result/search_result_header.dart';
 import 'package:hash/app/modules/arena/views/search_result/search_result_search_bar.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
@@ -32,6 +34,8 @@ class _SearchResultState extends State<SearchResult> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _searchFocusNode = FocusNode();
   late final CybercafesController _cafeController;
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
 
   // State
   bool _isSearching = false;
@@ -80,6 +84,19 @@ class _SearchResultState extends State<SearchResult> {
 
     _initLocation();
     _loadCafes(initial: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final city = (widget.location ?? '').trim();
+      unawaited(
+        _segmentService.onCustomEvent('Nearby Cafes Viewed', {
+          'city': city.isEmpty ? 'unknown' : city,
+        }),
+      );
+      unawaited(
+        _fbEventsService.onNearbyCafesViewed(
+          city: city.isEmpty ? 'unknown' : city,
+        ),
+      );
+    });
   }
 
   @override
@@ -541,7 +558,24 @@ class _SearchResultState extends State<SearchResult> {
               focusNode: _searchFocusNode,
               isFocused: _isSearchFocused,
               onChanged: _onSearchChanged,
-              onSubmitted: (_) => _loadCafes(),
+              onSubmitted: (_) {
+                final query = _searchController.text.trim();
+                if (query.isNotEmpty) {
+                  unawaited(
+                    _segmentService.onCustomEvent('Search Performed', {
+                      'query': query,
+                      'source': 'search_result',
+                    }),
+                  );
+                  unawaited(
+                    _fbEventsService.onSearchPerformed(
+                      query: query,
+                      source: 'search_result',
+                    ),
+                  );
+                }
+                _loadCafes();
+              },
               onClear: _clearSearch,
               showClear: _searchController.text.isNotEmpty,
             ),
@@ -550,6 +584,32 @@ class _SearchResultState extends State<SearchResult> {
               selected: _selectedFilter,
               onSelected: (filter) {
                 setState(() => _selectedFilter = filter);
+                unawaited(
+                  _segmentService.onCustomEvent('Filters Applied', {
+                    'screen': 'search_result',
+                    'filters': [filter],
+                  }),
+                );
+                unawaited(
+                  _fbEventsService.onFiltersApplied(
+                    screen: 'search_result',
+                    filters: [filter],
+                  ),
+                );
+                if (filter == 'Nearby') {
+                  unawaited(
+                    _segmentService.onCustomEvent('Sort Changed', {
+                      'screen': 'search_result',
+                      'sort_by': 'distance',
+                    }),
+                  );
+                  unawaited(
+                    _fbEventsService.onSortChanged(
+                      screen: 'search_result',
+                      sortBy: 'distance',
+                    ),
+                  );
+                }
                 _recomputeResults();
               },
             ),
@@ -572,6 +632,21 @@ class _SearchResultState extends State<SearchResult> {
       if (!mounted) return;
       _currentQuery = value;
       _recomputeResults();
+      final query = value.trim();
+      if (query.length >= 2) {
+        unawaited(
+          _segmentService.onCustomEvent('Search Performed', {
+            'query': query,
+            'source': 'search_result',
+          }),
+        );
+        unawaited(
+          _fbEventsService.onSearchPerformed(
+            query: query,
+            source: 'search_result',
+          ),
+        );
+      }
     });
   }
 
@@ -662,6 +737,23 @@ class _SearchResultState extends State<SearchResult> {
                       .toString(),
                   reviews: const ['Great place!', 'Loved it!'],
                   vendorId: cafe['vendor_id'],
+                ),
+              );
+              final cafeId = (cafe['vendor_id'] ?? '').toString();
+              unawaited(
+                _segmentService.onGamingCafeViewed(
+                  cafeId: cafeId,
+                  cafeName: title,
+                  location: address,
+                  availableGames: featsAll,
+                  email: (cafe['email'] ?? '').toString(),
+                ),
+              );
+              unawaited(
+                _fbEventsService.onGamingCafeViewed(
+                  cafeId: cafeId,
+                  location: address,
+                  availableGames: featsAll,
                 ),
               );
             }

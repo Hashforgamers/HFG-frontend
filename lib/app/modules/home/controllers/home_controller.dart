@@ -19,6 +19,7 @@ class HomeController extends GetxController {
   final currentScreen = Rx<Widget>(const HomeContentView());
   final isShopOpen = false.obs;
   final isScreenTransitioning = false.obs;
+  int _transitionStartedAt = 0;
 
   // --- Performance & Cache ---
   final Map<int, Widget> _screenCache = {};
@@ -46,8 +47,16 @@ class HomeController extends GetxController {
 
   // --- Handle Bottom Navigation Tap ---
   void onItemTapped(int index) {
-    // --- Debounce to avoid flicker ---
     final now = DateTime.now().millisecondsSinceEpoch;
+
+    // Failsafe: if transition flag got stuck, recover automatically.
+    if (isScreenTransitioning.value && _transitionStartedAt > 0) {
+      if (now - _transitionStartedAt > 900) {
+        isScreenTransitioning.value = false;
+      }
+    }
+
+    // --- Debounce to avoid flicker ---
     if (now - lastScreenChangeTime < 300) return;
 
     // --- Prevent double-tap on same tab ---
@@ -64,24 +73,27 @@ class HomeController extends GetxController {
 
     // --- Begin transition ---
     isScreenTransitioning.value = true;
+    _transitionStartedAt = now;
     selectedIndex.value = index;
 
-    // --- Use cached screen or build new ---
-    if (_screenCache.containsKey(index)) {
-      currentScreen.value = _screenCache[index]!;
-    } else {
-      final newScreen = _createScreenForIndex(index);
-      _screenCache[index] = newScreen;
-      currentScreen.value = newScreen;
-      _manageCacheSize();
-    }
-
-    // --- End transition after animation ---
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (!isClosed) {
-        isScreenTransitioning.value = false;
+    try {
+      // --- Use cached screen or build new ---
+      if (_screenCache.containsKey(index)) {
+        currentScreen.value = _screenCache[index]!;
+      } else {
+        final newScreen = _createScreenForIndex(index);
+        _screenCache[index] = newScreen;
+        currentScreen.value = newScreen;
+        _manageCacheSize();
       }
-    });
+    } finally {
+      // --- End transition after animation ---
+      Future.delayed(const Duration(milliseconds: 120), () {
+        if (!isClosed) {
+          isScreenTransitioning.value = false;
+        }
+      });
+    }
   }
 
   // --- Create new screen if not cached ---

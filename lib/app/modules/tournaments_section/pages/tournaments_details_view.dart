@@ -13,6 +13,9 @@ import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_memb
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 import '../../../data/services/user_controller.dart';
 import '../cubit/tournaments_details_cubit.dart';
@@ -32,6 +35,9 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
   late final TournamentsDetailsCubit _cubit;
   late final TournamentsLeaderboardCubit _leaderboardCubit;
   final userController = Get.find<UserController>();
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
+  bool _leaderboardViewTracked = false;
 
   @override
   void initState() {
@@ -39,6 +45,12 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
     _cubit = TournamentsDetailsCubit(widget.tournament);
     _leaderboardCubit = TournamentsLeaderboardCubit()
       ..fetchLeaderboard(eventId: widget.tournament.id);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _segmentService.onCustomEvent('Tournament Viewed', {
+        'event_id': widget.tournament.id,
+      });
+      _fbEventsService.onTournamentViewed(eventId: widget.tournament.id);
+    });
   }
 
   @override
@@ -334,7 +346,9 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
             child: IconButton(
               icon: const Icon(Icons.share, color: Colors.white, size: 18),
               onPressed: () {
-                //TODO: Share Operation
+                final shareText =
+                    '${widget.tournament.title}\nJoin this tournament on Hash Hub.';
+                Share.share(shareText);
               },
             ),
           ),
@@ -681,6 +695,17 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
               }
 
               final items = state.leaderboard;
+              if (!_leaderboardViewTracked) {
+                _leaderboardViewTracked = true;
+                _segmentService.onCustomEvent('Leaderboard Viewed', {
+                  'event_id': widget.tournament.id,
+                  'leaderboard_type': 'event',
+                });
+                _fbEventsService.onLeaderboardViewed(
+                  leaderboardType: 'event',
+                  eventId: widget.tournament.id,
+                );
+              }
               return _buildLeaderboardShell(
                 child: ListView.separated(
                   shrinkWrap: true,
@@ -854,8 +879,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
 
   Widget _buildOptimizedUserAvatar(String? photoUrl) {
     const double size = 40;
-    final effectivePhoto =
-        (photoUrl ?? '').trim().isNotEmpty
+    final effectivePhoto = (photoUrl ?? '').trim().isNotEmpty
         ? photoUrl!.trim()
         : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
               .trim();

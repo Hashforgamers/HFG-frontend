@@ -12,6 +12,8 @@ import 'package:hash/app/modules/arena/views/search_result.dart';
 import 'package:hash/config/app_keys.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
@@ -41,6 +43,8 @@ class _ArenaViewState extends State<ArenaView> {
   final CybercafesController _cafeCtr = Get.put(
     CybercafesController(remoteRepo: locator<RemoteRepoInterface>()),
   );
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
 
   late GoogleMapController _mapCtr;
   final loc.Location _loc = loc.Location();
@@ -747,7 +751,27 @@ class _ArenaViewState extends State<ArenaView> {
       );
 
       if (placemarks.isNotEmpty) {
+        final previousState = (_userState ?? '').trim();
         _userState = placemarks.first.administrativeArea;
+        final currentState = (_userState ?? '').trim();
+        _segmentService.onCustomEvent('Nearby Cafes Viewed', {
+          'city': currentState.isEmpty ? 'unknown' : currentState,
+        });
+        _fbEventsService.onNearbyCafesViewed(
+          city: currentState.isEmpty ? 'unknown' : currentState,
+        );
+        if (previousState.isNotEmpty &&
+            currentState.isNotEmpty &&
+            previousState.toLowerCase() != currentState.toLowerCase()) {
+          _segmentService.onCustomEvent('City Changed', {
+            'from_city': previousState,
+            'to_city': currentState,
+          });
+          _fbEventsService.onCityChanged(
+            fromCity: previousState,
+            toCity: currentState,
+          );
+        }
 
         // Filter cafes based on state
         _applyCafeFilterAndRefresh();

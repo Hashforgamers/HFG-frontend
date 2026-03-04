@@ -114,10 +114,13 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
         }),
       );
       unawaited(
-        _fbEventsService.logEvent('Direct Chat Started', {
+        _segmentService.onCustomEvent('Chat Started', {
+          'chat_type': 'direct',
           'room_id': roomId,
-          'target_uid': user.uid,
         }),
+      );
+      unawaited(
+        _fbEventsService.onChatStarted(chatType: 'direct', roomId: roomId),
       );
       Haptics.medium();
       Get.off(() => ChatRoomView(roomId: roomId));

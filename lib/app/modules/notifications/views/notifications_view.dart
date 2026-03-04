@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 class NotificationsView extends StatefulWidget {
   const NotificationsView({super.key});
@@ -12,6 +15,8 @@ class NotificationsView extends StatefulWidget {
 
 class _NotificationsViewState extends State<NotificationsView> {
   late final AppNotificationsController _controller;
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
 
   @override
   void initState() {
@@ -24,6 +29,20 @@ class _NotificationsViewState extends State<NotificationsView> {
       _controller.onPushNotificationData(Map<String, dynamic>.from(args));
     }
     _controller.refreshNotifications();
+  }
+
+  @override
+  void dispose() {
+    for (final item in _controller.notifications) {
+      if (item['is_read'] == true) continue;
+      final id = (item['id'] ?? '').toString().trim();
+      if (id.isEmpty) continue;
+      _segmentService.onCustomEvent('Notification Ignored', {
+        'notification_id': id,
+      });
+      _fbEventsService.onNotificationIgnored(notificationId: id);
+    }
+    super.dispose();
   }
 
   @override
@@ -80,6 +99,16 @@ class _NotificationsViewState extends State<NotificationsView> {
                 borderRadius: BorderRadius.circular(14),
                 onTap: () async {
                   if (!isRead && id.isNotEmpty) {
+                    await _controller.markAsRead(id);
+                  }
+                },
+                onLongPress: () async {
+                  if (id.isEmpty) return;
+                  _segmentService.onCustomEvent('Notification Dismissed', {
+                    'notification_id': id,
+                  });
+                  _fbEventsService.onNotificationDismissed(notificationId: id);
+                  if (!isRead) {
                     await _controller.markAsRead(id);
                   }
                 },

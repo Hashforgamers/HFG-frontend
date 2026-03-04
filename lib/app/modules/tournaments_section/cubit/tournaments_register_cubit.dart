@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +20,8 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
 
   final remoteRepo = locator<RemoteRepoInterface>();
   final squadMissionsService = locator<SquadMissionsService>();
+  final segmentService = locator<SegmentSdkService>();
+  final fbEventsService = locator<FbEventsService>();
 
   Future<void> registerTeam({
     required String eventId,
@@ -74,6 +78,16 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
       squadMissionsService.trackAction(
         action: SquadMissionAction.joinTournament,
       );
+      segmentService.onCustomEvent('Tournament Joined', {
+        'event_id': eventId,
+        'team_id': teamId,
+      });
+      fbEventsService.onTournamentJoined(eventId: eventId, teamId: teamId);
+      segmentService.onCustomEvent('Party Created', {
+        'party_id': teamId,
+        'game_id': eventId,
+      });
+      fbEventsService.onPartyCreated(partyId: teamId, gameId: eventId);
 
       emit(TournamentsRegisterSuccess(data: result));
     } catch (e) {
@@ -106,6 +120,19 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
       squadMissionsService.trackAction(
         action: SquadMissionAction.joinTournament,
       );
+      segmentService.onCustomEvent('Tournament Joined', {
+        'event_id': eventId,
+        'team_id': teamId.trim(),
+      });
+      fbEventsService.onTournamentJoined(
+        eventId: eventId,
+        teamId: teamId.trim(),
+      );
+      segmentService.onCustomEvent('Party Joined', {
+        'party_id': teamId.trim(),
+        'game_id': eventId,
+      });
+      fbEventsService.onPartyJoined(partyId: teamId.trim(), gameId: eventId);
 
       emit(
         TournamentsRegisterSuccess(
@@ -143,6 +170,14 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
       await squadMissionsService.setActiveSquad(squadKey: teamId.trim());
       squadMissionsService.trackAction(
         action: SquadMissionAction.joinTournament,
+      );
+      segmentService.onCustomEvent('Tournament Joined', {
+        'event_id': eventId,
+        'team_id': teamId.trim(),
+      });
+      fbEventsService.onTournamentJoined(
+        eventId: eventId,
+        teamId: teamId.trim(),
       );
       emit(
         TournamentsRegisterSuccess(

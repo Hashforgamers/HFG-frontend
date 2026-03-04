@@ -46,6 +46,14 @@ class _EventBannerState extends State<EventBanner> {
           campaignId: 'event_banner_001',
           action: 'banner_clicked',
         );
+        segmentService.onCustomEvent('Campaign Clicked', {
+          'campaign_id': 'event_banner_001',
+          'placement': 'home_banner',
+        });
+        fbEventsService.onCampaignClicked(
+          campaignId: 'event_banner_001',
+          source: 'home_banner',
+        );
 
         Get.snackbar(
           'Event',
@@ -54,6 +62,12 @@ class _EventBannerState extends State<EventBanner> {
           backgroundColor: const Color(0xff00DC00),
           colorText: Colors.white,
         );
+      },
+      onLongPress: () {
+        segmentService.onCustomEvent('Campaign Dismissed', {
+          'campaign_id': 'event_banner_001',
+        });
+        fbEventsService.onCampaignDismissed(campaignId: 'event_banner_001');
       },
       child: Container(
         height: 160,

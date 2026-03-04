@@ -13,8 +13,11 @@ import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/notification_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatService extends GetxService with WidgetsBindingObserver {
   static const _usersCollection = 'chat_users';
@@ -24,6 +27,9 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
   final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
+  final SharedPreferences _prefs = locator<SharedPreferences>();
   StreamSubscription<firebase_auth.User?>? _authSub;
   StreamSubscription<List<ChatRoomModel>>? _roomListSub;
   final Map<String, StreamSubscription<ChatMessageModel?>> _roomMessageSubs =
@@ -35,6 +41,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   Timer? _presenceHeartbeat;
   static const Duration _presenceHeartbeatInterval = Duration(seconds: 30);
   final RxInt unreadRoomCount = 0.obs;
+  DateTime _sessionStartedAt = DateTime.now();
 
   CollectionReference<Map<String, dynamic>> get _usersRef =>
       _firestore.collection(_usersCollection);
@@ -49,7 +56,9 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   @override
   void onInit() {
     super.onInit();
+    _sessionStartedAt = DateTime.now();
     WidgetsBinding.instance.addObserver(this);
+    _trackInactivityIfNeeded();
     _authSub = _auth.authStateChanges().listen((user) {
       if (user == null) {
         stopChatNotifications();
@@ -68,14 +77,61 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (currentUid == null) return;
     if (state == AppLifecycleState.resumed) {
+      _sessionStartedAt = DateTime.now();
       _startPresenceHeartbeat();
       unawaited(updatePresence(isOnline: true));
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden) {
+      final uid = currentUid ?? '';
+      final durationSeconds = DateTime.now()
+          .difference(_sessionStartedAt)
+          .inSeconds;
+      _segmentService.onCustomEvent('App Backgrounded', {
+        'current_screen': 'chat_service',
+      });
+      _fbEventsService.onAppBackgrounded(currentScreen: 'chat_service');
+      _segmentService.onCustomEvent('Session Duration', {
+        'user_id': uid,
+        'duration_seconds': durationSeconds,
+      });
+      _fbEventsService.onSessionDuration(
+        userId: uid,
+        durationSeconds: durationSeconds,
+      );
+      _segmentService.onCustomEvent('Session Ended', {
+        'user_id': uid,
+        'source': 'background',
+      });
+      _fbEventsService.onSessionEnded(userId: uid, source: 'background');
+      _prefs.setInt('last_active_at_ms', DateTime.now().millisecondsSinceEpoch);
       _stopPresenceHeartbeat();
       unawaited(updatePresence(isOnline: false));
+    }
+  }
+
+  void _trackInactivityIfNeeded() {
+    final uid = currentUid ?? '';
+    if (uid.isEmpty) return;
+    final lastActiveMs = _prefs.getInt('last_active_at_ms');
+    if (lastActiveMs == null || lastActiveMs <= 0) return;
+    final inactiveFor = DateTime.now().difference(
+      DateTime.fromMillisecondsSinceEpoch(lastActiveMs),
+    );
+    if (inactiveFor >= const Duration(days: 7)) {
+      _segmentService.onCustomEvent('User Inactive 7d', {'user_id': uid});
+      _fbEventsService.onUserInactive7d(userId: uid);
+      return;
+    }
+    if (inactiveFor >= const Duration(days: 3)) {
+      _segmentService.onCustomEvent('User Inactive 3d', {'user_id': uid});
+      _fbEventsService.onUserInactive3d(userId: uid);
+      return;
+    }
+    if (inactiveFor >= const Duration(hours: 24)) {
+      _segmentService.onCustomEvent('User Inactive 24h', {'user_id': uid});
+      _fbEventsService.onUserInactive24h(userId: uid);
     }
   }
 
