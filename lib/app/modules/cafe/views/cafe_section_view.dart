@@ -9,6 +9,7 @@ import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'package:hash/app/modules/arena/views/arena_view_detailed.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:lottie/lottie.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:location/location.dart' as loc;
 import 'package:shimmer/shimmer.dart';
@@ -690,19 +691,35 @@ class _CafeSectionState extends State<CafeSection> {
                                           ),
                                           decoration: BoxDecoration(
                                             color: const Color(
-                                              0xff00DC00,
-                                            ).withValues(alpha: 0.9),
+                                              0xFFFFB020,
+                                            ).withValues(alpha: 0.95),
                                             borderRadius: BorderRadius.circular(
                                               8,
                                             ),
                                           ),
-                                          child: Text(
-                                            'Filling Fast',
-                                            style: GoogleFonts.inter(
-                                              color: Colors.black,
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.w700,
-                                            ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              SizedBox(
+                                                width: 12,
+                                                height: 12,
+                                                child: Lottie.asset(
+                                                  'assets/fire.json',
+                                                  fit: BoxFit.contain,
+                                                  repeat: true,
+                                                  animate: true,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Filling Fast',
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.black,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
@@ -717,71 +734,40 @@ class _CafeSectionState extends State<CafeSection> {
                           left: 12,
                           right: 12,
                           bottom: 12,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: SizedBox(
-                                  height: 38,
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(
-                                        sigmaX: 8,
-                                        sigmaY: 8,
-                                      ),
-                                      child: OutlinedButton(
-                                        onPressed: openCafeDetails,
-                                        style: OutlinedButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xff00DC00,
-                                          ).withValues(alpha: 0.22),
-                                          foregroundColor: const Color(
-                                            0xff00DC00,
-                                          ),
-                                          side: const BorderSide(
-                                            color: Color(0xff00DC00),
-                                            width: 1.2,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          'Book Now',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ),
+                          child: SizedBox(
+                            height: 38,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(
+                                  sigmaX: 8,
+                                  sigmaY: 8,
+                                ),
+                                child: OutlinedButton(
+                                  onPressed: openCafeDetails,
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: const Color(
+                                      0xff00DC00,
+                                    ).withValues(alpha: 0.22),
+                                    foregroundColor: const Color(0xff00DC00),
+                                    side: const BorderSide(
+                                      color: Color(0xff00DC00),
+                                      width: 1.2,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Book Now',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 9,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xffFF8A1F).withValues(
-                                    alpha: 0.9,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  '₹30 Credit',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ],

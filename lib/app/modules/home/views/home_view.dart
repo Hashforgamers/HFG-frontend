@@ -4,12 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/home/controllers/app_mode_controller.dart';
+import 'package:hash/app/modules/home/controllers/session_progress_controller.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
+import 'package:hash/app/modules/home/widgets/live_session_glass_card.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/location_analytics_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
@@ -24,13 +28,18 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   final HomeController controller = Get.find();
+  final BookingController bookingController = Get.find<BookingController>();
   final ShopController shopController = Get.find<ShopController>();
   final ChatService chatService = Get.find<ChatService>();
+  late final SessionProgressController _sessionProgressController;
+  final LocationAnalyticsService _locationAnalyticsService =
+      locator<LocationAnalyticsService>();
   bool _didApplyTabArgument = false;
   bool _didApplyPassesArgument = false;
   bool _didSyncChatProfile = false;
   bool _isHomeScrolling = false;
   Timer? _fabExpandTimer;
+  Worker? _bookingsWorker;
 
   @override
   void initState() {
@@ -39,7 +48,20 @@ class _HomeViewState extends State<HomeView> {
         ? Get.find<AppModeController>()
         : Get.put(AppModeController(), permanent: true);
     appModeController.setMode(AppMode.hub);
+    _sessionProgressController = Get.isRegistered<SessionProgressController>()
+        ? Get.find<SessionProgressController>()
+        : Get.put(SessionProgressController(), permanent: true);
+    _sessionProgressController.syncFromPastBookings(
+      bookingController.userBookings,
+    );
+    _bookingsWorker = ever<List<Map<String, dynamic>>>(
+      bookingController.userBookings,
+      (bookings) => _sessionProgressController.syncFromPastBookings(bookings),
+    );
     _syncChatProfile();
+    unawaited(
+      _locationAnalyticsService.trackCurrentLocation(source: 'home_init'),
+    );
   }
 
   Future<void> _syncChatProfile() async {
@@ -154,49 +176,79 @@ class _HomeViewState extends State<HomeView> {
   @override
   void dispose() {
     _fabExpandTimer?.cancel();
+    _bookingsWorker?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
-    const neonGreen = Color(0xff00DC00);
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.1, 0),
-                end: Offset.zero,
-              ).animate(animation),
-              child: child,
-            ),
-          );
-        },
-        child: Obx(() {
-          final screen = RepaintBoundary(
-            key: ValueKey(controller.selectedIndex.value),
-            child: controller.currentScreen.value,
-          );
+      body: Stack(
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.1, 0),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              );
+            },
+            child: Obx(() {
+              final screen = RepaintBoundary(
+                key: ValueKey(controller.selectedIndex.value),
+                child: controller.currentScreen.value,
+              );
 
-          if (controller.selectedIndex.value != 0) {
-            if (_isHomeScrolling) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!mounted || !_isHomeScrolling) return;
-                setState(() => _isHomeScrolling = false);
-              });
+              if (controller.selectedIndex.value != 0) {
+                if (_isHomeScrolling) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted || !_isHomeScrolling) return;
+                    setState(() => _isHomeScrolling = false);
+                  });
+                }
+                return screen;
+              }
+
+              return NotificationListener<ScrollNotification>(
+                onNotification: _handleHomeScrollNotification,
+                child: screen,
+              );
+            }),
+          ),
+          Obx(() {
+            if (controller.selectedIndex.value != 0) {
+              return const SizedBox.shrink();
             }
-            return screen;
-          }
-
-          return NotificationListener<ScrollNotification>(
-            onNotification: _handleHomeScrollNotification,
-            child: screen,
-          );
-        }),
+            return Positioned(
+              left: 0,
+              right: 0,
+              bottom: 12,
+              child: IgnorePointer(
+                ignoring: false,
+                child: AnimatedSlide(
+                  duration: const Duration(milliseconds: 380),
+                  curve: Curves.elasticOut,
+                  offset: _isHomeScrolling
+                      ? const Offset(0, 0.52)
+                      : Offset.zero,
+                  child: LiveSessionGlassCard(
+                    controller: _sessionProgressController,
+                    forceVisible: false,
+                    unreadCount: chatService.unreadRoomCount.value,
+                    onChatTap: _openChatInbox,
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Obx(() {
@@ -204,7 +256,15 @@ class _HomeViewState extends State<HomeView> {
           return const SizedBox.shrink();
         }
 
+        final hasActiveSession =
+            _sessionProgressController.currentBooking.value != null;
+        if (hasActiveSession) {
+          // Chat action is embedded inside the live session card.
+          return const SizedBox.shrink();
+        }
+
         final unreadCount = chatService.unreadRoomCount.value;
+        const neonGreen = Color(0xff00DC00);
 
         return Stack(
           clipBehavior: Clip.none,
@@ -215,7 +275,7 @@ class _HomeViewState extends State<HomeView> {
               extendedPadding: const EdgeInsets.symmetric(horizontal: 16),
               backgroundColor: Colors.black,
               elevation: 0,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 side: BorderSide(color: neonGreen, width: 1.6),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(28),
