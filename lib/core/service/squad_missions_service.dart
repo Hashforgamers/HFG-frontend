@@ -12,6 +12,8 @@ class SquadMissionAction {
   static const watchLive = 'watch_live';
   static const joinTournament = 'join_tournament';
   static const referFriend = 'refer_friend';
+  static const chatMessageSent = 'chat_message_sent';
+  static const dailyLogin = 'daily_login';
 }
 
 class SquadMissionsService {
@@ -35,12 +37,17 @@ class SquadMissionsService {
       'target': 1,
       'reward': 30,
     },
-    'play_sessions': {'title': 'Play 3 Sessions', 'target': 3, 'reward': 25},
+    'play_sessions': {'title': 'Play 1 Session', 'target': 1, 'reward': 20},
     'refer_friends': {'title': 'Refer 1 Friend', 'target': 1, 'reward': 20},
     'watch_live_minutes': {
-      'title': 'Watch Live 30 Mins',
-      'target': 30,
-      'reward': 15,
+      'title': 'Watch Live 10 Mins',
+      'target': 10,
+      'reward': 10,
+    },
+    'chat_messages': {
+      'title': 'Send 5 Chat Messages',
+      'target': 5,
+      'reward': 10,
     },
   };
 
@@ -387,6 +394,8 @@ class SquadMissionsService {
         return 'join_tournament';
       case SquadMissionAction.referFriend:
         return 'refer_friends';
+      case SquadMissionAction.chatMessageSent:
+        return 'chat_messages';
       default:
         return null;
     }

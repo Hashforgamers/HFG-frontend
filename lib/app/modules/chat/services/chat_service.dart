@@ -379,7 +379,10 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     if (uid == null) return const Stream.empty();
 
     return _roomsRef.where('members', arrayContains: uid).snapshots().map((s) {
-      final rooms = s.docs.map(ChatRoomModel.fromDoc).toList();
+      final rooms = s.docs
+          .map(ChatRoomModel.fromDoc)
+          .where((room) => !room.deletedForUserIds.contains(uid))
+          .toList();
       rooms.sort((a, b) {
         final aTime = a.lastMessageAt ?? a.updatedAt;
         final bTime = b.lastMessageAt ?? b.updatedAt;
@@ -387,6 +390,56 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       });
       return rooms;
     });
+  }
+
+  Future<void> deleteRoomForCurrentUser(String roomId) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to manage chats.');
+    }
+
+    await _roomsRef.doc(roomId).set({
+      'deleted_for_uids': FieldValue.arrayUnion([uid]),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+
+    _unreadRoomById.remove(roomId);
+    _recomputeUnreadRoomCount();
+  }
+
+  Future<void> setRoomMutedForCurrentUser({
+    required String roomId,
+    required bool muted,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to manage chats.');
+    }
+    await _roomsRef.doc(roomId).set({
+      'muted_uids': muted
+          ? FieldValue.arrayUnion([uid])
+          : FieldValue.arrayRemove([uid]),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> setRoomArchivedForCurrentUser({
+    required String roomId,
+    required bool archived,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to manage chats.');
+    }
+    await _roomsRef.doc(roomId).set({
+      'archived_uids': archived
+          ? FieldValue.arrayUnion([uid])
+          : FieldValue.arrayRemove([uid]),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
   }
 
   Stream<ChatRoomModel?> streamRoom(String roomId) {
@@ -907,6 +960,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     required ChatMessageModel message,
     required String currentUidValue,
   }) {
+    if (room.mutedUserIds.contains(currentUidValue)) return;
     if (!Get.isRegistered<NotificationController>()) return;
     final notificationController = Get.find<NotificationController>();
 

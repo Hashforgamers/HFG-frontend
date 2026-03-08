@@ -1,22 +1,143 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:get/get.dart';
+import 'package:hash/app/data/services/user_controller.dart';
 import 'package:intl/intl.dart';
 import 'package:segment_analytics/client.dart';
+import 'package:segment_analytics/event.dart';
 import 'package:segment_analytics/state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SegmentSdkService {
   static const writeKey = 'boSN3P9nWQGYQHyM7dK26w2Ef8p621uY';
   static final analytics = createClient(Configuration(writeKey, debug: true));
+  String _lastIdentityFingerprint = '';
+
+  Future<Map<String, dynamic>> _identityPayload() async {
+    String userId = '';
+    String email = '';
+    String fid = '';
+    String phoneNumber = '';
+    String username = '';
+
+    try {
+      if (Get.isRegistered<UserController>()) {
+        final uc = Get.find<UserController>();
+        userId = uc.id.value.trim();
+        email =
+            (uc.user.value.contact?.electronicAddress?.emailId ?? '')
+                .toString()
+                .trim();
+        phoneNumber =
+            (uc.user.value.contact?.electronicAddress?.mobileNo ?? '')
+                .toString()
+                .trim();
+        username = (uc.user.value.gameUserName ?? '').toString().trim();
+      }
+    } catch (_) {}
+
+    final authUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    fid = (authUser?.uid ?? '').trim();
+    email = email.isNotEmpty ? email : (authUser?.email ?? '').trim();
+    phoneNumber = phoneNumber.isNotEmpty
+        ? phoneNumber
+        : (authUser?.phoneNumber ?? '').trim();
+    username = username.isNotEmpty ? username : (authUser?.displayName ?? '').trim();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedUserId = (prefs.getString('user_id') ?? '').trim();
+      if (storedUserId.isNotEmpty) userId = storedUserId;
+
+      final raw = prefs.getString('user_data');
+      if (raw != null && raw.isNotEmpty) {
+        final map = jsonDecode(raw);
+        if (map is Map) {
+          userId = userId.isNotEmpty
+              ? userId
+              : (map['id'] ?? map['user_id'] ?? '').toString().trim();
+          fid = fid.isNotEmpty ? fid : (map['fid'] ?? '').toString().trim();
+          email = email.isNotEmpty
+              ? email
+              : (map['email'] ?? map['emailId'] ?? '').toString().trim();
+          phoneNumber = phoneNumber.isNotEmpty
+              ? phoneNumber
+              : (map['phoneNumber'] ??
+                        map['mobileNo'] ??
+                        map['mobile_number'] ??
+                        '')
+                    .toString()
+                    .trim();
+          username = username.isNotEmpty
+              ? username
+              : (map['gameUserName'] ?? map['username'] ?? '')
+                    .toString()
+                    .trim();
+        }
+      }
+    } catch (_) {}
+
+    return {
+      'user_id': userId,
+      'email': email,
+      'fid': fid,
+      'phone_number': phoneNumber,
+      'username': username,
+    };
+  }
+
+  Future<void> _track(
+    String name, {
+    Map<String, dynamic>? properties,
+  }) async {
+    final payload = <String, dynamic>{...(properties ?? <String, dynamic>{})};
+    final identity = await _identityPayload();
+    payload.addAll(identity);
+    await _identifyIfNeeded(identity);
+    await analytics.track(name, properties: payload);
+  }
+
+  Future<void> _identifyIfNeeded(Map<String, dynamic> identity) async {
+    final userId = (identity['user_id'] ?? '').toString().trim();
+    final email = (identity['email'] ?? '').toString().trim();
+    final fid = (identity['fid'] ?? '').toString().trim();
+    final phone = (identity['phone_number'] ?? '').toString().trim();
+    final username = (identity['username'] ?? '').toString().trim();
+
+    final fingerprint = '$userId|$email|$fid|$phone|$username';
+    if (fingerprint == _lastIdentityFingerprint) return;
+
+    final traits = UserTraits(
+      id: userId.isEmpty ? null : userId,
+      email: email.isEmpty ? null : email,
+      phone: phone.isEmpty ? null : phone,
+      username: username.isEmpty ? null : username,
+      name: username.isEmpty ? null : username,
+      custom: {
+        'fid': fid,
+        'phone_number': phone,
+        'user_id': userId,
+      },
+    );
+
+    await analytics.identify(
+      userId: userId.isEmpty ? null : userId,
+      userTraits: traits,
+    );
+    _lastIdentityFingerprint = fingerprint;
+  }
   // Generic custom event helper
   Future<void> onCustomEvent(
     String name,
     Map<String, dynamic> properties,
   ) async {
-    await analytics.track(name, properties: properties);
+    await _track(name, properties: properties);
   }
 
   // Event 1 - On App Launch
   Future<void> onAppLaunch() async {
-    await analytics.track(
+    await _track(
       'App Launched',
       properties: {
         'device_type': Platform.isAndroid ? 'android' : 'ios',
@@ -27,7 +148,7 @@ class SegmentSdkService {
 
   // Event 2 - OTP Requested
   Future<void> onOtpRequested({required String mobile}) async {
-    await analytics.track(
+    await _track(
       'OTP Requested',
       properties: {'mobile': mobile, 'method': 'sms'},
     );
@@ -35,7 +156,7 @@ class SegmentSdkService {
 
   // Event 3 - OTP Verified
   Future<void> onOtpVerified({required String mobile}) async {
-    await analytics.track(
+    await _track(
       'OTP Verified',
       properties: {'mobile': mobile, 'verification_status': 'success'},
     );
@@ -46,7 +167,7 @@ class SegmentSdkService {
     required String referralCode,
     required String email,
   }) async {
-    await analytics.track(
+    await _track(
       'Signup Started',
       properties: {'referral_code': referralCode, 'email': email},
     );
@@ -58,7 +179,7 @@ class SegmentSdkService {
     required String userId,
     required String email,
   }) async {
-    await analytics.track(
+    await _track(
       'Signup Completed',
       properties: {
         'user_id': userId,
@@ -77,7 +198,7 @@ class SegmentSdkService {
     required String loginMethod,
     required String deviceId,
   }) async {
-    await analytics.track(
+    await _track(
       'Login Successful',
       properties: {'user_id': userId, 'device_id': '', 'login_method': ''},
     );
@@ -89,7 +210,7 @@ class SegmentSdkService {
     required bool notification,
     required bool contacts,
   }) async {
-    await analytics.track(
+    await _track(
       'Permissions Granted',
       properties: {
         'location': location,
@@ -101,7 +222,7 @@ class SegmentSdkService {
 
   // Profile Updated
   Future<void> onProfileUpdated({required List<String> updatedFields}) async {
-    await analytics.track(
+    await _track(
       'Profile Updated',
       properties: {'updated_fields': updatedFields},
     );
@@ -109,7 +230,7 @@ class SegmentSdkService {
 
   // Ticket Viewed
   Future<void> onTicketViewed({required String email}) async {
-    await analytics.track(
+    await _track(
       'Ticket Viewed',
       properties: {
         'email': email,
@@ -120,7 +241,7 @@ class SegmentSdkService {
 
   // Shop Viewed
   Future<void> onShowViewed({required String email}) async {
-    await analytics.track(
+    await _track(
       'Show Viewed',
       properties: {
         'email': email,
@@ -134,7 +255,7 @@ class SegmentSdkService {
     required String email,
     required String name,
   }) async {
-    await analytics.track(
+    await _track(
       'Product Viewed',
       properties: {
         'email': email,
@@ -149,7 +270,7 @@ class SegmentSdkService {
     required String email,
     required String productName,
   }) async {
-    await analytics.track(
+    await _track(
       'Product Pre-Registered',
       properties: {
         'email': email,
@@ -161,7 +282,7 @@ class SegmentSdkService {
 
   // Help Requested
   Future<void> onHelpRequested({required String email}) async {
-    await analytics.track(
+    await _track(
       'Help Requested',
       properties: {
         'email': email,
@@ -172,7 +293,7 @@ class SegmentSdkService {
 
   // Account Deleted Requested
   Future<void> onAccountDeletedRequested({required String email}) async {
-    await analytics.track(
+    await _track(
       'Account Deleted Requested',
       properties: {
         'email': email,
@@ -183,7 +304,7 @@ class SegmentSdkService {
 
   // Hash Pass Checked
   Future<void> onHashPassChecked({required String email}) async {
-    await analytics.track(
+    await _track(
       'Hash Pass Checked',
       properties: {
         'email': email,
@@ -198,7 +319,7 @@ class SegmentSdkService {
     required String email,
     required double amount,
   }) async {
-    await analytics.track(
+    await _track(
       'Hash Pass Initiated',
       properties: {
         'email': email,
@@ -214,7 +335,7 @@ class SegmentSdkService {
     required String email,
     // required double amount,
   }) async {
-    await analytics.track(
+    await _track(
       'Hash Pass Purchased',
       properties: {
         'email': email,
@@ -229,7 +350,7 @@ class SegmentSdkService {
   Future<void> onGamePreferencesSet({
     required List<String> selectedGames,
   }) async {
-    await analytics.track(
+    await _track(
       'Console Selected',
       properties: {'selected_consoles': selectedGames},
     );
@@ -240,7 +361,7 @@ class SegmentSdkService {
     required String referralCode,
     required String channel,
   }) async {
-    await analytics.track(
+    await _track(
       'Referral Sent',
       properties: {'referral_code': referralCode, 'channel': channel},
     );
@@ -248,12 +369,12 @@ class SegmentSdkService {
 
   // Referral Viewed
   Future<void> onReferralViewed({required String email}) async {
-    await analytics.track('Referral Viewed', properties: {'email': email});
+    await _track('Referral Viewed', properties: {'email': email});
   }
 
   // Referral Initiated
   Future<void> onReferralInitiated({required String email}) async {
-    await analytics.track(
+    await _track(
       'Referral Initiated',
       properties: {
         'email': email,
@@ -269,7 +390,7 @@ class SegmentSdkService {
     required String email,
     required String referraCode,
   }) async {
-    await analytics.track(
+    await _track(
       'Referral Joined',
       properties: {
         'referred_by': referredBy,
@@ -283,7 +404,7 @@ class SegmentSdkService {
 
   // Home Screen Viewed
   Future<void> onHomeScreenViewed({required String userId}) async {
-    await analytics.track(
+    await _track(
       'Home Screen Viewed',
       properties: {'user_id': userId},
     );
@@ -291,7 +412,7 @@ class SegmentSdkService {
 
   // Nearby Cafe Viewed
   Future<void> onNearbyCafeViewed({required String email}) async {
-    await analytics.track(
+    await _track(
       'Nearby Cafe Viewed',
       properties: {
         'email': '',
@@ -305,7 +426,7 @@ class SegmentSdkService {
     required String sortType,
     required String filterType,
   }) async {
-    await analytics.track(
+    await _track(
       'Cafe List Viewed',
       properties: {'sort_type': sortType, 'filter_type': filterType},
     );
@@ -319,7 +440,7 @@ class SegmentSdkService {
     required List<String> availableGames,
     required email,
   }) async {
-    await analytics.track(
+    await _track(
       'Gaming Cafe Viewed',
       properties: {
         'cafe_id': cafeId,
@@ -339,7 +460,7 @@ class SegmentSdkService {
     required String consoleType,
     required int consoleAmount,
   }) async {
-    await analytics.track(
+    await _track(
       'Cafe Console Selected',
       properties: {
         'email': '',
@@ -351,7 +472,7 @@ class SegmentSdkService {
 
   // Cafe Images Viewed
   Future<void> onCafeImagesViewed({required String cafeId}) async {
-    await analytics.track(
+    await _track(
       'Cafe Images Viewed',
       properties: {'cafe_id': cafeId},
     );
@@ -362,7 +483,7 @@ class SegmentSdkService {
     required String gameId,
     required String cafeId,
   }) async {
-    await analytics.track(
+    await _track(
       'Game Details Viewed',
       properties: {'game_id': gameId, 'cafe_id': cafeId},
     );
@@ -373,7 +494,7 @@ class SegmentSdkService {
     required String email,
     required List<Map<String, dynamic>> selectedMeal,
   }) async {
-    await analytics.track(
+    await _track(
       'Meal Selected',
       properties: {'email': email, 'selected_meal': selectedMeal},
     );
@@ -388,7 +509,7 @@ class SegmentSdkService {
     required String consoleType,
     required int consoleAmount,
   }) async {
-    await analytics.track(
+    await _track(
       'Booking Started',
       properties: {
         'cafe_id': cafeId,
@@ -407,7 +528,7 @@ class SegmentSdkService {
     required String cafeId,
     required double amount,
   }) async {
-    await analytics.track(
+    await _track(
       'Booking Summary Viewed',
       properties: {
         'booking_id': bookingId,
@@ -423,7 +544,7 @@ class SegmentSdkService {
     required double amount,
     required String paymentMethodSelected,
   }) async {
-    await analytics.track(
+    await _track(
       'Payment Initiated',
       properties: {
         'booking_id': bookingId,
@@ -441,7 +562,7 @@ class SegmentSdkService {
     required String slotTime,
     required String mealType,
   }) async {
-    await analytics.track(
+    await _track(
       'Vouncher Redeemed',
       properties: {
         'email': email,
@@ -459,7 +580,7 @@ class SegmentSdkService {
     required String bookingId,
     required String paymentGateway,
   }) async {
-    await analytics.track(
+    await _track(
       'Payment Success',
       properties: {
         'transaction_id': transactionId,
@@ -474,7 +595,7 @@ class SegmentSdkService {
     required String reason,
     required String paymentGateway,
   }) async {
-    await analytics.track(
+    await _track(
       'Payment Failed',
       properties: {'reason': reason, 'payment_gateway': paymentGateway},
     );
@@ -491,7 +612,7 @@ class SegmentSdkService {
     required int consoleAmount,
     required String paymentMethod,
   }) async {
-    await analytics.track(
+    await _track(
       'Booking Confirmed',
       properties: {
         'booking_id': bookingId,
@@ -512,7 +633,7 @@ class SegmentSdkService {
     required String mode,
     required double entryFee,
   }) async {
-    await analytics.track(
+    await _track(
       'Game Started',
       properties: {'game_id': gameId, 'mode': mode, 'entry_fee': entryFee},
     );
@@ -523,7 +644,7 @@ class SegmentSdkService {
     required String gameId,
     required String reason,
   }) async {
-    await analytics.track(
+    await _track(
       'Game Abandoned',
       properties: {'game_id': gameId, 'reason': reason},
     );
@@ -536,7 +657,7 @@ class SegmentSdkService {
     required String duration,
     required int pointsEarned,
   }) async {
-    await analytics.track(
+    await _track(
       'Game Completed',
       properties: {
         'game_id': gameId,
@@ -549,12 +670,12 @@ class SegmentSdkService {
 
   // Wallet Viewed
   Future<void> onWalletViewed({required String userId}) async {
-    await analytics.track('Wallet Viewed', properties: {'user_id': userId});
+    await _track('Wallet Viewed', properties: {'user_id': userId});
   }
 
   // Add Money Initiated
   Future<void> onAddMoneyInitiated({required double amountEntered}) async {
-    await analytics.track(
+    await _track(
       'Add Money Initiated',
       properties: {'amount_entered': amountEntered},
     );
@@ -565,7 +686,7 @@ class SegmentSdkService {
     required double amountAdded,
     required String txnId,
   }) async {
-    await analytics.track(
+    await _track(
       'Add Money Success',
       properties: {'amount_added': amountAdded, 'txn_id': txnId},
     );
@@ -576,7 +697,7 @@ class SegmentSdkService {
     required double amount,
     required String bankAccount,
   }) async {
-    await analytics.track(
+    await _track(
       'Withdrawal Initiated',
       properties: {'amount': amount, 'bank_account': bankAccount},
     );
@@ -587,7 +708,7 @@ class SegmentSdkService {
     required String payoutId,
     required double amount,
   }) async {
-    await analytics.track(
+    await _track(
       'Withdrawal Success',
       properties: {'payout_id': payoutId, 'amount': amount},
     );
@@ -598,7 +719,7 @@ class SegmentSdkService {
     required String title,
     required String campaignId,
   }) async {
-    await analytics.track(
+    await _track(
       'Push Notification Received',
       properties: {'title': title, 'campaign_id': campaignId},
     );
@@ -609,7 +730,7 @@ class SegmentSdkService {
     required String campaignId,
     required String screenTarget,
   }) async {
-    await analytics.track(
+    await _track(
       'Push Notification Clicked',
       properties: {'campaign_id': campaignId, 'screen_target': screenTarget},
     );
@@ -620,7 +741,7 @@ class SegmentSdkService {
     required String source,
     required String campaignId,
   }) async {
-    await analytics.track(
+    await _track(
       'Campaign Viewed',
       properties: {'source': source, 'campaign_id': campaignId},
     );
@@ -631,7 +752,7 @@ class SegmentSdkService {
     required String campaignId,
     required String action,
   }) async {
-    await analytics.track(
+    await _track(
       'Campaign Conversion',
       properties: {'campaign_id': campaignId, 'action': action},
     );
@@ -642,7 +763,7 @@ class SegmentSdkService {
     required String endpoint,
     required String errorMessage,
   }) async {
-    await analytics.track(
+    await _track(
       'API Error',
       properties: {'endpoint': endpoint, 'error_message': errorMessage},
     );
@@ -653,7 +774,7 @@ class SegmentSdkService {
     required String stacktrace,
     required String screen,
   }) async {
-    await analytics.track(
+    await _track(
       'App Crash Logged',
       properties: {'stacktrace': stacktrace, 'screen': screen},
     );
@@ -661,6 +782,6 @@ class SegmentSdkService {
 
   // Unexpected Logout
   Future<void> onUnexpectedLogout({required String reason}) async {
-    await analytics.track('Unexpected Logout', properties: {'reason': reason});
+    await _track('Unexpected Logout', properties: {'reason': reason});
   }
 }

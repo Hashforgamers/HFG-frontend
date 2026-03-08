@@ -182,8 +182,8 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                               decoration: const BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
-                                    Color(0xFF2C3E50),
-                                    Color(0xFF111111),
+                                    Color(0xFF272C36),
+                                    Color(0xFF1E222B),
                                   ],
                                 ),
                               ),
@@ -414,7 +414,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                       Container(
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF2C3E50), Color(0xFF111111)],
+                            colors: [Color(0xFFFFA726), Color(0xFFFF6D00)],
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),

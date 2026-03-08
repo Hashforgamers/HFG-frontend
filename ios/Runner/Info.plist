@@ -96,7 +96,7 @@
 	<key>NSUserAuthenticationUsageDescription</key>
 	<string>Sign in to your account securely using Apple.</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>This identifier will be used to sign in.</string>
+	<string>We use this data to measure campaign performance and show you more relevant gaming offers.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

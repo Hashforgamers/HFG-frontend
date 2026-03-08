@@ -15,6 +15,7 @@ import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/location_analytics_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
 import '../controllers/home_controller.dart';
@@ -34,6 +35,8 @@ class _HomeViewState extends State<HomeView> {
   late final SessionProgressController _sessionProgressController;
   final LocationAnalyticsService _locationAnalyticsService =
       locator<LocationAnalyticsService>();
+  final SquadMissionsService _squadMissionsService =
+      locator<SquadMissionsService>();
   bool _didApplyTabArgument = false;
   bool _didApplyPassesArgument = false;
   bool _didSyncChatProfile = false;
@@ -59,6 +62,9 @@ class _HomeViewState extends State<HomeView> {
       (bookings) => _sessionProgressController.syncFromPastBookings(bookings),
     );
     _syncChatProfile();
+    unawaited(
+      _squadMissionsService.trackAction(action: SquadMissionAction.dailyLogin),
+    );
     unawaited(
       _locationAnalyticsService.trackCurrentLocation(source: 'home_init'),
     );

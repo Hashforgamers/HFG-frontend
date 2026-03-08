@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -111,6 +112,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   // Payment stage management
   final Rx<PaymentStage> _stage = PaymentStage.idle.obs;
   final RxString _errorMessage = ''.obs;
+  Timer? _paymentWatchdog;
 
   @override
   void initState() {
@@ -148,6 +150,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       );
     }
     _voucherController.dispose();
+    _cancelPaymentWatchdog();
     _resetPaymentState();
     _selectedGamePass.value = null;
     super.dispose();
@@ -169,6 +172,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         _paymentStatus.value = status;
         if (status.toLowerCase().contains('success')) {
           _stage.value = PaymentStage.done;
+          _cancelPaymentWatchdog();
           // _isProcessingPayment(false);
         } else if (status.toLowerCase().contains('failed') ||
             status.toLowerCase().contains('error') ||
@@ -176,6 +180,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           _stage.value = PaymentStage.error;
           _errorMessage.value = status;
           _isProcessingPayment(false);
+          _cancelPaymentWatchdog();
           razorpayController.isPaymentInProgress(false);
         }
       }
@@ -189,6 +194,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             _stage.value != PaymentStage.error) {
           _stage.value = PaymentStage.idle;
         }
+        _cancelPaymentWatchdog();
         _isProcessingPayment(false);
         _paymentStatus.value = '';
       }
@@ -200,6 +206,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         _paymentStatus.value = status;
         if (status.toLowerCase().contains('successful')) {
           _stage.value = PaymentStage.done;
+          _cancelPaymentWatchdog();
           // _isProcessingPayment(false);
         } else if (status.toLowerCase().contains('failed') ||
             status.toLowerCase().contains('error') ||
@@ -207,10 +214,49 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           _stage.value = PaymentStage.error;
           _errorMessage.value = status;
           _isProcessingPayment(false);
+          _cancelPaymentWatchdog();
           razorpayController.isPaymentInProgress(false);
         }
       }
     });
+  }
+
+  void _startPaymentWatchdog({
+    Duration timeout = const Duration(seconds: 45),
+    required bool fromWallet,
+  }) {
+    _cancelPaymentWatchdog();
+    _paymentWatchdog = Timer(timeout, () async {
+      if (!mounted) return;
+      if (!_isProcessingPayment.value) return;
+      final activeGatewayStage =
+          _stage.value == PaymentStage.initiatingGateway ||
+          _stage.value == PaymentStage.openingRazorpay ||
+          razorpayController.isPaymentInProgress.value;
+      if (!activeGatewayStage) return;
+
+      await _failPaymentFlow(
+        'Payment is taking longer than expected. Please try again.',
+        fromWallet: fromWallet,
+      );
+    });
+  }
+
+  void _cancelPaymentWatchdog() {
+    _paymentWatchdog?.cancel();
+    _paymentWatchdog = null;
+  }
+
+  Future<void> _failPaymentFlow(
+    String errorMessage, {
+    required bool fromWallet,
+  }) async {
+    _stage.value = PaymentStage.error;
+    _errorMessage.value = errorMessage;
+    _paymentStatus.value = '';
+    _cancelPaymentWatchdog();
+    _resetButtonState();
+    await _showPaymentErrorUx(errorMessage, fromWallet: fromWallet);
   }
 
   Future<void> _loadVouchers() async {
@@ -1033,6 +1079,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     required bool fromWallet,
   }) async {
     if (!mounted) return;
+    // Hard safety: never keep loader active while rendering an error UX.
+    _resetButtonState();
 
     final showWalletSheet =
         fromWallet &&
@@ -1173,15 +1221,112 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(errorMessage),
-        backgroundColor: Colors.red.shade600,
-        duration: const Duration(seconds: 6),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        margin: const EdgeInsets.all(16),
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF111111),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
+      builder: (_) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.error_outline_rounded,
+                        color: Colors.redAccent,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Payment Failed',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  errorMessage,
+                  style: GoogleFonts.inter(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white24),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          'Close',
+                          style: GoogleFonts.inter(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xff00DC00),
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          'Retry',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1326,6 +1471,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       // d) RAZORPAY route (default)
       _stage.value = PaymentStage.initiatingGateway;
+      _startPaymentWatchdog(fromWallet: false);
       razorpayController.bookingIdList.value = bookingIds;
       // Set the slot IDs for the razorpay controller
       razorpayController.slotIdsList.value = widget.selectedSlots
@@ -1353,10 +1499,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         _selectedPayment.value = 'gateway';
       }
 
-      _stage.value = PaymentStage.error;
-      _errorMessage.value = errorMessage;
-      _resetButtonState();
-      await _showPaymentErrorUx(errorMessage, fromWallet: useWallet);
+      await _failPaymentFlow(errorMessage, fromWallet: useWallet);
+    } finally {
+      // Wallet/voucher/pass/pay-at-cafe do not rely on external gateway callbacks.
+      // Ensure loader is always released even if any internal method swallows errors.
+      final nonGatewayPath =
+          useWallet || isVoucherApplied || isGamePass || isPayAtCafe;
+      if (nonGatewayPath && _stage.value != PaymentStage.done) {
+        _isProcessingPayment(false);
+      }
     }
   }
 
@@ -1430,6 +1581,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       // Update payment stage to done
       _stage.value = PaymentStage.done;
+      _cancelPaymentWatchdog();
       _isProcessingPayment(false);
       _paymentStatus.value = 'Booking confirmed successfully!';
 
@@ -1497,12 +1649,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         _selectedPayment.value = 'gateway';
       }
 
-      // Update payment stage to error
-      _stage.value = PaymentStage.error;
-      _errorMessage.value = errorMessage;
-      _resetButtonState();
       _paymentStatus.value = 'Failed to confirm booking';
-      await _showPaymentErrorUx(
+      await _failPaymentFlow(
         errorMessage,
         fromWallet: paymentMode == 'wallet',
       );
@@ -1601,15 +1749,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               '',
         );
       } else {
-        _stage.value = PaymentStage.error;
-        _errorMessage.value = 'Failed to create payment order';
-        _isProcessingPayment(false);
-        _paymentStatus.value = 'Payment order creation failed';
-        razorpayController.isPaymentInProgress(false);
-        await _showPaymentErrorUx(
+        await _failPaymentFlow(
           'Failed to create payment order. Please try again.',
           fromWallet: false,
         );
+        _paymentStatus.value = 'Payment order creation failed';
+        razorpayController.isPaymentInProgress(false);
       }
     } catch (e) {
       // Parse error message properly
@@ -1623,12 +1768,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         paymentGateway: 'gateway',
       );
 
-      _stage.value = PaymentStage.error;
-      _errorMessage.value = errorMessage;
-      _resetButtonState();
       _paymentStatus.value = 'Payment initialization failed';
       AppLogger.d('Payment error: $e');
-      await _showPaymentErrorUx(errorMessage, fromWallet: false);
+      await _failPaymentFlow(errorMessage, fromWallet: false);
     }
   }
 }

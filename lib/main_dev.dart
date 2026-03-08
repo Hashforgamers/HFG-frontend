@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -10,6 +12,7 @@ import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
 import 'package:hash/core/service/deeplink_service.dart';
+import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -59,6 +62,11 @@ void main() async {
 
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
+  unawaited(
+    locator<FbEventsService>().configureAdvertiserTrackingForIos(
+      promptIfNeeded: true,
+    ),
+  );
 
   Get.put(UserController());
   Get.put(RazorpayController());

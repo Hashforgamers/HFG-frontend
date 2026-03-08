@@ -1,5 +1,13 @@
+import 'dart:io';
+import 'dart:convert';
+
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:facebook_app_events/facebook_app_events.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:get/get.dart';
+import 'package:hash/app/data/services/user_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FbEventsService {
   static final fbAppEvents = FacebookAppEvents();
@@ -51,10 +59,85 @@ class FbEventsService {
     String eventName,
     Map<String, dynamic> parameters,
   ) async {
+    final payload = <String, dynamic>{...parameters};
+    payload.addAll(await _identityPayload());
     await Future.wait([
-      fbAppEvents.logEvent(name: eventName, parameters: parameters),
-      _logFirebaseEvent(eventName, parameters),
+      fbAppEvents.logEvent(name: eventName, parameters: payload),
+      _logFirebaseEvent(eventName, payload),
     ]);
+  }
+
+  Future<Map<String, dynamic>> _identityPayload() async {
+    String userId = '';
+    String email = '';
+    String fid = '';
+    String phoneNumber = '';
+    String username = '';
+
+    try {
+      if (Get.isRegistered<UserController>()) {
+        final uc = Get.find<UserController>();
+        userId = uc.id.value.trim();
+        email =
+            (uc.user.value.contact?.electronicAddress?.emailId ?? '')
+                .toString()
+                .trim();
+        phoneNumber =
+            (uc.user.value.contact?.electronicAddress?.mobileNo ?? '')
+                .toString()
+                .trim();
+        username = (uc.user.value.gameUserName ?? '').toString().trim();
+      }
+    } catch (_) {}
+
+    final authUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    fid = (authUser?.uid ?? '').trim();
+    email = email.isNotEmpty ? email : (authUser?.email ?? '').trim();
+    phoneNumber = phoneNumber.isNotEmpty
+        ? phoneNumber
+        : (authUser?.phoneNumber ?? '').trim();
+    username = username.isNotEmpty ? username : (authUser?.displayName ?? '').trim();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedUserId = (prefs.getString('user_id') ?? '').trim();
+      if (storedUserId.isNotEmpty) userId = storedUserId;
+
+      final raw = prefs.getString('user_data');
+      if (raw != null && raw.isNotEmpty) {
+        final map = jsonDecode(raw);
+        if (map is Map) {
+          userId = userId.isNotEmpty
+              ? userId
+              : (map['id'] ?? map['user_id'] ?? '').toString().trim();
+          fid = fid.isNotEmpty ? fid : (map['fid'] ?? '').toString().trim();
+          email = email.isNotEmpty
+              ? email
+              : (map['email'] ?? map['emailId'] ?? '').toString().trim();
+          phoneNumber = phoneNumber.isNotEmpty
+              ? phoneNumber
+              : (map['phoneNumber'] ??
+                        map['mobileNo'] ??
+                        map['mobile_number'] ??
+                        '')
+                    .toString()
+                    .trim();
+          username = username.isNotEmpty
+              ? username
+              : (map['gameUserName'] ?? map['username'] ?? '')
+                    .toString()
+                    .trim();
+        }
+      }
+    } catch (_) {}
+
+    return {
+      'user_id': userId,
+      'email': email,
+      'fid': fid,
+      'phone_number': phoneNumber,
+      'username': username,
+    };
   }
 
   // NEW: generic custom event (parity with Segment)
@@ -70,6 +153,34 @@ class FbEventsService {
     Map<String, dynamic> parameters,
   ) async {
     await _logBoth(eventName, parameters);
+  }
+
+  /// iOS only: sync ATT status to Facebook SDK.
+  /// When ATT is authorized, advertiser tracking + ID collection are enabled.
+  Future<void> configureAdvertiserTrackingForIos({
+    bool promptIfNeeded = true,
+  }) async {
+    if (!Platform.isIOS) return;
+    try {
+      var status =
+          await AppTrackingTransparency.trackingAuthorizationStatus;
+      if (status == TrackingStatus.notDetermined && promptIfNeeded) {
+        status = await AppTrackingTransparency.requestTrackingAuthorization();
+      }
+
+      final enabled = status == TrackingStatus.authorized;
+      await fbAppEvents.setAdvertiserTracking(
+        enabled: enabled,
+        collectId: enabled,
+      );
+
+      await _logFirebaseEvent('ATT Status Updated', {
+        'att_status': status.name,
+        'advertiser_tracking_enabled': enabled,
+      });
+    } catch (_) {
+      // Do not block app startup because of ATT/SDK errors.
+    }
   }
 
   // Event 1 - On App Launch

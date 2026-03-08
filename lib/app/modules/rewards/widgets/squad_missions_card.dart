@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/rewards/models/squad_weekly_progress.dart';
@@ -347,9 +348,9 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
                 ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
                 : fire
                 ? const Icon(
-                    Icons.local_fire_department_rounded,
-                    color: Color(0xFFFF8A00),
-                    size: 15,
+                    CupertinoIcons.checkmark_circle_fill,
+                    color: Color(0xFFFFD49A),
+                    size: 20,
                   )
                 : null,
           ),

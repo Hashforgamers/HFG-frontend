@@ -158,8 +158,8 @@ class _HashLiveRootState extends State<HashLiveRoot> {
   }
 
   Widget _liveBadgeFab() {
-    const ring = Color(0xFFFF3B30);
-    const ringSoft = Color(0xFFFF6B61);
+    const ring = LiveUi.accent;
+    const ringSoft = LiveUi.accentSoft;
     return Container(
       width: 64,
       height: 64,
@@ -263,13 +263,13 @@ class _DiscoverTab extends StatelessWidget {
                   _emptyState('No streams live right now.'),
                 if (streams.isNotEmpty)
                   SizedBox(
-                    height: 276,
+                    height: 322,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: streams.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (_, i) =>
-                          _StanLiveCard(stream: streams[i], width: 286),
+                          _StanLiveCard(stream: streams[i], width: 304),
                     ),
                   ),
                 const SizedBox(height: 14),
@@ -327,7 +327,7 @@ class _DiscoverTab extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF000000), Color(0xFF2C3E50), Color(0xFF000000)],
+          colors: [Color(0xFF15171D), Color(0xFF2A1A10), Color(0xFF0C0E13)],
         ),
       ),
       child: Padding(
@@ -546,7 +546,7 @@ class _GoLiveTab extends StatelessWidget {
         const SizedBox(height: 12),
         Obx(
           () => ListTile(
-            tileColor: const Color(0x332C3E50),
+            tileColor: const Color(0x33242934),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -643,7 +643,7 @@ class _GoLiveTab extends StatelessWidget {
                     controller.setTab(0);
                   },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2C3E50),
+              backgroundColor: LiveUi.surfaceSoft,
               foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(52),
               shape: RoundedRectangleBorder(
@@ -675,7 +675,7 @@ class _GoLiveTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: const Color(0x332C3E50),
+          color: const Color(0x33242934),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
@@ -752,9 +752,9 @@ class _HostTab extends StatelessWidget {
                                     vertical: 5,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: isLive
-                                        ? LiveUi.accent
-                                        : Colors.white10,
+                                      color: isLive
+                                          ? LiveUi.accent
+                                          : Colors.white10,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
@@ -1266,7 +1266,7 @@ class _HostUpcomingEditableCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   ListTile(
-                    tileColor: const Color(0x332C3E50),
+                    tileColor: const Color(0x33242934),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1379,135 +1379,195 @@ class _StanLiveCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final thumb = LiveYoutubeUtils.thumbnailUrl(stream.youtubeUrl);
-    return GestureDetector(
-      onTap: () => Get.to(() => LiveStreamScreen(streamId: stream.id)),
-      child: Container(
-        width: width,
-        decoration: LiveUi.cardDecoration(radius: 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(18),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => Get.to(() => LiveStreamScreen(streamId: stream.id)),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          width: width,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.36),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
               ),
-              child: Container(
-                height: 165,
-                decoration: const BoxDecoration(color: Color(0xFF111111)),
-                child: Stack(
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (thumb != null)
+                CachedNetworkImage(
+                  imageUrl: thumb,
+                  fit: BoxFit.cover,
+                  placeholder: (_, _) => Container(
+                    color: const Color(0xFF1A1D23),
+                  ),
+                  errorWidget: (_, _, _) => Container(
+                    color: const Color(0xFF1A1D23),
+                  ),
+                )
+              else
+                Container(color: const Color(0xFF1A1D23)),
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x0D000000), Color(0xD9000000)],
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 10,
+                left: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF4A3D),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'LIVE',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${stream.viewerCount} watching',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (thumb != null)
-                      Positioned.fill(
-                        child: CachedNetworkImage(
-                          imageUrl: thumb,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Color(0xFF2C3E50), Color(0xFF111111)],
+                    Text(
+                      stream.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 11,
+                          backgroundImage: stream.hostPhotoUrl.isNotEmpty
+                              ? CachedNetworkImageProvider(stream.hostPhotoUrl)
+                              : null,
+                          backgroundColor: LiveUi.surface,
+                          child: stream.hostPhotoUrl.isEmpty
+                              ? const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 12,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '@${stream.hostName} • ${stream.game}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () =>
+                                Get.to(() => LiveStreamScreen(streamId: stream.id)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(
+                                color: LiveUi.accentSoft,
+                                width: 1.2,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              backgroundColor: Colors.black.withValues(alpha: 0.22),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            child: Text(
+                              'View Stream',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
                               ),
                             ),
                           ),
-                          errorWidget: (_, __, ___) => Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Color(0xFF2C3E50), Color(0xFF111111)],
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () =>
+                                Get.to(() => LiveStreamScreen(streamId: stream.id)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: LiveUi.accent,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            child: Text(
+                              'Watch Live',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
                               ),
                             ),
                           ),
                         ),
-                      )
-                    else
-                      Positioned.fill(
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFF2C3E50), Color(0xFF111111)],
-                            ),
-                          ),
-                        ),
-                      ),
-                    Positioned.fill(
-                      child: Container(
-                        color: Colors.black.withValues(alpha: 0.28),
-                      ),
-                    ),
-                    const Center(
-                      child: Icon(
-                        Icons.play_circle_fill_rounded,
-                        color: Colors.white70,
-                        size: 54,
-                      ),
-                    ),
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF3B30),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          'LIVE',
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundImage: stream.hostPhotoUrl.isNotEmpty
-                        ? CachedNetworkImageProvider(stream.hostPhotoUrl)
-                        : null,
-                    backgroundColor: LiveUi.surface,
-                    child: stream.hostPhotoUrl.isEmpty
-                        ? const Icon(Icons.person, color: Colors.white)
-                        : null,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          stream.title,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          '@${stream.hostName}  •  ${stream.viewerCount} watching',
-                          style: LiveUi.body,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1578,7 +1638,7 @@ class _UpcomingCard extends StatelessWidget {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: joined ? const Color(0xFF2C3E50) : LiveUi.accent,
+              backgroundColor: joined ? LiveUi.surfaceSoft : LiveUi.accent,
               foregroundColor: Colors.white,
             ),
             child: Text(joined ? 'Joined' : 'Notify'),

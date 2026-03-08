@@ -31,15 +31,12 @@ class BookingController extends GetxController {
     List<Map<String, dynamic>> rawSlots,
   ) {
     try {
-      // Filter out slots that are not available
-      final availableSlots = rawSlots.where((slot) {
-        final bool isAvailable =
-            slot['is_available'] ?? slot['isAvailable'] ?? true;
-        return isAvailable;
-      }).toList();
+      // Keep all slots from API; only sort by time.
+      // Availability/time status is handled in UI so users can understand why a slot is not selectable.
+      final sortedSlots = List<Map<String, dynamic>>.from(rawSlots);
 
       // Sort slots by start time
-      availableSlots.sort((a, b) {
+      sortedSlots.sort((a, b) {
         final startTimeA = a['start_time'] ?? '';
         final startTimeB = b['start_time'] ?? '';
 
@@ -50,17 +47,17 @@ class BookingController extends GetxController {
         return timeA.compareTo(timeB);
       });
 
-      // Log the filtered and sorted slots for debugging
+      // Log the sorted slots for debugging
       AppLogger.d(
-        'Filtered and sorted ${availableSlots.length} slots out of ${rawSlots.length} total slots',
+        'Sorted ${sortedSlots.length} slots out of ${rawSlots.length} total slots',
       );
-      for (var slot in availableSlots.take(3)) {
+      for (var slot in sortedSlots.take(3)) {
         AppLogger.d(
           'Slot: ${slot['start_time']} - ${slot['end_time']}, Available: ${slot['available_slot']}',
         );
       }
 
-      return availableSlots;
+      return sortedSlots;
     } catch (e) {
       AppLogger.d('Error filtering and sorting slots: $e');
       return rawSlots; // Return original list if error occurs
