@@ -169,6 +169,13 @@ flutter:
     - assets/plant_vs_zombies/sounds/
 
     - assets/pacman/
+    - assets/pacman/images/ghost2.png
+    - assets/pacman/images/ghost3.png
+    - assets/pacman/images/pacman.png
+    - assets/pacman/pacman_beginning.wav
+    - assets/pacman/pacman_death.wav
+    - assets/pacman/pacman_chomp.wav
+    - assets/pacman/pacman_intermission.wav
 
     - assets/flappy_birds/audio/
     - assets/flappy_birds/fonts/

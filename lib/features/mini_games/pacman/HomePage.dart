@@ -79,7 +79,7 @@ class _PacManHomeState extends State<PacManHome> {
     if (preGame) {
       preGame = false;
       getFood();
-      playBgm('assets/pacman/pacman_beginning.wav');
+      playBgm('pacman_beginning.wav');
 
       _tickTimer = Timer.periodic(const Duration(milliseconds: 10), (timer) {
         if (!mounted || paused) return;
@@ -87,7 +87,7 @@ class _PacManHomeState extends State<PacManHome> {
         // check collisions
         if (player == ghost || player == ghost2 || player == ghost3) {
           bgmPlayer.stop();
-          playSfx('assets/pacman/pacman_death.wav');
+          playSfx('pacman_death.wav');
           setState(() => player = -1);
 
           // Update centralized score
@@ -131,7 +131,7 @@ class _PacManHomeState extends State<PacManHome> {
           setState(() => mouthClosed = !mouthClosed);
 
           if (food.contains(player)) {
-            playSfx('assets/pacman/pacman_chomp.wav');
+            playSfx('pacman_chomp.wav');
             setState(() {
               food.remove(player);
               score++;
@@ -319,7 +319,7 @@ class _PacManHomeState extends State<PacManHome> {
                     setState(() => paused = !paused);
                     if (paused) {
                       bgmPlayer.pause();
-                      playSfx('assets/pacman/pacman_intermission.wav');
+                      playSfx('pacman_intermission.wav');
                     } else {
                       bgmPlayer.resume();
                     }

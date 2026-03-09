@@ -18,54 +18,6 @@ import 'package:hash/core/utils/haptics.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
-extension _ChatRoomModelCompat on ChatRoomModel {
-  List<String> get mutedUserIds => const <String>[];
-  List<String> get archivedUserIds => const <String>[];
-  List<String> get deletedForUserIds => const <String>[];
-}
-
-extension _ChatServiceCompat on ChatService {
-  Future<void> setRoomMutedForCurrentUser({
-    required String roomId,
-    required bool muted,
-  }) async {
-    final uid = currentUid;
-    if (uid == null) return;
-    await FirebaseFirestore.instance.collection('chat_rooms').doc(roomId).set({
-      'muted_uids': muted
-          ? FieldValue.arrayUnion(<String>[uid])
-          : FieldValue.arrayRemove(<String>[uid]),
-      'updated_at': FieldValue.serverTimestamp(),
-      'client_updated_at': DateTime.now().toIso8601String(),
-    }, SetOptions(merge: true));
-  }
-
-  Future<void> setRoomArchivedForCurrentUser({
-    required String roomId,
-    required bool archived,
-  }) async {
-    final uid = currentUid;
-    if (uid == null) return;
-    await FirebaseFirestore.instance.collection('chat_rooms').doc(roomId).set({
-      'archived_uids': archived
-          ? FieldValue.arrayUnion(<String>[uid])
-          : FieldValue.arrayRemove(<String>[uid]),
-      'updated_at': FieldValue.serverTimestamp(),
-      'client_updated_at': DateTime.now().toIso8601String(),
-    }, SetOptions(merge: true));
-  }
-
-  Future<void> deleteRoomForCurrentUser(String roomId) async {
-    final uid = currentUid;
-    if (uid == null) return;
-    await FirebaseFirestore.instance.collection('chat_rooms').doc(roomId).set({
-      'deleted_for_uids': FieldValue.arrayUnion(<String>[uid]),
-      'updated_at': FieldValue.serverTimestamp(),
-      'client_updated_at': DateTime.now().toIso8601String(),
-    }, SetOptions(merge: true));
-  }
-}
-
 class ChatInboxView extends StatefulWidget {
   const ChatInboxView({super.key});
 
@@ -80,6 +32,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
   final TextEditingController _searchController = TextEditingController();
   bool _didHandleInitialRoomNavigation = false;
   bool _showArchived = false;
+  final Set<String> _actionInProgressRoomIds = <String>{};
 
   String _query = '';
   _InboxFilter _selectedFilter = _InboxFilter.all;
@@ -183,6 +136,166 @@ class _ChatInboxViewState extends State<ChatInboxView> {
       final subtitle = room.subtitleFor(currentUid).toLowerCase();
       return title.contains(_query) || subtitle.contains(_query);
     }).toList();
+  }
+
+  bool _isRoomActionInProgress(String roomId) {
+    return _actionInProgressRoomIds.contains(roomId);
+  }
+
+  Future<void> _runRoomAction(
+    String roomId,
+    Future<void> Function() action,
+  ) async {
+    if (_isRoomActionInProgress(roomId)) return;
+    if (!mounted) return;
+    setState(() => _actionInProgressRoomIds.add(roomId));
+    try {
+      await action();
+    } finally {
+      if (mounted) {
+        setState(() => _actionInProgressRoomIds.remove(roomId));
+      }
+    }
+  }
+
+  void _showSnack({
+    required String message,
+    Color? backgroundColor,
+    SnackBarAction? action,
+  }) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        action: action,
+      ),
+    );
+  }
+
+  Future<bool> _confirmDeleteChat(String roomTitle) async {
+    final answer = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: ChatPalette.surface,
+          title: Text(
+            'Delete chat?',
+            style: GoogleFonts.inter(
+              color: ChatPalette.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            'This removes "$roomTitle" from your inbox only. You can start a fresh chat anytime.',
+            style: GoogleFonts.inter(
+              color: ChatPalette.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(color: ChatPalette.textSecondary),
+              ),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFC84B4B),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(
+                'Delete',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    return answer == true;
+  }
+
+  Future<void> _toggleMute({
+    required String roomId,
+    required bool currentlyMuted,
+  }) async {
+    await _runRoomAction(roomId, () async {
+      final nextMuted = !currentlyMuted;
+      await _chatService.setRoomMutedForCurrentUser(
+        roomId: roomId,
+        muted: nextMuted,
+      );
+      _showSnack(
+        message: nextMuted ? 'Notifications muted' : 'Notifications unmuted',
+        backgroundColor: nextMuted
+            ? const Color(0xFF2A4E22)
+            : const Color(0xFF2D2D2D),
+      );
+    });
+  }
+
+  Future<void> _toggleArchive({
+    required String roomId,
+    required bool currentlyArchived,
+  }) async {
+    await _runRoomAction(roomId, () async {
+      final nextArchived = !currentlyArchived;
+      await _chatService.setRoomArchivedForCurrentUser(
+        roomId: roomId,
+        archived: nextArchived,
+      );
+      _showSnack(
+        message: nextArchived ? 'Chat archived' : 'Chat moved to inbox',
+        backgroundColor: const Color(0xFF303030),
+      );
+    });
+  }
+
+  Future<bool> _deleteChatWithConfirmation({
+    required String roomId,
+    required String roomTitle,
+  }) async {
+    final confirmed = await _confirmDeleteChat(roomTitle);
+    if (!confirmed) return false;
+
+    var deleted = false;
+    await _runRoomAction(roomId, () async {
+      await _chatService.deleteRoomForCurrentUser(roomId);
+      deleted = true;
+      _showSnack(
+        message: 'Chat deleted',
+        backgroundColor: const Color(0xFF6D1B1B),
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: Colors.white,
+          onPressed: () {
+            unawaited(
+              _restoreRoomForCurrentUser(roomId).catchError((_) {
+                _showSnack(message: 'Unable to restore chat right now.');
+              }),
+            );
+          },
+        ),
+      );
+    });
+    return deleted;
+  }
+
+  Future<void> _restoreRoomForCurrentUser(String roomId) async {
+    final uid = _chatService.currentUid;
+    if (uid == null) return;
+    await FirebaseFirestore.instance.collection('chat_rooms').doc(roomId).set({
+      'deleted_for_uids': FieldValue.arrayRemove(<String>[uid]),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
   }
 
   @override
@@ -326,10 +439,14 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                   );
 
                   final activeRooms = rooms
-                      .where((room) => !room.archivedUserIds.contains(currentUid))
+                      .where(
+                        (room) => !room.archivedUserIds.contains(currentUid),
+                      )
                       .toList();
                   final archivedRooms = rooms
-                      .where((room) => room.archivedUserIds.contains(currentUid))
+                      .where(
+                        (room) => room.archivedUserIds.contains(currentUid),
+                      )
                       .toList();
                   final hasVisibleRooms =
                       activeRooms.isNotEmpty ||
@@ -352,10 +469,8 @@ class _ChatInboxViewState extends State<ChatInboxView> {
 
                   final items = <Widget>[
                     ...activeRooms.map(
-                      (room) => _buildRoomTile(
-                        room: room,
-                        currentUid: currentUid,
-                      ),
+                      (room) =>
+                          _buildRoomTile(room: room, currentUid: currentUid),
                     ),
                   ];
 
@@ -375,10 +490,8 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                     );
                     items.addAll(
                       archivedRooms.map(
-                        (room) => _buildRoomTile(
-                          room: room,
-                          currentUid: currentUid,
-                        ),
+                        (room) =>
+                            _buildRoomTile(room: room, currentUid: currentUid),
                       ),
                     );
                   }
@@ -438,45 +551,25 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     );
   }
 
-  Widget _proofBadge(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.4), width: 1),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: 9.5,
-          letterSpacing: 0.4,
-        ),
-      ),
-    );
-  }
-
   Widget _buildRoomTile({
     required ChatRoomModel room,
     required String currentUid,
   }) {
     final title = room.displayTitleFor(currentUid);
     final subtitle = room.subtitleFor(currentUid);
-    final typingPeers = room.typingUserIds.where((id) => id != currentUid).toList();
+    final typingPeers = room.typingUserIds
+        .where((id) => id != currentUid)
+        .toList();
     final otherId = room.isGroup
         ? ''
-        : room.members.firstWhere(
-            (id) => id != currentUid,
-            orElse: () => '',
-          );
+        : room.members.firstWhere((id) => id != currentUid, orElse: () => '');
     final stamp = room.lastMessageAt ?? room.updatedAt;
     final prefix = title.isEmpty ? 'C' : title[0].toUpperCase();
     final hasAvatar = room.imageUrl.trim().startsWith('http');
     final badgeText = room.isGroup ? 'GROUP' : 'DIRECT';
     final isMuted = room.mutedUserIds.contains(currentUid);
     final isArchived = room.archivedUserIds.contains(currentUid);
+    final actionInProgress = _isRoomActionInProgress(room.id);
 
     return Dismissible(
       key: ValueKey('chat_${room.id}_${stamp.millisecondsSinceEpoch}'),
@@ -529,44 +622,19 @@ class _ChatInboxViewState extends State<ChatInboxView> {
       ),
       confirmDismiss: (direction) async {
         try {
+          if (actionInProgress) return false;
           if (direction == DismissDirection.startToEnd) {
-            final nextMuted = !isMuted;
-            await _chatService.setRoomMutedForCurrentUser(
-              roomId: room.id,
-              muted: nextMuted,
-            );
-            if (!mounted) return false;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(nextMuted ? 'Chat muted' : 'Chat unmuted'),
-                backgroundColor: nextMuted
-                    ? const Color(0xFF2A4E22)
-                    : const Color(0xFF2D2D2D),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            await _toggleMute(roomId: room.id, currentlyMuted: isMuted);
             return false;
           }
           if (direction == DismissDirection.endToStart) {
-            await _chatService.deleteRoomForCurrentUser(room.id);
-            if (!mounted) return false;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Chat deleted'),
-                backgroundColor: Color(0xFF6D1B1B),
-                behavior: SnackBarBehavior.floating,
-              ),
+            return _deleteChatWithConfirmation(
+              roomId: room.id,
+              roomTitle: title,
             );
-            return true;
           }
         } catch (_) {
-          if (!mounted) return false;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Action failed. Please try again.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          _showSnack(message: 'Action failed. Please try again.');
         }
         return false;
       },
@@ -577,95 +645,89 @@ class _ChatInboxViewState extends State<ChatInboxView> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onLongPress: () async {
-            try {
-              final nextArchived = !isArchived;
-              await _chatService.setRoomArchivedForCurrentUser(
-                roomId: room.id,
-                archived: nextArchived,
-              );
-              if (!mounted) return;
-              Haptics.medium();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(nextArchived
-                      ? 'Chat archived'
-                      : 'Chat moved back to inbox'),
-                  backgroundColor: const Color(0xFF303030),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            } catch (_) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Action failed. Please try again.'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          },
-          onTap: () {
-            Haptics.selection();
-            Get.to(() => ChatRoomView(roomId: room.id));
-          },
+          borderRadius: BorderRadius.circular(12),
+          onLongPress: actionInProgress
+              ? null
+              : () async {
+                  try {
+                    Haptics.medium();
+                    await _toggleArchive(
+                      roomId: room.id,
+                      currentlyArchived: isArchived,
+                    );
+                  } catch (_) {
+                    _showSnack(message: 'Action failed. Please try again.');
+                  }
+                },
+          onTap: actionInProgress
+              ? null
+              : () {
+                  Haptics.selection();
+                  Get.to(() => ChatRoomView(roomId: room.id));
+                },
           child: Ink(
             decoration: BoxDecoration(
               gradient: ChatPalette.cardGradient,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: ChatPalette.border.withValues(alpha: 0.6),
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              child: Row(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Stack(
                 children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: room.isGroup
-                          ? ChatPalette.accent
-                          : ChatPalette.primary,
-                    ),
-                    child: Center(
-                      child: hasAvatar
-                          ? CircleAvatar(
-                              radius: 19,
-                              backgroundImage: CachedNetworkImageProvider(
-                                room.imageUrl.trim(),
-                              ),
-                            )
-                          : room.isGroup
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: room.isGroup
+                              ? ChatPalette.accent
+                              : ChatPalette.primary,
+                        ),
+                        child: Center(
+                          child: hasAvatar
+                              ? CircleAvatar(
+                                  radius: 18,
+                                  backgroundImage: CachedNetworkImageProvider(
+                                    room.imageUrl.trim(),
+                                  ),
+                                )
+                              : room.isGroup
                               ? const Icon(
                                   Icons.groups_rounded,
                                   color: Colors.white,
-                                  size: 20,
+                                  size: 18,
                                 )
                               : StreamBuilder<ChatUserModel?>(
                                   stream: _chatService.streamUserById(otherId),
                                   builder: (context, snap) {
                                     final photoFromChat =
                                         snap.data?.photoUrl.trim() ?? '';
-                                    final selfGoogle = (otherId == currentUid
-                                            ? firebase_auth.FirebaseAuth
-                                                .instance.currentUser?.photoURL
-                                            : null)
-                                        ?.trim() ??
+                                    final selfGoogle =
+                                        (otherId == currentUid
+                                                ? firebase_auth
+                                                      .FirebaseAuth
+                                                      .instance
+                                                      .currentUser
+                                                      ?.photoURL
+                                                : null)
+                                            ?.trim() ??
                                         '';
-                                    final effectivePhoto = photoFromChat.isNotEmpty
+                                    final effectivePhoto =
+                                        photoFromChat.isNotEmpty
                                         ? photoFromChat
                                         : selfGoogle;
                                     if (effectivePhoto.isNotEmpty) {
                                       return CircleAvatar(
-                                        radius: 19,
+                                        radius: 18,
                                         backgroundImage:
                                             CachedNetworkImageProvider(
-                                          effectivePhoto,
-                                        ),
+                                              effectivePhoto,
+                                            ),
                                       );
                                     }
                                     return Text(
@@ -673,125 +735,187 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                       style: GoogleFonts.inter(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w700,
+                                        fontSize: 13,
                                       ),
                                     );
                                   },
                                 ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            color: ChatPalette.textPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        _proofBadge(
-                          badgeText,
-                          room.isGroup
-                              ? ChatPalette.accent
-                              : ChatPalette.primary,
-                        ),
-                        const SizedBox(height: 4),
-                        if (room.isGroup)
-                          Text(
-                            typingPeers.isNotEmpty ? 'typing...' : subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              color: typingPeers.isNotEmpty
-                                  ? ChatPalette.success
-                                  : ChatPalette.textSecondary,
-                              fontSize: 12,
-                            ),
-                          )
-                        else
-                          StreamBuilder<ChatUserModel?>(
-                            stream: _chatService.streamUserById(otherId),
-                            builder: (context, snap) {
-                              final user = snap.data;
-                              final status = typingPeers.isNotEmpty
-                                  ? 'typing...'
-                                  : user == null
-                                      ? subtitle
-                                      : user.isOnline
-                                          ? 'Online'
-                                          : user.lastSeenAt == null
-                                              ? subtitle
-                                              : 'Last seen ${_formatTime(user.lastSeenAt!)}';
-                              return Text(
-                                status,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  color: typingPeers.isNotEmpty
-                                      ? ChatPalette.success
-                                      : user?.isOnline == true
-                                          ? ChatPalette.success
-                                          : ChatPalette.textSecondary,
-                                  fontSize: 12,
-                                ),
-                              );
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        _formatTime(stamp),
-                        style: GoogleFonts.inter(
-                          color: ChatPalette.textSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      if (isMuted) ...[
-                        const SizedBox(height: 4),
-                        const Icon(
-                          Icons.volume_off_rounded,
-                          color: ChatPalette.textSecondary,
-                          size: 14,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                color: ChatPalette.textPrimary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            if (room.isGroup)
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      typingPeers.isNotEmpty
+                                          ? 'typing...'
+                                          : subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        color: typingPeers.isNotEmpty
+                                            ? ChatPalette.success
+                                            : ChatPalette.textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _typeTag(room.isGroup, badgeText),
+                                ],
+                              )
+                            else
+                              StreamBuilder<ChatUserModel?>(
+                                stream: _chatService.streamUserById(otherId),
+                                builder: (context, snap) {
+                                  final user = snap.data;
+                                  final status = typingPeers.isNotEmpty
+                                      ? 'typing...'
+                                      : user == null
+                                      ? subtitle
+                                      : user.isOnline
+                                      ? 'Online'
+                                      : user.lastSeenAt == null
+                                      ? subtitle
+                                      : 'Last seen ${_formatTime(user.lastSeenAt!)}';
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          status,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            color: typingPeers.isNotEmpty
+                                                ? ChatPalette.success
+                                                : user?.isOnline == true
+                                                ? ChatPalette.success
+                                                : ChatPalette.textSecondary,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      _typeTag(room.isGroup, badgeText),
+                                    ],
+                                  );
+                                },
+                              ),
+                          ],
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            _formatTime(stamp),
+                            style: GoogleFonts.inter(
+                              color: ChatPalette.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (isMuted) ...[
+                            const SizedBox(height: 3),
+                            const Icon(
+                              Icons.volume_off_rounded,
+                              color: ChatPalette.textSecondary,
+                              size: 13,
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        splashRadius: 16,
+                        visualDensity: const VisualDensity(
+                          horizontal: -4,
+                          vertical: -4,
+                        ),
+                        tooltip: 'Actions',
+                        onPressed: actionInProgress
+                            ? null
+                            : () => _showRoomActionsSheet(
+                                room: room,
+                                currentUid: currentUid,
+                              ),
+                        icon: const Icon(
+                          Icons.more_vert_rounded,
+                          color: ChatPalette.textSecondary,
+                          size: 17,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: ChatPalette.textSecondary,
+                        size: 18,
+                      ),
                     ],
                   ),
-                  const SizedBox(width: 6),
-                  IconButton(
-                    splashRadius: 18,
-                    visualDensity: VisualDensity.compact,
-                    tooltip: 'Actions',
-                    onPressed: () => _showRoomActionsSheet(
-                      room: room,
-                      currentUid: currentUid,
+                  if (actionInProgress)
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              color: ChatPalette.primary,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    icon: const Icon(
-                      Icons.more_vert_rounded,
-                      color: ChatPalette.textSecondary,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: ChatPalette.textSecondary,
-                    size: 18,
-                  ),
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _typeTag(bool isGroup, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: (isGroup ? ChatPalette.accent : ChatPalette.primary)
+              .withValues(alpha: 0.4),
+        ),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: isGroup ? ChatPalette.accent : ChatPalette.primary,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.25,
         ),
       ),
     );
@@ -827,25 +951,9 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                 onTap: () async {
                   Navigator.of(sheetContext).pop();
                   try {
-                    await _chatService.setRoomMutedForCurrentUser(
-                      roomId: room.id,
-                      muted: !isMuted,
-                    );
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(isMuted ? 'Chat unmuted' : 'Chat muted'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    await _toggleMute(roomId: room.id, currentlyMuted: isMuted);
                   } catch (_) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Action failed. Please try again.'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    _showSnack(message: 'Action failed. Please try again.');
                   }
                 },
               ),
@@ -861,34 +969,20 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                 onTap: () async {
                   Navigator.of(sheetContext).pop();
                   try {
-                    await _chatService.setRoomArchivedForCurrentUser(
+                    await _toggleArchive(
                       roomId: room.id,
-                      archived: !isArchived,
-                    );
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          isArchived
-                              ? 'Chat moved back to inbox'
-                              : 'Chat archived',
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                      currentlyArchived: isArchived,
                     );
                   } catch (_) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Action failed. Please try again.'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    _showSnack(message: 'Action failed. Please try again.');
                   }
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.delete_rounded, color: Color(0xFFCD5A5A)),
+                leading: const Icon(
+                  Icons.delete_rounded,
+                  color: Color(0xFFCD5A5A),
+                ),
                 title: Text(
                   'Delete chat',
                   style: GoogleFonts.inter(color: const Color(0xFFCD5A5A)),
@@ -896,22 +990,12 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                 onTap: () async {
                   Navigator.of(sheetContext).pop();
                   try {
-                    await _chatService.deleteRoomForCurrentUser(room.id);
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Chat deleted'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                    await _deleteChatWithConfirmation(
+                      roomId: room.id,
+                      roomTitle: room.displayTitleFor(currentUid),
                     );
                   } catch (_) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Action failed. Please try again.'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    _showSnack(message: 'Action failed. Please try again.');
                   }
                 },
               ),

@@ -33,6 +33,7 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
   int _searchRequestId = 0;
   bool _isLoadingUsers = true;
   bool _isStartingChat = false;
+  bool _isMutatingHistory = false;
 
   @override
   void initState() {
@@ -139,6 +140,71 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
     }
   }
 
+  Future<void> _removeFromHistory(ChatUserModel user) async {
+    if (_query.isNotEmpty || _isMutatingHistory) return;
+    setState(() => _isMutatingHistory = true);
+    try {
+      await _chatService.removeUserFromRecentSearchHistory(user.uid);
+      await _runSearch();
+      if (!mounted) return;
+      Get.snackbar(
+        'History updated',
+        'Removed from recent search history',
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isMutatingHistory = false);
+      }
+    }
+  }
+
+  Future<void> _clearHistory() async {
+    if (_query.isNotEmpty || _isMutatingHistory || _users.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Clear search history?',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          'This removes all recent users from your search history list.',
+          style: GoogleFonts.inter(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('Cancel', style: GoogleFonts.inter()),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text('Clear', style: GoogleFonts.inter()),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _isMutatingHistory = true);
+    try {
+      await _chatService.clearRecentSearchHistory();
+      await _runSearch();
+      if (!mounted) return;
+      Get.snackbar(
+        'History cleared',
+        'Recent search history removed',
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isMutatingHistory = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -154,6 +220,19 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          if (_query.isEmpty && _users.isNotEmpty)
+            TextButton(
+              onPressed: _isMutatingHistory ? null : _clearHistory,
+              child: Text(
+                'Clear',
+                style: GoogleFonts.inter(
+                  color: ChatPalette.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+        ],
       ),
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: ChatPalette.pageGradient),
@@ -234,18 +313,19 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
                           : user.displayName;
                       final username = user.username.trim();
                       final prefix = display[0].toUpperCase();
+                      final isHistoryMode = _query.isEmpty;
 
                       return Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                           onTap: _isStartingChat
                               ? null
                               : () => _startDirectChat(user),
                           child: Ink(
                             decoration: BoxDecoration(
                               gradient: ChatPalette.cardGradient,
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: ChatPalette.border.withValues(
                                   alpha: 0.6,
@@ -254,13 +334,13 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
                             ),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
+                                horizontal: 10,
+                                vertical: 8,
                               ),
                               child: Row(
                                 children: [
                                   CircleAvatar(
-                                    radius: 20,
+                                    radius: 17,
                                     backgroundColor: ChatPalette.primaryDark,
                                     backgroundImage: user.photoUrl.isNotEmpty
                                         ? NetworkImage(user.photoUrl)
@@ -271,15 +351,17 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
                                             style: GoogleFonts.inter(
                                               color: Colors.white,
                                               fontWeight: FontWeight.w700,
+                                              fontSize: 12,
                                             ),
                                           )
                                         : null,
                                   ),
-                                  const SizedBox(width: 10),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
                                           display,
@@ -288,6 +370,7 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
                                           style: GoogleFonts.inter(
                                             color: ChatPalette.textPrimary,
                                             fontWeight: FontWeight.w600,
+                                            fontSize: 13,
                                           ),
                                         ),
                                         if (username.isNotEmpty)
@@ -297,7 +380,7 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
                                             overflow: TextOverflow.ellipsis,
                                             style: GoogleFonts.inter(
                                               color: ChatPalette.primary,
-                                              fontSize: 12,
+                                              fontSize: 11,
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
@@ -308,13 +391,30 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
                                             overflow: TextOverflow.ellipsis,
                                             style: GoogleFonts.inter(
                                               color: ChatPalette.textSecondary,
-                                              fontSize: 12,
+                                              fontSize: 11,
                                             ),
                                           ),
                                       ],
                                     ),
                                   ),
-                                  if (_isStartingChat)
+                                  if (isHistoryMode)
+                                    IconButton(
+                                      tooltip: 'Remove from history',
+                                      splashRadius: 16,
+                                      visualDensity: const VisualDensity(
+                                        horizontal: -4,
+                                        vertical: -4,
+                                      ),
+                                      onPressed: _isMutatingHistory
+                                          ? null
+                                          : () => _removeFromHistory(user),
+                                      icon: const Icon(
+                                        Icons.close_rounded,
+                                        color: ChatPalette.textSecondary,
+                                        size: 18,
+                                      ),
+                                    )
+                                  else if (_isStartingChat)
                                     const SizedBox(
                                       width: 18,
                                       height: 18,

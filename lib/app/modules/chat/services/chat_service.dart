@@ -23,6 +23,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   static const _usersCollection = 'chat_users';
   static const _roomsCollection = 'chat_rooms';
   static const _messagesCollection = 'messages';
+  static const _hiddenRecentUsersKeyPrefix = 'chat_hidden_recent_users_';
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
@@ -283,6 +284,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
 
       for (final room in rooms) {
         if (room.type != 'direct') continue;
+        if (room.deletedForUserIds.contains(uid)) continue;
 
         final hasMessage =
             room.lastMessage.trim().isNotEmpty || room.lastMessageAt != null;
@@ -307,12 +309,19 @@ class ChatService extends GetxService with WidgetsBindingObserver {
 
       if (orderedUserIds.isEmpty) return const [];
 
+      final hiddenUserIds = await _hiddenRecentUserIds();
+      final visibleUserIds = orderedUserIds
+          .where((id) => !hiddenUserIds.contains(id))
+          .toList();
+
+      if (visibleUserIds.isEmpty) return const [];
+
       final usersById = <String, ChatUserModel>{};
       const chunkSize = 10; // Firestore whereIn supports max 10 values.
 
-      for (var i = 0; i < orderedUserIds.length; i += chunkSize) {
-        final end = math.min(i + chunkSize, orderedUserIds.length);
-        final chunk = orderedUserIds.sublist(i, end);
+      for (var i = 0; i < visibleUserIds.length; i += chunkSize) {
+        final end = math.min(i + chunkSize, visibleUserIds.length);
+        final chunk = visibleUserIds.sublist(i, end);
         final usersSnapshot = await _usersRef
             .where(FieldPath.documentId, whereIn: chunk)
             .get();
@@ -326,7 +335,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
 
       final now = DateTime.now();
       final users = <ChatUserModel>[];
-      for (final userId in orderedUserIds) {
+      for (final userId in visibleUserIds) {
         if (userId == uid) continue;
 
         final storedUser = usersById[userId];
@@ -355,6 +364,33 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       return const [];
     }
   }
+
+  Future<void> removeUserFromRecentSearchHistory(String targetUid) async {
+    final uid = currentUid;
+    final target = targetUid.trim();
+    if (uid == null || target.isEmpty) return;
+
+    final key = _hiddenRecentUsersKey(uid);
+    final current = _prefs.getStringList(key) ?? const <String>[];
+    if (current.contains(target)) return;
+    await _prefs.setStringList(key, <String>[...current, target]);
+  }
+
+  Future<void> clearRecentSearchHistory() async {
+    final uid = currentUid;
+    if (uid == null) return;
+    await _prefs.remove(_hiddenRecentUsersKey(uid));
+  }
+
+  Future<Set<String>> _hiddenRecentUserIds() async {
+    final uid = currentUid;
+    if (uid == null) return const <String>{};
+    final values = _prefs.getStringList(_hiddenRecentUsersKey(uid)) ?? const [];
+    return values.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet();
+  }
+
+  String _hiddenRecentUsersKey(String uid) =>
+      '$_hiddenRecentUsersKeyPrefix$uid';
 
   Stream<List<ChatUserModel>> streamAllUsers() {
     final uid = currentUid;
@@ -406,6 +442,19 @@ class ChatService extends GetxService with WidgetsBindingObserver {
 
     _unreadRoomById.remove(roomId);
     _recomputeUnreadRoomCount();
+  }
+
+  Future<void> restoreRoomForCurrentUser(String roomId) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to manage chats.');
+    }
+
+    await _roomsRef.doc(roomId).set({
+      'deleted_for_uids': FieldValue.arrayRemove([uid]),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
   }
 
   Future<void> setRoomMutedForCurrentUser({
@@ -499,33 +548,65 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     await ensureCurrentUserProfile();
 
     final sortedMembers = [uid, otherUser.uid]..sort();
-    final roomId = 'dm_${sortedMembers[0]}_${sortedMembers[1]}';
 
-    final roomRef = _roomsRef.doc(roomId);
-    final roomDoc = await roomRef.get();
+    final existingSnapshot = await _roomsRef
+        .where('members', arrayContains: uid)
+        .limit(150)
+        .get();
 
-    if (!roomDoc.exists) {
-      final meName = await _resolveCurrentUserNameFromStore(uid);
-      await roomRef.set({
-        'id': roomId,
-        'type': 'direct',
-        'name': '',
-        'image_url': '',
-        'members': sortedMembers,
-        'admins': [uid],
-        'member_names': {uid: meName, otherUser.uid: otherUser.displayName},
-        'created_by': uid,
-        'created_at': FieldValue.serverTimestamp(),
-        'updated_at': FieldValue.serverTimestamp(),
-        'client_created_at': DateTime.now().toIso8601String(),
-        'client_updated_at': DateTime.now().toIso8601String(),
-        'last_message': '',
-        'last_message_sender_id': '',
-        'last_message_at': null,
-      });
+    ChatRoomModel? activeDirectRoom;
+    final candidates = existingSnapshot.docs.map(ChatRoomModel.fromDoc);
+    for (final room in candidates) {
+      if (room.type != 'direct') continue;
+      if (!room.members.contains(otherUser.uid)) continue;
+      if (room.deletedForUserIds.contains(uid)) continue;
+
+      if (activeDirectRoom == null) {
+        activeDirectRoom = room;
+        continue;
+      }
+      final currentTime =
+          activeDirectRoom.lastMessageAt ?? activeDirectRoom.updatedAt;
+      final roomTime = room.lastMessageAt ?? room.updatedAt;
+      if (roomTime.isAfter(currentTime)) {
+        activeDirectRoom = room;
+      }
     }
 
-    return roomId;
+    final meName = await _resolveCurrentUserNameFromStore(uid);
+
+    if (activeDirectRoom != null) {
+      await _roomsRef.doc(activeDirectRoom.id).set({
+        'member_names': {uid: meName, otherUser.uid: otherUser.displayName},
+        'updated_at': FieldValue.serverTimestamp(),
+        'client_updated_at': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+      return activeDirectRoom.id;
+    }
+
+    final roomRef = _roomsRef.doc();
+    await roomRef.set({
+      'id': roomRef.id,
+      'type': 'direct',
+      'name': '',
+      'image_url': '',
+      'members': sortedMembers,
+      'admins': [uid],
+      'member_names': {uid: meName, otherUser.uid: otherUser.displayName},
+      'created_by': uid,
+      'created_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_created_at': DateTime.now().toIso8601String(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+      'last_message': '',
+      'last_message_sender_id': '',
+      'last_message_at': null,
+      'muted_uids': const <String>[],
+      'archived_uids': const <String>[],
+      'deleted_for_uids': const <String>[],
+    });
+
+    return roomRef.id;
   }
 
   Future<String> createGroupRoom({

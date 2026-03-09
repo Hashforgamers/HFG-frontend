@@ -1,13 +1,16 @@
 import 'dart:math';
+import 'dart:async';
 
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/extensions.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hash/features/mini_games/fruit_ninja/presentation/game/widgets/fruit_component.dart';
 import 'package:hash/features/mini_games/fruit_ninja/presentation/game/widgets/fruit_slice_component.dart';
 import 'package:hash/features/mini_games/fruit_ninja/presentation/game/widgets/slice_component.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 import '../../common/widgets/button/back_button.dart';
 import '../../common/widgets/button/pause_button.dart';
@@ -18,7 +21,7 @@ import '../../core/configs/theme/app_colors.dart';
 import '../../main_router_game.dart';
 
 /// [SECURE] GamePage — All score/mode logic now uses secure access
-class GamePage extends Component
+class GamePage extends PositionComponent
     with DragCallbacks, HasGameReference<MainRouterGame> {
   final Random random = Random();
   late List<double> fruitsTime;
@@ -38,10 +41,14 @@ class GamePage extends Component
 
   late SliceTrailComponent sliceTrail;
   final List<String> sliceSounds = [AppSfx.sfxChopping, AppSfx.sfxCut];
+  bool _sliceSfxEnabled = true;
+  DateTime _lastSliceSfxAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
   void onMount() {
     super.onMount();
+    position = Vector2.zero();
+    size = game.size.clone();
 
     fruitsTime = [];
     countDown = 5;
@@ -199,21 +206,27 @@ class GamePage extends Component
   }
 
   @override
+  void onDragStart(DragStartEvent event) {
+    super.onDragStart(event);
+    sliceTrail.addPoint(event.canvasPosition);
+  }
+
+  @override
   void onDragUpdate(DragUpdateEvent event) {
     super.onDragUpdate(event);
-    sliceTrail.addPoint(event.canvasStartPosition);
+    final start = event.canvasStartPosition;
+    final end = event.canvasEndPosition;
+    sliceTrail.addPoint(end);
 
-    componentsAtPoint(event.canvasStartPosition).forEach((element) {
-      if (element is FruitComponent && element.canDragOnShape) {
-        if (game.isDesktop) {
-          onFruitSliced(sliceTrail);
-          game.add(FruitSliceComponent(event.canvasStartPosition));
-          playRandomSliceSound();
-        }
-
-        element.touchAtPoint(event.canvasStartPosition);
-      }
-    });
+    const samples = 6;
+    for (var i = 0; i <= samples; i++) {
+      final t = i / samples;
+      final point = Vector2(
+        start.x + (end.x - start.x) * t,
+        start.y + (end.y - start.y) * t,
+      );
+      _sliceAtPoint(point);
+    }
   }
 
   @override
@@ -222,9 +235,20 @@ class GamePage extends Component
     sliceTrail.clear();
   }
 
+  void _sliceAtPoint(Vector2 point) {
+    componentsAtPoint(point).forEach((element) {
+      if (element is! FruitComponent) return;
+      onFruitSliced(sliceTrail);
+      game.add(FruitSliceComponent(point));
+      unawaited(playRandomSliceSound());
+      element.touchAtPoint(point);
+    });
+  }
+
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
+    this.size = size.clone();
 
     _countdownTextComponent?.position = game.size / 2;
     _mistakeTextComponent?.position = Vector2(game.size.x - 15, 10);
@@ -276,9 +300,21 @@ class GamePage extends Component
     trail.changeColor();
   }
 
-  void playRandomSliceSound() {
+  Future<void> playRandomSliceSound() async {
+    if (!_sliceSfxEnabled) return;
+    final now = DateTime.now();
+    if (now.difference(_lastSliceSfxAt).inMilliseconds < 70) return;
+    _lastSliceSfxAt = now;
+
     String sound = sliceSounds[random.nextInt(sliceSounds.length)];
-    FlameAudio.play(sound, volume: 0.5);
+    try {
+      await FlameAudio.play(sound, volume: 0.5);
+    } catch (e) {
+      _sliceSfxEnabled = false;
+      if (kDebugMode) {
+        AppLogger.d('Slice SFX disabled after playback failure: $e');
+      }
+    }
   }
 
   void generateFruitTimings() {
