@@ -189,6 +189,14 @@ class FbEventsService {
         collectId: enabled,
       );
 
+      await fbAppEvents.logEvent(
+        name: 'ios_ate_status_updated',
+        parameters: {
+          'att_status': status.name,
+          'advertiser_tracking_enabled': enabled ? 'true' : 'false',
+        },
+      );
+
       await _logFirebaseEvent('ATT Status Updated', {
         'att_status': status.name,
         'advertiser_tracking_enabled': enabled,

@@ -1,2 +1,3 @@
 #include "Generated.xcconfig"
 #include "Debug.xcconfig"
+APP_DISPLAY_NAME=HFG Dev

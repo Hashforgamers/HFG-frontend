@@ -33,8 +33,6 @@
 				<string>hashforgamers</string>
 				<string>com.googleusercontent.apps.376797794992-ikpq7h5o7flrhgmm53otlf1sm973489h</string>
 			</array>
-			<key>FirebaseAppDelegateProxyEnabled</key>
-			<true/>
 			<key>SignInWithApple</key>
 			<true/>
 		</dict>
@@ -53,8 +51,14 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FacebookAdvertiserIDCollectionEnabled</key>
+	<true/>
+	<key>FacebookAutoLogAppEventsEnabled</key>
+	<true/>
 	<key>FacebookClientToken</key>
 	<string>ef176e72dcf69f0d3f9d791237249300</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
 	<key>GMSApiKey</key>
 	<string>AIzaSyDjaI5XOoq4r0AbJVfDSz9tiQqLGBC_yNU</string>
 	<key>LSApplicationQueriesSchemes</key>
