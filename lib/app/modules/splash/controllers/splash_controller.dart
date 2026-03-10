@@ -76,29 +76,56 @@ class SplashController extends GetxController {
     if (_navigated) return;
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('user_data');
+    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
 
-    if (token != null && token.isNotEmpty) {
-      await _fetchUserDataIfNeeded(); // Ensures userId is fetched
-      if (userController.userId.isEmpty) {
-        AppLogger.d('userId not fetched even after fetchUserData');
-      } else {
-        AppLogger.d('userId fetched: ${userController.userId}');
-      }
-
-      _safeNavigate(AppRoutes.HOME);
-    } else {
+    if (token == null || token.isEmpty || currentUser == null) {
+      await _resetInvalidSession();
       _safeNavigate(AppRoutes.LOGIN);
+      return;
+    }
+
+    final hasValidUser = await _fetchUserDataIfNeeded();
+    if (!hasValidUser) {
+      AppLogger.d('No valid backend user found during splash boot');
+      await _resetInvalidSession();
+      _safeNavigate(AppRoutes.LOGIN);
+      return;
+    }
+
+    AppLogger.d('userId fetched: ${userController.userId}');
+    _safeNavigate(AppRoutes.HOME);
+  }
+
+  Future<bool> _fetchUserDataIfNeeded() async {
+    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return false;
+
+    try {
+      final userData = await userController.fetchUserData(currentUser.uid);
+      final backendId =
+          (userData?['id'] ?? userData?['user_id'] ?? userController.userId)
+              .toString()
+              .trim();
+      if (backendId.isEmpty) {
+        return false;
+      }
+      userController.id.value = backendId;
+      return true;
+    } catch (e) {
+      AppLogger.d('fetchUserDataIfNeeded failed: $e');
+      return false;
     }
   }
 
-  Future<void> _fetchUserDataIfNeeded() async {
-    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      try {
-        await userController.fetchUserData(currentUser.uid);
-      } catch (e) {
-        // ignore; keep routing
-      }
+  Future<void> _resetInvalidSession() async {
+    userController.id.value = '';
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_data');
+    await prefs.remove('user_id');
+    try {
+      await firebase_auth.FirebaseAuth.instance.signOut();
+    } catch (e) {
+      AppLogger.d('Failed to sign out invalid session: $e');
     }
   }
 

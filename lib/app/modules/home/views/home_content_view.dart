@@ -32,6 +32,7 @@ import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/modules/home/widgets/refer_friend_modal.dart';
+import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/data/models/user_model.dart';
 import 'package:hash/core/utils/haptics.dart';
 
@@ -303,7 +304,10 @@ class _HomeContentViewState extends State<HomeContentView>
 
   Future<bool> _fetchUserDataIfNeeded() async {
     final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return false;
+    if (currentUser == null) {
+      _redirectToLogin();
+      return false;
+    }
 
     // Refresh backend session + JWT before any authed calls.
     final apiUser = await remoteRepo.checkUserExistsInAPI(currentUser.uid);
@@ -311,13 +315,36 @@ class _HomeContentViewState extends State<HomeContentView>
     if (apiUser != null && mounted) {
       // push into controller without a second network call
       userController.setUserData(User.fromJson(apiUser));
-      final backendId = apiUser['id'] ?? apiUser['user_id'] ?? currentUser.uid;
-      userController.id.value = backendId.toString();
+      final backendId = (apiUser['id'] ?? apiUser['user_id'] ?? '').toString();
+      if (backendId.trim().isEmpty) {
+        _redirectToLogin();
+        return false;
+      }
+      userController.id.value = backendId;
     } else {
       // fall back to existing fetch (no-auth) for safety
-      await userController.fetchUserData(currentUser.uid);
+      final fetchedUser = await userController.fetchUserData(currentUser.uid);
+      final backendId =
+          (fetchedUser?['id'] ??
+                  fetchedUser?['user_id'] ??
+                  userController.userId)
+              .toString()
+              .trim();
+      if (backendId.isEmpty) {
+        _redirectToLogin();
+        return false;
+      }
+      userController.id.value = backendId;
     }
     return true;
+  }
+
+  void _redirectToLogin() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Get.offAllNamed(AppRoutes.LOGIN);
+    });
   }
 
   Future<void> _refreshWalletIfReady() async {
