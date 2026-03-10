@@ -21,31 +21,42 @@ class BookingSummaryBottomBar extends StatelessWidget {
       color: const Color(0xFF0F0F0F),
       elevation: 16,
       child: Padding(
-        padding: const EdgeInsets.all(5),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Total Payable',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.6),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total Payable',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
                   ),
-                ),
-                Text(
-                  '₹ ${totalPrice.toStringAsFixed(2)}',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                  const SizedBox(height: 2),
+                  Text(
+                    '₹ ${totalPrice.toStringAsFixed(2)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            const SizedBox(width: 12),
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               height: 40,

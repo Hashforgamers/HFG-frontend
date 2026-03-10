@@ -11,6 +11,7 @@ import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
 import 'package:hash/core/service/deeplink_service.dart';
+import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -60,6 +61,7 @@ void main() async {
 
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
+  unawaited(locator<FirebaseInAppMessagingService>().initialize());
   unawaited(
     locator<FbEventsService>().configureAdvertiserTrackingForIos(
       promptIfNeeded: true,

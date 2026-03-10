@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:intl/intl.dart';
 import 'package:segment_analytics/client.dart';
 import 'package:segment_analytics/event.dart';
@@ -10,8 +11,12 @@ import 'package:segment_analytics/state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SegmentSdkService {
+  SegmentSdkService({required DeviceIdentifierService deviceIdentifierService})
+    : _deviceIdentifierService = deviceIdentifierService;
+
   static const writeKey = 'boSN3P9nWQGYQHyM7dK26w2Ef8p621uY';
   static final analytics = createClient(Configuration(writeKey, debug: true));
+  final DeviceIdentifierService _deviceIdentifierService;
   String _lastIdentityFingerprint = '';
 
   Future<Map<String, dynamic>> _identityPayload() async {
@@ -25,14 +30,12 @@ class SegmentSdkService {
       if (Get.isRegistered<UserController>()) {
         final uc = Get.find<UserController>();
         userId = uc.id.value.trim();
-        email =
-            (uc.user.value.contact?.electronicAddress?.emailId ?? '')
-                .toString()
-                .trim();
-        phoneNumber =
-            (uc.user.value.contact?.electronicAddress?.mobileNo ?? '')
-                .toString()
-                .trim();
+        email = (uc.user.value.contact?.electronicAddress?.emailId ?? '')
+            .toString()
+            .trim();
+        phoneNumber = (uc.user.value.contact?.electronicAddress?.mobileNo ?? '')
+            .toString()
+            .trim();
         username = (uc.user.value.gameUserName ?? '').toString().trim();
       }
     } catch (_) {}
@@ -43,7 +46,9 @@ class SegmentSdkService {
     phoneNumber = phoneNumber.isNotEmpty
         ? phoneNumber
         : (authUser?.phoneNumber ?? '').trim();
-    username = username.isNotEmpty ? username : (authUser?.displayName ?? '').trim();
+    username = username.isNotEmpty
+        ? username
+        : (authUser?.displayName ?? '').trim();
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -78,19 +83,23 @@ class SegmentSdkService {
       }
     } catch (_) {}
 
+    final identifiers = await _deviceIdentifierService.getIdentifiers();
+
     return {
       'user_id': userId,
       'email': email,
       'fid': fid,
       'phone_number': phoneNumber,
       'username': username,
+      'advertising_id': identifiers['advertising_id'],
+      'gaid': identifiers['gaid'],
+      'idfa': identifiers['idfa'],
+      'ad_tracking_status': identifiers['ad_tracking_status'],
+      'limit_ad_tracking': identifiers['limit_ad_tracking'],
     };
   }
 
-  Future<void> _track(
-    String name, {
-    Map<String, dynamic>? properties,
-  }) async {
+  Future<void> _track(String name, {Map<String, dynamic>? properties}) async {
     final payload = <String, dynamic>{...(properties ?? <String, dynamic>{})};
     final identity = await _identityPayload();
     payload.addAll(identity);
@@ -114,11 +123,7 @@ class SegmentSdkService {
       phone: phone.isEmpty ? null : phone,
       username: username.isEmpty ? null : username,
       name: username.isEmpty ? null : username,
-      custom: {
-        'fid': fid,
-        'phone_number': phone,
-        'user_id': userId,
-      },
+      custom: {'fid': fid, 'phone_number': phone, 'user_id': userId},
     );
 
     await analytics.identify(
@@ -127,6 +132,7 @@ class SegmentSdkService {
     );
     _lastIdentityFingerprint = fingerprint;
   }
+
   // Generic custom event helper
   Future<void> onCustomEvent(
     String name,
@@ -200,7 +206,11 @@ class SegmentSdkService {
   }) async {
     await _track(
       'Login Successful',
-      properties: {'user_id': userId, 'device_id': '', 'login_method': ''},
+      properties: {
+        'user_id': userId,
+        'device_id': deviceId,
+        'login_method': loginMethod,
+      },
     );
   }
 
@@ -404,10 +414,7 @@ class SegmentSdkService {
 
   // Home Screen Viewed
   Future<void> onHomeScreenViewed({required String userId}) async {
-    await _track(
-      'Home Screen Viewed',
-      properties: {'user_id': userId},
-    );
+    await _track('Home Screen Viewed', properties: {'user_id': userId});
   }
 
   // Nearby Cafe Viewed
@@ -472,10 +479,7 @@ class SegmentSdkService {
 
   // Cafe Images Viewed
   Future<void> onCafeImagesViewed({required String cafeId}) async {
-    await _track(
-      'Cafe Images Viewed',
-      properties: {'cafe_id': cafeId},
-    );
+    await _track('Cafe Images Viewed', properties: {'cafe_id': cafeId});
   }
 
   // Game Details Viewed

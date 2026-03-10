@@ -356,7 +356,9 @@ class _BookingScreenState extends State<BookingScreen> {
                             slot['availableSlot'] ??
                             slot['available_slots'] ??
                             0;
-                        return isAvailable && isTimeAvailable && availableConsoles > 0;
+                        return isAvailable &&
+                            isTimeAvailable &&
+                            availableConsoles > 0;
                       }).toList();
                       final int expiredSlots = controller.slots.where((slot) {
                         if (!isCurrentDate) return false;
@@ -454,11 +456,13 @@ class _BookingScreenState extends State<BookingScreen> {
     // Check if slot is available based on time - only for current date
     final bool isCurrentDate =
         selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
-    final bool isApiAvailable = slot['is_available'] ?? slot['isAvailable'] ?? true;
+    final bool isApiAvailable =
+        slot['is_available'] ?? slot['isAvailable'] ?? true;
     final bool isTimeAvailable = isCurrentDate
         ? controller.isSlotAvailableNow(slot)
         : true;
-    final bool isSelectable = isApiAvailable && isTimeAvailable && availablePCs > 0;
+    final bool isSelectable =
+        isApiAvailable && isTimeAvailable && availablePCs > 0;
     final startTime = (slot['start_time'] ?? '').toString();
     final slotKey = '${selectedDate}_$startTime';
     if (availablePCs > 0 &&
@@ -541,8 +545,8 @@ class _BookingScreenState extends State<BookingScreen> {
                     !isApiAvailable
                         ? 'Sold Out'
                         : (!isTimeAvailable && isCurrentDate)
-                            ? 'Time Expired'
-                            : '$availablePCs ${getConsoleType()}${availablePCs > 1 ? 's' : ''} Available',
+                        ? 'Time Expired'
+                        : '$availablePCs ${getConsoleType()}${availablePCs > 1 ? 's' : ''} Available',
                     style: GoogleFonts.inter(
                       color: !isApiAvailable
                           ? Colors.redAccent
@@ -571,7 +575,9 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
               ),
-            ] else if (availablePCs > 0 && !isTimeAvailable && isCurrentDate) ...[
+            ] else if (availablePCs > 0 &&
+                !isTimeAvailable &&
+                isCurrentDate) ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -736,59 +742,62 @@ class _BookingScreenState extends State<BookingScreen> {
         }
       });
 
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-        decoration: const BoxDecoration(
-          color: Color(0xff121212),
-          border: Border(top: BorderSide(color: Color(0xff2D2D2D), width: 1)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '$totalSelectedSlots Slot(s)',
+      return SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+          decoration: const BoxDecoration(
+            color: Color(0xff121212),
+            border: Border(top: BorderSide(color: Color(0xff2D2D2D), width: 1)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '$totalSelectedSlots Slot(s)',
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '₹${totalPrice.toInt()}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xff00DC00),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: totalSelectedSlots > 0 ? onProceed : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: totalSelectedSlots > 0
+                      ? const Color(0xff00DC00)
+                      : Colors.grey,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: totalSelectedSlots > 0 ? 8 : 0,
+                ),
+                child: Text(
+                  'PROCEED',
                   style: GoogleFonts.inter(
-                    color: Colors.white.withValues(alpha: 0.95),
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    color: totalSelectedSlots > 0 ? Colors.white : Colors.black,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text(
-                  '₹${totalPrice.toInt()}',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xff00DC00),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: totalSelectedSlots > 0 ? onProceed : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: totalSelectedSlots > 0
-                    ? const Color(0xff00DC00)
-                    : Colors.grey,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: totalSelectedSlots > 0 ? 8 : 0,
               ),
-              child: Text(
-                'PROCEED',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  color: totalSelectedSlots > 0 ? Colors.white : Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     });

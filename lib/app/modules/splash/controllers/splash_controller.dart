@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/update_service.dart'; // ← NEW
@@ -15,6 +16,7 @@ import 'package:hash/core/utils/app_logger.dart';
 class SplashController extends GetxController {
   final UserController userController = Get.find();
   final segmentService = locator<SegmentSdkService>();
+  final fiamService = locator<FirebaseInAppMessagingService>();
   bool _navigated = false;
   Timer? _fallbackTimer;
 
@@ -32,6 +34,7 @@ class SplashController extends GetxController {
 
     // Non-blocking analytics; failures must not affect routing.
     unawaited(_trackAppLaunchSafely());
+    unawaited(fiamService.triggerAppLaunch());
   }
 
   Future<void> _trackAppLaunchSafely() async {

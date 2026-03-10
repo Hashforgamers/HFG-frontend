@@ -13,6 +13,7 @@ import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
 import 'package:hash/app/modules/home/widgets/live_session_glass_card.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/location_analytics_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
@@ -35,6 +36,8 @@ class _HomeViewState extends State<HomeView> {
   late final SessionProgressController _sessionProgressController;
   final LocationAnalyticsService _locationAnalyticsService =
       locator<LocationAnalyticsService>();
+  final FirebaseInAppMessagingService _fiamService =
+      locator<FirebaseInAppMessagingService>();
   final SquadMissionsService _squadMissionsService =
       locator<SquadMissionsService>();
   bool _didApplyTabArgument = false;
@@ -68,6 +71,7 @@ class _HomeViewState extends State<HomeView> {
     unawaited(
       _locationAnalyticsService.trackCurrentLocation(source: 'home_init'),
     );
+    unawaited(_fiamService.triggerHomeOpen());
   }
 
   Future<void> _syncChatProfile() async {

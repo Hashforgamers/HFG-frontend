@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/repositories/remote/remote_repo_interface.dart';
+import '../../../../core/service/device_identifier_service.dart';
 import '../../../../core/service/fb_events_service.dart';
 import '../../../../core/service/segment_sdk_service.dart';
 import '../../../../core/service_locator.dart';
@@ -12,9 +13,9 @@ import '../../../data/services/user_controller.dart' as userModel;
 import '../../../routes/app_routes.dart';
 
 class VerifyOtpController extends GetxController {
-  final String phoneNumber;         // e.g. +91XXXXXXXXXX
-  final String verificationId;      // from verifyPhoneNumber
-  final bool isLogin;               // kept for compatibility (unused)
+  final String phoneNumber; // e.g. +91XXXXXXXXXX
+  final String verificationId; // from verifyPhoneNumber
+  final bool isLogin; // kept for compatibility (unused)
 
   VerifyOtpController({
     required this.phoneNumber,
@@ -24,8 +25,11 @@ class VerifyOtpController extends GetxController {
 
   // DI
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
-  final userModel.UserController userController = Get.put(userModel.UserController());
+  final userModel.UserController userController = Get.put(
+    userModel.UserController(),
+  );
   final remoteRepo = locator<RemoteRepoInterface>();
+  final deviceIdentifierService = locator<DeviceIdentifierService>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
 
@@ -69,6 +73,8 @@ class VerifyOtpController extends GetxController {
 
     isLoading.value = true;
     try {
+      final advertisingId = await deviceIdentifierService
+          .getPreferredAdvertisingId();
       final credential = firebase_auth.PhoneAuthProvider.credential(
         verificationId: vid,
         smsCode: otp,
@@ -100,8 +106,16 @@ class VerifyOtpController extends GetxController {
       );
 
       // Analytics
-      segmentService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
-      fbEventsService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
+      segmentService.onLoginSuccess(
+        userId: user.uid,
+        loginMethod: 'phone',
+        deviceId: advertisingId,
+      );
+      fbEventsService.onLoginSuccess(
+        userId: user.uid,
+        loginMethod: 'phone',
+        deviceId: advertisingId,
+      );
 
       // Backend existence check
       final userData = await remoteRepo.checkUserExistsInAPI(user.uid);
@@ -126,7 +140,10 @@ class VerifyOtpController extends GetxController {
         );
       }
     } on firebase_auth.FirebaseAuthException catch (e) {
-      _toast('Error', e.message ?? 'OTP verification failed. Please try again.');
+      _toast(
+        'Error',
+        e.message ?? 'OTP verification failed. Please try again.',
+      );
     } catch (_) {
       _toast('Error', 'OTP verification failed. Please try again.');
     } finally {
@@ -146,6 +163,8 @@ class VerifyOtpController extends GetxController {
         verificationCompleted: (firebase_auth.PhoneAuthCredential cred) async {
           // Auto-retrieval case
           try {
+            final advertisingId = await deviceIdentifierService
+                .getPreferredAdvertisingId();
             final credResult = await _auth.signInWithCredential(cred);
             final user = credResult.user;
             if (user != null) {
@@ -156,8 +175,16 @@ class VerifyOtpController extends GetxController {
                 photoUrl: user.photoURL ?? '',
                 provider: 'phone',
               );
-              segmentService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
-              fbEventsService.onLoginSuccess(userId: user.uid, loginMethod: 'phone', deviceId: '');
+              segmentService.onLoginSuccess(
+                userId: user.uid,
+                loginMethod: 'phone',
+                deviceId: advertisingId,
+              );
+              fbEventsService.onLoginSuccess(
+                userId: user.uid,
+                loginMethod: 'phone',
+                deviceId: advertisingId,
+              );
               final userData = await remoteRepo.checkUserExistsInAPI(user.uid);
               if (userData != null) {
                 final parsed = model.User.fromJson(userData);

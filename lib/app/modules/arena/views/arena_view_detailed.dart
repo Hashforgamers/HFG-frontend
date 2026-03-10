@@ -280,8 +280,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+            child: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(16, 0, 16, 20),
               child: GetX<CafeGamesController>(
                 init: _gamesController,
                 builder: (controller) {
@@ -1316,65 +1317,69 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                           ),
                         ),
                       const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: canContinue
-                              ? () {
-                                  final selectedGame = games[selectedIndex];
-                                  final selectedGameId = asInt(
-                                    selectedGame['game_id'],
-                                  );
-                                  if (selectedGameId == null) {
-                                    _showSafeErrorSnackBar(
-                                      context,
-                                      'Game ID not found for booking',
+                      SafeArea(
+                        top: false,
+                        minimum: const EdgeInsets.only(bottom: 8),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: canContinue
+                                ? () {
+                                    final selectedGame = games[selectedIndex];
+                                    final selectedGameId = asInt(
+                                      selectedGame['game_id'],
                                     );
-                                    return;
-                                  }
+                                    if (selectedGameId == null) {
+                                      _showSafeErrorSnackBar(
+                                        context,
+                                        'Game ID not found for booking',
+                                      );
+                                      return;
+                                    }
 
-                                  try {
-                                    Navigator.of(context).pop();
-                                    if (!mounted) return;
-                                    Navigator.of(this.context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => BookingScreen(
-                                          email: email,
-                                          consoleType: _getConsoleType(
-                                            consoleType,
+                                    try {
+                                      Navigator.of(context).pop();
+                                      if (!mounted) return;
+                                      Navigator.of(this.context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => BookingScreen(
+                                            email: email,
+                                            consoleType: _getConsoleType(
+                                              consoleType,
+                                            ),
+                                            title: widget.title,
+                                            gameId: selectedGameId,
+                                            vendorId: widget.vendorId,
+                                            cartItems: cartItems ?? [],
                                           ),
-                                          title: widget.title,
-                                          gameId: selectedGameId,
-                                          vendorId: widget.vendorId,
-                                          cartItems: cartItems ?? [],
                                         ),
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    debugPrint(
-                                      'Failed to open booking screen: $e',
-                                    );
-                                    _showSafeErrorSnackBar(
-                                      context,
-                                      'Failed to open booking screen',
-                                    );
+                                      );
+                                    } catch (e) {
+                                      debugPrint(
+                                        'Failed to open booking screen: $e',
+                                      );
+                                      _showSafeErrorSnackBar(
+                                        context,
+                                        'Failed to open booking screen',
+                                      );
+                                    }
                                   }
-                                }
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xff00DC00),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xff00DC00),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              disabledBackgroundColor: Colors.grey.shade800,
                             ),
-                            disabledBackgroundColor: Colors.grey.shade800,
-                          ),
-                          child: Text(
-                            'Continue to Booking',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                            child: Text(
+                              'Continue to Booking',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),

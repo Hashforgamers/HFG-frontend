@@ -7,12 +7,17 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FbEventsService {
+  FbEventsService({required DeviceIdentifierService deviceIdentifierService})
+    : _deviceIdentifierService = deviceIdentifierService;
+
   static final fbAppEvents = FacebookAppEvents();
   static final FirebaseAnalytics _firebaseAnalytics =
       FirebaseAnalytics.instance;
+  final DeviceIdentifierService _deviceIdentifierService;
 
   String _toFirebaseKey(String raw, {required String fallback}) {
     final normalized = raw
@@ -31,8 +36,12 @@ class FbEventsService {
     input.forEach((key, value) {
       final safeKey = _toFirebaseKey(key, fallback: 'param');
       if (value == null) return;
-      if (value is String || value is num || value is bool) {
+      if (value is String || value is num) {
         result[safeKey] = value;
+        return;
+      }
+      if (value is bool) {
+        result[safeKey] = value ? 1 : 0;
         return;
       }
       if (value is List || value is Map) {
@@ -78,14 +87,12 @@ class FbEventsService {
       if (Get.isRegistered<UserController>()) {
         final uc = Get.find<UserController>();
         userId = uc.id.value.trim();
-        email =
-            (uc.user.value.contact?.electronicAddress?.emailId ?? '')
-                .toString()
-                .trim();
-        phoneNumber =
-            (uc.user.value.contact?.electronicAddress?.mobileNo ?? '')
-                .toString()
-                .trim();
+        email = (uc.user.value.contact?.electronicAddress?.emailId ?? '')
+            .toString()
+            .trim();
+        phoneNumber = (uc.user.value.contact?.electronicAddress?.mobileNo ?? '')
+            .toString()
+            .trim();
         username = (uc.user.value.gameUserName ?? '').toString().trim();
       }
     } catch (_) {}
@@ -96,7 +103,9 @@ class FbEventsService {
     phoneNumber = phoneNumber.isNotEmpty
         ? phoneNumber
         : (authUser?.phoneNumber ?? '').trim();
-    username = username.isNotEmpty ? username : (authUser?.displayName ?? '').trim();
+    username = username.isNotEmpty
+        ? username
+        : (authUser?.displayName ?? '').trim();
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -131,12 +140,19 @@ class FbEventsService {
       }
     } catch (_) {}
 
+    final identifiers = await _deviceIdentifierService.getIdentifiers();
+
     return {
       'user_id': userId,
       'email': email,
       'fid': fid,
       'phone_number': phoneNumber,
       'username': username,
+      'advertising_id': identifiers['advertising_id'],
+      'gaid': identifiers['gaid'],
+      'idfa': identifiers['idfa'],
+      'ad_tracking_status': identifiers['ad_tracking_status'],
+      'limit_ad_tracking': identifiers['limit_ad_tracking'],
     };
   }
 
@@ -162,8 +178,7 @@ class FbEventsService {
   }) async {
     if (!Platform.isIOS) return;
     try {
-      var status =
-          await AppTrackingTransparency.trackingAuthorizationStatus;
+      var status = await AppTrackingTransparency.trackingAuthorizationStatus;
       if (status == TrackingStatus.notDetermined && promptIfNeeded) {
         status = await AppTrackingTransparency.requestTrackingAuthorization();
       }

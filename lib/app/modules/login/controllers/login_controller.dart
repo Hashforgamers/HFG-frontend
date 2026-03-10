@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -31,6 +32,7 @@ class LoginController extends GetxController {
     userModel.UserController(),
   );
   final remoteRepo = locator<RemoteRepoInterface>();
+  final deviceIdentifierService = locator<DeviceIdentifierService>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
 
@@ -94,6 +96,8 @@ class LoginController extends GetxController {
         verificationCompleted:
             (firebase_auth.PhoneAuthCredential credential) async {
               try {
+                final advertisingId = await deviceIdentifierService
+                    .getPreferredAdvertisingId();
                 final cred = await _auth.signInWithCredential(credential);
                 final user = cred.user;
                 if (user == null) {
@@ -114,12 +118,12 @@ class LoginController extends GetxController {
                 segmentService.onLoginSuccess(
                   userId: user.uid,
                   loginMethod: 'phone',
-                  deviceId: '',
+                  deviceId: advertisingId,
                 );
                 fbEventsService.onLoginSuccess(
                   userId: user.uid,
                   loginMethod: 'phone',
-                  deviceId: '',
+                  deviceId: advertisingId,
                 );
 
                 Get.back(); // Close sheet
@@ -173,6 +177,8 @@ class LoginController extends GetxController {
 
     isVerifyingOtp.value = true;
     try {
+      final advertisingId = await deviceIdentifierService
+          .getPreferredAdvertisingId();
       final credential = firebase_auth.PhoneAuthProvider.credential(
         verificationId: _verificationId!,
         smsCode: code,
@@ -195,12 +201,12 @@ class LoginController extends GetxController {
       segmentService.onLoginSuccess(
         userId: user.uid,
         loginMethod: 'phone',
-        deviceId: '',
+        deviceId: advertisingId,
       );
       fbEventsService.onLoginSuccess(
         userId: user.uid,
         loginMethod: 'phone',
-        deviceId: '',
+        deviceId: advertisingId,
       );
 
       Get.back(); // close sheet
@@ -239,6 +245,8 @@ class LoginController extends GetxController {
   Future<void> googleSignIn() async {
     isLoading.value = true;
     try {
+      final advertisingId = await deviceIdentifierService
+          .getPreferredAdvertisingId();
       final GoogleSignIn googleSignIn = GoogleSignIn(
         scopes: const <String>[
           'email',
@@ -273,18 +281,17 @@ class LoginController extends GetxController {
       segmentService.onLoginSuccess(
         userId: user.uid,
         loginMethod: 'google',
-        deviceId: '',
+        deviceId: advertisingId,
       );
       fbEventsService.onLoginSuccess(
         userId: user.uid,
         loginMethod: 'google',
-        deviceId: '',
+        deviceId: advertisingId,
       );
 
       await _persistSession(
         uid: user.uid,
-        name:
-            (googleProfile['name']?.toString().trim().isNotEmpty ?? false)
+        name: (googleProfile['name']?.toString().trim().isNotEmpty ?? false)
             ? googleProfile['name'].toString()
             : (user.displayName ?? ''),
         email: user.email ?? '',
@@ -316,6 +323,8 @@ class LoginController extends GetxController {
     isLoading.value = true;
 
     try {
+      final advertisingId = await deviceIdentifierService
+          .getPreferredAdvertisingId();
       final rawNonce = _generateNonce();
       final nonce = _sha256ofString(rawNonce);
 
@@ -345,12 +354,12 @@ class LoginController extends GetxController {
       segmentService.onLoginSuccess(
         userId: user.uid,
         loginMethod: 'apple',
-        deviceId: '',
+        deviceId: advertisingId,
       );
       fbEventsService.onLoginSuccess(
         userId: user.uid,
         loginMethod: 'apple',
-        deviceId: '',
+        deviceId: advertisingId,
       );
 
       final fullName = [
@@ -450,12 +459,10 @@ class LoginController extends GetxController {
             .toString(),
       );
       userController.setGoogleUserData(
-        name:
-            (profile['name']?.toString().trim().isNotEmpty ?? false)
+        name: (profile['name']?.toString().trim().isNotEmpty ?? false)
             ? profile['name'].toString()
             : (user.displayName ?? ''),
-        photoUrl:
-            (profile['photoUrl']?.toString().trim().isNotEmpty ?? false)
+        photoUrl: (profile['photoUrl']?.toString().trim().isNotEmpty ?? false)
             ? profile['photoUrl'].toString()
             : (user.photoURL ?? ''),
         email: user.email ?? '',
@@ -535,9 +542,11 @@ class LoginController extends GetxController {
   }) async {
     try {
       final profile = googleProfile ?? const <String, dynamic>{};
+      final advertisingId = await deviceIdentifierService
+          .getPreferredAdvertisingId();
       final displayName = (user.displayName ?? '').trim();
-      final fallbackName = (profile['name']?.toString().trim().isNotEmpty ??
-              false)
+      final fallbackName =
+          (profile['name']?.toString().trim().isNotEmpty ?? false)
           ? profile['name'].toString().trim()
           : displayName.isNotEmpty
           ? displayName
@@ -575,6 +584,7 @@ class LoginController extends GetxController {
             "emailId": (user.email ?? '').trim(),
           },
         },
+        "advertising_id": advertisingId,
       };
 
       AppLogger.d('🆕 Auto signup started for Google user: ${user.uid}');
@@ -615,9 +625,7 @@ class LoginController extends GetxController {
         queryParameters: {
           'personFields': 'names,photos,genders,birthdays,addresses,locations',
         },
-        options: Options(
-          headers: {'Authorization': 'Bearer $token'},
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       if (response.statusCode != 200 || response.data is! Map) {
@@ -656,14 +664,14 @@ class LoginController extends GetxController {
       final photoUrl = (firstPhotoMap['url'] ?? '').toString().trim();
       final gender = (firstGenderMap['value'] ?? '').toString().trim();
 
-      final country = (firstAddressMap['country'] ??
-              firstLocationMap['country'] ??
-              '')
+      final country =
+          (firstAddressMap['country'] ?? firstLocationMap['country'] ?? '')
+              .toString()
+              .trim();
+      final state = (firstAddressMap['region'] ?? '').toString().trim();
+      final addressLine1 = (firstAddressMap['formattedValue'] ?? '')
           .toString()
           .trim();
-      final state = (firstAddressMap['region'] ?? '').toString().trim();
-      final addressLine1 =
-          (firstAddressMap['formattedValue'] ?? '').toString().trim();
 
       return <String, dynamic>{
         'name': name,

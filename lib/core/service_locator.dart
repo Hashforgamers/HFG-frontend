@@ -4,6 +4,8 @@ import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/device_identifier_service.dart';
+import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/location_analytics_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -42,20 +44,43 @@ Future<void> setupServiceLocator({bool reset = false}) async {
     locator.registerSingleton<NetworkProvider>(NetworkProvider());
   }
 
+  if (!locator.isRegistered<DeviceIdentifierService>()) {
+    locator.registerSingleton<DeviceIdentifierService>(
+      DeviceIdentifierService(preferences: locator<SharedPreferences>()),
+    );
+  }
+
   // Register RemoteRepoInterface ONCE. Prefer lazy to allow late creation.
   if (locator.isRegistered<RemoteRepoInterface>()) {
     locator.unregister<RemoteRepoInterface>();
   }
   locator.registerLazySingleton<RemoteRepoInterface>(
-    () => RemoteRepo(networkProvider: locator<NetworkProvider>()),
+    () => RemoteRepo(
+      networkProvider: locator<NetworkProvider>(),
+      deviceIdentifierService: locator<DeviceIdentifierService>(),
+    ),
   );
 
   if (!locator.isRegistered<SegmentSdkService>()) {
-    locator.registerSingleton<SegmentSdkService>(SegmentSdkService());
+    locator.registerSingleton<SegmentSdkService>(
+      SegmentSdkService(
+        deviceIdentifierService: locator<DeviceIdentifierService>(),
+      ),
+    );
   }
 
   if (!locator.isRegistered<FbEventsService>()) {
-    locator.registerSingleton<FbEventsService>(FbEventsService());
+    locator.registerSingleton<FbEventsService>(
+      FbEventsService(
+        deviceIdentifierService: locator<DeviceIdentifierService>(),
+      ),
+    );
+  }
+
+  if (!locator.isRegistered<FirebaseInAppMessagingService>()) {
+    locator.registerSingleton<FirebaseInAppMessagingService>(
+      FirebaseInAppMessagingService(),
+    );
   }
 
   if (!locator.isRegistered<GlobalBottomSheetService>()) {

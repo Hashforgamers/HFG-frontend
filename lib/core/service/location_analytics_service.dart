@@ -19,6 +19,7 @@ class LocationAnalyticsService {
   final SegmentSdkService _segmentService;
   final FbEventsService _fbEventsService;
   final loc.Location _location = loc.Location();
+  Future<void>? _activeTrackingRequest;
 
   static const _lastLatKey = 'analytics_last_lat';
   static const _lastLngKey = 'analytics_last_lng';
@@ -26,10 +27,35 @@ class LocationAnalyticsService {
   static const _minIntervalMs = 10 * 60 * 1000; // 10 min
   static const _minDistanceMeters = 150.0;
 
-  Future<void> trackCurrentLocation({String source = 'app'}) async {
+  Future<void> trackCurrentLocation({
+    String source = 'app',
+    bool promptForService = false,
+    bool promptForPermission = false,
+  }) {
+    final active = _activeTrackingRequest;
+    if (active != null) return active;
+
+    final request = _trackCurrentLocationInternal(
+      source: source,
+      promptForService: promptForService,
+      promptForPermission: promptForPermission,
+    );
+    _activeTrackingRequest = request;
+    return request.whenComplete(() {
+      if (identical(_activeTrackingRequest, request)) {
+        _activeTrackingRequest = null;
+      }
+    });
+  }
+
+  Future<void> _trackCurrentLocationInternal({
+    required String source,
+    required bool promptForService,
+    required bool promptForPermission,
+  }) async {
     try {
       bool serviceEnabled = await _location.serviceEnabled();
-      if (!serviceEnabled) {
+      if (!serviceEnabled && promptForService) {
         serviceEnabled = await _location.requestService();
       }
       if (!serviceEnabled) {
@@ -42,7 +68,7 @@ class LocationAnalyticsService {
       }
 
       var permission = await _location.hasPermission();
-      if (permission == loc.PermissionStatus.denied) {
+      if (permission == loc.PermissionStatus.denied && promptForPermission) {
         permission = await _location.requestPermission();
       }
 

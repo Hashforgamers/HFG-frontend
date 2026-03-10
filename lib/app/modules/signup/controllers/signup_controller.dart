@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:facebook_app_events/facebook_app_events.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -34,6 +35,7 @@ class SignUpController extends GetxController {
   final facebookAppEvents = FacebookAppEvents();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final deviceIdentifierService = locator<DeviceIdentifierService>();
   final remoteRepo = locator<RemoteRepoInterface>();
 
   Future<void> signUp() async {
@@ -52,6 +54,8 @@ class SignUpController extends GetxController {
 
     isLoading.value = true;
     try {
+      final advertisingId = await deviceIdentifierService
+          .getPreferredAdvertisingId();
       final userData = {
         "fid": currentUser.uid,
         "avatar_path": avatarPath.value,
@@ -77,6 +81,7 @@ class SignUpController extends GetxController {
             "emailId": emailController.text,
           },
         },
+        "advertising_id": advertisingId,
       };
 
       await remoteRepo.signUp(userData);

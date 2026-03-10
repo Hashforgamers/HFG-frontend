@@ -40,8 +40,6 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
   void initState() {
     super.initState();
     selectedIndex = widget.initialIndex;
-    _tapAudioPlayer = AudioPlayer();
-    _prepareTapSound();
   }
 
   @override
@@ -52,8 +50,7 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
   }
 
   Future<void> _prepareTapSound() async {
-    final player = _tapAudioPlayer;
-    if (player == null) return;
+    final player = _tapAudioPlayer ??= AudioPlayer();
     try {
       await player.setAsset(_toggleTapSfxPath);
       await player.setVolume(0.8);
@@ -64,12 +61,12 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
   }
 
   void _playTapSound() {
-    final player = _tapAudioPlayer;
-    if (player == null) return;
     if (!_tapAudioReady) {
       unawaited(_prepareTapSound());
       return;
     }
+    final player = _tapAudioPlayer;
+    if (player == null) return;
     unawaited(player.seek(Duration.zero));
     unawaited(player.play());
   }

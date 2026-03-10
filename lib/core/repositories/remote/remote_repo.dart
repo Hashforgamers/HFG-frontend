@@ -16,6 +16,7 @@ import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:hash/core/repositories/model/transaction_history_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/utils/encrypt_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,8 +24,9 @@ import 'package:dio/dio.dart';
 
 class RemoteRepo implements RemoteRepoInterface {
   final NetworkProvider networkProvider;
+  final DeviceIdentifierService? deviceIdentifierService;
 
-  RemoteRepo({required this.networkProvider});
+  RemoteRepo({required this.networkProvider, this.deviceIdentifierService});
 
   @override
   Future<Map<String, dynamic>?> checkUserExistsInAPI(String fid) async {
@@ -78,7 +80,14 @@ class RemoteRepo implements RemoteRepoInterface {
     final dio = networkProvider.noAuth();
 
     try {
-      final response = await dio.post(ApiEndpoints.signUp, data: userData);
+      final headers =
+          await deviceIdentifierService?.buildRequestHeaders() ??
+          const <String, String>{};
+      final response = await dio.post(
+        ApiEndpoints.signUp,
+        data: userData,
+        options: headers.isEmpty ? null : Options(headers: headers),
+      );
 
       if (response.statusCode == 201) {
         final Map<String, dynamic> responseBody = response.data;
