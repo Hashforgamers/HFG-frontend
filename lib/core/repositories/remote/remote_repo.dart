@@ -519,6 +519,8 @@ class RemoteRepo implements RemoteRepoInterface {
     bool isGamePass = false,
     List<ExtraServiceItem>? extraServices,
     String? userPassId,
+    Map<String, dynamic>? squadDetails,
+    int? suggestedExtraControllerQty,
   }) async {
     final dio = networkProvider.noAuth();
     try {
@@ -548,6 +550,20 @@ class RemoteRepo implements RemoteRepoInterface {
             .toList();
       }
 
+      if (squadDetails != null && squadDetails.isNotEmpty) {
+        requestData["squad_details"] = squadDetails;
+        requestData["squadDetails"] = squadDetails;
+        final playerCount = squadDetails["player_count"];
+        if (playerCount is num) {
+          requestData["playerCount"] = playerCount.toInt();
+        }
+      }
+
+      if (suggestedExtraControllerQty != null) {
+        requestData["suggestedExtraControllerQty"] =
+            suggestedExtraControllerQty < 0 ? 0 : suggestedExtraControllerQty;
+      }
+
       final response = await dio.post(
         ApiEndpoints.confirmBooking,
         data: requestData,
@@ -569,6 +585,55 @@ class RemoteRepo implements RemoteRepoInterface {
     } catch (e) {
       print('Error confirming booking: $e');
       rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchBookingPricingEstimate({
+    required int vendorId,
+    required int gameId,
+    required String consoleType,
+    required bool squadEnabled,
+    required int playerCount,
+    int? suggestedExtraControllerQty,
+  }) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final queryParameters = <String, dynamic>{
+        "vendor_id": vendorId,
+        "game_id": gameId,
+        "consoleType": consoleType,
+        "squadEnabled": squadEnabled,
+        "playerCount": playerCount,
+      };
+      if (suggestedExtraControllerQty != null) {
+        queryParameters["suggestedExtraControllerQty"] =
+            suggestedExtraControllerQty < 0 ? 0 : suggestedExtraControllerQty;
+      }
+
+      final response = await dio.get(
+        ApiEndpoints.bookingPricingEstimate,
+        queryParameters: queryParameters,
+      );
+
+      if (response.statusCode == 200) {
+        if (response.data is Map<String, dynamic>) {
+          return response.data as Map<String, dynamic>;
+        }
+        return Map<String, dynamic>.from(response.data as Map);
+      }
+
+      throw Exception(
+        'Failed to fetch pricing estimate. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      if (ApiErrorHandler.shouldRetry(e)) {
+        rethrow;
+      }
+      final errorMessage = ApiErrorHandler.extractErrorMessage(e);
+      throw Exception(errorMessage);
+    } catch (e) {
+      throw Exception('Error fetching pricing estimate: $e');
     }
   }
 

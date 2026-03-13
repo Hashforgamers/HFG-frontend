@@ -50,6 +50,17 @@ abstract class RemoteRepoInterface {
     bool isGamePass = false,
     List<ExtraServiceItem>? extraServices,
     String? userPassId,
+    Map<String, dynamic>? squadDetails,
+    int? suggestedExtraControllerQty,
+  });
+
+  Future<Map<String, dynamic>> fetchBookingPricingEstimate({
+    required int vendorId,
+    required int gameId,
+    required String consoleType,
+    required bool squadEnabled,
+    required int playerCount,
+    int? suggestedExtraControllerQty,
   });
 
   // Address related methods

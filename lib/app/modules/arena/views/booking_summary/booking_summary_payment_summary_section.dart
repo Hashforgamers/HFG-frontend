@@ -7,6 +7,8 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
   final double subtotal;
   final double slotsSubtotal;
   final double cartSubtotal;
+  final double squadDiscountAmount;
+  final double extraControllerFare;
   final bool hasSlots;
   final bool hasCartItems;
 
@@ -17,6 +19,8 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
     required this.subtotal,
     required this.slotsSubtotal,
     required this.cartSubtotal,
+    this.squadDiscountAmount = 0,
+    this.extraControllerFare = 0,
     required this.hasSlots,
     required this.hasCartItems,
   });
@@ -54,6 +58,11 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
               'Slots',
               '₹${slotsSubtotal.toStringAsFixed(2)}',
             ),
+          if (extraControllerFare > 0)
+            _paymentRow(
+              'Extra Controllers',
+              '₹${extraControllerFare.toStringAsFixed(2)}',
+            ),
           if (hasCartItems)
             _paymentRow(
               'Food & Beverages',
@@ -67,6 +76,12 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
             _paymentRow(
               'Discount',
               '-₹${discount.toStringAsFixed(2)}',
+              color: const Color(0xff00DC00),
+            ),
+          if (squadDiscountAmount > 0)
+            _paymentRow(
+              'Squad Discount',
+              '-₹${squadDiscountAmount.toStringAsFixed(2)}',
               color: const Color(0xff00DC00),
             ),
           _paymentRow('GST', '₹0.00'),

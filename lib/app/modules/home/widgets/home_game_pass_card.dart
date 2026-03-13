@@ -79,7 +79,7 @@ class HomeGamePassCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: Text(
-                      'Know More',
+                      'Buy Now',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: Colors.white,

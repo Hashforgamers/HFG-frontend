@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
+import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_bottom_bar.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_cart_section.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_game_pass_dialog.dart';
@@ -15,6 +16,7 @@ import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_slo
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_user_section.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_voucher_section.dart';
 import 'package:hash/app/modules/arena/views/payment_success.dart';
+import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
 import 'package:hash/app/modules/payment/razorpay_controller.dart';
@@ -43,6 +45,9 @@ class BookingSummaryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
   final int gameId;
   final int vendorId;
+  final bool isSquadBooking;
+  final int requiredConsoleCount;
+  final List<ChatUserModel> selectedSquadMembers;
 
   const BookingSummaryScreen({
     super.key,
@@ -53,6 +58,9 @@ class BookingSummaryScreen extends StatefulWidget {
     required this.vendorId,
     required this.gameId,
     required this.selectedDate,
+    this.isSquadBooking = false,
+    this.requiredConsoleCount = 1,
+    this.selectedSquadMembers = const <ChatUserModel>[],
   });
 
   @override
@@ -79,11 +87,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
   final squadMissionsService = locator<SquadMissionsService>();
+  final ChatService _chatService = Get.find<ChatService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
   final _networkProvider = locator<NetworkProvider>();
   final prefs = locator<SharedPreferences>();
   final RxString _selectedPayment =
       'gateway'.obs; // 'wallet', 'gateway' or 'none'
+  final RxInt _selectedControllerCount = 1.obs;
+  final RxBool _isLoadingPricingEstimate = false.obs;
+  final RxMap<String, dynamic> _pricingEstimate = <String, dynamic>{}.obs;
   final UserController userController = Get.find<UserController>();
 
   // Voucher related variables
@@ -119,6 +131,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     super.initState();
     _loadVouchers();
     _loadUserGamePasses();
+    unawaited(_loadPricingEstimate());
     // Listen to payment events
     _setupPaymentListeners();
 
@@ -550,7 +563,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               },
               child: const Text(
                 "Rate Us",
-                style: TextStyle(color: const Color(0xff00DC00)),
+                style: TextStyle(color: Color(0xff00DC00)),
               ),
             ),
           ],
@@ -602,19 +615,129 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     _loadUserGamePasses();
   }
 
-  double calculateTotalPrice() {
-    // Calculate subtotal including slots and cart items
-    double subtotal = calculateSubtotal();
+  String get _normalizedConsoleType {
+    final type = widget.consoleType.toLowerCase().trim();
+    if (type.contains('playstation') || type.contains('ps')) return 'ps';
+    if (type.contains('xbox')) return 'xbox';
+    return 'pc';
+  }
 
-    if (_appliedVoucher.value != null) {
-      double discount =
-          subtotal * (_appliedVoucher.value!.discountPercentage / 100);
-      double total = subtotal - discount;
-      // Ensure total is not negative
-      return total < 0 ? 0.0 : total;
+  int get _playerCount {
+    if (widget.isSquadBooking) {
+      return widget.requiredConsoleCount > 0 ? widget.requiredConsoleCount : 1;
     }
+    return 1;
+  }
 
-    return subtotal;
+  int get _selectedTimeBlockCount {
+    final keys = widget.selectedSlots
+        .map(
+          (slot) =>
+              '${slot['start_time'] ?? ''}_${slot['end_time'] ?? ''}',
+        )
+        .toSet();
+    return keys.isEmpty ? 0 : keys.length;
+  }
+
+  int get _suggestedExtraControllerQty {
+    if (!_supportsControllerSelection) return 0;
+    final extra = _selectedControllerCount.value - 1;
+    return extra > 0 ? extra : 0;
+  }
+
+  Future<void> _loadPricingEstimate() async {
+    _isLoadingPricingEstimate(true);
+    try {
+      final estimate = await _remoteRepo.fetchBookingPricingEstimate(
+        vendorId: widget.vendorId,
+        gameId: widget.gameId,
+        consoleType: _normalizedConsoleType,
+        squadEnabled: widget.isSquadBooking,
+        playerCount: _playerCount,
+        suggestedExtraControllerQty: _supportsControllerSelection
+            ? _suggestedExtraControllerQty
+            : null,
+      );
+      _pricingEstimate
+        ..clear()
+        ..addAll(estimate);
+    } catch (_) {
+      _pricingEstimate.clear();
+    } finally {
+      _isLoadingPricingEstimate(false);
+    }
+  }
+
+  Future<void> _shareBookingWithSquadMembers(List<int> bookingIds) async {
+    if (!widget.isSquadBooking || widget.selectedSquadMembers.isEmpty) return;
+
+    for (final member in widget.selectedSquadMembers) {
+      try {
+        final roomId = await _chatService.getOrCreateDirectRoom(
+          otherUser: member,
+        );
+        await _chatService.sendArenaBookingInviteMessage(
+          roomId: roomId,
+          cafeName: widget.selectedCafeName,
+          consoleType: widget.consoleType,
+          bookingDate: _formattedBookDate,
+          playerCount: _playerCount,
+          bookingIds: bookingIds,
+          slots: widget.selectedSlots,
+        );
+      } catch (e) {
+        AppLogger.d('Failed to auto-share booking with ${member.uid}: $e');
+      }
+    }
+  }
+
+  Map<String, dynamic>? get _pricingEngine {
+    final raw = _pricingEstimate['pricing_engine'];
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  double _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value == null) return 0;
+    return double.tryParse(value.toString()) ?? 0;
+  }
+
+  List<Map<String, dynamic>> _buildSquadMembersPayload() {
+    return widget.selectedSquadMembers
+        .map((member) {
+          final name = member.displayName.trim().isNotEmpty
+              ? member.displayName.trim()
+              : member.username.trim();
+          final phone = member.phoneNumber.trim();
+          if (name.isEmpty || phone.isEmpty) return null;
+          return <String, dynamic>{'name': name, 'phone': phone};
+        })
+        .whereType<Map<String, dynamic>>()
+        .toList();
+  }
+
+  Map<String, dynamic>? _buildSquadDetailsPayload() {
+    if (!widget.isSquadBooking) return null;
+    return <String, dynamic>{
+      'enabled': true,
+      'player_count': _playerCount,
+      'members': _buildSquadMembersPayload(),
+    };
+  }
+
+  String get _formattedBookDate {
+    if (widget.selectedDate.contains('-')) return widget.selectedDate;
+    return "${widget.selectedDate.substring(0, 4)}-${widget.selectedDate.substring(4, 6)}-${widget.selectedDate.substring(6, 8)}";
+  }
+
+  double calculateTotalPrice() {
+    final subtotal = calculateSubtotal();
+    final voucherDiscount = calculateDiscount();
+    final squadDiscount = _estimatedSquadDiscount;
+    final total = subtotal - voucherDiscount - squadDiscount;
+    return total < 0 ? 0.0 : total;
   }
 
   double calculateDiscount() {
@@ -629,30 +752,19 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   }
 
   double calculateSubtotal() {
-    // Calculate slots subtotal with validation
-    double slotsSubtotal = widget.selectedSlots.fold(0.0, (sum, slot) {
-      double slotPrice = (slot['price'] ?? 50.0).toDouble();
-      // Ensure price is not negative
-      slotPrice = slotPrice < 0 ? 0.0 : slotPrice;
-      return sum + slotPrice;
-    });
-
-    // Calculate cart items subtotal with validation
-    double cartSubtotal = _getValidatedCartItems().fold(0.0, (sum, item) {
-      double itemPrice = (item['price'] ?? 0.0).toDouble();
-      int quantity = (item['qty'] ?? 1) as int;
-
-      // Ensure price and quantity are not negative
-      itemPrice = itemPrice < 0 ? 0.0 : itemPrice;
-      quantity = quantity < 0 ? 0 : quantity;
-
-      return sum + (itemPrice * quantity);
-    });
-
-    return slotsSubtotal + cartSubtotal;
+    return calculateSlotsSubtotal() +
+        _estimatedExtraControllerFare +
+        calculateCartSubtotal();
   }
 
   double calculateSlotsSubtotal() {
+    final pricingEngine = _pricingEngine;
+    if (pricingEngine != null && _selectedTimeBlockCount > 0) {
+      final basePerSlot = _asDouble(pricingEngine['slot_base_total']);
+      if (basePerSlot > 0) {
+        return basePerSlot * _selectedTimeBlockCount;
+      }
+    }
     return widget.selectedSlots.fold(0.0, (sum, slot) {
       double slotPrice = (slot['price'] ?? 50.0).toDouble();
       // Ensure price is not negative
@@ -673,6 +785,166 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       return sum + (itemPrice * quantity);
     });
+  }
+
+  double get _estimatedSquadDiscount {
+    final pricingEngine = _pricingEngine;
+    if (pricingEngine == null || _selectedTimeBlockCount <= 0) return 0;
+    return _asDouble(pricingEngine['squad_discount_amount']) *
+        _selectedTimeBlockCount;
+  }
+
+  double get _estimatedExtraControllerFare {
+    final pricingEngine = _pricingEngine;
+    if (pricingEngine == null || _selectedTimeBlockCount <= 0) return 0;
+    return _asDouble(pricingEngine['extra_controller_total']) *
+        _selectedTimeBlockCount;
+  }
+
+  bool get _supportsControllerSelection {
+    final type = widget.consoleType.toLowerCase();
+    return type.contains('ps') ||
+        type.contains('playstation') ||
+        type.contains('xbox');
+  }
+
+  String get _controllerSelectionLabel {
+    final type = widget.consoleType.toUpperCase();
+    return '$type Controllers';
+  }
+
+  Widget _buildControllerCounterSection() {
+    return Obx(() {
+      final count = _selectedControllerCount.value;
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF171717),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00DC00).withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.sports_esports_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _controllerSelectionLabel,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Add the number of controllers needed for this booking.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111111),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Row(
+                children: [
+                  _buildCounterButton(
+                    icon: Icons.remove,
+                    enabled: count > 1,
+                    onTap: () {
+                      if (count > 1) {
+                        _selectedControllerCount.value = count - 1;
+                        unawaited(_loadPricingEstimate());
+                      }
+                    },
+                  ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          '$count',
+                          style: GoogleFonts.inter(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'Controller${count == 1 ? '' : 's'}',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.grey.shade400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildCounterButton(
+                    icon: Icons.add,
+                    enabled: count < 4,
+                    onTap: () {
+                      if (count < 4) {
+                        _selectedControllerCount.value = count + 1;
+                        unawaited(_loadPricingEstimate());
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildCounterButton({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: enabled ? const Color(0xFF1D1D1D) : const Color(0xFF151515),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: 42,
+          width: 42,
+          child: Icon(icon, color: enabled ? Colors.white : Colors.white24),
+        ),
+      ),
+    );
   }
 
   @override
@@ -737,7 +1009,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
                       BookingSummarySlotsList(
                         selectedSlots: widget.selectedSlots,
+                        selectedDate: widget.selectedDate,
+                        consoleType: widget.consoleType,
                       ),
+                      if (_supportsControllerSelection) ...[
+                        const SizedBox(height: 12),
+                        _buildControllerCounterSection(),
+                      ],
                       const SizedBox(height: 5),
                       BookingSummaryCartSection(
                         cartItems: validatedCartItems,
@@ -791,6 +1069,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           subtotal: subtotal,
                           slotsSubtotal: slotsSubtotal,
                           cartSubtotal: cartSubtotal,
+                          squadDiscountAmount: _estimatedSquadDiscount,
+                          extraControllerFare: _estimatedExtraControllerFare,
                           hasSlots: widget.selectedSlots.isNotEmpty,
                           hasCartItems: validatedCartItems.isNotEmpty,
                         );
@@ -922,6 +1202,21 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           const SnackBar(
             content: Text(
               '100% vouchers can only be used for one slot. Please remove extra slots.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return false;
+      }
+    }
+
+    if (widget.isSquadBooking) {
+      final expectedMembers = _playerCount > 0 ? _playerCount - 1 : 0;
+      if (_buildSquadMembersPayload().length != expectedMembers) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Each squad member must have a valid phone number before continuing.',
             ),
             backgroundColor: Colors.red,
           ),
@@ -1408,6 +1703,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             duration: const Duration(seconds: 4),
           ),
         );
+        await _shareBookingWithSquadMembers(bookingIds);
         Get.to(
           () => PaymentSuccessScreen(
             isBookingCreatedOnly: true,
@@ -1538,12 +1834,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         bookingIds: bookingIds,
         paymentId:
             "${paymentMode.toUpperCase()}_${DateTime.now().millisecondsSinceEpoch}",
-        bookDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        bookDate: _formattedBookDate,
         paymentMode: paymentMode,
         voucherCode: voucherCode,
         isGamePass: isGamePass,
         extraServices: extraServices,
         userPassId: userPassId,
+        squadDetails: _buildSquadDetailsPayload(),
+        suggestedExtraControllerQty: _supportsControllerSelection
+            ? _suggestedExtraControllerQty
+            : null,
       );
 
       // Track booking confirmed event
@@ -1578,6 +1878,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         bookingId: bookingIds.first.toString(),
         paymentGateway: paymentMode,
       );
+      await _shareBookingWithSquadMembers(bookingIds);
 
       // Update payment stage to done
       _stage.value = PaymentStage.done;
@@ -1650,10 +1951,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       }
 
       _paymentStatus.value = 'Failed to confirm booking';
-      await _failPaymentFlow(
-        errorMessage,
-        fromWallet: paymentMode == 'wallet',
-      );
+      await _failPaymentFlow(errorMessage, fromWallet: paymentMode == 'wallet');
     }
   }
 
@@ -1673,11 +1971,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     final bookDate =
         "${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}";
 
-    final payload = {
+    final squadDetails = _buildSquadDetailsPayload();
+    final payload = <String, dynamic>{
       "slot_id": slotIds,
       "game_id": widget.gameId,
       "book_date": bookDate, // now in correct format
       "is_pay_at_cafe": payAtCafe,
+      if (squadDetails != null) "squad_details": squadDetails,
+      if (squadDetails != null) "squadDetails": squadDetails,
+      if (squadDetails != null) "playerCount": _playerCount,
+      if (_supportsControllerSelection)
+        "suggestedExtraControllerQty": _suggestedExtraControllerQty,
     };
 
     debugPrint('payload: $payload');
@@ -1686,7 +1990,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       final response = await dio.post(url, data: payload);
       debugPrint('response: ${response.data}');
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data is String
             ? jsonDecode(response.data as String)
             : response.data;
@@ -1706,10 +2010,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         }
         return map;
       } else {
-        return {};
+        throw Exception(
+          'Failed to create booking. Status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
-      return {};
+      rethrow;
     }
   }
 

@@ -61,7 +61,8 @@ class _HomeContentViewState extends State<HomeContentView>
 
   // Scroll controller for optimization
   late final ScrollController _scrollController;
-  static const double _sectionGap = 24.0;
+  static const double _sectionGap = 20.0;
+  static const double _horizontalSectionPadding = 8.0;
 
   final remoteRepo = locator<RemoteRepoInterface>();
 
@@ -71,6 +72,23 @@ class _HomeContentViewState extends State<HomeContentView>
       items.length * 2 - 1,
       (i) => i.isEven ? items[i ~/ 2] : separator,
     );
+  }
+
+  List<Widget> _buildVisibleSections() {
+    final sections = <Widget>[
+      _buildLazyLoadedSection('cafe', _cachedCafeSection),
+      _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+      _buildLazyLoadedSection('squadMissions', const SquadMissionsCard()),
+      _buildLazyLoadedSection('referral', _buildReferFriendModal()),
+      _buildLazyLoadedSection('miniGames', _cachedMiniGamesSection),
+      _buildLazyLoadedSection('shorts', _cachedShortsSection),
+      _buildLazyLoadedSection('games', _cachedGamesSection),
+      _buildLazyLoadedSection('news', _cachedNewsSection),
+      _buildLazyLoadedSection('support', _cachedSupportSection),
+      _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
+    ];
+
+    return sections.where((section) => section is! SizedBox).toList();
   }
 
   // State variables
@@ -425,44 +443,17 @@ class _HomeContentViewState extends State<HomeContentView>
                     end: Offset.zero,
                   ).animate(_slideController),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: _horizontalSectionPadding,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: _sectionGap), // top padding
-                        ..._intersperse([
-                          _buildLazyLoadedSection('cafe', _cachedCafeSection),
-                          _buildLazyLoadedSection(
-                            'gamePass',
-                            _buildGamePassContainer(),
-                          ),
-                          _buildLazyLoadedSection(
-                            'support',
-                            _cachedSupportSection,
-                          ),
-                          _buildLazyLoadedSection(
-                            'miniGames',
-                            _cachedMiniGamesSection,
-                          ),
-                          _buildLazyLoadedSection(
-                            'squadMissions',
-                            const SquadMissionsCard(),
-                          ),
-                          _buildLazyLoadedSection(
-                            'referral',
-                            _buildReferFriendModal(),
-                          ),
-                          _buildLazyLoadedSection(
-                            'shorts',
-                            _cachedShortsSection,
-                          ),
-                          _buildLazyLoadedSection('news', _cachedNewsSection),
-                          _buildLazyLoadedSection('games', _cachedGamesSection),
-                          _buildLazyLoadedSection(
-                            'gameOnIndia',
-                            _buildGameOnIndiaBanner(),
-                          ),
-                        ], const SizedBox(height: _sectionGap)),
+                        ..._intersperse(
+                          _buildVisibleSections(),
+                          const SizedBox(height: _sectionGap),
+                        ),
                         const SizedBox(height: _sectionGap), // bottom padding
                       ],
                     ),

@@ -6,6 +6,7 @@ class ChatUserModel {
   final String displayName;
   final String username;
   final String email;
+  final String phoneNumber;
   final String photoUrl;
   final int? backendUserId;
   final bool isOnline;
@@ -17,6 +18,7 @@ class ChatUserModel {
     required this.displayName,
     required this.username,
     required this.email,
+    required this.phoneNumber,
     required this.photoUrl,
     this.backendUserId,
     required this.isOnline,
@@ -36,6 +38,13 @@ class ChatUserModel {
           (map['username'] ?? map['user_name'] ?? map['gameUserName'] ?? '')
               .toString(),
       email: (map['email'] ?? '').toString(),
+      phoneNumber: (map['phone_number'] ??
+              map['phone'] ??
+              map['mobileNo'] ??
+              map['mobile_number'] ??
+              map['mobile'] ??
+              '')
+          .toString(),
       photoUrl: (map['photo_url'] ?? '').toString(),
       backendUserId: _parseInt(map['backend_user_id'] ?? map['user_id'] ?? map['id']),
       isOnline: map['is_online'] == true && freshEnough,
@@ -55,6 +64,7 @@ class ChatUserModel {
       'display_name': displayName,
       'username': username,
       'email': email,
+      'phone_number': phoneNumber,
       'photo_url': photoUrl,
       'backend_user_id': backendUserId,
       'is_online': isOnline,

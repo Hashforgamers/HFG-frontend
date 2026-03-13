@@ -351,6 +351,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
             displayName: fallbackName,
             username: _usernameFromDisplayName(fallbackName),
             email: '',
+            phoneNumber: '',
             photoUrl: '',
             isOnline: false,
             updatedAt: now,
@@ -919,6 +920,81 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     await batch.commit();
   }
 
+  Future<void> sendArenaBookingInviteMessage({
+    required String roomId,
+    required String cafeName,
+    required String consoleType,
+    required String bookingDate,
+    required int playerCount,
+    required List<int> bookingIds,
+    required List<Map<String, dynamic>> slots,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to share bookings.');
+    }
+
+    final safeCafeName = cafeName.trim().isEmpty ? 'Gaming Cafe' : cafeName.trim();
+    final safeConsoleType = consoleType.trim().isEmpty ? 'Setup' : consoleType.trim();
+    final safeBookingDate = bookingDate.trim();
+    if (safeBookingDate.isEmpty || bookingIds.isEmpty) {
+      throw Exception('Invalid booking details for sharing.');
+    }
+
+    final senderName = await _resolveCurrentUserNameFromStore(uid);
+    final roomRef = _roomsRef.doc(roomId);
+    final messageRef = roomRef.collection(_messagesCollection).doc();
+    final now = DateTime.now().toIso8601String();
+
+    final slotLabels = slots
+        .map((slot) {
+          final start = (slot['start_time'] ?? '').toString().trim();
+          final end = (slot['end_time'] ?? '').toString().trim();
+          if (start.isEmpty || end.isEmpty) return '';
+          return '$start - $end';
+        })
+        .where((label) => label.isNotEmpty)
+        .toSet()
+        .toList();
+
+    final previewText =
+        '$senderName shared a squad booking for $safeCafeName';
+
+    final batch = _firestore.batch();
+    batch.set(messageRef, {
+      'id': messageRef.id,
+      'room_id': roomId,
+      'sender_id': uid,
+      'sender_name': senderName,
+      'text': previewText,
+      'type': 'arena_booking_invite',
+      'meta': {
+        'cafe_name': safeCafeName,
+        'console_type': safeConsoleType,
+        'booking_date': safeBookingDate,
+        'player_count': playerCount,
+        'booking_ids': bookingIds,
+        'slots': slots,
+        'slot_labels': slotLabels,
+        'shared_by_uid': uid,
+      },
+      'seen_by': [uid],
+      'created_at': FieldValue.serverTimestamp(),
+      'client_created_at': now,
+    });
+
+    batch.set(roomRef, {
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': now,
+      'last_message': 'Squad booking: $safeCafeName',
+      'last_message_sender_id': uid,
+      'last_message_at': FieldValue.serverTimestamp(),
+      'client_last_message_at': now,
+    }, SetOptions(merge: true));
+
+    await batch.commit();
+  }
+
   Future<void> markRoomMessagesSeen(String roomId) async {
     final uid = currentUid;
     if (uid == null) return;
@@ -1019,6 +1095,17 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       _lastSeenMessageIdByRoom[room.id] = message.id;
       if (!alreadyPrimed) {
         _primedRooms.add(room.id);
+        if (_shouldNotifyPrimedMessage(
+          room: room,
+          message: message,
+          currentUidValue: currentUidValue,
+        )) {
+          _notifyIncomingMessage(
+            room: room,
+            message: message,
+            currentUidValue: currentUidValue,
+          );
+        }
         return;
       }
       if (previousMessageId == message.id) return;
@@ -1030,6 +1117,18 @@ class ChatService extends GetxService with WidgetsBindingObserver {
         currentUidValue: currentUidValue,
       );
     });
+  }
+
+  bool _shouldNotifyPrimedMessage({
+    required ChatRoomModel room,
+    required ChatMessageModel message,
+    required String currentUidValue,
+  }) {
+    if (message.senderId == currentUidValue) return false;
+    if (message.seenBy.contains(currentUidValue)) return false;
+    final age = DateTime.now().difference(message.createdAt);
+    if (age > const Duration(seconds: 30)) return false;
+    return room.lastMessageSenderId == message.senderId;
   }
 
   void _recomputeUnreadRoomCount() {
@@ -1046,12 +1145,24 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     final notificationController = Get.find<NotificationController>();
 
     final title = room.displayTitleFor(currentUidValue);
-    final body = message.text.trim().isEmpty ? 'New message' : message.text;
+    final body = _notificationBodyForMessage(message);
     notificationController.showChatNotification(
       title: title,
       body: body,
       payload: 'chat:${room.id}',
     );
+  }
+
+  String _notificationBodyForMessage(ChatMessageModel message) {
+    if (message.type == 'arena_booking_invite') {
+      final cafeName = (message.meta['cafe_name'] ?? '').toString().trim();
+      if (cafeName.isNotEmpty) {
+        return '${message.senderName} shared a squad booking for $cafeName';
+      }
+      return '${message.senderName} shared a squad booking with you';
+    }
+    final body = message.text.trim();
+    return body.isEmpty ? 'New message' : body;
   }
 
   Future<List<ChatUserModel>> _searchUsersFromBackend(
@@ -1147,6 +1258,15 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       _readNested(raw, ['email'])?.toString(),
       _readNested(raw, ['contact', 'electronicAddress', 'emailId'])?.toString(),
     ], fallback: '');
+    final phoneNumber = _firstNonEmpty([
+      _readNested(raw, ['phone'])?.toString(),
+      _readNested(raw, ['phone_number'])?.toString(),
+      _readNested(raw, ['mobile'])?.toString(),
+      _readNested(raw, ['mobileNo'])?.toString(),
+      _readNested(raw, ['mobile_number'])?.toString(),
+      _readNested(raw, ['contact', 'electronicAddress', 'mobileNo'])
+          ?.toString(),
+    ], fallback: '');
 
     final photoUrl = _firstNonEmpty([
       _readNested(raw, ['photoUrl'])?.toString(),
@@ -1163,6 +1283,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
           ? _usernameFromDisplayName(displayName)
           : username.trim(),
       email: email.trim(),
+      phoneNumber: phoneNumber.trim(),
       photoUrl: photoUrl.trim(),
       backendUserId: _parseInt(
         _readNested(raw, ['id']) ?? _readNested(raw, ['user_id']),

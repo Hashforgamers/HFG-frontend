@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
@@ -18,6 +21,9 @@ class BookingScreen extends StatefulWidget {
   final int gameId;
   final int vendorId;
   final List<Map<String, dynamic>>? cartItems;
+  final bool isSquadBooking;
+  final int requiredConsoleCount;
+  final List<ChatUserModel> selectedSquadMembers;
 
   const BookingScreen({
     super.key,
@@ -27,6 +33,9 @@ class BookingScreen extends StatefulWidget {
     required this.gameId,
     required this.vendorId,
     required this.cartItems,
+    this.isSquadBooking = false,
+    this.requiredConsoleCount = 1,
+    this.selectedSquadMembers = const <ChatUserModel>[],
   });
 
   @override
@@ -37,6 +46,7 @@ class _BookingScreenState extends State<BookingScreen> {
   final BookingController controller = Get.put(BookingController());
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
+  final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   late int userId;
   String selectedDate = DateFormat('yyyyMMdd').format(DateTime.now());
   String selectedDateText = DateFormat('dd MMM, yyyy').format(DateTime.now());
@@ -44,6 +54,11 @@ class _BookingScreenState extends State<BookingScreen> {
   bool _loggedSoldOut = false;
   final Set<String> _almostFullLoggedSlots = <String>{};
   final Set<String> _unavailableLoggedSlots = <String>{};
+  bool _isLoadingPricingEstimate = false;
+  Map<String, dynamic>? _pricingEstimate;
+
+  int get _requiredSelectionCount =>
+      widget.requiredConsoleCount > 0 ? widget.requiredConsoleCount : 1;
 
   @override
   void initState() {
@@ -54,6 +69,7 @@ class _BookingScreenState extends State<BookingScreen> {
       gameId: widget.gameId,
       date: selectedDate,
     );
+    _loadPricingEstimate();
 
     // Clear any previous selections when entering the screen
     controller.clearSelectedSlots();
@@ -77,6 +93,80 @@ class _BookingScreenState extends State<BookingScreen> {
     return '$consoleType${index + 1}';
   }
 
+  List<int> _getVisibleSlotIndices() {
+    final isCurrentDate =
+        selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
+    final indices = <int>[];
+    for (var i = 0; i < controller.slots.length; i++) {
+      final slot = controller.slots[i];
+      final isTimeAvailable = isCurrentDate
+          ? controller.isSlotAvailableNow(slot)
+          : true;
+      if (isTimeAvailable) {
+        indices.add(i);
+      }
+    }
+    return indices;
+  }
+
+  String get _normalizedConsoleType {
+    final type = widget.consoleType.toLowerCase().trim();
+    if (type.contains('playstation') || type.contains('ps')) return 'ps';
+    if (type.contains('xbox')) return 'xbox';
+    return 'pc';
+  }
+
+  Map<String, dynamic>? get _pricingEngine {
+    final raw = _pricingEstimate?['pricing_engine'];
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  Map<String, dynamic>? get _squadDetailsEstimate {
+    final raw = _pricingEstimate?['squad_details'];
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  double _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value == null) return 0;
+    return double.tryParse(value.toString()) ?? 0;
+  }
+
+  Future<void> _loadPricingEstimate() async {
+    if (!widget.isSquadBooking) return;
+    setState(() {
+      _isLoadingPricingEstimate = true;
+    });
+    try {
+      final estimate = await _remoteRepo.fetchBookingPricingEstimate(
+        vendorId: widget.vendorId,
+        gameId: widget.gameId,
+        consoleType: _normalizedConsoleType,
+        squadEnabled: widget.isSquadBooking,
+        playerCount: _requiredSelectionCount,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pricingEstimate = estimate;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _pricingEstimate = null;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingPricingEstimate = false;
+        });
+      }
+    }
+  }
+
   Future<void> _fetchUserId() async {
     final prefs = await SharedPreferences.getInstance();
     final String? userDataString = prefs.getString('user_data');
@@ -98,13 +188,6 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Clear selections when building the widget (ensures fresh state)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (controller.selectedSlots.isNotEmpty) {
-        controller.clearSelectedSlots();
-      }
-    });
-
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -196,11 +279,12 @@ class _BookingScreenState extends State<BookingScreen> {
             );
           }
 
-          // Show all API slots to users.
-          // Only check for selectable slots to drive empty state messaging.
           final isCurrentDate =
               selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
-          final selectableSlots = controller.slots.where((slot) {
+          final visibleSlotIndices = _getVisibleSlotIndices();
+          final selectableSlots = visibleSlotIndices.map((index) {
+            return controller.slots[index];
+          }).where((slot) {
             final bool isApiAvailable =
                 slot['is_available'] ?? slot['isAvailable'] ?? true;
             final int availableConsoles =
@@ -242,7 +326,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Try a different date or check slots marked as time expired/sold out',
+                          'Try a different date to see more slots',
                           style: GoogleFonts.inter(
                             color: Colors.grey[600],
                             fontSize: 14,
@@ -320,6 +404,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget buildSlotList() {
+    final visibleSlotIndices = _getVisibleSlotIndices();
     return Column(
       children: [
         Padding(
@@ -345,7 +430,9 @@ class _BookingScreenState extends State<BookingScreen> {
                       final isCurrentDate =
                           selectedDate ==
                           DateFormat('yyyyMMdd').format(DateTime.now());
-                      final availableSlots = controller.slots.where((slot) {
+                      final availableSlots = visibleSlotIndices.map((index) {
+                        return controller.slots[index];
+                      }).where((slot) {
                         final bool isAvailable =
                             slot['is_available'] ?? slot['isAvailable'] ?? true;
                         final bool isTimeAvailable = isCurrentDate
@@ -360,10 +447,6 @@ class _BookingScreenState extends State<BookingScreen> {
                             isTimeAvailable &&
                             availableConsoles > 0;
                       }).toList();
-                      final int expiredSlots = controller.slots.where((slot) {
-                        if (!isCurrentDate) return false;
-                        return !controller.isSlotAvailableNow(slot);
-                      }).length;
                       final totalAvailableConsoles = availableSlots.fold<int>(
                         0,
                         (sum, slot) {
@@ -376,8 +459,15 @@ class _BookingScreenState extends State<BookingScreen> {
                         },
                       );
                       final consoleType = getConsoleType();
+                      final discountPercent = _asDouble(
+                        _squadDetailsEstimate?['discount_percent'],
+                      );
+                      final squadHint = widget.isSquadBooking &&
+                              discountPercent > 0
+                          ? ' • save ${discountPercent.toStringAsFixed(discountPercent % 1 == 0 ? 0 : 1)}% with squad'
+                          : '';
                       return Text(
-                        '$totalAvailableConsoles ${consoleType == 'PC' ? 'PCs' : '${consoleType}s'} selectable now • ${controller.slots.length} total slots${expiredSlots > 0 ? ' • $expiredSlots expired' : ''}',
+                        '${widget.isSquadBooking ? 'Select exactly $_requiredSelectionCount setups' : 'Solo booking'} • $totalAvailableConsoles ${consoleType == 'PC' ? 'PCs' : '${consoleType}s'} selectable now$squadHint',
                         style: GoogleFonts.inter(
                           color: Colors.grey[400],
                           fontSize: 14,
@@ -409,6 +499,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       _loggedSoldOut = false;
                       _almostFullLoggedSlots.clear();
                       _unavailableLoggedSlots.clear();
+                      controller.clearSelectedSlots();
                       controller.fetchSlots(
                         vendorId: widget.vendorId,
                         gameId: widget.gameId,
@@ -424,10 +515,11 @@ class _BookingScreenState extends State<BookingScreen> {
         ),
         Expanded(
           child: ListView.builder(
-            itemCount: controller.slots.length,
+            itemCount: visibleSlotIndices.length,
             itemBuilder: (context, index) {
-              final slot = controller.slots[index];
-              return buildSlotItem(slot, index);
+              final originalIndex = visibleSlotIndices[index];
+              final slot = controller.slots[originalIndex];
+              return buildSlotItem(slot, originalIndex);
             },
           ),
         ),
@@ -666,12 +758,29 @@ class _BookingScreenState extends State<BookingScreen> {
 
       return GestureDetector(
         onTap: () {
+          final selectedConsoleCount = _getSelectedConsoleCount();
+          final isNewConsoleSelection =
+              !(controller.selectedSlots.containsKey(pcIndex) &&
+                  (controller.selectedSlots[pcIndex]?.isNotEmpty ?? false));
           if (isSelected) {
             controller.selectedSlots[pcIndex]?.remove(timeIndex);
             if (controller.selectedSlots[pcIndex]?.isEmpty ?? true) {
               controller.selectedSlots.remove(pcIndex);
             }
           } else {
+            if (isNewConsoleSelection &&
+                selectedConsoleCount > 0 &&
+                !_isAllowedTimeForNewConsole(timeIndex)) {
+              _showSlotAlignmentHint();
+              return;
+            }
+            if (isNewConsoleSelection &&
+                selectedConsoleCount >= _requiredSelectionCount) {
+              _showSelectionCountError(
+                'You can only select $_requiredSelectionCount ${_requiredSelectionCount == 1 ? getConsoleType() : '${getConsoleType()}s'} for this booking.',
+              );
+              return;
+            }
             controller.selectedSlots[pcIndex] =
                 controller.selectedSlots[pcIndex] ?? [];
             controller.selectedSlots[pcIndex]?.add(timeIndex);
@@ -726,21 +835,36 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Widget buildFooter() {
     return Obx(() {
-      int totalSelectedSlots = controller.selectedSlots.values.fold(
-        0,
-        (sum, slots) => sum + slots.length,
-      );
+      final totalSelectedSlots = _getSelectedSlotCount();
+      final selectedConsoleCount = _getSelectedConsoleCount();
+      final selectedTimeBlockCount = controller.selectedSlots.values
+          .expand((slots) => slots)
+          .toSet()
+          .length;
 
       // Calculate total price based on actual slot prices
       double totalPrice = 0.0;
-      controller.selectedSlots.forEach((pcIndex, timeIndices) {
-        for (var timeIndex in timeIndices) {
-          if (timeIndex < controller.slots.length) {
-            final slot = controller.slots[timeIndex];
-            totalPrice += (slot['single_slot_price'] ?? 50).toDouble();
+      final pricingEngine = _pricingEngine;
+      final estimatedPerSlotTotal = _asDouble(
+        pricingEngine?['estimated_final_amount'],
+      );
+      if (widget.isSquadBooking &&
+          estimatedPerSlotTotal > 0 &&
+          selectedTimeBlockCount > 0) {
+        totalPrice = estimatedPerSlotTotal * selectedTimeBlockCount;
+      } else {
+        controller.selectedSlots.forEach((pcIndex, timeIndices) {
+          for (var timeIndex in timeIndices) {
+            if (timeIndex < controller.slots.length) {
+              final slot = controller.slots[timeIndex];
+              totalPrice += (slot['single_slot_price'] ?? 50).toDouble();
+            }
           }
-        }
-      });
+        });
+      }
+      final estimatedDiscountPerSlot = _asDouble(
+        pricingEngine?['squad_discount_amount'],
+      );
 
       return SafeArea(
         top: false,
@@ -757,7 +881,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '$totalSelectedSlots Slot(s)',
+                    '$selectedConsoleCount / $_requiredSelectionCount setups • $totalSelectedSlots slot(s)',
                     style: GoogleFonts.inter(
                       color: Colors.white.withValues(alpha: 0.95),
                       fontSize: 16,
@@ -774,6 +898,43 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ],
               ),
+              if (widget.isSquadBooking) ...[
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _isLoadingPricingEstimate
+                            ? 'Checking your squad savings...'
+                            : estimatedDiscountPerSlot > 0
+                            ? 'Squad discount applied to each selected time slot'
+                            : 'Final squad savings will be shown once pricing is ready',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: Colors.white60,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    if (!_isLoadingPricingEstimate && estimatedDiscountPerSlot > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: Text(
+                          'You save ₹${estimatedDiscountPerSlot.toStringAsFixed(1)} per slot',
+                          textAlign: TextAlign.right,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xff00DC00),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: totalSelectedSlots > 0 ? onProceed : null,
@@ -804,6 +965,24 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void onProceed() {
+    final selectedConsoleCount = _getSelectedConsoleCount();
+    final totalSelectedSlots = _getSelectedSlotCount();
+    if (totalSelectedSlots == 0 ||
+        selectedConsoleCount != _requiredSelectionCount) {
+      _showSelectionCountError(
+        'Select exactly $_requiredSelectionCount ${_requiredSelectionCount == 1 ? getConsoleType() : '${getConsoleType()}s'} before continuing.',
+      );
+      return;
+    }
+
+    final incompleteSlotTimes = _getIncompleteSlotTimes();
+    if (incompleteSlotTimes.isNotEmpty) {
+      _showSelectionCountError(
+        'Complete ${incompleteSlotTimes.first} for all $_requiredSelectionCount setups, or remove that partial slot.',
+      );
+      return;
+    }
+
     // Track game details viewed event when user proceeds with console selection
     _segmentService.onGameDetailsViewed(
       gameId: widget.gameId.toString(),
@@ -844,7 +1023,95 @@ class _BookingScreenState extends State<BookingScreen> {
         gameId: widget.gameId,
         vendorId: widget.vendorId,
         selectedDate: selectedDate,
+        isSquadBooking: widget.isSquadBooking,
+        requiredConsoleCount: _requiredSelectionCount,
+        selectedSquadMembers: widget.selectedSquadMembers,
       ),
     );
+  }
+
+  int _getSelectedSlotCount() {
+    return controller.selectedSlots.values.fold(
+      0,
+      (sum, slots) => sum + slots.length,
+    );
+  }
+
+  int _getSelectedConsoleCount() {
+    return controller.selectedSlots.entries
+        .where((entry) => entry.value.isNotEmpty)
+        .length;
+  }
+
+  bool _isAllowedTimeForNewConsole(int timeIndex) {
+    for (final selectedTimeIndices in controller.selectedSlots.values) {
+      if (selectedTimeIndices.contains(timeIndex)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  List<String> _getIncompleteSlotTimes() {
+    final Map<int, int> selectionCountsByTimeIndex = <int, int>{};
+
+    for (final timeIndices in controller.selectedSlots.values) {
+      for (final timeIndex in timeIndices) {
+        selectionCountsByTimeIndex.update(
+          timeIndex,
+          (value) => value + 1,
+          ifAbsent: () => 1,
+        );
+      }
+    }
+
+    final List<String> incompleteTimes = <String>[];
+    for (final entry in selectionCountsByTimeIndex.entries) {
+      if (entry.value == _requiredSelectionCount) {
+        continue;
+      }
+      if (entry.key < 0 || entry.key >= controller.slots.length) {
+        continue;
+      }
+
+      final slot = controller.slots[entry.key];
+      incompleteTimes.add('${slot['start_time']} - ${slot['end_time']}');
+    }
+
+    return incompleteTimes;
+  }
+
+  void _showSelectionCountError(String message) {
+    HapticFeedback.mediumImpact();
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
+  void _showSlotAlignmentHint() {
+    HapticFeedback.heavyImpact();
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Select the same slot time as your previous setup, then add more time if needed.',
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
   }
 }

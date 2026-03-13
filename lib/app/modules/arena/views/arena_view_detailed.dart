@@ -1,8 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/chat/models/chat_user_model.dart';
+import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_consoles_section.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_header.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_info_section.dart';
@@ -53,10 +58,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   late final CafeGamesController _gamesController;
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  late final ConfettiController _squadConfettiController;
 
   @override
   void initState() {
     super.initState();
+    _squadConfettiController = ConfettiController(
+      duration: const Duration(milliseconds: 850),
+    );
     _gamesController = Get.put(
       CafeGamesController(),
       tag: 'vendor_${widget.vendorId}',
@@ -89,6 +98,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   @override
   void dispose() {
+    _squadConfettiController.dispose();
     Get.delete<CafeGamesController>(tag: 'vendor_${widget.vendorId}');
     super.dispose();
   }
@@ -123,6 +133,1242 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       return v == 'true' || v == '1' || v == 'yes';
     }
     return true;
+  }
+
+  Future<BookingPartySelection?> _showBookingPartyBottomSheet(
+    BuildContext context,
+    String consoleType,
+  ) {
+    final chatService = Get.find<ChatService>();
+    final maxSquadSize = _estimateMaxSquadSize(consoleType);
+    bool isSquad = false;
+    final int minSquadSize = maxSquadSize >= 2 ? 2 : 1;
+    int squadCount = minSquadSize;
+    List<ChatUserModel> results = const [];
+    List<ChatUserModel> selectedMembers = <ChatUserModel>[];
+    bool isSearching = false;
+    String inlineError = '';
+    String queryText = '';
+
+    return showModalBottomSheet<BookingPartySelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF181818),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final requiredMembers = isSquad ? (squadCount - 1).clamp(0, 98) : 0;
+            final canContinue =
+                !isSquad ||
+                (squadCount >= minSquadSize &&
+                    selectedMembers.length == requiredMembers &&
+                    selectedMembers.every(_hasUsablePhoneNumber));
+
+            Future<void> runSearch(String value) async {
+              final q = value.trim();
+              setModalState(() {
+                queryText = value;
+                inlineError = '';
+              });
+
+              if (q.length < 2) {
+                setModalState(() {
+                  results = const [];
+                  isSearching = false;
+                });
+                return;
+              }
+
+              setModalState(() {
+                isSearching = true;
+              });
+
+              try {
+                final users = await chatService.searchUsers(q, limit: 20);
+                if (!context.mounted) return;
+                setModalState(() {
+                  results = users;
+                });
+              } catch (_) {
+                if (!context.mounted) return;
+                setModalState(() {
+                  inlineError = 'Unable to search players right now.';
+                });
+              } finally {
+                if (context.mounted) {
+                  setModalState(() {
+                    isSearching = false;
+                  });
+                }
+              }
+            }
+
+            return SafeArea(
+              top: false,
+              child: FractionallySizedBox(
+                heightFactor: isSquad ? 0.92 : 0.56,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Booking type',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Choose solo for the regular flow, or squad to lock the exact number of consoles/PCs you want to book.',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                  height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildBookingTypeOption(
+                                      label: 'Solo',
+                                      subtitle: '1 setup',
+                                      isSelected: !isSquad,
+                                      onTap: () {
+                                        setModalState(() {
+                                          isSquad = false;
+                                          squadCount = minSquadSize;
+                                          selectedMembers = <ChatUserModel>[];
+                                          results = const [];
+                                          queryText = '';
+                                          inlineError = '';
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildBookingTypeOption(
+                                      label: 'Squad',
+                                      subtitle: '$maxSquadSize max',
+                                      isSelected: isSquad,
+                                      onTap: () {
+                                        setModalState(() {
+                                          isSquad = true;
+                                          if (squadCount < minSquadSize) {
+                                            squadCount = minSquadSize;
+                                          }
+                                        });
+                                        _squadConfettiController
+                                          ..stop()
+                                          ..play();
+                                      },
+                                      showEliteFx: true,
+                                      confettiController:
+                                          _squadConfettiController,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (isSquad) ...[
+                                const SizedBox(height: 18),
+                                Text(
+                                  'Number of setups needed',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Select from $minSquadSize to $maxSquadSize based on the maximum consoles available at one time.',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white60,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF232323),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: Colors.white12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      _buildCounterButton(
+                                        icon: Icons.remove,
+                                        enabled: squadCount > minSquadSize,
+                                        onTap: () {
+                                          if (squadCount <= minSquadSize) {
+                                            return;
+                                          }
+                                          setModalState(() {
+                                            squadCount -= 1;
+                                            final nextRequired =
+                                                (squadCount - 1).clamp(0, 98);
+                                            if (selectedMembers.length >
+                                                nextRequired) {
+                                              selectedMembers = selectedMembers
+                                                  .take(nextRequired)
+                                                  .toList();
+                                            }
+                                          });
+                                        },
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              '$squadCount',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 28,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            Text(
+                                              'Required setups',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white60,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      _buildCounterButton(
+                                        icon: Icons.add,
+                                        enabled: squadCount < maxSquadSize,
+                                        onTap: () {
+                                          if (squadCount >= maxSquadSize)
+                                            return;
+                                          setModalState(() {
+                                            squadCount += 1;
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF171717),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: Colors.white10),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            width: 34,
+                                            height: 34,
+                                            decoration: BoxDecoration(
+                                              color: const Color(
+                                                0xff00DC00,
+                                              ).withValues(alpha: 0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: const Icon(
+                                              Icons.person_search_rounded,
+                                              color: Color(0xff00DC00),
+                                              size: 18,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Squad Members',
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white,
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  requiredMembers == 0
+                                                      ? 'Only you are included in this squad right now.'
+                                                      : 'Add $requiredMembers player${requiredMembers == 1 ? '' : 's'} for this booking. You are included automatically.',
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white60,
+                                                    fontSize: 11,
+                                                    height: 1.35,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.06,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              '${selectedMembers.length}/$requiredMembers',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.all(1),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xff2E2E2E),
+                                              Color(0xff3D3D3D),
+                                            ],
+                                          ),
+                                        ),
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF111111),
+                                            borderRadius: BorderRadius.circular(
+                                              13,
+                                            ),
+                                          ),
+                                          child: TextField(
+                                            onChanged: runSearch,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                            ),
+                                            decoration: const InputDecoration(
+                                              hintText: 'Search username/email',
+                                              hintStyle: TextStyle(
+                                                color: Colors.white54,
+                                              ),
+                                              prefixIcon: Icon(
+                                                Icons.search,
+                                                color: Colors.white70,
+                                              ),
+                                              border: InputBorder.none,
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                    vertical: 14,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      if (selectedMembers.isNotEmpty) ...[
+                                        const SizedBox(height: 12),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: selectedMembers.map((user) {
+                                            final safePhotoUrl = _safePhotoUrl(
+                                              user,
+                                            );
+                                            return Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 8,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.06,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(999),
+                                                border: Border.all(
+                                                  color: Colors.white10,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  CircleAvatar(
+                                                    radius: 12,
+                                                    backgroundImage:
+                                                        safePhotoUrl != null
+                                                        ? NetworkImage(
+                                                            safePhotoUrl,
+                                                          )
+                                                        : null,
+                                                    backgroundColor:
+                                                        Colors.white12,
+                                                    child: safePhotoUrl == null
+                                                        ? Text(
+                                                            _initialsForUser(
+                                                              user,
+                                                            ),
+                                                            style:
+                                                                GoogleFonts.inter(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                ),
+                                                          )
+                                                        : null,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    user.displayName,
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  GestureDetector(
+                                                    onTap: () {
+                                                      setModalState(() {
+                                                        selectedMembers =
+                                                            selectedMembers
+                                                                .where(
+                                                                  (member) =>
+                                                                      member
+                                                                          .uid !=
+                                                                      user.uid,
+                                                                )
+                                                                .toList();
+                                                      });
+                                                    },
+                                                    child: const Icon(
+                                                      Icons.close_rounded,
+                                                      size: 16,
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+                                      ],
+                                      if (inlineError.isNotEmpty) ...[
+                                        const SizedBox(height: 10),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.withValues(
+                                              alpha: 0.12,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.red.withValues(
+                                                alpha: 0.25,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            inlineError,
+                                            style: GoogleFonts.inter(
+                                              color: Colors.red.shade200,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        height: 220,
+                                        child: requiredMembers == 0
+                                            ? Center(
+                                                child: Text(
+                                                  'Increase squad size to add squad members.',
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white54,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              )
+                                            : isSearching
+                                            ? const Center(
+                                                child: SizedBox(
+                                                  width: 24,
+                                                  height: 24,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2.4,
+                                                        color: Color(
+                                                          0xff00DC00,
+                                                        ),
+                                                      ),
+                                                ),
+                                              )
+                                            : results.isEmpty
+                                            ? Center(
+                                                child: Text(
+                                                  queryText.trim().length < 2
+                                                      ? 'Type at least 2 letters to search'
+                                                      : 'No players found',
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white60,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              )
+                                            : ListView.separated(
+                                                itemCount: results.length,
+                                                separatorBuilder: (_, _) =>
+                                                    const SizedBox(height: 8),
+                                                itemBuilder: (_, index) {
+                                                  final user = results[index];
+                                                  final safePhotoUrl =
+                                                      _safePhotoUrl(user);
+                                                  final isSelectedMember =
+                                                      selectedMembers.any(
+                                                        (member) =>
+                                                            member.uid ==
+                                                            user.uid,
+                                                      );
+                                                  final canSelectMore =
+                                                      selectedMembers.length <
+                                                      requiredMembers;
+
+                                                  return Container(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          10,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(
+                                                        0xFF111111,
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      border: Border.all(
+                                                        color: isSelectedMember
+                                                            ? const Color(
+                                                                0xff00DC00,
+                                                              )
+                                                            : Colors.white10,
+                                                      ),
+                                                    ),
+                                                    child: Row(
+                                                      children: [
+                                                        CircleAvatar(
+                                                          radius: 20,
+                                                          backgroundImage:
+                                                              safePhotoUrl !=
+                                                                  null
+                                                              ? NetworkImage(
+                                                                  safePhotoUrl,
+                                                                )
+                                                              : null,
+                                                          backgroundColor:
+                                                              Colors.white12,
+                                                          child:
+                                                              safePhotoUrl ==
+                                                                  null
+                                                              ? Text(
+                                                                  _initialsForUser(
+                                                                    user,
+                                                                  ),
+                                                                  style: GoogleFonts.inter(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w700,
+                                                                    fontSize:
+                                                                        12,
+                                                                  ),
+                                                                )
+                                                              : null,
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 10,
+                                                        ),
+                                                        Expanded(
+                                                          child: Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              Text(
+                                                                user.displayName,
+                                                                maxLines: 1,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                                style: GoogleFonts.inter(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                  fontSize: 13,
+                                                                ),
+                                                              ),
+                                                              const SizedBox(
+                                                                height: 2,
+                                                              ),
+                                                              Text(
+                                                                user
+                                                                        .username
+                                                                        .isNotEmpty
+                                                                    ? '@${user.username}'
+                                                                    : user.email,
+                                                                maxLines: 1,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                                style: GoogleFonts.inter(
+                                                                  color: Colors
+                                                                      .white70,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w500,
+                                                                  fontSize: 12,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        ElevatedButton(
+                                                          onPressed:
+                                                              isSelectedMember ||
+                                                                  !canSelectMore
+                                                              ? null
+                                                              : () async {
+                                                                  var memberToAdd =
+                                                                      user;
+                                                                  if (!_hasUsablePhoneNumber(
+                                                                    user,
+                                                                  )) {
+                                                                    final phoneNumber =
+                                                                        await _showMemberPhoneBottomSheet(
+                                                                          context,
+                                                                          user,
+                                                                        );
+                                                                    if (phoneNumber ==
+                                                                            null ||
+                                                                        phoneNumber
+                                                                            .trim()
+                                                                            .isEmpty) {
+                                                                      return;
+                                                                    }
+                                                                    memberToAdd =
+                                                                        _copyUserWithPhone(
+                                                                          user,
+                                                                          phoneNumber.trim(),
+                                                                        );
+                                                                  }
+                                                                  setModalState(() {
+                                                                    selectedMembers = [
+                                                                      ...selectedMembers,
+                                                                      memberToAdd,
+                                                                    ];
+                                                                    inlineError =
+                                                                        '';
+                                                                  });
+                                                                },
+                                                          style: ElevatedButton.styleFrom(
+                                                            backgroundColor:
+                                                                const Color(
+                                                                  0xff00DC00,
+                                                                ),
+                                                            foregroundColor:
+                                                                Colors.black,
+                                                            disabledBackgroundColor:
+                                                                Colors.white10,
+                                                            disabledForegroundColor:
+                                                                Colors.white38,
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    10,
+                                                                  ),
+                                                            ),
+                                                          ),
+                                                          child: Text(
+                                                            isSelectedMember
+                                                                ? 'Added'
+                                                                : 'Add',
+                                                            style:
+                                                                GoogleFonts.inter(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                  fontSize: 12,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: canContinue
+                              ? () {
+                                  Navigator.of(context).pop(
+                                    BookingPartySelection(
+                                      isSquad: isSquad,
+                                      requiredConsoleCount: isSquad
+                                          ? squadCount
+                                          : 1,
+                                      selectedMembers: selectedMembers,
+                                    ),
+                                  );
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xff00DC00),
+                            disabledBackgroundColor: Colors.grey.shade800,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            'Continue',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBookingTypeOption({
+    required String label,
+    required String subtitle,
+    required bool isSelected,
+    required VoidCallback onTap,
+    bool showEliteFx = false,
+    ConfettiController? confettiController,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: isSelected && showEliteFx
+              ? const LinearGradient(
+                  colors: [
+                    Color(0xFF120F2A),
+                    Color(0xFF2A1D68),
+                    Color(0xFF0E7CFF),
+                    Color(0xFF7CF3FF),
+                  ],
+                  stops: [0.0, 0.34, 0.72, 1.0],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isSelected
+              ? (showEliteFx
+                    ? null
+                    : const Color(0xFF00DC00).withValues(alpha: 0.14))
+              : const Color(0xFF232323),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? (showEliteFx
+                      ? const Color(0xFF9FE7FF)
+                      : const Color(0xff00DC00))
+                : Colors.white12,
+            width: 1.4,
+          ),
+          boxShadow: isSelected && showEliteFx
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF0E7CFF).withValues(alpha: 0.22),
+                    blurRadius: 22,
+                    offset: const Offset(0, 10),
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFF7CF3FF).withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (showEliteFx && isSelected && confettiController != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: ConfettiWidget(
+                      confettiController: confettiController,
+                      blastDirectionality: BlastDirectionality.directional,
+                      blastDirection: math.pi / 2,
+                      shouldLoop: false,
+                      emissionFrequency: 0.065,
+                      numberOfParticles: 14,
+                      maxBlastForce: 7,
+                      minBlastForce: 3,
+                      gravity: 0.18,
+                      particleDrag: 0.05,
+                      minimumSize: const Size(3, 5),
+                      maximumSize: const Size(5, 8),
+                      colors: const [
+                        Color(0xFFEFFCFF),
+                        Color(0xFF9FE7FF),
+                        Color(0xFF4CB8FF),
+                        Color(0xFF7D7BFF),
+                        Color(0xFFFFFFFF),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            if (showEliteFx && isSelected)
+              Positioned(
+                top: -1,
+                left: 18,
+                right: 18,
+                child: Container(
+                  height: 16,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0),
+                        Colors.white.withValues(alpha: 0.22),
+                        Colors.white.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (showEliteFx && isSelected)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFF0B1022,
+                          ).withValues(alpha: 0.32),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.22),
+                          ),
+                        ),
+                        child: Text(
+                          'Elite',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    color: isSelected && showEliteFx
+                        ? Colors.white.withValues(alpha: 0.96)
+                        : Colors.white60,
+                    fontSize: 12,
+                    fontWeight: isSelected && showEliteFx
+                        ? FontWeight.w600
+                        : FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _initialsForUser(ChatUserModel user) {
+    final source = user.displayName.trim().isNotEmpty
+        ? user.displayName.trim()
+        : (user.username.trim().isNotEmpty ? user.username.trim() : 'P');
+    final parts = source
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'P';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
+  }
+
+  String? _safePhotoUrl(ChatUserModel user) {
+    final raw = user.photoUrl.trim();
+    if (raw.isEmpty) return null;
+
+    final normalized = raw.toLowerCase();
+    if (normalized == 'not defined' ||
+        normalized == 'undefined' ||
+        normalized == 'null' ||
+        normalized == 'n/a') {
+      return null;
+    }
+
+    final uri = Uri.tryParse(raw);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      return null;
+    }
+
+    return raw;
+  }
+
+  bool _hasUsablePhoneNumber(ChatUserModel user) {
+    final normalized = user.phoneNumber.trim().replaceAll(RegExp(r'\s+'), '');
+    return normalized.isNotEmpty &&
+        normalized.toLowerCase() != 'not defined' &&
+        normalized.toLowerCase() != 'undefined' &&
+        normalized.toLowerCase() != 'null';
+  }
+
+  ChatUserModel _copyUserWithPhone(ChatUserModel user, String phoneNumber) {
+    return ChatUserModel(
+      uid: user.uid,
+      displayName: user.displayName,
+      username: user.username,
+      email: user.email,
+      phoneNumber: phoneNumber,
+      photoUrl: user.photoUrl,
+      backendUserId: user.backendUserId,
+      isOnline: user.isOnline,
+      updatedAt: user.updatedAt,
+      lastSeenAt: user.lastSeenAt,
+    );
+  }
+
+  Future<String?> _showMemberPhoneBottomSheet(
+    BuildContext context,
+    ChatUserModel user,
+  ) {
+    final controller = TextEditingController();
+    String? errorText;
+
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF181818),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 14, 16, 20 + bottomInset),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Add ${user.displayName}\'s phone number',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'This is required to add them to the squad booking.',
+                      style: GoogleFonts.inter(
+                        color: Colors.white60,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: controller,
+                      keyboardType: TextInputType.phone,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Enter phone number',
+                        hintStyle: const TextStyle(color: Colors.white38),
+                        errorText: errorText,
+                        filled: true,
+                        fillColor: const Color(0xFF111111),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final raw = controller.text.trim();
+                          final normalized = raw.replaceAll(
+                            RegExp(r'[^0-9+]'),
+                            '',
+                          );
+                          if (normalized.length < 10) {
+                            setSheetState(() {
+                              errorText =
+                                  'Enter a valid phone number to continue.';
+                            });
+                            return;
+                          }
+                          Navigator.of(sheetContext).pop(normalized);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xff00DC00),
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Save & Add Member',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCounterButton({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: enabled ? const Color(0xFF121212) : const Color(0xFF1A1A1A),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: 42,
+          width: 42,
+          child: Icon(icon, color: enabled ? Colors.white : Colors.white24),
+        ),
+      ),
+    );
+  }
+
+  int _estimateMaxSquadSize([String? forConsoleType]) {
+    int maxAvailable = 1;
+    final normalizedTargetConsole = forConsoleType == null
+        ? ''
+        : _normalizeConsoleType(forConsoleType);
+
+    int? asInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value == null) return null;
+      return int.tryParse(value.toString());
+    }
+
+    int availabilityCount(dynamic value, {int fallback = 1}) {
+      if (value is bool) return value ? 1 : 0;
+      if (value is num) return value.toInt();
+      if (value is String) {
+        final raw = value.trim().toLowerCase();
+        if (raw == 'true' || raw == 'yes') return 1;
+        if (raw == 'false' || raw == 'no') return 0;
+        return int.tryParse(raw) ?? fallback;
+      }
+      return fallback;
+    }
+
+    dynamic readAny(Map<String, dynamic> map, List<String> keys) {
+      for (final key in keys) {
+        if (map.containsKey(key) && map[key] != null) {
+          return map[key];
+        }
+      }
+      return null;
+    }
+
+    for (final rawGame in _gamesController.games) {
+      if (rawGame is! Map) continue;
+      final game = Map<String, dynamic>.from(rawGame);
+      final normalizedConsoleType = _normalizeConsoleType(
+        (readAny(game, [
+                  'console_type',
+                  'consoleType',
+                  'type',
+                  'game_name',
+                  'name',
+                  'title',
+                ]) ??
+                '')
+            .toString(),
+      );
+      if (normalizedTargetConsole.isNotEmpty &&
+          normalizedConsoleType != normalizedTargetConsole) {
+        continue;
+      }
+      final fallbackCount =
+          asInt(
+            readAny(game, ['available_slot', 'available_slots', 'count']),
+          ) ??
+          asInt(game['total_slots']) ??
+          1;
+      final consoles = game['consoles'];
+
+      if (consoles is List && consoles.isNotEmpty) {
+        for (final rawConsole in consoles) {
+          if (rawConsole is! Map) continue;
+          final console = Map<String, dynamic>.from(rawConsole);
+          final count = availabilityCount(
+            readAny(console, [
+                  'available_slot',
+                  'available_slots',
+                  'available_count',
+                  'available',
+                  'count',
+                  'quantity',
+                ]) ??
+                fallbackCount,
+            fallback: fallbackCount,
+          );
+          if (count > maxAvailable) {
+            maxAvailable = count;
+          }
+        }
+        continue;
+      }
+
+      if (fallbackCount > maxAvailable) {
+        maxAvailable = fallbackCount;
+      }
+    }
+
+    return maxAvailable.clamp(1, 99);
   }
 
   Widget _buildPassesSection() {
@@ -623,7 +1869,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       }
 
       list.add({
-        'title': gameName.isEmpty ? 'Game' : gameName,
+        'title': gameName.isEmpty ? _consoleDisplayLabel(consoleType) : gameName,
         'genre': genre,
         'image_url': imageUrl,
         'console_type': consoleType,
@@ -739,40 +1985,42 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     for (final entry in gamesByConsole.entries) {
       final games = entry.value;
       if (games.isEmpty) continue;
-      var availableGames = 0;
       var totalAvailable = 0;
       double minPrice = 0;
       for (final game in games) {
         final available = game['available'] as int? ?? 0;
         final price = game['price'] as double? ?? 0;
-        if (available > 0) availableGames++;
         totalAvailable += available;
         if (price > 0 && (minPrice == 0 || price < minPrice)) {
           minPrice = price;
         }
       }
 
+      final primaryBookingGame = games.cast<Map<String, dynamic>?>().firstWhere(
+        (game) => (game?['available'] as int? ?? 0) > 0,
+        orElse: () => games.first,
+      );
+
       consoleOptions.add({
         'type': entry.key,
         'label': _consoleDisplayLabel(entry.key),
         'icon': _getConsoleIcon(entry.key),
-        'total_games': games.length,
-        'available_games': availableGames,
         'total_available': totalAvailable,
         'starting_price': minPrice,
+        'booking_game_id': primaryBookingGame?['game_id'],
       });
     }
 
     consoleOptions.sort((a, b) {
-      final aAvailable = a['available_games'] as int? ?? 0;
-      final bAvailable = b['available_games'] as int? ?? 0;
+      final aAvailable = a['total_available'] as int? ?? 0;
+      final bAvailable = b['total_available'] as int? ?? 0;
       if (aAvailable != bAvailable) return bAvailable.compareTo(aAvailable);
       return (a['label'] as String).compareTo(b['label'] as String);
     });
 
     int selectedIndex = 0;
     for (int i = 0; i < consoleOptions.length; i++) {
-      if ((consoleOptions[i]['available_games'] as int? ?? 0) > 0) {
+      if ((consoleOptions[i]['total_available'] as int? ?? 0) > 0) {
         selectedIndex = i;
         break;
       }
@@ -859,13 +2107,11 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                               itemBuilder: (context, index) {
                                 final option = consoleOptions[index];
                                 final isSelected = selectedIndex == index;
-                                final availableGames =
-                                    option['available_games'] as int? ?? 0;
-                                final totalGames =
-                                    option['total_games'] as int? ?? 0;
+                                final totalAvailable =
+                                    option['total_available'] as int? ?? 0;
                                 final startPrice =
                                     option['starting_price'] as double? ?? 0;
-                                final hasAvailable = availableGames > 0;
+                                final hasAvailable = totalAvailable > 0;
                                 return GestureDetector(
                                   onTap: () {
                                     setState(() {
@@ -932,7 +2178,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                         ),
                                         const Spacer(),
                                         Text(
-                                          '$availableGames/$totalGames games available',
+                                          totalAvailable == 1
+                                              ? '1 setup available'
+                                              : '$totalAvailable setups available',
                                           style: GoogleFonts.inter(
                                             color: hasAvailable
                                                 ? Colors.white70
@@ -971,399 +2219,69 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                     final selectedType =
                                         (selectedConsole['type'] ?? '')
                                             .toString();
-                                    final selectedGames =
-                                        List<Map<String, dynamic>>.from(
-                                          gamesByConsole[selectedType] ??
-                                              const <Map<String, dynamic>>[],
-                                        );
+                                    final selectedGameId = asInt(
+                                      selectedConsole['booking_game_id'],
+                                    );
                                     Navigator.of(context).pop();
                                     if (!mounted) return;
                                     await Future.delayed(
                                       const Duration(milliseconds: 140),
                                     );
                                     if (!mounted) return;
-                                    _showAvailableGamesBottomSheet(
-                                      context: this.context,
-                                      email: safeEmail,
-                                      consoleType: selectedType,
-                                      games: selectedGames,
-                                      cartItems: cartItems,
-                                    );
-                                  }
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xff00DC00),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              disabledBackgroundColor: Colors.grey.shade800,
-                            ),
-                            child: Text(
-                              'Choose Game',
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<dynamic> _showAvailableGamesBottomSheet({
-    required BuildContext context,
-    required String email,
-    required String consoleType,
-    required List<Map<String, dynamic>> games,
-    List<Map<String, dynamic>>? cartItems,
-  }) {
-    int? asInt(dynamic value) {
-      if (value is int) return value;
-      if (value is num) return value.toInt();
-      if (value == null) return null;
-      return int.tryParse(value.toString());
-    }
-
-    String formatPrice(double value) {
-      if (value <= 0) return 'Price not available';
-      return value % 1 == 0
-          ? '₹${value.toInt()}/hr'
-          : '₹${value.toStringAsFixed(1)}/hr';
-    }
-
-    int selectedIndex = 0;
-    for (int i = 0; i < games.length; i++) {
-      if ((games[i]['available'] as int? ?? 0) > 0) {
-        selectedIndex = i;
-        break;
-      }
-    }
-
-    final consoleLabel = _consoleDisplayLabel(consoleType);
-    return showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF181818),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            final maxHeight = MediaQuery.of(context).size.height * 0.62;
-            final canContinue =
-                games.isNotEmpty &&
-                (games[selectedIndex]['available'] as int? ?? 0) > 0;
-            return SafeArea(
-              top: false,
-              child: SizedBox(
-                height: maxHeight,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Material(
-                            color: const Color(0xFF232323),
-                            borderRadius: BorderRadius.circular(10),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(10),
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                if (!mounted) return;
-                                Future.delayed(
-                                  const Duration(milliseconds: 120),
-                                  () {
-                                    if (!mounted) return;
-                                    showBookSlotBottomSheet(
-                                      context: this.context,
-                                      email: email,
-                                      cartItems: cartItems,
-                                    );
-                                  },
-                                );
-                              },
-                              child: const Padding(
-                                padding: EdgeInsets.all(8),
-                                child: Icon(
-                                  Icons.arrow_back,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Choose game • $consoleLabel',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                              color: Colors.white,
-                              size: 26,
-                            ),
-                            onPressed: () => Navigator.of(context).pop(),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      if (games.isEmpty)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF232323),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'No games available for $consoleLabel right now.',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(
-                              color: Colors.white70,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      if (games.isNotEmpty)
-                        Expanded(
-                          child: ListView.separated(
-                            itemCount: games.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
-                              final game = games[index];
-                              final isSelected = selectedIndex == index;
-                              final available = game['available'] as int? ?? 0;
-                              final isAvailable = available > 0;
-                              final price = game['price'] as double? ?? 0;
-                              final title = (game['title'] ?? 'Game')
-                                  .toString()
-                                  .trim();
-                              final genre = (game['genre'] ?? '')
-                                  .toString()
-                                  .trim();
-                              final imageUrl = (game['image_url'] ?? '')
-                                  .toString()
-                                  .trim();
-
-                              return GestureDetector(
-                                onTap: isAvailable
-                                    ? () => setState(() {
-                                        selectedIndex = index;
-                                      })
-                                    : null,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: isSelected && isAvailable
-                                        ? const Color(
-                                            0xFF00DC00,
-                                          ).withValues(alpha: 0.16)
-                                        : const Color(0xFF232323),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: isSelected && isAvailable
-                                          ? const Color(0xff00DC00)
-                                          : Colors.white12,
-                                      width: 1.4,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: imageUrl.isNotEmpty
-                                            ? CachedNetworkImage(
-                                                imageUrl: imageUrl,
-                                                height: 56,
-                                                width: 56,
-                                                fit: BoxFit.cover,
-                                                placeholder: (_, _) => Container(
-                                                  height: 56,
-                                                  width: 56,
-                                                  color: const Color(
-                                                    0xFF1A1A1A,
-                                                  ),
-                                                  child: const Center(
-                                                    child: RainbowGlowingLoader(
-                                                      size: 12,
-                                                    ),
-                                                  ),
-                                                ),
-                                                errorWidget: (_, _, _) =>
-                                                    Container(
-                                                      height: 56,
-                                                      width: 56,
-                                                      color: const Color(
-                                                        0xFF1A1A1A,
-                                                      ),
-                                                      child: const Icon(
-                                                        Icons.sports_esports,
-                                                        color: Colors.white54,
-                                                        size: 24,
-                                                      ),
-                                                    ),
-                                              )
-                                            : Container(
-                                                height: 56,
-                                                width: 56,
-                                                color: const Color(0xFF1A1A1A),
-                                                child: const Icon(
-                                                  Icons.sports_esports,
-                                                  color: Colors.white54,
-                                                  size: 24,
-                                                ),
-                                              ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              title,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: GoogleFonts.inter(
-                                                color: isAvailable
-                                                    ? Colors.white
-                                                    : Colors.white54,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            if (genre.isNotEmpty) ...[
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                genre,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.white60,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ],
-                                            const SizedBox(height: 6),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 3,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: isAvailable
-                                                    ? const Color(0xFF181818)
-                                                    : const Color(0xFF3A2323),
-                                                borderRadius:
-                                                    BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                '$available available',
-                                                style: GoogleFonts.inter(
-                                                  color: isAvailable
-                                                      ? Colors.white70
-                                                      : Colors.redAccent,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        formatPrice(price),
-                                        style: GoogleFonts.inter(
-                                          color: isAvailable
-                                              ? Colors.white
-                                              : Colors.white54,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      const SizedBox(height: 10),
-                      SafeArea(
-                        top: false,
-                        minimum: const EdgeInsets.only(bottom: 8),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: canContinue
-                                ? () {
-                                    final selectedGame = games[selectedIndex];
-                                    final selectedGameId = asInt(
-                                      selectedGame['game_id'],
-                                    );
                                     if (selectedGameId == null) {
                                       _showSafeErrorSnackBar(
-                                        context,
-                                        'Game ID not found for booking',
+                                        this.context,
+                                        'No booking option found for this console.',
                                       );
                                       return;
                                     }
+                                    int requiredConsoleCount = 1;
+                                    String bookingModeLabel = 'solo';
+                                    List<ChatUserModel> selectedSquadMembers =
+                                        const <ChatUserModel>[];
 
-                                    try {
-                                      Navigator.of(context).pop();
-                                      if (!mounted) return;
-                                      Navigator.of(this.context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => BookingScreen(
-                                            email: email,
-                                            consoleType: _getConsoleType(
-                                              consoleType,
-                                            ),
-                                            title: widget.title,
-                                            gameId: selectedGameId,
-                                            vendorId: widget.vendorId,
-                                            cartItems: cartItems ?? [],
-                                          ),
-                                        ),
-                                      );
-                                    } catch (e) {
-                                      debugPrint(
-                                        'Failed to open booking screen: $e',
-                                      );
-                                      _showSafeErrorSnackBar(
-                                        context,
-                                        'Failed to open booking screen',
-                                      );
+                                    if (_normalizeConsoleType(selectedType) ==
+                                        'pc') {
+                                      final bookingSelection =
+                                          await _showBookingPartyBottomSheet(
+                                            this.context,
+                                            selectedType,
+                                          );
+                                      if (!mounted ||
+                                          bookingSelection == null) {
+                                        return;
+                                      }
+                                      requiredConsoleCount =
+                                          bookingSelection.requiredConsoleCount;
+                                      bookingModeLabel =
+                                          bookingSelection.isSquad
+                                          ? 'squad'
+                                          : 'solo';
+                                      selectedSquadMembers =
+                                          bookingSelection.selectedMembers;
                                     }
+
+                                    if (!mounted) return;
+                                    Navigator.of(this.context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => BookingScreen(
+                                          email: safeEmail,
+                                          consoleType: _getConsoleType(
+                                            selectedType,
+                                          ),
+                                          title: widget.title,
+                                          gameId: selectedGameId,
+                                          vendorId: widget.vendorId,
+                                          cartItems: cartItems ?? [],
+                                          isSquadBooking:
+                                              bookingModeLabel == 'squad',
+                                          requiredConsoleCount:
+                                              requiredConsoleCount,
+                                          selectedSquadMembers:
+                                              selectedSquadMembers,
+                                        ),
+                                      ),
+                                    );
                                   }
                                 : null,
                             style: ElevatedButton.styleFrom(
@@ -1383,8 +2301,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -2213,4 +3131,16 @@ class _MarqueeTextState extends State<_MarqueeText>
       },
     );
   }
+}
+
+class BookingPartySelection {
+  const BookingPartySelection({
+    required this.isSquad,
+    required this.requiredConsoleCount,
+    this.selectedMembers = const <ChatUserModel>[],
+  });
+
+  final bool isSquad;
+  final int requiredConsoleCount;
+  final List<ChatUserModel> selectedMembers;
 }

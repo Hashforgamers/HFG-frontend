@@ -84,6 +84,61 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     return '$h12:$minute $suffix';
   }
 
+  String _formatBookingDateLabel(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+    final parsed = DateTime.tryParse(trimmed);
+    if (parsed == null) return trimmed;
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final weekday = weekdays[parsed.weekday - 1];
+    final month = months[parsed.month - 1];
+    return '$weekday, ${parsed.day} $month';
+  }
+
+  String _formatClockLabel(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+    final parts = trimmed.split(':');
+    if (parts.length < 2) return trimmed;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return trimmed;
+    final normalizedHour = hour % 24;
+    final h12 = normalizedHour == 0
+        ? 12
+        : normalizedHour > 12
+        ? normalizedHour - 12
+        : normalizedHour;
+    final suffix = normalizedHour >= 12 ? 'PM' : 'AM';
+    if (minute == 0) return '$h12 $suffix';
+    return '$h12:${minute.toString().padLeft(2, '0')} $suffix';
+  }
+
+  String _formatSlotLabel(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+    final parts = trimmed.split(' - ');
+    if (parts.length != 2) return trimmed;
+    final start = _formatClockLabel(parts[0]);
+    final end = _formatClockLabel(parts[1]);
+    if (start.isEmpty || end.isEmpty) return trimmed;
+    return '$start to $end';
+  }
+
   Future<void> _sendMessage() async {
     if (_isSending) return;
     final text = _messageController.text.trim();
@@ -138,6 +193,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
   }) {
     if (message.type == 'team_invite') {
       return _buildTeamInviteCard(message: message, isMine: isMine);
+    }
+    if (message.type == 'arena_booking_invite') {
+      return _buildArenaBookingInviteCard(message: message, isMine: isMine);
     }
 
     final alignment = isMine ? Alignment.centerRight : Alignment.centerLeft;
@@ -408,6 +466,293 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   ),
                 ),
               const SizedBox(height: 6),
+              Text(
+                _formatTime(message.createdAt),
+                style: GoogleFonts.inter(
+                  color: ChatPalette.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArenaBookingInviteCard({
+    required ChatMessageModel message,
+    required bool isMine,
+  }) {
+    final meta = _messageMeta(message);
+    final cafeName = (meta['cafe_name'] ?? 'Gaming Cafe').toString().trim();
+    final consoleType = (meta['console_type'] ?? 'Setup').toString().trim();
+    final bookingDate = _formatBookingDateLabel(
+      (meta['booking_date'] ?? '').toString(),
+    );
+    final playerCount =
+        int.tryParse((meta['player_count'] ?? '1').toString()) ?? 1;
+    final slotLabels = ((meta['slot_labels'] as List?) ?? const [])
+        .map((e) => _formatSlotLabel(e.toString()))
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final previewSlots = slotLabels.take(3).toList();
+    final extraSlotCount = slotLabels.length > previewSlots.length
+        ? slotLabels.length - previewSlots.length
+        : 0;
+    final accentColor = isMine
+        ? const Color(0xFFB9FFB0)
+        : const Color(0xFF8BFF72);
+    final edgeColor = isMine
+        ? const Color(0xFF6BE061)
+        : const Color(0xFF53DA47);
+
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.86,
+        ),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: const Color(0xFF101010),
+            border: Border.all(color: edgeColor, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: edgeColor.withValues(alpha: 0.14),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+                  gradient: LinearGradient(
+                    colors: isMine
+                        ? const [Color(0xFF203F24), Color(0xFF101812)]
+                        : const [Color(0xFF172317), Color(0xFF0E120E)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: -16,
+                      top: -20,
+                      child: Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: accentColor.withValues(alpha: 0.08),
+                        ),
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: edgeColor, width: 1.15),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                'SQUAD BOOKING',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 9.8,
+                                  letterSpacing: 0.55,
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.event_available_rounded,
+                                size: 16,
+                                color: accentColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          cafeName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            height: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _socialProofChip(
+                                icon: Icons.desktop_windows_rounded,
+                                label: consoleType.toUpperCase(),
+                                color: accentColor,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _socialProofChip(
+                                icon: Icons.groups_2_rounded,
+                                label: '$playerCount ${playerCount == 1 ? 'Player' : 'Players'}',
+                                color: const Color(0xFFFFC857),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  if (bookingDate.isNotEmpty)
+                    _socialProofChip(
+                      icon: Icons.calendar_today_rounded,
+                      label: bookingDate,
+                      color: ChatPalette.accent,
+                    ),
+                  if (slotLabels.isNotEmpty)
+                    _socialProofChip(
+                      icon: Icons.schedule_rounded,
+                      label:
+                          '${slotLabels.length} ${slotLabels.length == 1 ? 'slot' : 'slots'}',
+                      color: const Color(0xFFFFB84D),
+                    ),
+                  _socialProofChip(
+                    icon: Icons.lock_clock_rounded,
+                    label: isMine ? 'Shared' : 'Received',
+                    color: edgeColor,
+                  ),
+                ],
+              ),
+              if (previewSlots.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF161616),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_send_rounded,
+                            size: 15,
+                            color: accentColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Selected Slots',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...previewSlots.map(
+                        (slotLabel) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(top: 5),
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: accentColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  slotLabel,
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 11.8,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (extraSlotCount > 0)
+                        Text(
+                          '+$extraSlotCount more ${extraSlotCount == 1 ? 'slot' : 'slots'} included',
+                          style: GoogleFonts.inter(
+                            color: ChatPalette.textSecondary,
+                            fontSize: 10.8,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                isMine
+                    ? 'Shared with your squad'
+                    : 'Shared with you',
+                style: GoogleFonts.inter(
+                  color: ChatPalette.textSecondary,
+                  fontSize: 10.8,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 4),
               Text(
                 _formatTime(message.createdAt),
                 style: GoogleFonts.inter(

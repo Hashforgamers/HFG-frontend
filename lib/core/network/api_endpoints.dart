@@ -14,6 +14,8 @@ class ApiEndpoints {
   static String get slotsBaseUrl => '$bookingBaseUrl/api';
   static String get bookingsBaseUrl => '$bookingBaseUrl/api';
   static String get confirmBooking => '$bookingBaseUrl/api/bookings/confirm';
+  static String get bookingPricingEstimate =>
+      '$bookingBaseUrl/api/bookings/pricing-estimate';
   static String get vendorGames => '$bookingBaseUrl/api/games/vendor';
   static String vendorGamesByVendorId(String vendorId) =>
       '${dashboardBaseUrl}/vendor/$vendorId/vendor-games';
