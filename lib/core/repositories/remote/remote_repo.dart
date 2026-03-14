@@ -357,8 +357,10 @@ class RemoteRepo implements RemoteRepoInterface {
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data is List ? response.data : [];
 
-        // Normalize for UI expectations
-        final normalizedGames = data.map<Map<String, dynamic>>((item) {
+        // Normalize dashboard data for optional enrichment, but prefer legacy
+        // booking inventory when present because it carries the actual
+        // booking ids, console type, and total_slots semantics used by the UI.
+        final dashboardGames = data.map<Map<String, dynamic>>((item) {
           final game = (item is Map ? item['game'] : null) ?? {};
           final consoles = (item is Map ? item['consoles'] : []) ?? [];
 
@@ -411,7 +413,23 @@ class RemoteRepo implements RemoteRepoInterface {
           };
         }).toList();
 
-        if (normalizedGames.isEmpty && legacyGamesForFallback.isNotEmpty) {
+        final normalizedGames = <Map<String, dynamic>>[];
+
+        if (legacyGamesForFallback.isNotEmpty) {
+          final dashboardByPlatform = <String, Map<String, dynamic>>{};
+          for (final dashboardGame in dashboardGames) {
+            final platform = _normalizePlatform(
+              (dashboardGame['game_platform'] ??
+                      dashboardGame['game_name'] ??
+                      '')
+                  .toString(),
+            );
+            if (platform.isEmpty || dashboardByPlatform.containsKey(platform)) {
+              continue;
+            }
+            dashboardByPlatform[platform] = dashboardGame;
+          }
+
           for (final legacy in legacyGamesForFallback) {
             final platform =
                 (legacy['game_platform'] ??
@@ -419,13 +437,18 @@ class RemoteRepo implements RemoteRepoInterface {
                         legacy['game_name'] ??
                         '')
                     .toString();
+            final normalizedPlatform = _normalizePlatform(platform);
             final bookingId = legacy['id'];
             if (bookingId is! num) continue;
+            final dashboardMatch = dashboardByPlatform[normalizedPlatform];
             normalizedGames.add({
-              'game_name': (legacy['game_name'] ?? 'Game').toString(),
+              'game_name': (legacy['game_name'] ?? normalizedPlatform).toString(),
               'game_platform': platform,
-              'genre': (legacy['genre'] ?? '').toString(),
-              'image_url': (legacy['image_url'] ?? '').toString(),
+              'genre': (dashboardMatch?['genre'] ?? legacy['genre'] ?? '')
+                  .toString(),
+              'image_url':
+                  (dashboardMatch?['image_url'] ?? legacy['image_url'] ?? '')
+                      .toString(),
               'total_slots': legacy['total_slots'] ?? 1,
               'single_slot_price': (legacy['single_slot_price'] is num)
                   ? (legacy['single_slot_price'] as num).toDouble()
@@ -434,6 +457,8 @@ class RemoteRepo implements RemoteRepoInterface {
               'consoles': <Map<String, dynamic>>[],
             });
           }
+        } else {
+          normalizedGames.addAll(dashboardGames);
         }
 
         final bool? dashboardShopOpen = response.data is Map<String, dynamic>
