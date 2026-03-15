@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
+import 'package:hash/app/modules/arena/services/booking_food_order_service.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/home/controllers/app_mode_controller.dart';
 import 'package:hash/app/modules/home/controllers/session_progress_controller.dart';
@@ -40,6 +41,8 @@ class _HomeViewState extends State<HomeView> {
       locator<FirebaseInAppMessagingService>();
   final SquadMissionsService _squadMissionsService =
       locator<SquadMissionsService>();
+  final BookingFoodOrderService _bookingFoodOrderService =
+      BookingFoodOrderService();
   bool _didApplyTabArgument = false;
   bool _didApplyPassesArgument = false;
   bool _didSyncChatProfile = false;
@@ -111,6 +114,15 @@ class _HomeViewState extends State<HomeView> {
     unawaited(chatService.ensureCurrentUserProfile());
     if (!mounted) return;
     Get.toNamed(AppRoutes.CHAT);
+  }
+
+  Future<void> _openLiveSessionFoodOrder() async {
+    final booking = _sessionProgressController.currentBooking.value;
+    if (booking == null) return;
+    await _bookingFoodOrderService.orderForActiveSession(
+      context: context,
+      booking: booking.rawBooking,
+    );
   }
 
   @override
@@ -253,6 +265,15 @@ class _HomeViewState extends State<HomeView> {
                     forceVisible: false,
                     unreadCount: chatService.unreadRoomCount.value,
                     onChatTap: _openChatInbox,
+                    onOrderFoodTap:
+                        (_sessionProgressController
+                                .currentBooking
+                                .value
+                                ?.vendorId
+                                .isNotEmpty ??
+                            false)
+                        ? _openLiveSessionFoodOrder
+                        : null,
                   ),
                 ),
               ),

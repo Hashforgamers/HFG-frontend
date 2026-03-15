@@ -22,6 +22,9 @@ class ApiEndpoints {
   static String get createOffer => '$bookingBaseUrl/api/redeem-voucher';
 
   static String get capturePayment => '$bookingBaseUrl/api/capture_payment';
+  static String get createPaymentOrder => '$bookingBaseUrl/api/create_order';
+  static String addMealsToBooking(String bookingId) =>
+      '$bookingBaseUrl/api/booking/$bookingId/add-meals';
 
   // Pass Purchase (HMNX Booking API)
   static const String passBaseUrl = 'https://hfg-booking-hmnx.onrender.com/api';

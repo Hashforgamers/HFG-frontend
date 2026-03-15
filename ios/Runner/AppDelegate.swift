@@ -1,20 +1,31 @@
 import Flutter
 import UIKit
 import GoogleMaps
+import FBSDKCoreKit
 import FirebaseCore
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+  private let metaAppEventsChannelName = "com.hfg.hash/meta_app_events"
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     FirebaseApp.configure()
+    ApplicationDelegate.shared.initializeSDK()
+    Settings.shared.graphAPIVersion = "v24.0"
+    Settings.shared.isAutoLogAppEventsEnabled = true
+    Settings.shared.isAdvertiserIDCollectionEnabled = true
 
     GMSServices.provideAPIKey("AIzaSyDjaI5XOoq4r0AbJVfDSz9tiQqLGBC_yNU")
 
     let controller: FlutterViewController = window?.rootViewController as! FlutterViewController
     let channel = FlutterMethodChannel(name: "pem_channel", binaryMessenger: controller.binaryMessenger)
+    let metaChannel = FlutterMethodChannel(
+      name: metaAppEventsChannelName,
+      binaryMessenger: controller.binaryMessenger
+    )
 
     channel.setMethodCallHandler { [weak self] (call, result) in
       switch call.method {
@@ -37,8 +48,75 @@ import FirebaseCore
       }
     }
 
+    metaChannel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "activateApp":
+        let arguments = call.arguments as? [String: Any] ?? [:]
+        if let applicationId = arguments["applicationId"] as? String, !applicationId.isEmpty {
+          AppEvents.shared.loggingOverrideAppID = applicationId
+        }
+        AppEvents.shared.activateApp()
+        result(nil)
+
+      case "logEvent":
+        let arguments = call.arguments as? [String: Any] ?? [:]
+        guard let eventName = arguments["name"] as? String else {
+          result(FlutterError(code: "INVALID_ARGUMENT", message: "Event name is required", details: nil))
+          return
+        }
+
+        let rawParams = arguments["parameters"] as? [String: Any] ?? [:]
+        let parameters: [AppEvents.ParameterName: Any] = Dictionary(
+          uniqueKeysWithValues: rawParams.map { key, value in
+            (AppEvents.ParameterName(key), value)
+          }
+        )
+
+        if let valueToSum = arguments["_valueToSum"] as? Double {
+          AppEvents.shared.logEvent(AppEvents.Name(eventName), valueToSum: valueToSum, parameters: parameters)
+        } else {
+          AppEvents.shared.logEvent(AppEvents.Name(eventName), parameters: parameters)
+        }
+        result(nil)
+
+      case "setAdvertiserTracking":
+        let arguments = call.arguments as? [String: Any] ?? [:]
+        let enabled = arguments["enabled"] as? Bool ?? false
+        let collectId = arguments["collectId"] as? Bool ?? true
+        Settings.shared.isAdvertiserTrackingEnabled = enabled
+        Settings.shared.isAdvertiserIDCollectionEnabled = enabled && collectId
+        result(nil)
+
+      case "setGraphApiVersion":
+        guard let version = call.arguments as? String else {
+          result(FlutterError(code: "INVALID_ARGUMENT", message: "Graph API version string is required", details: nil))
+          return
+        }
+        Settings.shared.graphAPIVersion = version
+        result(nil)
+
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     GeneratedPluginRegistrant.register(with: self)
+    ApplicationDelegate.shared.application(
+      application,
+      didFinishLaunchingWithOptions: launchOptions
+    )
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    if ApplicationDelegate.shared.application(app, open: url, options: options) {
+      return true
+    }
+    return super.application(app, open: url, options: options)
   }
 
   private func readPemFile(named: String, withExtension: String) -> String? {

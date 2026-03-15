@@ -29,6 +29,7 @@
 			<string>hash</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>fb1755915261664066</string>
 				<string>hash</string>
 				<string>hashforgamers</string>
 				<string>com.googleusercontent.apps.376797794992-ikpq7h5o7flrhgmm53otlf1sm973489h</string>
@@ -53,10 +54,14 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>FacebookAdvertiserIDCollectionEnabled</key>
 	<true/>
+	<key>FacebookAppID</key>
+	<string>1755915261664066</string>
 	<key>FacebookAutoLogAppEventsEnabled</key>
 	<true/>
 	<key>FacebookClientToken</key>
 	<string>ef176e72dcf69f0d3f9d791237249300</string>
+	<key>FacebookDisplayName</key>
+	<string>Hash</string>
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<true/>
 	<key>GMSApiKey</key>

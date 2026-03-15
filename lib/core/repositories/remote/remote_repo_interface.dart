@@ -140,6 +140,16 @@ abstract class RemoteRepoInterface {
   Future<void> capturePayment({
     required CapturePaymentModel capturePaymentModel,
   });
+  Future<String> createRazorpayOrder({
+    required int amountInPaisa,
+    String? receiptPrefix,
+  });
+  Future<Map<String, dynamic>> addMealsToBooking({
+    required String bookingId,
+    required List<Map<String, dynamic>> meals,
+    bool settleOnRelease = true,
+    String? modeOfPayment,
+  });
 
   Future<void> saveUIDToPreferences(String uid);
   Future<String> getUIDFromPreferences();

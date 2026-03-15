@@ -1,20 +1,24 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:facebook_app_events/facebook_app_events.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/service/device_identifier_service.dart';
+import 'package:hash/core/service/meta_app_events.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FbEventsService {
   FbEventsService({required DeviceIdentifierService deviceIdentifierService})
     : _deviceIdentifierService = deviceIdentifierService;
 
-  static final fbAppEvents = FacebookAppEvents();
+  static final dynamic fbAppEvents = Platform.isIOS
+      ? MetaAppEvents()
+      : FacebookAppEvents();
   static final FirebaseAnalytics _firebaseAnalytics =
       FirebaseAnalytics.instance;
   final DeviceIdentifierService _deviceIdentifierService;
@@ -58,6 +62,9 @@ class FbEventsService {
     Map<String, dynamic> parameters,
   ) async {
     final safeName = _toFirebaseKey(eventName, fallback: 'custom_event');
+    debugPrint(
+      '[FbEventsService] Firebase event -> name: $safeName, payload: $parameters',
+    );
     await _firebaseAnalytics.logEvent(
       name: safeName,
       parameters: _toFirebaseParams(parameters),
@@ -70,8 +77,15 @@ class FbEventsService {
   ) async {
     final payload = <String, dynamic>{...parameters};
     payload.addAll(await _identityPayload());
-    await Future.wait([
-      fbAppEvents.logEvent(name: eventName, parameters: payload),
+    debugPrint(
+      '[FbEventsService] Facebook event -> name: $eventName, payload: $payload',
+    );
+    final facebookFuture = fbAppEvents.logEvent(
+      name: eventName,
+      parameters: payload,
+    ) as Future<void>;
+    await Future.wait<void>([
+      facebookFuture,
       _logFirebaseEvent(eventName, payload),
     ]);
   }
@@ -141,6 +155,10 @@ class FbEventsService {
     } catch (_) {}
 
     final identifiers = await _deviceIdentifierService.getIdentifiers();
+    final adTrackingStatus = (identifiers['ad_tracking_status'] ?? '')
+        .toString()
+        .trim();
+    final advertiserTrackingEnabled = adTrackingStatus == 'authorized';
 
     return {
       'user_id': userId,
@@ -152,6 +170,7 @@ class FbEventsService {
       'gaid': identifiers['gaid'],
       'idfa': identifiers['idfa'],
       'ad_tracking_status': identifiers['ad_tracking_status'],
+      'advertiser_tracking_enabled': advertiserTrackingEnabled,
       'limit_ad_tracking': identifiers['limit_ad_tracking'],
     };
   }
@@ -178,15 +197,30 @@ class FbEventsService {
   }) async {
     if (!Platform.isIOS) return;
     try {
+      await fbAppEvents.setGraphApiVersion('v24.0');
       var status = await AppTrackingTransparency.trackingAuthorizationStatus;
+      debugPrint(
+        '[FbEventsService] Initial ATT status: ${status.name}, promptIfNeeded: $promptIfNeeded',
+      );
       if (status == TrackingStatus.notDetermined && promptIfNeeded) {
         status = await AppTrackingTransparency.requestTrackingAuthorization();
+        debugPrint('[FbEventsService] ATT status after prompt: ${status.name}');
       }
 
       final enabled = status == TrackingStatus.authorized;
+      final idfa = await AppTrackingTransparency.getAdvertisingIdentifier();
+      debugPrint(
+        '[FbEventsService] Applying advertiser tracking. enabled: $enabled, rawIdfa: $idfa',
+      );
       await fbAppEvents.setAdvertiserTracking(
         enabled: enabled,
         collectId: enabled,
+      );
+      await _deviceIdentifierService.refreshIdentifiers();
+      final refreshedIdentifiers = await _deviceIdentifierService
+          .getIdentifiers();
+      debugPrint(
+        '[FbEventsService] Identifiers after ATT sync: $refreshedIdentifiers',
       );
 
       await fbAppEvents.logEvent(
@@ -202,14 +236,18 @@ class FbEventsService {
         'advertiser_tracking_enabled': enabled,
       });
     } catch (_) {
+      debugPrint(
+        '[FbEventsService] Failed to configure advertiser tracking for iOS',
+      );
       // Do not block app startup because of ATT/SDK errors.
     }
   }
 
   // Event 1 - On App Launch
   Future<void> onAppLaunch() async {
+    await fbAppEvents.activateApp();
     await logEvent('App Launched', {
-      'device_type': '', // Platform info should be passed from caller
+      'device_type': Platform.isIOS ? 'ios' : 'android',
       'app_version': '', // App version should be passed from caller
     });
   }

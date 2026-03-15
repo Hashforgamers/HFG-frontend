@@ -40,6 +40,10 @@ target 'Runner' do
   use_frameworks! :linkage => :static
   use_modular_headers!
 
+  # Declare Meta iOS SDK explicitly so the native dependency is owned here,
+  # not only transitively through the Flutter plugin.
+  pod 'FBSDKCoreKit', '~> 18.0'
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__)) do |flutter_configuration|
     # Map Flutter build configurations to custom xcconfig files
     if flutter_configuration.name.end_with?('-dev')

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
+import 'package:hash/app/modules/home/models/live_session_booking.dart';
+import 'package:hash/app/modules/arena/services/booking_food_order_service.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:intl/intl.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
@@ -31,7 +33,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
   final prefs = locator<SharedPreferences>();
   bool hasRated = false;
 
-  void getRatingBool(){
+  void getRatingBool() {
     final hasRated = prefs.getBool('hasRatedApp') ?? false;
     this.hasRated = hasRated;
   }
@@ -66,22 +68,23 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     }
   }
 
-// Colors
+  // Colors
   static const _green = Color(0xff00DC00);
   static const _yellow = Color(0xFFF5C042);
   static const _red = Color(0xFFE2584E);
 
-// Bucketing stays as you wrote (with pending_verified excluded)
+  // Bucketing stays as you wrote (with pending_verified excluded)
   String _statusBucket(dynamic rawStatus) {
     final s = (rawStatus ?? '').toString().toLowerCase().trim();
     if (s.isEmpty) return 'pending';
     if (s.contains('pending_verified')) return 'exclude';
     if (s.contains('confirm') || s.contains('success')) return 'confirmed';
-    if (s.contains('pend') || s.contains('await') || s.contains('unpaid')) return 'pending';
+    if (s.contains('pend') || s.contains('await') || s.contains('unpaid'))
+      return 'pending';
     return 'pending';
   }
 
-// Count per bucket for tab badges
+  // Count per bucket for tab badges
   int _countFor(String filter) {
     return ctr.userBookings.where((b) {
       final bucket = _statusBucket(b['status']);
@@ -90,7 +93,6 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
       return bucket == filter;
     }).length;
   }
-
 
   List<Map<String, dynamic>> _getFilteredAndSorted(String filter) {
     final bookings = List<Map<String, dynamic>>.from(ctr.userBookings);
@@ -119,33 +121,41 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+            borderRadius: BorderRadius.circular(16),
+          ),
           backgroundColor: const Color(0xff404040),
           title: const Text(
-              "Enjoying our app?", style: TextStyle(color: Colors.white)),
+            "Enjoying our app?",
+            style: TextStyle(color: Colors.white),
+          ),
           content: const Text(
-              "We’d love your feedback! Please rate us on the Play Store.",
-              style: TextStyle(color: Colors.white)),
+            "We’d love your feedback! Please rate us on the Play Store.",
+            style: TextStyle(color: Colors.white),
+          ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context)
-                    .pop(); // "Maybe later" – do NOT set hasRatedApp
+                Navigator.of(
+                  context,
+                ).pop(); // "Maybe later" – do NOT set hasRatedApp
                 // Next successful payment will set ratePromptPending again.
               },
               child: const Text(
-                  "Maybe Later", style: TextStyle(color: Colors.white)),
+                "Maybe Later",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
-                await prefs.setBool(
-                    'hasRatedApp', true); // never show again
+                await prefs.setBool('hasRatedApp', true); // never show again
                 final InAppReview inAppReview = InAppReview.instance;
                 await inAppReview.openStoreListing();
               },
               child: const Text(
-                  "Rate Us", style: TextStyle(color: const Color(0xff00DC00))),
+                "Rate Us",
+                style: TextStyle(color: const Color(0xff00DC00)),
+              ),
             ),
           ],
         );
@@ -159,37 +169,50 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           backgroundColor: const Color(0xff404040),
-          title: const Text("Enjoying our app?", style: TextStyle(color: Colors.white)),
-          content: const Text("We’d love your feedback! Please rate us on the Play Store.",
-              style: TextStyle(color: Colors.white)),
+          title: const Text(
+            "Enjoying our app?",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            "We’d love your feedback! Please rate us on the Play Store.",
+            style: TextStyle(color: Colors.white),
+          ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // "Maybe later" – do NOT set hasRatedApp
+                Navigator.of(
+                  context,
+                ).pop(); // "Maybe later" – do NOT set hasRatedApp
                 // Next successful payment will set ratePromptPending again.
               },
-              child: const Text("Maybe Later", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "Maybe Later",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
                 final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool('hasRatedApp', true);        // never show again
+                await prefs.setBool('hasRatedApp', true); // never show again
                 await prefs.setBool('ratePromptPending', false); // extra safety
                 final InAppReview inAppReview = InAppReview.instance;
                 await inAppReview.openStoreListing();
               },
-              child: const Text("Rate Us", style: TextStyle(color: const Color(0xff00DC00))),
+              child: const Text(
+                "Rate Us",
+                style: TextStyle(color: const Color(0xff00DC00)),
+              ),
             ),
           ],
         );
       },
     );
   }
-
-
 
   @override
   Widget build(BuildContext ctx) => Scaffold(
@@ -204,17 +227,18 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('My Bookings',
-                    style:
-                    GoogleFonts.inter(fontSize: 18, color: Colors.white)),
+                Text(
+                  'My Bookings',
+                  style: GoogleFonts.inter(fontSize: 18, color: Colors.white),
+                ),
                 IconButton(
                   splashRadius: 18,
-                  tooltip:
-                  _sortOrder == 'newer' ? 'Newest first' : 'Oldest first',
+                  tooltip: _sortOrder == 'newer'
+                      ? 'Newest first'
+                      : 'Oldest first',
                   onPressed: () {
                     setState(() {
-                      _sortOrder =
-                      _sortOrder == 'newer' ? 'older' : 'newer';
+                      _sortOrder = _sortOrder == 'newer' ? 'older' : 'newer';
                     });
                   },
                   icon: AnimatedSwitcher(
@@ -236,55 +260,77 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
           ),
 
           // Tabs
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF141415),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.transparent),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              dividerColor: Colors.transparent,
-                indicatorAnimation:TabIndicatorAnimation.elastic,
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF141415),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.transparent),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                dividerColor: Colors.transparent,
+                indicatorAnimation: TabIndicatorAnimation.elastic,
                 enableFeedback: true,
-              // Add more space inside each tab
-              labelPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                // Add more space inside each tab
+                labelPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 0,
+                ),
                 indicatorColor: Colors.transparent,
 
-
                 // Indicator pill with spacing
-              indicator: BoxDecoration(
-                color: const Color(0xFF1F2A1C),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _green.withValues(alpha: 0.5)),
+                indicator: BoxDecoration(
+                  color: const Color(0xFF1F2A1C),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _green.withValues(alpha: 0.5)),
+                ),
+
+                // Push indicator slightly away from text baseline
+                indicatorPadding: const EdgeInsets.symmetric(
+                  horizontal: 0,
+                  vertical: 4,
+                ),
+
+                // Make indicator fill only tab label, not full width
+                indicatorSize: TabBarIndicatorSize.tab,
+
+                labelColor: const Color(0xff00DC00),
+                unselectedLabelColor: Colors.white70,
+                labelStyle: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+                unselectedLabelStyle: GoogleFonts.inter(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+                overlayColor: MaterialStateProperty.all(Colors.transparent),
+
+                tabs: [
+                  Tab(
+                    child: _TabChip(text: 'All', count: _countFor('all')),
+                  ),
+                  Tab(
+                    child: _TabChip(
+                      text: 'Confirmed',
+                      count: _countFor('confirmed'),
+                    ),
+                  ),
+                  Tab(
+                    child: _TabChip(
+                      text: 'Pending',
+                      count: _countFor('pending'),
+                    ),
+                  ),
+                ],
               ),
-
-              // Push indicator slightly away from text baseline
-              indicatorPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-
-              // Make indicator fill only tab label, not full width
-              indicatorSize: TabBarIndicatorSize.tab,
-
-              labelColor: const Color(0xff00DC00),
-              unselectedLabelColor: Colors.white70,
-              labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
-              unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),
-              overlayColor: MaterialStateProperty.all(Colors.transparent),
-
-              tabs: [
-                Tab(child: _TabChip(text: 'All', count: _countFor('all'))),
-                Tab(child: _TabChip(text: 'Confirmed', count: _countFor('confirmed'))),
-                Tab(child: _TabChip(text: 'Pending', count: _countFor('pending'))),
-              ],
             ),
           ),
-        ),
 
-
-        const SizedBox(height: 8),
+          const SizedBox(height: 8),
 
           Expanded(
             child: Obx(() {
@@ -312,7 +358,6 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                   ),
                 ],
               );
-
             }),
           ),
         ],
@@ -320,6 +365,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     ),
   );
 }
+
 class _TabChip extends StatelessWidget {
   const _TabChip({required this.text, required this.count});
   final String text;
@@ -340,7 +386,11 @@ class _TabChip extends StatelessWidget {
           ),
           child: Text(
             '$count',
-            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
         ),
       ],
@@ -401,7 +451,7 @@ class _BookingsList extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFF1C1C1C),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Color(0xff292929), width: 0.5)
+            border: Border.all(color: Color(0xff292929), width: 0.5),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -433,7 +483,10 @@ class _BookingsList extends StatelessWidget {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xff00DC00),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -468,22 +521,28 @@ class _BookingsList extends StatelessWidget {
           final d = bookings[i];
           return BookingTicketCard(
             game: d['slot']?['gaming_type_id']?['game_name'] ?? 'Unknown',
-            cafe: d['slot']?['gaming_type_id']?['cafe_name']?['cafe_name'] ?? 'Cafe',
+            cafe:
+                d['slot']?['gaming_type_id']?['cafe_name']?['cafe_name'] ??
+                'Cafe',
             start: fmt(d['slot']?['time']?['start_time']),
             end: fmt(d['slot']?['time']?['end_time']),
             status: (d['status'] ?? 'Pending').toString(),
-            price: double.tryParse(
-              '${d['slot']?['gaming_type_id']?['single_slot_price'] ?? 0}',
-            ) ??
+            price:
+                double.tryParse(
+                  '${d['slot']?['gaming_type_id']?['single_slot_price'] ?? 0}',
+                ) ??
                 0,
             loc: d['slot']?['location'] ?? 'Mumbai',
             id: d['booking_id'] ?? 0,
             raw: d,
             accessCode: d['access_code'],
             bookDate: d['book_date'],
-            extraServices: (d['extra_services'] as List<dynamic>?)
-                ?.map((e) => ExtraService.fromJson(e as Map<String, dynamic>))
-                .toList() ??
+            extraServices:
+                (d['extra_services'] as List<dynamic>?)
+                    ?.map(
+                      (e) => ExtraService.fromJson(e as Map<String, dynamic>),
+                    )
+                    .toList() ??
                 [],
           );
         },
@@ -491,7 +550,6 @@ class _BookingsList extends StatelessWidget {
     );
   }
 }
-
 
 class TicketClipper extends CustomClipper<Path> {
   @override
@@ -546,27 +604,222 @@ class BookingTicketCard extends StatelessWidget {
   final String? accessCode;
   final String? bookDate;
   final List<ExtraService> extraServices;
+  BookingFoodOrderService get _foodOrderService => BookingFoodOrderService();
 
-  void _handleScannedCode(String scannedCode) async {
+  String _readFirstNonEmpty(Iterable<dynamic> values) {
+    for (final value in values) {
+      final normalized = (value ?? '').toString().trim();
+      if (normalized.isNotEmpty && normalized.toLowerCase() != 'null') {
+        return normalized;
+      }
+    }
+    return '';
+  }
+
+  String _resolveConsoleId(Map<String, dynamic> qrData) {
+    return _readFirstNonEmpty([
+      qrData['console_id'],
+      qrData['consoleId'],
+      qrData['id'],
+      qrData['console'] is Map ? qrData['console']['id'] : null,
+      qrData['console'] is Map ? qrData['console']['console_id'] : null,
+    ]);
+  }
+
+  String _resolveGameId(Map<String, dynamic> qrData) {
+    final slot = raw['slot'] as Map<String, dynamic>?;
+    final gamingType = slot?['gaming_type_id'] as Map<String, dynamic>?;
+    return _readFirstNonEmpty([
+      raw['game_id'],
+      raw['gameId'],
+      slot?['game_id'],
+      slot?['gameId'],
+      gamingType?['game_id'],
+      gamingType?['gameId'],
+      gamingType?['id'],
+      qrData['game_id'],
+      qrData['gameId'],
+    ]);
+  }
+
+  String _resolveVendorId(Map<String, dynamic> qrData) {
+    final slot = raw['slot'] as Map<String, dynamic>?;
+    final gamingType = slot?['gaming_type_id'] as Map<String, dynamic>?;
+    final cafe = gamingType?['cafe_name'] as Map<String, dynamic>?;
+    return _readFirstNonEmpty([
+      raw['vendor_id'],
+      raw['vendorId'],
+      slot?['vendor_id'],
+      slot?['vendorId'],
+      gamingType?['vendor_id'],
+      gamingType?['vendorId'],
+      cafe?['vendor_id'],
+      cafe?['vendorId'],
+      cafe?['id'],
+      qrData['vendor_id'],
+      qrData['vendorId'],
+    ]);
+  }
+
+  void _showScanMessage(
+    ScaffoldMessengerState messenger, {
+    required String title,
+    required String message,
+    required Color backgroundColor,
+  }) {
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            '$title: $message',
+            style: GoogleFonts.inter(color: Colors.white),
+          ),
+          backgroundColor: backgroundColor,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+  }
+
+  Future<void> _showScanSuccessDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+            decoration: BoxDecoration(
+              color: const Color(0xFF121212),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: const Color(0xff00DC00).withValues(alpha: 0.28),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xff00DC00).withValues(alpha: 0.10),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xff00DC00).withValues(alpha: 0.12),
+                    border: Border.all(
+                      color: const Color(0xff00DC00).withValues(alpha: 0.30),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: Color(0xff00DC00),
+                    size: 34,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Scan Completed',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Enjoy gaming. Your console has been queued successfully.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xff00DC00),
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    child: Text(
+                      'Done',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _handleScannedCode(
+    BuildContext context,
+    ScaffoldMessengerState messenger,
+    String scannedCode,
+  ) async {
     try {
-      // Parse the JSON from the QR code
-      final Map<String, dynamic> qrData = jsonDecode(scannedCode);
+      debugPrint('Booking QR scan raw payload: $scannedCode');
 
-      // Extract the required fields from the QR code JSON
-      final consoleId = qrData['console_id']?.toString() ?? '';
-      final gameId = qrData['game_id']?.toString() ?? '';
-      final vendorId = qrData['vendor_id']?.toString() ?? '';
+      Map<String, dynamic> qrData;
+      final trimmedCode = scannedCode.trim();
+      try {
+        final decoded = jsonDecode(trimmedCode);
+        if (decoded is Map<String, dynamic>) {
+          qrData = decoded;
+        } else if (decoded is Map) {
+          qrData = Map<String, dynamic>.from(decoded);
+        } else {
+          qrData = {'console_id': decoded};
+        }
+      } catch (_) {
+        qrData = {'console_id': trimmedCode};
+      }
+
+      // QR is the source of truth for console, booking payload is the source of truth for booking/game/vendor.
+      final consoleId = _resolveConsoleId(qrData);
+      final gameId = _resolveGameId(qrData);
+      final vendorId = _resolveVendorId(qrData);
       final bookingId = id.toString();
+
+      debugPrint(
+        'Booking QR scan parsed -> console_id=$consoleId, game_id=$gameId, vendor_id=$vendorId, booking_id=$bookingId',
+      );
 
       // Validate that all required fields are present
       if (consoleId.isEmpty || gameId.isEmpty || vendorId.isEmpty) {
-        Get.snackbar(
-          'Error',
-          'Invalid QR Code format. Missing required fields.',
-          backgroundColor: Colors.red.withValues(alpha: 0.8),
-          colorText: Colors.white,
-          duration: const Duration(seconds: 3),
-          snackPosition: SnackPosition.TOP,
+        debugPrint(
+          'Booking QR scan validation failed -> missing required fields',
+        );
+        _showScanMessage(
+          messenger,
+          title: 'Error',
+          message:
+              'Missing console, game, or vendor details for queue check-in.',
+          backgroundColor: Colors.red.withValues(alpha: 0.88),
         );
         return;
       }
@@ -580,14 +833,9 @@ class BookingTicketCard extends StatelessWidget {
         bookingId: bookingId,
       );
 
-      Get.snackbar(
-        'Success',
-        result, // Use the API response message
-        backgroundColor: const Color(0xff00DC00).withValues(alpha: 0.8),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-        snackPosition: SnackPosition.TOP,
-      );
+      debugPrint('Booking QR scan API success -> $result');
+
+      await _showScanSuccessDialog(context);
     } catch (e) {
       String errorMessage = 'Failed to process QR code';
 
@@ -597,19 +845,24 @@ class BookingTicketCard extends StatelessWidget {
         errorMessage = 'Failed to verify booking: ${e.toString()}';
       }
 
-      Get.snackbar(
-        'Error',
-        errorMessage,
-        backgroundColor: Colors.red.withValues(alpha: 0.8),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-        snackPosition: SnackPosition.TOP,
+      debugPrint('Booking QR scan error -> $e');
+
+      _showScanMessage(
+        messenger,
+        title: 'Error',
+        message: errorMessage,
+        backgroundColor: Colors.red.withValues(alpha: 0.88),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final liveSession = LiveSessionBooking.fromPastBooking(raw);
+    final canOrderFood =
+        liveSession != null &&
+        liveSession.vendorId.isNotEmpty &&
+        DateTime.now().isBefore(liveSession.startAt);
     final String formattedStatus = status
         .replaceAll('_', ' ')
         .split(' ')
@@ -635,8 +888,10 @@ class BookingTicketCard extends StatelessWidget {
     }
     Color _accentForStatus(String s) {
       final v = s.toLowerCase();
-      if (v.contains('confirm') || v.contains('success')) return const Color(0xff00DC00); // green
-      if (v.contains('pend') || v.contains('await') || v.contains('unpaid')) return const Color(0xFFF5C042); // yellow
+      if (v.contains('confirm') || v.contains('success'))
+        return const Color(0xff00DC00); // green
+      if (v.contains('pend') || v.contains('await') || v.contains('unpaid'))
+        return const Color(0xFFF5C042); // yellow
       return Colors.white; // default for any other/unknown
     }
 
@@ -683,12 +938,15 @@ class BookingTicketCard extends StatelessWidget {
                               color: _accentForStatus(status),
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
-                            ),),
+                            ),
+                          ),
                           const SizedBox(height: 2),
                           Text(
                             'Booking ID',
                             style: GoogleFonts.inter(
-                              color: _accentForStatus(status).withValues(alpha: 0.75),
+                              color: _accentForStatus(
+                                status,
+                              ).withValues(alpha: 0.75),
                               fontSize: 10,
                             ),
                           ),
@@ -696,11 +954,18 @@ class BookingTicketCard extends StatelessWidget {
                           const SizedBox(height: 8), // Reduced from 12
                           ElevatedButton(
                             onPressed: () async {
+                              if (!context.mounted) return;
+                              final messenger = ScaffoldMessenger.of(context);
                               final result = await Get.to(
                                 () => const QrScannerView(),
                               );
+                              if (!context.mounted) return;
                               if (result != null) {
-                                _handleScannedCode(result.toString());
+                                _handleScannedCode(
+                                  context,
+                                  messenger,
+                                  result.toString(),
+                                );
                               }
                             },
                             style: ElevatedButton.styleFrom(
@@ -805,6 +1070,46 @@ class BookingTicketCard extends StatelessWidget {
                                 ),
                               ],
                             ),
+                            if (canOrderFood) ...[
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                height: 30,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    await _foodOrderService
+                                        .orderForUpcomingSession(
+                                          context: context,
+                                          booking: raw,
+                                        );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
+                                      color: Color(0xff00DC00),
+                                    ),
+                                    foregroundColor: const Color(0xff00DC00),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.fastfood_rounded,
+                                    size: 14,
+                                  ),
+                                  label: Text(
+                                    'Order Food',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,12 +25,18 @@ class DeviceIdentifierService {
 
   Future<Map<String, dynamic>> getIdentifiers({bool refresh = false}) async {
     if (!refresh && _cachedIdentifiers != null) {
+      debugPrint(
+        '[DeviceIdentifierService] Returning cached identifiers: $_cachedIdentifiers',
+      );
       return Map<String, dynamic>.from(_cachedIdentifiers!);
     }
 
     if (!refresh) {
       final stored = _readFromPreferences();
       if (_hasStoredIdentifiers(stored)) {
+        debugPrint(
+          '[DeviceIdentifierService] Returning stored identifiers: $stored',
+        );
         _cachedIdentifiers = stored;
         return Map<String, dynamic>.from(stored);
       }
@@ -43,12 +50,20 @@ class DeviceIdentifierService {
 
     await _saveToPreferences(identifiers);
     _cachedIdentifiers = identifiers;
+    debugPrint(
+      '[DeviceIdentifierService] Refreshed identifiers from platform: $identifiers',
+    );
     return Map<String, dynamic>.from(identifiers);
   }
 
   Future<String> getPreferredAdvertisingId({bool refresh = false}) async {
     final identifiers = await getIdentifiers(refresh: refresh);
     return (identifiers['advertising_id'] ?? '').toString();
+  }
+
+  Future<Map<String, dynamic>> refreshIdentifiers() async {
+    debugPrint('[DeviceIdentifierService] Forced identifier refresh requested');
+    return getIdentifiers(refresh: true);
   }
 
   Future<Map<String, String>> buildRequestHeaders() async {

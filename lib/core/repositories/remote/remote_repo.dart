@@ -286,7 +286,13 @@ class RemoteRepo implements RemoteRepoInterface {
 
       if (response.statusCode == 200) {
         final data = response.data;
-        return List<Map<String, dynamic>>.from(data['vendors']);
+        final vendors = List<Map<String, dynamic>>.from(data['vendors']);
+        for (final vendor in vendors) {
+          AppLogger.d(
+            'Vendor amenities debug -> vendor_id=${vendor['vendor_id']}, cafe_name=${vendor['cafe_name']}, amenities=${vendor['amenities']}',
+          );
+        }
+        return vendors;
       } else {
         throw Exception(
           'Failed to fetch cybercafes. Status code: ${response.statusCode}',
@@ -442,7 +448,8 @@ class RemoteRepo implements RemoteRepoInterface {
             if (bookingId is! num) continue;
             final dashboardMatch = dashboardByPlatform[normalizedPlatform];
             normalizedGames.add({
-              'game_name': (legacy['game_name'] ?? normalizedPlatform).toString(),
+              'game_name': (legacy['game_name'] ?? normalizedPlatform)
+                  .toString(),
               'game_platform': platform,
               'genre': (dashboardMatch?['genre'] ?? legacy['genre'] ?? '')
                   .toString(),
@@ -1101,6 +1108,9 @@ class RemoteRepo implements RemoteRepoInterface {
   }) async {
     final dio = networkProvider.noAuth();
     try {
+      debugPrint(
+        'scanQrCode request -> console_id=$consoleId, game_id=$gameId, vendor_id=$vendorId, booking_id=$bookingId',
+      );
       final response = await dio.post(
         ApiEndpoints.scanQrCode,
         data: {
@@ -1110,23 +1120,51 @@ class RemoteRepo implements RemoteRepoInterface {
           'booking_id': bookingId,
         },
       );
-      if (response.statusCode == 201) {
-        return response.data['message'];
-      } else {
-        // Handle non-201 status codes
-        final responseData = response.data;
-        String errorMessage = 'Failed to scan QR code.';
-        if (responseData is Map<String, dynamic> &&
-            responseData.containsKey('error')) {
-          errorMessage = responseData['error'];
+      debugPrint(
+        'scanQrCode response -> status=${response.statusCode}, body=${response.data}',
+      );
+      final responseData = response.data;
+      final statusCode = response.statusCode ?? 0;
+
+      String? successMessage;
+      String? errorMessage;
+
+      if (responseData is Map<String, dynamic>) {
+        final rawMessage = responseData['message']?.toString().trim() ?? '';
+        final rawError = responseData['error']?.toString().trim() ?? '';
+        if (rawMessage.isNotEmpty) successMessage = rawMessage;
+        if (rawError.isNotEmpty) errorMessage = rawError;
+      } else if (responseData is List && responseData.isNotEmpty) {
+        final first = responseData.first;
+        if (first is Map<String, dynamic>) {
+          final rawMessage = first['message']?.toString().trim() ?? '';
+          final rawError = first['error']?.toString().trim() ?? '';
+          if (rawMessage.isNotEmpty) successMessage = rawMessage;
+          if (rawError.isNotEmpty) errorMessage = rawError;
+        } else if (first is Map) {
+          final map = Map<String, dynamic>.from(first);
+          final rawMessage = map['message']?.toString().trim() ?? '';
+          final rawError = map['error']?.toString().trim() ?? '';
+          if (rawMessage.isNotEmpty) successMessage = rawMessage;
+          if (rawError.isNotEmpty) errorMessage = rawError;
         }
-        throw Exception(errorMessage);
       }
+
+      if (statusCode >= 200 && statusCode < 300 && errorMessage == null) {
+        return successMessage ?? 'QR scanned successfully.';
+      }
+
+      final resolvedError = errorMessage ?? 'Failed to scan QR code.';
+      debugPrint('scanQrCode resolved error -> $resolvedError');
+      throw Exception(resolvedError);
     } catch (e) {
       // Handle DioException specifically to extract error message
       if (e is DioException && e.response != null) {
         final statusCode = e.response!.statusCode;
         final responseData = e.response!.data;
+        debugPrint(
+          'scanQrCode DioException -> status=$statusCode, body=$responseData, error=${e.message}',
+        );
 
         if (statusCode == 400) {
           // Extract error message from response data
@@ -1134,13 +1172,21 @@ class RemoteRepo implements RemoteRepoInterface {
           if (responseData is Map<String, dynamic> &&
               responseData.containsKey('error')) {
             errorMessage = responseData['error'];
+          } else if (responseData is List && responseData.isNotEmpty) {
+            final first = responseData.first;
+            if (first is Map && first['error'] != null) {
+              errorMessage = first['error'].toString();
+            }
           }
+          debugPrint('scanQrCode 400 error -> $errorMessage');
           throw Exception(errorMessage);
         } else {
+          debugPrint('scanQrCode unexpected status -> $statusCode');
           throw Exception('Failed to scan QR code. Status code: $statusCode');
         }
       }
 
+      debugPrint('scanQrCode unexpected exception -> $e');
       rethrow;
     }
   }
@@ -1360,6 +1406,79 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       debugPrint('Error capturing payment: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String> createRazorpayOrder({
+    required int amountInPaisa,
+    String? receiptPrefix,
+  }) async {
+    final dio = networkProvider.noAuth();
+    final receiptBase = (receiptPrefix ?? 'order_rcpt').trim();
+    final payload = {
+      'amount': amountInPaisa,
+      'currency': 'INR',
+      'receipt': '${receiptBase}_${DateTime.now().millisecondsSinceEpoch}',
+    };
+
+    try {
+      final response = await dio.post(
+        ApiEndpoints.createPaymentOrder,
+        data: payload,
+      );
+      if (response.statusCode == 200) {
+        final data = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
+        final orderId = (data['id'] ?? '').toString().trim();
+        if (orderId.isNotEmpty) {
+          return orderId;
+        }
+      }
+      throw Exception(
+        'Failed to create payment order. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error creating payment order: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> addMealsToBooking({
+    required String bookingId,
+    required List<Map<String, dynamic>> meals,
+    bool settleOnRelease = true,
+    String? modeOfPayment,
+  }) async {
+    final dio = await networkProvider.auth();
+    final payload = <String, dynamic>{
+      'meals': meals,
+      'settle_on_release': settleOnRelease,
+    };
+    final normalizedPaymentMode = modeOfPayment?.trim();
+    if (normalizedPaymentMode != null && normalizedPaymentMode.isNotEmpty) {
+      payload['mode_of_payment'] = normalizedPaymentMode;
+    }
+
+    try {
+      final response = await dio.post(
+        ApiEndpoints.addMealsToBooking(bookingId),
+        data: payload,
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.data is Map<String, dynamic>) {
+          return response.data as Map<String, dynamic>;
+        }
+        return {'message': response.data?.toString() ?? 'Meal order added.'};
+      }
+      throw Exception(
+        'Failed to add meals to booking. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error adding meals to booking: $e');
       rethrow;
     }
   }

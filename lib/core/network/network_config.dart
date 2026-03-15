@@ -7,7 +7,10 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
+const bool _enableVerboseNetworkLog = false;
+
 bool _shouldSkipVerboseNetworkLog(RequestOptions options) {
+  if (!_enableVerboseNetworkLog) return true;
   final url = options.uri.toString().toLowerCase();
   // Avoid dumping full gaming cafe payload in console.
   return url.contains('/api/vendor/getallgamingcafe');
@@ -29,18 +32,20 @@ class NetworkConfig {
 
     final dio = Dio(options);
 
-    dio.interceptors.add(
-      PrettyDioLogger(
-        requestHeader: true,
-        requestBody: true,
-        responseBody: true,
-        responseHeader: true,
-        error: true,
-        compact: true,
-        maxWidth: 90,
-        filter: (options, args) => !_shouldSkipVerboseNetworkLog(options),
-      ),
-    );
+    if (_enableVerboseNetworkLog) {
+      dio.interceptors.add(
+        PrettyDioLogger(
+          requestHeader: true,
+          requestBody: true,
+          responseBody: true,
+          responseHeader: true,
+          error: true,
+          compact: true,
+          maxWidth: 90,
+          filter: (options, args) => !_shouldSkipVerboseNetworkLog(options),
+        ),
+      );
+    }
 
     dio.interceptors.add(RetryInterceptor(dio: dio));
     dio.interceptors.add(AuthInterceptor(dio));
@@ -106,18 +111,20 @@ class NetworkProvider {
 
     _dio = Dio(options);
 
-    _dio.interceptors.add(
-      PrettyDioLogger(
-        requestHeader: true,
-        requestBody: true,
-        responseBody: true,
-        responseHeader: true,
-        error: true,
-        compact: true,
-        maxWidth: 90,
-        filter: (options, args) => !_shouldSkipVerboseNetworkLog(options),
-      ),
-    );
+    if (_enableVerboseNetworkLog) {
+      _dio.interceptors.add(
+        PrettyDioLogger(
+          requestHeader: true,
+          requestBody: true,
+          responseBody: true,
+          responseHeader: true,
+          error: true,
+          compact: true,
+          maxWidth: 90,
+          filter: (options, args) => !_shouldSkipVerboseNetworkLog(options),
+        ),
+      );
+    }
 
     _dio.interceptors.add(RetryInterceptor(dio: _dio));
   }

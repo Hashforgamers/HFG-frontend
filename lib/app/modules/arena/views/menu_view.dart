@@ -12,11 +12,13 @@ class MenuViewPage extends StatelessWidget {
   final String vendorId;
   final String email;
   final void Function(List<Map<String, dynamic>> cartItems) onContinue;
+  final String continueLabel;
   const MenuViewPage({
     super.key,
     required this.vendorId,
     required this.email,
     required this.onContinue,
+    this.continueLabel = 'Continue Booking',
   });
 
   @override
@@ -27,6 +29,7 @@ class MenuViewPage extends StatelessWidget {
         vendorId: vendorId,
         email: email,
         onContinue: onContinue,
+        continueLabel: continueLabel,
       ),
     );
   }
@@ -36,10 +39,12 @@ class _MenuViewPage extends StatefulWidget {
   final String vendorId;
   final String email;
   final void Function(List<Map<String, dynamic>> cartItems) onContinue;
+  final String continueLabel;
   const _MenuViewPage({
     required this.vendorId,
     required this.email,
     required this.onContinue,
+    required this.continueLabel,
   });
 
   @override
@@ -111,6 +116,7 @@ class __MenuViewPageState extends State<_MenuViewPage> {
             foodMenuList: state.foodMenu,
             email: widget.email,
             onContinue: widget.onContinue,
+            continueLabel: widget.continueLabel,
           );
         }
         return const SizedBox.shrink();
@@ -123,12 +129,14 @@ class MenuView extends StatefulWidget {
   final List<FoodMenuModel> foodMenuList;
   final String email;
   final void Function(List<Map<String, dynamic>> cartItems) onContinue;
+  final String continueLabel;
 
   const MenuView({
     super.key,
     required this.foodMenuList,
     required this.email,
     required this.onContinue,
+    this.continueLabel = 'Continue Booking',
   });
 
   @override
@@ -792,7 +800,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: () {
         segmentService.onMealSelected(email: email, selectedMeal: cartItems);
-        Navigator.pop(context);
+        Navigator.pop(context, cartItems);
         widget.onContinue(cartItems);
       },
       child: Container(
@@ -819,7 +827,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'Continue Booking',
+                widget.continueLabel,
                 style: GoogleFonts.inter(
                   color: Colors.white,
                   fontSize: 16,

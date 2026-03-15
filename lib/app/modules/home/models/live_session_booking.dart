@@ -2,12 +2,16 @@ class LiveSessionBooking {
   LiveSessionBooking({
     required this.bookingId,
     required this.arenaName,
+    required this.vendorId,
+    required this.rawBooking,
     required this.startAt,
     required this.endAt,
   });
 
   final String bookingId;
   final String arenaName;
+  final String vendorId;
+  final Map<String, dynamic> rawBooking;
   final DateTime startAt;
   final DateTime endAt;
 
@@ -49,6 +53,7 @@ class LiveSessionBooking {
         .trim();
 
     final rawArenaName = _resolveArenaName(slot, booking);
+    final vendorId = _resolveVendorId(slot, booking);
 
     final arenaName = rawArenaName.trim().isEmpty
         ? 'Arena Session'
@@ -57,6 +62,8 @@ class LiveSessionBooking {
     return LiveSessionBooking(
       bookingId: bookingId,
       arenaName: arenaName,
+      vendorId: vendorId,
+      rawBooking: Map<String, dynamic>.from(booking),
       startAt: startAt,
       endAt: endAt,
     );
@@ -80,7 +87,11 @@ class LiveSessionBooking {
     if (rawCreatedAt.isNotEmpty) {
       final createdAt = DateTime.tryParse(rawCreatedAt);
       if (createdAt != null) {
-        createdAtDate = DateTime(createdAt.year, createdAt.month, createdAt.day);
+        createdAtDate = DateTime(
+          createdAt.year,
+          createdAt.month,
+          createdAt.day,
+        );
       }
     }
 
@@ -88,7 +99,11 @@ class LiveSessionBooking {
     if (rawUpdatedAt.isNotEmpty) {
       final updatedAt = DateTime.tryParse(rawUpdatedAt);
       if (updatedAt != null) {
-        updatedAtDate = DateTime(updatedAt.year, updatedAt.month, updatedAt.day);
+        updatedAtDate = DateTime(
+          updatedAt.year,
+          updatedAt.month,
+          updatedAt.day,
+        );
       }
     }
 
@@ -151,5 +166,39 @@ class LiveSessionBooking {
             .toString()
             .trim();
     return fallback.isEmpty ? 'Arena Session' : fallback;
+  }
+
+  static String _resolveVendorId(
+    Map<String, dynamic> slot,
+    Map<String, dynamic> booking,
+  ) {
+    final gamingType = slot['gaming_type_id'] is Map
+        ? Map<String, dynamic>.from(slot['gaming_type_id'] as Map)
+        : <String, dynamic>{};
+    final nestedCafe = gamingType['cafe_name'] is Map
+        ? Map<String, dynamic>.from(gamingType['cafe_name'] as Map)
+        : <String, dynamic>{};
+    final candidates = [
+      booking['vendor_id'],
+      booking['vendorId'],
+      booking['cafe_id'],
+      slot['vendor_id'],
+      slot['vendorId'],
+      slot['cafe_id'],
+      gamingType['vendor_id'],
+      gamingType['vendorId'],
+      gamingType['cafe_id'],
+      nestedCafe['vendor_id'],
+      nestedCafe['vendorId'],
+      nestedCafe['id'],
+    ];
+
+    for (final candidate in candidates) {
+      final value = candidate?.toString().trim() ?? '';
+      if (value.isNotEmpty && value.toLowerCase() != 'null') {
+        return value;
+      }
+    }
+    return '';
   }
 }

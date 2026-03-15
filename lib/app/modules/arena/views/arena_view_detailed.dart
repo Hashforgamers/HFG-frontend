@@ -14,6 +14,7 @@ import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_info_sect
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_reviews_section.dart';
 import 'package:hash/app/modules/arena/views/booking_screen.dart';
 import 'package:hash/app/modules/arena/views/menu_view.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -56,9 +57,11 @@ class ArenaDetailView extends StatefulWidget {
 
 class _ArenaDetailViewState extends State<ArenaDetailView> {
   late final CafeGamesController _gamesController;
+  final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
   late final ConfettiController _squadConfettiController;
+  bool? _hasFoodOrderingAvailableCache;
 
   @override
   void initState() {
@@ -105,13 +108,29 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   bool _hasFoodAmenity(List<dynamic> amenities) {
     return amenities.any((a) {
-      if (a is! Map) return false;
-      final available = _truthy(a['available'] ?? a['is_available']);
-      final name = (a['name'] ?? '')
+      dynamic rawName;
+      dynamic rawAvailable = true;
+
+      if (a is Map) {
+        rawName =
+            a['name'] ??
+            a['title'] ??
+            a['label'] ??
+            a['amenity'] ??
+            a['facility'];
+        rawAvailable = a['available'] ?? a['is_available'] ?? a['isAvailable'];
+      } else {
+        rawName = a;
+      }
+
+      final available = _truthy(rawAvailable);
+      final name = (rawName ?? '')
           .toString()
           .toLowerCase()
           .replaceAll('_', ' ')
           .trim();
+      if (name.isEmpty) return false;
+
       // robust match
       final isFood =
           name == 'food' ||
@@ -133,6 +152,25 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       return v == 'true' || v == '1' || v == 'yes';
     }
     return true;
+  }
+
+  Future<bool> _hasFoodOrderingAvailable() async {
+    final cached = _hasFoodOrderingAvailableCache;
+    if (cached != null) return cached;
+
+    try {
+      final foodMenu = await _remoteRepo.getFoodMenu(
+        vendorId: widget.vendorId.toString(),
+      );
+      final hasItems = foodMenu.categories.any(
+        (category) => category.menus?.isNotEmpty ?? false,
+      );
+      _hasFoodOrderingAvailableCache = hasItems;
+      return hasItems;
+    } catch (_) {
+      _hasFoodOrderingAvailableCache = false;
+      return false;
+    }
   }
 
   Future<BookingPartySelection?> _showBookingPartyBottomSheet(
@@ -816,7 +854,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                                                     memberToAdd =
                                                                         _copyUserWithPhone(
                                                                           user,
-                                                                          phoneNumber.trim(),
+                                                                          phoneNumber
+                                                                              .trim(),
                                                                         );
                                                                   }
                                                                   setModalState(() {
@@ -1243,9 +1282,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                         ),
                         child: Text(
                           'Save & Add Member',
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
@@ -1556,8 +1593,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                           return;
                         }
 
-                        final hasFood = _hasFoodAmenity(widget.amenities);
-
+                        final hasFood = await _hasFoodOrderingAvailable();
                         if (hasFood) {
                           final response = await showFoodOrderPrompt(
                             context,
@@ -1869,7 +1905,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       }
 
       list.add({
-        'title': gameName.isEmpty ? _consoleDisplayLabel(consoleType) : gameName,
+        'title': gameName.isEmpty
+            ? _consoleDisplayLabel(consoleType)
+            : gameName,
         'genre': genre,
         'image_url': imageUrl,
         'console_type': consoleType,
@@ -2528,59 +2566,66 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       return placeholderImage;
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Available Games",
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 160,
-          child: Obx(() {
-            if (controller.isLoading.value) {
-              return const Center(child: AppLinearLoader());
-            }
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Available Games",
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            const SizedBox(
+              height: 160,
+              child: Center(child: AppLinearLoader()),
+            ),
+          ],
+        );
+      }
 
-            final List<Map<String, String>> displayGames = [];
+      final List<Map<String, String>> displayGames = [];
 
-            for (final item in controller.games) {
-              if (item is! Map) continue;
-              final game = Map<String, dynamic>.from(item);
-              final name = _gameName(game);
-              if (name.isEmpty) continue;
-              displayGames.add({'name': name, 'image': _gameImage(game)});
-            }
+      for (final item in controller.games) {
+        if (item is! Map) continue;
+        final game = Map<String, dynamic>.from(item);
+        final name = _gameName(game);
+        if (name.isEmpty) continue;
+        displayGames.add({'name': name, 'image': _gameImage(game)});
+      }
 
-            // Fallback to cafe-level games list when vendor-games payload has
-            // platform labels (PC/PS5/XBOX) instead of actual game titles.
-            if (displayGames.isEmpty) {
-              for (final item in widget.availableGames) {
-                final name = item is Map
-                    ? (item['name'] ??
-                              item['game_name'] ??
-                              item['title'] ??
-                              item['game'])
-                          .toString()
-                          .trim()
-                    : item.toString().trim();
-                if (name.isEmpty || _looksLikeConsoleLabel(name)) continue;
-                displayGames.add({'name': name, 'image': placeholderImage});
-              }
-            }
+      // Fallback to cafe-level games list when vendor-games payload has
+      // platform labels (PC/PS5/XBOX) instead of actual game titles.
+      if (displayGames.isEmpty) {
+        for (final item in widget.availableGames) {
+          final name = item is Map
+              ? (item['name'] ??
+                        item['game_name'] ??
+                        item['title'] ??
+                        item['game'])
+                    .toString()
+                    .trim()
+              : item.toString().trim();
+          if (name.isEmpty || _looksLikeConsoleLabel(name)) continue;
+          displayGames.add({'name': name, 'image': placeholderImage});
+        }
+      }
 
-            if (displayGames.isEmpty) {
-              return Center(
-                child: Text(
-                  'No games available for now.',
-                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
-              );
-            }
+      if (displayGames.isEmpty) {
+        return const SizedBox.shrink();
+      }
 
-            return ListView.separated(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Available Games",
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 160,
+            child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: displayGames.length,
               separatorBuilder: (_, __) => const SizedBox(width: 2),
@@ -2643,11 +2688,11 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                   ),
                 );
               },
-            );
-          }),
-        ),
-      ],
-    );
+            ),
+          ),
+        ],
+      );
+    });
   }
 
   Widget foodAndBeverageGrid(List<Map<String, String>> items) {

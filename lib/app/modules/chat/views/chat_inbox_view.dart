@@ -333,14 +333,35 @@ class _ChatInboxViewState extends State<ChatInboxView> {
         backgroundColor: ChatPalette.surface,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: Text(
-          'Hash Hub Chats',
-          style: GoogleFonts.inter(
-            color: ChatPalette.textPrimary,
-            fontWeight: FontWeight.w700,
-            fontSize: 22,
-          ),
-        ),
+        title: Obx(() {
+          final hasUnread = _chatService.unreadRoomCount.value > 0;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Hash Hub Chats',
+                style: GoogleFonts.inter(
+                  color: hasUnread
+                      ? ChatPalette.primary
+                      : ChatPalette.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 22,
+                ),
+              ),
+              if (hasUnread) ...[
+                const SizedBox(width: 8),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: ChatPalette.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ],
+          );
+        }),
         actions: [
           IconButton(
             tooltip: 'Create group',
@@ -571,331 +592,386 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     final isArchived = room.archivedUserIds.contains(currentUid);
     final actionInProgress = _isRoomActionInProgress(room.id);
 
-    return Dismissible(
-      key: ValueKey('chat_${room.id}_${stamp.millisecondsSinceEpoch}'),
-      direction: DismissDirection.horizontal,
-      background: Container(
-        decoration: BoxDecoration(
-          color: isMuted ? const Color(0xFF2D2D2D) : const Color(0xFF2A4E22),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          children: [
-            Icon(
-              isMuted ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              isMuted ? 'Unmute' : 'Mute',
-              style: GoogleFonts.inter(
+    return Obx(() {
+      final isUnread = _chatService.isRoomUnread(room.id);
+      return Dismissible(
+        key: ValueKey('chat_${room.id}_${stamp.millisecondsSinceEpoch}'),
+        direction: DismissDirection.horizontal,
+        background: Container(
+          decoration: BoxDecoration(
+            color: isMuted ? const Color(0xFF2D2D2D) : const Color(0xFF2A4E22),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              Icon(
+                isMuted ? Icons.volume_up_rounded : Icons.volume_off_rounded,
                 color: Colors.white,
-                fontWeight: FontWeight.w700,
               ),
-            ),
-          ],
-        ),
-      ),
-      secondaryBackground: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF6D1B1B),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text(
-              'Delete',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
+              const SizedBox(width: 8),
+              Text(
+                isMuted ? 'Unmute' : 'Mute',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.delete_rounded, color: Colors.white),
-          ],
+            ],
+          ),
         ),
-      ),
-      confirmDismiss: (direction) async {
-        try {
-          if (actionInProgress) return false;
-          if (direction == DismissDirection.startToEnd) {
-            await _toggleMute(roomId: room.id, currentlyMuted: isMuted);
-            return false;
+        secondaryBackground: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF6D1B1B),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                'Delete',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.delete_rounded, color: Colors.white),
+            ],
+          ),
+        ),
+        confirmDismiss: (direction) async {
+          try {
+            if (actionInProgress) return false;
+            if (direction == DismissDirection.startToEnd) {
+              await _toggleMute(roomId: room.id, currentlyMuted: isMuted);
+              return false;
+            }
+            if (direction == DismissDirection.endToStart) {
+              return _deleteChatWithConfirmation(
+                roomId: room.id,
+                roomTitle: title,
+              );
+            }
+          } catch (_) {
+            _showSnack(message: 'Action failed. Please try again.');
           }
-          if (direction == DismissDirection.endToStart) {
-            return _deleteChatWithConfirmation(
-              roomId: room.id,
-              roomTitle: title,
-            );
-          }
-        } catch (_) {
-          _showSnack(message: 'Action failed. Please try again.');
-        }
-        return false;
-      },
-      dismissThresholds: const {
-        DismissDirection.startToEnd: 0.18,
-        DismissDirection.endToStart: 0.22,
-      },
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onLongPress: actionInProgress
-              ? null
-              : () async {
-                  try {
-                    Haptics.medium();
-                    await _toggleArchive(
-                      roomId: room.id,
-                      currentlyArchived: isArchived,
-                    );
-                  } catch (_) {
-                    _showSnack(message: 'Action failed. Please try again.');
-                  }
-                },
-          onTap: actionInProgress
-              ? null
-              : () {
-                  Haptics.selection();
-                  Get.to(() => ChatRoomView(roomId: room.id));
-                },
-          child: Ink(
-            decoration: BoxDecoration(
-              gradient: ChatPalette.cardGradient,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: ChatPalette.border.withValues(alpha: 0.6),
+          return false;
+        },
+        dismissThresholds: const {
+          DismissDirection.startToEnd: 0.18,
+          DismissDirection.endToStart: 0.22,
+        },
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onLongPress: actionInProgress
+                ? null
+                : () async {
+                    try {
+                      Haptics.medium();
+                      await _toggleArchive(
+                        roomId: room.id,
+                        currentlyArchived: isArchived,
+                      );
+                    } catch (_) {
+                      _showSnack(message: 'Action failed. Please try again.');
+                    }
+                  },
+            onTap: actionInProgress
+                ? null
+                : () {
+                    Haptics.selection();
+                    Get.to(() => ChatRoomView(roomId: room.id));
+                  },
+            child: Ink(
+              decoration: BoxDecoration(
+                gradient: isUnread
+                    ? const LinearGradient(
+                        colors: [Color(0xFF1D241A), Color(0xFF111611)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : ChatPalette.cardGradient,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isUnread
+                      ? ChatPalette.primary.withValues(alpha: 0.75)
+                      : ChatPalette.border.withValues(alpha: 0.6),
+                ),
+                boxShadow: isUnread
+                    ? [
+                        BoxShadow(
+                          color: ChatPalette.primary.withValues(alpha: 0.16),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ]
+                    : null,
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Stack(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: room.isGroup
-                              ? ChatPalette.accent
-                              : ChatPalette.primary,
-                        ),
-                        child: Center(
-                          child: hasAvatar
-                              ? CircleAvatar(
-                                  radius: 18,
-                                  backgroundImage: CachedNetworkImageProvider(
-                                    room.imageUrl.trim(),
-                                  ),
-                                )
-                              : room.isGroup
-                              ? const Icon(
-                                  Icons.groups_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                )
-                              : StreamBuilder<ChatUserModel?>(
-                                  stream: _chatService.streamUserById(otherId),
-                                  builder: (context, snap) {
-                                    final photoFromChat =
-                                        snap.data?.photoUrl.trim() ?? '';
-                                    final selfGoogle =
-                                        (otherId == currentUid
-                                                ? firebase_auth
-                                                      .FirebaseAuth
-                                                      .instance
-                                                      .currentUser
-                                                      ?.photoURL
-                                                : null)
-                                            ?.trim() ??
-                                        '';
-                                    final effectivePhoto =
-                                        photoFromChat.isNotEmpty
-                                        ? photoFromChat
-                                        : selfGoogle;
-                                    if (effectivePhoto.isNotEmpty) {
-                                      return CircleAvatar(
-                                        radius: 18,
-                                        backgroundImage:
-                                            CachedNetworkImageProvider(
-                                              effectivePhoto,
-                                            ),
-                                      );
-                                    }
-                                    return Text(
-                                      prefix,
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 13,
-                                      ),
-                                    );
-                                  },
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
-                                color: ChatPalette.textPrimary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            if (room.isGroup)
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      typingPeers.isNotEmpty
-                                          ? 'typing...'
-                                          : subtitle,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
-                                        color: typingPeers.isNotEmpty
-                                            ? ChatPalette.success
-                                            : ChatPalette.textSecondary,
-                                        fontSize: 12,
-                                      ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Stack(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: room.isGroup
+                                ? ChatPalette.accent
+                                : ChatPalette.primary,
+                          ),
+                          child: Center(
+                            child: hasAvatar
+                                ? CircleAvatar(
+                                    radius: 18,
+                                    backgroundImage: CachedNetworkImageProvider(
+                                      room.imageUrl.trim(),
                                     ),
+                                  )
+                                : room.isGroup
+                                ? const Icon(
+                                    Icons.groups_rounded,
+                                    color: Colors.white,
+                                    size: 18,
+                                  )
+                                : StreamBuilder<ChatUserModel?>(
+                                    stream: _chatService.streamUserById(
+                                      otherId,
+                                    ),
+                                    builder: (context, snap) {
+                                      final photoFromChat =
+                                          snap.data?.photoUrl.trim() ?? '';
+                                      final selfGoogle =
+                                          (otherId == currentUid
+                                                  ? firebase_auth
+                                                        .FirebaseAuth
+                                                        .instance
+                                                        .currentUser
+                                                        ?.photoURL
+                                                  : null)
+                                              ?.trim() ??
+                                          '';
+                                      final effectivePhoto =
+                                          photoFromChat.isNotEmpty
+                                          ? photoFromChat
+                                          : selfGoogle;
+                                      if (effectivePhoto.isNotEmpty) {
+                                        return CircleAvatar(
+                                          radius: 18,
+                                          backgroundImage:
+                                              CachedNetworkImageProvider(
+                                                effectivePhoto,
+                                              ),
+                                        );
+                                      }
+                                      return Text(
+                                        prefix,
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                      );
+                                    },
                                   ),
-                                  const SizedBox(width: 6),
-                                  _typeTag(room.isGroup, badgeText),
-                                ],
-                              )
-                            else
-                              StreamBuilder<ChatUserModel?>(
-                                stream: _chatService.streamUserById(otherId),
-                                builder: (context, snap) {
-                                  final user = snap.data;
-                                  final status = typingPeers.isNotEmpty
-                                      ? 'typing...'
-                                      : user == null
-                                      ? subtitle
-                                      : user.isOnline
-                                      ? 'Online'
-                                      : user.lastSeenAt == null
-                                      ? subtitle
-                                      : 'Last seen ${_formatTime(user.lastSeenAt!)}';
-                                  return Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          status,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: GoogleFonts.inter(
-                                            color: typingPeers.isNotEmpty
-                                                ? ChatPalette.success
-                                                : user?.isOnline == true
-                                                ? ChatPalette.success
-                                                : ChatPalette.textSecondary,
-                                            fontSize: 12,
-                                          ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: ChatPalette.textPrimary,
+                                  fontWeight: isUnread
+                                      ? FontWeight.w700
+                                      : FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              if (room.isGroup)
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        typingPeers.isNotEmpty
+                                            ? 'typing...'
+                                            : subtitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          color: typingPeers.isNotEmpty
+                                              ? ChatPalette.success
+                                              : isUnread
+                                              ? ChatPalette.primary
+                                              : ChatPalette.textSecondary,
+                                          fontSize: 12,
+                                          fontWeight: isUnread
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
                                         ),
                                       ),
-                                      const SizedBox(width: 6),
-                                      _typeTag(room.isGroup, badgeText),
-                                    ],
-                                  );
-                                },
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            _formatTime(stamp),
-                            style: GoogleFonts.inter(
-                              color: ChatPalette.textSecondary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    _typeTag(room.isGroup, badgeText),
+                                  ],
+                                )
+                              else
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        typingPeers.isNotEmpty
+                                            ? 'typing...'
+                                            : subtitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          color: typingPeers.isNotEmpty
+                                              ? ChatPalette.success
+                                              : isUnread
+                                              ? ChatPalette.primary
+                                              : ChatPalette.textSecondary,
+                                          fontSize: 12,
+                                          fontWeight: isUnread
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    _typeTag(room.isGroup, badgeText),
+                                  ],
+                                ),
+                            ],
                           ),
-                          if (isMuted) ...[
-                            const SizedBox(height: 3),
-                            const Icon(
-                              Icons.volume_off_rounded,
-                              color: ChatPalette.textSecondary,
-                              size: 13,
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        splashRadius: 16,
-                        visualDensity: const VisualDensity(
-                          horizontal: -4,
-                          vertical: -4,
                         ),
-                        tooltip: 'Actions',
-                        onPressed: actionInProgress
-                            ? null
-                            : () => _showRoomActionsSheet(
-                                room: room,
-                                currentUid: currentUid,
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              _formatTime(stamp),
+                              style: GoogleFonts.inter(
+                                color: isUnread
+                                    ? ChatPalette.primary
+                                    : ChatPalette.textSecondary,
+                                fontSize: 11,
+                                fontWeight: isUnread
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
                               ),
-                        icon: const Icon(
-                          Icons.more_vert_rounded,
+                            ),
+                            if (isUnread) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: ChatPalette.primary.withValues(
+                                    alpha: 0.16,
+                                  ),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: ChatPalette.primary.withValues(
+                                      alpha: 0.65,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  'NEW',
+                                  style: GoogleFonts.inter(
+                                    color: ChatPalette.primary,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (isMuted) ...[
+                              const SizedBox(height: 3),
+                              const Icon(
+                                Icons.volume_off_rounded,
+                                color: ChatPalette.textSecondary,
+                                size: 13,
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          splashRadius: 16,
+                          visualDensity: const VisualDensity(
+                            horizontal: -4,
+                            vertical: -4,
+                          ),
+                          tooltip: 'Actions',
+                          onPressed: actionInProgress
+                              ? null
+                              : () => _showRoomActionsSheet(
+                                  room: room,
+                                  currentUid: currentUid,
+                                ),
+                          icon: const Icon(
+                            Icons.more_vert_rounded,
+                            color: ChatPalette.textSecondary,
+                            size: 17,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(
+                          Icons.chevron_right_rounded,
                           color: ChatPalette.textSecondary,
-                          size: 17,
+                          size: 18,
                         ),
-                      ),
-                      const SizedBox(width: 2),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: ChatPalette.textSecondary,
-                        size: 18,
-                      ),
-                    ],
-                  ),
-                  if (actionInProgress)
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.28),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
-                              color: ChatPalette.primary,
+                      ],
+                    ),
+                    if (actionInProgress)
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.28),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: ChatPalette.primary,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _typeTag(bool isGroup, String label) {

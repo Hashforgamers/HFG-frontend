@@ -38,6 +38,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   final Map<String, String> _lastSeenMessageIdByRoom = {};
   final Set<String> _primedRooms = {};
   final Map<String, bool> _unreadRoomById = {};
+  final RxMap<String, bool> unreadRoomState = <String, bool>{}.obs;
   String? _activeNotificationUid;
   Timer? _presenceHeartbeat;
   static const Duration _presenceHeartbeatInterval = Duration(seconds: 30);
@@ -212,6 +213,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
         _lastSeenMessageIdByRoom.remove(roomId);
         _primedRooms.remove(roomId);
         _unreadRoomById.remove(roomId);
+        unreadRoomState.remove(roomId);
       }
       _recomputeUnreadRoomCount();
     });
@@ -228,6 +230,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     _lastSeenMessageIdByRoom.clear();
     _primedRooms.clear();
     _unreadRoomById.clear();
+    unreadRoomState.clear();
     unreadRoomCount.value = 0;
   }
 
@@ -934,8 +937,12 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       throw Exception('Please sign in to share bookings.');
     }
 
-    final safeCafeName = cafeName.trim().isEmpty ? 'Gaming Cafe' : cafeName.trim();
-    final safeConsoleType = consoleType.trim().isEmpty ? 'Setup' : consoleType.trim();
+    final safeCafeName = cafeName.trim().isEmpty
+        ? 'Gaming Cafe'
+        : cafeName.trim();
+    final safeConsoleType = consoleType.trim().isEmpty
+        ? 'Setup'
+        : consoleType.trim();
     final safeBookingDate = bookingDate.trim();
     if (safeBookingDate.isEmpty || bookingIds.isEmpty) {
       throw Exception('Invalid booking details for sharing.');
@@ -957,8 +964,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
         .toSet()
         .toList();
 
-    final previewText =
-        '$senderName shared a squad booking for $safeCafeName';
+    final previewText = '$senderName shared a squad booking for $safeCafeName';
 
     final batch = _firestore.batch();
     batch.set(messageRef, {
@@ -1087,6 +1093,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
           message.senderId != currentUidValue &&
           !message.seenBy.contains(currentUidValue);
       _unreadRoomById[room.id] = isUnreadForCurrentUser;
+      unreadRoomState[room.id] = isUnreadForCurrentUser;
       _recomputeUnreadRoomCount();
 
       final previousMessageId = _lastSeenMessageIdByRoom[room.id];
@@ -1133,6 +1140,10 @@ class ChatService extends GetxService with WidgetsBindingObserver {
 
   void _recomputeUnreadRoomCount() {
     unreadRoomCount.value = _unreadRoomById.values.where((v) => v).length;
+  }
+
+  bool isRoomUnread(String roomId) {
+    return unreadRoomState[roomId] == true;
   }
 
   void _notifyIncomingMessage({
@@ -1264,8 +1275,11 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       _readNested(raw, ['mobile'])?.toString(),
       _readNested(raw, ['mobileNo'])?.toString(),
       _readNested(raw, ['mobile_number'])?.toString(),
-      _readNested(raw, ['contact', 'electronicAddress', 'mobileNo'])
-          ?.toString(),
+      _readNested(raw, [
+        'contact',
+        'electronicAddress',
+        'mobileNo',
+      ])?.toString(),
     ], fallback: '');
 
     final photoUrl = _firstNonEmpty([
