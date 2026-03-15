@@ -950,46 +950,50 @@ class BookingTicketCard extends StatelessWidget {
                               fontSize: 10,
                             ),
                           ),
-
-                          const SizedBox(height: 8), // Reduced from 12
-                          ElevatedButton(
-                            onPressed: () async {
-                              if (!context.mounted) return;
-                              final messenger = ScaffoldMessenger.of(context);
-                              final result = await Get.to(
-                                () => const QrScannerView(),
-                              );
-                              if (!context.mounted) return;
-                              if (result != null) {
-                                _handleScannedCode(
-                                  context,
-                                  messenger,
-                                  result.toString(),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: 88,
+                            height: 32,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                if (!context.mounted) return;
+                                final messenger = ScaffoldMessenger.of(context);
+                                final result = await Get.to(
+                                  () => const QrScannerView(),
                                 );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xff00DC00),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ), // very slim
-                              minimumSize: const Size(
-                                0,
-                                28,
-                              ), // optional: control height
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
+                                if (!context.mounted) return;
+                                if (result != null) {
+                                  _handleScannedCode(
+                                    context,
+                                    messenger,
+                                    result.toString(),
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xff00DC00),
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                elevation: 0,
                               ),
-                              textStyle: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w400,
+                              icon: const Icon(
+                                Icons.qr_code_scanner_rounded,
+                                size: 13,
                               ),
-                              tapTargetSize: MaterialTapTargetSize
-                                  .shrinkWrap, // avoid extra height
-                              elevation: 0, // optional: keep it flat
+                              label: Text(
+                                'Scan',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
-                            child: const Text('Scan QR'),
                           ),
                         ],
                       ),
@@ -1015,10 +1019,10 @@ class BookingTicketCard extends StatelessWidget {
                               style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
-                                fontSize: 14, // Reduced from 16
+                                fontSize: 14,
                               ),
                             ),
-                            const SizedBox(height: 4), // Reduced from 6
+                            const SizedBox(height: 4),
                             Text(
                               '$start - $end',
                               style: GoogleFonts.inter(

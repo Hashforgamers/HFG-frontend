@@ -113,20 +113,6 @@ class _HomeContentViewState extends State<HomeContentView>
   final Map<String, bool> _sectionVisibility = {};
   final prefs = locator<SharedPreferences>();
 
-  Future<firebase_auth.User?> _resolveCurrentUser() async {
-    final auth = firebase_auth.FirebaseAuth.instance;
-    final currentUser = auth.currentUser;
-    if (currentUser != null) return currentUser;
-
-    try {
-      return await auth.authStateChanges().first.timeout(
-        const Duration(seconds: 3),
-      );
-    } catch (_) {
-      return auth.currentUser;
-    }
-  }
-
   @override
   bool get wantKeepAlive => true;
 
@@ -335,7 +321,7 @@ class _HomeContentViewState extends State<HomeContentView>
   }
 
   Future<bool> _fetchUserDataIfNeeded() async {
-    final currentUser = await _resolveCurrentUser();
+    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       _redirectToLogin();
       return false;

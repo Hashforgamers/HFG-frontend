@@ -22,17 +22,26 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
     'Completed': const [],
   };
 
+  void _emitIfOpen(TournamentHomeState state) {
+    if (!isClosed) emit(state);
+  }
+
   Future<void> fetchTournaments() async {
-    emit(TournamentHomeLoading());
+    _emitIfOpen(TournamentHomeLoading());
     try {
       final userId = await _resolveUserId();
+      if (isClosed) return;
       final events = await remoteRepo.fetchPublicEvents();
+      if (isClosed) return;
       final joinable = events.map(TournamentModel.fromJson).toList();
       _allJoinableTournaments = joinable;
 
       List<TournamentModel> joinedAll = const [];
       if (userId != null && userId > 0) {
-        final joinedPayload = await remoteRepo.fetchJoinedTournaments(userId: userId);
+        final joinedPayload = await remoteRepo.fetchJoinedTournaments(
+          userId: userId,
+        );
+        if (isClosed) return;
         _joinedByTab['All'] = (joinedPayload['all'] ?? const [])
             .map((e) => TournamentModel.fromJson({...e, 'is_joined': true}))
             .toList();
@@ -49,7 +58,8 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
       }
 
       final myTeams = await _fetchMyTeamsSafe();
-      emit(
+      if (isClosed) return;
+      _emitIfOpen(
         TournamentHomeLoaded(
           tournaments: joinedAll,
           joinableTournaments: _allJoinableTournaments,
@@ -57,7 +67,7 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
         ),
       );
     } catch (e) {
-      emit(TournamentHomeError(message: e.toString()));
+      _emitIfOpen(TournamentHomeError(message: e.toString()));
     }
   }
 
@@ -66,7 +76,7 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
     final currentState = state as TournamentHomeLoaded;
     final filtered = _joinedByTab[category] ?? const <TournamentModel>[];
 
-    emit(
+    _emitIfOpen(
       TournamentHomeLoaded(
         tournaments: filtered,
         joinableTournaments: currentState.joinableTournaments,
