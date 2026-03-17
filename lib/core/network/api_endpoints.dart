@@ -135,6 +135,24 @@ class ApiEndpoints {
   static String getExtraService(String vendorId) =>
       '$userOnboardBaseUrl/api/vendor/$vendorId/extraService';
 
+  // Reviews
+  static String get createReview => '$userOnboardBaseUrl/api/reviews';
+  static String updateReview(String reviewId) =>
+      '$userOnboardBaseUrl/api/reviews/$reviewId';
+  static String vendorReviews(
+    String vendorId, {
+    int limit = 20,
+    int offset = 0,
+    int? rating,
+    String sort = 'recent',
+  }) {
+    final ratingQuery = rating == null ? '' : '&rating=$rating';
+    return '$userOnboardBaseUrl/api/vendors/$vendorId/reviews?limit=$limit&offset=$offset&sort=$sort$ratingQuery';
+  }
+
+  static String vendorReviewsSummary(String vendorId) =>
+      '$userOnboardBaseUrl/api/vendors/$vendorId/reviews/summary';
+
   // Get Transaction History
   static String get getTransactionHistory =>
       '$userOnboardBaseUrl/api/users/transactions';

@@ -119,6 +119,35 @@ abstract class RemoteRepoInterface {
 
   Future<String> releaseBooking({required BookingModel bookings});
 
+  Future<Map<String, dynamic>> createCafeReview({
+    required int vendorId,
+    required int bookingId,
+    required int rating,
+    String? title,
+    String? comment,
+    bool? isAnonymous,
+  });
+
+  Future<Map<String, dynamic>> updateCafeReview({
+    required int reviewId,
+    int? rating,
+    String? title,
+    String? comment,
+    bool? isAnonymous,
+  });
+
+  Future<List<Map<String, dynamic>>> fetchVendorReviews({
+    required int vendorId,
+    int limit = 20,
+    int offset = 0,
+    int? rating,
+    String sort = 'recent',
+  });
+
+  Future<Map<String, dynamic>> fetchVendorReviewsSummary({
+    required int vendorId,
+  });
+
   Future<List<GetPassModel>> getGamePass({
     required String userId,
     required String type,

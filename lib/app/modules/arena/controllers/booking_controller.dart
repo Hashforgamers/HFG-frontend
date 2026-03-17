@@ -99,11 +99,10 @@ class BookingController extends GetxController {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
 
-      // Parse slot start time
-      final startTimeStr = slot['start_time'] ?? '';
+      final startTimeStr = (slot['start_time'] ?? '').toString();
       final startTimeParts = startTimeStr.split(':');
       if (startTimeParts.length < 2) {
-        return true; // If can't parse, assume available
+        return true;
       }
 
       final startHour = int.parse(startTimeParts[0]);
@@ -112,15 +111,10 @@ class BookingController extends GetxController {
         Duration(hours: startHour, minutes: startMinute),
       );
 
-      // Add a buffer of 15 minutes - slots within 15 minutes of current time are not available
-      final bufferTime = now.add(const Duration(minutes: 15));
-
-      // If slot start time is in the past or within buffer time, it's not available
-      if (slotStartTime.isBefore(bufferTime)) {
-        return false;
-      }
-
-      return true;
+      // Show only future slots for the current day. Ongoing or elapsed slots
+      // should not be bookable, but upcoming slots must remain visible right
+      // until their start time.
+      return now.isBefore(slotStartTime);
     } catch (e) {
       return true; // Default to available if error
     }

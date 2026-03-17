@@ -1192,6 +1192,175 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
+  Future<Map<String, dynamic>> createCafeReview({
+    required int vendorId,
+    required int bookingId,
+    required int rating,
+    String? title,
+    String? comment,
+    bool? isAnonymous,
+  }) async {
+    final dio = await networkProvider.auth();
+    final url = ApiEndpoints.createReview;
+    final payload = <String, dynamic>{
+      'vendor_id': vendorId,
+      'booking_id': bookingId,
+      'rating': rating,
+      if ((title ?? '').trim().isNotEmpty) 'title': title!.trim(),
+      if ((comment ?? '').trim().isNotEmpty) 'comment': comment!.trim(),
+      if (isAnonymous != null) 'is_anonymous': isAnonymous,
+    };
+
+    try {
+      debugPrint('createCafeReview request -> url=$url, body=$payload');
+      final response = await dio.post(
+        url,
+        data: payload,
+        options: Options(contentType: Headers.jsonContentType),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final body = response.data;
+        debugPrint(
+          'createCafeReview success -> url=$url, status=${response.statusCode}, response=$body',
+        );
+        if (body is Map) {
+          return Map<String, dynamic>.from(body);
+        }
+        throw Exception('Invalid review create response format.');
+      }
+      debugPrint(
+        'createCafeReview failed -> url=$url, status=${response.statusCode}, body=$payload, response=${response.data}',
+      );
+      throw Exception(
+        'Failed to create review. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      if (e is DioException) {
+        debugPrint(
+          'createCafeReview DioException -> url=$url, status=${e.response?.statusCode}, body=$payload, response=${e.response?.data}, message=${e.message}',
+        );
+      }
+      debugPrint('Error creating cafe review: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateCafeReview({
+    required int reviewId,
+    int? rating,
+    String? title,
+    String? comment,
+    bool? isAnonymous,
+  }) async {
+    final dio = await networkProvider.auth();
+    final url = ApiEndpoints.updateReview(reviewId.toString());
+    final payload = <String, dynamic>{
+      if (rating != null) 'rating': rating,
+      if ((title ?? '').trim().isNotEmpty) 'title': title!.trim(),
+      if ((comment ?? '').trim().isNotEmpty) 'comment': comment!.trim(),
+      if (isAnonymous != null) 'is_anonymous': isAnonymous,
+    };
+
+    try {
+      debugPrint(
+        'updateCafeReview request -> url=$url, reviewId=$reviewId, body=$payload',
+      );
+      final response = await dio.patch(
+        url,
+        data: payload,
+        options: Options(contentType: Headers.jsonContentType),
+      );
+      if (response.statusCode == 200) {
+        final body = response.data;
+        debugPrint(
+          'updateCafeReview success -> url=$url, reviewId=$reviewId, status=${response.statusCode}, response=$body',
+        );
+        if (body is Map) {
+          return Map<String, dynamic>.from(body);
+        }
+        throw Exception('Invalid review update response format.');
+      }
+      debugPrint(
+        'updateCafeReview failed -> url=$url, reviewId=$reviewId, status=${response.statusCode}, body=$payload, response=${response.data}',
+      );
+      throw Exception(
+        'Failed to update review. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      if (e is DioException) {
+        debugPrint(
+          'updateCafeReview DioException -> url=$url, reviewId=$reviewId, status=${e.response?.statusCode}, body=$payload, response=${e.response?.data}, message=${e.message}',
+        );
+      }
+      debugPrint('Error updating cafe review: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchVendorReviews({
+    required int vendorId,
+    int limit = 20,
+    int offset = 0,
+    int? rating,
+    String sort = 'recent',
+  }) async {
+    final dio = networkProvider.noAuth();
+    final safeLimit = limit.clamp(1, 100);
+    final safeSort = sort.trim().toLowerCase() == 'top' ? 'top' : 'recent';
+    try {
+      final response = await dio.get(
+        ApiEndpoints.vendorReviews(
+          vendorId.toString(),
+          limit: safeLimit,
+          offset: offset,
+          rating: rating,
+          sort: safeSort,
+        ),
+      );
+      if (response.statusCode == 200) {
+        final body = response.data;
+        final items = body is Map<String, dynamic> ? body['items'] : null;
+        if (items is List) {
+          return items
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+        return const [];
+      }
+      throw Exception(
+        'Failed to fetch vendor reviews. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching vendor reviews: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchVendorReviewsSummary({
+    required int vendorId,
+  }) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final response = await dio.get(
+        ApiEndpoints.vendorReviewsSummary(vendorId.toString()),
+      );
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(response.data as Map);
+      }
+      throw Exception(
+        'Failed to fetch review summary. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching review summary: $e');
+      rethrow;
+    }
+  }
+
+  @override
   Future<String> registerFCMToken({
     required String userId,
     required String token,

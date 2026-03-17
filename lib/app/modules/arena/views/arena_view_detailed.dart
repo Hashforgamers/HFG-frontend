@@ -1551,7 +1551,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
                     const SizedBox(height: 24),
 
-                    ArenaDetailReviewsSection(reviews: widget.reviews),
+                    ArenaDetailReviewsSection(
+                      vendorId: widget.vendorId,
+                      initialReviews: widget.reviews,
+                    ),
                     const SizedBox(height: 80),
                   ],
                 ),
