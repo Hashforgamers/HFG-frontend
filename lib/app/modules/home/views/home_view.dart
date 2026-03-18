@@ -1,12 +1,17 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/arena/services/booking_food_order_service.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
+import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/home/controllers/app_mode_controller.dart';
 import 'package:hash/app/modules/home/controllers/session_progress_controller.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
@@ -16,10 +21,13 @@ import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/location_analytics_service.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../controllers/home_controller.dart';
 
 class HomeView extends StatefulWidget {
@@ -30,6 +38,8 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
+  static const String _hashCoinIconUrl =
+      'https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_loog_kze6kr.png';
   final HomeController controller = Get.find();
   final BookingController bookingController = Get.find<BookingController>();
   final ShopController shopController = Get.find<ShopController>();
@@ -46,6 +56,7 @@ class _HomeViewState extends State<HomeView> {
   bool _didApplyTabArgument = false;
   bool _didApplyPassesArgument = false;
   bool _didSyncChatProfile = false;
+  bool _dailyLoginRewardHandled = false;
   bool _isHomeScrolling = false;
   Timer? _fabExpandTimer;
   Worker? _bookingsWorker;
@@ -71,10 +82,234 @@ class _HomeViewState extends State<HomeView> {
     unawaited(
       _squadMissionsService.trackAction(action: SquadMissionAction.dailyLogin),
     );
+    unawaited(_handleDailyLoginHashCoinReward());
     unawaited(
       _locationAnalyticsService.trackCurrentLocation(source: 'home_init'),
     );
     unawaited(_fiamService.triggerHomeOpen());
+  }
+
+  Future<void> _handleDailyLoginHashCoinReward() async {
+    if (_dailyLoginRewardHandled) return;
+    _dailyLoginRewardHandled = true;
+
+    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final prefs = locator<SharedPreferences>();
+    final userData = await locator<RemoteRepoInterface>()
+        .getUserFromPreferences();
+    final backendUserId = (userData?['id'] ?? userData?['user_id'] ?? '')
+        .toString()
+        .trim();
+    final rewardUserKey = backendUserId.isNotEmpty
+        ? backendUserId
+        : currentUser.uid;
+    if (rewardUserKey.isEmpty) return;
+
+    final now = DateTime.now();
+    final dayKey =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final claimedKey = 'daily_login_hash_reward_${rewardUserKey}_$dayKey';
+    if (prefs.getBool(claimedKey) ?? false) return;
+
+    final reward = 5 + Random().nextInt(16);
+
+    try {
+      await locator<RemoteRepoInterface>().addHashCoins(
+        amount: reward,
+        source: 'daily_login_reward',
+        referenceId: 'daily_login_${rewardUserKey}_$dayKey',
+      );
+      await prefs.setBool(claimedKey, true);
+      if (!mounted) return;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        try {
+          context.read<HashCoinCubit>().getHashCoin();
+        } catch (_) {
+          // ignore if cubit context is unavailable
+        }
+      });
+
+      await _showDailyLoginRewardPopup(amount: reward);
+    } catch (_) {
+      // keep home flow silent if reward call fails
+    }
+  }
+
+  Future<void> _showDailyLoginRewardPopup({required int amount}) async {
+    await Get.dialog<void>(
+      Dialog(
+        backgroundColor: Colors.transparent,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0E1016).withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: const Color(0xFF37EBF3).withValues(alpha: 0.22),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.32),
+                    blurRadius: 24,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 76,
+                    height: 76,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF37EBF3).withValues(alpha: 0.2),
+                          const Color(0xFFF4C342).withValues(alpha: 0.14),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      border: Border.all(
+                        color: const Color(0xFFF4C342).withValues(alpha: 0.22),
+                      ),
+                    ),
+                    child: CachedNetworkImage(
+                      imageUrl: _hashCoinIconUrl,
+                      fit: BoxFit.contain,
+                      placeholder: (_, _) =>
+                          const Center(child: RainbowGlowingLoader(size: 16)),
+                      errorWidget: (_, _, _) => const Icon(
+                        Icons.workspace_premium_rounded,
+                        color: Color(0xFFF4C342),
+                        size: 32,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Text(
+                      'Daily Login Reward',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF9EF9FF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Welcome back',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF37EBF3).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFF37EBF3).withValues(alpha: 0.16),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CachedNetworkImage(
+                          imageUrl: _hashCoinIconUrl,
+                          width: 20,
+                          height: 20,
+                          placeholder: (_, _) => const Center(
+                            child: RainbowGlowingLoader(size: 8),
+                          ),
+                          errorWidget: (_, _, _) => const Icon(
+                            Icons.workspace_premium_rounded,
+                            color: Color(0xFFF4C342),
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'You received $amount HashCoins',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFFFE08A),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Daily logins reward you with a random 5 to 20 HashCoins.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton(
+                      onPressed: () => Get.back<void>(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF4C342),
+                        foregroundColor: Colors.black,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Claim',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _syncChatProfile() async {

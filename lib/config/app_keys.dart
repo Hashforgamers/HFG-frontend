@@ -1,7 +1,15 @@
+import 'dart:io' show Platform;
+
 class AppKeys {
   static const String rawgApiKey = '5161e75d1d234431ac34d3947d01ea1e';
   static const String gameSpotApiKey = '...';
-  static const String googleMapsApiKey = '...';
+  static const String _androidGoogleMapsApiKey =
+      'AIzaSyAIeaszJ60ZcjL9hNYpsQ_JD8w8J2vnmuQ';
+  static const String _iosGoogleMapsApiKey =
+      'AIzaSyDjaI5XOoq4r0AbJVfDSz9tiQqLGBC_yNU';
+  static String get googleMapsApiKey =>
+      Platform.isAndroid ? _androidGoogleMapsApiKey : _iosGoogleMapsApiKey;
+  static String get googlePlacesApiKey => googleMapsApiKey;
   static const String fruitNinjaSecretKey = 'dev';
 
   static const List<String> newsApiKeys = <String>[

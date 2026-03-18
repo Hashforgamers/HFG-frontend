@@ -173,8 +173,11 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
 
   Widget _buildMainCoinCard() {
     return AnimatedBuilder(
-      animation:
-          Listenable.merge([_pulseAnimation, _glowAnimation, _floatAnimation]),
+      animation: Listenable.merge([
+        _pulseAnimation,
+        _glowAnimation,
+        _floatAnimation,
+      ]),
       builder: (context, child) {
         return Transform.translate(
           offset: Offset(0, _floatAnimation.value),
@@ -199,8 +202,9 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xffDE3A3A)
-                        .withOpacity(_glowAnimation.value * 0.4),
+                    color: const Color(
+                      0xffDE3A3A,
+                    ).withOpacity(_glowAnimation.value * 0.4),
                     blurRadius: 30,
                     spreadRadius: 5,
                   ),
@@ -381,10 +385,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
           ],
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.15),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
@@ -466,16 +467,10 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            color.withOpacity(0.15),
-            color.withOpacity(0.05),
-          ],
+          colors: [color.withOpacity(0.15), color.withOpacity(0.05)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
       ),
       child: Column(
         children: [
@@ -523,10 +518,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
           ],
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.15),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
@@ -591,8 +583,8 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
               _buildModernEarnItem(
                 icon: Icons.star,
                 title: 'Daily Login',
-                description: 'Collect daily rewards',
-                coins: _formatHashCoins(25),
+                description: 'Collect a random reward every day',
+                coins: '5-20 HC',
                 gradient: const LinearGradient(
                   colors: [Color(0xff37ebf3), Color(0xffF4C342)],
                 ),
@@ -623,10 +615,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
       ),
       child: Row(
         children: [
@@ -636,11 +625,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
               gradient: gradient,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 20,
-            ),
+            child: Icon(icon, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -657,10 +642,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
                 ),
                 Text(
                   description,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white70,
-                  ),
+                  style: GoogleFonts.inter(fontSize: 13, color: Colors.white70),
                 ),
               ],
             ),
@@ -817,9 +799,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
         ),
         backgroundColor: const Color(0xff00DC00),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 4),
       ),
     );
@@ -834,9 +814,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
         ),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 4),
       ),
     );
@@ -847,13 +825,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
       SnackBar(
         content: Row(
           children: [
-             SizedBox(
-              width: 20,
-              height: 20,
-              child: AppLinearLoader(
-
-              ),
-            ),
+            SizedBox(width: 20, height: 20, child: AppLinearLoader()),
             const SizedBox(width: 16),
             Text(
               'Processing redemption...',
@@ -863,9 +835,7 @@ class _HashCoinWidgetState extends State<HashCoinWidget>
         ),
         backgroundColor: const Color(0xffDE3A3A),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
       ),
     );

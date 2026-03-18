@@ -55,7 +55,8 @@ class _ArenaViewState extends State<ArenaView> {
   final RxSet<Marker> markers = <Marker>{}.obs;
   final RxSet<Polyline> polylines = <Polyline>{}.obs;
 
-  final _polylinePoints = PolylinePoints(apiKey: _gmapsKey); // was ''
+  late final String _gmapsKey = AppKeys.googleMapsApiKey;
+  late final _polylinePoints = PolylinePoints(apiKey: _gmapsKey); // was ''
 
   final TextEditingController _searchCtl = TextEditingController();
   final PageController _cafePageController = PageController(
@@ -78,8 +79,6 @@ class _ArenaViewState extends State<ArenaView> {
   final Map<String, Map<String, String>> _distanceCache = {};
   final Map<String, Future<Map<String, String>>> _distanceFutureCache = {};
 
-  /// ⚠️  Replace with build-time env variable or secure storage
-  static const _gmapsKey = AppKeys.googleMapsApiKey;
   bool _mapReady = false; // NEW
   bool _playedZoom = false; // NEW
 

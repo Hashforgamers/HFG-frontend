@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform;
+    show defaultTargetPlatform, TargetPlatform, debugPrint;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -236,7 +236,7 @@ class NotificationController extends GetxController {
       if (token != null && token.isNotEmpty) {
         fcmToken.value = token;
         await _fm.subscribeToTopic('mira_road_users');
-        print("Subscribed to mira_road_users");
+        debugPrint('Subscribed to mira_road_users');
         // Send to backend / analytics here
         // segmentService.identifyPushToken(token: token);
       }
@@ -539,6 +539,37 @@ class NotificationController extends GetxController {
       presentBadge: true,
       presentSound: true,
       interruptionLevel: InterruptionLevel.active,
+    );
+
+    const details = NotificationDetails(android: android, iOS: ios);
+    await _fln.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      details,
+      payload: payload ?? '',
+    );
+  }
+
+  Future<void> showLeaderboardNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    const android = AndroidNotificationDetails(
+      'system_channel',
+      'System Alerts',
+      channelDescription: 'System notifications and updates',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const ios = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      interruptionLevel: InterruptionLevel.active,
+      threadIdentifier: 'leaderboard_updates',
     );
 
     const details = NotificationDetails(android: android, iOS: ios);

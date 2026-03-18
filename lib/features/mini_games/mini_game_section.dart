@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/features/mini_games/pacman/HomePage.dart';
 import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
 import 'flappy_birds/Layouts/Pages/page_start_screen.dart';
 import 'mini_game_card.dart';
@@ -23,6 +28,8 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
   final MiniGameScoreService _scoreService = MiniGameScoreService();
   final MiniGameLeaderboardService _leaderboardService =
       MiniGameLeaderboardService();
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
   bool _scoresLoaded = false;
 
   @override
@@ -131,7 +138,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
 
             itemCount: _games.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
             itemBuilder: (context, index) => RepaintBoundary(
               child: MiniGameCard(
                 game: _games[index],
@@ -149,6 +156,18 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
     BuildContext context,
     MiniGameScoreService scoreService,
   ) {
+    unawaited(
+      _segmentService.onCustomEvent('Arcade Leaderboard Entry Tapped', {
+        'entry_point': 'mini_games_section',
+        'total_score': _scoreService.totalScore,
+      }),
+    );
+    unawaited(
+      _fbEventsService.onCustomEvent('Arcade Leaderboard Entry Tapped', {
+        'entry_point': 'mini_games_section',
+        'total_score': _scoreService.totalScore,
+      }),
+    );
     Get.to(
       () => MiniGameLeaderboardPage(
         scoreService: scoreService,

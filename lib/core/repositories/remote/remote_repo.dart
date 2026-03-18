@@ -1077,6 +1077,44 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
+  Future<int> addHashCoins({
+    required int amount,
+    String? source,
+    String? referenceId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.getHashCoin,
+        data: {
+          'amount': amount,
+          'source': source ?? 'external_cafe_like',
+          'reference_id':
+              referenceId ??
+              'external_cafe_like_${DateTime.now().millisecondsSinceEpoch}',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = response.data;
+        if (data is Map<String, dynamic>) {
+          final hashCoins = data['hash_coins'] ?? data['total_hash_coins'];
+          if (hashCoins is int) return hashCoins;
+          if (hashCoins is num) return hashCoins.toInt();
+        }
+        return amount;
+      }
+
+      throw Exception(
+        'Failed to add hash coins. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error adding hash coins: $e');
+      rethrow;
+    }
+  }
+
+  @override
   Future<CreateVoucherResponse> createOffer({
     required int discountPercentage,
   }) async {

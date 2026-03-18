@@ -102,6 +102,11 @@ abstract class RemoteRepoInterface {
   Future<List<GetVoucherModel>> getVoucher({required String userId});
 
   Future<int> getHashCoin();
+  Future<int> addHashCoins({
+    required int amount,
+    String? source,
+    String? referenceId,
+  });
 
   Future<CreateVoucherResponse> createOffer({required int discountPercentage});
 

@@ -93,207 +93,210 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
             ? "You're unstoppable, keep the fire alive!"
             : "You're doing really great, stay on fire!";
 
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                const Color(0xFFFF8A3C).withValues(alpha: 0.62),
-                const Color(0xFFFF6A22).withValues(alpha: 0.52),
-                const Color(0xFFE64A12).withValues(alpha: 0.46),
-              ],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0x66A82D00).withValues(alpha: 0.42),
-                blurRadius: 24,
-                offset: Offset(0, 14),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFFFF8A3C).withValues(alpha: 0.62),
+                  const Color(0xFFFF6A22).withValues(alpha: 0.52),
+                  const Color(0xFFE64A12).withValues(alpha: 0.46),
+                ],
               ),
-            ],
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.14),
-              width: 1,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0x66A82D00).withValues(alpha: 0.42),
+                  blurRadius: 24,
+                  offset: Offset(0, 14),
+                ),
+              ],
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.14),
+                width: 1,
+              ),
             ),
-          ),
-          child: Stack(
-            children: [
-              // Positioned(
-              //   top: -28,
-              //   left: 0,
-              //   right: 0,
-              //   child: Center(
-              //     child: Container(
-              //       width: 136,
-              //       height: 82,
-              //       decoration: BoxDecoration(
-              //         shape: BoxShape.circle,
-              //         color: const Color(0xFFFFF8D3).withValues(alpha: 0.1),
-              //         boxShadow: [
-              //           BoxShadow(
-              //             color: const Color(0xFFFFF3BF).withValues(alpha: 0.8),
-              //             blurRadius: 28,
-              //             spreadRadius: 8,
-              //           ),
-              //         ],
-              //       ),
-              //     ),
-              //   ),
-              // ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AnimatedBuilder(
-                        animation: _pulseController,
-                        builder: (_, child) {
-                          return Transform.scale(
-                            scale: _pulseScale.value,
-                            child: child,
-                          );
-                        },
-                        child: SizedBox(
-                          width: 42,
-                          height: 42,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Container(
-                                width: 42,
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: RadialGradient(
-                                    colors: [
-                                      const Color(
-                                        0xFFFFF8D2,
-                                      ).withValues(alpha: _pulseOpacity.value),
-                                      const Color(
-                                        0xFFFFF8D2,
-                                      ).withValues(alpha: 0.0),
-                                    ],
-                                    stops: const [0.2, 1],
+            child: Stack(
+              children: [
+                // Positioned(
+                //   top: -28,
+                //   left: 0,
+                //   right: 0,
+                //   child: Center(
+                //     child: Container(
+                //       width: 136,
+                //       height: 82,
+                //       decoration: BoxDecoration(
+                //         shape: BoxShape.circle,
+                //         color: const Color(0xFFFFF8D3).withValues(alpha: 0.1),
+                //         boxShadow: [
+                //           BoxShadow(
+                //             color: const Color(0xFFFFF3BF).withValues(alpha: 0.8),
+                //             blurRadius: 28,
+                //             spreadRadius: 8,
+                //           ),
+                //         ],
+                //       ),
+                //     ),
+                //   ),
+                // ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AnimatedBuilder(
+                          animation: _pulseController,
+                          builder: (_, child) {
+                            return Transform.scale(
+                              scale: _pulseScale.value,
+                              child: child,
+                            );
+                          },
+                          child: SizedBox(
+                            width: 42,
+                            height: 42,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Container(
+                                  width: 42,
+                                  height: 42,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: RadialGradient(
+                                      colors: [
+                                        const Color(0xFFFFF8D2).withValues(
+                                          alpha: _pulseOpacity.value,
+                                        ),
+                                        const Color(
+                                          0xFFFFF8D2,
+                                        ).withValues(alpha: 0.0),
+                                      ],
+                                      stops: const [0.2, 1],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Icon(
-                                Icons.bolt_rounded,
-                                color: Colors.white.withValues(alpha: 0.98),
-                                size: 26,
-                              ),
-                            ],
+                                Icon(
+                                  Icons.bolt_rounded,
+                                  color: Colors.white.withValues(alpha: 0.98),
+                                  size: 26,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${data.currentStreak} Days Streak',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1,
+                        const SizedBox(width: 6),
+                        Text(
+                          '${data.currentStreak} Days Streak',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    encouragement,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: Colors.white.withValues(alpha: 0.88),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0x66A63A12), Color(0x8CC24116)],
+                    const SizedBox(height: 2),
+                    Text(
+                      encouragement,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(dayLabels.length, (index) {
-                        final label = dayLabels[index];
-                        final isToday = index == todayIndex;
-                        final distance = (todayIndex - index);
-                        final isChecked =
-                            distance > 0 && distance <= checkedCount;
-                        return _dayNode(
-                          label: label,
-                          checked: isChecked,
-                          fire: isToday && data.currentStreak > 0,
-                        );
-                      }),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => _showMissionsSheet(context, data.missions),
-                    child: Container(
+                    const SizedBox(height: 8),
+                    Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 7,
+                      ),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
+                        borderRadius: BorderRadius.circular(20),
+                        gradient: const LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.white.withValues(alpha: 0.10),
-                            Colors.white.withValues(alpha: 0.05),
-                          ],
-                        ),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.14),
-                          width: 1,
-                        ),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(2),
-                          topRight: Radius.circular(2),
-                          bottomLeft: Radius.circular(22),
-                          bottomRight: Radius.circular(22),
+                          colors: [Color(0x66A63A12), Color(0x8CC24116)],
                         ),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'See Details',
-                            style: GoogleFonts.inter(
-                              color: Colors.white.withValues(alpha: 0.95),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ],
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(dayLabels.length, (index) {
+                          final label = dayLabels[index];
+                          final isToday = index == todayIndex;
+                          final distance = (todayIndex - index);
+                          final isChecked =
+                              distance > 0 && distance <= checkedCount;
+                          return _dayNode(
+                            label: label,
+                            checked: isChecked,
+                            fire: isToday && data.currentStreak > 0,
+                          );
+                        }),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () => _showMissionsSheet(context, data.missions),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.white.withValues(alpha: 0.10),
+                              Colors.white.withValues(alpha: 0.05),
+                            ],
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.14),
+                            width: 1,
+                          ),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(2),
+                            topRight: Radius.circular(2),
+                            bottomLeft: Radius.circular(22),
+                            bottomRight: Radius.circular(22),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'See Details',
+                              style: GoogleFonts.inter(
+                                color: Colors.white.withValues(alpha: 0.95),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },

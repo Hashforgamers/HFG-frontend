@@ -16,7 +16,7 @@ class HomeGamePassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return BounceTap(
       onTap: onTap,
-      child: Container(
+      child: Container(margin: const EdgeInsets.symmetric( vertical: 12),
         height: 200,
         width: double.infinity,
         decoration: BoxDecoration(

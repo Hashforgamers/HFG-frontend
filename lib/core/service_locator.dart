@@ -5,6 +5,7 @@ import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/device_identifier_service.dart';
+import 'package:hash/core/service/external_cafe_likes_service.dart';
 import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/location_analytics_service.dart';
@@ -101,6 +102,15 @@ Future<void> setupServiceLocator({bool reset = false}) async {
         preferences: locator<SharedPreferences>(),
         segmentService: locator<SegmentSdkService>(),
         fbEventsService: locator<FbEventsService>(),
+      ),
+    );
+  }
+
+  if (!locator.isRegistered<ExternalCafeLikesService>()) {
+    locator.registerSingleton<ExternalCafeLikesService>(
+      ExternalCafeLikesService(
+        preferences: locator<SharedPreferences>(),
+        deviceIdentifierService: locator<DeviceIdentifierService>(),
       ),
     );
   }
