@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/app/modules/tournaments_section/cubit/tournament_home_cubit.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -52,6 +53,7 @@ class TournamentTeamMembersCubit extends Cubit<TournamentTeamMembersState> {
       teamId: teamId,
       teamName: trimmed,
     );
+    TournamentHomeCubit.invalidateCache();
   }
 
   Future<void> addTeamMemberByUserId({
@@ -67,6 +69,7 @@ class TournamentTeamMembersCubit extends Cubit<TournamentTeamMembersState> {
       teamId: teamId,
       userId: userId,
     );
+    TournamentHomeCubit.invalidateCache();
   }
 
   Future<void> inviteTeamMember({
@@ -87,6 +90,7 @@ class TournamentTeamMembersCubit extends Cubit<TournamentTeamMembersState> {
       inviterUserId: inviterUserId,
       invitedUserId: invitedUserId,
     );
+    TournamentHomeCubit.invalidateCache();
   }
 
   Future<void> leaveTeam({
@@ -102,6 +106,7 @@ class TournamentTeamMembersCubit extends Cubit<TournamentTeamMembersState> {
       teamId: teamId,
       userId: userId,
     );
+    TournamentHomeCubit.invalidateCache();
   }
 
   Future<void> forceRemoveMember({
@@ -122,6 +127,7 @@ class TournamentTeamMembersCubit extends Cubit<TournamentTeamMembersState> {
       actingUserId: actingUserId,
       targetUserId: targetUserId,
     );
+    TournamentHomeCubit.invalidateCache();
   }
 
   Future<int?> resolveCurrentUserId() async {

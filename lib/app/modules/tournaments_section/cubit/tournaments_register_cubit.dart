@@ -6,6 +6,7 @@ import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/app/modules/tournaments_section/cubit/tournament_home_cubit.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/app_logger.dart';
@@ -89,6 +90,7 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
       });
       fbEventsService.onPartyCreated(partyId: teamId, gameId: eventId);
 
+      TournamentHomeCubit.invalidateCache();
       emit(TournamentsRegisterSuccess(data: result));
     } catch (e) {
       emit(TournamentsRegisterError(message: _cleanError(e)));
@@ -134,6 +136,7 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
       });
       fbEventsService.onPartyJoined(partyId: teamId.trim(), gameId: eventId);
 
+      TournamentHomeCubit.invalidateCache();
       emit(
         TournamentsRegisterSuccess(
           data: <String, dynamic>{
@@ -179,6 +182,7 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
         eventId: eventId,
         teamId: teamId.trim(),
       );
+      TournamentHomeCubit.invalidateCache();
       emit(
         TournamentsRegisterSuccess(
           data: <String, dynamic>{

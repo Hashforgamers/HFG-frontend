@@ -35,7 +35,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
   void initState() {
     super.initState();
     _cubit = TournamentHomeCubit();
-    _cubit.fetchTournaments();
+    _cubit.fetchTournaments(forceRefresh: false);
   }
 
   @override
@@ -56,42 +56,50 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
         //   child: const Icon(Icons.arrow_forward),
         // ),
         backgroundColor: Colors.black,
-        body: CustomScrollView(
-          slivers: [
-            const TournamentsAppBar(),
-            SliverToBoxAdapter(
-              child: BlocBuilder<TournamentHomeCubit, TournamentHomeState>(
-                builder: (context, state) {
-                  if (state is TournamentHomeLoading) {
-                    return SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.72,
-                      child: const Center(child: TournamentsLoader.screen()),
-                    );
-                  } else if (state is TournamentHomeLoaded) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 20.0),
-                      child: _buildBodyContent(
-                        state.tournaments,
-                        state.joinableTournaments,
-                        state.myTeams,
-                      ),
-                    );
-                  } else if (state is TournamentHomeError) {
-                    return SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.72,
-                      child: Center(
-                        child: Text(
-                          'Error: ${state.message}',
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
+        body: RefreshIndicator(
+          color: const Color(0xFFC06701),
+          backgroundColor: const Color(0xFF121212),
+          onRefresh: () => _cubit.fetchTournaments(forceRefresh: true),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
             ),
-          ],
+            slivers: [
+              const TournamentsAppBar(),
+              SliverToBoxAdapter(
+                child: BlocBuilder<TournamentHomeCubit, TournamentHomeState>(
+                  builder: (context, state) {
+                    if (state is TournamentHomeLoading) {
+                      return SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.72,
+                        child: const Center(child: TournamentsLoader.screen()),
+                      );
+                    } else if (state is TournamentHomeLoaded) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 20.0),
+                        child: _buildBodyContent(
+                          state.tournaments,
+                          state.joinableTournaments,
+                          state.myTeams,
+                        ),
+                      );
+                    } else if (state is TournamentHomeError) {
+                      return SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.72,
+                        child: Center(
+                          child: Text(
+                            'Error: ${state.message}',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -582,25 +590,21 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
             children: [
               Row(
                 children: const [
-                  Icon(Icons.person, color: const Color(0xff00DC00), size: 16),
+                  Icon(Icons.person, color: Color(0xff00DC00), size: 16),
                   SizedBox(width: 4),
                   Text('You', style: TextStyle(color: Colors.white)),
                 ],
               ),
               Row(
                 children: const [
-                  Icon(Icons.star, color: const Color(0xff00DC00), size: 16),
+                  Icon(Icons.star, color: Color(0xff00DC00), size: 16),
                   SizedBox(width: 4),
                   Text('100 Points', style: TextStyle(color: Colors.grey)),
                 ],
               ),
               Row(
                 children: const [
-                  Icon(
-                    Icons.emoji_events,
-                    color: const Color(0xff00DC00),
-                    size: 16,
-                  ),
+                  Icon(Icons.emoji_events, color: Color(0xff00DC00), size: 16),
                   SizedBox(width: 4),
                   Text('2 Matches Won', style: TextStyle(color: Colors.grey)),
                 ],

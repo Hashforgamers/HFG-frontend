@@ -83,7 +83,7 @@ class _SearchResultState extends State<SearchResult> {
     _cafesWorker = ever(_cafeController.cybercafes, (_) => _recomputeResults());
 
     _initLocation();
-    _loadCafes(initial: true);
+    _loadCafes(forceRefresh: false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final city = (widget.location ?? '').trim();
       unawaited(
@@ -138,14 +138,14 @@ class _SearchResultState extends State<SearchResult> {
     }
   }
 
-  Future<void> _loadCafes({bool initial = false}) async {
+  Future<void> _loadCafes({bool forceRefresh = false}) async {
     setState(() => _isSearching = true);
 
     try {
       // If you have a server-side search endpoint, call it here with _currentQuery
       // await _cafeController.searchCybercafes(query: _currentQuery);
       // else:
-      await _cafeController.fetchCybercafes();
+      await _cafeController.fetchCybercafes(forceRefresh: forceRefresh);
       _recomputeResults();
     } finally {
       if (mounted) {
@@ -616,7 +616,7 @@ class _SearchResultState extends State<SearchResult> {
             Expanded(
               child: RefreshIndicator(
                 backgroundColor: Colors.black,
-                onRefresh: () => _loadCafes(),
+                onRefresh: () => _loadCafes(forceRefresh: true),
                 child: _buildResults(),
               ),
             ),

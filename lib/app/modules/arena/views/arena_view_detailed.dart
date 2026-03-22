@@ -56,6 +56,11 @@ class ArenaDetailView extends StatefulWidget {
 }
 
 class _ArenaDetailViewState extends State<ArenaDetailView> {
+  static const Duration _foodAvailabilityCacheTtl = Duration(minutes: 15);
+  static final Map<int, bool> _foodAvailabilityCache = <int, bool>{};
+  static final Map<int, DateTime> _foodAvailabilityCacheTime =
+      <int, DateTime>{};
+
   late final CafeGamesController _gamesController;
   final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
@@ -73,8 +78,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       CafeGamesController(),
       tag: 'vendor_${widget.vendorId}',
     );
-    _gamesController.fetchGames(widget.vendorId);
-    _gamesController.fetchPasses(widget.vendorId);
+    _gamesController.fetchGames(widget.vendorId, forceRefresh: false);
+    _gamesController.fetchPasses(widget.vendorId, forceRefresh: false);
 
     // Track cafe images viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -158,6 +163,17 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     final cached = _hasFoodOrderingAvailableCache;
     if (cached != null) return cached;
 
+    final sharedCached = _foodAvailabilityCache[widget.vendorId];
+    final sharedCachedAt = _foodAvailabilityCacheTime[widget.vendorId];
+    final hasFreshSharedCache =
+        sharedCached != null &&
+        sharedCachedAt != null &&
+        DateTime.now().difference(sharedCachedAt) < _foodAvailabilityCacheTtl;
+    if (hasFreshSharedCache) {
+      _hasFoodOrderingAvailableCache = sharedCached;
+      return sharedCached;
+    }
+
     try {
       final foodMenu = await _remoteRepo.getFoodMenu(
         vendorId: widget.vendorId.toString(),
@@ -166,9 +182,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         (category) => category.menus?.isNotEmpty ?? false,
       );
       _hasFoodOrderingAvailableCache = hasItems;
+      _foodAvailabilityCache[widget.vendorId] = hasItems;
+      _foodAvailabilityCacheTime[widget.vendorId] = DateTime.now();
       return hasItems;
     } catch (_) {
       _hasFoodOrderingAvailableCache = false;
+      _foodAvailabilityCache[widget.vendorId] = false;
+      _foodAvailabilityCacheTime[widget.vendorId] = DateTime.now();
       return false;
     }
   }
@@ -1841,7 +1861,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
     // If user taps quickly before initial fetch completes, refresh once.
     if (_gamesController.games.isEmpty || _gamesController.isLoading.value) {
-      await _gamesController.fetchGames(widget.vendorId);
+      await _gamesController.fetchGames(widget.vendorId, forceRefresh: false);
       if (!context.mounted) {
         return Future.value(null);
       }

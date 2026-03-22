@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/tournaments_section/cubit/tournament_home_cubit.dart';
 import 'package:hash/app/modules/tournaments_section/cubit/tournament_team_members_cubit.dart';
 import 'package:hash/app/modules/tournaments_section/cubit/tournaments_register_cubit.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
@@ -60,6 +61,7 @@ class _TournamentsTeamInviteJoinViewState
           userId: currentUserId,
           action: 'accept',
         );
+        TournamentHomeCubit.invalidateCache();
       } else {
         await _registerCubit.joinTeam(
           eventId: widget.eventId,

@@ -23,6 +23,7 @@ class WalletController extends GetxController {
   final RxBool _isLoading = false.obs;
   final RxBool _isRefreshing = false.obs;
   final RxString _errorMessage = ''.obs;
+  Future<void>? _walletRequest;
 
   // Getters
   WalletModel? get wallet => _wallet.value;
@@ -52,14 +53,14 @@ class WalletController extends GetxController {
       ever(_userController.id, (String userId) {
         if (userId.isNotEmpty) {
           // Use Future.microtask to avoid calling during build
-          Future.microtask(() => fetchWallet());
+          Future.microtask(() => fetchWallet(forceRefresh: false));
         }
       });
 
       // Fetch wallet immediately if user ID is already available
       if (_userController.userId.isNotEmpty) {
         // Use Future.microtask to avoid calling during build
-        Future.microtask(() => fetchWallet());
+        Future.microtask(() => fetchWallet(forceRefresh: false));
       } else {
         _setupRetryMechanism();
       }
@@ -74,7 +75,7 @@ class WalletController extends GetxController {
     Future.delayed(const Duration(seconds: 2), () {
       try {
         if (_userController.userId.isNotEmpty && _wallet.value == null) {
-          fetchWallet();
+          fetchWallet(forceRefresh: false);
         }
       } catch (e) {
         _handleError('Retry failed: $e');
@@ -82,7 +83,7 @@ class WalletController extends GetxController {
         Future.delayed(const Duration(seconds: 3), () {
           try {
             if (_userController.userId.isNotEmpty && _wallet.value == null) {
-              fetchWallet();
+              fetchWallet(forceRefresh: false);
             }
           } catch (e) {
             _handleError('Final retry failed: $e');
@@ -93,7 +94,24 @@ class WalletController extends GetxController {
   }
 
   /// Fetch wallet balance and transaction history
-  Future<void> fetchWallet() async {
+  Future<void> fetchWallet({bool forceRefresh = true}) {
+    if (!forceRefresh && _wallet.value != null && !hasError) {
+      return Future.value();
+    }
+
+    final inFlight = _walletRequest;
+    if (inFlight != null) return inFlight;
+
+    final request = _loadWallet(forceRefresh: forceRefresh);
+    _walletRequest = request;
+    return request.whenComplete(() {
+      if (identical(_walletRequest, request)) {
+        _walletRequest = null;
+      }
+    });
+  }
+
+  Future<void> _loadWallet({required bool forceRefresh}) async {
     if (_isLoading.value) return;
 
     final userId = _userController.userId.trim();
@@ -113,7 +131,9 @@ class WalletController extends GetxController {
       // Track wallet viewed event (safely)
       Future.microtask(() => _trackWalletViewed());
     } catch (e) {
-      _handleError('Error fetching wallet: $e');
+      if (_wallet.value == null || forceRefresh) {
+        _handleError('Error fetching wallet: $e');
+      }
     } finally {
       _setLoading(false);
     }
@@ -124,7 +144,7 @@ class WalletController extends GetxController {
     if (_isRefreshing.value) return;
 
     _isRefreshing.value = true;
-    await fetchWallet();
+    await fetchWallet(forceRefresh: true);
     _isRefreshing.value = false;
   }
 
@@ -218,9 +238,9 @@ class WalletController extends GetxController {
       _setLoading(false);
     }
   }
+
   Future<bool> claimDropCrate() async {
     String userId = _userController.userId.trim();
-
 
     if (userId.isEmpty) {
       _handleError('User ID missing');
@@ -237,7 +257,6 @@ class WalletController extends GetxController {
       return false;
     }
   }
-
 
   /// Validate funds after payment
   Future<bool> validateFunds(String paymentLinkId) async {
@@ -339,8 +358,14 @@ class WalletController extends GetxController {
   void _trackTopUpSuccess(double amount, String paymentId) {
     Future.microtask(() {
       try {
-        _segmentService.onAddMoneySuccess(amountAdded: amount, txnId: paymentId);
-        _fbEventsService.onAddMoneySuccess(amountAdded: amount, txnId: paymentId);
+        _segmentService.onAddMoneySuccess(
+          amountAdded: amount,
+          txnId: paymentId,
+        );
+        _fbEventsService.onAddMoneySuccess(
+          amountAdded: amount,
+          txnId: paymentId,
+        );
       } catch (e) {
         AppLogger.d('Error tracking top-up success: $e');
       }
@@ -368,7 +393,10 @@ class WalletController extends GetxController {
     Future.microtask(() {
       try {
         _segmentService.onWithdrawalSuccess(payoutId: payoutId, amount: amount);
-        _fbEventsService.onWithdrawalSuccess(payoutId: payoutId, amount: amount);
+        _fbEventsService.onWithdrawalSuccess(
+          payoutId: payoutId,
+          amount: amount,
+        );
       } catch (e) {
         AppLogger.d('Error tracking withdrawal success: $e');
       }

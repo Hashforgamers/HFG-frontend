@@ -25,7 +25,9 @@ class PastBookingsScreen extends StatefulWidget {
 
 class _PastBookingsScreenState extends State<PastBookingsScreen>
     with SingleTickerProviderStateMixin {
-  final BookingController ctr = Get.put(BookingController());
+  final BookingController ctr = Get.isRegistered<BookingController>()
+      ? Get.find<BookingController>()
+      : Get.put(BookingController());
   late TabController _tabController;
   String _sortOrder = 'newer'; // 'newer' or 'older'
   final prefs = locator<SharedPreferences>();
@@ -42,7 +44,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     getRatingBool();
     _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ctr.fetchUserBookings().then((_) {
+      ctr.fetchUserBookings(forceRefresh: false).then((_) {
         if (!mounted) return;
         if (!hasRated && ctr.userBookings.isNotEmpty) {
           _maybeShowRatingDialogIfPending();
@@ -270,7 +272,10 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                 dividerColor: Colors.transparent,
                 indicatorAnimation: TabIndicatorAnimation.elastic,
                 enableFeedback: true,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                labelPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 0,
+                ),
                 indicatorColor: Colors.transparent,
                 indicator: BoxDecoration(
                   color: const Color(0xFF1F2A1C),
@@ -318,7 +323,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
 
           Expanded(
             child: Obx(() {
-              if (ctr.isLoading.value) {
+              if (ctr.isLoading.value && ctr.userBookings.isEmpty) {
                 return Center(child: AppLinearLoader());
               }
 
@@ -493,7 +498,7 @@ class _BookingsList extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () async {
         final ctr = Get.find<BookingController>();
-        await ctr.fetchUserBookings();
+        await ctr.fetchUserBookings(forceRefresh: true);
       },
       color: const Color(0xff00DC00),
       backgroundColor: const Color(0xFF1D1D1F),
@@ -986,11 +991,7 @@ class BookingTicketCard extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF1C1E22),
-                Color(0xFF131417),
-                Color(0xFF0D0E10),
-              ],
+              colors: [Color(0xFF1C1E22), Color(0xFF131417), Color(0xFF0D0E10)],
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
@@ -1038,7 +1039,9 @@ class BookingTicketCard extends StatelessWidget {
                               Text(
                                 'Booking ID',
                                 style: GoogleFonts.inter(
-                                  color: _accentForStatus(status).withValues(alpha: 0.75),
+                                  color: _accentForStatus(
+                                    status,
+                                  ).withValues(alpha: 0.75),
                                   fontSize: 10,
                                 ),
                               ),
@@ -1072,7 +1075,9 @@ class BookingTicketCard extends StatelessWidget {
                                 }
                               },
                               style: IconButton.styleFrom(
-                                backgroundColor: Colors.white.withValues(alpha: 0.06),
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.06,
+                                ),
                                 foregroundColor: Colors.white70,
                                 side: BorderSide(
                                   color: Colors.white.withValues(alpha: 0.08),
@@ -1156,19 +1161,25 @@ class BookingTicketCard extends StatelessWidget {
                                 height: 30,
                                 child: OutlinedButton.icon(
                                   onPressed: () async {
-                                    await _foodOrderService.orderForUpcomingSession(
-                                      context: context,
-                                      booking: raw,
-                                    );
+                                    await _foodOrderService
+                                        .orderForUpcomingSession(
+                                          context: context,
+                                          booking: raw,
+                                        );
                                   },
                                   style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: Color(0xff00DC00)),
+                                    side: const BorderSide(
+                                      color: Color(0xff00DC00),
+                                    ),
                                     foregroundColor: const Color(0xff00DC00),
-                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
                                   icon: const Icon(
                                     Icons.fastfood_rounded,
@@ -1187,33 +1198,33 @@ class BookingTicketCard extends StatelessWidget {
                               SizedBox(
                                 height: 32,
                                 child: OutlinedButton(
-                                  onPressed: () => _showWriteReviewDialog(context),
+                                  onPressed: () =>
+                                      _showWriteReviewDialog(context),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: const Color(0xFFF3C44E),
                                     side: BorderSide(
-                                      color: const Color(0xFFF3C44E).withValues(alpha: 0.35),
+                                      color: const Color(
+                                        0xFFF3C44E,
+                                      ).withValues(alpha: 0.35),
                                     ),
-                                    backgroundColor: const Color(0xFFF3C44E).withValues(
-                                      alpha: 0.08,
+                                    backgroundColor: const Color(
+                                      0xFFF3C44E,
+                                    ).withValues(alpha: 0.08),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
                                     ),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(9),
                                     ),
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(
-                                        Icons.star_rounded,
-                                        size: 12,
-                                      ),
+                                      const Icon(Icons.star_rounded, size: 12),
                                       const SizedBox(width: 2),
-                                      const Icon(
-                                        Icons.star_rounded,
-                                        size: 12,
-                                      ),
+                                      const Icon(Icons.star_rounded, size: 12),
                                       const SizedBox(width: 2),
                                       const Icon(
                                         Icons.star_half_rounded,
@@ -1238,7 +1249,10 @@ class BookingTicketCard extends StatelessWidget {
                       const SizedBox(height: 10),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.045),
                           borderRadius: BorderRadius.circular(8),
@@ -1479,10 +1493,7 @@ class _WriteReviewDialogState extends State<_WriteReviewDialog> {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF17181B),
-              Color(0xFF111214),
-            ],
+            colors: [Color(0xFF17181B), Color(0xFF111214)],
           ),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: const Color(0xFF2A2D31)),
@@ -1493,7 +1504,10 @@ class _WriteReviewDialogState extends State<_WriteReviewDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF4C64F).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
@@ -1568,12 +1582,16 @@ class _WriteReviewDialogState extends State<_WriteReviewDialog> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: star <= _selectedRating
-                                    ? const Color(0xFFF4C64F).withValues(alpha: 0.14)
+                                    ? const Color(
+                                        0xFFF4C64F,
+                                      ).withValues(alpha: 0.14)
                                     : Colors.white.withValues(alpha: 0.04),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: star <= _selectedRating
-                                      ? const Color(0xFFF4C64F).withValues(alpha: 0.35)
+                                      ? const Color(
+                                          0xFFF4C64F,
+                                        ).withValues(alpha: 0.35)
                                       : Colors.white.withValues(alpha: 0.06),
                                 ),
                               ),

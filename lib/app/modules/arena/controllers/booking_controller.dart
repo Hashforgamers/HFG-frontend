@@ -6,6 +6,7 @@ import 'package:hash/core/utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class BookingController extends GetxController {
+  static const Duration _userBookingsCacheTtl = Duration(minutes: 2);
   final isLoading = false.obs;
   final slots = <Map<String, dynamic>>[].obs; // Holds fetched slots
   final userBookings = <Map<String, dynamic>>[].obs; // Holds user bookings
@@ -14,11 +15,14 @@ class BookingController extends GetxController {
   ); // Holds selected slots per PC
 
   final _remoteRepo = locator<RemoteRepoInterface>();
+  Future<void>? _userBookingsRequest;
+  DateTime? _userBookingsFetchedAt;
+  bool _hasFetchedUserBookings = false;
 
   @override
   void onInit() {
     super.onInit();
-    fetchUserBookings(); // Fetch bookings directly
+    fetchUserBookings(forceRefresh: false); // Fetch bookings directly
   }
 
   /// Clear all selected slots
@@ -230,15 +234,42 @@ class BookingController extends GetxController {
   }
 
   /// Fetch bookings for the current user
-  Future<void> fetchUserBookings() async {
+  Future<void> fetchUserBookings({bool forceRefresh = true}) {
+    final hasFreshCache =
+        !forceRefresh &&
+        _hasFetchedUserBookings &&
+        _userBookingsFetchedAt != null &&
+        DateTime.now().difference(_userBookingsFetchedAt!) <
+            _userBookingsCacheTtl;
+    if (hasFreshCache) {
+      return Future.value();
+    }
+
+    final inFlight = _userBookingsRequest;
+    if (inFlight != null) return inFlight;
+
+    final request = _loadUserBookings();
+    _userBookingsRequest = request;
+    return request.whenComplete(() {
+      if (identical(_userBookingsRequest, request)) {
+        _userBookingsRequest = null;
+      }
+    });
+  }
+
+  Future<void> _loadUserBookings() async {
     _setLoading(true);
     try {
       final bookings = await _remoteRepo.fetchUserBookings();
       userBookings.assignAll(bookings);
+      _hasFetchedUserBookings = true;
+      _userBookingsFetchedAt = DateTime.now();
       await _syncBackendUserIdFromBookings(bookings);
     } catch (e) {
       _logError('Error fetching bookings: $e');
-      userBookings.clear();
+      if (userBookings.isEmpty) {
+        userBookings.clear();
+      }
     } finally {
       _setLoading(false);
     }

@@ -35,6 +35,7 @@ import 'package:hash/app/modules/home/widgets/refer_friend_modal.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/data/models/user_model.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/utils/encrypt_util.dart';
 
 import '../../support/support_screen.dart';
 import 'package:hash/core/utils/app_logger.dart';
@@ -184,7 +185,7 @@ class _HomeContentViewState extends State<HomeContentView>
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _refreshData();
+      _refreshData(forceRefresh: false);
       _trackHomeScreenViewed();
       _startAnimations();
     });
@@ -280,7 +281,7 @@ class _HomeContentViewState extends State<HomeContentView>
     _showWelcomePopup(context);
   }
 
-  Future<void> _refreshData() async {
+  Future<void> _refreshData({bool forceRefresh = true}) async {
     if (_isRefreshing) return;
 
     if (!mounted) return;
@@ -289,18 +290,20 @@ class _HomeContentViewState extends State<HomeContentView>
     final hashCoinCubit = BlocProvider.of<HashCoinCubit>(context);
 
     try {
-      final hasUser = await _fetchUserDataIfNeeded();
+      final hasUser = await _fetchUserDataIfNeeded(forceRefresh: forceRefresh);
       if (hasUser) {
         await _maybeShowWelcomePopupForNewUser();
         final tasks = <Future<void>>[
-          _refreshWalletIfReady(),
-          bookingController.fetchUserBookings(),
-          hashCoinCubit.getHashCoin(),
+          _refreshWalletIfReady(forceRefresh: forceRefresh),
+          bookingController.fetchUserBookings(forceRefresh: forceRefresh),
+          hashCoinCubit.getHashCoin(forceRefresh: forceRefresh),
         ];
         if (!_fcmRegistered) {
           tasks.add(
-            fcmCubit.registerFCMToken().then((_) {
-              _fcmRegistered = true;
+            fcmCubit.registerFCMToken(forceRefresh: forceRefresh).then((
+              registered,
+            ) {
+              _fcmRegistered = registered;
             }),
           );
         }
@@ -320,11 +323,30 @@ class _HomeContentViewState extends State<HomeContentView>
     }
   }
 
-  Future<bool> _fetchUserDataIfNeeded() async {
+  Future<bool> _fetchUserDataIfNeeded({required bool forceRefresh}) async {
     final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       _redirectToLogin();
       return false;
+    }
+
+    if (!forceRefresh) {
+      final cachedUser = await remoteRepo.getUserFromPreferences();
+      final jwt = await remoteRepo.getJwtFromPreferences();
+      final backendId = (cachedUser?['id'] ?? cachedUser?['user_id'] ?? '')
+          .toString()
+          .trim();
+      final hasUsableCachedSession =
+          cachedUser != null &&
+          backendId.isNotEmpty &&
+          jwt != null &&
+          !isJwtExpired(jwt);
+
+      if (hasUsableCachedSession) {
+        userController.setUserData(User.fromJson(cachedUser));
+        userController.id.value = backendId;
+        return true;
+      }
     }
 
     // Refresh backend session + JWT before any authed calls.
@@ -365,9 +387,9 @@ class _HomeContentViewState extends State<HomeContentView>
     });
   }
 
-  Future<void> _refreshWalletIfReady() async {
+  Future<void> _refreshWalletIfReady({required bool forceRefresh}) async {
     if (walletController.isWalletReady) {
-      await walletController.refreshWallet();
+      await walletController.fetchWallet(forceRefresh: forceRefresh);
     }
   }
 
@@ -427,7 +449,7 @@ class _HomeContentViewState extends State<HomeContentView>
       //   child: Icon(Icons.shopping_cart),
       // ),
       body: RefreshIndicator(
-        onRefresh: _refreshData,
+        onRefresh: () => _refreshData(forceRefresh: true),
         backgroundColor: Colors.black,
         child: CustomScrollView(
           controller: _scrollController,

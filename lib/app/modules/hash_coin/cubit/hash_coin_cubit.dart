@@ -9,14 +9,37 @@ class HashCoinCubit extends Cubit<HashCoinState> {
   HashCoinCubit() : super(HashCoinInitial());
 
   final remoteRepo = locator<RemoteRepoInterface>();
+  Future<void>? _inFlightRequest;
 
-  Future<void> getHashCoin() async {
-    emit(HashCoinLoading());
+  Future<void> getHashCoin({bool forceRefresh = true}) {
+    if (!forceRefresh && state is HashCoinLoaded) {
+      return Future.value();
+    }
+
+    final inFlight = _inFlightRequest;
+    if (inFlight != null) return inFlight;
+
+    final request = _loadHashCoin(forceRefresh: forceRefresh);
+    _inFlightRequest = request;
+    return request.whenComplete(() {
+      if (identical(_inFlightRequest, request)) {
+        _inFlightRequest = null;
+      }
+    });
+  }
+
+  Future<void> _loadHashCoin({required bool forceRefresh}) async {
+    if (forceRefresh || state is! HashCoinLoaded) {
+      emit(HashCoinLoading());
+    }
+
     try {
       final response = await remoteRepo.getHashCoin();
       emit(HashCoinLoaded(hashCoin: response));
     } catch (e) {
-      emit(HashCoinError(message: e.toString()));
+      if (state is! HashCoinLoaded) {
+        emit(HashCoinError(message: e.toString()));
+      }
     }
   }
 }

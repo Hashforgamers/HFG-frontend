@@ -4,29 +4,96 @@ import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 
+class _VendorGamesCacheEntry {
+  const _VendorGamesCacheEntry({
+    required this.games,
+    required this.shopOpen,
+    required this.cachedAt,
+  });
+
+  final List<Map<String, dynamic>> games;
+  final bool shopOpen;
+  final DateTime cachedAt;
+}
+
+class _VendorPassesCacheEntry {
+  const _VendorPassesCacheEntry({required this.passes, required this.cachedAt});
+
+  final List<GetVendorPassesModel> passes;
+  final DateTime cachedAt;
+}
+
 class CafeGamesController extends GetxController {
-  var games = [].obs; // Observable list to store games data
+  static const Duration _gamesCacheTtl = Duration(minutes: 15);
+  static const Duration _passesCacheTtl = Duration(minutes: 15);
+  static final Map<int, _VendorGamesCacheEntry> _gamesCache =
+      <int, _VendorGamesCacheEntry>{};
+  static final Map<int, _VendorPassesCacheEntry> _passesCache =
+      <int, _VendorPassesCacheEntry>{};
+  static final Map<int, Future<void>> _gamesRequests = <int, Future<void>>{};
+  static final Map<int, Future<void>> _passesRequests = <int, Future<void>>{};
+
+  var games =
+      <Map<String, dynamic>>[].obs; // Observable list to store games data
   var isLoading = false.obs; // Observable to manage loading state
   var shopOpen = false.obs; // Observable to track shop status
   final _remoteRepo = locator<RemoteRepoInterface>();
   var passes = <GetVendorPassesModel>[].obs;
   var isPassesLoading = false.obs;
 
-  Future<void> fetchGames(int vendorId) async {
+  Future<void> fetchGames(int vendorId, {bool forceRefresh = false}) {
+    final cached = _gamesCache[vendorId];
+    final hasFreshCache =
+        !forceRefresh &&
+        cached != null &&
+        DateTime.now().difference(cached.cachedAt) < _gamesCacheTtl;
+    if (hasFreshCache) {
+      _restoreGamesFromCache(vendorId);
+      return Future.value();
+    }
+
+    final inFlight = _gamesRequests[vendorId];
+    if (inFlight != null) {
+      return inFlight.then((_) => _restoreGamesFromCache(vendorId));
+    }
+
+    final request = _loadGames(vendorId);
+    _gamesRequests[vendorId] = request;
+    return request.whenComplete(() {
+      if (identical(_gamesRequests[vendorId], request)) {
+        _gamesRequests.remove(vendorId);
+      }
+    });
+  }
+
+  Future<void> _loadGames(int vendorId) async {
     isLoading.value = true;
     try {
       final data = await _remoteRepo.fetchVendorGames(vendorId);
-      games.value = data['games'];
-      shopOpen.value = _parseShopOpen(
+      final parsedGames = List<Map<String, dynamic>>.from(
+        data['games'] as List? ?? const <Map<String, dynamic>>[],
+      );
+      final parsedShopOpen = _parseShopOpen(
         data['shop_open'],
-        fallback: games.isNotEmpty,
+        fallback: parsedGames.isNotEmpty,
+      );
+      games.assignAll(parsedGames);
+      shopOpen.value = parsedShopOpen;
+      _gamesCache[vendorId] = _VendorGamesCacheEntry(
+        games: List<Map<String, dynamic>>.from(parsedGames),
+        shopOpen: parsedShopOpen,
+        cachedAt: DateTime.now(),
       );
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to fetch games: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      if (_gamesCache.containsKey(vendorId)) {
+        _restoreGamesFromCache(vendorId);
+      } else {
+        Get.snackbar(
+          'Error',
+          'Failed to fetch games: $e',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
     } finally {
       isLoading.value = false;
     }
@@ -46,18 +113,65 @@ class CafeGamesController extends GetxController {
     return fallback;
   }
 
-  Future<void> fetchPasses(int vendorId) async {
+  Future<void> fetchPasses(int vendorId, {bool forceRefresh = false}) {
+    final cached = _passesCache[vendorId];
+    final hasFreshCache =
+        !forceRefresh &&
+        cached != null &&
+        DateTime.now().difference(cached.cachedAt) < _passesCacheTtl;
+    if (hasFreshCache) {
+      _restorePassesFromCache(vendorId);
+      return Future.value();
+    }
+
+    final inFlight = _passesRequests[vendorId];
+    if (inFlight != null) {
+      return inFlight.then((_) => _restorePassesFromCache(vendorId));
+    }
+
+    final request = _loadPasses(vendorId);
+    _passesRequests[vendorId] = request;
+    return request.whenComplete(() {
+      if (identical(_passesRequests[vendorId], request)) {
+        _passesRequests.remove(vendorId);
+      }
+    });
+  }
+
+  Future<void> _loadPasses(int vendorId) async {
     isPassesLoading.value = true;
     try {
-      passes.value = await _remoteRepo.getAllAvailablePasses(
+      final loadedPasses = await _remoteRepo.getAllAvailablePasses(
         vendorId: vendorId.toString(),
+      );
+      passes.assignAll(loadedPasses);
+      _passesCache[vendorId] = _VendorPassesCacheEntry(
+        passes: List<GetVendorPassesModel>.from(loadedPasses),
+        cachedAt: DateTime.now(),
       );
       debugPrint('passes loaded: ${passes.length}');
     } catch (e) {
-      // Avoid overlay errors if view not mounted
-      debugPrint('Failed to fetch passes: $e');
+      if (_passesCache.containsKey(vendorId)) {
+        _restorePassesFromCache(vendorId);
+      } else {
+        // Avoid overlay errors if view not mounted
+        debugPrint('Failed to fetch passes: $e');
+      }
     } finally {
       isPassesLoading.value = false;
     }
+  }
+
+  void _restoreGamesFromCache(int vendorId) {
+    final cached = _gamesCache[vendorId];
+    if (cached == null) return;
+    games.assignAll(cached.games);
+    shopOpen.value = cached.shopOpen;
+  }
+
+  void _restorePassesFromCache(int vendorId) {
+    final cached = _passesCache[vendorId];
+    if (cached == null) return;
+    passes.assignAll(cached.passes);
   }
 }

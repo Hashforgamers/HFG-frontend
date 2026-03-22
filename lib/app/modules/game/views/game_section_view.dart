@@ -161,6 +161,11 @@ class GamesController extends GetxController {
   final games = <Game>[].obs;
   final isLoading = false.obs;
   final isLoadingMore = false.obs;
+  static const Duration _cacheTtl = Duration(minutes: 20);
+  static List<Game>? _cachedGames;
+  static DateTime? _cacheTime;
+  static bool _cachedHasMore = true;
+  static int _cachedPage = 1;
 
   final _service = GameService();
   final _segmentService = locator<SegmentSdkService>();
@@ -198,6 +203,22 @@ class GamesController extends GetxController {
 
   Future<void> loadInitial() async {
     if (isLoading.value) return;
+
+    final hasFreshCache =
+        _cachedGames != null &&
+        _cacheTime != null &&
+        DateTime.now().difference(_cacheTime!) < _cacheTtl;
+    if (hasFreshCache) {
+      games.assignAll(_cachedGames!);
+      _page = _cachedPage;
+      _hasMore = _cachedHasMore;
+      _seen
+        ..clear()
+        ..addAll(games.map((game) => game.id));
+      _trackPreferencesOnce(games);
+      return;
+    }
+
     _page = 1;
     _hasMore = true;
     _seen.clear();
@@ -212,18 +233,13 @@ class GamesController extends GetxController {
         '[GamesByDevelopers] Initial load done. fetched=${resp.items.length} unique=${deduped.length}',
       );
 
-      // Fire once when we have content
-      if (deduped.isNotEmpty && !_sentPreferences) {
-        final top = deduped.take(5).map((g) => g.name).toList(growable: false);
-        _segmentService.onGamePreferencesSet(selectedGames: top);
-        _fbEventsService.onGamePreferencesSet(selectedGames: top);
-        _sentPreferences = true;
-      }
+      _trackPreferencesOnce(deduped);
 
       // tiny prefetch of next page thumbnails
       _prefetchNextThumbnails();
 
       _hasMore = resp.hasMore;
+      _saveCache();
       if (deduped.isEmpty) {
         AppLogger.w('[GamesByDevelopers] No games available on initial load.');
       }
@@ -251,6 +267,7 @@ class GamesController extends GetxController {
         _prefetchNextThumbnails();
       }
       _hasMore = resp.hasMore;
+      _saveCache();
       AppLogger.i(
         '[GamesByDevelopers] Load more page=$nextPage added=${add.length} hasMore=$_hasMore',
       );
@@ -284,6 +301,21 @@ class GamesController extends GetxController {
   }
 
   bool get hasMore => _hasMore;
+
+  void _trackPreferencesOnce(List<Game> list) {
+    if (list.isEmpty || _sentPreferences) return;
+    final top = list.take(5).map((g) => g.name).toList(growable: false);
+    _segmentService.onGamePreferencesSet(selectedGames: top);
+    _fbEventsService.onGamePreferencesSet(selectedGames: top);
+    _sentPreferences = true;
+  }
+
+  void _saveCache() {
+    _cachedGames = games.toList(growable: false);
+    _cacheTime = DateTime.now();
+    _cachedHasMore = _hasMore;
+    _cachedPage = _page;
+  }
 }
 
 /// ─────────────────────────────────────────────────────────────────────────────

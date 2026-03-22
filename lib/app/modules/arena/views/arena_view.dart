@@ -36,6 +36,10 @@ class ArenaView extends StatefulWidget {
 }
 
 class _ArenaViewState extends State<ArenaView> {
+  static const Duration _stateCacheTtl = Duration(minutes: 30);
+  static final Map<String, String> _stateCache = <String, String>{};
+  static final Map<String, DateTime> _stateCacheTime = <String, DateTime>{};
+
   /* ────────────────────────────────────────────────────────────────────────── */
   /*  STATE                                                                    */
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -156,7 +160,7 @@ class _ArenaViewState extends State<ArenaView> {
       await _initLocation();
       if (!mounted) return;
       if (_cafeCtr.cybercafes.isEmpty && !_cafeCtr.isLoading.value) {
-        await _cafeCtr.fetchCybercafes();
+        await _cafeCtr.fetchCybercafes(forceRefresh: false);
       }
       if (!mounted) return;
       if (_userLatLng != null) {
@@ -743,6 +747,18 @@ class _ArenaViewState extends State<ArenaView> {
       // Reset showing all cafes state when location changes
       _showingAllCafes.value = false;
 
+      final cacheKey = _stateCacheKey(_userLatLng!);
+      final cachedState = _stateCache[cacheKey];
+      final cachedAt = _stateCacheTime[cacheKey];
+      final hasFreshCache =
+          cachedState != null &&
+          cachedAt != null &&
+          DateTime.now().difference(cachedAt) < _stateCacheTtl;
+      if (hasFreshCache) {
+        _applyResolvedUserState(cachedState);
+        return;
+      }
+
       // Get user's state from coordinates
       List<Placemark> placemarks = await placemarkFromCoordinates(
         _userLatLng!.latitude,
@@ -750,34 +766,45 @@ class _ArenaViewState extends State<ArenaView> {
       );
 
       if (placemarks.isNotEmpty) {
-        final previousState = (_userState ?? '').trim();
-        _userState = placemarks.first.administrativeArea;
-        final currentState = (_userState ?? '').trim();
-        _segmentService.onCustomEvent('Nearby Cafes Viewed', {
-          'city': currentState.isEmpty ? 'unknown' : currentState,
-        });
-        _fbEventsService.onNearbyCafesViewed(
-          city: currentState.isEmpty ? 'unknown' : currentState,
-        );
-        if (previousState.isNotEmpty &&
-            currentState.isNotEmpty &&
-            previousState.toLowerCase() != currentState.toLowerCase()) {
-          _segmentService.onCustomEvent('City Changed', {
-            'from_city': previousState,
-            'to_city': currentState,
-          });
-          _fbEventsService.onCityChanged(
-            fromCity: previousState,
-            toCity: currentState,
-          );
+        final resolvedState = placemarks.first.administrativeArea?.trim() ?? '';
+        if (resolvedState.isNotEmpty) {
+          _stateCache[cacheKey] = resolvedState;
+          _stateCacheTime[cacheKey] = DateTime.now();
         }
-
-        // Filter cafes based on state
-        _applyCafeFilterAndRefresh();
+        _applyResolvedUserState(resolvedState);
       } else {}
     } finally {
       _isLocationFiltering.value = false;
     }
+  }
+
+  String _stateCacheKey(LatLng position) {
+    return '${position.latitude.toStringAsFixed(3)},${position.longitude.toStringAsFixed(3)}';
+  }
+
+  void _applyResolvedUserState(String? state) {
+    final previousState = (_userState ?? '').trim();
+    _userState = state;
+    final currentState = (_userState ?? '').trim();
+    _segmentService.onCustomEvent('Nearby Cafes Viewed', {
+      'city': currentState.isEmpty ? 'unknown' : currentState,
+    });
+    _fbEventsService.onNearbyCafesViewed(
+      city: currentState.isEmpty ? 'unknown' : currentState,
+    );
+    if (previousState.isNotEmpty &&
+        currentState.isNotEmpty &&
+        previousState.toLowerCase() != currentState.toLowerCase()) {
+      _segmentService.onCustomEvent('City Changed', {
+        'from_city': previousState,
+        'to_city': currentState,
+      });
+      _fbEventsService.onCityChanged(
+        fromCity: previousState,
+        toCity: currentState,
+      );
+    }
+    _applyCafeFilterAndRefresh();
   }
 
   @override
