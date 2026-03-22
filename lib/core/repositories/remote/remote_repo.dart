@@ -15,6 +15,7 @@ import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:hash/core/repositories/model/transaction_history_model.dart';
+import 'package:hash/core/repositories/remote/auth_exceptions.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:hash/core/utils/app_logger.dart';
@@ -70,7 +71,15 @@ class RemoteRepo implements RemoteRepoInterface {
       }
       return null;
     } catch (e) {
-      print('Error checking user existence: $e');
+      if (e is DioException && e.response?.statusCode == 404) {
+        debugPrint(
+          '[Auth][API] checkUserExistsInAPI | firebaseUid=$fid | status=404 | treating as user-missing',
+        );
+        return null;
+      }
+      debugPrint(
+        '[Auth][API] checkUserExistsInAPI failed | firebaseUid=$fid | error=$e',
+      );
       return null;
     }
   }
@@ -83,14 +92,23 @@ class RemoteRepo implements RemoteRepoInterface {
       final headers =
           await deviceIdentifierService?.buildRequestHeaders() ??
           const <String, String>{};
+      debugPrint(
+        '[iOS Signup][API] POST ${ApiEndpoints.signUp} | fid=${userData["fid"]} | name=${userData["name"]} | gamerTag=${userData["gameUserName"]} | email=${((userData["contact"] ?? const {})["electronicAddress"] ?? const {})["emailId"]} | mobile=${((userData["contact"] ?? const {})["electronicAddress"] ?? const {})["mobileNo"]} | headerKeys=${headers.keys.toList()}',
+      );
       final response = await dio.post(
         ApiEndpoints.signUp,
         data: userData,
         options: headers.isEmpty ? null : Options(headers: headers),
       );
+      debugPrint(
+        '[iOS Signup][API] Response status=${response.statusCode} | bodyType=${response.data.runtimeType}',
+      );
 
       if (response.statusCode == 201) {
         final Map<String, dynamic> responseBody = response.data;
+        debugPrint(
+          '[iOS Signup][API] Signup success | responseKeys=${responseBody.keys.toList()}',
+        );
         // Save user data to preferences after successful signup
         await saveUserToPreferences(responseBody['user']);
         return responseBody;
@@ -102,6 +120,26 @@ class RemoteRepo implements RemoteRepoInterface {
     } catch (e) {
       // Handle DioException specifically
       if (e is DioException) {
+        debugPrint(
+          '[iOS Signup][API] DioException | status=${e.response?.statusCode} | data=${e.response?.data} | message=${e.message}',
+        );
+        final responseData = e.response?.data;
+        if (e.response?.statusCode == 409 && responseData is Map) {
+          final state = (responseData['state'] ?? '').toString().trim();
+          if (state == 'EMAIL_EXISTS') {
+            final details = responseData['details'];
+            final email = details is Map
+                ? (details['email'] ?? '').toString().trim()
+                : '';
+            throw AuthConflictException(
+              state: state,
+              message:
+                  (responseData['message'] ?? 'This email is already in use.')
+                      .toString(),
+              email: email.isEmpty ? null : email,
+            );
+          }
+        }
         // If it's a retryable error, let the interceptor handle it
         if (ApiErrorHandler.shouldRetry(e)) {
           rethrow; // Let the retry interceptor handle it
@@ -111,7 +149,7 @@ class RemoteRepo implements RemoteRepoInterface {
         final errorMessage = ApiErrorHandler.extractErrorMessage(e);
         throw Exception(errorMessage);
       }
-      print('Error during signup: $e');
+      debugPrint('[iOS Signup][API] Non-Dio signup error: $e');
       rethrow;
     }
   }

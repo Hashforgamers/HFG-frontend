@@ -1,12 +1,11 @@
 import 'dart:math';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_auth/firebase_auth.dart';            // ← ADDED
+import 'package:firebase_auth/firebase_auth.dart'; // ← ADDED
 import '../../../../utils/widgets/loader.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
 import '../../../routes/app_routes.dart';
@@ -31,9 +30,10 @@ class _SignUpViewState extends State<SignUpView> {
     final u = _auth.currentUser;
     if (u == null) return false;
     return u.providerData.any(
-          (p) => p.providerId == 'apple.com' || p.providerId == 'google.com',
+      (p) => p.providerId == 'apple.com' || p.providerId == 'google.com',
     );
   }
+
   bool get _isIos => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
@@ -50,16 +50,14 @@ class _SignUpViewState extends State<SignUpView> {
       c.mobileNoController.text = args['phoneNumber'] ?? '';
     } else if (_cameFromOAuth) {
       c.mobileNoController.text = args?['phoneNumber'] ?? '';
-      final firebaseName  = _auth.currentUser?.displayName ?? '';
+      final firebaseName = _auth.currentUser?.displayName ?? '';
       final firebaseEmail = _auth.currentUser?.email ?? '';
-      c.nameController.text  = firebaseName;     // ← add
-      c.emailController.text = firebaseEmail;    // ← add
+      c.nameController.text = firebaseName; // ← add
+      c.emailController.text = firebaseEmail; // ← add
     }
 
     // 🧠 Generate game username ONCE using cleaned-up name
-    final rawName = !_cameFromOAuth
-        ? c.nameController.text
-        : firebaseName;
+    final rawName = !_cameFromOAuth ? c.nameController.text : firebaseName;
 
     if (rawName.trim().isNotEmpty) {
       final base = rawName.replaceAll(RegExp(r'\s+'), ''); // Remove all spaces
@@ -80,28 +78,139 @@ class _SignUpViewState extends State<SignUpView> {
       });
     }
   }
+
   String _generateGamerUsername(String base) {
     final gamingWords = [
-      "Ninja", "Warrior", "Sniper", "Slayer", "Assassin",
-      "Crusher", "Striker", "Hunter", "Brawler", "Fighter",
-      "Executioner", "Killer", "Battler", "Bruiser", "Sharpshot",
-      "Bomber", "Mauler", "Breaker", "Rager", "Bludgeon","Dragon", "Phoenix", "Wraith", "Demon", "Shadow",
-      "Specter", "Reaper", "Grim", "Phantom", "Ghost",
-      "Shinigami", "Banshee", "Ghoul", "Raven", "Valkyrie",
-      "Soulstealer", "Apparition", "Haunt", "Necro", "Poltergeist","Commando", "Rogue", "Merc", "Agent", "Soldier",
-      "Operator", "Captain", "Sergeant", "Sniper", "Pilot",
-      "Marksman", "Corporal", "Brigadier", "Sapper", "Trooper","Drifter", "Runner", "Dash", "Rush", "Blaze",
-      "Flash", "Zoom", "Velocity", "Rapid", "Zephyr",
-      "Surge", "Jet", "Boost", "Quickshot", "Dashblade","Venom", "Viper", "Fury", "Toxin", "Dagger",
-      "Rage", "Blood", "Inferno", "Scythe", "Claw",
-      "Darklord", "Hellfire", "Ember", "Doom", "Rupture",
-      "Slash", "Hex", "Oblivion", "Decay", "Ravage","Cyber", "Glitch", "Matrix", "Pixel", "Neo",
-      "Byte", "Bot", "AI", "Quantum", "Cortex",
-      "Override", "Sync", "Binary", "Circuit", "Echo",
-      "CodeX", "Virus", "Firewall", "Protocol", "Omega","Frost", "Blaze", "Storm", "Thunder", "Flame",
-      "Ice", "Ember", "Ash", "Quake", "Bolt",
-      "Typhoon", "Tempest", "Vortex", "Avalanche", "Gale",
-      "Hurricane", "Dust", "Fireball", "Hail", "Ignite"
+      "Ninja",
+      "Warrior",
+      "Sniper",
+      "Slayer",
+      "Assassin",
+      "Crusher",
+      "Striker",
+      "Hunter",
+      "Brawler",
+      "Fighter",
+      "Executioner",
+      "Killer",
+      "Battler",
+      "Bruiser",
+      "Sharpshot",
+      "Bomber",
+      "Mauler",
+      "Breaker",
+      "Rager",
+      "Bludgeon",
+      "Dragon",
+      "Phoenix",
+      "Wraith",
+      "Demon",
+      "Shadow",
+      "Specter",
+      "Reaper",
+      "Grim",
+      "Phantom",
+      "Ghost",
+      "Shinigami",
+      "Banshee",
+      "Ghoul",
+      "Raven",
+      "Valkyrie",
+      "Soulstealer",
+      "Apparition",
+      "Haunt",
+      "Necro",
+      "Poltergeist",
+      "Commando",
+      "Rogue",
+      "Merc",
+      "Agent",
+      "Soldier",
+      "Operator",
+      "Captain",
+      "Sergeant",
+      "Sniper",
+      "Pilot",
+      "Marksman",
+      "Corporal",
+      "Brigadier",
+      "Sapper",
+      "Trooper",
+      "Drifter",
+      "Runner",
+      "Dash",
+      "Rush",
+      "Blaze",
+      "Flash",
+      "Zoom",
+      "Velocity",
+      "Rapid",
+      "Zephyr",
+      "Surge",
+      "Jet",
+      "Boost",
+      "Quickshot",
+      "Dashblade",
+      "Venom",
+      "Viper",
+      "Fury",
+      "Toxin",
+      "Dagger",
+      "Rage",
+      "Blood",
+      "Inferno",
+      "Scythe",
+      "Claw",
+      "Darklord",
+      "Hellfire",
+      "Ember",
+      "Doom",
+      "Rupture",
+      "Slash",
+      "Hex",
+      "Oblivion",
+      "Decay",
+      "Ravage",
+      "Cyber",
+      "Glitch",
+      "Matrix",
+      "Pixel",
+      "Neo",
+      "Byte",
+      "Bot",
+      "AI",
+      "Quantum",
+      "Cortex",
+      "Override",
+      "Sync",
+      "Binary",
+      "Circuit",
+      "Echo",
+      "CodeX",
+      "Virus",
+      "Firewall",
+      "Protocol",
+      "Omega",
+      "Frost",
+      "Blaze",
+      "Storm",
+      "Thunder",
+      "Flame",
+      "Ice",
+      "Ember",
+      "Ash",
+      "Quake",
+      "Bolt",
+      "Typhoon",
+      "Tempest",
+      "Vortex",
+      "Avalanche",
+      "Gale",
+      "Hurricane",
+      "Dust",
+      "Fireball",
+      "Hail",
+      "Ignite",
     ];
     final random = Random();
     final word = gamingWords[random.nextInt(gamingWords.length)];
@@ -110,14 +219,13 @@ class _SignUpViewState extends State<SignUpView> {
     return "$base$word$number";
   }
 
-
   @override
   Widget build(BuildContext context) {
     final args = Get.arguments as Map<String, String>?;
     final phoneFilled = (args?['phoneNumber']?.isNotEmpty ?? false);
 
     // ← ADDED: identity from Firebase for info labels (not inputs)
-    final firebaseName  = _auth.currentUser?.displayName ?? '';
+    final firebaseName = _auth.currentUser?.displayName ?? '';
     final firebaseEmail = _auth.currentUser?.email ?? '';
 
     return Scaffold(
@@ -129,8 +237,9 @@ class _SignUpViewState extends State<SignUpView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: ()=>Get.back()),
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Get.back(),
+              ),
               Expanded(
                 child: Form(
                   key: _formKey,
@@ -140,18 +249,25 @@ class _SignUpViewState extends State<SignUpView> {
                       Text(
                         'Sign Up',
                         style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold),
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 20),
 
                       // Name (only for non-OAuth)
                       if (!_cameFromOAuth)
-                        _field(c.nameController, 'Name',
-                            autofill: AutofillHints.name)
+                        _field(
+                          c.nameController,
+                          'Name',
+                          autofill: AutofillHints.name,
+                        )
                       else
-                        _infoRow('Name', firebaseName.isEmpty ? '—' : firebaseName),
+                        _infoRow(
+                          'Name',
+                          firebaseName.isEmpty ? '—' : firebaseName,
+                        ),
 
                       // Game Username (auto-filled)
                       _userNameField(),
@@ -164,10 +280,16 @@ class _SignUpViewState extends State<SignUpView> {
 
                       // Email (only for non-OAuth). For OAuth, show read-only label.
                       if (!_cameFromOAuth)
-                        _field(c.emailController, 'Email',
-                            autofill: AutofillHints.email)
+                        _field(
+                          c.emailController,
+                          'Email',
+                          autofill: AutofillHints.email,
+                        )
                       else
-                        _infoRow('Email', firebaseEmail.isEmpty ? '—' : firebaseEmail),
+                        _infoRow(
+                          'Email',
+                          firebaseEmail.isEmpty ? '—' : firebaseEmail,
+                        ),
 
                       // If you later re-enable address/location, keep them optional only.
                     ],
@@ -197,7 +319,7 @@ class _SignUpViewState extends State<SignUpView> {
                     TextSpan(
                       text: 'Login',
                       style: GoogleFonts.inter(color: const Color(0xff00DC00)),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -210,7 +332,8 @@ class _SignUpViewState extends State<SignUpView> {
 
   // ───────────────────────── widgets ───────────────────────────────────────────
 
-  Widget _infoRow(String label, String value) {                 // ← ADDED
+  Widget _infoRow(String label, String value) {
+    // ← ADDED
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Container(
@@ -223,8 +346,10 @@ class _SignUpViewState extends State<SignUpView> {
         child: Row(
           children: [
             Expanded(
-              child: Text(label,
-                  style: GoogleFonts.inter(color: Colors.white70)),
+              child: Text(
+                label,
+                style: GoogleFonts.inter(color: Colors.white70),
+              ),
             ),
             Flexible(
               child: Text(
@@ -232,7 +357,9 @@ class _SignUpViewState extends State<SignUpView> {
                 textAlign: TextAlign.right,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.inter(
-                    color: Colors.white, fontWeight: FontWeight.w600),
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -241,8 +368,13 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
-  Widget _field(TextEditingController ctl, String label,
-      {String? autofill, bool readOnly = false, bool required = true}) {
+  Widget _field(
+    TextEditingController ctl,
+    String label, {
+    String? autofill,
+    bool readOnly = false,
+    bool required = true,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -260,8 +392,12 @@ class _SignUpViewState extends State<SignUpView> {
           filled: readOnly,
           fillColor: Colors.grey.shade900,
           contentPadding: _pad,
-          enabledBorder: _border(readOnly ? Colors.grey.shade700 : const Color(0x3FFFFFFF)),
-          focusedBorder: _border(readOnly ? Colors.grey.shade700 : const Color(0xff00DC00)),
+          enabledBorder: _border(
+            readOnly ? Colors.grey.shade700 : const Color(0x3FFFFFFF),
+          ),
+          focusedBorder: _border(
+            readOnly ? Colors.grey.shade700 : const Color(0xff00DC00),
+          ),
         ),
         validator: (v) {
           // Validators will not run for OAuth because the fields are not rendered.
@@ -301,7 +437,10 @@ class _SignUpViewState extends State<SignUpView> {
           //   fontWeight: FontWeight.w500,
           // ),
           prefixText: '+91 ',
-          prefixStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500),
+          prefixStyle: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
           // counterText: '', // hides 0/10 counter
           contentPadding: _pad,
           enabledBorder: _border(const Color(0x3FFFFFFF)),
@@ -323,10 +462,10 @@ class _SignUpViewState extends State<SignUpView> {
             return 'Enter valid number';
           }
           return null;
-        })
+        },
+      ),
     );
   }
-
 
   Widget _userNameField() {
     return Padding(
@@ -376,39 +515,50 @@ class _SignUpViewState extends State<SignUpView> {
   // }
 
   Widget _signupBtn() {
-    return Obx(() => Stack(
-      children: [
-        RGBLightFrame(width: Get.width, height: 50, borderRadius: 10),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: c.isLoading.value
-                ? null
-                : () {
-              if (_formKey.currentState!.validate()) {
-                c.signUp();
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child: c.isLoading.value
-                ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: AppLinearLoader())
-                : Text(
-              'Sign Up',
-              style: GoogleFonts.inter(color: Colors.white),
+    return Obx(
+      () => Stack(
+        children: [
+          RGBLightFrame(width: Get.width, height: 50, borderRadius: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: c.isLoading.value
+                  ? null
+                  : () {
+                      final isValid = _formKey.currentState!.validate();
+                      debugPrint(
+                        '[iOS Signup][View] Sign Up tapped | isIos=$_isIos | cameFromOAuth=$_cameFromOAuth | isValid=$isValid | firebaseUid=${_auth.currentUser?.uid} | providers=${_auth.currentUser?.providerData.map((p) => p.providerId).join(",")}',
+                      );
+                      if (isValid) {
+                        debugPrint(
+                          '[iOS Signup][View] Submitting signup | nameLen=${c.nameController.text.trim().length} | gamerTag=${c.gameUserNameController.text.trim()} | phone=${c.mobileNoController.text.trim()} | email=${c.emailController.text.trim()}',
+                        );
+                        c.signUp();
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: c.isLoading.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: AppLinearLoader(),
+                    )
+                  : Text(
+                      'Sign Up',
+                      style: GoogleFonts.inter(color: Colors.white),
+                    ),
             ),
           ),
-        )
-      ],
-    ));
+        ],
+      ),
+    );
   }
 
   Widget _referralField() {
@@ -421,7 +571,11 @@ class _SignUpViewState extends State<SignUpView> {
           labelText: 'Referral Code (Optional)',
           labelStyle: GoogleFonts.inter(color: Colors.white54),
           hintText: 'Enter if you have one',
-          hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 13, fontWeight: FontWeight.w100),
+          hintStyle: GoogleFonts.inter(
+            color: Colors.white24,
+            fontSize: 13,
+            fontWeight: FontWeight.w100,
+          ),
           contentPadding: _pad.copyWith(top: 10, bottom: 10),
           enabledBorder: _border(const Color(0x2FFFFFFF)),
           focusedBorder: _border(const Color(0xff00DC00)),
@@ -432,6 +586,7 @@ class _SignUpViewState extends State<SignUpView> {
 
   // helper
   OutlineInputBorder _border(Color c) => OutlineInputBorder(
-      borderSide: BorderSide(color: c),
-      borderRadius: BorderRadius.circular(12));
+    borderSide: BorderSide(color: c),
+    borderRadius: BorderRadius.circular(12),
+  );
 }

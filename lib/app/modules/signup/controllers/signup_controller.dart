@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
@@ -40,7 +41,13 @@ class SignUpController extends GetxController {
 
   Future<void> signUp() async {
     User? currentUser = _auth.currentUser;
+    debugPrint(
+      '[iOS Signup][Controller] signUp() start | isIOS=${!GetPlatform.isWeb && Platform.isIOS} | firebaseUid=${currentUser?.uid} | firebaseEmail=${currentUser?.email} | providers=${currentUser?.providerData.map((p) => p.providerId).join(",")}',
+    );
     if (currentUser == null) {
+      debugPrint(
+        '[iOS Signup][Controller] Aborting signup: currentUser is null',
+      );
       _showError('No Firebase user found. Please log in again.');
       return;
     }
@@ -54,6 +61,9 @@ class SignUpController extends GetxController {
 
     isLoading.value = true;
     try {
+      debugPrint(
+        '[iOS Signup][Controller] Collecting advertising id and building signup payload',
+      );
       final advertisingId = await deviceIdentifierService
           .getPreferredAdvertisingId();
       final userData = {
@@ -84,7 +94,13 @@ class SignUpController extends GetxController {
         "advertising_id": advertisingId,
       };
 
+      debugPrint(
+        '[iOS Signup][Controller] Payload ready | fid=${currentUser.uid} | name=${userData["name"]} | gamerTag=${userData["gameUserName"]} | mobile=${mobileNoController.text.trim()} | email=${emailController.text.trim()} | referral=${referralCodeController.text.trim()}',
+      );
+      debugPrint('[iOS Signup][Controller] Calling remoteRepo.signUp(...)');
+
       await remoteRepo.signUp(userData);
+      debugPrint('[iOS Signup][Controller] remoteRepo.signUp success');
       await facebookAppEvents.logEvent(name: "fb_mobile_complete_registration");
 
       // Track referral joined event if referral code was used
@@ -119,10 +135,16 @@ class SignUpController extends GetxController {
       // );
 
       await fetchUserData();
+      debugPrint('[iOS Signup][Controller] fetchUserData completed');
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('new_user_bonus_pending', true);
+      debugPrint(
+        '[iOS Signup][Controller] new_user_bonus_pending saved, navigating to home',
+      );
       Get.offAllNamed('/home');
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[iOS Signup][Controller] Signup failed: $e');
+      debugPrint('[iOS Signup][Controller] Stacktrace: $st');
       _showError('Signup failed: $e');
     } finally {
       isLoading.value = false;
@@ -134,8 +156,14 @@ class SignUpController extends GetxController {
     if (currentUser == null) return;
 
     try {
+      debugPrint(
+        '[iOS Signup][Controller] fetchUserData() | firebaseUid=${currentUser.uid}',
+      );
       final userData = await remoteRepo.checkUserExistsInAPI(currentUser.uid);
       if (userData != null) {
+        debugPrint(
+          '[iOS Signup][Controller] fetchUserData success | keys=${userData.keys.toList()}',
+        );
         nameController.text = userData['name'] ?? '';
         gameUserNameController.text = userData['gameUserName'] ?? '';
         dobController.text = userData['dob'] ?? '';
@@ -155,8 +183,14 @@ class SignUpController extends GetxController {
           stateController.text = physicalAddress['State'] ?? '';
           countryController.text = physicalAddress['Country'] ?? '';
         }
+      } else {
+        debugPrint(
+          '[iOS Signup][Controller] fetchUserData returned null for uid=${currentUser.uid}',
+        );
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[iOS Signup][Controller] fetchUserData failed: $e');
+      debugPrint('[iOS Signup][Controller] fetchUserData stacktrace: $st');
       _showError('Failed to load user data: $e');
     }
   }

@@ -13,6 +13,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:hash/core/network/network_config.dart';
+import 'package:hash/core/repositories/remote/auth_exceptions.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -323,6 +324,7 @@ class LoginController extends GetxController {
     isLoading.value = true;
 
     try {
+      debugPrint('[iOS Signup][Apple] appleSignIn() started');
       final advertisingId = await deviceIdentifierService
           .getPreferredAdvertisingId();
       final rawNonce = _generateNonce();
@@ -335,16 +337,20 @@ class LoginController extends GetxController {
         ],
         nonce: nonce,
       );
-
-      final oAuthProvider = firebase_auth.OAuthProvider("apple.com");
-      final credential = oAuthProvider.credential(
-        idToken: appleCredential.identityToken,
-        rawNonce: rawNonce,
-        accessToken: appleCredential.authorizationCode,
+      debugPrint(
+        '[iOS Signup][Apple] Apple credential received | userIdentifier=${appleCredential.userIdentifier} | email=${appleCredential.email} | givenName=${appleCredential.givenName} | familyName=${appleCredential.familyName} | hasIdToken=${appleCredential.identityToken?.isNotEmpty == true} | hasAuthCode=${appleCredential.authorizationCode.isNotEmpty}',
       );
 
-      final userCredential = await _auth.signInWithCredential(credential);
+      final userCredential = await _signInWithAppleFirebase(
+        idToken: appleCredential.identityToken,
+        rawNonce: rawNonce,
+        givenName: appleCredential.givenName,
+        familyName: appleCredential.familyName,
+      );
       final user = userCredential.user;
+      debugPrint(
+        '[iOS Signup][Apple] Firebase signInWithCredential complete | firebaseUid=${user?.uid} | email=${user?.email} | displayName=${user?.displayName}',
+      );
 
       if (user == null) {
         _showErrorSnackbar('Apple Sign-In failed', 'No user returned.');
@@ -372,17 +378,33 @@ class LoginController extends GetxController {
         await user.updateDisplayName(fullName);
         await user.reload();
       }
+      final resolvedUser = _auth.currentUser ?? user;
+      final appleProfile = await _buildAppleProfile(
+        user: resolvedUser,
+        appleCredential: appleCredential,
+      );
+      debugPrint(
+        '[iOS Signup][Apple] Resolved profile | name=${appleProfile['name']} | email=${appleProfile['email']} | provider=${appleProfile['provider']}',
+      );
 
       await _persistSession(
-        uid: user.uid,
-        name: user.displayName ?? fullName,
-        email: user.email ?? appleCredential.email ?? '',
+        uid: resolvedUser.uid,
+        name: (appleProfile['name'] ?? '').toString(),
+        email: (appleProfile['email'] ?? '').toString(),
         photoUrl: '',
         provider: 'apple',
       );
+      debugPrint('[iOS Signup][Apple] Session persisted, handling navigation');
 
-      await _handleUserNavigation(user);
-    } catch (e) {
+      await _handleUserNavigation(
+        resolvedUser,
+        autoSignupIfMissing: true,
+        googleProfile: appleProfile,
+        allowManualSignupFallback: false,
+      );
+    } catch (e, st) {
+      debugPrint('[iOS Signup][Apple] appleSignIn failed: $e');
+      debugPrint('[iOS Signup][Apple] Stacktrace: $st');
       _showErrorSnackbar('Apple Sign-In failed', e.toString());
     } finally {
       isLoading.value = false;
@@ -428,10 +450,22 @@ class LoginController extends GetxController {
     required String provider,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    final existingUid = (prefs.getString('uid') ?? '').trim();
+    final resolvedName = name.trim().isNotEmpty
+        ? name.trim()
+        : (existingUid == uid ? (prefs.getString('name') ?? '').trim() : '');
+    final resolvedEmail = email.trim().isNotEmpty
+        ? email.trim()
+        : (existingUid == uid ? (prefs.getString('email') ?? '').trim() : '');
+    final resolvedPhotoUrl = photoUrl.trim().isNotEmpty
+        ? photoUrl.trim()
+        : (existingUid == uid
+              ? (prefs.getString('photoUrl') ?? '').trim()
+              : '');
     await prefs.setString('uid', uid);
-    await prefs.setString('name', name);
-    await prefs.setString('email', email);
-    await prefs.setString('photoUrl', photoUrl);
+    await prefs.setString('name', resolvedName);
+    await prefs.setString('email', resolvedEmail);
+    await prefs.setString('photoUrl', resolvedPhotoUrl);
     await prefs.setBool('isLoggedIn', true);
     // Optionally persist provider if you need it elsewhere:
     // await prefs.setString('hfg_login_provider', provider);
@@ -451,8 +485,12 @@ class LoginController extends GetxController {
     String? phoneNumber,
     bool autoSignupIfMissing = false,
     Map<String, dynamic>? googleProfile,
+    bool allowManualSignupFallback = true,
   }) async {
     try {
+      debugPrint(
+        '[iOS Signup][Nav] _handleUserNavigation start | firebaseUid=${user.uid} | provider=${user.providerData.map((p) => p.providerId).join(",")} | autoSignupIfMissing=$autoSignupIfMissing | allowManualSignupFallback=$allowManualSignupFallback | phone=$phoneNumber | email=${user.email}',
+      );
       final profile = googleProfile ?? const <String, dynamic>{};
       final fallbackGameUserName = _generateAutoGameUserName(
         (profile['name'] ?? user.displayName ?? user.email ?? 'Hash Player')
@@ -465,7 +503,9 @@ class LoginController extends GetxController {
         photoUrl: (profile['photoUrl']?.toString().trim().isNotEmpty ?? false)
             ? profile['photoUrl'].toString()
             : (user.photoURL ?? ''),
-        email: user.email ?? '',
+        email: (profile['email']?.toString().trim().isNotEmpty ?? false)
+            ? profile['email'].toString()
+            : (user.email ?? ''),
         gameUserName:
             (profile['gameUserName']?.toString().trim().isNotEmpty ?? false)
             ? profile['gameUserName'].toString()
@@ -478,36 +518,40 @@ class LoginController extends GetxController {
         country: profile['country']?.toString(),
       );
       final userData = await remoteRepo.checkUserExistsInAPI(user.uid);
+      debugPrint(
+        '[iOS Signup][Nav] checkUserExistsInAPI result | exists=${userData != null}',
+      );
 
       if (userData != null) {
+        debugPrint('[iOS Signup][Nav] Existing backend user found, going home');
         await _finalizeExistingUserLogin(userData);
         Get.offAllNamed(AppRoutes.HOME);
         return;
       }
 
       if (autoSignupIfMissing) {
-        final autoSignupDone = await _attemptAutoSignup(
+        final createdUserData = await _attemptAutoSignup(
           user,
           phoneNumber: phoneNumber,
           googleProfile: profile,
+          allowManualSignupFallback: allowManualSignupFallback,
         );
-        if (!autoSignupDone) return;
-
-        final createdUserData = await remoteRepo.checkUserExistsInAPI(user.uid);
         if (createdUserData == null) {
-          _showErrorSnackbar(
-            'Signup failed',
-            'Account created but user profile could not be fetched. Please try again.',
-          );
           return;
         }
 
+        debugPrint(
+          '[iOS Signup][Nav] Auto-signup produced backend user, going home | backendUserId=${createdUserData['id']}',
+        );
         await _finalizeExistingUserLogin(createdUserData);
         Get.offAllNamed(AppRoutes.HOME);
         return;
       }
 
       {
+        debugPrint(
+          '[iOS Signup][Nav] Backend user missing, routing to signup | name=${user.displayName} | email=${user.email} | phone=${phoneNumber ?? ""}',
+        );
         Get.offAllNamed(
           AppRoutes.SIGNUP,
           arguments: {
@@ -518,7 +562,9 @@ class LoginController extends GetxController {
           },
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[iOS Signup][Nav] _handleUserNavigation failed: $e');
+      debugPrint('[iOS Signup][Nav] Stacktrace: $st');
       _showErrorSnackbar('Error', 'Failed to complete login: $e');
     }
   }
@@ -535,13 +581,24 @@ class LoginController extends GetxController {
     userController.id.value = userData['id'].toString();
   }
 
-  Future<bool> _attemptAutoSignup(
+  Future<Map<String, dynamic>?> _attemptAutoSignup(
     firebase_auth.User user, {
     String? phoneNumber,
     Map<String, dynamic>? googleProfile,
+    bool allowManualSignupFallback = true,
   }) async {
     try {
       final profile = googleProfile ?? const <String, dynamic>{};
+      final prefs = await SharedPreferences.getInstance();
+      final providerLabel =
+          (profile['provider']?.toString().trim().isNotEmpty ?? false)
+          ? profile['provider'].toString().trim()
+          : 'oauth';
+      final persistedUid = (prefs.getString('uid') ?? '').trim();
+      final persistedName = (prefs.getString('name') ?? '').trim();
+      final persistedEmail = (persistedUid == user.uid)
+          ? (prefs.getString('email') ?? '').trim()
+          : '';
       final advertisingId = await deviceIdentifierService
           .getPreferredAdvertisingId();
       final displayName = (user.displayName ?? '').trim();
@@ -550,8 +607,19 @@ class LoginController extends GetxController {
           ? profile['name'].toString().trim()
           : displayName.isNotEmpty
           ? displayName
-          : ((user.email ?? '').split('@').first.trim().isNotEmpty
-                ? (user.email ?? '').split('@').first.trim()
+          : persistedName.isNotEmpty
+          ? persistedName
+          : (((profile['email'] ?? user.email ?? '')
+                        .toString()
+                        .split('@')
+                        .first
+                        .trim())
+                    .isNotEmpty
+                ? ((profile['email'] ?? user.email ?? '')
+                      .toString()
+                      .split('@')
+                      .first
+                      .trim())
                 : 'Hash Player');
       final gameUserName =
           (profile['gameUserName']?.toString().trim().isNotEmpty ?? false)
@@ -581,34 +649,197 @@ class LoginController extends GetxController {
           },
           "electronicAddress": {
             "mobileNo": (phoneNumber ?? user.phoneNumber ?? '').trim(),
-            "emailId": (user.email ?? '').trim(),
+            "emailId":
+                ((profile['email'] ??
+                            user.email ??
+                            (persistedEmail.isNotEmpty
+                                ? persistedEmail
+                                : null)) ??
+                        '')
+                    .toString()
+                    .trim(),
           },
         },
         "advertising_id": advertisingId,
       };
+      final contact = Map<String, dynamic>.from(
+        userData['contact'] as Map<String, dynamic>,
+      );
+      final electronicAddress = Map<String, dynamic>.from(
+        contact['electronicAddress'] as Map<String, dynamic>,
+      );
 
-      AppLogger.d('🆕 Auto signup started for Google user: ${user.uid}');
-      await remoteRepo.signUp(userData);
-      final prefs = await SharedPreferences.getInstance();
+      debugPrint(
+        '[iOS Signup][Auto] Start | provider=$providerLabel | firebaseUid=${user.uid} | fallbackName=$fallbackName | email=${electronicAddress["emailId"]} | mobile=${electronicAddress["mobileNo"]} | gamerTag=$gameUserName',
+      );
+      AppLogger.d(
+        '🆕 Auto signup started for $providerLabel user: ${user.uid}',
+      );
+      final response = await remoteRepo.signUp(userData);
       await prefs.setBool('new_user_bonus_pending', true);
-      AppLogger.d('✅ Auto signup success for Google user: ${user.uid}');
-      return true;
-    } catch (e) {
-      AppLogger.e('❌ Auto signup failed for Google user ${user.uid}: $e');
+      AppLogger.d('✅ Auto signup success for $providerLabel user: ${user.uid}');
+      debugPrint(
+        '[iOS Signup][Auto] Success | provider=$providerLabel | firebaseUid=${user.uid} | responseKeys=${response.keys.toList()}',
+      );
+      final createdUser = response['user'];
+      if (createdUser is Map<String, dynamic>) {
+        return createdUser;
+      }
+      if (createdUser is Map) {
+        return Map<String, dynamic>.from(createdUser);
+      }
+      return await remoteRepo.checkUserExistsInAPI(user.uid);
+    } on AuthConflictException catch (e) {
+      final profile = googleProfile ?? const <String, dynamic>{};
+      final providerLabel =
+          (profile['provider']?.toString().trim().isNotEmpty ?? false)
+          ? profile['provider'].toString().trim()
+          : 'oauth';
+      debugPrint(
+        '[iOS Signup][Auto] Conflict | provider=$providerLabel | firebaseUid=${user.uid} | state=${e.state} | email=${e.email}',
+      );
+      if (e.state == 'EMAIL_EXISTS') {
+        final profileEmail = (profile['email'] ?? '').toString().trim();
+        final resolvedConflictEmail = (e.email ?? '').trim().isNotEmpty
+            ? e.email!.trim()
+            : (profileEmail.isNotEmpty
+                  ? profileEmail
+                  : (user.email ?? '').trim());
+        final alternateProvider = _alternateRecoveryProviderFor(providerLabel);
+        if (alternateProvider != null &&
+            await _showProviderRecoveryDialog(
+              currentProvider: providerLabel,
+              targetProvider: alternateProvider,
+              email: resolvedConflictEmail,
+            )) {
+          isLoading.value = false;
+          await _continueWithRecoveryProvider(alternateProvider);
+        }
+        return null;
+      }
+
+      _showErrorSnackbar('Signup failed', e.message);
+      if (allowManualSignupFallback) {
+        Get.offAllNamed(
+          AppRoutes.SIGNUP,
+          arguments: {
+            'name': user.displayName ?? '',
+            'email': (profile['email'] ?? user.email ?? '').toString(),
+            'photoUrl': user.photoURL ?? '',
+            'phoneNumber': phoneNumber ?? user.phoneNumber ?? '',
+          },
+        );
+      }
+      return null;
+    } catch (e, st) {
+      final profile = googleProfile ?? const <String, dynamic>{};
+      final providerLabel =
+          (profile['provider']?.toString().trim().isNotEmpty ?? false)
+          ? profile['provider'].toString().trim()
+          : 'oauth';
+      debugPrint(
+        '[iOS Signup][Auto] Failed | provider=$providerLabel | firebaseUid=${user.uid} | error=$e',
+      );
+      debugPrint('[iOS Signup][Auto] Stacktrace: $st');
+      AppLogger.e(
+        '❌ Auto signup failed for $providerLabel user ${user.uid}: $e',
+      );
       _showErrorSnackbar(
         'Signup failed',
-        'Could not complete auto-signup. Please continue with signup manually.',
+        allowManualSignupFallback
+            ? 'Could not complete auto-signup. Please continue with signup manually.'
+            : 'Could not complete automatic profile setup. ${e.toString()}',
       );
-      Get.offAllNamed(
-        AppRoutes.SIGNUP,
-        arguments: {
-          'name': user.displayName ?? '',
-          'email': user.email ?? '',
-          'photoUrl': user.photoURL ?? '',
-          'phoneNumber': phoneNumber ?? user.phoneNumber ?? '',
-        },
+      if (allowManualSignupFallback) {
+        Get.offAllNamed(
+          AppRoutes.SIGNUP,
+          arguments: {
+            'name': user.displayName ?? '',
+            'email': (profile['email'] ?? user.email ?? '').toString(),
+            'photoUrl': user.photoURL ?? '',
+            'phoneNumber': phoneNumber ?? user.phoneNumber ?? '',
+          },
+        );
+      }
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> _buildAppleProfile({
+    required firebase_auth.User user,
+    required AuthorizationCredentialAppleID appleCredential,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final persistedUid = (prefs.getString('uid') ?? '').trim();
+    final persistedName = (prefs.getString('name') ?? '').trim();
+    final persistedEmail = (prefs.getString('email') ?? '').trim();
+    final fullName = [
+      appleCredential.givenName ?? '',
+      appleCredential.familyName ?? '',
+    ].where((value) => value.trim().isNotEmpty).join(' ').trim();
+    final resolvedName = fullName.isNotEmpty
+        ? fullName
+        : (user.displayName ?? '').trim().isNotEmpty
+        ? (user.displayName ?? '').trim()
+        : (persistedUid == user.uid ? persistedName : '');
+    final resolvedEmail = (appleCredential.email ?? '').trim().isNotEmpty
+        ? (appleCredential.email ?? '').trim()
+        : (user.email ?? '').trim().isNotEmpty
+        ? (user.email ?? '').trim()
+        : (persistedUid == user.uid ? persistedEmail : '');
+    final seed = resolvedName.isNotEmpty
+        ? resolvedName
+        : (resolvedEmail.isNotEmpty ? resolvedEmail : 'Hash Player');
+
+    return {
+      'name': resolvedName,
+      'email': resolvedEmail,
+      'photoUrl': '',
+      'provider': 'apple',
+      'gameUserName': _generateAutoGameUserName(seed),
+    };
+  }
+
+  Future<firebase_auth.UserCredential> _signInWithAppleFirebase({
+    required String? idToken,
+    required String rawNonce,
+    String? givenName,
+    String? familyName,
+  }) async {
+    final normalizedIdToken = (idToken ?? '').trim();
+    if (normalizedIdToken.isEmpty) {
+      throw firebase_auth.FirebaseAuthException(
+        code: 'missing-apple-id-token',
+        message: 'Apple Sign-In did not return a valid identity token.',
       );
-      return false;
+    }
+
+    final credential = firebase_auth.AppleAuthProvider.credentialWithIDToken(
+      normalizedIdToken,
+      rawNonce,
+      firebase_auth.AppleFullPersonName(
+        givenName: (givenName ?? '').trim().isEmpty ? null : givenName!.trim(),
+        familyName: (familyName ?? '').trim().isEmpty
+            ? null
+            : familyName!.trim(),
+      ),
+    );
+
+    try {
+      return await _auth.signInWithCredential(credential);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      debugPrint(
+        '[iOS Signup][Apple] Firebase signInWithCredential failed | code=${e.code} | message=${e.message}',
+      );
+      if (e.code != 'network-request-failed') {
+        rethrow;
+      }
+
+      debugPrint(
+        '[iOS Signup][Apple] Retrying Firebase signInWithCredential after transient network failure',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      return _auth.signInWithCredential(credential);
     }
   }
 
@@ -714,13 +945,136 @@ class LoginController extends GetxController {
   }
 
   void _showErrorSnackbar(String title, String? message) {
-    Get.snackbar(
-      title,
-      message ?? 'An unknown error occurred',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.red,
-      colorText: Colors.white,
+    final safeMessage = message ?? 'An unknown error occurred';
+    debugPrint(
+      '[LoginController] _showErrorSnackbar | title=$title | message=$safeMessage | hasOverlay=${Get.overlayContext != null} | hasContext=${Get.context != null}',
     );
+
+    if (_showScaffoldMessengerError(title, safeMessage)) {
+      return;
+    }
+
+    if (_showOverlayError(title, safeMessage)) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_showScaffoldMessengerError(title, safeMessage)) {
+        return;
+      }
+
+      if (_showOverlayError(title, safeMessage)) {
+        return;
+      }
+
+      debugPrint(
+        '[LoginController] Unable to present snackbar. title=$title | message=$safeMessage',
+      );
+    });
+  }
+
+  bool _showScaffoldMessengerError(String title, String message) {
+    final context = Get.context;
+    if (context == null) return false;
+
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return false;
+
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('$title: $message'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    return true;
+  }
+
+  bool _showOverlayError(String title, String message) {
+    final overlayContext = Get.overlayContext;
+    if (overlayContext == null) return false;
+
+    final overlayState = Overlay.maybeOf(overlayContext, rootOverlay: true);
+    if (overlayState == null) {
+      debugPrint(
+        '[LoginController] Overlay context present without usable Overlay for $title',
+      );
+      return false;
+    }
+
+    try {
+      Get.snackbar(
+        title,
+        message,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return true;
+    } catch (e, st) {
+      debugPrint(
+        '[LoginController] Get.snackbar failed | title=$title | error=$e',
+      );
+      debugPrint('[LoginController] Get.snackbar stacktrace: $st');
+      return false;
+    }
+  }
+
+  String? _alternateRecoveryProviderFor(String currentProvider) {
+    switch (currentProvider) {
+      case 'apple':
+        return 'google';
+      case 'google':
+        return Platform.isIOS ? 'apple' : null;
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _continueWithRecoveryProvider(String provider) async {
+    switch (provider) {
+      case 'google':
+        await googleSignIn();
+        return;
+      case 'apple':
+        await appleSignIn();
+        return;
+      default:
+        return;
+    }
+  }
+
+  Future<bool> _showProviderRecoveryDialog({
+    required String currentProvider,
+    required String targetProvider,
+    String? email,
+  }) async {
+    final displayEmail = (email ?? '').trim();
+    final providerLabel = targetProvider == 'apple' ? 'Apple' : 'Google';
+    final content = displayEmail.isNotEmpty
+        ? 'This email is already connected to a $providerLabel account.\n\nContinue with $providerLabel to access the same account.\n\n$displayEmail'
+        : 'This email is already connected to a $providerLabel account.\n\nContinue with $providerLabel to access the same account.';
+    final result = await Get.dialog<bool>(
+      CupertinoAlertDialog(
+        title: const Text('Account Already Exists'),
+        content: Text(content),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Back'),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Get.back(result: true),
+            child: Text('Continue with $providerLabel'),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
+    return result == true;
   }
 
   @override
