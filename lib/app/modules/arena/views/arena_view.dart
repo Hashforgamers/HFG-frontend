@@ -18,10 +18,11 @@ import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:location/location.dart' as loc;
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show PlatformException, rootBundle;
 import 'package:geocoding/geocoding.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart'
     hide NetworkProvider;
+import 'package:hash/app/modules/arena/utils/arena_games_extractor.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import '../../../../utils/service.dart';
@@ -85,6 +86,7 @@ class _ArenaViewState extends State<ArenaView> {
 
   bool _mapReady = false; // NEW
   bool _playedZoom = false; // NEW
+  bool _mapDisposed = false;
 
   BitmapDescriptor? _markerUser, _markerCafe, _markerCafeHighlighted;
   String _normState(String? s) {
@@ -156,29 +158,47 @@ class _ArenaViewState extends State<ArenaView> {
     _cafesWorker = ever<List<dynamic>>(_cafeCtr.cybercafes, (_) {
       _applyCafeFilterAndRefresh();
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _initLocation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (_cafeCtr.cybercafes.isEmpty && !_cafeCtr.isLoading.value) {
-        await _cafeCtr.fetchCybercafes(forceRefresh: false);
-      }
-      if (!mounted) return;
-      if (_userLatLng != null) {
-        await _getUserStateAndFilterCafes();
-      } else {
+
+      // Cached cafes may already be in the controller before this view
+      // attaches its worker. Seed the UI immediately, then refine with
+      // location/state once that async work completes.
+      if (_cafeCtr.cybercafes.isNotEmpty) {
         _applyCafeFilterAndRefresh();
       }
+
+      unawaited(_bootstrapArenaCafes());
     });
+  }
+
+  Future<void> _bootstrapArenaCafes() async {
+    await _initLocation();
+    if (!mounted) return;
+
+    if (_cafeCtr.cybercafes.isEmpty && !_cafeCtr.isLoading.value) {
+      await _cafeCtr.fetchCybercafes(forceRefresh: false);
+    }
+    if (!mounted) return;
+
+    if (_userLatLng != null) {
+      await _getUserStateAndFilterCafes();
+    } else {
+      _applyCafeFilterAndRefresh();
+    }
   }
 
   @override
   void dispose() {
+    final shouldDisposeMap = _mapReady;
+    _mapDisposed = true;
+    _mapReady = false;
     _locationSub?.cancel();
     _cafesWorker.dispose();
     _searchCtl.dispose();
     _cafePageController.dispose();
     _camDebounce?.cancel();
-    if (_mapReady) {
+    if (shouldDisposeMap) {
       try {
         _mapCtr.dispose();
       } catch (_) {}
@@ -284,12 +304,14 @@ class _ArenaViewState extends State<ArenaView> {
   /* ────────────────────────────────────────────────────────────────────────── */
 
   void _smoothMoveCamera(LatLng? target, {double zoom = 15}) {
-    if (!_mapReady || target == null) return;
+    if (!_mapReady || _mapDisposed || target == null) return;
     _camDebounce?.cancel();
     _camDebounce = Timer(const Duration(milliseconds: 280), () {
-      _mapCtr.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: target, zoom: zoom),
+      unawaited(
+        _safeAnimateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(target: target, zoom: zoom),
+          ),
         ),
       );
     });
@@ -300,28 +322,83 @@ class _ArenaViewState extends State<ArenaView> {
   /* ────────────────────────────────────────────────────────────────────────── */
 
   Future<void> _playZoomAnimation() async {
-    if (_userLatLng == null) return;
+    if (_userLatLng == null || !_mapReady || _mapDisposed || !mounted) return;
     _playedZoom = true;
 
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await Future.delayed(const Duration(milliseconds: 250));
+      if (!_mapReady || _mapDisposed || !mounted) return;
+    }
+
     // start far away
-    await _mapCtr.moveCamera(
+    await _safeMoveCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(target: _userLatLng!, zoom: 4),
       ),
     );
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!_mapReady || _mapDisposed || !mounted) return;
 
     // zoom mid-range
-    await _mapCtr.animateCamera(CameraUpdate.zoomTo(9));
+    await _safeAnimateCamera(CameraUpdate.zoomTo(9));
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!_mapReady || _mapDisposed || !mounted) return;
 
     // final close-up
-    await _mapCtr.animateCamera(CameraUpdate.zoomTo(15));
+    await _safeAnimateCamera(CameraUpdate.zoomTo(15));
   }
 
   void _tryPlayZoom() {
     if (_mapReady && _userLatLng != null && !_playedZoom) {
-      _playZoomAnimation();
+      unawaited(_playZoomAnimation());
+    }
+  }
+
+  Future<void> _safeMoveCamera(
+    CameraUpdate update, {
+    bool allowRetry = true,
+  }) async {
+    if (!_mapReady || _mapDisposed || !mounted) return;
+    try {
+      await _mapCtr.moveCamera(update);
+    } on PlatformException catch (e) {
+      if (allowRetry && e.code == 'channel-error') {
+        await Future.delayed(const Duration(milliseconds: 250));
+        if (!_mapReady || _mapDisposed || !mounted) return;
+        try {
+          await _mapCtr.moveCamera(update);
+        } on PlatformException catch (_) {
+          debugPrint('moveCamera channel unavailable after retry');
+        }
+      } else {
+        debugPrint('moveCamera failed: ${e.code}');
+      }
+    } catch (e) {
+      debugPrint('moveCamera failed: $e');
+    }
+  }
+
+  Future<void> _safeAnimateCamera(
+    CameraUpdate update, {
+    bool allowRetry = true,
+  }) async {
+    if (!_mapReady || _mapDisposed || !mounted) return;
+    try {
+      await _mapCtr.animateCamera(update);
+    } on PlatformException catch (e) {
+      if (allowRetry && e.code == 'channel-error') {
+        await Future.delayed(const Duration(milliseconds: 250));
+        if (!_mapReady || _mapDisposed || !mounted) return;
+        try {
+          await _mapCtr.animateCamera(update);
+        } on PlatformException catch (_) {
+          debugPrint('animateCamera channel unavailable after retry');
+        }
+      } else {
+        debugPrint('animateCamera failed: ${e.code}');
+      }
+    } catch (e) {
+      debugPrint('animateCamera failed: $e');
     }
   }
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -709,7 +786,7 @@ class _ArenaViewState extends State<ArenaView> {
       southwest: LatLng(minLat, minLng),
       northeast: LatLng(maxLat, maxLng),
     );
-    await _mapCtr.animateCamera(CameraUpdate.newLatLngBounds(bounds, 48));
+    await _safeAnimateCamera(CameraUpdate.newLatLngBounds(bounds, 48));
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -759,20 +836,27 @@ class _ArenaViewState extends State<ArenaView> {
         return;
       }
 
-      // Get user's state from coordinates
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        _userLatLng!.latitude,
-        _userLatLng!.longitude,
-      );
+      try {
+        final placemarks = await placemarkFromCoordinates(
+          _userLatLng!.latitude,
+          _userLatLng!.longitude,
+        );
 
-      if (placemarks.isNotEmpty) {
-        final resolvedState = placemarks.first.administrativeArea?.trim() ?? '';
-        if (resolvedState.isNotEmpty) {
-          _stateCache[cacheKey] = resolvedState;
-          _stateCacheTime[cacheKey] = DateTime.now();
+        if (placemarks.isNotEmpty) {
+          final resolvedState =
+              placemarks.first.administrativeArea?.trim() ?? '';
+          if (resolvedState.isNotEmpty) {
+            _stateCache[cacheKey] = resolvedState;
+            _stateCacheTime[cacheKey] = DateTime.now();
+            _applyResolvedUserState(resolvedState);
+            return;
+          }
         }
-        _applyResolvedUserState(resolvedState);
-      } else {}
+      } catch (_) {
+        // Geocoding is not reliable enough to block cafe rendering.
+      }
+
+      _applyResolvedUserState(null);
     } finally {
       _isLocationFiltering.value = false;
     }
@@ -839,6 +923,7 @@ class _ArenaViewState extends State<ArenaView> {
                         polylines: polylines.toSet(),
                         onMapCreated: (ctrl) async {
                           _mapCtr = ctrl;
+                          _mapDisposed = false;
                           _mapReady = true;
 
                           // iOS: give the renderer a moment before styling
@@ -921,24 +1006,57 @@ class _ArenaViewState extends State<ArenaView> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      if (_userState != null)
+                                      if (_cafeCtr.isLoading.value &&
+                                          _cafeCtr.cybercafes.isEmpty)
+                                        AppLinearLoader(),
+                                      if (!_cafeCtr.isLoading.value &&
+                                          _cafeCtr.cybercafes.isEmpty)
+                                        Text(
+                                          'Unable to load cafes right now',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 14,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      if (!_cafeCtr.isLoading.value &&
+                                          _cafeCtr.cybercafes.isNotEmpty &&
+                                          _userState != null)
                                         Text(
                                           'No cafes available in $_userState',
                                           style: GoogleFonts.inter(
                                             fontSize: 14,
                                             color: Colors.white70,
                                           ),
-                                        )
-                                      else
-                                        AppLinearLoader(),
+                                        ),
                                       const SizedBox(height: 8),
-                                      if (_userState != null)
+                                      if (!_cafeCtr.isLoading.value &&
+                                          _cafeCtr.cybercafes.isEmpty)
+                                        GestureDetector(
+                                          onTap: () {
+                                            _cafeCtr.fetchCybercafes(
+                                              forceRefresh: true,
+                                            );
+                                          },
+                                          child: Text(
+                                            'Retry',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 14,
+                                              color: const Color(0xff00DC00),
+                                            ),
+                                          ),
+                                        ),
+                                      if (!_cafeCtr.isLoading.value &&
+                                          _cafeCtr.cybercafes.isNotEmpty &&
+                                          _userState != null)
                                         GestureDetector(
                                           onTap: () {
                                             _showingAllCafes.value = true;
                                             _filteredCafes.assignAll(
-                                              _cafeCtr.cybercafes
-                                                  .cast<Map<String, dynamic>>(),
+                                              _sortCafesByDistance(
+                                                _cafeCtr.cybercafes.cast<
+                                                  Map<String, dynamic>
+                                                >(),
+                                              ),
                                             );
                                             _refreshCafeMarkers();
                                           },
@@ -1021,7 +1139,7 @@ class _ArenaViewState extends State<ArenaView> {
             title: cafe['cafe_name'] ?? 'Unknown Cafe',
             address: _formatAddress(cafe),
             openingHours: _formatOpeningHours(cafe),
-            availableGames: cafe['available_games'] ?? ['N/A'],
+            availableGames: extractArenaAvailableGames(cafe),
             amenities: cafe['amenities'] ?? [],
             phone: cafe['phone'] ?? 'Phone not available',
             email: cafe['email'] ?? 'Email not available',

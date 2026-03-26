@@ -58,6 +58,9 @@ class _HomeViewState extends State<HomeView> {
   bool _didSyncChatProfile = false;
   bool _dailyLoginRewardHandled = false;
   bool _isHomeScrolling = false;
+  bool _sessionProgressSyncScheduled = false;
+  List<Map<String, dynamic>> _pendingSessionProgressBookings =
+      <Map<String, dynamic>>[];
   Timer? _fabExpandTimer;
   Worker? _bookingsWorker;
 
@@ -71,12 +74,10 @@ class _HomeViewState extends State<HomeView> {
     _sessionProgressController = Get.isRegistered<SessionProgressController>()
         ? Get.find<SessionProgressController>()
         : Get.put(SessionProgressController(), permanent: true);
-    _sessionProgressController.syncFromPastBookings(
-      bookingController.userBookings,
-    );
+    _scheduleSessionProgressSync(bookingController.userBookings);
     _bookingsWorker = ever<List<Map<String, dynamic>>>(
       bookingController.userBookings,
-      (bookings) => _sessionProgressController.syncFromPastBookings(bookings),
+      _scheduleSessionProgressSync,
     );
     _syncChatProfile();
     unawaited(
@@ -87,6 +88,20 @@ class _HomeViewState extends State<HomeView> {
       _locationAnalyticsService.trackCurrentLocation(source: 'home_init'),
     );
     unawaited(_fiamService.triggerHomeOpen());
+  }
+
+  void _scheduleSessionProgressSync(List<Map<String, dynamic>> bookings) {
+    _pendingSessionProgressBookings = List<Map<String, dynamic>>.from(bookings);
+    if (_sessionProgressSyncScheduled) return;
+    _sessionProgressSyncScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sessionProgressSyncScheduled = false;
+      if (!mounted) return;
+      _sessionProgressController.syncFromPastBookings(
+        _pendingSessionProgressBookings,
+      );
+    });
   }
 
   Future<void> _handleDailyLoginHashCoinReward() async {

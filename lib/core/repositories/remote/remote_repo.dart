@@ -400,6 +400,13 @@ class RemoteRepo implements RemoteRepoInterface {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data is List ? response.data : [];
+        final hasDashboardCatalog = data.any((item) {
+          if (item is! Map) return false;
+          final game = item['game'];
+          if (game is! Map) return false;
+          final title = (game['name'] ?? game['title'] ?? '').toString().trim();
+          return title.isNotEmpty;
+        });
 
         // Normalize dashboard data for optional enrichment, but prefer legacy
         // booking inventory when present because it carries the actual
@@ -417,7 +424,11 @@ class RemoteRepo implements RemoteRepoInterface {
                 (console['console_type'] ?? console['consoleType'] ?? '')
                     .toString(),
               );
-              final bookingGameId = bookingGameIdByPlatform[consoleType];
+              final bookingGameId =
+                  bookingGameIdByPlatform[consoleType] ??
+                  ((console['vendor_game_id'] is num)
+                      ? (console['vendor_game_id'] as num).toInt()
+                      : null);
               if (bookingGameId != null) {
                 console['booking_game_id'] = bookingGameId;
               }
@@ -432,8 +443,22 @@ class RemoteRepo implements RemoteRepoInterface {
                         '')
                     .toString()
               : (game['platform'] ?? '').toString();
+          final firstConsoleBookingId = normalizedConsoles
+              .map((console) => console['booking_game_id'])
+              .whereType<num>()
+              .map((value) => value.toInt())
+              .cast<int?>()
+              .firstWhere((value) => value != null, orElse: () => null);
+          final firstConsoleVendorGameId = normalizedConsoles
+              .map((console) => console['vendor_game_id'])
+              .whereType<num>()
+              .map((value) => value.toInt())
+              .cast<int?>()
+              .firstWhere((value) => value != null, orElse: () => null);
           final gameBookingId =
-              bookingGameIdByPlatform[_normalizePlatform(fallbackPlatform)];
+              firstConsoleBookingId ??
+              bookingGameIdByPlatform[_normalizePlatform(fallbackPlatform)] ??
+              firstConsoleVendorGameId;
 
           double? derivedPrice;
           if (item is Map && item['avg_price'] != null) {
@@ -459,7 +484,9 @@ class RemoteRepo implements RemoteRepoInterface {
 
         final normalizedGames = <Map<String, dynamic>>[];
 
-        if (legacyGamesForFallback.isNotEmpty) {
+        if (hasDashboardCatalog && dashboardGames.isNotEmpty) {
+          normalizedGames.addAll(dashboardGames);
+        } else if (legacyGamesForFallback.isNotEmpty) {
           final dashboardByPlatform = <String, Map<String, dynamic>>{};
           for (final dashboardGame in dashboardGames) {
             final platform = _normalizePlatform(

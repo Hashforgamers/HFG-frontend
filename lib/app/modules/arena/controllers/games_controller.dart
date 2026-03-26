@@ -26,12 +26,14 @@ class _VendorPassesCacheEntry {
 class CafeGamesController extends GetxController {
   static const Duration _gamesCacheTtl = Duration(minutes: 15);
   static const Duration _passesCacheTtl = Duration(minutes: 15);
+  static const int _gamesCacheSchemaVersion = 2;
   static final Map<int, _VendorGamesCacheEntry> _gamesCache =
       <int, _VendorGamesCacheEntry>{};
   static final Map<int, _VendorPassesCacheEntry> _passesCache =
       <int, _VendorPassesCacheEntry>{};
   static final Map<int, Future<void>> _gamesRequests = <int, Future<void>>{};
   static final Map<int, Future<void>> _passesRequests = <int, Future<void>>{};
+  static int _activeGamesCacheSchemaVersion = 0;
 
   var games =
       <Map<String, dynamic>>[].obs; // Observable list to store games data
@@ -40,6 +42,17 @@ class CafeGamesController extends GetxController {
   final _remoteRepo = locator<RemoteRepoInterface>();
   var passes = <GetVendorPassesModel>[].obs;
   var isPassesLoading = false.obs;
+
+  CafeGamesController() {
+    _ensureGamesCacheSchema();
+  }
+
+  void _ensureGamesCacheSchema() {
+    if (_activeGamesCacheSchemaVersion == _gamesCacheSchemaVersion) return;
+    _gamesCache.clear();
+    _gamesRequests.clear();
+    _activeGamesCacheSchemaVersion = _gamesCacheSchemaVersion;
+  }
 
   Future<void> fetchGames(int vendorId, {bool forceRefresh = false}) {
     final cached = _gamesCache[vendorId];

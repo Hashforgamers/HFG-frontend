@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:io' show Platform;
 import 'dart:ui';
@@ -111,6 +112,7 @@ class _CafeSectionState extends State<CafeSection> {
   }
 
   final loc.Location _loc = loc.Location();
+  StreamSubscription<loc.LocationData>? _locationSub;
   double? _userLat, _userLng;
   static const _avgCitySpeedKmph = 25; // for ETA calc
 
@@ -161,15 +163,16 @@ class _CafeSectionState extends State<CafeSection> {
       }
 
       final ld = await _loc.getLocation();
-      final lat = ld.latitude, lng = ld.longitude;
-      if (lat == null || lng == null) return;
+      final hasInitialLocation = _applyResolvedLocation(ld);
+      if (hasInitialLocation) return;
 
-      if (!mounted) return;
-      setState(() {
-        _userLat = lat;
-        _userLng = lng;
+      _locationSub?.cancel();
+      _locationSub = _loc.onLocationChanged.listen((data) {
+        final resolved = _applyResolvedLocation(data);
+        if (resolved) {
+          _locationSub?.cancel();
+        }
       });
-      _triggerNearbyPlacesFetch(force: true);
     } catch (_) {
       /* ignore */
     }
@@ -178,6 +181,7 @@ class _CafeSectionState extends State<CafeSection> {
   @override
   void dispose() {
     _hashCafeWorker?.dispose();
+    _locationSub?.cancel();
     super.dispose();
   }
 
@@ -209,6 +213,44 @@ class _CafeSectionState extends State<CafeSection> {
   }
 
   double _deg2rad(double d) => d * math.pi / 180.0;
+
+  bool _hasUsableCoordinates(double? lat, double? lng) {
+    if (lat == null || lng == null) return false;
+    if (lat.abs() < 0.0001 && lng.abs() < 0.0001) return false;
+    return true;
+  }
+
+  bool _hasMeaningfulLocationChange(
+    double? oldLat,
+    double? oldLng,
+    double nextLat,
+    double nextLng,
+  ) {
+    if (!_hasUsableCoordinates(oldLat, oldLng)) return true;
+    return _haversineKm(oldLat!, oldLng!, nextLat, nextLng) > 0.15;
+  }
+
+  bool _applyResolvedLocation(loc.LocationData data) {
+    final lat = data.latitude;
+    final lng = data.longitude;
+    if (!_hasUsableCoordinates(lat, lng)) return false;
+
+    final hasChanged = _hasMeaningfulLocationChange(
+      _userLat,
+      _userLng,
+      lat!,
+      lng!,
+    );
+    if (!hasChanged) return true;
+    if (!mounted) return false;
+
+    setState(() {
+      _userLat = lat;
+      _userLng = lng;
+    });
+    _triggerNearbyPlacesFetch(force: true);
+    return true;
+  }
 
   String get _placesApiKey {
     final key = AppKeys.googlePlacesApiKey;

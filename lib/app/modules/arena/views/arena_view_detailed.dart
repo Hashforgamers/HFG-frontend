@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/arena/utils/arena_games_extractor.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_consoles_section.dart';
@@ -2620,16 +2621,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       // Fallback to cafe-level games list when vendor-games payload has
       // platform labels (PC/PS5/XBOX) instead of actual game titles.
       if (displayGames.isEmpty) {
-        for (final item in widget.availableGames) {
-          final name = item is Map
-              ? (item['name'] ??
-                        item['game_name'] ??
-                        item['title'] ??
-                        item['game'])
-                    .toString()
-                    .trim()
-              : item.toString().trim();
-          if (name.isEmpty || _looksLikeConsoleLabel(name)) continue;
+        for (final name in sanitizeArenaGameList(widget.availableGames)) {
           displayGames.add({'name': name, 'image': placeholderImage});
         }
       }

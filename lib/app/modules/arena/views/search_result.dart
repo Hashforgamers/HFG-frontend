@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:location/location.dart' as loc;
 
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
+import 'package:hash/app/modules/arena/utils/arena_games_extractor.dart';
 import 'package:hash/app/modules/arena/views/arena_view_detailed.dart';
 import 'package:hash/app/modules/arena/views/search_result/search_result_card.dart';
 import 'package:hash/app/modules/arena/views/search_result/search_result_empty_state.dart';
@@ -442,6 +443,14 @@ class _SearchResultState extends State<SearchResult> {
     return normalized.take(6).toList();
   }
 
+  List<String> _resultHighlights(Map<String, dynamic> cafe) {
+    final availableGames = extractArenaAvailableGames(cafe, limit: 6);
+    if (availableGames.isNotEmpty) {
+      return availableGames;
+    }
+    return _features(cafe);
+  }
+
   // Distance + ETA (cached)
   (String dist, String? eta) _distanceLabel(Map<String, dynamic> cafe) {
     final (lat, lng) = _cafeLatLng(cafe);
@@ -684,7 +693,7 @@ class _SearchResultState extends State<SearchResult> {
     final isOpen = _isShopOpen(cafe);
     final imageUrl = _pickImage(cafe, index);
     final address = _safeAddress(cafe);
-    final feats = _features(cafe);
+    final feats = _resultHighlights(cafe);
     final (dist, eta) = _distanceLabel(cafe);
     final title = (cafe['cafe_name'] ?? 'Unknown Cafe').toString();
     final type = (cafe['type'] ?? 'Gaming').toString();
@@ -718,6 +727,7 @@ class _SearchResultState extends State<SearchResult> {
               }
 
               final featsAll = _features(cafe);
+              final availableGames = extractArenaAvailableGames(cafe);
 
               Get.to(
                 () => ArenaDetailView(
@@ -725,7 +735,7 @@ class _SearchResultState extends State<SearchResult> {
                   title: title,
                   address: address,
                   openingHours: '9 AM - 12 AM', // TODO: plug real hours
-                  availableGames: featsAll,
+                  availableGames: availableGames,
                   amenities: featsAll,
                   phone:
                       (cafe['phone'] ??
@@ -745,7 +755,7 @@ class _SearchResultState extends State<SearchResult> {
                   cafeId: cafeId,
                   cafeName: title,
                   location: address,
-                  availableGames: featsAll,
+                  availableGames: availableGames,
                   email: (cafe['email'] ?? '').toString(),
                 ),
               );
@@ -753,7 +763,7 @@ class _SearchResultState extends State<SearchResult> {
                 _fbEventsService.onGamingCafeViewed(
                   cafeId: cafeId,
                   location: address,
-                  availableGames: featsAll,
+                  availableGames: availableGames,
                 ),
               );
             }
