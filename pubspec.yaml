@@ -183,6 +183,9 @@ flutter:
     - assets/flappy_birds/audio/
     - assets/flappy_birds/fonts/
     - assets/flappy_birds/pics/
+    - assets/html_games/tap_blitz/index.html
+    - assets/html_games/orbit_smash/index.html
+    - assets/html_games/reactor_rush/index.html
 
 
     - assets/ludo/images/

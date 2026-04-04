@@ -13,6 +13,7 @@ import 'package:hash/config/app_keys.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/location_permission_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
@@ -50,9 +51,11 @@ class _ArenaViewState extends State<ArenaView> {
   );
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
+  final LocationPermissionService _locationPermissionService =
+      locator<LocationPermissionService>();
 
   late GoogleMapController _mapCtr;
-  final loc.Location _loc = loc.Location();
+  late final loc.Location _loc = _locationPermissionService.location;
   StreamSubscription<loc.LocationData>? _locationSub;
   late final Worker _cafesWorker;
   bool _hasLocationPermission = false; // add
@@ -254,14 +257,10 @@ class _ArenaViewState extends State<ArenaView> {
 
   Future<void> _initLocation() async {
     try {
-      bool service = await _loc.serviceEnabled();
-      if (!service) service = await _loc.requestService();
+      final service = await _locationPermissionService.ensureServiceEnabled();
       if (!service) return;
 
-      var perm = await _loc.hasPermission();
-      if (perm == loc.PermissionStatus.denied) {
-        perm = await _loc.requestPermission();
-      }
+      final perm = await _locationPermissionService.ensurePermission();
       if (perm != loc.PermissionStatus.granted &&
           perm != loc.PermissionStatus.grantedLimited) {
         return; // don't enable myLocation
@@ -1053,9 +1052,10 @@ class _ArenaViewState extends State<ArenaView> {
                                             _showingAllCafes.value = true;
                                             _filteredCafes.assignAll(
                                               _sortCafesByDistance(
-                                                _cafeCtr.cybercafes.cast<
-                                                  Map<String, dynamic>
-                                                >(),
+                                                _cafeCtr.cybercafes
+                                                    .cast<
+                                                      Map<String, dynamic>
+                                                    >(),
                                               ),
                                             );
                                             _refreshCafeMarkers();

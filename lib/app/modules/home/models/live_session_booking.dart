@@ -16,6 +16,8 @@ class LiveSessionBooking {
   final DateTime endAt;
 
   static LiveSessionBooking? fromPastBooking(Map<String, dynamic> booking) {
+    if (!_isConfirmedBooking(booking)) return null;
+
     final slot = booking['slot'] is Map
         ? Map<String, dynamic>.from(booking['slot'] as Map)
         : <String, dynamic>{};
@@ -67,6 +69,21 @@ class LiveSessionBooking {
       startAt: startAt,
       endAt: endAt,
     );
+  }
+
+  static bool _isConfirmedBooking(Map<String, dynamic> booking) {
+    final rawStatus =
+        (booking['status'] ??
+                booking['booking_status'] ??
+                booking['payment_status'] ??
+                '')
+            .toString()
+            .toLowerCase()
+            .trim();
+
+    if (rawStatus.isEmpty) return false;
+    if (rawStatus.contains('pending_verified')) return false;
+    return rawStatus.contains('confirm') || rawStatus.contains('success');
   }
 
   static DateTime _parseTimeOnDate(DateTime date, String rawTime) {

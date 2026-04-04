@@ -300,7 +300,28 @@ class _HomeViewState extends State<HomeView> {
                     width: double.infinity,
                     height: 44,
                     child: ElevatedButton(
-                      onPressed: () => Get.back<void>(),
+                      onPressed: () {
+                        final overlayContext = Get.overlayContext;
+                        if (overlayContext != null) {
+                          final navigator = Navigator.of(
+                            overlayContext,
+                            rootNavigator: true,
+                          );
+                          if (navigator.canPop()) {
+                            navigator.pop();
+                            return;
+                          }
+                        }
+
+                        if (!mounted) return;
+                        final navigator = Navigator.of(
+                          context,
+                          rootNavigator: true,
+                        );
+                        if (navigator.canPop()) {
+                          navigator.pop();
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF4C342),
                         foregroundColor: Colors.black,

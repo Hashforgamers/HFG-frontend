@@ -15,6 +15,7 @@ import 'package:hash/app/modules/arena/views/search_result/search_result_header.
 import 'package:hash/app/modules/arena/views/search_result/search_result_search_bar.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/location_permission_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
@@ -37,6 +38,8 @@ class _SearchResultState extends State<SearchResult> {
   late final CybercafesController _cafeController;
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
+  final LocationPermissionService _locationPermissionService =
+      locator<LocationPermissionService>();
 
   // State
   bool _isSearching = false;
@@ -51,7 +54,7 @@ class _SearchResultState extends State<SearchResult> {
   final List<String> _filters = ['All', 'Gaming', 'Cafe', 'Nearby', 'Open Now'];
 
   // Location for distance
-  final loc.Location _loc = loc.Location();
+  late final loc.Location _loc = _locationPermissionService.location;
   bool _hasLocationPermission = false;
   double? _userLat, _userLng;
   static const _avgCitySpeedKmph = 25;
@@ -113,14 +116,10 @@ class _SearchResultState extends State<SearchResult> {
 
   Future<void> _initLocation() async {
     try {
-      bool service = await _loc.serviceEnabled();
-      if (!service) service = await _loc.requestService();
+      final service = await _locationPermissionService.ensureServiceEnabled();
       if (!service) return;
 
-      var perm = await _loc.hasPermission();
-      if (perm == loc.PermissionStatus.denied) {
-        perm = await _loc.requestPermission();
-      }
+      final perm = await _locationPermissionService.ensurePermission();
       if (perm != loc.PermissionStatus.granted &&
           perm != loc.PermissionStatus.grantedLimited) {
         return;

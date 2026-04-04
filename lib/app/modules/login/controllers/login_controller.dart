@@ -18,6 +18,7 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
@@ -579,6 +580,20 @@ class LoginController extends GetxController {
     final fetchedUser = User.fromJson(userData);
     userController.setUserData(fetchedUser);
     userController.id.value = userData['id'].toString();
+    unawaited(_syncPushRegistration());
+  }
+
+  Future<void> _syncPushRegistration() async {
+    if (!Get.isRegistered<NotificationController>()) {
+      return;
+    }
+    try {
+      await Get.find<NotificationController>().registerCurrentTokenWithBackend(
+        forceRefresh: true,
+      );
+    } catch (e) {
+      debugPrint('[Push][Login] Token sync skipped: $e');
+    }
   }
 
   Future<Map<String, dynamic>?> _attemptAutoSignup(

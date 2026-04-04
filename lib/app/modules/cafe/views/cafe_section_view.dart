@@ -16,6 +16,7 @@ import 'package:hash/config/app_keys.dart';
 import 'package:hash/core/service/external_cafe_likes_service.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/location_permission_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:lottie/lottie.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
@@ -68,6 +69,8 @@ class _CafeSectionState extends State<CafeSection> {
   static const Duration _nearbyPlacesCacheTtl = Duration(minutes: 10);
   final ExternalCafeLikesService _externalCafeLikesService =
       locator<ExternalCafeLikesService>();
+  final LocationPermissionService _locationPermissionService =
+      locator<LocationPermissionService>();
   final Set<String> _likingCafeIds = <String>{};
 
   void _openSheetInBrowser() async {
@@ -111,7 +114,7 @@ class _CafeSectionState extends State<CafeSection> {
     if (choice == 1) _openSheetInBrowser();
   }
 
-  final loc.Location _loc = loc.Location();
+  late final loc.Location _loc = _locationPermissionService.location;
   StreamSubscription<loc.LocationData>? _locationSub;
   double? _userLat, _userLng;
   static const _avgCitySpeedKmph = 25; // for ETA calc
@@ -149,14 +152,10 @@ class _CafeSectionState extends State<CafeSection> {
 
   Future<void> _initLocation() async {
     try {
-      bool service = await _loc.serviceEnabled();
-      if (!service) service = await _loc.requestService();
+      final service = await _locationPermissionService.ensureServiceEnabled();
       if (!service) return;
 
-      var perm = await _loc.hasPermission();
-      if (perm == loc.PermissionStatus.denied) {
-        perm = await _loc.requestPermission();
-      }
+      final perm = await _locationPermissionService.ensurePermission();
       if (perm != loc.PermissionStatus.granted &&
           perm != loc.PermissionStatus.grantedLimited) {
         return;

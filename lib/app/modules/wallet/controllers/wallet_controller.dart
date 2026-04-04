@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
@@ -24,6 +25,7 @@ class WalletController extends GetxController {
   final RxBool _isRefreshing = false.obs;
   final RxString _errorMessage = ''.obs;
   Future<void>? _walletRequest;
+  String _loadedUserId = '';
 
   // Getters
   WalletModel? get wallet => _wallet.value;
@@ -51,10 +53,22 @@ class WalletController extends GetxController {
     try {
       // Listen to user ID changes and fetch wallet when available
       ever(_userController.id, (String userId) {
-        if (userId.isNotEmpty) {
-          // Use Future.microtask to avoid calling during build
-          Future.microtask(() => fetchWallet(forceRefresh: false));
+        final normalizedUserId = userId.trim();
+        if (normalizedUserId.isEmpty) {
+          clearSession();
+          return;
         }
+
+        final userChanged =
+            _loadedUserId.isNotEmpty && _loadedUserId != normalizedUserId;
+        if (userChanged) {
+          _resetWalletState();
+        }
+
+        // Use Future.microtask to avoid calling during build
+        Future.microtask(
+          () => fetchWallet(forceRefresh: userChanged || _wallet.value == null),
+        );
       });
 
       // Fetch wallet immediately if user ID is already available
@@ -95,14 +109,33 @@ class WalletController extends GetxController {
 
   /// Fetch wallet balance and transaction history
   Future<void> fetchWallet({bool forceRefresh = true}) {
-    if (!forceRefresh && _wallet.value != null && !hasError) {
+    final currentUserId = _userController.userId.trim();
+    if (currentUserId.isEmpty) {
+      clearSession();
+      return Future.value();
+    }
+
+    final userChanged =
+        _loadedUserId.isNotEmpty && _loadedUserId != currentUserId;
+    if (userChanged) {
+      _resetWalletState();
+      forceRefresh = true;
+    }
+
+    if (!forceRefresh &&
+        _wallet.value != null &&
+        !hasError &&
+        _loadedUserId == currentUserId) {
       return Future.value();
     }
 
     final inFlight = _walletRequest;
     if (inFlight != null) return inFlight;
 
-    final request = _loadWallet(forceRefresh: forceRefresh);
+    final request = _loadWallet(
+      forceRefresh: forceRefresh,
+      requestUserId: currentUserId,
+    );
     _walletRequest = request;
     return request.whenComplete(() {
       if (identical(_walletRequest, request)) {
@@ -111,12 +144,14 @@ class WalletController extends GetxController {
     });
   }
 
-  Future<void> _loadWallet({required bool forceRefresh}) async {
+  Future<void> _loadWallet({
+    required bool forceRefresh,
+    required String requestUserId,
+  }) async {
     if (_isLoading.value) return;
 
-    final userId = _userController.userId.trim();
-    if (userId.isEmpty) {
-      _handleError('User ID not available');
+    if (requestUserId.isEmpty) {
+      clearSession();
       return;
     }
 
@@ -124,13 +159,20 @@ class WalletController extends GetxController {
     _clearError();
 
     try {
-      final result = await _remoteRepo.fetchWallet(userId: userId);
+      final result = await _remoteRepo.fetchWallet(userId: requestUserId);
+      if (_userController.userId.trim() != requestUserId) {
+        return;
+      }
       final walletModel = WalletModel.fromJson(result);
       _wallet.value = walletModel;
+      _loadedUserId = requestUserId;
 
       // Track wallet viewed event (safely)
       Future.microtask(() => _trackWalletViewed());
     } catch (e) {
+      if (_userController.userId.trim() != requestUserId) {
+        return;
+      }
       if (_wallet.value == null || forceRefresh) {
         _handleError('Error fetching wallet: $e');
       }
@@ -146,6 +188,10 @@ class WalletController extends GetxController {
     _isRefreshing.value = true;
     await fetchWallet(forceRefresh: true);
     _isRefreshing.value = false;
+  }
+
+  void clearSession() {
+    _resetWalletState();
   }
 
   /// Confirm top-up and refresh wallet balance
@@ -188,6 +234,29 @@ class WalletController extends GetxController {
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<bool> debitBookingAmount({
+    required double amount,
+    required String referenceId,
+  }) async {
+    if (amount <= 0) return true;
+
+    if (amount > balance + 0.01) {
+      _handleError('Insufficient wallet balance');
+      return false;
+    }
+
+    return _adjustWalletBalance(amount: amount.abs(), referenceId: referenceId);
+  }
+
+  Future<bool> refundBookingAmount({
+    required double amount,
+    required String referenceId,
+  }) async {
+    if (amount <= 0) return true;
+
+    return _adjustWalletBalance(amount: amount.abs(), referenceId: referenceId);
   }
 
   /// Initiate withdrawal request
@@ -292,6 +361,54 @@ class WalletController extends GetxController {
     return balance >= amount;
   }
 
+  Future<bool> _adjustWalletBalance({
+    required double amount,
+    required String referenceId,
+  }) async {
+    final userId = _userController.userId.trim();
+    if (userId.isEmpty) {
+      _handleError('User ID missing, cannot update wallet');
+      return false;
+    }
+
+    if (referenceId.trim().isEmpty) {
+      _handleError('Reference ID missing, cannot update wallet');
+      return false;
+    }
+
+    _clearError();
+
+    try {
+      await _remoteRepo.addFunds(
+        userId: userId,
+        amount: amount,
+        paymentId: referenceId,
+      );
+      await fetchWallet(forceRefresh: true);
+      return true;
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      String message = 'Unable to update wallet balance.';
+
+      if (responseData is Map<String, dynamic>) {
+        final apiMessage =
+            responseData['message']?.toString() ??
+            responseData['error']?.toString();
+        if (apiMessage != null && apiMessage.trim().isNotEmpty) {
+          message = apiMessage.trim();
+        }
+      } else if (responseData != null) {
+        message = responseData.toString();
+      }
+
+      _handleError(message);
+      return false;
+    } catch (e) {
+      _handleError('Error updating wallet: $e');
+      return false;
+    }
+  }
+
   /// Format balance for display
   String get formattedBalance {
     return '₹${balance.toStringAsFixed(2)}';
@@ -301,6 +418,15 @@ class WalletController extends GetxController {
 
   void _setLoading(bool loading) {
     _isLoading.value = loading;
+  }
+
+  void _resetWalletState() {
+    _walletRequest = null;
+    _loadedUserId = '';
+    _wallet.value = null;
+    _isLoading.value = false;
+    _isRefreshing.value = false;
+    _errorMessage.value = '';
   }
 
   void _clearError() {

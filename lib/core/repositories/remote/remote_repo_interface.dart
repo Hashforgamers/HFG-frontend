@@ -90,7 +90,7 @@ abstract class RemoteRepoInterface {
   Future<Map<String, dynamic>> fetchWallet({required String userId});
   Future<Map<String, dynamic>> addFunds({
     required String userId,
-    required int amount,
+    required num amount,
     required String paymentId,
   });
   Future<void> claimDropCrateBonus({required String userId, int amount});

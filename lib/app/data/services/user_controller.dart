@@ -8,23 +8,27 @@ import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/utils/app_logger.dart';
 
 class UserController extends GetxController {
-  // ───────── USER DATA ─────────
-  var user = User(
-    contact: Contact(
-      electronicAddress: ElectronicAddress(emailId: '', mobileNo: ''),
-      physicalAddress: PhysicalAddress(
-        country: '',
-        addressLine1: '',
-        addressLine2: '',
-        state: '',
+  static User _emptyUser() {
+    return User(
+      contact: Contact(
+        electronicAddress: ElectronicAddress(emailId: '', mobileNo: ''),
+        physicalAddress: PhysicalAddress(
+          country: '',
+          addressLine1: '',
+          addressLine2: '',
+          state: '',
+        ),
       ),
-    ),
-    dob: '',
-    gameUserName: '',
-    gender: '',
-    name: '',
-    photoUrl: '',
-  ).obs;
+      dob: '',
+      gameUserName: '',
+      gender: '',
+      name: '',
+      photoUrl: '',
+    );
+  }
+
+  // ───────── USER DATA ─────────
+  var user = _emptyUser().obs;
 
   // Backend user ID
   var id = ''.obs;
@@ -45,10 +49,7 @@ class UserController extends GetxController {
             : response.data;
         AppLogger.d("✅ fetchUserData → backend id: ${data}");
 
-        final fetchedUser = User.fromJson(data['user']);
-        id.value = data['user']['id'].toString(); // ✅ backend userId
-
-        setUserData(fetchedUser);
+        applyBackendUserData(data['user']);
 
         AppLogger.d("✅ fetchUserData → backend id: ${id.value}");
 
@@ -65,10 +66,21 @@ class UserController extends GetxController {
     }
   }
 
-
   /// ✅ Replace entire user object
   void setUserData(User fetchedUser) {
     user.value = fetchedUser;
+  }
+
+  /// ✅ Replace user + backend id from API payload
+  void applyBackendUserData(Map<String, dynamic> userData) {
+    setUserData(User.fromJson(userData));
+    id.value = (userData['id'] ?? userData['user_id'] ?? '').toString().trim();
+  }
+
+  void clearSession() {
+    user.value = _emptyUser();
+    id.value = '';
+    isLoading.value = false;
   }
 
   /// ✅ Update Google-auth fields only
@@ -147,7 +159,8 @@ class UserController extends GetxController {
       }
     });
   }
-// inside class UserController extends GetxController {
+
+  // inside class UserController extends GetxController {
   final remoteRepo = locator<RemoteRepoInterface>();
 
   Future<bool> deleteUser() async {

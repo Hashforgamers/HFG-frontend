@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:geocoding/geocoding.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/location_permission_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:location/location.dart' as loc;
@@ -11,14 +12,17 @@ class LocationAnalyticsService {
     required SharedPreferences preferences,
     required SegmentSdkService segmentService,
     required FbEventsService fbEventsService,
+    required LocationPermissionService locationPermissionService,
   }) : _prefs = preferences,
        _segmentService = segmentService,
-       _fbEventsService = fbEventsService;
+       _fbEventsService = fbEventsService,
+       _locationPermissionService = locationPermissionService;
 
   final SharedPreferences _prefs;
   final SegmentSdkService _segmentService;
   final FbEventsService _fbEventsService;
-  final loc.Location _location = loc.Location();
+  final LocationPermissionService _locationPermissionService;
+  loc.Location get _location => _locationPermissionService.location;
   Future<void>? _activeTrackingRequest;
 
   static const _lastLatKey = 'analytics_last_lat';
@@ -54,10 +58,8 @@ class LocationAnalyticsService {
     required bool promptForPermission,
   }) async {
     try {
-      bool serviceEnabled = await _location.serviceEnabled();
-      if (!serviceEnabled && promptForService) {
-        serviceEnabled = await _location.requestService();
-      }
+      final serviceEnabled = await _locationPermissionService
+          .ensureServiceEnabled(requestIfNeeded: promptForService);
       if (!serviceEnabled) {
         await _sendStatusEvent(
           source: source,
@@ -67,10 +69,9 @@ class LocationAnalyticsService {
         return;
       }
 
-      var permission = await _location.hasPermission();
-      if (permission == loc.PermissionStatus.denied && promptForPermission) {
-        permission = await _location.requestPermission();
-      }
+      final permission = await _locationPermissionService.ensurePermission(
+        requestIfNeeded: promptForPermission,
+      );
 
       final granted =
           permission == loc.PermissionStatus.granted ||

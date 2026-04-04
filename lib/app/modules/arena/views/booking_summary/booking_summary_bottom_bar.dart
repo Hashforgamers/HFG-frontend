@@ -5,6 +5,7 @@ class BookingSummaryBottomBar extends StatelessWidget {
   final double totalPrice;
   final bool isProcessing;
   final bool showSelectPass;
+  final String? buttonLabel;
   final VoidCallback onPressed;
 
   const BookingSummaryBottomBar({
@@ -12,6 +13,7 @@ class BookingSummaryBottomBar extends StatelessWidget {
     required this.totalPrice,
     required this.isProcessing,
     required this.showSelectPass,
+    this.buttonLabel,
     required this.onPressed,
   });
 
@@ -91,7 +93,7 @@ class BookingSummaryBottomBar extends StatelessWidget {
                         ),
                       )
                     : Text(
-                        showSelectPass ? 'Select Pass' : 'Pay',
+                        showSelectPass ? 'Select Pass' : (buttonLabel ?? 'Pay'),
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,

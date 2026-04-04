@@ -157,6 +157,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     final username = _resolveCurrentUsername(currentUser);
     final userEmail = currentUser.email ?? '';
     final photoUrl = currentUser.photoURL ?? '';
+    final backendUserId = await _resolveCurrentBackendUserId();
 
     await _usersRef.doc(currentUser.uid).set({
       'uid': currentUser.uid,
@@ -164,6 +165,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       'username': username,
       'email': userEmail,
       'photo_url': photoUrl,
+      'backend_user_id': backendUserId,
       'is_online': true,
       'last_seen_at': FieldValue.serverTimestamp(),
       'updated_at': FieldValue.serverTimestamp(),
@@ -529,6 +531,30 @@ class ChatService extends GetxService with WidgetsBindingObserver {
         .map((snapshot) {
           if (snapshot.docs.isEmpty) return null;
           return ChatMessageModel.fromDoc(snapshot.docs.first);
+        });
+  }
+
+  Stream<int> streamUnreadCountForRoom(String roomId, {int limit = 80}) {
+    final uid = currentUid;
+    if (uid == null || roomId.trim().isEmpty) {
+      return Stream<int>.value(0);
+    }
+
+    return _roomsRef
+        .doc(roomId)
+        .collection(_messagesCollection)
+        .orderBy('created_at', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+          var count = 0;
+          for (final doc in snapshot.docs) {
+            final message = ChatMessageModel.fromDoc(doc);
+            if (message.senderId == uid) continue;
+            if (message.seenBy.contains(uid)) continue;
+            count++;
+          }
+          return count;
         });
   }
 
@@ -1174,6 +1200,22 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     }
     final body = message.text.trim();
     return body.isEmpty ? 'New message' : body;
+  }
+
+  Future<int?> _resolveCurrentBackendUserId() async {
+    if (Get.isRegistered<UserController>()) {
+      final cached = Get.find<UserController>().id.value.trim();
+      final parsed = int.tryParse(cached);
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+
+    final storedUser = await _remoteRepo.getUserFromPreferences();
+    final raw = (storedUser?['id'] ?? storedUser?['user_id'] ?? '')
+        .toString()
+        .trim();
+    return int.tryParse(raw);
   }
 
   Future<List<ChatUserModel>> _searchUsersFromBackend(

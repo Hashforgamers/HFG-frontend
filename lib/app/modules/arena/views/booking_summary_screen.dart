@@ -20,6 +20,8 @@ import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
 import 'package:hash/app/modules/payment/razorpay_controller.dart';
+import 'package:hash/app/modules/wallet/controllers/razorpay_wallet_controller.dart';
+import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -28,9 +30,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
-import 'package:in_app_review/in_app_review.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
 import '../../../../core/repositories/model/extra_services_model.dart';
 import '../../../data/services/user_controller.dart';
@@ -45,6 +45,7 @@ class BookingSummaryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
   final int gameId;
   final int vendorId;
+  final bool isPayAtCafeAvailable;
   final bool isSquadBooking;
   final int requiredConsoleCount;
   final List<ChatUserModel> selectedSquadMembers;
@@ -58,6 +59,7 @@ class BookingSummaryScreen extends StatefulWidget {
     required this.vendorId,
     required this.gameId,
     required this.selectedDate,
+    this.isPayAtCafeAvailable = false,
     this.isSquadBooking = false,
     this.requiredConsoleCount = 1,
     this.selectedSquadMembers = const <ChatUserModel>[],
@@ -83,6 +85,10 @@ enum PaymentStage {
 class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final BookingController bookingController = Get.put(BookingController());
   final RazorpayController razorpayController = Get.put(RazorpayController());
+  final RazorpayWalletController walletTopUpController =
+      Get.isRegistered<RazorpayWalletController>()
+      ? Get.find<RazorpayWalletController>()
+      : Get.put(RazorpayWalletController());
   final HomeController homeController = Get.find();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
@@ -90,13 +96,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final ChatService _chatService = Get.find<ChatService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
   final _networkProvider = locator<NetworkProvider>();
-  final prefs = locator<SharedPreferences>();
   final RxString _selectedPayment =
-      'gateway'.obs; // 'wallet', 'gateway' or 'none'
+      'pay_at_cafe'.obs; // 'wallet', 'gateway', 'pay_at_cafe' or 'none'
   final RxInt _selectedControllerCount = 1.obs;
   final RxBool _isLoadingPricingEstimate = false.obs;
   final RxMap<String, dynamic> _pricingEstimate = <String, dynamic>{}.obs;
   final UserController userController = Get.find<UserController>();
+  final WalletController walletController = Get.find<WalletController>();
 
   // Voucher related variables
   final TextEditingController _voucherController = TextEditingController();
@@ -111,6 +117,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final RxList<GetPassModel> _userGamePasses = <GetPassModel>[].obs;
   final Rx<GetPassModel?> _selectedGamePass = Rx<GetPassModel?>(null);
   final RxString _gamePassError = ''.obs;
+  final RxDouble _pendingWalletAppliedAmount = 0.0.obs;
 
   // Payment processing state
   final RxBool _isProcessingPayment = false.obs;
@@ -129,6 +136,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   @override
   void initState() {
     super.initState();
+    if (!widget.isPayAtCafeAvailable &&
+        _selectedPayment.value == 'pay_at_cafe') {
+      _selectedPayment.value = 'gateway';
+    }
     _loadVouchers();
     _loadUserGamePasses();
     unawaited(_loadPricingEstimate());
@@ -190,6 +201,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         } else if (status.toLowerCase().contains('failed') ||
             status.toLowerCase().contains('error') ||
             status.toLowerCase().contains('cancelled')) {
+          _pendingWalletAppliedAmount.value = 0;
           _stage.value = PaymentStage.error;
           _errorMessage.value = status;
           _isProcessingPayment(false);
@@ -205,6 +217,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         // Payment completed (success or failure)
         if (_stage.value != PaymentStage.done &&
             _stage.value != PaymentStage.error) {
+          _pendingWalletAppliedAmount.value = 0;
           _stage.value = PaymentStage.idle;
         }
         _cancelPaymentWatchdog();
@@ -224,6 +237,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         } else if (status.toLowerCase().contains('failed') ||
             status.toLowerCase().contains('error') ||
             status.toLowerCase().contains('cancelled')) {
+          _pendingWalletAppliedAmount.value = 0;
           _stage.value = PaymentStage.error;
           _errorMessage.value = status;
           _isProcessingPayment(false);
@@ -264,6 +278,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     String errorMessage, {
     required bool fromWallet,
   }) async {
+    if (fromWallet) {
+      await _rollbackWalletContributionIfNeeded();
+    }
     _stage.value = PaymentStage.error;
     _errorMessage.value = errorMessage;
     _paymentStatus.value = '';
@@ -522,65 +539,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
-  void _showRatingDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          backgroundColor: Color(0xff404040),
-          title: const Text(
-            "Enjoying our app?",
-            style: TextStyle(color: Colors.white),
-          ),
-          content: const Text(
-            "We’d love your feedback! Please rate us on the Play Store.",
-            style: TextStyle(color: Colors.white),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // dismiss
-              },
-              child: const Text(
-                "Maybe Later",
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool(
-                  'hasRatedApp',
-                  true,
-                ); // remember that user rated
-                final InAppReview inAppReview = InAppReview.instance;
-                await inAppReview.openStoreListing();
-              },
-              child: const Text(
-                "Rate Us",
-                style: TextStyle(color: Color(0xff00DC00)),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _maybeShowRatingDialog() async {
-    final prefs = await SharedPreferences.getInstance();
-    final hasRated = prefs.getBool('hasRatedApp') ?? false;
-
-    if (!hasRated) {
-      _showRatingDialog();
-    }
-  }
-
   void _proceedWithGamePass() {
     // This method will be called when user selects a game pass and clicks proceed
     // The actual booking logic will be handled in the existing handleBooking method
@@ -595,7 +553,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
 
     handleBooking(
-      context,
       isVoucherApplied: _appliedVoucher.value != null,
       useWallet: false,
       isGamePass: true,
@@ -606,6 +563,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   void _onPaymentSelected(String value) {
     _selectedPayment(value);
+    if (value != 'wallet') {
+      _pendingWalletAppliedAmount.value = 0;
+    }
     if (value != 'none') {
       _selectedGamePass.value = null;
       return;
@@ -631,10 +591,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   int get _selectedTimeBlockCount {
     final keys = widget.selectedSlots
-        .map(
-          (slot) =>
-              '${slot['start_time'] ?? ''}_${slot['end_time'] ?? ''}',
-        )
+        .map((slot) => '${slot['start_time'] ?? ''}_${slot['end_time'] ?? ''}')
         .toSet();
     return keys.isEmpty ? 0 : keys.length;
   }
@@ -738,6 +695,74 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     final squadDiscount = _estimatedSquadDiscount;
     final total = subtotal - voucherDiscount - squadDiscount;
     return total < 0 ? 0.0 : total;
+  }
+
+  double _roundCurrency(double value) {
+    return double.parse(value.toStringAsFixed(2));
+  }
+
+  double _walletAppliedAmountFor(double totalPrice) {
+    if (_selectedPayment.value != 'wallet') return 0;
+
+    if (_pendingWalletAppliedAmount.value > 0) {
+      return _pendingWalletAppliedAmount.value >= totalPrice
+          ? totalPrice
+          : _pendingWalletAppliedAmount.value;
+    }
+
+    final walletBalance = _roundCurrency(walletController.balance);
+    if (walletBalance <= 0 || totalPrice <= 0) return 0;
+
+    return walletBalance >= totalPrice ? totalPrice : walletBalance;
+  }
+
+  double _remainingGatewayAmountFor(double totalPrice) {
+    return _walletTopUpAmountFor(totalPrice).toDouble();
+  }
+
+  double _walletShortfallFor(double totalPrice) {
+    final walletBalance = _roundCurrency(walletController.balance);
+    final shortfall = totalPrice - walletBalance;
+    return shortfall <= 0 ? 0 : _roundCurrency(shortfall);
+  }
+
+  int _walletTopUpAmountFor(double totalPrice) {
+    final shortfall = _walletShortfallFor(totalPrice);
+    if (shortfall <= 0) return 0;
+
+    return shortfall.ceil();
+  }
+
+  Future<bool> _topUpWalletForBooking(double totalPrice) async {
+    final topUpAmount = _walletTopUpAmountFor(totalPrice);
+    if (topUpAmount <= 0) {
+      await walletController.fetchWallet(forceRefresh: true);
+      return _roundCurrency(walletController.balance) + 0.01 >= totalPrice;
+    }
+
+    _stage.value = PaymentStage.initiatingGateway;
+    _paymentStatus.value = 'Adding ₹$topUpAmount to wallet...';
+
+    final toppedUp = await walletTopUpController.pay(topUpAmount);
+    if (!toppedUp) {
+      return false;
+    }
+
+    await walletController.fetchWallet(forceRefresh: true);
+    return _roundCurrency(walletController.balance) + 0.01 >= totalPrice;
+  }
+
+  Future<void> _rollbackWalletContributionIfNeeded() async {
+    await razorpayController.refundPendingWalletContribution();
+    _pendingWalletAppliedAmount.value = 0;
+  }
+
+  void _configureRazorpayBookingContext(List<int> bookingIds) {
+    razorpayController.bookingIdList.value = bookingIds;
+    razorpayController.slotIdsList.value = widget.selectedSlots
+        .map((slot) => slot['slot_id'] as int)
+        .toList();
+    razorpayController.cartItemsList.value = _getValidatedCartItems();
   }
 
   double calculateDiscount() {
@@ -1036,6 +1061,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       BookingSummaryPaymentMethodSection(
                         selectedPayment: _selectedPayment,
                         selectedGamePass: _selectedGamePass,
+                        showPayAtCafeOption: widget.isPayAtCafeAvailable,
+                        walletBalance: walletController.balance,
+                        walletAppliedAmount: _walletAppliedAmountFor(
+                          calculateTotalPrice(),
+                        ),
+                        walletTopUpAmount: _walletTopUpAmountFor(
+                          calculateTotalPrice(),
+                        ).toDouble(),
+                        remainingAmount: _remainingGatewayAmountFor(
+                          calculateTotalPrice(),
+                        ),
                         onSelectPayment: _onPaymentSelected,
                         onClearSelectedPass: () =>
                             _selectedGamePass.value = null,
@@ -1062,6 +1098,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         final subtotal = calculateSubtotal();
                         final slotsSubtotal = calculateSlotsSubtotal();
                         final cartSubtotal = calculateCartSubtotal();
+                        final walletAppliedAmount = _walletAppliedAmountFor(
+                          totalPrice,
+                        );
+                        final remainingGatewayAmount =
+                            _remainingGatewayAmountFor(totalPrice);
 
                         return BookingSummaryPaymentSummarySection(
                           totalPrice: totalPrice,
@@ -1071,6 +1112,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           cartSubtotal: cartSubtotal,
                           squadDiscountAmount: _estimatedSquadDiscount,
                           extraControllerFare: _estimatedExtraControllerFare,
+                          walletAppliedAmount: walletAppliedAmount,
+                          remainingGatewayAmount: remainingGatewayAmount,
+                          remainingAmountLabel:
+                              _selectedPayment.value == 'wallet'
+                              ? 'Wallet Top-up Needed'
+                              : 'Remaining to Pay Online',
                           hasSlots: widget.selectedSlots.isNotEmpty,
                           hasCartItems: validatedCartItems.isNotEmpty,
                         );
@@ -1101,12 +1148,33 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           final isGamePassSelected = _selectedPayment.value == 'none';
           final hasSelectedPass = _selectedGamePass.value != null;
           final showSelectPass = isGamePassSelected && !hasSelectedPass;
+          final totalPrice = calculateTotalPrice();
+          final walletTopUpAmount = _walletTopUpAmountFor(
+            totalPrice,
+          ).toDouble();
+          final payableNow = _selectedPayment.value == 'wallet'
+              ? walletTopUpAmount
+              : totalPrice;
+          final ctaLabel = showSelectPass
+              ? 'Select Pass'
+              : _selectedPayment.value == 'pay_at_cafe'
+              ? 'Confirm'
+              : _selectedPayment.value == 'wallet'
+              ? payableNow > 0
+                    ? 'Add Funds & Pay'
+                    : 'Confirm'
+              : 'Pay';
 
           return BookingSummaryBottomBar(
-            totalPrice: calculateTotalPrice(),
+            totalPrice: payableNow,
             isProcessing: isProcessing,
             showSelectPass: showSelectPass,
+            buttonLabel: ctaLabel,
             onPressed: () {
+              final initiatedAmount =
+                  _selectedPayment.value == 'wallet' && payableNow > 0
+                  ? payableNow
+                  : totalPrice;
               if (_stage.value == PaymentStage.error) {
                 segmentService.onCustomEvent('Payment Retry', {
                   'booking_id': widget.gameId.toString(),
@@ -1120,19 +1188,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               _paymentAttempted = true;
               segmentService.onPaymentInitiated(
                 bookingId: widget.gameId.toString(),
-                amount: calculateTotalPrice(),
+                amount: initiatedAmount,
                 paymentMethodSelected: _selectedPayment.value,
               );
               fbEventsService.onPaymentInitiated(
                 bookingId: widget.gameId.toString(),
-                amount: calculateTotalPrice(),
+                amount: initiatedAmount,
                 paymentMethodSelected: _selectedPayment.value,
               );
               if (showSelectPass) {
                 _showGamePassSelectionDialog();
               } else if (_selectedPayment.value == 'pay_at_cafe') {
                 handleBooking(
-                  context,
                   isVoucherApplied: _appliedVoucher.value != null,
                   useWallet: false,
                   isGamePass: false,
@@ -1141,7 +1208,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 );
               } else {
                 handleBooking(
-                  context,
                   isVoucherApplied: _appliedVoucher.value != null,
                   useWallet: _selectedPayment.value == 'wallet',
                   isGamePass: false,
@@ -1258,6 +1324,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     _errorMessage.value = '';
     _isProcessingPayment(false);
     _paymentStatus.value = '';
+    _pendingWalletAppliedAmount.value = 0;
     razorpayController.isPaymentInProgress(false);
     // Also reset any error states that might be lingering
     razorpayController.paymentStatus.value = '';
@@ -1276,6 +1343,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     _stage.value = PaymentStage.idle;
     _errorMessage.value = '';
     _paymentStatus.value = '';
+    if (!_isProcessingPayment.value) {
+      _pendingWalletAppliedAmount.value = 0;
+    }
   }
 
   String _getCartItemsSummary() {
@@ -1338,19 +1408,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               return 'Server error occurred. Please try again later.';
           }
         }
-        if (error is Exception) {
-          final message = error.toString();
-          if (message.contains('Insufficient wallet balance')) {
-            return 'Insufficient wallet balance. Please add money to your wallet or choose a different payment method.';
-          }
-          if (message.contains("name 'Decimal' is not defined")) {
-            return 'Wallet service is temporarily unavailable. Please try another payment method or retry in a moment.';
-          }
-          if (message.contains('Wallet payment is temporarily unavailable')) {
-            return 'Wallet service is temporarily unavailable. Please use UPI/Card or Pay at Cafe.';
-          }
-          return message.replaceAll('Exception: ', '');
+        final message = error.toString();
+        if (message.contains('Insufficient wallet balance')) {
+          return 'Insufficient wallet balance. Please add money to your wallet or choose a different payment method.';
         }
+        if (message.contains("name 'Decimal' is not defined")) {
+          return 'Wallet service is temporarily unavailable. Please try another payment method or retry in a moment.';
+        }
+        if (message.contains('Wallet payment is temporarily unavailable')) {
+          return 'Wallet service is temporarily unavailable. Please use UPI/Card or Pay at Cafe.';
+        }
+        return message.replaceAll('Exception: ', '');
       }
     } catch (e) {
       AppLogger.d('Error parsing exception: $e');
@@ -1625,8 +1693,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
-  Future<void> handleBooking(
-    BuildContext context, {
+  Future<void> handleBooking({
     required bool isVoucherApplied,
     required bool useWallet,
     required bool isGamePass,
@@ -1646,7 +1713,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
     try {
       double totalPrice = calculateTotalPrice();
-      int amountInPaisa = (totalPrice * 100).toInt();
+      final walletAppliedAmount = useWallet
+          ? _walletAppliedAmountFor(totalPrice)
+          : 0.0;
+      final walletTopUpAmount = useWallet
+          ? _walletTopUpAmountFor(totalPrice).toDouble()
+          : 0.0;
+      int amountInPaisa = (totalPrice * 100).round();
 
       List<int> slotIds = widget.selectedSlots
           .map((slot) => slot['slot_id'] as int)
@@ -1696,6 +1769,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           paymentGateway: 'pay_at_cafe',
         );
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text("Booking created. Please pay at café counter."),
@@ -1720,7 +1794,46 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       }
       // a) WALLET route
       if (useWallet) {
+        if (walletTopUpAmount > 0) {
+          debugPrint(
+            'Wallet top-up required -> current_balance=${walletController.balance}, wallet_applied=$walletAppliedAmount, top_up=$walletTopUpAmount, total=$totalPrice',
+          );
+          AppLogger.d(
+            'Wallet top-up required -> current_balance=${walletController.balance}, wallet_applied=$walletAppliedAmount, top_up=$walletTopUpAmount, total=$totalPrice',
+          );
+
+          final toppedUp = await _topUpWalletForBooking(totalPrice);
+          if (!toppedUp) {
+            final walletTopUpError =
+                walletTopUpController.lastPaymentError.value.trim().isNotEmpty
+                ? walletTopUpController.lastPaymentError.value.trim()
+                : 'Wallet top-up was not completed.';
+            debugPrint('Wallet top-up failed: $walletTopUpError');
+            AppLogger.d('Wallet top-up failed: $walletTopUpError');
+            await _failPaymentFlow(walletTopUpError, fromWallet: false);
+            return;
+          }
+        }
+
+        final refreshedWalletBalance = _roundCurrency(walletController.balance);
+        if (refreshedWalletBalance + 0.01 < totalPrice) {
+          const walletRefreshError =
+              'Wallet top-up completed, but the updated balance is still below the booking amount. Please refresh and try again.';
+          debugPrint('Wallet balance still insufficient: $walletRefreshError');
+          AppLogger.d(
+            'Wallet balance still insufficient -> balance=$refreshedWalletBalance, total=$totalPrice',
+          );
+          await _failPaymentFlow(walletRefreshError, fromWallet: false);
+          return;
+        }
+
+        _pendingWalletAppliedAmount.value = 0;
+        razorpayController.configureWalletSplit(
+          walletAmount: 0,
+          debitReferenceId: '',
+        );
         _stage.value = PaymentStage.debitingWallet;
+        _paymentStatus.value = 'Confirming wallet payment...';
         await confirmBooking(
           bookingIds: bookingIds,
           paymentMode: 'wallet',
@@ -1768,14 +1881,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       // d) RAZORPAY route (default)
       _stage.value = PaymentStage.initiatingGateway;
       _startPaymentWatchdog(fromWallet: false);
-      razorpayController.bookingIdList.value = bookingIds;
-      // Set the slot IDs for the razorpay controller
-      razorpayController.slotIdsList.value = widget.selectedSlots
-          .map((slot) => slot['slot_id'] as int)
-          .toList();
-      // Set the cart items for the razorpay controller
-      razorpayController.cartItemsList.value = _getValidatedCartItems();
-      await initiatePayment(context, amountInPaisa);
+      _configureRazorpayBookingContext(bookingIds);
+      if (!mounted) return;
+      await initiatePayment(amountInPaisa);
     } catch (e) {
       // Parse error message properly
       String errorMessage = _parseErrorMessage(e);
@@ -1830,20 +1938,41 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         }).toList();
       }
 
-      await _remoteRepo.confirmBooking(
-        bookingIds: bookingIds,
-        paymentId:
-            "${paymentMode.toUpperCase()}_${DateTime.now().millisecondsSinceEpoch}",
-        bookDate: _formattedBookDate,
-        paymentMode: paymentMode,
-        voucherCode: voucherCode,
-        isGamePass: isGamePass,
-        extraServices: extraServices,
-        userPassId: userPassId,
-        squadDetails: _buildSquadDetailsPayload(),
-        suggestedExtraControllerQty: _supportsControllerSelection
-            ? _suggestedExtraControllerQty
-            : null,
+      debugPrint(
+        'Confirm booking request -> payment_mode=$paymentMode, booking_ids=$bookingIds, book_date=$_formattedBookDate',
+      );
+      AppLogger.d(
+        'Confirm booking request -> payment_mode=$paymentMode, booking_ids=$bookingIds, book_date=$_formattedBookDate',
+      );
+
+      await _remoteRepo
+          .confirmBooking(
+            bookingIds: bookingIds,
+            paymentId:
+                "${paymentMode.toUpperCase()}_${DateTime.now().millisecondsSinceEpoch}",
+            bookDate: _formattedBookDate,
+            paymentMode: paymentMode,
+            voucherCode: voucherCode,
+            isGamePass: isGamePass,
+            extraServices: extraServices,
+            userPassId: userPassId,
+            squadDetails: _buildSquadDetailsPayload(),
+            suggestedExtraControllerQty: _supportsControllerSelection
+                ? _suggestedExtraControllerQty
+                : null,
+          )
+          .timeout(
+            const Duration(seconds: 45),
+            onTimeout: () => throw TimeoutException(
+              'Booking confirmation timed out. Please try again.',
+            ),
+          );
+
+      debugPrint(
+        'Confirm booking success -> payment_mode=$paymentMode, booking_ids=$bookingIds',
+      );
+      AppLogger.d(
+        'Confirm booking success -> payment_mode=$paymentMode, booking_ids=$bookingIds',
       );
 
       // Track booking confirmed event
@@ -1892,6 +2021,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         successMessage = 'Booking confirmed with voucher $voucherCode!';
       }
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(successMessage),
@@ -1916,6 +2046,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         ),
       );
     } catch (e) {
+      debugPrint(
+        'Confirm booking failed -> payment_mode=$paymentMode, booking_ids=$bookingIds, error=$e',
+      );
+      AppLogger.d(
+        'Confirm booking failed -> payment_mode=$paymentMode, booking_ids=$bookingIds, error=$e',
+      );
+
       // Release each booking if confirmation fails
       for (final bookingId in bookingIds) {
         try {
@@ -2019,7 +2156,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
   }
 
-  Future<void> initiatePayment(BuildContext context, int amountInPaisa) async {
+  Future<void> initiatePayment(
+    int amountInPaisa, {
+    bool fromWallet = false,
+  }) async {
     String receiptId = "order_rcpt_${DateTime.now().millisecondsSinceEpoch}";
     final url = '${FlavorConfig.getBaseUrl('booking')}/api/create_order';
     final payload = {
@@ -2055,9 +2195,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               '',
         );
       } else {
+        if (fromWallet) {
+          await _rollbackWalletContributionIfNeeded();
+        }
         await _failPaymentFlow(
           'Failed to create payment order. Please try again.',
-          fromWallet: false,
+          fromWallet: fromWallet,
         );
         _paymentStatus.value = 'Payment order creation failed';
         razorpayController.isPaymentInProgress(false);
@@ -2076,7 +2219,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       _paymentStatus.value = 'Payment initialization failed';
       AppLogger.d('Payment error: $e');
-      await _failPaymentFlow(errorMessage, fromWallet: false);
+      if (fromWallet) {
+        await _rollbackWalletContributionIfNeeded();
+      }
+      await _failPaymentFlow(errorMessage, fromWallet: fromWallet);
     }
   }
 }

@@ -8,6 +8,10 @@ import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/features/mini_games/html_games/models/html_mini_game.dart';
+import 'package:hash/features/mini_games/html_games/services/html_mini_game_catalog_service.dart';
+import 'package:hash/features/mini_games/html_games/views/html_game_player_screen.dart';
+import 'package:hash/features/mini_games/html_games/widgets/html_mini_game_card.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
 import 'flappy_birds/Layouts/Pages/page_start_screen.dart';
 import 'mini_game_card.dart';
@@ -25,6 +29,7 @@ class MiniGamesSection extends StatefulWidget {
 
 class _MiniGamesSectionState extends State<MiniGamesSection> {
   late final List<MiniGame> _games;
+  late final List<HtmlMiniGame> _htmlGames;
   final MiniGameScoreService _scoreService = MiniGameScoreService();
   final MiniGameLeaderboardService _leaderboardService =
       MiniGameLeaderboardService();
@@ -77,11 +82,16 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
         },
       ),
     ];
+    _htmlGames = const HtmlMiniGameCatalogService().getGames();
 
     // Precache icons to avoid jank on first scroll/tap.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       for (final game in _games) {
         precacheImage(game.icon, context);
+      }
+      for (final game in _htmlGames) {
+        if (game.thumbnail.isEmpty) continue;
+        precacheImage(AssetImage(game.thumbnail), context);
       }
     });
 
@@ -132,24 +142,42 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
           ),
         ),
         SizedBox(
-          height: 130,
+          height: 132,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
-
-            itemCount: _games.length,
+            itemCount: _htmlGames.length + _games.length,
             separatorBuilder: (context, index) => const SizedBox(width: 8),
-            itemBuilder: (context, index) => RepaintBoundary(
-              child: MiniGameCard(
-                game: _games[index],
-                scoresLoaded: _scoresLoaded,
-                scoreService: _scoreService,
-              ),
-            ),
+            itemBuilder: (context, index) {
+              if (index < _htmlGames.length) {
+                final game = _htmlGames[index];
+                return HtmlMiniGameCard(
+                  game: game,
+                  compact: true,
+                  bestScore: _scoresLoaded
+                      ? _scoreService.bestScore(game.gameId)
+                      : null,
+                  onTap: () => _openHtmlGame(game),
+                );
+              }
+
+              final nativeGame = _games[index - _htmlGames.length];
+              return RepaintBoundary(
+                child: MiniGameCard(
+                  game: nativeGame,
+                  scoresLoaded: _scoresLoaded,
+                  scoreService: _scoreService,
+                ),
+              );
+            },
           ),
         ),
       ],
     );
+  }
+
+  void _openHtmlGame(HtmlMiniGame game) {
+    unawaited(HtmlGamePlayerScreen.open(game));
   }
 
   void _showLeaderboard(

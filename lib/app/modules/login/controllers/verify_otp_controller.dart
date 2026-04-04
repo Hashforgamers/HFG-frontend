@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/repositories/remote/remote_repo_interface.dart';
 import '../../../../core/service/device_identifier_service.dart';
 import '../../../../core/service/fb_events_service.dart';
+import '../../../../core/service/notification_service.dart';
 import '../../../../core/service/segment_sdk_service.dart';
 import '../../../../core/service_locator.dart';
 import '../../../data/services/user_controller.dart' as userModel;
@@ -124,6 +125,10 @@ class VerifyOtpController extends GetxController {
         // Option A: parse and set directly
         final parsed = model.User.fromJson(userData);
         userController.setUserData(parsed);
+        userController.id.value = (userData['id'] ?? userData['user_id'] ?? '')
+            .toString()
+            .trim();
+        unawaited(_syncPushRegistration());
 
         // Option B (alternate): await userController.fetchUserData(user.uid);
 
@@ -189,6 +194,11 @@ class VerifyOtpController extends GetxController {
               if (userData != null) {
                 final parsed = model.User.fromJson(userData);
                 userController.setUserData(parsed);
+                userController.id.value =
+                    (userData['id'] ?? userData['user_id'] ?? '')
+                        .toString()
+                        .trim();
+                unawaited(_syncPushRegistration());
                 Get.offAllNamed(AppRoutes.HOME);
               } else {
                 Get.offAllNamed(
@@ -222,6 +232,19 @@ class VerifyOtpController extends GetxController {
       _toast('Error', 'Failed to resend code. Please try again.');
     } finally {
       isResending.value = false;
+    }
+  }
+
+  Future<void> _syncPushRegistration() async {
+    if (!Get.isRegistered<NotificationController>()) {
+      return;
+    }
+    try {
+      await Get.find<NotificationController>().registerCurrentTokenWithBackend(
+        forceRefresh: true,
+      );
+    } catch (e) {
+      debugPrint('[Push][OTP] Token sync skipped: $e');
     }
   }
 

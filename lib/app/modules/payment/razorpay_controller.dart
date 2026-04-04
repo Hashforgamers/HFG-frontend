@@ -13,6 +13,7 @@ import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/extra_services_model.dart';
 import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:intl/intl.dart';
 
@@ -33,6 +34,9 @@ class RazorpayController extends GetxController {
   RxString paymentStatus = ''.obs;
   PaymentType? _currentPaymentType;
   String? _passIdForPurchase;
+  double _pendingWalletContribution = 0;
+  String? _pendingWalletDebitReferenceId;
+  String? _pendingWalletRefundReferenceId;
 
   @override
   void onInit() {
@@ -58,6 +62,50 @@ class RazorpayController extends GetxController {
   void setPassIdForPurchase(String passId) {
     final normalized = passId.trim();
     _passIdForPurchase = normalized.isEmpty ? null : normalized;
+  }
+
+  void configureWalletSplit({
+    required double walletAmount,
+    required String debitReferenceId,
+    String? refundReferenceId,
+  }) {
+    final normalizedRefundReference = refundReferenceId?.trim();
+    _pendingWalletContribution = walletAmount > 0 ? walletAmount : 0;
+    _pendingWalletDebitReferenceId = debitReferenceId.trim().isEmpty
+        ? null
+        : debitReferenceId.trim();
+    _pendingWalletRefundReferenceId =
+        normalizedRefundReference == null || normalizedRefundReference.isEmpty
+        ? null
+        : normalizedRefundReference;
+  }
+
+  Future<void> refundPendingWalletContribution() async {
+    if (_pendingWalletContribution <= 0) return;
+    if (!Get.isRegistered<WalletController>()) {
+      _clearWalletSplit();
+      return;
+    }
+
+    final walletController = Get.find<WalletController>();
+    final refundReferenceId =
+        _pendingWalletRefundReferenceId ??
+        'wallet_refund_${_pendingWalletDebitReferenceId ?? DateTime.now().millisecondsSinceEpoch}';
+
+    final refunded = await walletController.refundBookingAmount(
+      amount: _pendingWalletContribution,
+      referenceId: refundReferenceId,
+    );
+
+    if (!refunded) {
+      Get.snackbar(
+        'Wallet refund pending',
+        'We could not auto-refund your wallet contribution. Please contact support if the balance does not update shortly.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+
+    _clearWalletSplit();
   }
 
   // ─────────────────────────── Checkout ───────────────────────────
@@ -131,79 +179,92 @@ class RazorpayController extends GetxController {
   void _handlePaymentSuccess(PaymentSuccessResponse r) async {
     paymentStatus.value = 'Payment successful! Confirming booking…';
     Haptics.criticalSuccess();
-
-    // Track hash pass purchased event
-    segmentService.onHashPassPurchased(
-      email:
-          userController.user.value.contact?.electronicAddress?.emailId ?? '',
-      // amount: amount,
-    );
-
-    if (bookingIdList.isEmpty) {
-      _reset();
-      return;
-    }
-
-    // Track payment success event
-    segmentService.onPaymentSuccess(
-      transactionId: r.paymentId ?? '',
-      bookingId: bookingIdList.first.toString(),
-      paymentGateway: 'razorpay',
-    );
-    fbEventsService.onPaymentSuccess(
-      transactionId: r.paymentId ?? '',
-      bookingId: bookingIdList.first.toString(),
-      paymentGateway: 'razorpay',
-    );
-
-    // capture payment
-    final capturePaymentModel = CapturePaymentModel(
-      razorpayPaymentId: r.paymentId,
-      razorpayOrderId: r.orderId,
-      razorpaySignature: r.signature,
-    );
-    await _remoteRepo.capturePayment(capturePaymentModel: capturePaymentModel);
-
-    // Handle different payment types
-    if (_currentPaymentType == PaymentType.slotBooking) {
-      // Call confirm booking only for slot bookings
-      await _confirmBooking(
-        bookingIds: bookingIdList.toList(),
-        paymentId: r.paymentId!,
-        paymentMode: 'gateway',
-        slotIds: slotIdsList.toList(),
+    try {
+      // Track hash pass purchased event
+      segmentService.onHashPassPurchased(
+        email:
+            userController.user.value.contact?.electronicAddress?.emailId ?? '',
+        // amount: amount,
       );
-    } else if (_currentPaymentType == PaymentType.passPurchase) {
-      final user = await _remoteRepo.getUserFromPreferences();
-      final passId =
-          _passIdForPurchase ??
-          (bookingIdList.isNotEmpty ? bookingIdList.first.toString() : null);
 
-      if (passId == null || passId.isEmpty) {
-        throw Exception('Missing pass id for purchase.');
+      if (bookingIdList.isEmpty) {
+        _reset();
+        return;
       }
 
-      await _remoteRepo.purchasePass(
-        userId: user?['id'].toString() ?? '',
-        passModel: PurchasePassModel(
-          cafePassId: passId,
+      // Track payment success event
+      segmentService.onPaymentSuccess(
+        transactionId: r.paymentId ?? '',
+        bookingId: bookingIdList.first.toString(),
+        paymentGateway: 'razorpay',
+      );
+      fbEventsService.onPaymentSuccess(
+        transactionId: r.paymentId ?? '',
+        bookingId: bookingIdList.first.toString(),
+        paymentGateway: 'razorpay',
+      );
+
+      // capture payment
+      final capturePaymentModel = CapturePaymentModel(
+        razorpayPaymentId: r.paymentId,
+        razorpayOrderId: r.orderId,
+        razorpaySignature: r.signature,
+      );
+      await _remoteRepo.capturePayment(
+        capturePaymentModel: capturePaymentModel,
+      );
+
+      // Handle different payment types
+      if (_currentPaymentType == PaymentType.slotBooking) {
+        // Call confirm booking only for slot bookings
+        await _confirmBooking(
+          bookingIds: bookingIdList.toList(),
           paymentId: r.paymentId!,
           paymentMode: 'gateway',
-        ),
-      );
-      paymentStatus.value = 'Payment successful! Pass purchased successfully!';
+          slotIds: slotIdsList.toList(),
+        );
+      } else if (_currentPaymentType == PaymentType.passPurchase) {
+        final user = await _remoteRepo.getUserFromPreferences();
+        final passId =
+            _passIdForPurchase ??
+            (bookingIdList.isNotEmpty ? bookingIdList.first.toString() : null);
+
+        if (passId == null || passId.isEmpty) {
+          throw Exception('Missing pass id for purchase.');
+        }
+
+        await _remoteRepo.purchasePass(
+          userId: user?['id'].toString() ?? '',
+          passModel: PurchasePassModel(
+            cafePassId: passId,
+            paymentId: r.paymentId!,
+            paymentMode: 'gateway',
+          ),
+        );
+        paymentStatus.value =
+            'Payment successful! Pass purchased successfully!';
+        _reset();
+        Get.snackbar(
+          'Success!',
+          'Pass purchased successfully!',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xff00DC00),
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      await refundPendingWalletContribution();
       _reset();
+      Haptics.error();
       Get.snackbar(
-        'Success!',
-        'Pass purchased successfully!',
+        'Payment Error',
+        'Failed to complete payment: $e',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xff00DC00),
-        colorText: Colors.white,
       );
     }
   }
 
-  void _handlePaymentError(PaymentFailureResponse r) {
+  void _handlePaymentError(PaymentFailureResponse r) async {
     Haptics.criticalError();
     // Track payment failed event
     segmentService.onPaymentFailed(
@@ -215,6 +276,7 @@ class RazorpayController extends GetxController {
       paymentGateway: 'razorpay',
     );
 
+    await refundPendingWalletContribution();
     _reset();
     Get.snackbar(
       'Payment Failed',
@@ -296,6 +358,7 @@ class RazorpayController extends GetxController {
           bookDate: DateTime.now().toIso8601String(),
         ),
       );
+      await refundPendingWalletContribution();
       _reset();
       Haptics.error();
       Get.snackbar(
@@ -315,5 +378,12 @@ class RazorpayController extends GetxController {
     bookingIdList.clear();
     slotIdsList.clear();
     cartItemsList.clear();
+    _clearWalletSplit();
+  }
+
+  void _clearWalletSplit() {
+    _pendingWalletContribution = 0;
+    _pendingWalletDebitReferenceId = null;
+    _pendingWalletRefundReferenceId = null;
   }
 }

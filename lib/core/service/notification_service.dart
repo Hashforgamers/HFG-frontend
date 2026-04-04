@@ -1,17 +1,21 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform, debugPrint;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/live/views/live_stream_screen.dart';
 import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
 import 'package:hash/app/routes/app_routes.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/firebase_options.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const AndroidNotificationChannel _contestChannel = AndroidNotificationChannel(
   'contest_channel',
@@ -148,19 +152,40 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class NotificationController extends GetxController {
+  static const _registeredTokenKey = 'fcm_registered_token';
+  static const _registeredUserIdKey = 'fcm_registered_user_id';
+
   final FirebaseMessaging _fm = FirebaseMessaging.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final FlutterLocalNotificationsPlugin _fln =
       FlutterLocalNotificationsPlugin();
+  final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
+  final SharedPreferences _prefs = locator<SharedPreferences>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
 
   RxString fcmToken = ''.obs;
   final Set<String> _shownNotificationKeys = <String>{};
+  Future<bool>? _registerTokenRequest;
+  StreamSubscription<String>? _tokenRefreshSub;
+  StreamSubscription<User?>? _authUserSub;
+  String? _activeUserTopic;
 
   @override
   void onInit() {
     super.onInit();
+    _authUserSub = _auth.authStateChanges().listen(_handleAuthUserChanged);
+    unawaited(_handleAuthUserChanged(_auth.currentUser));
     _initializeNotifications();
+  }
+
+  @override
+  void onClose() {
+    _tokenRefreshSub?.cancel();
+    _tokenRefreshSub = null;
+    _authUserSub?.cancel();
+    _authUserSub = null;
+    super.onClose();
   }
 
   Future<void> _initializeNotifications() async {
@@ -208,12 +233,13 @@ class NotificationController extends GetxController {
 
     // 5) Tokens (wait for APNs on iOS, then get FCM)
     await _initTokens(settings);
+    unawaited(registerCurrentTokenWithBackend());
 
     // 6) React to token refresh
-    _fm.onTokenRefresh.listen((t) {
+    _tokenRefreshSub = _fm.onTokenRefresh.listen((t) {
       fcmToken.value = t;
-      // Send to backend / analytics here
-      // segmentService.identifyPushToken(token: t); // if you track it
+      debugPrint('FCM token refreshed -> $t');
+      unawaited(registerCurrentTokenWithBackend(forceRefresh: true));
     });
   }
 
@@ -237,12 +263,129 @@ class NotificationController extends GetxController {
         fcmToken.value = token;
         await _fm.subscribeToTopic('mira_road_users');
         debugPrint('Subscribed to mira_road_users');
-        // Send to backend / analytics here
-        // segmentService.identifyPushToken(token: token);
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('FCM token initialization failed: $e');
       // Swallow and retry later (e.g., via onTokenRefresh)
     }
+  }
+
+  Future<bool> registerCurrentTokenWithBackend({bool forceRefresh = false}) {
+    final inFlight = _registerTokenRequest;
+    if (inFlight != null) return inFlight;
+
+    final request = _registerToken(forceRefresh: forceRefresh);
+    _registerTokenRequest = request;
+    return request.whenComplete(() {
+      if (identical(_registerTokenRequest, request)) {
+        _registerTokenRequest = null;
+      }
+    });
+  }
+
+  Future<bool> _registerToken({required bool forceRefresh}) async {
+    try {
+      final token = await _resolveCurrentToken();
+      if (token.isEmpty) {
+        debugPrint('FCM register skipped -> token unavailable');
+        return false;
+      }
+
+      final userId = await _resolveBackendUserId();
+      if (userId.isEmpty) {
+        debugPrint('FCM register skipped -> backend user unavailable');
+        return false;
+      }
+
+      final cachedToken = _prefs.getString(_registeredTokenKey) ?? '';
+      final cachedUserId = _prefs.getString(_registeredUserIdKey) ?? '';
+      final alreadyRegistered =
+          !forceRefresh && cachedToken == token && cachedUserId == userId;
+      if (alreadyRegistered) {
+        debugPrint(
+          'FCM register skipped -> token already synced for user_id=$userId',
+        );
+        return true;
+      }
+
+      debugPrint(
+        'FCM register request -> user_id=$userId, token=$token, force_refresh=$forceRefresh',
+      );
+      final response = await _remoteRepo.registerFCMToken(
+        userId: userId,
+        token: token,
+      );
+      await _prefs.setString(_registeredTokenKey, token);
+      await _prefs.setString(_registeredUserIdKey, userId);
+      debugPrint('FCM register success -> user_id=$userId, response=$response');
+      return true;
+    } catch (e) {
+      debugPrint('FCM register failed -> $e');
+      return false;
+    }
+  }
+
+  Future<String> _resolveCurrentToken() async {
+    final cached = fcmToken.value.trim();
+    if (cached.isNotEmpty) return cached;
+    final fetched = (await _fm.getToken())?.trim() ?? '';
+    if (fetched.isNotEmpty) {
+      fcmToken.value = fetched;
+    }
+    return fetched;
+  }
+
+  Future<String> _resolveBackendUserId() async {
+    if (Get.isRegistered<UserController>()) {
+      final userController = Get.find<UserController>();
+      final controllerUserId = userController.id.value.trim();
+      if (controllerUserId.isNotEmpty) {
+        return controllerUserId;
+      }
+    }
+
+    final storedUser = await _remoteRepo.getUserFromPreferences();
+    return (storedUser?['id'] ?? storedUser?['user_id'] ?? '')
+        .toString()
+        .trim();
+  }
+
+  Future<void> _handleAuthUserChanged(User? user) async {
+    final nextTopic = _userTopicFor(user?.uid);
+    if (_activeUserTopic == nextTopic) {
+      return;
+    }
+
+    final previousTopic = _activeUserTopic;
+    _activeUserTopic = nextTopic;
+
+    if (previousTopic != null && previousTopic.isNotEmpty) {
+      try {
+        await _fm.unsubscribeFromTopic(previousTopic);
+        debugPrint('Push topic unsubscribed -> $previousTopic');
+      } catch (e) {
+        debugPrint(
+          'Push topic unsubscribe failed -> topic=$previousTopic, error=$e',
+        );
+      }
+    }
+
+    if (nextTopic != null && nextTopic.isNotEmpty) {
+      try {
+        await _fm.subscribeToTopic(nextTopic);
+        debugPrint('Push topic subscribed -> $nextTopic');
+      } catch (e) {
+        debugPrint('Push topic subscribe failed -> topic=$nextTopic, error=$e');
+      }
+    }
+  }
+
+  String? _userTopicFor(String? uid) {
+    final safeUid = (uid ?? '').trim();
+    if (safeUid.isEmpty) {
+      return null;
+    }
+    return 'hfg_user_$safeUid';
   }
 
   Future<void> _createAndroidChannels() async {

@@ -18,6 +18,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/config/flavor_config.dart';
+import 'package:hash/features/mini_games/score/mini_game_leaderboard_notification_service.dart';
 import 'package:hash/utils/scroll_behaviour.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'app/data/services/user_controller.dart';
@@ -78,6 +79,7 @@ void main() async {
   Get.put(WalletController());
   Get.put(ShopController(), permanent: true);
   Get.put(ChatService(), permanent: true);
+  Get.put(MiniGameLeaderboardNotificationService(), permanent: true);
 
   runApp(MyApp());
 }

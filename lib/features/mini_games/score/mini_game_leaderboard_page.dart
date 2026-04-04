@@ -11,6 +11,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/features/mini_games/flappy_birds/Layouts/Pages/page_start_screen.dart';
+import 'package:hash/features/mini_games/html_games/services/html_mini_game_catalog_service.dart';
 import 'package:hash/features/mini_games/pacman/HomePage.dart';
 import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart';
 
@@ -40,12 +41,21 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   String _selectedGameId = MiniGameLeaderboardService.overallGameId;
   bool _openingChat = false;
 
-  static const _gameOptions = <MapEntry<String, String>>[
-    MapEntry(MiniGameLeaderboardService.overallGameId, 'Overall'),
-    MapEntry('fruit_cutting', 'Fruit Cutting'),
-    MapEntry('plant_vs_zombie', 'Plant Vs Zombie'),
-    MapEntry('pac_man', 'Pac Man'),
-    MapEntry('laggy_bird', 'Laggy Bird'),
+  String get _leaderboardLobbyRoomId {
+    return _selectedGameId == MiniGameLeaderboardService.overallGameId
+        ? 'mini_games_lounge'
+        : 'mini_games_$_selectedGameId';
+  }
+
+  late final List<MapEntry<String, String>> _gameOptions = [
+    const MapEntry(MiniGameLeaderboardService.overallGameId, 'Overall'),
+    const MapEntry('fruit_cutting', 'Fruit Cutting'),
+    const MapEntry('plant_vs_zombie', 'Plant Vs Zombie'),
+    const MapEntry('pac_man', 'Pac Man'),
+    const MapEntry('laggy_bird', 'Laggy Bird'),
+    ...HtmlMiniGameCatalogService.games.map(
+      (game) => MapEntry(game.gameId, game.name),
+    ),
   ];
 
   @override
@@ -513,22 +523,96 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _openingChat
-                          ? null
-                          : () => _openLeaderboardChat(),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: StreamBuilder<int>(
+                      stream: _chatService.streamUnreadCountForRoom(
+                        _leaderboardLobbyRoomId,
                       ),
-                      icon: const Icon(Icons.forum_rounded),
-                      label: Text(
-                        _openingChat ? 'Opening...' : 'Open Lobby',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-                      ),
+                      builder: (context, snapshot) {
+                        final unreadCount = snapshot.data ?? 0;
+                        return OutlinedButton(
+                          onPressed: _openingChat
+                              ? null
+                              : () => _openLeaderboardChat(),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: unreadCount > 0
+                                  ? const Color(
+                                      0xFF42D7FF,
+                                    ).withValues(alpha: 0.45)
+                                  : Colors.white.withValues(alpha: 0.12),
+                            ),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  const Icon(Icons.forum_rounded),
+                                  if (unreadCount > 0)
+                                    Positioned(
+                                      right: -8,
+                                      top: -8,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 5,
+                                          vertical: 2,
+                                        ),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 18,
+                                          minHeight: 18,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF42D7FF),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(
+                                                0xFF42D7FF,
+                                              ).withValues(alpha: 0.35),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            unreadCount > 99
+                                                ? '99+'
+                                                : '$unreadCount',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.black,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  _openingChat
+                                      ? 'Opening...'
+                                      : unreadCount > 0
+                                      ? 'Open Lobby ($unreadCount)'
+                                      : 'Open Lobby',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],

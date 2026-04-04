@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:get/get.dart';
@@ -7,6 +9,7 @@ import 'package:hash/app/modules/live/models/upcoming_stream_model.dart';
 import 'package:hash/core/service/notification_service.dart';
 
 class HashLiveService extends GetxService {
+  static const Duration _maxLiveDuration = Duration(hours: 48);
   static const _streams = 'live_streams';
   static const _messages = 'messages';
   static const _viewers = 'viewers';
@@ -28,12 +31,25 @@ class HashLiveService extends GetxService {
 
   Stream<List<LiveStreamModel>> watchLiveStreams() {
     return _streamsRef.snapshots().map((snapshot) {
-      final streams =
-          snapshot.docs
-              .map(LiveStreamModel.fromDoc)
-              .where((item) => item.isLive)
-              .toList()
-            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      final streams = <LiveStreamModel>[];
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        if (_isExpiredLiveData(data)) {
+          unawaited(
+            _expireLiveStream(
+              doc.id,
+              hostUid: (data['host_uid'] ?? '').toString(),
+            ),
+          );
+          continue;
+        }
+
+        final item = LiveStreamModel.fromDoc(doc);
+        if (item.isLive) {
+          streams.add(item);
+        }
+      }
+      streams.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
       return streams;
     });
   }
@@ -68,9 +84,15 @@ class HashLiveService extends GetxService {
         .where('is_live', isEqualTo: true)
         .limit(1)
         .get();
-    final existingLiveId = liveByHostSnap.docs.isNotEmpty
-        ? liveByHostSnap.docs.first.id
-        : '';
+    var existingLiveId = '';
+    if (liveByHostSnap.docs.isNotEmpty) {
+      final liveDoc = liveByHostSnap.docs.first;
+      if (_isExpiredLiveData(liveDoc.data())) {
+        await _expireLiveStream(liveDoc.id, hostUid: uid);
+      } else {
+        existingLiveId = liveDoc.id;
+      }
+    }
 
     if (existingLiveId.isNotEmpty &&
         requestedId.isNotEmpty &&
@@ -89,7 +111,12 @@ class HashLiveService extends GetxService {
 
     if (hostIsLive && activeStreamId.isNotEmpty) {
       final activeStreamSnap = await _streamsRef.doc(activeStreamId).get();
-      final activeIsLive = activeStreamSnap.data()?['is_live'] == true;
+      final activeStreamData = activeStreamSnap.data() ?? <String, dynamic>{};
+      var activeIsLive = activeStreamData['is_live'] == true;
+      if (activeIsLive && _isExpiredLiveData(activeStreamData)) {
+        await _expireLiveStream(activeStreamId, hostUid: uid);
+        activeIsLive = false;
+      }
       if (activeIsLive &&
           requestedId.isNotEmpty &&
           requestedId != activeStreamId) {
@@ -106,8 +133,11 @@ class HashLiveService extends GetxService {
     final doc = (streamId == null || streamId.isEmpty)
         ? _streamsRef.doc()
         : _streamsRef.doc(streamId);
+    final existingStreamSnap = await doc.get();
+    final existingStreamData = existingStreamSnap.data() ?? <String, dynamic>{};
+    final wasLive = existingStreamData['is_live'] == true;
 
-    final payload = {
+    final payload = <String, dynamic>{
       'title': title.trim(),
       'game': game.trim(),
       'youtube_url': youtubeUrl.trim(),
@@ -116,10 +146,15 @@ class HashLiveService extends GetxService {
       'host_photo_url': hostPhoto,
       'streaming_from_cafe': streamingFromCafe,
       'is_live': true,
-      'viewer_count': 0,
-      'created_at': now,
       'updated_at': now,
     };
+    if (!existingStreamSnap.exists) {
+      payload['created_at'] = now;
+    }
+    if (!wasLive) {
+      payload['live_started_at'] = now;
+      payload['viewer_count'] = 0;
+    }
 
     await doc.set(payload, SetOptions(merge: true));
 
@@ -169,7 +204,15 @@ class HashLiveService extends GetxService {
     final activeFromHost = (hostSnap.data()?['active_stream_id'] ?? '')
         .toString()
         .trim();
-    if (activeFromHost.isNotEmpty) return activeFromHost;
+    if (activeFromHost.isNotEmpty) {
+      final streamSnap = await _streamsRef.doc(activeFromHost).get();
+      final streamData = streamSnap.data() ?? <String, dynamic>{};
+      if (streamData.isEmpty || _isExpiredLiveData(streamData)) {
+        await _expireLiveStream(activeFromHost, hostUid: uid);
+      } else if (streamData['is_live'] == true) {
+        return activeFromHost;
+      }
+    }
 
     final liveByHostSnap = await _streamsRef
         .where('host_uid', isEqualTo: uid)
@@ -177,7 +220,12 @@ class HashLiveService extends GetxService {
         .limit(1)
         .get();
     if (liveByHostSnap.docs.isNotEmpty) {
-      return liveByHostSnap.docs.first.id;
+      final liveDoc = liveByHostSnap.docs.first;
+      if (_isExpiredLiveData(liveDoc.data())) {
+        await _expireLiveStream(liveDoc.id, hostUid: uid);
+        return '';
+      }
+      return liveDoc.id;
     }
     return '';
   }
@@ -185,6 +233,19 @@ class HashLiveService extends GetxService {
   Stream<LiveStreamModel?> watchStream(String streamId) {
     return _streamsRef.doc(streamId).snapshots().map((doc) {
       if (!doc.exists) return null;
+      final data = doc.data() ?? <String, dynamic>{};
+      if (_isExpiredLiveData(data)) {
+        unawaited(
+          _expireLiveStream(
+            doc.id,
+            hostUid: (data['host_uid'] ?? '').toString(),
+          ),
+        );
+        return LiveStreamModel.fromData(doc.id, <String, dynamic>{
+          ...data,
+          'is_live': false,
+        });
+      }
       return LiveStreamModel.fromDoc(doc);
     });
   }
@@ -199,6 +260,17 @@ class HashLiveService extends GetxService {
   Future<void> joinLiveStream(String streamId) async {
     final uid = currentUid;
     if (uid == null) return;
+    final streamSnap = await _streamsRef.doc(streamId).get();
+    final streamData = streamSnap.data() ?? <String, dynamic>{};
+    if (streamData.isEmpty) return;
+    if (_isExpiredLiveData(streamData)) {
+      await _expireLiveStream(
+        streamId,
+        hostUid: (streamData['host_uid'] ?? '').toString(),
+      );
+      return;
+    }
+    if (streamData['is_live'] != true) return;
     final viewerDoc = _streamsRef.doc(streamId).collection(_viewers).doc(uid);
     final exists = await viewerDoc.get();
     if (!exists.exists) {
@@ -300,10 +372,28 @@ class HashLiveService extends GetxService {
   }
 
   Stream<Map<String, dynamic>?> watchHostProfile(String hostUid) {
-    return _firestore.collection(_hosts).doc(hostUid).snapshots().map((doc) {
-      if (!doc.exists) return null;
-      return doc.data();
-    });
+    return _firestore
+        .collection(_hosts)
+        .doc(hostUid)
+        .snapshots()
+        .asyncMap((doc) async {
+          if (!doc.exists) return null;
+          final data = doc.data() ?? <String, dynamic>{};
+          final activeStreamId = (data['active_stream_id'] ?? '').toString().trim();
+          if (data['is_live'] == true && activeStreamId.isNotEmpty) {
+            final streamSnap = await _streamsRef.doc(activeStreamId).get();
+            final streamData = streamSnap.data() ?? <String, dynamic>{};
+            if (streamData.isEmpty || _isExpiredLiveData(streamData)) {
+              await _expireLiveStream(activeStreamId, hostUid: hostUid);
+              return <String, dynamic>{
+                ...data,
+                'is_live': false,
+                'active_stream_id': null,
+              };
+            }
+          }
+          return data;
+        });
   }
 
   Stream<int> watchHostFollowersCount(String hostUid) {
@@ -606,5 +696,55 @@ class HashLiveService extends GetxService {
       }
       await batch.commit();
     }
+  }
+
+  bool _isExpiredLiveData(Map<String, dynamic> data) {
+    if (data['is_live'] != true) return false;
+    final startedAt = _parseLiveStartedAt(data);
+    if (startedAt == null) return false;
+    return DateTime.now().difference(startedAt) >= _maxLiveDuration;
+  }
+
+  DateTime? _parseLiveStartedAt(Map<String, dynamic> data) {
+    final raw =
+        data['live_started_at'] ?? data['created_at'] ?? data['updated_at'];
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
+  }
+
+  Future<void> _expireLiveStream(String streamId, {String? hostUid}) async {
+    final streamRef = _streamsRef.doc(streamId);
+    final normalizedHostUid = (hostUid ?? '').trim();
+    final hostRef = normalizedHostUid.isEmpty
+        ? null
+        : _firestore.collection(_hosts).doc(normalizedHostUid);
+
+    await _firestore.runTransaction((txn) async {
+      final streamSnap = await txn.get(streamRef);
+      final streamData = streamSnap.data() ?? <String, dynamic>{};
+      if (!streamSnap.exists || streamData['is_live'] != true) return;
+
+      txn.set(streamRef, {
+        'is_live': false,
+        'viewer_count': 0,
+        'auto_ended_at': FieldValue.serverTimestamp(),
+        'auto_end_reason': 'max_duration_48h',
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (hostRef != null) {
+        final hostSnap = await txn.get(hostRef);
+        final hostData = hostSnap.data() ?? <String, dynamic>{};
+        if ((hostData['active_stream_id'] ?? '').toString().trim() == streamId) {
+          txn.set(hostRef, {
+            'is_live': false,
+            'active_stream_id': null,
+            'updated_at': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      }
+    });
   }
 }

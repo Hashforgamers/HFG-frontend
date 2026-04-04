@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -17,7 +18,9 @@ import 'wallet_controller.dart';
 class RazorpayWalletController extends GetxController {
   late Razorpay _razorpay;
   final isPaying = false.obs;
+  final RxString lastPaymentError = ''.obs;
   int? _tempAmount;
+  Completer<bool>? _paymentCompleter;
   final segmentService = locator<SegmentSdkService>();
   final userController = Get.find<UserController>();
   final remoteRepo = locator<RemoteRepoInterface>();
@@ -71,14 +74,21 @@ class RazorpayWalletController extends GetxController {
       isPaying.value = true;
       Haptics.cta();
     } catch (e) {
+      lastPaymentError.value = e.toString();
+      _completePayment(false);
       Haptics.error();
-      Get.snackbar("Error", e.toString());
+      _showSnackbarSafely("Error", e.toString());
       isPaying.value = false;
     }
   }
 
   /// Safe method to start payment with stored amount
-  void pay(int amount) async {
+  Future<bool> pay(int amount) async {
+    if (isPaying.value) {
+      return _paymentCompleter?.future ?? Future.value(false);
+    }
+
+    lastPaymentError.value = '';
     _tempAmount = amount;
     // Track add money initiated event
     segmentService.onAddMoneyInitiated(amountEntered: amount.toDouble());
@@ -90,18 +100,27 @@ class RazorpayWalletController extends GetxController {
       "receipt": receiptId,
     };
 
-    final dio = locator<NetworkProvider>().noAuth();
-    final response = await dio.post(url, data: payload);
+    try {
+      final dio = locator<NetworkProvider>().noAuth();
+      final response = await dio.post(url, data: payload);
 
-    if (response.statusCode == 200) {
-      final data = response.data is String
-          ? jsonDecode(response.data as String)
-          : response.data;
-      openCheckout(amount, data['id']);
-      return;
+      if (response.statusCode == 200) {
+        final data = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
+        _paymentCompleter = Completer<bool>();
+        openCheckout(amount, data['id']);
+        return _paymentCompleter!.future;
+      }
+
+      lastPaymentError.value = 'Failed to create payment order';
+      _showSnackbarSafely("Error", "Failed to create payment order");
+      return false;
+    } catch (e) {
+      lastPaymentError.value = e.toString();
+      _showSnackbarSafely("Error", "Failed to create payment order");
+      return false;
     }
-
-    Get.snackbar("Error", "Failed to create payment order");
   }
 
   /// Called when payment is successful
@@ -126,34 +145,93 @@ class RazorpayWalletController extends GetxController {
     );
 
     if (!success) {
+      lastPaymentError.value =
+          Get.find<WalletController>().errorMessage.isNotEmpty
+          ? Get.find<WalletController>().errorMessage
+          : "Failed to credit wallet. Please contact support.";
       Haptics.error();
-      Get.snackbar(
+    }
+
+    isPaying.value = false;
+    _completePayment(success);
+
+    if (!success) {
+      _showSnackbarSafely(
         "Error",
         "Failed to credit wallet. Please contact support.",
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
     }
-
-    isPaying.value = false;
   }
 
   /// Called when payment fails
   void _handlePaymentError(PaymentFailureResponse response) {
+    lastPaymentError.value = response.message ?? "Try again later";
     Haptics.criticalError();
-    Get.snackbar("Payment Failed", response.message ?? "Try again later");
     isPaying.value = false;
+    _completePayment(false);
+    _showSnackbarSafely(
+      "Payment Failed",
+      response.message ?? "Try again later",
+    );
   }
 
   /// Called when user selects external wallet like Paytm
   void _handleExternalWallet(ExternalWalletResponse response) {
     Haptics.warning();
-    Get.snackbar("Wallet", response.walletName ?? "External Wallet");
+    _showSnackbarSafely("Wallet", response.walletName ?? "External Wallet");
     isPaying.value = false;
+  }
+
+  void _showSnackbarSafely(
+    String title,
+    String message, {
+    Color? backgroundColor,
+    Color? colorText,
+  }) {
+    void show() {
+      try {
+        Get.snackbar(
+          title,
+          message,
+          backgroundColor: backgroundColor,
+          colorText: colorText,
+        );
+      } catch (e) {
+        debugPrint(
+          'Wallet snackbar skipped -> title=$title, message=$message, error=$e',
+        );
+      }
+    }
+
+    if (Get.overlayContext != null) {
+      show();
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.overlayContext != null) {
+        show();
+        return;
+      }
+      debugPrint(
+        'Wallet snackbar skipped -> title=$title, message=$message, overlay unavailable',
+      );
+    });
+  }
+
+  void _completePayment(bool success) {
+    final completer = _paymentCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(success);
+    }
+    _paymentCompleter = null;
   }
 
   @override
   void onClose() {
+    _completePayment(false);
     _razorpay.clear();
     super.onClose();
   }

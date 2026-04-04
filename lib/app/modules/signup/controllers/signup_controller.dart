@@ -8,12 +8,14 @@ import 'package:facebook_app_events/facebook_app_events.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hash/app/data/services/user_controller.dart';
 
 class SignUpController extends GetxController {
   var nameController = TextEditingController();
@@ -38,6 +40,7 @@ class SignUpController extends GetxController {
   final fbEventsService = locator<FbEventsService>();
   final deviceIdentifierService = locator<DeviceIdentifierService>();
   final remoteRepo = locator<RemoteRepoInterface>();
+  final userController = Get.find<UserController>();
 
   Future<void> signUp() async {
     User? currentUser = _auth.currentUser;
@@ -135,6 +138,7 @@ class SignUpController extends GetxController {
       // );
 
       await fetchUserData();
+      unawaited(_syncPushRegistration());
       debugPrint('[iOS Signup][Controller] fetchUserData completed');
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('new_user_bonus_pending', true);
@@ -164,6 +168,7 @@ class SignUpController extends GetxController {
         debugPrint(
           '[iOS Signup][Controller] fetchUserData success | keys=${userData.keys.toList()}',
         );
+        userController.applyBackendUserData(userData);
         nameController.text = userData['name'] ?? '';
         gameUserNameController.text = userData['gameUserName'] ?? '';
         dobController.text = userData['dob'] ?? '';
@@ -192,6 +197,19 @@ class SignUpController extends GetxController {
       debugPrint('[iOS Signup][Controller] fetchUserData failed: $e');
       debugPrint('[iOS Signup][Controller] fetchUserData stacktrace: $st');
       _showError('Failed to load user data: $e');
+    }
+  }
+
+  Future<void> _syncPushRegistration() async {
+    if (!Get.isRegistered<NotificationController>()) {
+      return;
+    }
+    try {
+      await Get.find<NotificationController>().registerCurrentTokenWithBackend(
+        forceRefresh: true,
+      );
+    } catch (e) {
+      debugPrint('[Push][Signup] Token sync skipped: $e');
     }
   }
 

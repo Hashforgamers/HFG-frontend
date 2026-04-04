@@ -31,6 +31,10 @@ class LiveStreamModel {
 
   factory LiveStreamModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
+    return LiveStreamModel.fromData(doc.id, data);
+  }
+
+  factory LiveStreamModel.fromData(String id, Map<String, dynamic> data) {
     DateTime parseTs(dynamic v) {
       if (v is Timestamp) return v.toDate();
       if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
@@ -38,7 +42,7 @@ class LiveStreamModel {
     }
 
     return LiveStreamModel(
-      id: doc.id,
+      id: id,
       title: (data['title'] ?? '').toString(),
       game: (data['game'] ?? '').toString(),
       youtubeUrl: (data['youtube_url'] ?? '').toString(),

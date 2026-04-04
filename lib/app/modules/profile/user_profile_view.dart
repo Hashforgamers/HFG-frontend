@@ -4,14 +4,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/about/about_page.dart';
 import 'package:hash/app/modules/need_help/need_help_page.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
+import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -402,6 +405,14 @@ class _UserProfileViewState extends State<UserProfileView> {
 
             final prefs = await SharedPreferences.getInstance();
             await prefs.clear(); // remove all local data
+
+            if (Get.isRegistered<WalletController>()) {
+              Get.find<WalletController>().clearSession();
+            }
+            if (mounted) {
+              context.read<HashCoinCubit>().reset();
+            }
+            userController.clearSession();
 
             Get.offAllNamed(AppRoutes.LOGIN);
           } catch (e) {

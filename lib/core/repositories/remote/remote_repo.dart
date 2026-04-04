@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -28,6 +29,14 @@ class RemoteRepo implements RemoteRepoInterface {
   final DeviceIdentifierService? deviceIdentifierService;
 
   RemoteRepo({required this.networkProvider, this.deviceIdentifierService});
+
+  String _prettyJson(dynamic value) {
+    try {
+      return const JsonEncoder.withIndent('  ').convert(value);
+    } catch (_) {
+      return value.toString();
+    }
+  }
 
   @override
   Future<Map<String, dynamic>?> checkUserExistsInAPI(String fid) async {
@@ -186,13 +195,32 @@ class RemoteRepo implements RemoteRepoInterface {
     required String date,
   }) async {
     final dio = networkProvider.noAuth();
+    final endpoint =
+        '${ApiEndpoints.slotsBaseUrl}/getSlots/vendor/$vendorId/game/$gameId/$date';
     try {
-      final response = await dio.get(
-        '${ApiEndpoints.slotsBaseUrl}/getSlots/vendor/$vendorId/game/$gameId/$date',
+      print(
+        'Available console API request -> api=$endpoint, vendor_id=$vendorId, game_id=$gameId, date=$date',
       );
+      debugPrint(
+        'Available console API request -> api=$endpoint, vendor_id=$vendorId, game_id=$gameId, date=$date',
+      );
+      AppLogger.d(
+        'Available console API request -> api=$endpoint, vendor_id=$vendorId, game_id=$gameId, date=$date',
+      );
+
+      final response = await dio.get(endpoint);
 
       if (response.statusCode == 200) {
         final data = response.data;
+        print(
+          'Available console API response -> api=$endpoint, status=${response.statusCode}, response=$data',
+        );
+        debugPrint(
+          'Available console API response -> api=$endpoint, status=${response.statusCode}, response=$data',
+        );
+        AppLogger.d(
+          'Available console API response -> api=$endpoint, status=${response.statusCode}, response=$data',
+        );
         return (data['slots'] as List)
             .map((slot) => slot as Map<String, dynamic>)
             .toList();
@@ -202,7 +230,9 @@ class RemoteRepo implements RemoteRepoInterface {
         );
       }
     } catch (e) {
-      print('Error fetching slots: $e');
+      print('Available console API error -> api=$endpoint, error=$e');
+      debugPrint('Available console API error -> api=$endpoint, error=$e');
+      AppLogger.d('Available console API error -> api=$endpoint, error=$e');
       rethrow;
     }
   }
@@ -357,17 +387,53 @@ class RemoteRepo implements RemoteRepoInterface {
     // Dashboard vendor-games drives UI cards, booking service ids drive slot API.
     final dashboardDio = await networkProvider.auth();
     final bookingDio = networkProvider.noAuth();
+    final dashboardEndpoint = ApiEndpoints.vendorGamesByVendorId('$vendorId');
+    final bookingEndpoint = '${ApiEndpoints.vendorGames}/$vendorId';
     try {
-      final response = await dashboardDio.get(
-        ApiEndpoints.vendorGamesByVendorId('$vendorId'),
+      print(
+        'Arena detail API request -> type=vendor_games_dashboard, api=$dashboardEndpoint, vendor_id=$vendorId',
+      );
+      debugPrint(
+        'Arena detail API request -> type=vendor_games_dashboard, api=$dashboardEndpoint, vendor_id=$vendorId',
+      );
+      AppLogger.d(
+        'Arena detail API request -> type=vendor_games_dashboard, api=$dashboardEndpoint, vendor_id=$vendorId',
+      );
+
+      final response = await dashboardDio.get(dashboardEndpoint);
+      print(
+        'Arena detail API response -> type=vendor_games_dashboard, api=$dashboardEndpoint, status=${response.statusCode}\n${_prettyJson(response.data)}',
+      );
+      debugPrint(
+        'Arena detail API response -> type=vendor_games_dashboard, api=$dashboardEndpoint, status=${response.statusCode}\n${_prettyJson(response.data)}',
+      );
+      AppLogger.d(
+        'Arena detail API response -> type=vendor_games_dashboard, api=$dashboardEndpoint, status=${response.statusCode}\n${_prettyJson(response.data)}',
       );
 
       final Map<String, int> bookingGameIdByPlatform = {};
       bool? legacyShopOpen;
       final List<Map<String, dynamic>> legacyGamesForFallback = [];
+      final List<Map<String, dynamic>> legacyConsoleTypes = [];
       try {
-        final legacyResponse = await bookingDio.get(
-          '${ApiEndpoints.vendorGames}/$vendorId',
+        print(
+          'Arena detail API request -> type=vendor_games_booking_legacy, api=$bookingEndpoint, vendor_id=$vendorId',
+        );
+        debugPrint(
+          'Arena detail API request -> type=vendor_games_booking_legacy, api=$bookingEndpoint, vendor_id=$vendorId',
+        );
+        AppLogger.d(
+          'Arena detail API request -> type=vendor_games_booking_legacy, api=$bookingEndpoint, vendor_id=$vendorId',
+        );
+        final legacyResponse = await bookingDio.get(bookingEndpoint);
+        print(
+          'Arena detail API response -> type=vendor_games_booking_legacy, api=$bookingEndpoint, status=${legacyResponse.statusCode}\n${_prettyJson(legacyResponse.data)}',
+        );
+        debugPrint(
+          'Arena detail API response -> type=vendor_games_booking_legacy, api=$bookingEndpoint, status=${legacyResponse.statusCode}\n${_prettyJson(legacyResponse.data)}',
+        );
+        AppLogger.d(
+          'Arena detail API response -> type=vendor_games_booking_legacy, api=$bookingEndpoint, status=${legacyResponse.statusCode}\n${_prettyJson(legacyResponse.data)}',
         );
         if (legacyResponse.statusCode == 200 && legacyResponse.data is Map) {
           legacyShopOpen = _parseLooseBool(
@@ -375,6 +441,12 @@ class RemoteRepo implements RemoteRepoInterface {
                 legacyResponse.data['is_open'] ??
                 legacyResponse.data['open_close_flag'],
           );
+          final consoleTypes =
+              (legacyResponse.data['console_types'] as List?) ?? const [];
+          for (final item in consoleTypes) {
+            if (item is! Map) continue;
+            legacyConsoleTypes.add(Map<String, dynamic>.from(item));
+          }
           final legacyGames =
               (legacyResponse.data['games'] as List?) ?? const [];
           for (final item in legacyGames) {
@@ -483,10 +555,117 @@ class RemoteRepo implements RemoteRepoInterface {
         }).toList();
 
         final normalizedGames = <Map<String, dynamic>>[];
+        final normalizedGameIndexByPlatform = <String, int>{};
+
+        void upsertNormalizedGame(Map<String, dynamic> candidate) {
+          final platformKey = _normalizePlatform(
+            (candidate['game_platform'] ??
+                    candidate['platform_type'] ??
+                    candidate['console_type'] ??
+                    candidate['game_name'] ??
+                    '')
+                .toString(),
+          );
+
+          if (platformKey.isEmpty) {
+            normalizedGames.add(candidate);
+            return;
+          }
+
+          final existingIndex = normalizedGameIndexByPlatform[platformKey];
+          if (existingIndex == null) {
+            normalizedGameIndexByPlatform[platformKey] = normalizedGames.length;
+            normalizedGames.add(candidate);
+            return;
+          }
+
+          final existing = normalizedGames[existingIndex];
+          final mergedConsoles = <Map<String, dynamic>>[
+            ...((existing['consoles'] as List?)?.whereType<Map>().map(
+                  (console) => Map<String, dynamic>.from(console),
+                ) ??
+                const <Map<String, dynamic>>[]),
+          ];
+          final seenConsoleKeys = mergedConsoles
+              .map(
+                (console) => _normalizePlatform(
+                  (console['console_type'] ??
+                          console['consoleType'] ??
+                          console['type'] ??
+                          '')
+                      .toString(),
+                ),
+              )
+              .where((value) => value.isNotEmpty)
+              .toSet();
+
+          final incomingConsoles =
+              (candidate['consoles'] as List?)?.whereType<Map>().map(
+                (console) => Map<String, dynamic>.from(console),
+              ) ??
+              const <Map<String, dynamic>>[];
+
+          for (final console in incomingConsoles) {
+            final consoleKey = _normalizePlatform(
+              (console['console_type'] ??
+                      console['consoleType'] ??
+                      console['type'] ??
+                      '')
+                  .toString(),
+            );
+            if (consoleKey.isEmpty || seenConsoleKeys.add(consoleKey)) {
+              mergedConsoles.add(console);
+            }
+          }
+
+          normalizedGames[existingIndex] = {
+            ...existing,
+            'game_name':
+                (existing['game_name'] ?? '').toString().trim().isNotEmpty
+                ? existing['game_name']
+                : candidate['game_name'],
+            'game_platform':
+                (existing['game_platform'] ?? '').toString().trim().isNotEmpty
+                ? existing['game_platform']
+                : candidate['game_platform'],
+            'platform_type':
+                (existing['platform_type'] ?? '').toString().trim().isNotEmpty
+                ? existing['platform_type']
+                : candidate['platform_type'],
+            'console_type':
+                (existing['console_type'] ?? '').toString().trim().isNotEmpty
+                ? existing['console_type']
+                : candidate['console_type'],
+            'genre': (existing['genre'] ?? '').toString().trim().isNotEmpty
+                ? existing['genre']
+                : candidate['genre'],
+            'image_url':
+                (existing['image_url'] ?? '').toString().trim().isNotEmpty
+                ? existing['image_url']
+                : candidate['image_url'],
+            'total_slots':
+                (existing['total_slots'] is num &&
+                    (existing['total_slots'] as num) > 0)
+                ? existing['total_slots']
+                : candidate['total_slots'],
+            'single_slot_price':
+                (existing['single_slot_price'] is num &&
+                    (existing['single_slot_price'] as num) > 0)
+                ? existing['single_slot_price']
+                : candidate['single_slot_price'],
+            'booking_game_id':
+                existing['booking_game_id'] ?? candidate['booking_game_id'],
+            'consoles': mergedConsoles,
+          };
+        }
 
         if (hasDashboardCatalog && dashboardGames.isNotEmpty) {
-          normalizedGames.addAll(dashboardGames);
-        } else if (legacyGamesForFallback.isNotEmpty) {
+          for (final dashboardGame in dashboardGames) {
+            upsertNormalizedGame(Map<String, dynamic>.from(dashboardGame));
+          }
+        }
+
+        if (legacyGamesForFallback.isNotEmpty) {
           final dashboardByPlatform = <String, Map<String, dynamic>>{};
           for (final dashboardGame in dashboardGames) {
             final platform = _normalizePlatform(
@@ -505,6 +684,7 @@ class RemoteRepo implements RemoteRepoInterface {
             final platform =
                 (legacy['game_platform'] ??
                         legacy['platform_type'] ??
+                        legacy['console_type'] ??
                         legacy['game_name'] ??
                         '')
                     .toString();
@@ -512,10 +692,19 @@ class RemoteRepo implements RemoteRepoInterface {
             final bookingId = legacy['id'];
             if (bookingId is! num) continue;
             final dashboardMatch = dashboardByPlatform[normalizedPlatform];
-            normalizedGames.add({
+            final legacyConsoleType =
+                (legacy['console_type'] ??
+                        legacy['platform_type'] ??
+                        legacy['game_platform'] ??
+                        legacy['game_name'] ??
+                        '')
+                    .toString();
+            upsertNormalizedGame({
               'game_name': (legacy['game_name'] ?? normalizedPlatform)
                   .toString(),
               'game_platform': platform,
+              'platform_type': legacy['platform_type'],
+              'console_type': legacy['console_type'],
               'genre': (dashboardMatch?['genre'] ?? legacy['genre'] ?? '')
                   .toString(),
               'image_url':
@@ -526,10 +715,68 @@ class RemoteRepo implements RemoteRepoInterface {
                   ? (legacy['single_slot_price'] as num).toDouble()
                   : 0.0,
               'booking_game_id': bookingId.toInt(),
-              'consoles': <Map<String, dynamic>>[],
+              'consoles': legacyConsoleType.trim().isEmpty
+                  ? <Map<String, dynamic>>[]
+                  : <Map<String, dynamic>>[
+                      {
+                        'console_type': legacyConsoleType,
+                        'booking_game_id': bookingId.toInt(),
+                        'vendor_game_id': bookingId.toInt(),
+                      },
+                    ],
             });
           }
-        } else {
+        }
+
+        if (legacyConsoleTypes.isNotEmpty) {
+          for (final consoleType in legacyConsoleTypes) {
+            final rawConsoleType =
+                (consoleType['console_slug'] ??
+                        consoleType['console_display_name'] ??
+                        consoleType['console_type'] ??
+                        '')
+                    .toString();
+            final normalizedPlatform = _normalizePlatform(rawConsoleType);
+            if (normalizedPlatform.isEmpty) continue;
+
+            upsertNormalizedGame({
+              'game_name':
+                  (consoleType['console_display_name'] ??
+                          consoleType['console_slug'] ??
+                          normalizedPlatform)
+                      .toString(),
+              'game_platform': rawConsoleType,
+              'platform_type': consoleType['family'],
+              'console_type': rawConsoleType,
+              'genre': (consoleType['family'] ?? '').toString(),
+              'image_url': '',
+              'total_slots': consoleType['inventory_count'] ?? 0,
+              'single_slot_price': 0.0,
+              'booking_game_id': consoleType['available_game_id'],
+              'consoles': <Map<String, dynamic>>[
+                {
+                  'console_type': rawConsoleType,
+                  'console_slug': consoleType['console_slug'],
+                  'console_display_name': consoleType['console_display_name'],
+                  'controller_policy': consoleType['controller_policy'],
+                  'default_capacity': consoleType['default_capacity'],
+                  'family': consoleType['family'],
+                  'has_game_pricing': consoleType['has_game_pricing'],
+                  'icon': consoleType['icon'],
+                  'input_mode': consoleType['input_mode'],
+                  'inventory_count': consoleType['inventory_count'],
+                  'supports_multiplayer': consoleType['supports_multiplayer'],
+                  'available_game_id': consoleType['available_game_id'],
+                  'booking_game_id': consoleType['available_game_id'],
+                  'bookable': consoleType['bookable'],
+                  'available_slot': consoleType['inventory_count'] ?? 0,
+                },
+              ],
+            });
+          }
+        }
+
+        if (normalizedGames.isEmpty) {
           normalizedGames.addAll(dashboardGames);
         }
 
@@ -541,28 +788,61 @@ class RemoteRepo implements RemoteRepoInterface {
               )
             : null;
 
-        return {
+        final result = {
           'games': normalizedGames,
           'shop_open': legacyShopOpen ?? dashboardShopOpen,
         };
+        print(
+          'Arena detail merged games -> vendor_id=$vendorId\n${_prettyJson(result)}',
+        );
+        debugPrint(
+          'Arena detail merged games -> vendor_id=$vendorId\n${_prettyJson(result)}',
+        );
+        AppLogger.d(
+          'Arena detail merged games -> vendor_id=$vendorId\n${_prettyJson(result)}',
+        );
+        return result;
       } else {
         throw Exception(
           'Failed to fetch vendor games. Status code: ${response.statusCode}',
         );
       }
     } catch (e) {
-      print('Error fetching vendor games: $e');
+      print(
+        'Arena detail API error -> type=vendor_games, dashboard_api=$dashboardEndpoint, booking_api=$bookingEndpoint, error=$e',
+      );
+      debugPrint(
+        'Arena detail API error -> type=vendor_games, dashboard_api=$dashboardEndpoint, booking_api=$bookingEndpoint, error=$e',
+      );
+      AppLogger.d(
+        'Arena detail API error -> type=vendor_games, dashboard_api=$dashboardEndpoint, booking_api=$bookingEndpoint, error=$e',
+      );
       rethrow;
     }
   }
 
   String _normalizePlatform(String value) {
-    final v = value.toLowerCase().trim();
+    final v = value
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .trim();
     if (v.isEmpty) return '';
     if (v.contains('ps') || v.contains('playstation')) return 'ps5';
     if (v.contains('xbox')) return 'xbox';
-    if (v.contains('vr') || v.contains('virtual')) return 'vr';
-    return 'pc';
+    if (v.contains('vr') || v.contains('virtual')) return 'vr_headset';
+    if (v.contains('nintendo') || v.contains('switch')) {
+      return 'nintendo_switch';
+    }
+    if (v.contains('steam') || v.contains('deck')) return 'steam_deck';
+    if (v.contains('arcade')) return 'arcade_cabinet';
+    if (v.contains('racing') || v.contains('rig')) return 'racing_rig';
+    if (v.contains('simulator')) return 'simulator';
+    if (v.contains('private') && v.contains('room')) return 'private_room';
+    if (v.contains('vip') && v.contains('room')) return 'vip_room';
+    if (v.contains('bootcamp') && v.contains('room')) return 'bootcamp_room';
+    if (v.contains('pc') || v.contains('computer')) return 'pc';
+    return v.replaceAll(' ', '_');
   }
 
   bool? _parseLooseBool(dynamic value) {
@@ -661,12 +941,40 @@ class RemoteRepo implements RemoteRepoInterface {
             suggestedExtraControllerQty < 0 ? 0 : suggestedExtraControllerQty;
       }
 
-      final response = await dio.post(
-        ApiEndpoints.confirmBooking,
-        data: requestData,
+      final endpoint = ApiEndpoints.confirmBooking;
+      final stopwatch = Stopwatch()..start();
+
+      print(
+        'Confirm booking API request -> api=$endpoint, payment_mode=$paymentMode, payload=$requestData',
+      );
+      debugPrint(
+        'Confirm booking API request -> api=$endpoint, payment_mode=$paymentMode, payload=$requestData',
+      );
+      AppLogger.d(
+        'Confirm booking API request -> api=$endpoint, payment_mode=$paymentMode, payload=$requestData',
       );
 
-      if (response.statusCode == 200) {
+      final response = await dio
+          .post(endpoint, data: requestData)
+          .timeout(
+            const Duration(seconds: 20),
+            onTimeout: () => throw TimeoutException(
+              'Confirm booking request timed out after 20 seconds.',
+            ),
+          );
+
+      stopwatch.stop();
+      print(
+        'Confirm booking API response -> api=$endpoint, status=${response.statusCode}, elapsed_ms=${stopwatch.elapsedMilliseconds}, response=${response.data}',
+      );
+      debugPrint(
+        'Confirm booking API response -> api=$endpoint, status=${response.statusCode}, elapsed_ms=${stopwatch.elapsedMilliseconds}, response=${response.data}',
+      );
+      AppLogger.d(
+        'Confirm booking API response -> api=$endpoint, status=${response.statusCode}, elapsed_ms=${stopwatch.elapsedMilliseconds}, response=${response.data}',
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return response.data;
       } else {
         throw Exception(
@@ -674,13 +982,25 @@ class RemoteRepo implements RemoteRepoInterface {
         );
       }
     } on DioException catch (e) {
+      print(
+        'Confirm booking API DioException -> api=${e.requestOptions.uri}, type=${e.type}, status=${e.response?.statusCode}, response=${e.response?.data}, message=${e.message}',
+      );
+      debugPrint(
+        'Confirm booking API DioException -> api=${e.requestOptions.uri}, type=${e.type}, status=${e.response?.statusCode}, response=${e.response?.data}, message=${e.message}',
+      );
+      AppLogger.d(
+        'Confirm booking API DioException -> api=${e.requestOptions.uri}, type=${e.type}, status=${e.response?.statusCode}, response=${e.response?.data}, message=${e.message}',
+      );
+
       if (ApiErrorHandler.shouldRetry(e)) {
         rethrow;
       }
       final errorMessage = ApiErrorHandler.extractErrorMessage(e);
       throw Exception(errorMessage);
     } catch (e) {
-      print('Error confirming booking: $e');
+      print('Confirm booking API error -> error=$e');
+      debugPrint('Confirm booking API error -> error=$e');
+      AppLogger.d('Confirm booking API error -> error=$e');
       rethrow;
     }
   }
@@ -1002,22 +1322,47 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<Map<String, dynamic>> addFunds({
     required String userId,
     required String paymentId,
-    required int amount,
+    required num amount,
   }) async {
     final dio = await networkProvider.auth();
+    final endpoint = ApiEndpoints.wallet();
+    final payload = {'amount': amount, 'reference_id': paymentId};
     try {
-      final response = await dio.post(
-        ApiEndpoints.wallet(),
-        data: {'amount': amount, 'reference_id': paymentId},
+      print('Wallet ledger request -> api=$endpoint, payload=$payload');
+      debugPrint('Wallet ledger request -> api=$endpoint, payload=$payload');
+      AppLogger.d('Wallet ledger request -> api=$endpoint, payload=$payload');
+      final response = await dio.post(endpoint, data: payload);
+
+      print(
+        'Wallet ledger response -> status=${response.statusCode}, response=${response.data}',
+      );
+      debugPrint(
+        'Wallet ledger response -> status=${response.statusCode}, response=${response.data}',
+      );
+      AppLogger.d(
+        'Wallet ledger response -> status=${response.statusCode}, response=${response.data}',
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return response.data;
       } else {
         throw Exception(
-          'Failed to add funds. Status code: ${response.statusCode}',
+          'Failed to update wallet balance. Status code: ${response.statusCode}',
         );
       }
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      final responseData = e.response?.data;
+      print(
+        'Wallet ledger update failed -> api=$endpoint, payload=$payload, status=$statusCode, response=$responseData',
+      );
+      debugPrint(
+        'Wallet ledger update failed -> api=$endpoint, payload=$payload, status=$statusCode, response=$responseData',
+      );
+      AppLogger.d(
+        'Wallet ledger update failed -> api=$endpoint, payload=$payload, status=$statusCode, response=$responseData',
+      );
+      rethrow;
     } catch (e) {
       print('Error adding funds: $e');
       rethrow;
@@ -1412,17 +1757,34 @@ class RemoteRepo implements RemoteRepoInterface {
     final dio = networkProvider.noAuth();
     final safeLimit = limit.clamp(1, 100);
     final safeSort = sort.trim().toLowerCase() == 'top' ? 'top' : 'recent';
+    final endpoint = ApiEndpoints.vendorReviews(
+      vendorId.toString(),
+      limit: safeLimit,
+      offset: offset,
+      rating: rating,
+      sort: safeSort,
+    );
     try {
-      final response = await dio.get(
-        ApiEndpoints.vendorReviews(
-          vendorId.toString(),
-          limit: safeLimit,
-          offset: offset,
-          rating: rating,
-          sort: safeSort,
-        ),
+      print(
+        'Arena detail API request -> type=vendor_reviews, api=$endpoint, vendor_id=$vendorId',
       );
+      debugPrint(
+        'Arena detail API request -> type=vendor_reviews, api=$endpoint, vendor_id=$vendorId',
+      );
+      AppLogger.d(
+        'Arena detail API request -> type=vendor_reviews, api=$endpoint, vendor_id=$vendorId',
+      );
+      final response = await dio.get(endpoint);
       if (response.statusCode == 200) {
+        print(
+          'Arena detail API response -> type=vendor_reviews, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        debugPrint(
+          'Arena detail API response -> type=vendor_reviews, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        AppLogger.d(
+          'Arena detail API response -> type=vendor_reviews, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
         final body = response.data;
         final items = body is Map<String, dynamic> ? body['items'] : null;
         if (items is List) {
@@ -1437,7 +1799,15 @@ class RemoteRepo implements RemoteRepoInterface {
         'Failed to fetch vendor reviews. Status code: ${response.statusCode}',
       );
     } catch (e) {
-      debugPrint('Error fetching vendor reviews: $e');
+      print(
+        'Arena detail API error -> type=vendor_reviews, api=$endpoint, error=$e',
+      );
+      debugPrint(
+        'Arena detail API error -> type=vendor_reviews, api=$endpoint, error=$e',
+      );
+      AppLogger.d(
+        'Arena detail API error -> type=vendor_reviews, api=$endpoint, error=$e',
+      );
       rethrow;
     }
   }
@@ -1447,18 +1817,43 @@ class RemoteRepo implements RemoteRepoInterface {
     required int vendorId,
   }) async {
     final dio = networkProvider.noAuth();
+    final endpoint = ApiEndpoints.vendorReviewsSummary(vendorId.toString());
     try {
-      final response = await dio.get(
-        ApiEndpoints.vendorReviewsSummary(vendorId.toString()),
+      print(
+        'Arena detail API request -> type=vendor_reviews_summary, api=$endpoint, vendor_id=$vendorId',
       );
+      debugPrint(
+        'Arena detail API request -> type=vendor_reviews_summary, api=$endpoint, vendor_id=$vendorId',
+      );
+      AppLogger.d(
+        'Arena detail API request -> type=vendor_reviews_summary, api=$endpoint, vendor_id=$vendorId',
+      );
+      final response = await dio.get(endpoint);
       if (response.statusCode == 200) {
+        print(
+          'Arena detail API response -> type=vendor_reviews_summary, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        debugPrint(
+          'Arena detail API response -> type=vendor_reviews_summary, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        AppLogger.d(
+          'Arena detail API response -> type=vendor_reviews_summary, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
         return Map<String, dynamic>.from(response.data as Map);
       }
       throw Exception(
         'Failed to fetch review summary. Status code: ${response.statusCode}',
       );
     } catch (e) {
-      debugPrint('Error fetching review summary: $e');
+      print(
+        'Arena detail API error -> type=vendor_reviews_summary, api=$endpoint, error=$e',
+      );
+      debugPrint(
+        'Arena detail API error -> type=vendor_reviews_summary, api=$endpoint, error=$e',
+      );
+      AppLogger.d(
+        'Arena detail API error -> type=vendor_reviews_summary, api=$endpoint, error=$e',
+      );
       rethrow;
     }
   }
@@ -1469,15 +1864,23 @@ class RemoteRepo implements RemoteRepoInterface {
     required String token,
   }) async {
     final dio = await networkProvider.auth();
+    final payload = {
+      "user_id": userId,
+      "token": token,
+      "platform": Platform.isAndroid ? "android" : "ios",
+    };
     try {
+      debugPrint(
+        'FCM register API request -> api=${ApiEndpoints.registerFCMToken}, payload=$payload',
+      );
       final response = await dio.post(
         ApiEndpoints.registerFCMToken,
-        data: {
-          "token": token,
-          "platform": Platform.isAndroid ? "android" : "ios",
-        },
+        data: payload,
       );
       if (response.statusCode == 200) {
+        debugPrint(
+          'FCM register API response -> status=${response.statusCode}, response=${response.data}',
+        );
         return response.data['message'];
       } else {
         throw Exception(
@@ -1485,7 +1888,9 @@ class RemoteRepo implements RemoteRepoInterface {
         );
       }
     } catch (e) {
-      debugPrint('Error registering FCM token: $e');
+      debugPrint(
+        'FCM register API error -> api=${ApiEndpoints.registerFCMToken}, payload=$payload, error=$e',
+      );
       rethrow;
     }
   }
@@ -1772,11 +2177,28 @@ class RemoteRepo implements RemoteRepoInterface {
     required String vendorId,
   }) async {
     final dio = networkProvider.noAuth();
+    final endpoint = ApiEndpoints.getAllAvailablePasses(vendorId);
     try {
-      final response = await dio.get(
-        ApiEndpoints.getAllAvailablePasses(vendorId),
+      print(
+        'Arena detail API request -> type=vendor_passes, api=$endpoint, vendor_id=$vendorId',
       );
+      debugPrint(
+        'Arena detail API request -> type=vendor_passes, api=$endpoint, vendor_id=$vendorId',
+      );
+      AppLogger.d(
+        'Arena detail API request -> type=vendor_passes, api=$endpoint, vendor_id=$vendorId',
+      );
+      final response = await dio.get(endpoint);
       if (response.statusCode == 200) {
+        print(
+          'Arena detail API response -> type=vendor_passes, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        debugPrint(
+          'Arena detail API response -> type=vendor_passes, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        AppLogger.d(
+          'Arena detail API response -> type=vendor_passes, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
         final List<dynamic> responseData = response.data['passes'];
         return responseData
             .map((e) => GetVendorPassesModel.fromMap(e as Map<String, dynamic>))
@@ -1787,7 +2209,15 @@ class RemoteRepo implements RemoteRepoInterface {
         );
       }
     } catch (e) {
-      debugPrint('Error getting vendor passes: $e');
+      print(
+        'Arena detail API error -> type=vendor_passes, api=$endpoint, error=$e',
+      );
+      debugPrint(
+        'Arena detail API error -> type=vendor_passes, api=$endpoint, error=$e',
+      );
+      AppLogger.d(
+        'Arena detail API error -> type=vendor_passes, api=$endpoint, error=$e',
+      );
       rethrow;
     }
   }

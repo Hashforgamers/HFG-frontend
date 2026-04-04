@@ -16,6 +16,7 @@ import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/features/mini_games/score/mini_game_leaderboard_notification_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:hash/config/flavor_config.dart';
@@ -81,6 +82,7 @@ void main() async {
   Get.put(WalletController());
   Get.put(ShopController(), permanent: true);
   Get.put(ChatService(), permanent: true);
+  Get.put(MiniGameLeaderboardNotificationService(), permanent: true);
 
   runApp(const MyApp());
 }

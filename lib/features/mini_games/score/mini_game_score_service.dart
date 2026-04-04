@@ -56,7 +56,7 @@ class MiniGameScoreService {
   /// Public hook so widgets can await readiness before reading scores.
   Future<void> ensureLoaded() => _ensureLoaded();
 
-  Future<void> recordScore(String gameId, int score) async {
+  Future<bool> recordScore(String gameId, int score) async {
     await _ensureLoaded();
     final best = _scores[gameId] ?? 0;
     final isNewBest = score > best;
@@ -86,7 +86,7 @@ class MiniGameScoreService {
         colorText: const Color(0xFFE0E0E0),
         margin: const EdgeInsets.all(12),
       );
-      return;
+      return false;
     }
 
     if (result.isNewGlobalLeader &&
@@ -152,7 +152,7 @@ class MiniGameScoreService {
           );
           if (rewardCredited) {
             await _showRankRewardPopup(rank: rank, amount: reward);
-            return;
+            return true;
           }
         }
       }
@@ -166,6 +166,8 @@ class MiniGameScoreService {
         margin: const EdgeInsets.all(12),
       );
     }
+
+    return true;
   }
 
   Future<bool> _creditRankReward({

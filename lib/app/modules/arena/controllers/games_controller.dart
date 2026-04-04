@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
@@ -43,6 +45,14 @@ class CafeGamesController extends GetxController {
   var passes = <GetVendorPassesModel>[].obs;
   var isPassesLoading = false.obs;
 
+  String _prettyJson(dynamic value) {
+    try {
+      return const JsonEncoder.withIndent('  ').convert(value);
+    } catch (_) {
+      return value.toString();
+    }
+  }
+
   CafeGamesController() {
     _ensureGamesCacheSchema();
   }
@@ -83,8 +93,57 @@ class CafeGamesController extends GetxController {
     isLoading.value = true;
     try {
       final data = await _remoteRepo.fetchVendorGames(vendorId);
+      debugPrint(
+        'Available consoles source -> api=fetchVendorGames, vendor_id=$vendorId\n${_prettyJson(data)}',
+      );
       final parsedGames = List<Map<String, dynamic>>.from(
         data['games'] as List? ?? const <Map<String, dynamic>>[],
+      );
+      final availabilitySummary = parsedGames.map((game) {
+        final title =
+            (game['game_name'] ??
+                    game['name'] ??
+                    game['title'] ??
+                    game['console_type'] ??
+                    'Unknown')
+                .toString();
+        final rawGameType =
+            game['game_type'] ??
+            game['gameType'] ??
+            game['console_type'] ??
+            game['game_platform'] ??
+            game['platform_type'] ??
+            game['type'];
+        final available =
+            game['available_slot'] ??
+            game['available_slots'] ??
+            game['count'] ??
+            game['total_slots'];
+        final consoleTypes = (game['consoles'] is List)
+            ? (game['consoles'] as List)
+                  .whereType<Map>()
+                  .map(
+                    (console) =>
+                        (console['console_type'] ??
+                                console['consoleType'] ??
+                                console['type'] ??
+                                '')
+                            .toString(),
+                  )
+                  .where((value) => value.trim().isNotEmpty)
+                  .toList()
+            : const <String>[];
+        return {
+          'title': title,
+          'game_type': rawGameType,
+          'game_platform': game['game_platform'],
+          'console_types': consoleTypes,
+          'available': available,
+          'consoles': game['consoles'],
+        };
+      }).toList();
+      debugPrint(
+        'Available consoles parsed summary -> vendor_id=$vendorId\n${_prettyJson(availabilitySummary)}',
       );
       final parsedShopOpen = _parseShopOpen(
         data['shop_open'],

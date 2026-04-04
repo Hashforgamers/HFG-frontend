@@ -9,6 +9,7 @@ import 'package:hash/core/service/external_cafe_likes_service.dart';
 import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/location_analytics_service.dart';
+import 'package:hash/core/service/location_permission_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/global_bottom_sheet_service.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
@@ -96,12 +97,19 @@ Future<void> setupServiceLocator({bool reset = false}) async {
     );
   }
 
+  if (!locator.isRegistered<LocationPermissionService>()) {
+    locator.registerSingleton<LocationPermissionService>(
+      LocationPermissionService(),
+    );
+  }
+
   if (!locator.isRegistered<LocationAnalyticsService>()) {
     locator.registerSingleton<LocationAnalyticsService>(
       LocationAnalyticsService(
         preferences: locator<SharedPreferences>(),
         segmentService: locator<SegmentSdkService>(),
         fbEventsService: locator<FbEventsService>(),
+        locationPermissionService: locator<LocationPermissionService>(),
       ),
     );
   }

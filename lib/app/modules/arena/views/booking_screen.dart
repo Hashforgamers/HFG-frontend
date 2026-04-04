@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
+import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -282,21 +283,26 @@ class _BookingScreenState extends State<BookingScreen> {
           final isCurrentDate =
               selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
           final visibleSlotIndices = _getVisibleSlotIndices();
-          final selectableSlots = visibleSlotIndices.map((index) {
-            return controller.slots[index];
-          }).where((slot) {
-            final bool isApiAvailable =
-                slot['is_available'] ?? slot['isAvailable'] ?? true;
-            final int availableConsoles =
-                slot['available_slot'] ??
-                slot['availableSlot'] ??
-                slot['available_slots'] ??
-                0;
-            final bool isTimeAvailable = isCurrentDate
-                ? controller.isSlotAvailableNow(slot)
-                : true;
-            return isApiAvailable && isTimeAvailable && availableConsoles > 0;
-          }).toList();
+          final selectableSlots = visibleSlotIndices
+              .map((index) {
+                return controller.slots[index];
+              })
+              .where((slot) {
+                final bool isApiAvailable =
+                    slot['is_available'] ?? slot['isAvailable'] ?? true;
+                final int availableConsoles =
+                    slot['available_slot'] ??
+                    slot['availableSlot'] ??
+                    slot['available_slots'] ??
+                    0;
+                final bool isTimeAvailable = isCurrentDate
+                    ? controller.isSlotAvailableNow(slot)
+                    : true;
+                return isApiAvailable &&
+                    isTimeAvailable &&
+                    availableConsoles > 0;
+              })
+              .toList();
           if (selectableSlots.isEmpty) {
             if (!_loggedSoldOut) {
               _loggedSoldOut = true;
@@ -430,23 +436,28 @@ class _BookingScreenState extends State<BookingScreen> {
                       final isCurrentDate =
                           selectedDate ==
                           DateFormat('yyyyMMdd').format(DateTime.now());
-                      final availableSlots = visibleSlotIndices.map((index) {
-                        return controller.slots[index];
-                      }).where((slot) {
-                        final bool isAvailable =
-                            slot['is_available'] ?? slot['isAvailable'] ?? true;
-                        final bool isTimeAvailable = isCurrentDate
-                            ? controller.isSlotAvailableNow(slot)
-                            : true;
-                        final int availableConsoles =
-                            slot['available_slot'] ??
-                            slot['availableSlot'] ??
-                            slot['available_slots'] ??
-                            0;
-                        return isAvailable &&
-                            isTimeAvailable &&
-                            availableConsoles > 0;
-                      }).toList();
+                      final availableSlots = visibleSlotIndices
+                          .map((index) {
+                            return controller.slots[index];
+                          })
+                          .where((slot) {
+                            final bool isAvailable =
+                                slot['is_available'] ??
+                                slot['isAvailable'] ??
+                                true;
+                            final bool isTimeAvailable = isCurrentDate
+                                ? controller.isSlotAvailableNow(slot)
+                                : true;
+                            final int availableConsoles =
+                                slot['available_slot'] ??
+                                slot['availableSlot'] ??
+                                slot['available_slots'] ??
+                                0;
+                            return isAvailable &&
+                                isTimeAvailable &&
+                                availableConsoles > 0;
+                          })
+                          .toList();
                       final totalAvailableConsoles = availableSlots.fold<int>(
                         0,
                         (sum, slot) {
@@ -462,8 +473,8 @@ class _BookingScreenState extends State<BookingScreen> {
                       final discountPercent = _asDouble(
                         _squadDetailsEstimate?['discount_percent'],
                       );
-                      final squadHint = widget.isSquadBooking &&
-                              discountPercent > 0
+                      final squadHint =
+                          widget.isSquadBooking && discountPercent > 0
                           ? ' • save ${discountPercent.toStringAsFixed(discountPercent % 1 == 0 ? 0 : 1)}% with squad'
                           : '';
                       return Text(
@@ -919,7 +930,8 @@ class _BookingScreenState extends State<BookingScreen> {
                         ),
                       ),
                     ),
-                    if (!_isLoadingPricingEstimate && estimatedDiscountPerSlot > 0)
+                    if (!_isLoadingPricingEstimate &&
+                        estimatedDiscountPerSlot > 0)
                       Padding(
                         padding: const EdgeInsets.only(left: 12),
                         child: Text(
@@ -1023,11 +1035,39 @@ class _BookingScreenState extends State<BookingScreen> {
         gameId: widget.gameId,
         vendorId: widget.vendorId,
         selectedDate: selectedDate,
+        isPayAtCafeAvailable: _isPayAtCafeAvailable(),
         isSquadBooking: widget.isSquadBooking,
         requiredConsoleCount: _requiredSelectionCount,
         selectedSquadMembers: widget.selectedSquadMembers,
       ),
     );
+  }
+
+  bool _isPayAtCafeAvailable() {
+    if (!Get.isRegistered<CybercafesController>()) {
+      return false;
+    }
+    final cafesController = Get.find<CybercafesController>();
+    final vendor = cafesController.cybercafes.cast<dynamic>().firstWhere(
+      (item) =>
+          item is Map &&
+          (item['vendor_id']?.toString() ?? '') == widget.vendorId.toString(),
+      orElse: () => null,
+    );
+    if (vendor is! Map) {
+      return false;
+    }
+    final paymentMethods = vendor['payment_methods'];
+    if (paymentMethods is Map) {
+      final payAtCafe = paymentMethods['Pay at Cafe'];
+      if (payAtCafe is bool) return payAtCafe;
+      if (payAtCafe is num) return payAtCafe == 1;
+      if (payAtCafe is String) {
+        final normalized = payAtCafe.trim().toLowerCase();
+        return normalized == 'true' || normalized == '1' || normalized == 'yes';
+      }
+    }
+    return false;
   }
 
   int _getSelectedSlotCount() {

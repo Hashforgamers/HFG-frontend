@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:hash/features/mini_games/html_games/services/html_mini_game_catalog_service.dart';
 
 class ScoreSubmissionResult {
   final bool synced;
@@ -66,6 +67,7 @@ class MiniGameLeaderboardService {
     'plant_vs_zombie',
     'pac_man',
     'laggy_bird',
+    ...HtmlMiniGameCatalogService.supportedGameIds,
   ];
 
   Future<ScoreSubmissionResult> submitScore({

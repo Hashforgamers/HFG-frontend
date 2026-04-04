@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -28,7 +30,11 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
   late final HashLiveController _controller;
   YoutubePlayerController? _youtubeController;
   String? _videoId;
+  String? _blockedVideoId;
   bool _showPlaybackFallback = false;
+  String _playbackFallbackMessage =
+      'This live stream is not available right now.';
+  Timer? _playbackHealthTimer;
   DateTime? _watchStartedAt;
   final SquadMissionsService _squadMissionsService =
       locator<SquadMissionsService>();
@@ -61,6 +67,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _playbackHealthTimer?.cancel();
     _youtubeController?.dispose();
     _service.leaveLiveStream(widget.streamId);
     final startedAt = _watchStartedAt;
@@ -79,9 +86,13 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
   void _syncYoutubeController(String url) {
     final newId = LiveYoutubeUtils.extractVideoId(url);
     if (newId == null || newId.isEmpty) return;
+    if (_blockedVideoId == newId && _showPlaybackFallback) return;
     if (_videoId == newId && _youtubeController != null) return;
     _videoId = newId;
+    _blockedVideoId = null;
     _showPlaybackFallback = false;
+    _playbackFallbackMessage = 'This live stream is not available right now.';
+    _playbackHealthTimer?.cancel();
     _youtubeController?.dispose();
     _youtubeController = YoutubePlayerController(
       initialVideoId: newId,
@@ -93,19 +104,195 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
         enableCaption: false,
       ),
     );
-    _youtubeController!.addListener(() {
-      final value = _youtubeController!.value;
+    final controller = _youtubeController!;
+    controller.addListener(() {
+      if (_youtubeController != controller) return;
+      final value = controller.value;
       if (!mounted) return;
       if (value.hasError) {
-        setState(() => _showPlaybackFallback = true);
+        _activatePlaybackFallback(
+          'This YouTube live is not running right now.',
+        );
         return;
       }
-      if (value.playerState == PlayerState.playing) {
+      if (value.isReady ||
+          value.playerState == PlayerState.playing ||
+          value.playerState == PlayerState.buffering ||
+          value.playerState == PlayerState.paused) {
+        _playbackHealthTimer?.cancel();
         if (_showPlaybackFallback) {
           setState(() => _showPlaybackFallback = false);
         }
       }
     });
+    _schedulePlaybackHealthCheck(newId);
+  }
+
+  void _schedulePlaybackHealthCheck(String expectedVideoId) {
+    _playbackHealthTimer?.cancel();
+    _playbackHealthTimer = Timer(const Duration(seconds: 8), () {
+      if (!mounted) return;
+      if (_videoId != expectedVideoId) return;
+      final controller = _youtubeController;
+      if (controller == null) return;
+      final value = controller.value;
+      final isPlayable =
+          value.isReady ||
+          value.playerState == PlayerState.playing ||
+          value.playerState == PlayerState.buffering ||
+          value.playerState == PlayerState.paused;
+      if (!isPlayable || value.hasError) {
+        _activatePlaybackFallback(
+          'This YouTube live is offline or unavailable right now.',
+        );
+      }
+    });
+  }
+
+  void _activatePlaybackFallback(String message) {
+    _playbackHealthTimer?.cancel();
+    final controller = _youtubeController;
+    _youtubeController = null;
+    try {
+      controller?.pause();
+    } catch (_) {}
+    controller?.dispose();
+    if (!mounted) return;
+    setState(() {
+      _blockedVideoId = _videoId;
+      _showPlaybackFallback = true;
+      _playbackFallbackMessage = message;
+    });
+  }
+
+  Future<void> _retryPlayback() async {
+    final currentUrl = _videoId;
+    if (currentUrl == null || currentUrl.isEmpty) return;
+    setState(() {
+      _showPlaybackFallback = false;
+      _blockedVideoId = null;
+      _playbackFallbackMessage = 'Retrying stream...';
+    });
+    _syncYoutubeController('https://www.youtube.com/watch?v=$currentUrl');
+  }
+
+  Widget _buildStreamStatePane({
+    required String title,
+    required String message,
+    String? youtubeUrl,
+    bool showRetry = false,
+  }) {
+    final thumbnailUrl = youtubeUrl == null
+        ? null
+        : LiveYoutubeUtils.thumbnailUrl(youtubeUrl);
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF272C36), Color(0xFF1E222B)],
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (thumbnailUrl != null && thumbnailUrl.isNotEmpty)
+            CachedNetworkImage(
+              imageUrl: thumbnailUrl,
+              fit: BoxFit.cover,
+              errorWidget: (_, _, _) => const SizedBox.shrink(),
+            ),
+          Container(color: Colors.black.withValues(alpha: 0.72)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.live_tv, color: Colors.white, size: 42),
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    if (showRetry)
+                      ElevatedButton.icon(
+                        onPressed: _retryPlayback,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                      ),
+                    if (youtubeUrl != null && youtubeUrl.trim().isNotEmpty)
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.tryParse(youtubeUrl.trim());
+                          if (uri != null) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.open_in_new),
+                        label: const Text('Open in YouTube'),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaybackPane(LiveStreamModel stream) {
+    if (_showPlaybackFallback) {
+      return _buildStreamStatePane(
+        title: 'Stream unavailable',
+        message: _playbackFallbackMessage,
+        youtubeUrl: stream.youtubeUrl,
+        showRetry: true,
+      );
+    }
+
+    if (_youtubeController == null) {
+      return Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF272C36), Color(0xFF1E222B)],
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          'Invalid YouTube link',
+          style: GoogleFonts.inter(color: Colors.white70),
+        ),
+      );
+    }
+
+    return YoutubePlayer(
+      controller: _youtubeController!,
+      showVideoProgressIndicator: true,
+      progressIndicatorColor: LiveUi.accentSoft,
+    );
   }
 
   Future<void> _sendMessage() async {
@@ -136,6 +323,39 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
               child: Text(
                 'Stream not found',
                 style: GoogleFonts.inter(color: Colors.white70),
+              ),
+            ),
+          );
+        }
+        if (!stream.isLive) {
+          return Scaffold(
+            backgroundColor: LiveUi.bg,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: Text(
+                'Hash Live',
+                style: GoogleFonts.orbitron(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            body: Container(
+              decoration: LiveUi.pageDecoration(),
+              padding: const EdgeInsets.all(12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: _buildStreamStatePane(
+                    title: 'Stream ended',
+                    message:
+                        'This live stream has ended automatically or was closed by the host.',
+                    youtubeUrl: stream.youtubeUrl,
+                  ),
+                ),
               ),
             ),
           );
@@ -177,54 +397,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                     borderRadius: BorderRadius.circular(18),
                     child: AspectRatio(
                       aspectRatio: 16 / 9,
-                      child: _youtubeController == null
-                          ? Container(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Color(0xFF272C36),
-                                    Color(0xFF1E222B),
-                                  ],
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                'Invalid YouTube link',
-                                style: GoogleFonts.inter(color: Colors.white70),
-                              ),
-                            )
-                          : Stack(
-                              children: [
-                                YoutubePlayer(
-                                  controller: _youtubeController!,
-                                  showVideoProgressIndicator: true,
-                                  progressIndicatorColor: LiveUi.accentSoft,
-                                ),
-                                if (_showPlaybackFallback)
-                                  Positioned.fill(
-                                    child: Container(
-                                      color: Colors.black54,
-                                      alignment: Alignment.center,
-                                      child: ElevatedButton.icon(
-                                        onPressed: () async {
-                                          final uri = Uri.tryParse(
-                                            stream.youtubeUrl.trim(),
-                                          );
-                                          if (uri != null) {
-                                            await launchUrl(
-                                              uri,
-                                              mode: LaunchMode
-                                                  .externalApplication,
-                                            );
-                                          }
-                                        },
-                                        icon: const Icon(Icons.open_in_new),
-                                        label: const Text('Open in YouTube'),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
+                      child: _buildPlaybackPane(stream),
                     ),
                   ),
                 ),

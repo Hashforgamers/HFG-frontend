@@ -123,7 +123,7 @@ class SplashController extends GetxController {
   }
 
   Future<void> _resetInvalidSession() async {
-    userController.id.value = '';
+    userController.clearSession();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_data');
     await prefs.remove('user_id');

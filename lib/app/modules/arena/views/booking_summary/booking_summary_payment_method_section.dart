@@ -7,6 +7,11 @@ import 'package:hash/core/repositories/model/get_pass_model.dart';
 class BookingSummaryPaymentMethodSection extends StatelessWidget {
   final RxString selectedPayment;
   final Rx<GetPassModel?> selectedGamePass;
+  final bool showPayAtCafeOption;
+  final double walletBalance;
+  final double walletAppliedAmount;
+  final double walletTopUpAmount;
+  final double remainingAmount;
   final void Function(String value) onSelectPayment;
   final VoidCallback onClearSelectedPass;
 
@@ -14,6 +19,11 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
     super.key,
     required this.selectedPayment,
     required this.selectedGamePass,
+    required this.showPayAtCafeOption,
+    required this.walletBalance,
+    required this.walletAppliedAmount,
+    required this.walletTopUpAmount,
+    required this.remainingAmount,
     required this.onSelectPayment,
     required this.onClearSelectedPass,
   });
@@ -51,7 +61,9 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
               children: [
                 Expanded(
                   child: BookingSummaryPaymentOptionChip(
-                    label: 'Wallet',
+                    label: walletBalance > 0
+                        ? 'Wallet • ₹${walletBalance.toStringAsFixed(0)}'
+                        : 'Wallet',
                     icon: Icons.account_balance_wallet,
                     isSelected: selectedPayment.value == 'wallet',
                     onTap: () => onSelectPayment('wallet'),
@@ -79,17 +91,46 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
                     onTap: () => onSelectPayment('gateway'),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: BookingSummaryPaymentOptionChip(
-                    label: 'Pay in Cafe',
-                    icon: Icons.directions_walk,
-                    isSelected: selectedPayment.value == 'pay_at_cafe',
-                    onTap: () => onSelectPayment('pay_at_cafe'),
+                if (showPayAtCafeOption) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: BookingSummaryPaymentOptionChip(
+                      label: 'Pay in Cafe',
+                      icon: Icons.directions_walk,
+                      isSelected: selectedPayment.value == 'pay_at_cafe',
+                      onTap: () => onSelectPayment('pay_at_cafe'),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
+            if (selectedPayment.value == 'wallet') ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xff00DC00).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xff00DC00).withValues(alpha: 0.22),
+                  ),
+                ),
+                child: Text(
+                  walletTopUpAmount > 0
+                      ? 'Your wallet currently has ₹${walletBalance.toStringAsFixed(2)}. We will add ₹${walletTopUpAmount.toStringAsFixed(2)} to the wallet first, refresh the balance here, and then complete this booking using wallet payment.'
+                      : walletAppliedAmount > 0
+                      ? 'Entire booking will be covered by your wallet balance.'
+                      : 'Wallet payment is selected. We will complete this booking using your wallet balance.',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    height: 1.45,
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
             if (selectedPayment.value == 'none' &&
                 selectedGamePass.value != null) ...[
               const SizedBox(height: 20),
