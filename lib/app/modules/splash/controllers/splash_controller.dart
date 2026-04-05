@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/funnel_notification_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/update_service.dart'; // ← NEW
@@ -18,6 +19,7 @@ class SplashController extends GetxController {
   final UserController userController = Get.find();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final funnelNotificationService = locator<FunnelNotificationService>();
   final fiamService = locator<FirebaseInAppMessagingService>();
   bool _navigated = false;
   Timer? _fallbackTimer;
@@ -45,6 +47,7 @@ class SplashController extends GetxController {
         segmentService.onAppLaunch(),
         fbEventsService.onAppLaunch(),
       ]);
+      await funnelNotificationService.trackEvent('app_open');
     } catch (e, st) {
       AppLogger.d('Launch tracking failed: $e');
       AppLogger.d('$st');

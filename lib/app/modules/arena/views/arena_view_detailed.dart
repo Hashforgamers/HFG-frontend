@@ -18,6 +18,7 @@ import 'package:hash/app/modules/arena/views/menu_view.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/funnel_notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:hash/utils/widgets/loader.dart';
@@ -66,6 +67,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final funnelNotificationService = locator<FunnelNotificationService>();
   late final ConfettiController _squadConfettiController;
   bool? _hasFoodOrderingAvailableCache;
   bool _isBookingFlowLaunching = false;
@@ -86,6 +88,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
     // Track cafe images viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      funnelNotificationService.trackEvent(
+        'cafe_viewed',
+        payload: {
+          'cafe_id': widget.vendorId.toString(),
+          'cafe_name': widget.title,
+        },
+      );
       segmentService.onCafeImagesViewed(cafeId: widget.vendorId.toString());
       fbEventsService.onCafeImagesViewed(cafeId: widget.vendorId.toString());
       segmentService.onCustomEvent('Cafe Amenities Viewed', {

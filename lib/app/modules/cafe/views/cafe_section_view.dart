@@ -18,6 +18,7 @@ import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/location_permission_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/service/funnel_notification_service.dart';
 import 'package:lottie/lottie.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:location/location.dart' as loc;
@@ -37,6 +38,7 @@ class CafeSection extends StatefulWidget {
   );
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final funnelNotificationService = locator<FunnelNotificationService>();
 
   @override
   State<CafeSection> createState() => _CafeSectionState();
@@ -1455,6 +1457,15 @@ class _CafeSectionState extends State<CafeSection> {
       } catch (_) {
         // ignore if cubit is unavailable in current subtree
       }
+
+      await widget.funnelNotificationService.trackEvent(
+        'coin_earned',
+        payload: {'amount': 10, 'source': 'external_cafe_like'},
+      );
+      await widget.funnelNotificationService.trackEvent(
+        'reward_unlocked',
+        payload: {'amount': 10, 'source': 'external_cafe_like'},
+      );
 
       await _showHashCoinRewardPopup();
     } catch (_) {

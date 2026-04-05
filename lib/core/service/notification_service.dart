@@ -196,6 +196,11 @@ class NotificationController extends GetxController {
       sound: true,
       provisional: false,
     );
+    debugPrint(
+      'Push permission status -> auth=${settings.authorizationStatus.name}, '
+      'alert=${settings.alert.name}, badge=${settings.badge.name}, '
+      'sound=${settings.sound.name}',
+    );
     await _fm.setForegroundNotificationPresentationOptions(
       alert: true,
       badge: true,
@@ -255,14 +260,18 @@ class NotificationController extends GetxController {
         await Future.delayed(const Duration(milliseconds: 250));
         apns = await _fm.getAPNSToken();
       }
+      debugPrint('APNs token -> ${apns ?? "<null>"}');
     }
 
     try {
       final token = await _fm.getToken();
       if (token != null && token.isNotEmpty) {
         fcmToken.value = token;
+        debugPrint('FCM token initialized -> $token');
         await _fm.subscribeToTopic('mira_road_users');
         debugPrint('Subscribed to mira_road_users');
+      } else {
+        debugPrint('FCM token initialization returned empty token');
       }
     } catch (e) {
       debugPrint('FCM token initialization failed: $e');
@@ -352,6 +361,9 @@ class NotificationController extends GetxController {
 
   Future<void> _handleAuthUserChanged(User? user) async {
     final nextTopic = _userTopicFor(user?.uid);
+    debugPrint(
+      'Auth user changed -> uid=${user?.uid ?? "<null>"}, nextTopic=${nextTopic ?? "<none>"}',
+    );
     if (_activeUserTopic == nextTopic) {
       return;
     }
@@ -407,6 +419,10 @@ class NotificationController extends GetxController {
     String title = (notif?.title ?? (message.data['title'] ?? '')).toString();
     String body = (notif?.body ?? (message.data['body'] ?? '')).toString();
     final type = message.data['type']?.toString() ?? '';
+    debugPrint(
+      'Push received -> messageId=${message.messageId ?? "<none>"}, '
+      'type=$type, title=$title, body=$body, data=${message.data}',
+    );
     final roomId =
         (message.data['room_id'] ?? message.data['chat_room_id'] ?? '')
             .toString()

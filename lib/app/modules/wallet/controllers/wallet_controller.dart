@@ -4,6 +4,7 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/funnel_notification_service.dart';
 import '../../../data/services/user_controller.dart';
 import '../../../data/models/wallet_model.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,8 @@ class WalletController extends GetxController {
   final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
+  final FunnelNotificationService _funnelNotificationService =
+      locator<FunnelNotificationService>();
 
   // Observable state
   final Rx<WalletModel?> _wallet = Rx<WalletModel?>(null);
@@ -475,6 +478,10 @@ class WalletController extends GetxController {
       if (userId.isNotEmpty) {
         _segmentService.onWalletViewed(userId: userId);
         _fbEventsService.onWalletViewed(userId: userId);
+        _funnelNotificationService.trackEvent(
+          'wallet_viewed',
+          payload: {'user_id': userId},
+        );
       }
     } catch (e) {
       AppLogger.d('Error tracking wallet viewed: $e');

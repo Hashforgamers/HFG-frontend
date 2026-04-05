@@ -28,6 +28,7 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/funnel_notification_service.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:intl/intl.dart';
@@ -92,6 +93,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final HomeController homeController = Get.find();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final funnelNotificationService = locator<FunnelNotificationService>();
   final squadMissionsService = locator<SquadMissionsService>();
   final ChatService _chatService = Get.find<ChatService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
@@ -148,6 +150,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
     // Track booking summary viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      funnelNotificationService.trackEvent(
+        'booking_summary_viewed',
+        payload: {
+          'booking_id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
+          'cafe_id': 'cafe_${widget.gameId}',
+          'amount': calculateTotalPrice(),
+          'console_type': widget.consoleType,
+          'slot_count': widget.selectedSlots.length,
+        },
+      );
       segmentService.onBookingSummaryViewed(
         bookingId: 'temp_${DateTime.now().millisecondsSinceEpoch}',
         cafeId: 'cafe_${widget.gameId}',
@@ -988,6 +1000,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           bookingId: widget.gameId.toString(),
           reason: 'back_pressed',
         );
+        funnelNotificationService.trackEvent(
+          'booking_cancelled',
+          payload: {
+            'booking_id': widget.gameId.toString(),
+            'reason': 'back_pressed',
+            'cafe_id': 'cafe_${widget.gameId}',
+          },
+        );
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF0F0F0F),
@@ -1753,6 +1773,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         gameId: widget.gameId.toString(),
         slotTime: slotTime,
       );
+      funnelNotificationService.trackEvent(
+        'booking_started',
+        payload: {
+          'booking_ids': bookingIds.map((id) => id.toString()).toList(),
+          'cafe_id': 'cafe_${widget.gameId}',
+          'slot_time': slotTime.toString(),
+          'console_type': widget.consoleType,
+          'slot_count': widget.selectedSlots.length,
+          'payment_mode': isPayAtCafe ? 'pay_at_cafe' : 'online',
+        },
+      );
 
       if (isPayAtCafe) {
         _stage.value = PaymentStage.confirmingPayAtCafe;
@@ -1994,6 +2025,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         bookingId: bookingIds.first.toString(),
         startTime: startTime,
         duration: duration,
+      );
+      funnelNotificationService.trackEvent(
+        'booking_confirmed',
+        payload: {
+          'booking_id': bookingIds.first.toString(),
+          'booking_ids': bookingIds.map((id) => id.toString()).toList(),
+          'start_time': startTime,
+          'duration': duration,
+          'payment_mode': paymentMode,
+          'cafe_id': 'cafe_${widget.gameId}',
+        },
       );
       squadMissionsService.trackAction(action: SquadMissionAction.playSession);
       _paymentCompleted = true;

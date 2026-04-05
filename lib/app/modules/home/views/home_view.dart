@@ -20,6 +20,7 @@ import 'package:hash/app/modules/home/widgets/live_session_glass_card.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
+import 'package:hash/core/service/funnel_notification_service.dart';
 import 'package:hash/core/service/location_analytics_service.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -147,6 +148,15 @@ class _HomeViewState extends State<HomeView> {
           // ignore if cubit context is unavailable
         }
       });
+
+      await locator<FunnelNotificationService>().trackEvent(
+        'coin_earned',
+        payload: {'amount': reward, 'source': 'daily_login_reward'},
+      );
+      await locator<FunnelNotificationService>().trackEvent(
+        'reward_unlocked',
+        payload: {'amount': reward, 'source': 'daily_login_reward'},
+      );
 
       await _showDailyLoginRewardPopup(amount: reward);
     } catch (_) {

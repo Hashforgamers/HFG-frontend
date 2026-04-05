@@ -8,6 +8,7 @@ import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:hash/core/service/external_cafe_likes_service.dart';
 import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/funnel_notification_service.dart';
 import 'package:hash/core/service/location_analytics_service.dart';
 import 'package:hash/core/service/location_permission_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -76,6 +77,12 @@ Future<void> setupServiceLocator({bool reset = false}) async {
       FbEventsService(
         deviceIdentifierService: locator<DeviceIdentifierService>(),
       ),
+    );
+  }
+
+  if (!locator.isRegistered<FunnelNotificationService>()) {
+    locator.registerSingleton<FunnelNotificationService>(
+      FunnelNotificationService(),
     );
   }
 
