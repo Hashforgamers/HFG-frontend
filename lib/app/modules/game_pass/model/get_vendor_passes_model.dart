@@ -12,6 +12,7 @@ class GetVendorPassesModel {
   final int? hoursPerSlot;
   final bool? isActive;
   final String? description;
+  final String? sourceGroup;
   GetVendorPassesModel({
     this.id,
     this.name,
@@ -24,9 +25,13 @@ class GetVendorPassesModel {
     this.hoursPerSlot,
     this.isActive,
     this.description,
+    this.sourceGroup,
   });
 
-  factory GetVendorPassesModel.fromMap(Map<String, dynamic> map) {
+  factory GetVendorPassesModel.fromMap(
+    Map<String, dynamic> map, {
+    String? sourceGroup,
+  }) {
     double? parsePrice(dynamic value) {
       if (value is num) return value.toDouble();
       if (value is String) return double.tryParse(value.trim());
@@ -52,6 +57,7 @@ class GetVendorPassesModel {
           : null,
       isActive: map['is_active'] as bool?,
       description: map['description']?.toString(),
+      sourceGroup: sourceGroup,
     );
   }
 

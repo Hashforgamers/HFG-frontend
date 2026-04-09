@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
+import 'package:hash/app/modules/game_pass/model/vendor_passes_response.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 
@@ -19,9 +20,12 @@ class _VendorGamesCacheEntry {
 }
 
 class _VendorPassesCacheEntry {
-  const _VendorPassesCacheEntry({required this.passes, required this.cachedAt});
+  const _VendorPassesCacheEntry({
+    required this.response,
+    required this.cachedAt,
+  });
 
-  final List<GetVendorPassesModel> passes;
+  final VendorPassesResponse response;
   final DateTime cachedAt;
 }
 
@@ -29,6 +33,7 @@ class CafeGamesController extends GetxController {
   static const Duration _gamesCacheTtl = Duration(minutes: 15);
   static const Duration _passesCacheTtl = Duration(minutes: 15);
   static const int _gamesCacheSchemaVersion = 2;
+  static const int _passesCacheSchemaVersion = 2;
   static final Map<int, _VendorGamesCacheEntry> _gamesCache =
       <int, _VendorGamesCacheEntry>{};
   static final Map<int, _VendorPassesCacheEntry> _passesCache =
@@ -36,6 +41,7 @@ class CafeGamesController extends GetxController {
   static final Map<int, Future<void>> _gamesRequests = <int, Future<void>>{};
   static final Map<int, Future<void>> _passesRequests = <int, Future<void>>{};
   static int _activeGamesCacheSchemaVersion = 0;
+  static int _activePassesCacheSchemaVersion = 0;
 
   var games =
       <Map<String, dynamic>>[].obs; // Observable list to store games data
@@ -43,6 +49,7 @@ class CafeGamesController extends GetxController {
   var shopOpen = false.obs; // Observable to track shop status
   final _remoteRepo = locator<RemoteRepoInterface>();
   var passes = <GetVendorPassesModel>[].obs;
+  final vendorPassesResponse = Rxn<VendorPassesResponse>();
   var isPassesLoading = false.obs;
 
   String _prettyJson(dynamic value) {
@@ -55,6 +62,7 @@ class CafeGamesController extends GetxController {
 
   CafeGamesController() {
     _ensureGamesCacheSchema();
+    _ensurePassesCacheSchema();
   }
 
   void _ensureGamesCacheSchema() {
@@ -62,6 +70,13 @@ class CafeGamesController extends GetxController {
     _gamesCache.clear();
     _gamesRequests.clear();
     _activeGamesCacheSchemaVersion = _gamesCacheSchemaVersion;
+  }
+
+  void _ensurePassesCacheSchema() {
+    if (_activePassesCacheSchemaVersion == _passesCacheSchemaVersion) return;
+    _passesCache.clear();
+    _passesRequests.clear();
+    _activePassesCacheSchemaVersion = _passesCacheSchemaVersion;
   }
 
   Future<void> fetchGames(int vendorId, {bool forceRefresh = false}) {
@@ -216,9 +231,10 @@ class CafeGamesController extends GetxController {
       final loadedPasses = await _remoteRepo.getAllAvailablePasses(
         vendorId: vendorId.toString(),
       );
-      passes.assignAll(loadedPasses);
+      vendorPassesResponse.value = loadedPasses;
+      passes.assignAll(loadedPasses.visiblePasses);
       _passesCache[vendorId] = _VendorPassesCacheEntry(
-        passes: List<GetVendorPassesModel>.from(loadedPasses),
+        response: loadedPasses,
         cachedAt: DateTime.now(),
       );
       debugPrint('passes loaded: ${passes.length}');
@@ -244,6 +260,8 @@ class CafeGamesController extends GetxController {
   void _restorePassesFromCache(int vendorId) {
     final cached = _passesCache[vendorId];
     if (cached == null) return;
-    passes.assignAll(cached.passes);
+    final response = cached.response;
+    vendorPassesResponse.value = response;
+    passes.assignAll(response.visiblePasses);
   }
 }

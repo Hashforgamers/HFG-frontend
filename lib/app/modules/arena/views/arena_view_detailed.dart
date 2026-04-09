@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:confetti/confetti.dart';
@@ -9,6 +10,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/utils/arena_games_extractor.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
+import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
+import 'package:hash/app/modules/game_pass/widgets/game_pass_widget.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_consoles_section.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_header.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_info_section.dart';
@@ -20,6 +23,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/funnel_notification_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:share_plus/share_plus.dart';
@@ -72,6 +76,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   bool? _hasFoodOrderingAvailableCache;
   bool _isBookingFlowLaunching = false;
   final Set<String> _activeModalGuards = <String>{};
+  int _selectedPassTabIndex = 0;
 
   @override
   void initState() {
@@ -1555,16 +1560,56 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   Widget _buildPassesSection() {
     return Obx(() {
-      final passes = _gamesController.passes;
-      if (_gamesController.isPassesLoading.value || passes.isEmpty) {
+      final response = _gamesController.vendorPassesResponse.value;
+      if (_gamesController.isPassesLoading.value || response == null) {
         return const SizedBox.shrink();
       }
+
+      final hourBasedPasses = response.hourBasedPasses;
+      final dateBasedPasses = response.dateBasedPasses;
+      final allPasses = response.allPasses.isNotEmpty
+          ? response.allPasses
+          : response.visiblePasses;
+
+      if (allPasses.isEmpty &&
+          hourBasedPasses.isEmpty &&
+          dateBasedPasses.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      final tabs = <_PassTabData>[
+        _PassTabData(
+          label: 'All Pass',
+          count: response.countFor('all_passes', allPasses),
+          passes: allPasses,
+        ),
+        _PassTabData(
+          label: 'Date Pass',
+          count: response.countFor('date_based_passes', dateBasedPasses),
+          passes: dateBasedPasses,
+        ),
+        _PassTabData(
+          label: 'Hour Pass',
+          count: response.countFor('hour_based_passes', hourBasedPasses),
+          passes: hourBasedPasses,
+        ),
+      ].where((tab) => tab.passes.isNotEmpty).toList();
+
+      if (tabs.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      if (_selectedPassTabIndex >= tabs.length) {
+        _selectedPassTabIndex = 0;
+      }
+
+      final activeTab = tabs[_selectedPassTabIndex];
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Passes',
+            'Arena Passes',
             style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: 18,
@@ -1572,18 +1617,158 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             ),
           ),
           const SizedBox(height: 12),
-          ...passes.map(
-            (p) => _PassCard(
-              name: p.name ?? 'Pass',
-              price: (p.price ?? 0).toDouble(),
-              totalHours: p.totalHour ?? 0,
-              daysValid: p.daysValid ?? 0,
-              description: p.description ?? '',
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: tabs.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final tab = tabs[index];
+                final isSelected = index == _selectedPassTabIndex;
+                return GestureDetector(
+                  onTap: () {
+                    if (_selectedPassTabIndex == index) return;
+                    setState(() {
+                      _selectedPassTabIndex = index;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xff00DC00)
+                          : Colors.white10,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: isSelected ? Colors.transparent : Colors.white12,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          tab.label,
+                          style: GoogleFonts.inter(
+                            color: isSelected ? Colors.black : Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.black12 : Colors.white12,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${tab.count}',
+                            style: GoogleFonts.inter(
+                              color: isSelected ? Colors.black : Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 172,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: activeTab.passes.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final pass = activeTab.passes[index];
+                return SizedBox(
+                  width: 292,
+                  child: _PassCard(
+                    index: index,
+                    pass: pass,
+                    onBuy: () => _showPassPurchaseSheet(pass),
+                  ),
+                );
+              },
             ),
           ),
         ],
       );
     });
+  }
+
+  Future<void> _showPassPurchaseSheet(GetVendorPassesModel pass) async {
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF101010),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: SizedBox(
+              height: MediaQuery.of(sheetContext).size.height * 0.52,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Buy Pass',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    pass.name ?? 'Arena Pass',
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: VendorPassesWidget(
+                      vendorPasses: <GetVendorPassesModel>[pass],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -3185,102 +3370,231 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 }
 
 class _PassCard extends StatelessWidget {
-  final String name;
-  final double price;
-  final int totalHours;
-  final int daysValid;
-  final String description;
+  final int index;
+  final GetVendorPassesModel pass;
+  final VoidCallback onBuy;
 
   const _PassCard({
-    required this.name,
-    required this.price,
-    required this.totalHours,
-    required this.daysValid,
-    required this.description,
+    required this.index,
+    required this.pass,
+    required this.onBuy,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF141414),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    const passImagesHQ = <String>[
+      'https://res.cloudinary.com/dxjjigepf/image/upload/v1756904249/dailyPass_kphyzf.png',
+      'https://res.cloudinary.com/dxjjigepf/image/upload/v1756904250/weeklyPass_p7fhtm.png',
+      'https://res.cloudinary.com/dxjjigepf/image/upload/v1756904250/monthlyPass_xcqhyf.png',
+      'https://res.cloudinary.com/dxjjigepf/image/upload/q_auto:best,f_auto,w_1080,h_720,c_fill/v1755075171/cafepass3_on04c0.png',
+    ];
+    final passName = pass.name ?? 'Pass';
+    final price = pass.price ?? 0;
+    final totalHours = pass.totalHour ?? 0;
+    final daysValid = pass.daysValid ?? 0;
+    final description = (pass.description ?? '').trim();
+    final isHourBased =
+        pass.sourceGroup == 'hour_based_passes' ||
+        (pass.passMode ?? '').toLowerCase().contains('hour');
+    final isDateBased =
+        pass.sourceGroup == 'date_based_passes' ||
+        (pass.passMode ?? '').toLowerCase().contains('date');
+    final subtitleParts = <String>[
+      if (isHourBased && totalHours > 0) '$totalHours hrs',
+      if (isDateBased && daysValid > 0) '$daysValid days',
+      if (!isHourBased && !isDateBased && totalHours > 0) '$totalHours hrs',
+      if (!isHourBased && !isDateBased && daysValid > 0) '$daysValid days',
+    ];
+    final subtitle = subtitleParts.isEmpty
+        ? (pass.passMode ?? 'Available pass')
+        : subtitleParts.join(' • ');
+    final image = passImagesHQ[index % passImagesHQ.length];
+    const accentPalette = <Color>[
+      Color(0xff00DC00),
+      Color(0xff00C2FF),
+      Color(0xffFF8A00),
+      Color(0xffFF4D6D),
+      Color(0xff9B5DE5),
+      Color(0xffFFD60A),
+      Color(0xff2EC4B6),
+      Color(0xffF15BB5),
+    ];
+    final accentSeed = Object.hash(pass.id, pass.name, pass.passMode, index);
+    final accentColor =
+        accentPalette[(accentSeed & 0x7fffffff) % accentPalette.length];
+
+    return BounceTap(
+      onTap: onBuy,
+      child: Container(
+        height: 160,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: CachedNetworkImage(
+                imageUrl: image,
+                height: 160,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (_, _) =>
+                    const Center(child: RainbowGlowingLoader(size: 40)),
+                errorWidget: (_, _, _) => Container(
+                  color: Colors.grey,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.white54,
+                    size: 40,
+                  ),
+                ),
+              ),
+            ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(color: Colors.black.withOpacity(0.65)),
+              ),
+            ),
+            Row(
               children: [
-                Text(
-                  name,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$totalHours hrs • $daysValid days',
-                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
-                ),
-                if (description.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: GoogleFonts.inter(
-                      color: Colors.white54,
-                      fontSize: 12,
+                Container(
+                  width: 44,
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.15),
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(20),
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
+                  child: RotatedBox(
+                    quarterTurns: -1,
+                    child: Center(
+                      child: Text(
+                        'PROTOCOL',
+                        style: GoogleFonts.inter(
+                          color: accentColor,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isHourBased
+                                  ? 'HOUR ACCESS'
+                                  : isDateBased
+                                  ? 'DATE ACCESS'
+                                  : 'ALL ACCESS',
+                              style: GoogleFonts.inter(
+                                color: accentColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            Text(
+                              '₹${price.toStringAsFixed(0)}',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          passName.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          subtitle,
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (description.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            description,
+                            style: GoogleFonts.inter(
+                              color: Colors.white54,
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        const Spacer(),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: accentColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'INITIALIZE',
+                              style: GoogleFonts.inter(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '₹${price.toStringAsFixed(0)}',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xff00DC00),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  'Buy',
-                  style: GoogleFonts.inter(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+class _PassTabData {
+  final String label;
+  final int count;
+  final List<GetVendorPassesModel> passes;
+
+  const _PassTabData({
+    required this.label,
+    required this.count,
+    required this.passes,
+  });
 }
 
 class _MarqueeText extends StatefulWidget {

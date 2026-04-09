@@ -146,28 +146,28 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            itemCount: _htmlGames.length + _games.length,
+            itemCount: _games.length + _htmlGames.length,
             separatorBuilder: (context, index) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
-              if (index < _htmlGames.length) {
-                final game = _htmlGames[index];
-                return HtmlMiniGameCard(
-                  game: game,
-                  compact: true,
-                  bestScore: _scoresLoaded
-                      ? _scoreService.bestScore(game.gameId)
-                      : null,
-                  onTap: () => _openHtmlGame(game),
+              if (index < _games.length) {
+                final nativeGame = _games[index];
+                return RepaintBoundary(
+                  child: MiniGameCard(
+                    game: nativeGame,
+                    scoresLoaded: _scoresLoaded,
+                    scoreService: _scoreService,
+                  ),
                 );
               }
 
-              final nativeGame = _games[index - _htmlGames.length];
-              return RepaintBoundary(
-                child: MiniGameCard(
-                  game: nativeGame,
-                  scoresLoaded: _scoresLoaded,
-                  scoreService: _scoreService,
-                ),
+              final game = _htmlGames[index - _games.length];
+              return HtmlMiniGameCard(
+                game: game,
+                compact: true,
+                bestScore: _scoresLoaded
+                    ? _scoreService.bestScore(game.gameId)
+                    : null,
+                onTap: () => _openHtmlGame(game),
               );
             },
           ),

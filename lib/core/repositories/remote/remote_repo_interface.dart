@@ -1,4 +1,4 @@
-import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
+import 'package:hash/app/modules/game_pass/model/vendor_passes_response.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
@@ -190,8 +190,9 @@ abstract class RemoteRepoInterface {
   Future<void> saveUIDToPreferences(String uid);
   Future<String> getUIDFromPreferences();
 
-  Future<List<GetVendorPassesModel>> getAllAvailablePasses({
+  Future<VendorPassesResponse> getAllAvailablePasses({
     required String vendorId,
+    bool includeInactive = false,
   });
   Future<String> makePurchasePassPayment({
     required PurchasePassModel purchasePassModel,

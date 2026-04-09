@@ -21,7 +21,7 @@ class ApiEndpoints {
       '$bookingBaseUrl/api/bookings/pricing-estimate';
   static String get vendorGames => '$bookingBaseUrl/api/games/vendor';
   static String vendorGamesByVendorId(String vendorId) =>
-      '${dashboardBaseUrl}/vendor/$vendorId/vendor-games';
+      '$dashboardBaseUrl/vendor/$vendorId/vendor-games';
   static String get createOffer => '$bookingBaseUrl/api/redeem-voucher';
 
   static String get capturePayment => '$bookingBaseUrl/api/capture_payment';
@@ -31,8 +31,12 @@ class ApiEndpoints {
 
   // Pass Purchase (HMNX Booking API)
   static const String passBaseUrl = 'https://hfg-booking-hmnx.onrender.com/api';
-  static String getAllAvailablePasses(String vendorId) =>
-      '$passBaseUrl/vendor/$vendorId/passes/available';
+  static String getAllAvailablePasses(
+    String vendorId, {
+    bool includeInactive = false,
+  }) =>
+      '$dashboardBaseUrl/api/vendor/$vendorId/passes'
+      '?include_inactive=$includeInactive';
 
   // Purchase Pass Endpoint
   static String get purchasePassNew => '$bookingBaseUrl/api/passes/purchase';

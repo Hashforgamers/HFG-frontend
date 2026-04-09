@@ -10,7 +10,7 @@ class HtmlMiniGameCatalogService {
       gameId: 'racing_limits',
       name: 'Racing Limits',
       thumbnail:
-          'https://racinglimits.com/racinglimitsgamefile/racing-limits/logo.png',
+          'https://imgs.crazygames.com/racing-limits_16x9/20250711091800/racing-limits_16x9-cover?metadata=none&quality=100&width=1200&height=630&fit=crop',
       gameUrl: 'https://www.crazygames.com/game/racing-limits',
       description: 'CrazyGames URL test inside the Mini Games WebView.',
     ),

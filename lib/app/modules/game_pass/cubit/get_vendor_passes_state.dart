@@ -13,7 +13,7 @@ class GetVendorPassesLoading extends GetVendorPassesState {
 }
 
 class GetVendorPassesLoaded extends GetVendorPassesState {
-  final List<GetVendorPassesModel> vendorPasses;
+  final VendorPassesResponse vendorPasses;
   GetVendorPassesLoaded({required this.vendorPasses});
   @override
   List<Object?> get props => [vendorPasses];

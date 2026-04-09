@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
+import 'package:hash/app/modules/game_pass/model/vendor_passes_response.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 
@@ -14,7 +14,9 @@ class GetVendorPassesCubit extends Cubit<GetVendorPassesState> {
   Future<void> getVendorPasses({required String vendorId}) async {
     emit(GetVendorPassesLoading());
     try {
-      final response = await remoteRepo.getAllAvailablePasses(vendorId: vendorId);
+      final response = await remoteRepo.getAllAvailablePasses(
+        vendorId: vendorId,
+      );
       emit(GetVendorPassesLoaded(vendorPasses: response));
     } catch (e) {
       emit(GetVendorPassesError(message: 'Failed to load vendor passes: $e'));

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
+import 'package:hash/app/modules/game_pass/model/vendor_passes_response.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/api_error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
@@ -2284,11 +2285,15 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<List<GetVendorPassesModel>> getAllAvailablePasses({
+  Future<VendorPassesResponse> getAllAvailablePasses({
     required String vendorId,
+    bool includeInactive = false,
   }) async {
     final dio = networkProvider.noAuth();
-    final endpoint = ApiEndpoints.getAllAvailablePasses(vendorId);
+    final endpoint = ApiEndpoints.getAllAvailablePasses(
+      vendorId,
+      includeInactive: includeInactive,
+    );
     try {
       print(
         'Arena detail API request -> type=vendor_passes, api=$endpoint, vendor_id=$vendorId',
@@ -2310,10 +2315,66 @@ class RemoteRepo implements RemoteRepoInterface {
         AppLogger.d(
           'Arena detail API response -> type=vendor_passes, api=$endpoint, status=${response.statusCode}, response=${response.data}',
         );
-        final List<dynamic> responseData = response.data['passes'];
-        return responseData
-            .map((e) => GetVendorPassesModel.fromMap(e as Map<String, dynamic>))
-            .toList();
+        final data = response.data is Map<String, dynamic>
+            ? response.data as Map<String, dynamic>
+            : <String, dynamic>{};
+
+        List<GetVendorPassesModel> parsePasses(String key, String sourceGroup) {
+          final raw = data[key];
+          if (raw is! List) return const <GetVendorPassesModel>[];
+          return raw
+              .whereType<Map>()
+              .map(
+                (e) => GetVendorPassesModel.fromMap(
+                  Map<String, dynamic>.from(e),
+                  sourceGroup: sourceGroup,
+                ),
+              )
+              .toList();
+        }
+
+        List<GetVendorPassesModel> filterForVendor(
+          List<GetVendorPassesModel> items,
+        ) {
+          final matching = items
+              .where((item) => item.vendorId == vendorId)
+              .toList();
+          return matching.isNotEmpty ? matching : items;
+        }
+
+        final hourBasedPasses = filterForVendor(
+          parsePasses('hour_based_passes', 'hour_based_passes'),
+        );
+        final dateBasedPasses = filterForVendor(
+          parsePasses('date_based_passes', 'date_based_passes'),
+        );
+        final passes = filterForVendor(parsePasses('passes', 'passes'));
+        final allPasses = filterForVendor(
+          parsePasses('all_passes', 'all_passes'),
+        );
+
+        Map<String, int> parseCounts(dynamic rawCounts) {
+          if (rawCounts is! Map) return const <String, int>{};
+          final result = <String, int>{};
+          rawCounts.forEach((key, value) {
+            if (key == null) return;
+            if (value is num) {
+              result[key.toString()] = value.toInt();
+            } else {
+              final parsed = int.tryParse(value.toString());
+              if (parsed != null) result[key.toString()] = parsed;
+            }
+          });
+          return result;
+        }
+
+        return VendorPassesResponse(
+          hourBasedPasses: hourBasedPasses,
+          dateBasedPasses: dateBasedPasses,
+          passes: passes,
+          allPasses: allPasses,
+          counts: parseCounts(data['counts']),
+        );
       } else {
         throw Exception(
           'Failed to get vendor passes. Status code: ${response.statusCode}',

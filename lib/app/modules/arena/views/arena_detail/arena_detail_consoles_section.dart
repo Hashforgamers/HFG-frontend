@@ -68,21 +68,15 @@ class ArenaDetailConsolesSection extends StatelessWidget {
                       ? parentAvailableCount
                       : _asInt(countValue);
                   if (!isAvailable || availableCount <= 0) continue;
-                  final key =
-                      (c['console_type'] ??
-                              c['console_slug'] ??
-                              c['console_display_name'] ??
-                              '')
-                          .toString()
-                          .trim()
-                          .toLowerCase();
-                  final label =
+                  final rawLabel =
                       (c['console_display_name'] ??
                               c['console_slug'] ??
                               c['console_type'] ??
                               '')
                           .toString()
                           .trim();
+                  final key = _normalizeConsoleType(rawLabel);
+                  final label = _consoleDisplayLabel(rawLabel);
                   if (key.isEmpty || label.isEmpty) continue;
                   if (seen.add(key)) {
                     types.add({'key': key, 'label': label});
@@ -102,21 +96,15 @@ class ArenaDetailConsolesSection extends StatelessWidget {
                 final isAvailable = _truthy(availableValue);
                 final availableCount = _asInt(countValue);
                 if (!isAvailable || availableCount <= 0) continue;
-                final key =
-                    (g['console_display_name'] ??
-                            g['console_slug'] ??
-                            g['game_platform'] ??
-                            '')
-                        .toString()
-                        .trim()
-                        .toLowerCase();
-                final label =
+                final rawLabel =
                     (g['console_display_name'] ??
                             g['console_slug'] ??
                             g['game_platform'] ??
                             '')
                         .toString()
                         .trim();
+                final key = _normalizeConsoleType(rawLabel);
+                final label = _consoleDisplayLabel(rawLabel);
                 if (key.isEmpty || label.isEmpty) continue;
                 if (seen.add(key)) {
                   types.add({'key': key, 'label': label});
@@ -168,12 +156,71 @@ class ArenaDetailConsolesSection extends StatelessWidget {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
+  String _normalizeConsoleType(String consoleName) {
+    final name = consoleName
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .trim();
+    if (name.isEmpty) return '';
+    if (name.contains('playstation') || name.contains('ps')) return 'ps5';
+    if (name.contains('xbox')) return 'xbox';
+    if (name.contains('vr') || name.contains('virtual')) return 'vr_headset';
+    if (name.contains('nintendo') || name.contains('switch')) {
+      return 'nintendo_switch';
+    }
+    if (name.contains('steam') || name.contains('deck')) return 'steam_deck';
+    if (name.contains('arcade')) return 'arcade_cabinet';
+    if (name.contains('racing') || name.contains('rig')) return 'racing_rig';
+    if (name.contains('simulator')) return 'simulator';
+    if (name.contains('private') && name.contains('room')) {
+      return 'private_room';
+    }
+    if (name.contains('vip') && name.contains('room')) return 'vip_room';
+    if (name.contains('bootcamp') && name.contains('room')) {
+      return 'bootcamp_room';
+    }
+    if (name.contains('pc') || name.contains('computer')) return 'pc';
+    return name.replaceAll(' ', '_');
+  }
+
+  String _consoleDisplayLabel(String consoleName) {
+    switch (_normalizeConsoleType(consoleName)) {
+      case 'ps5':
+        return 'PS5';
+      case 'xbox':
+        return 'XBOX';
+      case 'vr_headset':
+        return 'VR';
+      case 'nintendo_switch':
+        return 'NINTENDO SWITCH';
+      case 'steam_deck':
+        return 'STEAM DECK';
+      case 'arcade_cabinet':
+        return 'ARCADE CABINET';
+      case 'racing_rig':
+        return 'RACING RIG';
+      case 'simulator':
+        return 'SIMULATOR';
+      case 'private_room':
+        return 'PRIVATE ROOM';
+      case 'vip_room':
+        return 'VIP ROOM';
+      case 'bootcamp_room':
+        return 'BOOTCAMP ROOM';
+      case 'pc':
+        return 'PC';
+      default:
+        return consoleName.replaceAll('_', ' ').toUpperCase();
+    }
+  }
+
   Widget _consoleIcon(String label) {
     final fallbackIcon = _getConsoleFallbackIcon(label);
     final accent = _getConsoleAccentColor(label);
     final imageUrl = _getConsoleImage(label);
     return Padding(
-      padding: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.only(right: 6),
       child: Column(
         children: [
           Container(

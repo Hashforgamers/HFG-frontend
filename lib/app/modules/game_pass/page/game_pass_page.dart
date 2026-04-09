@@ -27,7 +27,9 @@ class _GamePassPage extends StatefulWidget {
 class __GamePassPageState extends State<_GamePassPage> {
   @override
   void initState() {
-    BlocProvider.of<GetVendorPassesCubit>(context).getVendorPasses(vendorId: widget.vendorId);
+    BlocProvider.of<GetVendorPassesCubit>(
+      context,
+    ).getVendorPasses(vendorId: widget.vendorId);
     super.initState();
   }
 
@@ -40,10 +42,12 @@ class __GamePassPageState extends State<_GamePassPage> {
         } else if (state is GetVendorPassesError) {
           return Center(child: Text(state.message));
         } else if (state is GetVendorPassesLoaded) {
-          if (state.vendorPasses.isEmpty) {
+          if (state.vendorPasses.visiblePasses.isEmpty) {
             return const Center(child: Text('No game passes available'));
           }
-          return VendorPassesWidget(vendorPasses: state.vendorPasses);
+          return VendorPassesWidget(
+            vendorPasses: state.vendorPasses.visiblePasses,
+          );
         }
         return const SizedBox.shrink();
       },

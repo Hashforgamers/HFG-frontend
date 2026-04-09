@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:hash/core/network/api_endpoints.dart';
+import 'package:hash/core/network/interceptors/api_timing_interceptor.dart';
 import 'package:hash/core/network/interceptors/auth_interceptor.dart';
 import 'package:hash/core/network/interceptors/retry_interceptor.dart';
 import 'package:hash/core/repositories/local/auth_data_repo.dart';
@@ -47,6 +48,7 @@ class NetworkConfig {
       );
     }
 
+    dio.interceptors.add(ApiTimingInterceptor());
     dio.interceptors.add(RetryInterceptor(dio: dio));
     dio.interceptors.add(AuthInterceptor(dio));
 
@@ -126,6 +128,7 @@ class NetworkProvider {
       );
     }
 
+    _dio.interceptors.add(ApiTimingInterceptor());
     _dio.interceptors.add(RetryInterceptor(dio: _dio));
   }
 
@@ -162,6 +165,7 @@ class NetworkProvider {
     );
 
     final dio = Dio(options);
+    dio.interceptors.add(ApiTimingInterceptor());
     dio.interceptors.add(RetryInterceptor(dio: dio));
     return dio;
   }
