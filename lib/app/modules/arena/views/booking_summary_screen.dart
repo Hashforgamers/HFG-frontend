@@ -1071,9 +1071,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       Obx(
                         () => BookingSummaryUserSection(
                           userName: userController.user.value.name ?? 'User',
-                          onChangeUser: () {
-                            // Add change logic here
-                          },
+                          onChangeUser: () => _promptForRegisteredPhone(),
                         ),
                       ),
 
@@ -1337,6 +1335,164 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
 
     return true;
+  }
+
+  String _normalizeIndianPhoneInput(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 10) return digits;
+    if (digits.length == 11 && digits.startsWith('0')) {
+      return digits.substring(1);
+    }
+    if (digits.length == 12 && digits.startsWith('91')) {
+      return digits.substring(2);
+    }
+    return '';
+  }
+
+  Future<bool> _ensureRegisteredPhoneForBooking() async {
+    try {
+      final status = await _remoteRepo.getRegisteredPhoneStatus();
+      final isRegistered = status['is_phone_registered'] == true;
+      final phone = (status['phone'] ?? '').toString().trim();
+
+      if (isRegistered && phone.isNotEmpty) {
+        userController.updatePhoneNumber(phone);
+        return true;
+      }
+
+      return await _promptForRegisteredPhone();
+    } catch (e) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to verify your phone number. ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+  }
+
+  Future<bool> _promptForRegisteredPhone() async {
+    final existingPhone =
+        userController.user.value.contact?.electronicAddress?.mobileNo ?? '';
+    var phoneInput = existingPhone.trim();
+    String? inlineError;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> submit() async {
+              final normalized = _normalizeIndianPhoneInput(phoneInput);
+              if (normalized.isEmpty) {
+                setDialogState(() {
+                  inlineError =
+                      'Enter a valid Indian phone number to continue.';
+                });
+                return;
+              }
+
+              setDialogState(() {
+                inlineError = null;
+              });
+
+              try {
+                final response = await _remoteRepo.updateRegisteredPhone(
+                  phone: normalized,
+                );
+                final savedPhone = (response['phone'] ?? normalized)
+                    .toString()
+                    .trim();
+                if (!dialogContext.mounted) return;
+                userController.updatePhoneNumber(savedPhone);
+                Navigator.of(dialogContext).pop(true);
+              } catch (e) {
+                setDialogState(() {
+                  inlineError = e.toString().replaceFirst('Exception: ', '');
+                });
+              }
+            }
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1F1F1F),
+              title: Text(
+                'Add phone number',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'A registered phone number is required before booking.',
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    keyboardType: TextInputType.phone,
+                    autofocus: true,
+                    initialValue: phoneInput,
+                    onChanged: (value) {
+                      phoneInput = value;
+                      if (inlineError != null) {
+                        setDialogState(() {
+                          inlineError = null;
+                        });
+                      }
+                    },
+                    style: GoogleFonts.inter(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Enter 10-digit phone number',
+                      hintStyle: GoogleFonts.inter(color: Colors.white38),
+                      errorText: inlineError,
+                      filled: true,
+                      fillColor: const Color(0xFF121212),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onFieldSubmitted: (_) => submit(),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.inter(color: Colors.white70),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff00DC00),
+                    foregroundColor: Colors.black,
+                  ),
+                  child: Text(
+                    'Save & continue',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    return result == true;
   }
 
   void _resetPaymentState() {
@@ -1721,6 +1877,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     required bool isPayAtCafe,
   }) async {
     if (!_validateBooking()) {
+      return;
+    }
+
+    final hasRegisteredPhone = await _ensureRegisteredPhoneForBooking();
+    if (!hasRegisteredPhone) {
       return;
     }
 

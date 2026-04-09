@@ -164,6 +164,75 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
+  Future<Map<String, dynamic>> getRegisteredPhoneStatus() async {
+    final dio = await networkProvider.auth();
+
+    try {
+      final response = await dio.get(ApiEndpoints.registeredPhoneStatus);
+      final data = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      if (response.statusCode == 200) {
+        return data;
+      }
+
+      throw Exception(
+        data['message']?.toString() ??
+            'Failed to fetch registered phone status.',
+      );
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      if (responseData is Map<String, dynamic>) {
+        throw Exception(
+          responseData['message']?.toString() ??
+              'Failed to fetch registered phone status.',
+        );
+      }
+      throw Exception(ApiErrorHandler.extractErrorMessage(e));
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateRegisteredPhone({
+    required String phone,
+  }) async {
+    final dio = await networkProvider.auth();
+
+    try {
+      final response = await dio.put(
+        ApiEndpoints.registeredPhone,
+        data: <String, dynamic>{'phone': phone.trim()},
+      );
+      final data = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      if (response.statusCode == 200) {
+        return data;
+      }
+
+      throw Exception(
+        data['message']?.toString() ?? 'Failed to update phone number.',
+      );
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      if (responseData is Map<String, dynamic>) {
+        final format = responseData['format']?.toString().trim();
+        final message = responseData['message']?.toString().trim();
+        final combined = [
+          message,
+          if (format != null && format.isNotEmpty) format,
+        ].where((item) => item != null && item.isNotEmpty).join('\n');
+        throw Exception(
+          combined.isNotEmpty ? combined : 'Failed to update phone number.',
+        );
+      }
+      throw Exception(ApiErrorHandler.extractErrorMessage(e));
+    }
+  }
+
+  @override
   Future<void> saveUserToPreferences(Map<String, dynamic> userData) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_data', jsonEncode(userData));
@@ -543,7 +612,7 @@ class RemoteRepo implements RemoteRepoInterface {
           }
 
           return {
-            'game_name': game['name'] ?? game['title'],
+            'game_name': _sanitizeGameTitle(game['name'] ?? game['title']),
             'game_platform': game['platform'],
             'genre': game['genre'],
             'image_url': game['image_url'],
@@ -700,8 +769,7 @@ class RemoteRepo implements RemoteRepoInterface {
                         '')
                     .toString();
             upsertNormalizedGame({
-              'game_name': (legacy['game_name'] ?? normalizedPlatform)
-                  .toString(),
+              'game_name': _sanitizeGameTitle(legacy['game_name']),
               'game_platform': platform,
               'platform_type': legacy['platform_type'],
               'console_type': legacy['console_type'],
@@ -740,11 +808,7 @@ class RemoteRepo implements RemoteRepoInterface {
             if (normalizedPlatform.isEmpty) continue;
 
             upsertNormalizedGame({
-              'game_name':
-                  (consoleType['console_display_name'] ??
-                          consoleType['console_slug'] ??
-                          normalizedPlatform)
-                      .toString(),
+              'game_name': '',
               'game_platform': rawConsoleType,
               'platform_type': consoleType['family'],
               'console_type': rawConsoleType,
@@ -843,6 +907,53 @@ class RemoteRepo implements RemoteRepoInterface {
     if (v.contains('bootcamp') && v.contains('room')) return 'bootcamp_room';
     if (v.contains('pc') || v.contains('computer')) return 'pc';
     return v.replaceAll(' ', '_');
+  }
+
+  bool _looksLikeConsoleLabel(String value) {
+    final v = value
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (v.isEmpty) return true;
+
+    const consoleLabels = <String>{
+      'pc',
+      'pcs',
+      'gaming pc',
+      'gaming pcs',
+      'pc setup',
+      'pc setups',
+      'console',
+      'consoles',
+      'playstation',
+      'play station',
+      'playstation 4',
+      'playstation 5',
+      'ps',
+      'ps4',
+      'ps5',
+      'xbox',
+      'xbox one',
+      'xbox series',
+      'xbox series s',
+      'xbox series x',
+      'vr',
+      'vr headset',
+      'virtual reality',
+      'nintendo switch',
+      'switch',
+    };
+
+    return consoleLabels.contains(v);
+  }
+
+  String _sanitizeGameTitle(dynamic value) {
+    final title = (value ?? '').toString().trim();
+    if (title.isEmpty) return '';
+    if (_looksLikeConsoleLabel(title)) return '';
+    return title;
   }
 
   bool? _parseLooseBool(dynamic value) {

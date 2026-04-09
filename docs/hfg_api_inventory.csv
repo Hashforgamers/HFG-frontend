@@ -1,0 +1,76 @@
+Type,Domain,API Name,HTTP Method,Endpoint / URL,Base Service,Auth,Source File,Notes
+Internal,User onboard,Check user by Firebase UID,GET,/api/users/fid/{fid},userOnboard,No,lib/core/repositories/remote/remote_repo.dart,Used during login/splash to map Firebase user to backend user
+Internal,User onboard,Sign up user,POST,/api/users,userOnboard,No,lib/core/repositories/remote/remote_repo.dart,Creates backend user profile
+Internal,Booking,Fetch slots,GET,/api/getSlots/vendor/{vendorId}/game/{gameId}/{date},booking,No,lib/core/repositories/remote/remote_repo.dart,Built from ApiEndpoints.slotsBaseUrl
+Internal,Booking,Create booking,POST,/api/bookings,booking,Yes,lib/core/repositories/remote/remote_repo.dart,Creates provisional booking
+Internal,User onboard,Delete current user,DELETE,/api/users,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Deletes authenticated current user
+Internal,Booking,Fetch user bookings,GET,/api/users/bookings,booking,Yes,lib/core/repositories/remote/remote_repo.dart,Booking history/current bookings
+Internal,Vendor,Fetch all gaming cafes,GET,/api/vendor/getAllGamingCafe,vendor,No,lib/core/repositories/remote/remote_repo.dart,Cafe listing
+Internal,Dashboard,Fetch vendor games catalog,GET,/vendor/{vendorId}/vendor-games,dashboard,Yes,lib/core/repositories/remote/remote_repo.dart,Primary vendor games source
+Internal,Booking,Fetch vendor games legacy,GET,/api/games/vendor/{vendorId},booking,No,lib/core/repositories/remote/remote_repo.dart,Fallback/legacy vendor games mapping
+Internal,Booking,Confirm booking,POST,/api/bookings/confirm,booking,No,lib/core/repositories/remote/remote_repo.dart,Final booking confirmation with payment
+Internal,Booking,Booking pricing estimate,GET,/api/bookings/pricing-estimate,booking,No,lib/core/repositories/remote/remote_repo.dart,Pricing preview
+Internal,User onboard,Fetch addresses,GET,/api/users/checkout/addresses,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Checkout addresses
+Internal,User onboard,Fetch active address,GET,/api/users/checkout/address/active,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Active checkout address
+Internal,User onboard,Add address,POST,/api/users/checkout/address,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Creates checkout address
+Internal,User onboard,Add to cart,POST,/api/users/cart,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Shop cart add
+Internal,User onboard,Fetch cart,GET,/api/users/cart,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Shop cart list
+Internal,User onboard,Delete cart item,DELETE,/api/users/cart/item/{productId},userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Remove cart item
+Internal,User onboard,Initiate checkout,GET,/api/users/checkout/other,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Other checkout data
+Internal,User onboard,Validate payment link,POST,/api/users/checkout/pay/validate,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Validates checkout payment result
+Internal,User onboard,Fetch products,GET,/api/users/products,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Shop products
+Internal,User onboard,Fetch product by id,GET,/api/users/product/{productId},userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Shop product details
+Internal,User onboard,Fetch wallet,GET,/api/users/wallet,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Wallet summary
+Internal,User onboard,Claim drop crate bonus,POST,/api/users/wallet,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Posts bonus reward payload to wallet endpoint
+Internal,User onboard,Add wallet funds,POST,/api/users/wallet,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Wallet top-up confirmation
+Internal,User onboard,Validate wallet funds,POST,/api/users/wallet/validate-funds,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Wallet payment validation
+Internal,User onboard,Create voucher,POST,/api/users/create-voucher,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Generate voucher
+Internal,User onboard,Fetch vouchers,GET,/api/users/voucher,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Voucher list
+Internal,User onboard,Fetch hash coins,GET,/api/users/hash-coins,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Reward balance
+Internal,User onboard,Add hash coins,POST,/api/users/hash-coins,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Reward accrual
+Internal,Booking,Create offer / redeem voucher,POST,/api/redeem-voucher,booking,Yes,lib/core/repositories/remote/remote_repo.dart,Offer creation/redemption
+Internal,Vendor,Scan QR code,POST,/api/bookingQueue,vendor,Yes,lib/core/repositories/remote/remote_repo.dart,Queue/QR scan flow
+Internal,User onboard,Register FCM token,POST,/api/users/register-fcm-token,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Push token registration
+Internal,Booking,Release booking,POST,/api/release_slot,booking,Yes,lib/core/repositories/remote/remote_repo.dart,Releases reserved slot
+Internal,User onboard,Create cafe review,POST,/api/reviews,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Creates cafe review
+Internal,User onboard,Update cafe review,PATCH,/api/reviews/{reviewId},userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Updates cafe review
+Internal,User onboard,Fetch vendor reviews,GET,/api/vendors/{vendorId}/reviews?limit=&offset=&sort=&rating=,userOnboard,No,lib/core/repositories/remote/remote_repo.dart,Public vendor review list
+Internal,User onboard,Fetch vendor reviews summary,GET,/api/vendors/{vendorId}/reviews/summary,userOnboard,No,lib/core/repositories/remote/remote_repo.dart,Aggregated ratings
+Internal,User onboard,Fetch available passes,GET,/api/user/available_passes,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Game pass catalog
+Internal,User onboard,Fetch active passes,GET,/api/user/passes,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,User active passes
+Internal,User onboard,Fetch extra services,GET,/api/vendor/{vendorId}/extraService,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Food/extra service menu currently maps to extraService
+Internal,User onboard,Purchase pass,POST,/api/user/purchase_pass,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Pass purchase
+Internal,User onboard,Fetch transaction history,GET,/api/users/transactions,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Wallet/transaction history
+Internal,Booking,Capture Razorpay payment,POST,/api/capture_payment,booking,No,lib/core/repositories/remote/remote_repo.dart,Verifies payment signature
+Internal,Booking,Create Razorpay order,POST,/api/create_order,booking,No,lib/core/repositories/remote/remote_repo.dart,"Used in wallet, booking, and passes"
+Internal,Booking,Add meals to booking,POST,/api/booking/{bookingId}/add-meals,booking,Yes,lib/core/repositories/remote/remote_repo.dart,Food order add-on
+Internal,Booking (dev-hosted),Fetch all available passes by vendor,GET,/api/vendor/{vendorId}/passes/available,https://hfg-booking-hmnx.onrender.com,No,lib/core/repositories/remote/remote_repo.dart,Uses hardcoded HMNX booking host
+Internal,Events,Fetch public events,GET,/api/events/public,userOnboard,No,lib/core/repositories/remote/remote_repo.dart,Tournament/event list
+Internal,Events,Fetch event by id,GET,/api/events/{eventId},userOnboard,No,lib/core/repositories/remote/remote_repo.dart,Tournament detail
+Internal,Events,Fetch event leaderboard,GET,/api/events/{eventId}/leaderboard,userOnboard,No,lib/core/repositories/remote/remote_repo.dart,Tournament leaderboard
+Internal,Events,Create event team,POST,/api/events/{eventId}/teams,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Create team/solo squad
+Internal,Events,Join event team,POST,/api/events/{eventId}/teams/{teamId}/join,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Join existing team
+Internal,Events,Leave event team,DELETE,/api/events/{eventId}/teams/{teamId}/leave,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Leave team
+Internal,Events,Register event team,POST,/api/events/{eventId}/register,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Register team in event
+Internal,Events,Fetch event team members,GET,/api/events/{eventId}/teams/{teamId}/members,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Team roster
+Internal,Events,Add event team member,POST,/api/events/{eventId}/teams/{teamId}/members,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Manual member add
+Internal,Events,Fetch user teams,GET,/api/users/{userId}/teams,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Teams for user
+Internal,Events,Fetch joined tournaments,GET,/api/users/{userId}/tournaments/joined,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Joined tournament history
+Internal,Events,Update event team,PATCH,/api/events/{eventId}/teams/{teamId},userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Rename/update team
+Internal,Events,Force remove event team member,DELETE,/api/events/{eventId}/teams/{teamId}/members/{targetUserId}/force-remove,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Captain/admin remove member
+Internal,Events,Invite user to event team,POST,/api/events/{eventId}/teams/{teamId}/invite,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Creates invite notification
+Internal,Events,Respond to event invite,POST,/api/events/{eventId}/teams/{teamId}/invites/{inviteId}/respond,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Accept/reject invite
+Internal,Notifications,Fetch user notifications,GET,/api/users/notifications?limit=&unread_only=,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,App notifications inbox
+Internal,Notifications,Mark notification read,PATCH,/api/users/notifications/{notificationId}/read,userOnboard,Yes,lib/core/repositories/remote/remote_repo.dart,Notification read state
+Internal,Users,Search users,GET,/api/users/search,userOnboard,Yes,lib/app/modules/chat/services/chat_service.dart,Used for user search in chat/team invite flows
+External,Google APIs,Google People profile,GET,"https://people.googleapis.com/v1/people/me?personFields=names,photos,genders,birthdays,addresses,locations",Google People API,Bearer Google OAuth token,lib/app/modules/login/controllers/login_controller.dart,Used after Google sign-in
+External,News,Gaming news feed,GET,"https://newsapi.org/v2/everything?q=(gaming OR ""video game"" OR esports)&language=en&sortBy=publishedAt&pageSize={pageSize}&page={page}",NewsAPI,X-Api-Key header,lib/app/modules/news/game_news_controller.dart,Paged article feed
+External,Games,RAWG games list,GET,"https://api.rawg.io/api/games?key={apiKey}&page={page}&page_size={pageSize}&dates={fromDate},{toDate}&ordering=released",RAWG,API key query param,lib/app/modules/game/views/game_section_view.dart,Games discovery UI
+External,Shorts,YouTube shorts search,GET,https://serpapi.com/search?engine=youtube&search_query={query}&api_key={key},SerpAPI,API key query param,lib/app/modules/shorts/controllers/viral_shorts_controller.dart,Shorts feed
+External,Quotes,Random quote,GET,https://ultima.rest/api/random,Ultima REST,No,lib/utils/widgets/quote_service.dart,Quote widget
+External,Maps,Nearby gaming places,GET,"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&keyword={keyword}&key={placesApiKey}",Google Places API,API key query param,lib/app/modules/cafe/views/cafe_section_view.dart,Discovers nearby off-platform cafes
+External,Maps,Directions distance and duration,GET,"https://maps.googleapis.com/maps/api/directions/json?origin={lat1},{lng1}&destination={lat2},{lng2}&mode=driving&key={gmapsKey}",Google Directions API,API key query param,lib/app/modules/arena/views/arena_view.dart,Travel distance/duration
+External,News,GameSpot articles,GET,https://www.gamespot.com/api/articles?api_key={key}&format=json&limit={limit},GameSpot API,API key query param,lib/core/repositories/remote/remote_repo.dart,Alternative game news source
+Legacy,Product reviews,Add product review,POST,http://34.93.80.156:6000/product/{pid}/reviews,Legacy review API,Bearer token,lib/app/modules/reviews/controllers/review_controller.dart,Old non-flavored review system
+Legacy,Product reviews,Fetch product reviews,GET,http://34.93.80.156:6000/product/{pid}/reviews,Legacy review API,No,lib/app/modules/reviews/controllers/review_controller.dart,Old non-flavored review system
+Legacy,Product reviews,Delete product review,DELETE,http://34.93.80.156:6000/product/{pid}/reviews/{reviewId},Legacy review API,Bearer token,lib/app/modules/reviews/controllers/review_controller.dart,Old non-flavored review system

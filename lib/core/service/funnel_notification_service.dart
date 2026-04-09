@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -23,15 +24,21 @@ class FunnelNotificationService {
   }) async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
+      // No authenticated user; skip to avoid orphaned events.
+      debugPrint('[Funnel] skip $eventType -> currentUser is null');
       return;
     }
 
     final firebaseUid = currentUser.uid.trim();
     if (firebaseUid.isEmpty) {
+      debugPrint('[Funnel] skip $eventType -> firebaseUid empty');
       return;
     }
 
     final backendUserId = await _resolveBackendUserId();
+    if (backendUserId.isEmpty) {
+      debugPrint('[Funnel] skip $eventType -> backend user id missing');
+    }
     final sanitizedPayload = _sanitizeMap(payload);
     final now = DateTime.now();
 
@@ -43,6 +50,9 @@ class FunnelNotificationService {
       'occurredAtMs': now.millisecondsSinceEpoch,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    debugPrint(
+      '[Funnel] wrote $eventType for uid=$firebaseUid backend=$backendUserId',
+    );
   }
 
   Future<String> _resolveBackendUserId() async {

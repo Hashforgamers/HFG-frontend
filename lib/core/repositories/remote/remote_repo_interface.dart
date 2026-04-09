@@ -17,6 +17,8 @@ abstract class RemoteRepoInterface {
   Future<void> saveJwtToPreferences(String jwt);
   Future<String?> getJwtFromPreferences();
   Future<Map<String, dynamic>> signUp(Map<String, dynamic> userData);
+  Future<Map<String, dynamic>> getRegisteredPhoneStatus();
+  Future<Map<String, dynamic>> updateRegisteredPhone({required String phone});
 
   // Booking related methods
   Future<List<Map<String, dynamic>>> fetchSlots({

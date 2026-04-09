@@ -8,6 +8,9 @@ class ApiEndpoints {
   static String get checkUserExistsInAPI =>
       '$userOnboardBaseUrl/api/users/fid/';
   static String get signUp => '$userOnboardBaseUrl/api/users';
+  static String get registeredPhoneStatus =>
+      '$userOnboardBaseUrl/api/users/phone/registered';
+  static String get registeredPhone => '$userOnboardBaseUrl/api/users/phone';
 
   // Booking Service
   static String get bookingBaseUrl => FlavorConfig.getBaseUrl('booking');

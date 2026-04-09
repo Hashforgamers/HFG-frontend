@@ -85,13 +85,34 @@ class _BookingScreenState extends State<BookingScreen> {
 
   /// Get the console type from the passed parameter
   String getConsoleType() {
-    return widget.consoleType;
+    final type = widget.consoleType.toLowerCase().trim();
+    if (type.contains('playstation') || type.contains('ps')) {
+      return 'PS5';
+    }
+    if (type.contains('xbox')) {
+      return 'Xbox';
+    }
+    return 'PC';
   }
 
   /// Get the console label for a specific index
   String getConsoleLabel(int index) {
     final consoleType = getConsoleType();
     return '$consoleType${index + 1}';
+  }
+
+  String _consoleCollectionLabel(int count) {
+    final consoleType = getConsoleType();
+    if (consoleType == 'PC') {
+      return count == 1 ? 'PC' : 'PC setups';
+    }
+    if (consoleType == 'PS5') {
+      return count == 1 ? 'PS5 setup' : 'PS5 setups';
+    }
+    if (consoleType == 'Xbox') {
+      return count == 1 ? 'Xbox setup' : 'Xbox setups';
+    }
+    return count == 1 ? '$consoleType setup' : '$consoleType setups';
   }
 
   List<int> _getVisibleSlotIndices() {
@@ -469,7 +490,6 @@ class _BookingScreenState extends State<BookingScreen> {
                           return sum + availableConsoles;
                         },
                       );
-                      final consoleType = getConsoleType();
                       final discountPercent = _asDouble(
                         _squadDetailsEstimate?['discount_percent'],
                       );
@@ -478,7 +498,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           ? ' • save ${discountPercent.toStringAsFixed(discountPercent % 1 == 0 ? 0 : 1)}% with squad'
                           : '';
                       return Text(
-                        '${widget.isSquadBooking ? 'Select exactly $_requiredSelectionCount setups' : 'Solo booking'} • $totalAvailableConsoles ${consoleType == 'PC' ? 'PCs' : '${consoleType}s'} selectable now$squadHint',
+                        '${widget.isSquadBooking ? 'Select exactly $_requiredSelectionCount setups' : 'Solo booking'} • $totalAvailableConsoles ${_consoleCollectionLabel(totalAvailableConsoles)} selectable now$squadHint',
                         style: GoogleFonts.inter(
                           color: Colors.grey[400],
                           fontSize: 14,
@@ -649,7 +669,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         ? 'Sold Out'
                         : (!isTimeAvailable && isCurrentDate)
                         ? 'Time Expired'
-                        : '$availablePCs ${getConsoleType()}${availablePCs > 1 ? 's' : ''} Available',
+                        : '$availablePCs ${_consoleCollectionLabel(availablePCs)} available',
                     style: GoogleFonts.inter(
                       color: !isApiAvailable
                           ? Colors.redAccent
@@ -788,7 +808,7 @@ class _BookingScreenState extends State<BookingScreen> {
             if (isNewConsoleSelection &&
                 selectedConsoleCount >= _requiredSelectionCount) {
               _showSelectionCountError(
-                'You can only select $_requiredSelectionCount ${_requiredSelectionCount == 1 ? getConsoleType() : '${getConsoleType()}s'} for this booking.',
+                'You can only select $_requiredSelectionCount ${_consoleCollectionLabel(_requiredSelectionCount)} for this booking.',
               );
               return;
             }

@@ -128,21 +128,71 @@ bool _isLikelyGameTitle(String value) {
 }
 
 bool _looksLikeConsoleLabel(String value) {
+  final normalized = value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[_-]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
   const consoleLabels = {
     'pc',
     'pcs',
     'gaming pc',
     'gaming pcs',
+    'pc setup',
+    'pc setups',
     'console',
     'consoles',
     'playstation',
+    'play station',
+    'playstation 4',
+    'playstation 5',
+    'ps4',
+    'ps5',
+    'ps',
+    'xbox',
+    'xbox one',
+    'xbox series',
+    'xbox series s',
+    'xbox series x',
+    'nintendo switch',
+    'switch',
+    'vr',
+    'vr headset',
+  };
+  if (consoleLabels.contains(normalized)) return true;
+
+  const consoleKeywords = <String>[
+    'playstation',
+    'play station',
     'ps4',
     'ps5',
     'xbox',
+    'gaming pc',
+    'pc setup',
+    'pc station',
+    'console setup',
+    'vr headset',
+    'virtual reality',
     'nintendo switch',
-    'switch',
-  };
-  return consoleLabels.contains(value);
+    'switch console',
+    'steam deck',
+    'arcade',
+    'racing rig',
+    'simulator',
+    'vip room',
+    'private room',
+    'bootcamp room',
+  ];
+
+  if (consoleKeywords.any(normalized.contains)) return true;
+  if (normalized == 'pc') return true;
+  if (normalized.startsWith('ps') && normalized.length <= 8) return true;
+  if (normalized.startsWith('xbox')) return true;
+  if (normalized.endsWith(' console')) return true;
+  if (normalized.endsWith(' setup')) return true;
+
+  return false;
 }
 
 bool _looksLikeFacilityLabel(String value) {

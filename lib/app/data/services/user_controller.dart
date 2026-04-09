@@ -160,6 +160,29 @@ class UserController extends GetxController {
     });
   }
 
+  void updatePhoneNumber(String phone) {
+    final normalized = phone.trim();
+    if (normalized.isEmpty) return;
+
+    user.update((val) {
+      if (val == null) return;
+      val.contact ??= Contact(
+        electronicAddress: ElectronicAddress(emailId: '', mobileNo: ''),
+        physicalAddress: PhysicalAddress(
+          country: '',
+          addressLine1: '',
+          addressLine2: '',
+          state: '',
+        ),
+      );
+      val.contact?.electronicAddress ??= ElectronicAddress(
+        emailId: '',
+        mobileNo: '',
+      );
+      val.contact?.electronicAddress?.mobileNo = normalized;
+    });
+  }
+
   // inside class UserController extends GetxController {
   final remoteRepo = locator<RemoteRepoInterface>();
 

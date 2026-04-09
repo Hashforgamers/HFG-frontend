@@ -2659,7 +2659,11 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png';
 
     bool _looksLikeConsoleLabel(String value) {
-      final v = value.trim().toLowerCase();
+      final v = value
+          .trim()
+          .toLowerCase()
+          .replaceAll(RegExp(r'[_-]+'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ');
       if (v.isEmpty) return true;
       const invalidLabels = <String>{
         'n/a',
@@ -2672,6 +2676,11 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       if (invalidLabels.contains(v)) return true;
       const blocked = <String>{
         'pc',
+        'pcs',
+        'gaming pc',
+        'gaming pcs',
+        'pc setup',
+        'pc setups',
         'xbox',
         'xbox one',
         'xbox series',
@@ -2679,13 +2688,38 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         'xbox series x',
         'playstation',
         'play station',
+        'playstation 4',
+        'playstation 5',
         'ps',
         'ps4',
         'ps5',
         'vr',
+        'vr headset',
+        'virtual reality',
       };
       if (blocked.contains(v)) return true;
+      const blockedKeywords = <String>[
+        'playstation',
+        'play station',
+        'xbox',
+        'gaming pc',
+        'pc setup',
+        'pc station',
+        'console setup',
+        'nintendo switch',
+        'switch console',
+        'steam deck',
+        'arcade',
+        'racing rig',
+        'simulator',
+        'vip room',
+        'private room',
+        'bootcamp room',
+      ];
+      if (blockedKeywords.any(v.contains)) return true;
       if (v.startsWith('ps') && v.length <= 4) return true;
+      if (v.endsWith(' console')) return true;
+      if (v.endsWith(' setup')) return true;
       return false;
     }
 
@@ -2747,6 +2781,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         final game = Map<String, dynamic>.from(item);
         final name = _gameName(game);
         if (name.isEmpty) continue;
+        if (_looksLikeConsoleLabel(name)) continue;
         displayGames.add({'name': name, 'image': _gameImage(game)});
       }
 
