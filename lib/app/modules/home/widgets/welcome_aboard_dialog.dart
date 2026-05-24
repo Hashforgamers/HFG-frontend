@@ -219,30 +219,79 @@ class WelcomeAboardDialog extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'You\'ve unlocked ',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Text(
-                              ' ₹30 bonus crate! 🎁',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: const Color(0xff00DC00),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                        const Text(
+                          'You\'ve unlocked',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                          ),
                         ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF0C1F0C),
+                                Color(0xFF123A12),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(
+                                0xff00DC00,
+                              ).withValues(alpha: 0.45),
+                              width: 1.3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(
+                                  0xff00DC00,
+                                ).withValues(alpha: 0.18),
+                                blurRadius: 18,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: const TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '₹30',
+                                  style: TextStyle(
+                                    fontSize: 34,
+                                    height: 1,
+                                    color: Color(0xff00DC00),
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.6,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: ' bonus crate',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    height: 1.2,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         const Text(
                           'Use it to book your favourite cafe today!',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.white,

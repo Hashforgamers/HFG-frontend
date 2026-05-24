@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
@@ -29,6 +30,14 @@ import '../../../routes/app_routes.dart';
 import 'package:hash/core/utils/app_logger.dart';
 
 class LoginController extends GetxController {
+  static const List<String> _googleBasicScopes = <String>['email', 'profile'];
+
+  static const List<String> _googlePeopleScopes = <String>[
+    'https://www.googleapis.com/auth/user.birthday.read',
+    'https://www.googleapis.com/auth/user.gender.read',
+    'https://www.googleapis.com/auth/user.addresses.read',
+  ];
+
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
   final userModel.UserController userController = Get.put(
     userModel.UserController(),
@@ -249,30 +258,35 @@ class LoginController extends GetxController {
     try {
       final advertisingId = await deviceIdentifierService
           .getPreferredAdvertisingId();
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        scopes: const <String>[
-          'email',
-          'profile',
-          'https://www.googleapis.com/auth/user.birthday.read',
-          'https://www.googleapis.com/auth/user.gender.read',
-          'https://www.googleapis.com/auth/user.addresses.read',
-        ],
-      );
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return; // cancelled
+      final Map<String, dynamic> googleProfile;
+      final firebase_auth.UserCredential cred;
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final googleProfile = await _fetchGooglePeopleProfile(
-        accessToken: googleAuth.accessToken,
-      );
+      if (Platform.isAndroid) {
+        cred = await _auth.signInWithProvider(
+          firebase_auth.GoogleAuthProvider(),
+        );
+        googleProfile = const <String, dynamic>{};
+      } else {
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          scopes: _googleBasicScopes,
+        );
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser == null) return; // cancelled
 
-      final credential = firebase_auth.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+        googleProfile = await _fetchGooglePeopleProfile(
+          googleSignIn: googleSignIn,
+          accessToken: googleAuth.accessToken,
+        );
 
-      final cred = await _auth.signInWithCredential(credential);
+        final credential = firebase_auth.GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        cred = await _auth.signInWithCredential(credential);
+      }
       final user = cred.user;
 
       if (user == null) {
@@ -309,6 +323,18 @@ class LoginController extends GetxController {
         autoSignupIfMissing: true,
         googleProfile: googleProfile,
       );
+    } on PlatformException catch (e) {
+      if (Platform.isAndroid &&
+          (e.message ?? '').toLowerCase().contains(
+            'main thread can lead to deadlock',
+          )) {
+        _showErrorSnackbar(
+          'Google Sign-In failed',
+          'Please update Google Play Services and try again.',
+        );
+      } else {
+        _showErrorSnackbar('Google Sign-In failed', e.toString());
+      }
     } catch (e) {
       _showErrorSnackbar('Google Sign-In failed', e.toString());
     } finally {
@@ -713,6 +739,11 @@ class LoginController extends GetxController {
       debugPrint(
         '[iOS Signup][Auto] Conflict | provider=$providerLabel | firebaseUid=${user.uid} | state=${e.state} | email=${e.email}',
       );
+      if (e.state == 'COOLDOWN_ACTIVE') {
+        _showErrorSnackbar('Signup blocked', e.message);
+        return null;
+      }
+
       if (e.state == 'EMAIL_EXISTS') {
         final profileEmail = (profile['email'] ?? '').toString().trim();
         final resolvedConflictEmail = (e.email ?? '').trim().isNotEmpty
@@ -859,17 +890,38 @@ class LoginController extends GetxController {
   }
 
   Future<Map<String, dynamic>> _fetchGooglePeopleProfile({
+    required GoogleSignIn googleSignIn,
     required String? accessToken,
   }) async {
-    final token = (accessToken ?? '').trim();
+    var token = (accessToken ?? '').trim();
     if (token.isEmpty) return const <String, dynamic>{};
 
     try {
+      final hasPeopleScopes = await googleSignIn.canAccessScopes(
+        _googlePeopleScopes,
+        accessToken: token,
+      );
+
+      if (!hasPeopleScopes) {
+        final scopesGranted = await googleSignIn.requestScopes(
+          _googlePeopleScopes,
+        );
+        if (!scopesGranted) {
+          AppLogger.d(
+            'Google People profile fetch skipped: user declined extra scopes',
+          );
+          return const <String, dynamic>{};
+        }
+
+        final refreshedAuth = await googleSignIn.currentUser?.authentication;
+        token = refreshedAuth?.accessToken?.trim() ?? token;
+      }
+
       final dio = locator<NetworkProvider>().noAuth();
       final response = await dio.get(
         'https://people.googleapis.com/v1/people/me',
         queryParameters: {
-          'personFields': 'names,photos,genders,birthdays,addresses,locations',
+          'personFields': 'names,photos,genders,birthdays,addresses',
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -884,7 +936,6 @@ class LoginController extends GetxController {
       final genders = (data['genders'] as List?) ?? const [];
       final birthdays = (data['birthdays'] as List?) ?? const [];
       final addresses = (data['addresses'] as List?) ?? const [];
-      final locations = (data['locations'] as List?) ?? const [];
 
       final firstNameMap = names.isNotEmpty && names.first is Map
           ? Map<String, dynamic>.from(names.first as Map)
@@ -901,19 +952,13 @@ class LoginController extends GetxController {
       final firstAddressMap = addresses.isNotEmpty && addresses.first is Map
           ? Map<String, dynamic>.from(addresses.first as Map)
           : const <String, dynamic>{};
-      final firstLocationMap = locations.isNotEmpty && locations.first is Map
-          ? Map<String, dynamic>.from(locations.first as Map)
-          : const <String, dynamic>{};
 
       final dob = _formatGoogleDob(firstBirthdayMap['date']);
       final name = (firstNameMap['displayName'] ?? '').toString().trim();
       final photoUrl = (firstPhotoMap['url'] ?? '').toString().trim();
       final gender = (firstGenderMap['value'] ?? '').toString().trim();
 
-      final country =
-          (firstAddressMap['country'] ?? firstLocationMap['country'] ?? '')
-              .toString()
-              .trim();
+      final country = (firstAddressMap['country'] ?? '').toString().trim();
       final state = (firstAddressMap['region'] ?? '').toString().trim();
       final addressLine1 = (firstAddressMap['formattedValue'] ?? '')
           .toString()
@@ -932,6 +977,14 @@ class LoginController extends GetxController {
           name.isNotEmpty ? name : 'Hash Player',
         ),
       };
+    } on DioException catch (e) {
+      AppLogger.d(
+        'Google People profile fetch skipped: '
+        'status=${e.response?.statusCode} '
+        'data=${e.response?.data} '
+        'message=${e.message}',
+      );
+      return const <String, dynamic>{};
     } catch (e) {
       AppLogger.d('Google People profile fetch skipped: $e');
       return const <String, dynamic>{};

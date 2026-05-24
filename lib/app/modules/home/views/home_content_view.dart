@@ -49,6 +49,8 @@ class HomeContentView extends StatefulWidget {
 
 class _HomeContentViewState extends State<HomeContentView>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
+  static final Set<String> _welcomePopupSessionHandledUsers = <String>{};
+
   // Controllers
   late final BookingController bookingController;
   late final LoginController loginController;
@@ -229,7 +231,7 @@ class _HomeContentViewState extends State<HomeContentView>
     }
   }
 
-  void _showWelcomePopup(BuildContext context) {
+  void _showWelcomePopup(BuildContext context, String userKey) {
     showDialog(
       useSafeArea: false,
       context: context,
@@ -239,16 +241,19 @@ class _HomeContentViewState extends State<HomeContentView>
           onClaim: () async {
             await Haptics.success();
             final claimed = await Get.find<WalletController>().claimDropCrate();
-            if (!claimed) return;
+            if (!claimed) {
+              _welcomePopupSessionHandledUsers.remove(userKey);
+              return;
+            }
 
             final backendUserId = userController.userId.trim();
             final firebaseUid =
                 firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
-            final userKey = backendUserId.isNotEmpty
+            final resolvedUserKey = backendUserId.isNotEmpty
                 ? backendUserId
                 : firebaseUid;
-            if (userKey.isNotEmpty) {
-              await prefs.setBool('drop_crate_claimed_$userKey', true);
+            if (resolvedUserKey.isNotEmpty) {
+              await prefs.setBool('drop_crate_claimed_$resolvedUserKey', true);
             }
             await prefs.setBool('new_user_bonus_pending', false);
           },
@@ -258,8 +263,7 @@ class _HomeContentViewState extends State<HomeContentView>
   }
 
   Future<void> _maybeShowWelcomePopupForNewUser() async {
-    if (_welcomeClaimGateHandled || !mounted) return;
-    _welcomeClaimGateHandled = true;
+    if (!mounted) return;
 
     final pending = prefs.getBool('new_user_bonus_pending') ?? false;
     if (!pending) return;
@@ -269,6 +273,13 @@ class _HomeContentViewState extends State<HomeContentView>
         firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
     final userKey = backendUserId.isNotEmpty ? backendUserId : firebaseUid;
     if (userKey.isEmpty) return;
+    if (_welcomeClaimGateHandled ||
+        _welcomePopupSessionHandledUsers.contains(userKey)) {
+      return;
+    }
+
+    _welcomeClaimGateHandled = true;
+    _welcomePopupSessionHandledUsers.add(userKey);
 
     final claimedKey = 'drop_crate_claimed_$userKey';
     final alreadyClaimed = prefs.getBool(claimedKey) ?? false;
@@ -278,7 +289,7 @@ class _HomeContentViewState extends State<HomeContentView>
     }
 
     if (!mounted) return;
-    _showWelcomePopup(context);
+    _showWelcomePopup(context, userKey);
   }
 
   Future<void> _refreshData({bool forceRefresh = true}) async {

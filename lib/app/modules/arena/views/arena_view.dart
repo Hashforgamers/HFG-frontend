@@ -24,11 +24,19 @@ import 'package:geocoding/geocoding.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart'
     hide NetworkProvider;
 import 'package:hash/app/modules/arena/utils/arena_games_extractor.dart';
+import 'package:hash/app/modules/chat/models/chat_user_model.dart';
+import 'package:hash/app/modules/chat/services/chat_service.dart';
+import 'package:hash/app/modules/chat/views/chat_room_view.dart';
+import 'package:hash/app/modules/arena/controllers/nearby_teammates_controller.dart';
+import 'package:hash/app/modules/arena/models/nearby_teammate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import '../../../../utils/service.dart';
 import '../../../../utils/widgets/loader.dart';
 import 'arena_view_detailed.dart';
+
+enum _DiscoveryMode { cafes, teammates }
 
 class ArenaView extends StatefulWidget {
   const ArenaView({super.key});
@@ -38,6 +46,10 @@ class ArenaView extends StatefulWidget {
 }
 
 class _ArenaViewState extends State<ArenaView> {
+  static const String _teammatesPromptDismissedKey =
+      'arena_teammates_prompt_dismissed_v1';
+  static const String _teammatesLocationVisibleKey =
+      'arena_teammates_location_visible_v1';
   static const Duration _stateCacheTtl = Duration(minutes: 30);
   static final Map<String, String> _stateCache = <String, String>{};
   static final Map<String, DateTime> _stateCacheTime = <String, DateTime>{};
@@ -49,19 +61,25 @@ class _ArenaViewState extends State<ArenaView> {
   final CybercafesController _cafeCtr = Get.put(
     CybercafesController(remoteRepo: locator<RemoteRepoInterface>()),
   );
+  final NearbyTeammatesController _teammatesCtr = Get.put(
+    NearbyTeammatesController(),
+  );
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
   final LocationPermissionService _locationPermissionService =
       locator<LocationPermissionService>();
+  final SharedPreferences _prefs = locator<SharedPreferences>();
 
   late GoogleMapController _mapCtr;
   late final loc.Location _loc = _locationPermissionService.location;
   StreamSubscription<loc.LocationData>? _locationSub;
   late final Worker _cafesWorker;
+  late final Worker _teammatesWorker;
   bool _hasLocationPermission = false; // add
 
   final RxSet<Marker> markers = <Marker>{}.obs;
   final RxSet<Polyline> polylines = <Polyline>{}.obs;
+  final Rx<_DiscoveryMode> _discoveryMode = _DiscoveryMode.cafes.obs;
 
   late final String _gmapsKey = AppKeys.googleMapsApiKey;
   late final _polylinePoints = PolylinePoints(apiKey: _gmapsKey); // was ''
@@ -70,10 +88,14 @@ class _ArenaViewState extends State<ArenaView> {
   final PageController _cafePageController = PageController(
     viewportFraction: 0.9,
   );
+  final PageController _teammatePageController = PageController(
+    viewportFraction: 0.88,
+  );
   Timer? _camDebounce;
 
   LatLng? _userLatLng;
   String? _selectedCafeId;
+  String? _selectedTeammateId;
   String _mapStyle = '';
 
   // Location-based filtering
@@ -90,8 +112,13 @@ class _ArenaViewState extends State<ArenaView> {
   bool _mapReady = false; // NEW
   bool _playedZoom = false; // NEW
   bool _mapDisposed = false;
+  bool _teammatesPromptResolved = false;
 
-  BitmapDescriptor? _markerUser, _markerCafe, _markerCafeHighlighted;
+  BitmapDescriptor? _markerUser,
+      _markerCafe,
+      _markerCafeHighlighted,
+      _markerGamer,
+      _markerGamerHighlighted;
   String _normState(String? s) {
     if (s == null) return '';
     final t = s.trim().toLowerCase();
@@ -161,6 +188,14 @@ class _ArenaViewState extends State<ArenaView> {
     _cafesWorker = ever<List<dynamic>>(_cafeCtr.cybercafes, (_) {
       _applyCafeFilterAndRefresh();
     });
+    _teammatesWorker = ever<List<NearbyTeammate>>(
+      _teammatesCtr.filteredTeammates,
+      (_) {
+        if (_discoveryMode.value == _DiscoveryMode.teammates) {
+          _refreshTeammateMarkers();
+        }
+      },
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -198,8 +233,10 @@ class _ArenaViewState extends State<ArenaView> {
     _mapReady = false;
     _locationSub?.cancel();
     _cafesWorker.dispose();
+    _teammatesWorker.dispose();
     _searchCtl.dispose();
     _cafePageController.dispose();
+    _teammatePageController.dispose();
     _camDebounce?.cancel();
     if (shouldDisposeMap) {
       try {
@@ -241,6 +278,12 @@ class _ArenaViewState extends State<ArenaView> {
     _markerCafeHighlighted = BitmapDescriptor.defaultMarkerWithHue(
       BitmapDescriptor.hueRed,
     );
+    _markerGamer = BitmapDescriptor.defaultMarkerWithHue(
+      BitmapDescriptor.hueViolet,
+    );
+    _markerGamerHighlighted = BitmapDescriptor.defaultMarkerWithHue(
+      BitmapDescriptor.hueAzure,
+    );
 
     if (!mounted) return;
     if (_mapReady && _mapStyle.isNotEmpty) {
@@ -248,7 +291,7 @@ class _ArenaViewState extends State<ArenaView> {
         await _mapCtr.setMapStyle(_mapStyle);
       } catch (_) {}
     }
-    _refreshCafeMarkers();
+    _refreshActiveMarkers();
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -278,6 +321,7 @@ class _ArenaViewState extends State<ArenaView> {
       if (lat.abs() < 0.0001 && lng.abs() < 0.0001) return;
 
       _userLatLng = LatLng(lat, lng);
+      unawaited(_loadTeammatesForCurrentLocation());
       _tryPlayZoom();
 
       // Optional: first valid update via stream
@@ -287,7 +331,8 @@ class _ArenaViewState extends State<ArenaView> {
         if (la != null && lo != null) {
           if (_userLatLng == null) {
             _userLatLng = LatLng(la, lo);
-            _addUserMarker();
+            unawaited(_loadTeammatesForCurrentLocation());
+            _refreshActiveMarkers();
             _tryPlayZoom();
             _locationSub?.cancel();
           }
@@ -607,8 +652,143 @@ class _ArenaViewState extends State<ArenaView> {
     }
   }
 
-  void _addUserMarker() {
-    _refreshCafeMarkers();
+  Future<void> _loadTeammatesForCurrentLocation() async {
+    final position = _userLatLng;
+    if (position == null) return;
+    final isVisible = _prefs.getBool(_teammatesLocationVisibleKey) ?? true;
+    _teammatesCtr.locationVisible.value = isVisible;
+    await _teammatesCtr.loadNearby(position);
+    if (!mounted || _discoveryMode.value != _DiscoveryMode.teammates) return;
+    _refreshTeammateMarkers();
+  }
+
+  Future<bool> _ensureTeammatesPromptResolved() async {
+    if (_teammatesPromptResolved) return true;
+
+    final dontShowAgain = _prefs.getBool(_teammatesPromptDismissedKey) ?? false;
+    if (dontShowAgain) {
+      _teammatesPromptResolved = true;
+      _teammatesCtr.locationVisible.value =
+          _prefs.getBool(_teammatesLocationVisibleKey) ?? true;
+      return true;
+    }
+
+    final position = _userLatLng;
+    if (position == null) {
+      Get.snackbar(
+        'Location needed',
+        'Enable GPS to find nearby gamers.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
+    }
+
+    bool dontShow = false;
+    bool shareLocation = _prefs.getBool(_teammatesLocationVisibleKey) ?? true;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xff0B0D0B),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              title: Text(
+                'Find your nearby gamer',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Use your device GPS to discover gamers around you.',
+                    style: GoogleFonts.inter(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 14),
+                  SwitchListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: const Color(0xff00DC00),
+                    title: Text(
+                      'Show my location',
+                      style: GoogleFonts.inter(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      shareLocation
+                          ? 'Others can discover you nearby.'
+                          : 'You stay hidden but can still discover others.',
+                      style: GoogleFonts.inter(color: Colors.white54),
+                    ),
+                    value: shareLocation,
+                    onChanged: (value) {
+                      setDialogState(() => shareLocation = value);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: const Color(0xff00DC00),
+                    checkColor: Colors.black,
+                    title: Text(
+                      "Don't show this again",
+                      style: GoogleFonts.inter(color: Colors.white),
+                    ),
+                    value: dontShow,
+                    onChanged: (value) {
+                      setDialogState(() => dontShow = value ?? false);
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(
+                    'Not now',
+                    style: GoogleFonts.inter(color: Colors.white70),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff00DC00),
+                    foregroundColor: Colors.black,
+                  ),
+                  child: const Text('Continue'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      await _switchDiscoveryMode(_DiscoveryMode.cafes);
+      return false;
+    }
+
+    await _prefs.setBool(_teammatesLocationVisibleKey, shareLocation);
+    if (dontShow) {
+      await _prefs.setBool(_teammatesPromptDismissedKey, true);
+    }
+
+    _teammatesPromptResolved = true;
+    _teammatesCtr.locationVisible.value = shareLocation;
+    await _teammatesCtr.setLocationVisibility(
+      visible: shareLocation,
+      userLocation: position,
+    );
+    return true;
   }
 
   void _applyCafeFilterAndRefresh() {
@@ -650,6 +830,7 @@ class _ArenaViewState extends State<ArenaView> {
   }
 
   void _refreshCafeMarkers() {
+    if (_discoveryMode.value != _DiscoveryMode.cafes) return;
     final nextMarkers = <Marker>{};
     if (_userLatLng != null) {
       nextMarkers.add(
@@ -684,6 +865,68 @@ class _ArenaViewState extends State<ArenaView> {
       ..clear()
       ..addAll(nextMarkers);
     _pruneDistanceCaches();
+  }
+
+  void _refreshActiveMarkers() {
+    if (_discoveryMode.value == _DiscoveryMode.teammates) {
+      _refreshTeammateMarkers();
+    } else {
+      _refreshCafeMarkers();
+    }
+  }
+
+  void _refreshTeammateMarkers() {
+    final nextMarkers = <Marker>{};
+    if (_userLatLng != null) {
+      nextMarkers.add(
+        Marker(
+          markerId: const MarkerId('me'),
+          position: _userLatLng!,
+          icon: _markerUser ?? BitmapDescriptor.defaultMarker,
+        ),
+      );
+    }
+
+    for (final teammate in _teammatesCtr.filteredTeammates) {
+      final pos = LatLng(teammate.latitude, teammate.longitude);
+      nextMarkers.add(
+        Marker(
+          markerId: MarkerId('teammate_${teammate.id}'),
+          position: pos,
+          icon: teammate.id == _selectedTeammateId
+              ? (_markerGamerHighlighted ?? BitmapDescriptor.defaultMarker)
+              : (_markerGamer ?? BitmapDescriptor.defaultMarker),
+          infoWindow: InfoWindow(title: teammate.username),
+          onTap: () {
+            _selectedTeammateId = teammate.id;
+            _smoothMoveCamera(pos, zoom: 16);
+            _refreshTeammateMarkers();
+            _showTeammateBottomSheet(teammate);
+          },
+        ),
+      );
+    }
+
+    markers
+      ..clear()
+      ..addAll(nextMarkers);
+  }
+
+  Future<void> _switchDiscoveryMode(_DiscoveryMode mode) async {
+    if (_discoveryMode.value == mode) return;
+    _discoveryMode.value = mode;
+    polylines.clear();
+
+    if (mode == _DiscoveryMode.teammates) {
+      final canProceed = await _ensureTeammatesPromptResolved();
+      if (!canProceed) return;
+      if (_teammatesCtr.teammates.isEmpty && _userLatLng != null) {
+        unawaited(_loadTeammatesForCurrentLocation());
+      }
+      _refreshTeammateMarkers();
+    } else {
+      _refreshCafeMarkers();
+    }
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -946,9 +1189,15 @@ class _ArenaViewState extends State<ArenaView> {
                       ),
                     ),
 
-                    // Search bar
                     Positioned(
-                      top: 20,
+                      top: 16,
+                      left: 16,
+                      right: 16,
+                      child: _buildDiscoveryModeToggle(),
+                    ),
+
+                    Positioned(
+                      top: 74,
                       left: 16,
                       right: 16,
                       child: Container(
@@ -956,31 +1205,53 @@ class _ArenaViewState extends State<ArenaView> {
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: TextField(
-                          controller: _searchCtl,
-                          style: GoogleFonts.inter(color: Colors.white),
-                          cursorColor: const Color(0xff00DC00),
-                          decoration: InputDecoration(
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              color: Colors.white70,
-                            ),
-                            hintText: 'Search location',
-                            hintStyle: GoogleFonts.inter(color: Colors.white70),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 16,
-                            ),
+                        child: Obx(
+                          () => AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 240),
+                            child: _discoveryMode.value == _DiscoveryMode.cafes
+                                ? TextField(
+                                    key: const ValueKey('cafe_search'),
+                                    controller: _searchCtl,
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                    ),
+                                    cursorColor: const Color(0xff00DC00),
+                                    decoration: InputDecoration(
+                                      prefixIcon: const Icon(
+                                        Icons.search,
+                                        color: Colors.white70,
+                                      ),
+                                      hintText: 'Search location',
+                                      hintStyle: GoogleFonts.inter(
+                                        color: Colors.white70,
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            vertical: 16,
+                                          ),
+                                    ),
+                                    onTap: () => Get.to(SearchResult()),
+                                  )
+                                : _buildTeammateFilterBar(),
                           ),
-                          onTap: () => Get.to(SearchResult()),
                         ),
                       ),
+                    ),
+
+                    Obx(
+                      () => _discoveryMode.value == _DiscoveryMode.teammates
+                          ? Positioned(
+                              right: 16,
+                              bottom: 18,
+                              child: _buildFindSquadButton(),
+                            )
+                          : const SizedBox.shrink(),
                     ),
                   ],
                 ),
               ),
             ),
-            // Nearby Cafes Section
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -991,131 +1262,956 @@ class _ArenaViewState extends State<ArenaView> {
                     topRight: Radius.circular(8),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildCafeHeader(),
-                    Expanded(
-                      child: Obx(
-                        () => _filteredCafes.isEmpty
-                            ? Center(
-                                child: SingleChildScrollView(
-                                  reverse: true,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (_cafeCtr.isLoading.value &&
-                                          _cafeCtr.cybercafes.isEmpty)
-                                        AppLinearLoader(),
-                                      if (!_cafeCtr.isLoading.value &&
-                                          _cafeCtr.cybercafes.isEmpty)
-                                        Text(
-                                          'Unable to load cafes right now',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 14,
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      if (!_cafeCtr.isLoading.value &&
-                                          _cafeCtr.cybercafes.isNotEmpty &&
-                                          _userState != null)
-                                        Text(
-                                          'No cafes available in $_userState',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 14,
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      const SizedBox(height: 8),
-                                      if (!_cafeCtr.isLoading.value &&
-                                          _cafeCtr.cybercafes.isEmpty)
-                                        GestureDetector(
-                                          onTap: () {
-                                            _cafeCtr.fetchCybercafes(
-                                              forceRefresh: true,
-                                            );
-                                          },
-                                          child: Text(
-                                            'Retry',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 14,
-                                              color: const Color(0xff00DC00),
-                                            ),
-                                          ),
-                                        ),
-                                      if (!_cafeCtr.isLoading.value &&
-                                          _cafeCtr.cybercafes.isNotEmpty &&
-                                          _userState != null)
-                                        GestureDetector(
-                                          onTap: () {
-                                            _showingAllCafes.value = true;
-                                            _filteredCafes.assignAll(
-                                              _sortCafesByDistance(
-                                                _cafeCtr.cybercafes
-                                                    .cast<
-                                                      Map<String, dynamic>
-                                                    >(),
-                                              ),
-                                            );
-                                            _refreshCafeMarkers();
-                                          },
-                                          child: Text(
-                                            'Show all cafes',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 14,
-                                              color: const Color(0xff00DC00),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : PageView.builder(
-                                controller: _cafePageController,
-                                padEnds: false,
-                                onPageChanged: _focusCafeByIndex,
-                                itemCount: _filteredCafes.length,
-                                itemBuilder: (_, i) {
-                                  final cafe = _filteredCafes[i];
-                                  final imgs =
-                                      (cafe['images'] as List?) ?? const [];
-                                  final img = imgs.isEmpty
-                                      ? 'https://next-level.gg/assets/cafes/11.jpg'
-                                      : (imgs.first is Map &&
-                                                (imgs.first as Map)['url'] !=
-                                                    null
-                                            ? (imgs.first as Map)['url']
-                                                  as String
-                                            : 'https://next-level.gg/assets/cafes/11.jpg');
-                                  final pos = _latLngFromCafe(cafe);
-                                  final id = '${cafe['id'] ?? cafe.hashCode}';
-                                  return Padding(
-                                    padding: EdgeInsets.only(
-                                      left: i == 0 ? 16 : 8,
-                                      right: i == _filteredCafes.length - 1
-                                          ? 16
-                                          : 8,
-                                    ),
-                                    child: _buildCafeCard(
-                                      id,
-                                      pos,
-                                      img,
-                                      cafe,
-                                      imgs,
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
-                    ),
-                  ],
+                child: Obx(
+                  () => AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: _discoveryMode.value == _DiscoveryMode.cafes
+                        ? _buildCafeDiscoveryPanel()
+                        : _buildTeammateDiscoveryPanel(),
+                  ),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCafeDiscoveryPanel() {
+    return Column(
+      key: const ValueKey('cafes_panel'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildCafeHeader(),
+        Expanded(
+          child: Obx(
+            () => _filteredCafes.isEmpty
+                ? Center(
+                    child: SingleChildScrollView(
+                      reverse: true,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_cafeCtr.isLoading.value &&
+                              _cafeCtr.cybercafes.isEmpty)
+                            AppLinearLoader(),
+                          if (!_cafeCtr.isLoading.value &&
+                              _cafeCtr.cybercafes.isEmpty)
+                            Text(
+                              'Unable to load cafes right now',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          if (!_cafeCtr.isLoading.value &&
+                              _cafeCtr.cybercafes.isNotEmpty &&
+                              _userState != null)
+                            Text(
+                              'No cafes available in $_userState',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          const SizedBox(height: 8),
+                          if (!_cafeCtr.isLoading.value &&
+                              _cafeCtr.cybercafes.isEmpty)
+                            GestureDetector(
+                              onTap: () {
+                                _cafeCtr.fetchCybercafes(forceRefresh: true);
+                              },
+                              child: Text(
+                                'Retry',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  color: const Color(0xff00DC00),
+                                ),
+                              ),
+                            ),
+                          if (!_cafeCtr.isLoading.value &&
+                              _cafeCtr.cybercafes.isNotEmpty &&
+                              _userState != null)
+                            GestureDetector(
+                              onTap: () {
+                                _showingAllCafes.value = true;
+                                _filteredCafes.assignAll(
+                                  _sortCafesByDistance(
+                                    _cafeCtr.cybercafes
+                                        .cast<Map<String, dynamic>>(),
+                                  ),
+                                );
+                                _refreshCafeMarkers();
+                              },
+                              child: Text(
+                                'Show all cafes',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  color: const Color(0xff00DC00),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  )
+                : PageView.builder(
+                    controller: _cafePageController,
+                    padEnds: false,
+                    onPageChanged: _focusCafeByIndex,
+                    itemCount: _filteredCafes.length,
+                    itemBuilder: (_, i) {
+                      final cafe = _filteredCafes[i];
+                      final imgs = (cafe['images'] as List?) ?? const [];
+                      final img = imgs.isEmpty
+                          ? 'https://next-level.gg/assets/cafes/11.jpg'
+                          : (imgs.first is Map &&
+                                    (imgs.first as Map)['url'] != null
+                                ? (imgs.first as Map)['url'] as String
+                                : 'https://next-level.gg/assets/cafes/11.jpg');
+                      final pos = _latLngFromCafe(cafe);
+                      final id = '${cafe['id'] ?? cafe.hashCode}';
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          left: i == 0 ? 16 : 8,
+                          right: i == _filteredCafes.length - 1 ? 16 : 8,
+                        ),
+                        child: _buildCafeCard(id, pos, img, cafe, imgs),
+                      );
+                    },
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTeammateDiscoveryPanel() {
+    return Column(
+      key: const ValueKey('teammates_panel'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildTeammateHeader(),
+        Expanded(
+          child: Obx(() {
+            if (_teammatesCtr.isLoading.value &&
+                _teammatesCtr.filteredTeammates.isEmpty) {
+              return const Center(child: RainbowGlowingLoader(size: 46));
+            }
+            if (_userLatLng == null) {
+              return _buildTeammateEmptyState(
+                'Enable location to discover gamers nearby',
+              );
+            }
+            if (_teammatesCtr.filteredTeammates.isEmpty) {
+              return _buildTeammateEmptyState(
+                'No teammates match your filters',
+              );
+            }
+            return PageView.builder(
+              controller: _teammatePageController,
+              padEnds: false,
+              onPageChanged: _focusTeammateByIndex,
+              itemCount: _teammatesCtr.filteredTeammates.length,
+              itemBuilder: (_, index) {
+                final teammate = _teammatesCtr.filteredTeammates[index];
+                return Padding(
+                  padding: EdgeInsets.only(
+                    left: index == 0 ? 16 : 8,
+                    right: index == _teammatesCtr.filteredTeammates.length - 1
+                        ? 16
+                        : 8,
+                  ),
+                  child: _buildTeammateCard(teammate),
+                );
+              },
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDiscoveryModeToggle() {
+    return Obx(
+      () => Container(
+        height: 46,
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.72),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        ),
+        child: Row(
+          children: [
+            _buildModeSegment(
+              label: 'Cafes',
+              icon: Icons.local_cafe_outlined,
+              mode: _DiscoveryMode.cafes,
+            ),
+            _buildModeSegment(
+              label: 'Teammates',
+              icon: Icons.sports_esports_outlined,
+              mode: _DiscoveryMode.teammates,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeSegment({
+    required String label,
+    required IconData icon,
+    required _DiscoveryMode mode,
+  }) {
+    final selected = _discoveryMode.value == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          unawaited(_switchDiscoveryMode(mode));
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xff00DC00).withValues(alpha: 0.92)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: selected ? Colors.black : Colors.white70,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  color: selected ? Colors.black : Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeammateFilterBar() {
+    return SizedBox(
+      key: const ValueKey('teammate_filters'),
+      height: 52,
+      child: Row(
+        children: [
+          const SizedBox(width: 12),
+          const Icon(Icons.tune, color: Color(0xff00DC00), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Obx(
+              () => Text(
+                '${_teammatesCtr.filteredTeammates.length} gamers nearby',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: _showTeammateFiltersSheet,
+            child: Text(
+              'Filters',
+              style: GoogleFonts.inter(
+                color: const Color(0xff00DC00),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFindSquadButton() {
+    return BounceTap(
+      onTap: _handleFindSquad,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xff00DC00),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xff00DC00).withValues(alpha: 0.32),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.groups_2_outlined, color: Colors.black, size: 19),
+            const SizedBox(width: 8),
+            Text(
+              'Find Squad',
+              style: GoogleFonts.inter(
+                color: Colors.black,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeammateHeader() {
+    return Obx(
+      () => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+        child: Row(
+          children: [
+            Text(
+              'Nearby Teammates',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xff00DC00).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xff00DC00)),
+              ),
+              child: Text(
+                '${_teammatesCtr.filteredTeammates.length} found',
+                style: GoogleFonts.inter(
+                  color: const Color(0xff00DC00),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeammateEmptyState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.sports_esports_outlined,
+              color: Colors.white.withValues(alpha: 0.45),
+              size: 42,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () {
+                _teammatesCtr.clearFilters();
+                unawaited(_loadTeammatesForCurrentLocation());
+              },
+              child: Text(
+                'Refresh',
+                style: GoogleFonts.inter(color: const Color(0xff00DC00)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeammateCard(NearbyTeammate teammate) {
+    final pos = LatLng(teammate.latitude, teammate.longitude);
+    return BounceTap(
+      onTap: () {
+        _selectedTeammateId = teammate.id;
+        _smoothMoveCamera(pos, zoom: 16);
+        _refreshTeammateMarkers();
+        _showTeammateBottomSheet(teammate);
+      },
+      child: Container(
+        width: 330,
+        height: 150,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xff070907),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: const Color(0xff00DC00).withValues(alpha: 0.28),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xff00DC00).withValues(alpha: 0.10),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            _buildAvatar(teammate.avatar, size: 62),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          teammate.username,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      _statusDot(teammate.online),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${teammate.compatibilityScore.round()}% compatibility',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xff00DC00),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${teammate.rank} • ${teammate.playStyle}',
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    teammate.games.join(', '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatar(String url, {double size = 58}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xff00DC00), width: 2),
+        color: Colors.white.withValues(alpha: 0.08),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: CachedNetworkImage(
+        imageUrl: url,
+        fit: BoxFit.cover,
+        placeholder: (_, _) => const RainbowGlowingLoader(size: 24),
+        errorWidget: (_, _, _) =>
+            const Icon(Icons.person, color: Colors.white70),
+      ),
+    );
+  }
+
+  Widget _statusDot(bool online) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.circle,
+          color: online ? const Color(0xff00DC00) : Colors.white38,
+          size: 9,
+        ),
+        const SizedBox(width: 5),
+        Text(
+          online ? 'Online' : 'Away',
+          style: GoogleFonts.inter(
+            color: online ? const Color(0xff00DC00) : Colors.white54,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _focusTeammateByIndex(int index) {
+    if (index < 0 || index >= _teammatesCtr.filteredTeammates.length) return;
+    final teammate = _teammatesCtr.filteredTeammates[index];
+    _selectedTeammateId = teammate.id;
+    _smoothMoveCamera(LatLng(teammate.latitude, teammate.longitude), zoom: 16);
+    _refreshTeammateMarkers();
+  }
+
+  void _handleFindSquad() {
+    final squad = _teammatesCtr.findSquad();
+    if (squad.isEmpty) {
+      Get.snackbar('Find Squad', 'No compatible teammates found');
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xff080A08),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Best Squad Match',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ...squad.map(
+                  (teammate) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        _buildAvatar(teammate.avatar, size: 42),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            teammate.username,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${teammate.compatibilityScore.round()}%',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xff00DC00),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xff00DC00),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: const Icon(Icons.send_outlined),
+                    label: const Text('Invite Squad'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showTeammateBottomSheet(NearbyTeammate teammate) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xff080A08),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _buildAvatar(teammate.avatar, size: 64),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            teammate.username,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          _statusDot(teammate.online),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                _teammateDetailRow(
+                  'Compatibility',
+                  '${teammate.compatibilityScore.round()}%',
+                ),
+                _teammateDetailRow('Rank', teammate.rank),
+                _teammateDetailRow('Games', teammate.games.join(', ')),
+                _teammateDetailRow('Language', teammate.languages.join(', ')),
+                _teammateDetailRow('Mic', teammate.micEnabled ? 'Yes' : 'No'),
+                _teammateDetailRow('Play style', teammate.playStyle),
+                _teammateDetailRow('Online', teammate.online ? 'Yes' : 'No'),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xff00DC00),
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('Invite'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => _openTeammateChat(teammate),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('Chat'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.22),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('View Profile'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openTeammateChat(NearbyTeammate teammate) async {
+    final chatService = Get.isRegistered<ChatService>()
+        ? Get.find<ChatService>()
+        : Get.put(ChatService(), permanent: true);
+    try {
+      final roomId = await chatService.getOrCreateDirectRoom(
+        otherUser: ChatUserModel(
+          uid: teammate.id,
+          displayName: teammate.username,
+          username: teammate.username.toLowerCase().replaceAll(' ', ''),
+          email: '',
+          phoneNumber: '',
+          photoUrl: teammate.avatar,
+          isOnline: teammate.online,
+          updatedAt: DateTime.now(),
+          lastSeenAt: null,
+        ),
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      await Get.to(() => ChatRoomView(roomId: roomId));
+    } catch (_) {
+      Get.snackbar(
+        'Chat unavailable',
+        'Could not open chat with ${teammate.username}.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  Widget _teammateDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 112,
+            child: Text(
+              '$label:',
+              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTeammateFiltersSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xff080A08),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Obx(
+            () => SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Teammate Filters',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: _teammatesCtr.clearFilters,
+                        child: Text(
+                          'Reset',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xff00DC00),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  _filterChoices(
+                    title: 'Game',
+                    values: _teammatesCtr.availableGames,
+                    selected: _teammatesCtr.selectedGame.value,
+                    onSelected: (value) {
+                      _teammatesCtr.selectedGame.value = value;
+                      _teammatesCtr.applyFilters();
+                    },
+                  ),
+                  _filterChoices(
+                    title: 'Rank',
+                    values: _teammatesCtr.availableRanks,
+                    selected: _teammatesCtr.selectedRank.value,
+                    onSelected: (value) {
+                      _teammatesCtr.selectedRank.value = value;
+                      _teammatesCtr.applyFilters();
+                    },
+                  ),
+                  _filterChoices(
+                    title: 'Language',
+                    values: _teammatesCtr.availableLanguages,
+                    selected: _teammatesCtr.selectedLanguage.value,
+                    onSelected: (value) {
+                      _teammatesCtr.selectedLanguage.value = value;
+                      _teammatesCtr.applyFilters();
+                    },
+                  ),
+                  _filterChoices(
+                    title: 'Play style',
+                    values: _teammatesCtr.availablePlayStyles,
+                    selected: _teammatesCtr.selectedPlayStyle.value,
+                    onSelected: (value) {
+                      _teammatesCtr.selectedPlayStyle.value = value;
+                      _teammatesCtr.applyFilters();
+                    },
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: const Color(0xff00DC00),
+                    title: Text(
+                      'Mic required',
+                      style: GoogleFonts.inter(color: Colors.white),
+                    ),
+                    value: _teammatesCtr.micRequired.value,
+                    onChanged: (value) {
+                      _teammatesCtr.micRequired.value = value;
+                      _teammatesCtr.applyFilters();
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Compatibility score: ${_teammatesCtr.minimumCompatibility.value.round()}%+',
+                    style: GoogleFonts.inter(color: Colors.white),
+                  ),
+                  Slider(
+                    value: _teammatesCtr.minimumCompatibility.value,
+                    min: 0,
+                    max: 100,
+                    divisions: 10,
+                    activeColor: const Color(0xff00DC00),
+                    inactiveColor: Colors.white.withValues(alpha: 0.18),
+                    onChanged: (value) {
+                      _teammatesCtr.minimumCompatibility.value = value;
+                      _teammatesCtr.applyFilters();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _filterChoices({
+    required String title,
+    required List<String> values,
+    required String? selected,
+    required ValueChanged<String?> onSelected,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _filterChip(
+                label: 'Any',
+                selected: selected == null,
+                onTap: () => onSelected(null),
+              ),
+              ...values.map(
+                (value) => _filterChip(
+                  label: value,
+                  selected: selected == value,
+                  onTap: () => onSelected(value),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: const Color(0xff00DC00),
+      backgroundColor: Colors.white.withValues(alpha: 0.08),
+      labelStyle: GoogleFonts.inter(
+        color: selected ? Colors.black : Colors.white70,
+        fontWeight: FontWeight.w700,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      side: BorderSide(
+        color: selected
+            ? const Color(0xff00DC00)
+            : Colors.white.withValues(alpha: 0.14),
       ),
     );
   }
@@ -1170,9 +2266,9 @@ class _ArenaViewState extends State<ArenaView> {
 
               // memCacheWidth: 660,
               // memCacheHeight: 280,
-              placeholder: (_, __) =>
+              placeholder: (_, _) =>
                   const Center(child: RainbowGlowingLoader(size: 40)),
-              errorWidget: (_, __, ___) => Container(
+              errorWidget: (_, _, _) => Container(
                 color: Colors.grey,
                 alignment: Alignment.center,
                 child: const Icon(

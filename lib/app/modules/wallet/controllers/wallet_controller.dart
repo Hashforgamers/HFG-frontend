@@ -446,12 +446,10 @@ class WalletController extends GetxController {
     // Use Future.microtask to avoid calling during build
     Future.microtask(() {
       Haptics.success();
-      Get.snackbar(
-        'Success',
-        message,
+      _showSnackbarMessage(
+        title: 'Success',
+        message: message,
         backgroundColor: const Color(0xff00DC00),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
       );
     });
   }
@@ -460,14 +458,58 @@ class WalletController extends GetxController {
     // Use Future.microtask to avoid calling during build
     Future.microtask(() {
       Haptics.error();
-      Get.snackbar(
-        'Error',
-        message,
+      _showSnackbarMessage(
+        title: 'Error',
+        message: message,
         backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
       );
     });
+  }
+
+  void _showSnackbarMessage({
+    required String title,
+    required String message,
+    required Color backgroundColor,
+  }) {
+    final context = Get.context;
+    final messenger = context != null ? ScaffoldMessenger.maybeOf(context) : null;
+    if (messenger != null) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('$title: $message'),
+            backgroundColor: backgroundColor,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      return;
+    }
+
+    final overlayContext = Get.overlayContext;
+    if (overlayContext != null &&
+        Overlay.maybeOf(overlayContext, rootOverlay: true) != null) {
+      try {
+        Get.snackbar(
+          title,
+          message,
+          backgroundColor: backgroundColor,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      } catch (e, st) {
+        AppLogger.d('WalletController snackbar fallback failed: $e');
+        AppLogger.d('$st');
+      }
+    }
+
+    AppLogger.d(
+      'WalletController message dropped due to missing overlay: '
+      'title=$title message=$message',
+    );
   }
 
   // Analytics tracking methods

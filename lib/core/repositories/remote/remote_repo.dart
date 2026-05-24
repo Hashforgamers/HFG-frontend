@@ -134,21 +134,22 @@ class RemoteRepo implements RemoteRepoInterface {
           '[iOS Signup][API] DioException | status=${e.response?.statusCode} | data=${e.response?.data} | message=${e.message}',
         );
         final responseData = e.response?.data;
-        if (e.response?.statusCode == 409 && responseData is Map) {
-          final state = (responseData['state'] ?? '').toString().trim();
-          if (state == 'EMAIL_EXISTS') {
-            final details = responseData['details'];
-            final email = details is Map
-                ? (details['email'] ?? '').toString().trim()
-                : '';
-            throw AuthConflictException(
-              state: state,
-              message:
-                  (responseData['message'] ?? 'This email is already in use.')
-                      .toString(),
-              email: email.isEmpty ? null : email,
-            );
-          }
+        if ((e.response?.statusCode == 409 || e.response?.statusCode == 429) &&
+            responseData is Map) {
+          final state = (responseData['state'] ?? 'CONFLICT')
+              .toString()
+              .trim();
+          final details = responseData['details'];
+          final email = details is Map
+              ? (details['email'] ?? '').toString().trim()
+              : '';
+          throw AuthConflictException(
+            state: state.isEmpty ? 'CONFLICT' : state,
+            message:
+                (responseData['message'] ?? 'A conflicting account already exists.')
+                    .toString(),
+            email: email.isEmpty ? null : email,
+          );
         }
         // If it's a retryable error, let the interceptor handle it
         if (ApiErrorHandler.shouldRetry(e)) {
