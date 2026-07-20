@@ -34,13 +34,13 @@ class ArenaDetailInfoSection extends StatelessWidget {
         const SizedBox(height: 12),
         LayoutBuilder(
           builder: (context, constraints) {
-            final isCompact = constraints.maxWidth < 360;
+            final isCompact = constraints.maxWidth < 430;
             final cards = [
               _InfoCard(
                 icon: Icons.place_rounded,
                 title: 'Location',
                 value: address,
-                accentColor: const Color(0xFF7C4DFF),
+                accentColor: const Color(0xFF00DC00),
                 useMarquee: true,
               ),
               _TimingCard(

@@ -234,12 +234,26 @@ class ReferFriendModal extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Text(
-            'Invite Friends, Earn Faster',
-            style: GoogleFonts.orbitron(
-              color: Colors.white,
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Invite Friends, ',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                TextSpan(
+                  text: 'Earn Faster',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF00DC00),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 6),

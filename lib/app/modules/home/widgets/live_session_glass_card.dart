@@ -217,25 +217,13 @@ class _LiveSessionGlassCardState extends State<LiveSessionGlassCard>
                                       ),
                                     ),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 7,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.06,
-                                      ),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    child: Text(
-                                      'LIVE',
-                                      style: GoogleFonts.inter(
-                                        color: _brandGreen,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.7,
-                                      ),
+                                  Text(
+                                    'LIVE',
+                                    style: GoogleFonts.inter(
+                                      color: _brandGreen,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.7,
                                     ),
                                   ),
                                 ],

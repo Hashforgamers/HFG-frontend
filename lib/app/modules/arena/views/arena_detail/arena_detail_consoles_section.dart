@@ -6,11 +6,13 @@ import 'package:hash/utils/widgets/loader.dart';
 class ArenaDetailConsolesSection extends StatelessWidget {
   final RxBool isLoading;
   final RxList<dynamic> games;
+  final ValueChanged<String>? onConsoleTap;
 
   const ArenaDetailConsolesSection({
     super.key,
     required this.isLoading,
     required this.games,
+    this.onConsoleTap,
   });
 
   @override
@@ -20,7 +22,11 @@ class ArenaDetailConsolesSection extends StatelessWidget {
       children: [
         Text(
           'Available Consoles',
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -34,18 +40,6 @@ class ArenaDetailConsolesSection extends StatelessWidget {
             final types = <Map<String, String>>[];
             for (final g in games) {
               if (g is! Map) continue;
-              final parentAvailableValue =
-                  g['available'] ??
-                  g['is_available'] ??
-                  g['isAvailable'] ??
-                  g['bookable'];
-              final parentCountValue =
-                  g['count'] ??
-                  g['available_slot'] ??
-                  g['available_slots'] ??
-                  g['total_slots'];
-              final parentIsAvailable = _truthy(parentAvailableValue);
-              final parentAvailableCount = _asInt(parentCountValue);
               final consoles = g['consoles'];
               if (consoles is List && consoles.isNotEmpty) {
                 for (final c in consoles) {
@@ -62,16 +56,18 @@ class ArenaDetailConsolesSection extends StatelessWidget {
                       c['count'] ??
                       c['total_slots'];
                   final isAvailable = availableValue == null
-                      ? parentIsAvailable
+                      ? true
                       : _truthy(availableValue);
                   final availableCount = countValue == null
-                      ? parentAvailableCount
+                      ? 1
                       : _asInt(countValue);
                   if (!isAvailable || availableCount <= 0) continue;
                   final rawLabel =
                       (c['console_display_name'] ??
                               c['console_slug'] ??
                               c['console_type'] ??
+                              c['consoleType'] ??
+                              c['type'] ??
                               '')
                           .toString()
                           .trim();
@@ -94,11 +90,16 @@ class ArenaDetailConsolesSection extends StatelessWidget {
                     g['available_slots'] ??
                     g['total_slots'];
                 final isAvailable = _truthy(availableValue);
-                final availableCount = _asInt(countValue);
+                final availableCount = countValue == null
+                    ? (isAvailable ? 1 : 0)
+                    : _asInt(countValue);
                 if (!isAvailable || availableCount <= 0) continue;
                 final rawLabel =
                     (g['console_display_name'] ??
                             g['console_slug'] ??
+                            g['console_type'] ??
+                            g['consoleType'] ??
+                            g['type'] ??
                             g['game_platform'] ??
                             '')
                         .toString()
@@ -116,10 +117,10 @@ class ArenaDetailConsolesSection extends StatelessWidget {
               return ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
-                  _consoleIcon('PC'),
-                  _consoleIcon('XBOX'),
-                  _consoleIcon('PS5'),
-                  _consoleIcon('VR'),
+                  _consoleIcon('PC', consoleType: 'pc'),
+                  _consoleIcon('XBOX', consoleType: 'xbox'),
+                  _consoleIcon('PS5', consoleType: 'ps5'),
+                  _consoleIcon('VR', consoleType: 'vr_headset'),
                 ],
               );
             }
@@ -130,7 +131,8 @@ class ArenaDetailConsolesSection extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(width: 0),
               itemBuilder: (context, index) {
                 final name = types[index]['label'] ?? '';
-                return _consoleIcon(name);
+                final consoleType = types[index]['key'] ?? '';
+                return _consoleIcon(name, consoleType: consoleType);
               },
             );
           }),
@@ -215,51 +217,55 @@ class ArenaDetailConsolesSection extends StatelessWidget {
     }
   }
 
-  Widget _consoleIcon(String label) {
+  Widget _consoleIcon(String label, {required String consoleType}) {
     final fallbackIcon = _getConsoleFallbackIcon(label);
     final accent = _getConsoleAccentColor(label);
     final imageUrl = _getConsoleImage(label);
     return Padding(
       padding: const EdgeInsets.only(right: 6),
-      child: Column(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  accent.withValues(alpha: 0.28),
-                  accent.withValues(alpha: 0.12),
-                ],
+      child: InkWell(
+        onTap: onConsoleTap == null ? null : () => onConsoleTap!(consoleType),
+        borderRadius: BorderRadius.circular(24),
+        child: Column(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    accent.withValues(alpha: 0.28),
+                    accent.withValues(alpha: 0.12),
+                  ],
+                ),
+                border: Border.all(color: accent.withValues(alpha: 0.38)),
               ),
-              border: Border.all(color: accent.withValues(alpha: 0.38)),
+              child: Padding(
+                padding: const EdgeInsets.all(11),
+                child: imageUrl.isEmpty
+                    ? Icon(fallbackIcon, color: accent, size: 22)
+                    : Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            Icon(fallbackIcon, color: accent, size: 22),
+                      ),
+              ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(11),
-              child: imageUrl.isEmpty
-                  ? Icon(fallbackIcon, color: accent, size: 22)
-                  : Image.network(
-                      imageUrl,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          Icon(fallbackIcon, color: accent, size: 22),
-                    ),
+            const SizedBox(height: 6),
+            SizedBox(
+              width: 64,
+              height: 16,
+              child: _ConsoleMarqueeText(
+                text: label,
+                style: GoogleFonts.inter(fontSize: 11, color: Colors.white),
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
-            width: 64,
-            height: 16,
-            child: _ConsoleMarqueeText(
-              text: label,
-              style: GoogleFonts.inter(fontSize: 11, color: Colors.white),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -326,41 +332,7 @@ class ArenaDetailConsolesSection extends StatelessWidget {
   }
 
   Color _getConsoleAccentColor(String consoleName) {
-    final lower = consoleName.toLowerCase();
-    if (lower.contains('xbox')) {
-      return const Color(0xFF2EBE60);
-    }
-    if (lower.contains('playstation') || lower.contains('ps')) {
-      return const Color(0xFF2F6BFF);
-    }
-    if (lower.contains('vr')) {
-      return const Color(0xFF9B5CFF);
-    }
-    if (lower.contains('switch') || lower.contains('nintendo')) {
-      return const Color(0xFFFF4D6D);
-    }
-    if (lower.contains('steam') || lower.contains('deck')) {
-      return const Color(0xFF66D9FF);
-    }
-    if (lower.contains('arcade')) {
-      return const Color(0xFFFF8A3D);
-    }
-    if (lower.contains('racing') || lower.contains('rig')) {
-      return const Color(0xFFFFC14D);
-    }
-    if (lower.contains('simulator')) {
-      return const Color(0xFF7CF5C8);
-    }
-    if (lower.contains('private') && lower.contains('room')) {
-      return const Color(0xFFFF7A59);
-    }
-    if (lower.contains('vip') && lower.contains('room')) {
-      return const Color(0xFFFFD34D);
-    }
-    if (lower.contains('bootcamp') && lower.contains('room')) {
-      return const Color(0xFF8B7CFF);
-    }
-    return const Color(0xFF00C2FF);
+    return const Color(0xFF00DC00);
   }
 }
 

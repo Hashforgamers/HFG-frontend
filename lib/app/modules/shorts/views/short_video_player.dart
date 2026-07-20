@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../controllers/viral_shorts_controller.dart';
 
@@ -6,7 +7,11 @@ class ShortVideoPlayer extends StatefulWidget {
   final List<YouTubeShort> shorts;
   final int initialIndex;
 
-  const ShortVideoPlayer({required this.shorts, this.initialIndex = 0, super.key});
+  const ShortVideoPlayer({
+    required this.shorts,
+    this.initialIndex = 0,
+    super.key,
+  });
 
   @override
   State<ShortVideoPlayer> createState() => _ShortVideoPlayerState();
@@ -28,7 +33,11 @@ class _ShortVideoPlayerState extends State<ShortVideoPlayer> {
         .map((short) => YoutubePlayer.convertUrlToId(short.link))
         .toList(growable: false);
     _pageController = PageController(initialPage: _currentIndex);
-    _ytController = _createController(_currentIndex, autoPlay: true, mute: false);
+    _ytController = _createController(
+      _currentIndex,
+      autoPlay: true,
+      mute: false,
+    );
     _prepareNext(_currentIndex);
   }
 
@@ -111,7 +120,7 @@ class _ShortVideoPlayerState extends State<ShortVideoPlayer> {
         itemCount: widget.shorts.length,
         itemBuilder: (_, index) {
           if (_ytController == null) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppLinearLoader.screen();
           }
           if (index != _currentIndex) {
             return Container(color: Colors.black);

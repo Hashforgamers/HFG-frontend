@@ -10,7 +10,8 @@ import 'package:hash/core/service_locator.dart';
 import '../../utils/widgets/loader.dart';
 
 class GlobalBottomSheetService {
-  static final GlobalBottomSheetService _instance = GlobalBottomSheetService._internal();
+  static final GlobalBottomSheetService _instance =
+      GlobalBottomSheetService._internal();
   factory GlobalBottomSheetService() => _instance;
   GlobalBottomSheetService._internal();
 
@@ -50,19 +51,19 @@ class GlobalBottomSheetService {
         'discount': 10,
         'requiredCoins': 10000,
         'code': 'Hash10',
-        'desc': 'Redeem for just 10,000 HashCoins.'
+        'desc': 'Save on your next cafe booking',
       },
       {
         'discount': 20,
         'requiredCoins': 20000,
         'code': 'Hash20',
-        'desc': 'Redeem for just 20,000 HashCoins.'
+        'desc': 'Save on your next cafe booking',
       },
       {
         'discount': 30,
         'requiredCoins': 30000,
         'code': 'Hash30',
-        'desc': 'Redeem for just 30,000 HashCoins.'
+        'desc': 'Save on your next cafe booking',
       },
     ];
 
@@ -71,6 +72,7 @@ class GlobalBottomSheetService {
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.38),
       isScrollControlled: true,
       builder: (context) {
         return MultiBlocProvider(
@@ -84,7 +86,9 @@ class GlobalBottomSheetService {
                 onLoading();
               } else if (state is CreateOfferSuccess) {
                 Navigator.pop(context);
-                onSuccess('Successfully redeemed! Your voucher has been created.');
+                onSuccess(
+                  'Successfully redeemed! Your voucher has been created.',
+                );
               } else if (state is CreateOfferFailure) {
                 Navigator.pop(context);
                 onError(state.message);
@@ -92,16 +96,32 @@ class GlobalBottomSheetService {
             },
             child: StatefulBuilder(
               builder: (context, setState) {
-                const accent = Color(0xffFF7A00);
+                const accent = Color(0xff00DC00);
                 return FractionallySizedBox(
-                  heightFactor: 0.78,
+                  heightFactor: 0.74,
                   child: Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0xff0D0D0D),
-                      borderRadius: BorderRadius.only(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xE6161818), Color(0xD6080A08)],
+                      ),
+                      borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(28),
                         topRight: Radius.circular(28),
                       ),
+                      border: Border(
+                        top: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.14),
+                        ),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 28,
+                          offset: const Offset(0, -8),
+                        ),
+                      ],
                     ),
                     child: ClipRRect(
                       borderRadius: const BorderRadius.only(
@@ -109,7 +129,7 @@ class GlobalBottomSheetService {
                         topRight: Radius.circular(28),
                       ),
                       child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
                         child: SafeArea(
                           top: false,
                           child: Padding(
@@ -122,7 +142,9 @@ class GlobalBottomSheetService {
                                     width: 42,
                                     height: 4,
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.22),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.22,
+                                      ),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                   ),
@@ -132,12 +154,13 @@ class GlobalBottomSheetService {
                                   children: [
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Redeem HashCoins',
                                             style: GoogleFonts.inter(
-                                              fontSize: 22,
+                                              fontSize: 21,
                                               color: Colors.white,
                                               fontWeight: FontWeight.w800,
                                             ),
@@ -158,10 +181,18 @@ class GlobalBottomSheetService {
                                       child: Container(
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.08),
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.08,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
-                                        child: const Icon(Icons.close, color: Colors.white, size: 20),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -171,8 +202,11 @@ class GlobalBottomSheetService {
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xff2B180C), Color(0xff141414)],
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        accent.withValues(alpha: 0.14),
+                                        Colors.white.withValues(alpha: 0.035),
+                                      ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
@@ -188,13 +222,18 @@ class GlobalBottomSheetService {
                                         height: 44,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: accent.withValues(alpha: 0.16),
+                                          color: accent.withValues(alpha: 0.12),
                                         ),
-                                        child: const Icon(Icons.auto_awesome, color: accent, size: 24),
+                                        child: const Icon(
+                                          Icons.auto_awesome,
+                                          color: accent,
+                                          size: 24,
+                                        ),
                                       ),
                                       const SizedBox(width: 12),
                                       Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Balance',
@@ -208,79 +247,159 @@ class GlobalBottomSheetService {
                                           Text(
                                             '${_formatHashCoins(hashCoin)} HC',
                                             style: GoogleFonts.inter(
-                                              fontSize: 24,
+                                              fontSize: 22,
                                               color: accent,
                                               fontWeight: FontWeight.w800,
                                             ),
                                           ),
                                         ],
                                       ),
+                                      const Spacer(),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Available',
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white60,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(height: 18),
-                                Text(
-                                  'Choose Voucher',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Choose a reward',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 9,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: accent.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '${vouchers.length} rewards',
+                                        style: GoogleFonts.inter(
+                                          color: accent,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 10),
                                 Expanded(
                                   child: ListView.separated(
                                     itemCount: vouchers.length,
-                                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                                    separatorBuilder: (_, _) =>
+                                        const SizedBox(height: 10),
                                     itemBuilder: (context, i) {
                                       final voucher = vouchers[i];
-                                      final int requiredCoins = voucher['requiredCoins'] as int;
-                                      final int discount = voucher['discount'] as int;
-                                      final String code = voucher['code'] as String;
-                                      final String desc = voucher['desc'] as String;
-                                      final bool hasEnough = hashCoin >= requiredCoins;
-                                      final bool isSelected = selectedVoucher == i;
-                                      final int coinsNeeded = requiredCoins - hashCoin;
+                                      final int requiredCoins =
+                                          voucher['requiredCoins'] as int;
+                                      final int discount =
+                                          voucher['discount'] as int;
+                                      final String code =
+                                          voucher['code'] as String;
+                                      final String desc =
+                                          voucher['desc'] as String;
+                                      final bool hasEnough =
+                                          hashCoin >= requiredCoins;
+                                      final bool isSelected =
+                                          selectedVoucher == i;
+                                      final int coinsNeeded =
+                                          requiredCoins - hashCoin;
                                       return GestureDetector(
-                                        onTap: hasEnough ? () => setState(() => selectedVoucher = i) : null,
+                                        onTap: hasEnough
+                                            ? () => setState(
+                                                () => selectedVoucher = i,
+                                              )
+                                            : null,
                                         child: AnimatedContainer(
-                                          duration: const Duration(milliseconds: 220),
-                                          padding: const EdgeInsets.all(14),
+                                          duration: const Duration(
+                                            milliseconds: 220,
+                                          ),
+                                          padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
                                             color: isSelected
                                                 ? accent.withValues(alpha: 0.14)
-                                                : Colors.white.withValues(alpha: 0.03),
-                                            borderRadius: BorderRadius.circular(16),
+                                                : Colors.white.withValues(
+                                                    alpha: 0.045,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
                                             border: Border.all(
                                               color: isSelected
                                                   ? accent
                                                   : hasEnough
-                                                      ? Colors.white.withValues(alpha: 0.16)
-                                                      : Colors.white.withValues(alpha: 0.08),
+                                                  ? Colors.white.withValues(
+                                                      alpha: 0.16,
+                                                    )
+                                                  : Colors.white.withValues(
+                                                      alpha: 0.08,
+                                                    ),
                                             ),
                                           ),
                                           child: Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Container(
-                                                width: 40,
-                                                height: 40,
+                                                width: 38,
+                                                height: 38,
                                                 decoration: BoxDecoration(
                                                   color: hasEnough
-                                                      ? accent.withValues(alpha: 0.16)
-                                                      : Colors.white.withValues(alpha: 0.06),
-                                                  borderRadius: BorderRadius.circular(12),
+                                                      ? accent.withValues(
+                                                          alpha: 0.16,
+                                                        )
+                                                      : Colors.white.withValues(
+                                                          alpha: 0.06,
+                                                        ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
                                                 ),
                                                 child: Icon(
                                                   Icons.local_offer_rounded,
-                                                  color: hasEnough ? accent : Colors.white54,
+                                                  color: hasEnough
+                                                      ? accent
+                                                      : Colors.white54,
                                                   size: 20,
                                                 ),
                                               ),
                                               const SizedBox(width: 12),
                                               Expanded(
                                                 child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
                                                     Row(
                                                       children: [
@@ -288,9 +407,14 @@ class GlobalBottomSheetService {
                                                           child: Text(
                                                             '$discount% OFF',
                                                             style: GoogleFonts.inter(
-                                                              fontSize: 17,
-                                                              fontWeight: FontWeight.w800,
-                                                              color: hasEnough ? Colors.white : Colors.white54,
+                                                              fontSize: 16,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                              color: hasEnough
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                        .white54,
                                                             ),
                                                           ),
                                                         ),
@@ -298,8 +422,12 @@ class GlobalBottomSheetService {
                                                           '${_formatHashCoins(requiredCoins)} HC',
                                                           style: GoogleFonts.inter(
                                                             fontSize: 12,
-                                                            fontWeight: FontWeight.w700,
-                                                            color: hasEnough ? accent : Colors.white54,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            color: hasEnough
+                                                                ? accent
+                                                                : Colors
+                                                                      .white54,
                                                           ),
                                                         ),
                                                       ],
@@ -309,36 +437,66 @@ class GlobalBottomSheetService {
                                                       desc,
                                                       style: GoogleFonts.inter(
                                                         fontSize: 12,
-                                                        color: hasEnough ? Colors.white70 : Colors.white54,
+                                                        color: hasEnough
+                                                            ? Colors.white70
+                                                            : Colors.white54,
                                                       ),
                                                     ),
                                                     const SizedBox(height: 8),
                                                     Row(
                                                       children: [
                                                         Container(
-                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 8,
+                                                                vertical: 4,
+                                                              ),
                                                           decoration: BoxDecoration(
-                                                            color: Colors.white.withValues(alpha: 0.08),
-                                                            borderRadius: BorderRadius.circular(8),
+                                                            color: accent
+                                                                .withValues(
+                                                                  alpha: 0.08,
+                                                                ),
+                                                            border: Border.all(
+                                                              color: accent
+                                                                  .withValues(
+                                                                    alpha: 0.12,
+                                                                  ),
+                                                            ),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  8,
+                                                                ),
                                                           ),
                                                           child: Text(
                                                             code,
                                                             style: GoogleFonts.inter(
                                                               fontSize: 11,
-                                                              fontWeight: FontWeight.w700,
-                                                              color: Colors.white70,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                              color: hasEnough
+                                                                  ? accent
+                                                                  : Colors
+                                                                        .white70,
                                                             ),
                                                           ),
                                                         ),
                                                         if (!hasEnough) ...[
-                                                          const SizedBox(width: 8),
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
                                                           Expanded(
                                                             child: Text(
                                                               'Need ${_formatHashCoins(coinsNeeded)} more',
                                                               style: GoogleFonts.inter(
                                                                 fontSize: 11,
-                                                                color: const Color(0xffFF5A5A),
-                                                                fontWeight: FontWeight.w600,
+                                                                color:
+                                                                    const Color(
+                                                                      0xffFF5A5A,
+                                                                    ),
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
                                                               ),
                                                             ),
                                                           ),
@@ -351,10 +509,16 @@ class GlobalBottomSheetService {
                                               const SizedBox(width: 6),
                                               Icon(
                                                 hasEnough
-                                                    ? (isSelected ? Icons.check_circle : Icons.radio_button_unchecked)
-                                                    : Icons.lock_outline_rounded,
+                                                    ? (isSelected
+                                                          ? Icons.check_circle
+                                                          : Icons
+                                                                .radio_button_unchecked)
+                                                    : Icons
+                                                          .lock_outline_rounded,
                                                 color: hasEnough
-                                                    ? (isSelected ? accent : Colors.white54)
+                                                    ? (isSelected
+                                                          ? accent
+                                                          : Colors.white54)
                                                     : Colors.white38,
                                                 size: 20,
                                               ),
@@ -368,39 +532,67 @@ class GlobalBottomSheetService {
                                 const SizedBox(height: 12),
                                 BlocBuilder<CreateOfferCubit, CreateOfferState>(
                                   builder: (context, state) {
-                                    final isLoading = state is CreateOfferLoading;
-                                    final canRedeem = selectedVoucher != null && !isLoading;
+                                    final isLoading =
+                                        state is CreateOfferLoading;
+                                    final canRedeem =
+                                        selectedVoucher != null && !isLoading;
+                                    final hasRedeemableVoucher = vouchers.any(
+                                      (voucher) =>
+                                          hashCoin >=
+                                          (voucher['requiredCoins'] as int),
+                                    );
                                     final ctaText = selectedVoucher != null
                                         ? 'Redeem ${vouchers[selectedVoucher!]['discount']}% OFF'
-                                        : 'Select voucher to continue';
+                                        : hasRedeemableVoucher
+                                        ? 'Select a reward to continue'
+                                        : 'Earn more HashCoins to unlock';
                                     return GestureDetector(
                                       onTap: canRedeem
                                           ? () {
-                                              final voucher = vouchers[selectedVoucher!];
-                                              final int discount = voucher['discount'] as int;
-                                              _processRedemption(discount, hashCoin);
+                                              final voucher =
+                                                  vouchers[selectedVoucher!];
+                                              final int discount =
+                                                  voucher['discount'] as int;
+                                              _processRedemption(
+                                                discount,
+                                                hashCoin,
+                                              );
                                             }
                                           : null,
                                       child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 180),
+                                        duration: const Duration(
+                                          milliseconds: 180,
+                                        ),
                                         width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
                                           gradient: canRedeem
-                                              ? const LinearGradient(
-                                                  colors: [Color(0xffFF8A1F), Color(0xffFF5F00)],
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
+                                              ? LinearGradient(
+                                                  colors: [
+                                                    accent,
+                                                    accent.withValues(
+                                                      alpha: 0.78,
+                                                    ),
+                                                  ],
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter,
                                                 )
                                               : null,
                                           color: canRedeem
                                               ? null
-                                              : Colors.white.withValues(alpha: 0.14),
+                                              : Colors.white.withValues(
+                                                  alpha: 0.14,
+                                                ),
                                         ),
                                         child: isLoading
                                             ? Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
                                                 children: [
                                                   const SizedBox(
                                                     width: 20,
@@ -412,7 +604,8 @@ class GlobalBottomSheetService {
                                                     'Processing...',
                                                     style: GoogleFonts.inter(
                                                       fontSize: 16,
-                                                      fontWeight: FontWeight.w700,
+                                                      fontWeight:
+                                                          FontWeight.w700,
                                                       color: Colors.white,
                                                     ),
                                                   ),
@@ -424,7 +617,9 @@ class GlobalBottomSheetService {
                                                 style: GoogleFonts.inter(
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.w800,
-                                                  color: Colors.white,
+                                                  color: canRedeem
+                                                      ? Colors.black
+                                                      : Colors.white,
                                                 ),
                                               ),
                                       ),
@@ -473,13 +668,13 @@ class GlobalBottomSheetService {
       default:
         requiredCoins = 10000;
     }
-    
+
     // Check if user has enough coins
     if (hashCoin >= requiredCoins) {
       try {
         final remoteRepo = locator<RemoteRepoInterface>();
         final userData = await remoteRepo.getUserFromPreferences();
-        
+
         if (userData != null) {
           final userId = userData['id']?.toString() ?? '';
           if (userId.isNotEmpty) {
@@ -487,18 +682,27 @@ class GlobalBottomSheetService {
             _createOfferCubit.createOffer(percentage, userId);
           } else {
             // Handle error through callback
-            _createOfferCubit.emit(const CreateOfferFailure(message: 'User ID not found'));
+            _createOfferCubit.emit(
+              const CreateOfferFailure(message: 'User ID not found'),
+            );
           }
         } else {
-          _createOfferCubit.emit(const CreateOfferFailure(message: 'User data not found'));
+          _createOfferCubit.emit(
+            const CreateOfferFailure(message: 'User data not found'),
+          );
         }
       } catch (e) {
-        _createOfferCubit.emit(CreateOfferFailure(message: 'Error processing redemption: $e'));
+        _createOfferCubit.emit(
+          CreateOfferFailure(message: 'Error processing redemption: $e'),
+        );
       }
     } else {
-      _createOfferCubit.emit(CreateOfferFailure(
-        message: 'Insufficient coins. You need ${_formatHashCoins(requiredCoins)} coins for $percentage% redemption.'
-      ));
+      _createOfferCubit.emit(
+        CreateOfferFailure(
+          message:
+              'Insufficient coins. You need ${_formatHashCoins(requiredCoins)} coins for $percentage% redemption.',
+        ),
+      );
     }
   }
 
@@ -512,9 +716,7 @@ class GlobalBottomSheetService {
         ),
         backgroundColor: const Color(0xff00DC00),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 4),
       ),
     );
@@ -530,9 +732,7 @@ class GlobalBottomSheetService {
         ),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 4),
       ),
     );
@@ -544,13 +744,7 @@ class GlobalBottomSheetService {
       SnackBar(
         content: Row(
           children: [
-             SizedBox(
-              width: 20,
-              height: 20,
-              child: AppLinearLoader(
-
-              ),
-            ),
+            SizedBox(width: 20, height: 20, child: AppLinearLoader()),
             const SizedBox(width: 16),
             Text(
               'Processing redemption...',
@@ -560,11 +754,9 @@ class GlobalBottomSheetService {
         ),
         backgroundColor: const Color(0xffDE3A3A),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
       ),
     );
   }
-} 
+}

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
@@ -112,7 +113,7 @@ class _ChatInviteMembersViewState extends State<ChatInviteMembersView> {
     return Scaffold(
       backgroundColor: ChatPalette.bgBottom,
       appBar: AppBar(
-        backgroundColor: ChatPalette.surface,
+        backgroundColor: ChatPalette.bgBottom,
         surfaceTintColor: Colors.transparent,
         title: Text(
           'Invite Members',
@@ -153,6 +154,16 @@ class _ChatInviteMembersViewState extends State<ChatInviteMembersView> {
                     Icons.search,
                     color: ChatPalette.textSecondary,
                   ),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: _searchController.clear,
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: ChatPalette.textSecondary,
+                            size: 18,
+                          ),
+                        ),
                   filled: true,
                   fillColor: ChatPalette.inputFill,
                   contentPadding: const EdgeInsets.symmetric(
@@ -160,8 +171,16 @@ class _ChatInviteMembersViewState extends State<ChatInviteMembersView> {
                     vertical: 12,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: ChatPalette.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: ChatPalette.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: ChatPalette.primary),
                   ),
                 ),
               ),
@@ -185,11 +204,7 @@ class _ChatInviteMembersViewState extends State<ChatInviteMembersView> {
               child: Builder(
                 builder: (_) {
                   if (_isLoadingUsers) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: ChatPalette.primary,
-                      ),
-                    );
+                    return const AppLinearLoader.screen();
                   }
 
                   if (_searchError != null) {
@@ -220,7 +235,7 @@ class _ChatInviteMembersViewState extends State<ChatInviteMembersView> {
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
                     itemCount: _visibleUsers.length,
                     separatorBuilder: (context, index) =>
-                        const SizedBox(height: 8),
+                        const Divider(height: 1, color: ChatPalette.border),
                     itemBuilder: (context, index) {
                       final user = _visibleUsers[index];
                       final isSelected = _selectedIds.contains(user.uid);
@@ -230,19 +245,11 @@ class _ChatInviteMembersViewState extends State<ChatInviteMembersView> {
                       final username = user.username.trim();
 
                       return Ink(
-                        decoration: BoxDecoration(
-                          gradient: ChatPalette.cardGradient,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: isSelected
-                                ? ChatPalette.primary
-                                : ChatPalette.border.withValues(alpha: 0.6),
-                          ),
-                        ),
+                        color: Colors.transparent,
                         child: CheckboxListTile(
                           value: isSelected,
                           activeColor: ChatPalette.primary,
-                          checkColor: Colors.white,
+                          checkColor: Colors.black,
                           title: Text(
                             name,
                             maxLines: 1,

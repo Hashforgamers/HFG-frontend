@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/utils/widgets/loader.dart';
 
 class BookingSummaryBottomBar extends StatelessWidget {
   final double totalPrice;
@@ -82,16 +83,7 @@ class BookingSummaryBottomBar extends StatelessWidget {
                   ),
                 ),
                 child: isProcessing
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
-                        ),
-                      )
+                    ? const AppLinearLoader(width: 34, height: 3)
                     : Text(
                         showSelectPass ? 'Select Pass' : (buttonLabel ?? 'Pay'),
                         style: GoogleFonts.inter(

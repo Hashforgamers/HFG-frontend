@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
@@ -15,6 +16,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/utils/widgets/hash_wordmark.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
@@ -181,7 +183,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: ChatPalette.surface,
+          backgroundColor: ChatPalette.bgBottom,
           title: Text(
             'Delete chat?',
             style: GoogleFonts.inter(
@@ -307,12 +309,20 @@ class _ChatInboxViewState extends State<ChatInboxView> {
         appBar: AppBar(
           backgroundColor: ChatPalette.surface,
           surfaceTintColor: Colors.transparent,
-          title: Text(
-            'Hash Hub Chats',
-            style: GoogleFonts.inter(
-              color: ChatPalette.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const HashWordmark(fontSize: 13, letterSpacing: 2),
+              const SizedBox(width: 8),
+              Text(
+                'HUB CHATS',
+                style: GoogleFonts.michroma(
+                  color: ChatPalette.textPrimary,
+                  fontSize: 13,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
           ),
         ),
         body: DecoratedBox(
@@ -330,38 +340,24 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     return Scaffold(
       backgroundColor: ChatPalette.bgBottom,
       appBar: AppBar(
-        backgroundColor: ChatPalette.surface,
+        backgroundColor: ChatPalette.bgBottom,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: Obx(() {
-          final hasUnread = _chatService.unreadRoomCount.value > 0;
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Hash Hub Chats',
-                style: GoogleFonts.inter(
-                  color: hasUnread
-                      ? ChatPalette.primary
-                      : ChatPalette.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 22,
-                ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const HashWordmark(fontSize: 13, letterSpacing: 2),
+            const SizedBox(width: 8),
+            Text(
+              'HUB',
+              style: GoogleFonts.michroma(
+                color: ChatPalette.textPrimary,
+                fontSize: 13,
+                letterSpacing: 2,
               ),
-              if (hasUnread) ...[
-                const SizedBox(width: 8),
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: ChatPalette.primary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
-            ],
-          );
-        }),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: 'Create group',
@@ -382,9 +378,9 @@ class _ChatInboxViewState extends State<ChatInboxView> {
           Get.to(() => const ChatUserPickerView());
         },
         backgroundColor: ChatPalette.primary,
-        elevation: 10,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        child: const Icon(Icons.add_rounded, size: 30, color: Colors.white),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        child: const Icon(Icons.edit_rounded, size: 22, color: Colors.black),
       ),
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: ChatPalette.pageGradient),
@@ -404,6 +400,17 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                     Icons.search,
                     color: ChatPalette.textSecondary,
                   ),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Clear search',
+                          onPressed: _searchController.clear,
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: ChatPalette.textSecondary,
+                            size: 18,
+                          ),
+                        ),
                   filled: true,
                   fillColor: ChatPalette.inputFill,
                   contentPadding: const EdgeInsets.symmetric(
@@ -411,19 +418,19 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                     vertical: 12,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(
                       color: ChatPalette.border.withValues(alpha: 0.8),
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(
                       color: ChatPalette.border.withValues(alpha: 0.8),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: ChatPalette.primary),
                   ),
                 ),
@@ -447,11 +454,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting &&
                       !(snapshot.hasData)) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: ChatPalette.primary,
-                      ),
-                    );
+                    return const AppLinearLoader.screen();
                   }
 
                   final rooms = _filterRooms(
@@ -470,8 +473,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                       )
                       .toList();
                   final hasVisibleRooms =
-                      activeRooms.isNotEmpty ||
-                      (_showArchived && archivedRooms.isNotEmpty);
+                      activeRooms.isNotEmpty || archivedRooms.isNotEmpty;
 
                   if (!hasVisibleRooms) {
                     return Center(
@@ -495,26 +497,55 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                     ),
                   ];
 
-                  if (_showArchived && archivedRooms.isNotEmpty) {
+                  if (archivedRooms.isNotEmpty) {
                     items.add(
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(6, 14, 6, 8),
-                        child: Text(
-                          'Archived Chats',
-                          style: GoogleFonts.inter(
-                            color: ChatPalette.textSecondary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
+                      InkWell(
+                        onTap: () =>
+                            setState(() => _showArchived = !_showArchived),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(6, 18, 6, 12),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.archive_outlined,
+                                color: ChatPalette.textSecondary,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Text(
+                                  'Archived (${archivedRooms.length})',
+                                  style: GoogleFonts.inter(
+                                    color: ChatPalette.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              AnimatedRotation(
+                                turns: _showArchived ? .5 : 0,
+                                duration: const Duration(milliseconds: 180),
+                                child: const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: ChatPalette.textSecondary,
+                                  size: 20,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     );
-                    items.addAll(
-                      archivedRooms.map(
-                        (room) =>
-                            _buildRoomTile(room: room, currentUid: currentUid),
-                      ),
-                    );
+                    if (_showArchived) {
+                      items.addAll(
+                        archivedRooms.map(
+                          (room) => _buildRoomTile(
+                            room: room,
+                            currentUid: currentUid,
+                          ),
+                        ),
+                      );
+                    }
                   }
 
                   return RefreshIndicator(
@@ -532,7 +563,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 90),
                       itemCount: items.length,
                       separatorBuilder: (context, index) =>
-                          const SizedBox(height: 8),
+                          const SizedBox.shrink(),
                       itemBuilder: (context, index) => items[index],
                     ),
                   );
@@ -547,25 +578,29 @@ class _ChatInboxViewState extends State<ChatInboxView> {
 
   Widget _buildFilterChip(_InboxFilter filter, String label) {
     final selected = _selectedFilter == filter;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedFilter = filter),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          color: selected ? ChatPalette.primary : ChatPalette.surfaceAlt,
-          border: Border.all(
-            color: selected
-                ? Colors.transparent
-                : ChatPalette.border.withValues(alpha: 0.7),
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: selected ? Colors.white : ChatPalette.textSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _selectedFilter = filter),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          child: Column(
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  color: selected
+                      ? ChatPalette.textPrimary
+                      : ChatPalette.textSecondary,
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Container(
+                height: 2,
+                color: selected ? ChatPalette.primary : Colors.transparent,
+              ),
+            ],
           ),
         ),
       ),
@@ -668,7 +703,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.zero,
             onLongPress: actionInProgress
                 ? null
                 : () async {
@@ -689,29 +724,8 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                     Get.to(() => ChatRoomView(roomId: room.id));
                   },
             child: Ink(
-              decoration: BoxDecoration(
-                gradient: isUnread
-                    ? const LinearGradient(
-                        colors: [Color(0xFF1D241A), Color(0xFF111611)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : ChatPalette.cardGradient,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isUnread
-                      ? ChatPalette.primary.withValues(alpha: 0.75)
-                      : ChatPalette.border.withValues(alpha: 0.6),
-                ),
-                boxShadow: isUnread
-                    ? [
-                        BoxShadow(
-                          color: ChatPalette.primary.withValues(alpha: 0.16),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ]
-                    : null,
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: ChatPalette.border)),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -879,32 +893,11 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                               ),
                             ),
                             if (isUnread) ...[
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: ChatPalette.primary.withValues(
-                                    alpha: 0.16,
-                                  ),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: ChatPalette.primary.withValues(
-                                      alpha: 0.65,
-                                    ),
-                                  ),
-                                ),
-                                child: Text(
-                                  'NEW',
-                                  style: GoogleFonts.inter(
-                                    color: ChatPalette.primary,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
+                              const SizedBox(height: 7),
+                              const Icon(
+                                Icons.circle,
+                                color: ChatPalette.primary,
+                                size: 7,
                               ),
                             ],
                             if (isMuted) ...[
@@ -953,14 +946,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: const Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: ChatPalette.primary,
-                              ),
-                            ),
+                            child: AppLinearLoader(width: 42, height: 3),
                           ),
                         ),
                       ),
@@ -975,24 +961,13 @@ class _ChatInboxViewState extends State<ChatInboxView> {
   }
 
   Widget _typeTag(bool isGroup, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: (isGroup ? ChatPalette.accent : ChatPalette.primary)
-              .withValues(alpha: 0.4),
-        ),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: isGroup ? ChatPalette.accent : ChatPalette.primary,
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.25,
-        ),
+    return Text(
+      label,
+      style: GoogleFonts.inter(
+        color: isGroup ? ChatPalette.accent : ChatPalette.primary,
+        fontSize: 8.5,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.3,
       ),
     );
   }

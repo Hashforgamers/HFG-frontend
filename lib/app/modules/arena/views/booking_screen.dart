@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
@@ -48,7 +46,6 @@ class _BookingScreenState extends State<BookingScreen> {
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
   final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
-  late int userId;
   String selectedDate = DateFormat('yyyyMMdd').format(DateTime.now());
   String selectedDateText = DateFormat('dd MMM, yyyy').format(DateTime.now());
   bool _loggedNoSlots = false;
@@ -56,6 +53,7 @@ class _BookingScreenState extends State<BookingScreen> {
   final Set<String> _almostFullLoggedSlots = <String>{};
   final Set<String> _unavailableLoggedSlots = <String>{};
   bool _isLoadingPricingEstimate = false;
+  bool _isOpeningSummary = false;
   Map<String, dynamic>? _pricingEstimate;
 
   int get _requiredSelectionCount =>
@@ -64,7 +62,6 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchUserId();
     controller.fetchSlots(
       vendorId: widget.vendorId,
       gameId: widget.gameId,
@@ -73,13 +70,6 @@ class _BookingScreenState extends State<BookingScreen> {
     _loadPricingEstimate();
 
     // Clear any previous selections when entering the screen
-    controller.clearSelectedSlots();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Clear selections when returning to this screen
     controller.clearSelectedSlots();
   }
 
@@ -189,25 +179,6 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  Future<void> _fetchUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? userDataString = prefs.getString('user_data');
-
-    if (userDataString != null) {
-      final Map<String, dynamic> userData = jsonDecode(userDataString);
-      setState(() {
-        userId = userData['id'];
-      });
-    } else {
-      Get.snackbar(
-        'Error',
-        'User data not found in preferences!',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -232,7 +203,7 @@ class _BookingScreenState extends State<BookingScreen> {
       body: Container(
         decoration: const BoxDecoration(color: Colors.black),
         child: Obx(() {
-          if (controller.isLoading.value) {
+          if (controller.isSlotsLoading.value) {
             return ListView.builder(
               itemCount: 4,
               itemBuilder: (context, index) => Padding(
@@ -255,6 +226,10 @@ class _BookingScreenState extends State<BookingScreen> {
             );
           }
 
+          if (controller.slotsError.value.isNotEmpty) {
+            return _buildSlotsErrorState();
+          }
+
           if (controller.slots.isEmpty) {
             if (!_loggedNoSlots) {
               _loggedNoSlots = true;
@@ -267,37 +242,10 @@ class _BookingScreenState extends State<BookingScreen> {
                 slotTime: selectedDate,
               );
             }
-            return Column(
-              children: [
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.schedule, size: 64, color: Colors.grey[600]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No slots available',
-                          style: GoogleFonts.inter(
-                            color: Colors.grey[400],
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Try selecting a different date',
-                          style: GoogleFonts.inter(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                buildCalendarButton(),
-              ],
+            return _buildEmptySlotsState(
+              icon: Icons.schedule_rounded,
+              title: 'No slots available',
+              message: 'This cafe has no bookable sessions on this date.',
             );
           }
 
@@ -334,37 +282,10 @@ class _BookingScreenState extends State<BookingScreen> {
                 cafeId: widget.vendorId.toString(),
               );
             }
-            return Column(
-              children: [
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.computer, size: 64, color: Colors.grey[600]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No selectable slots right now',
-                          style: GoogleFonts.inter(
-                            color: Colors.grey[400],
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Try a different date to see more slots',
-                          style: GoogleFonts.inter(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                buildCalendarButton(),
-              ],
+            return _buildEmptySlotsState(
+              icon: Icons.sports_esports_rounded,
+              title: 'All slots are booked',
+              message: 'Choose another date to find an available session.',
             );
           }
 
@@ -374,9 +295,105 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
+  Widget _buildEmptySlotsState({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return Column(
+      children: [
+        Expanded(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 420),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 28,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xff111111),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xff242424)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: const BoxDecoration(
+                        color: Color(0xff251515),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, size: 30, color: Color(0xffEF5350)),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xff929292),
+                        fontSize: 14,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xff1C1C1C),
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 15,
+                            color: Color(0xffB8B8B8),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            selectedDateText,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xffD4D4D4),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        buildCalendarButton(),
+      ],
+    );
+  }
+
   Widget buildCalendarButton() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
       decoration: const BoxDecoration(
         color: Color(0xff121212),
         border: Border(top: BorderSide(color: Color(0xff2D2D2D), width: 1)),
@@ -393,7 +410,7 @@ class _BookingScreenState extends State<BookingScreen> {
             },
           );
 
-          if (pickedDate != null) {
+          if (pickedDate != null && mounted) {
             setState(() {
               selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
               selectedDateText = DateFormat('dd MMM, yyyy').format(pickedDate);
@@ -401,27 +418,28 @@ class _BookingScreenState extends State<BookingScreen> {
               _loggedSoldOut = false;
               _almostFullLoggedSlots.clear();
               _unavailableLoggedSlots.clear();
-              controller.fetchSlots(
-                vendorId: widget.vendorId,
-                gameId: widget.gameId,
-                date: selectedDate,
-              );
             });
+            controller.clearSelectedSlots();
+            await controller.fetchSlots(
+              vendorId: widget.vendorId,
+              gameId: widget.gameId,
+              date: selectedDate,
+            );
           }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xffDE3A3A),
-          minimumSize: const Size(double.infinity, 50),
+          minimumSize: const Size(double.infinity, 54),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
           ),
-          elevation: 8,
+          elevation: 0,
         ),
         icon: const Icon(Icons.calendar_today, color: Colors.white),
         label: Text(
-          'SELECT DIFFERENT DATE',
+          'Choose another date',
           style: GoogleFonts.inter(
-            fontSize: 16,
+            fontSize: 15,
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
@@ -520,7 +538,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     },
                   );
 
-                  if (pickedDate != null) {
+                  if (pickedDate != null && mounted) {
                     setState(() {
                       selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
                       selectedDateText = DateFormat(
@@ -530,13 +548,13 @@ class _BookingScreenState extends State<BookingScreen> {
                       _loggedSoldOut = false;
                       _almostFullLoggedSlots.clear();
                       _unavailableLoggedSlots.clear();
-                      controller.clearSelectedSlots();
-                      controller.fetchSlots(
-                        vendorId: widget.vendorId,
-                        gameId: widget.gameId,
-                        date: selectedDate,
-                      );
                     });
+                    controller.clearSelectedSlots();
+                    await controller.fetchSlots(
+                      vendorId: widget.vendorId,
+                      gameId: widget.gameId,
+                      date: selectedDate,
+                    );
                   }
                 },
                 icon: const Icon(Icons.calendar_today, color: Colors.white),
@@ -969,7 +987,9 @@ class _BookingScreenState extends State<BookingScreen> {
               ],
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: totalSelectedSlots > 0 ? onProceed : null,
+                onPressed: totalSelectedSlots > 0 && !_isOpeningSummary
+                    ? onProceed
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: totalSelectedSlots > 0
                       ? const Color(0xff00DC00)
@@ -996,7 +1016,8 @@ class _BookingScreenState extends State<BookingScreen> {
     });
   }
 
-  void onProceed() {
+  Future<void> onProceed() async {
+    if (_isOpeningSummary) return;
     final selectedConsoleCount = _getSelectedConsoleCount();
     final totalSelectedSlots = _getSelectedSlotCount();
     if (totalSelectedSlots == 0 ||
@@ -1046,7 +1067,8 @@ class _BookingScreenState extends State<BookingScreen> {
       consoleAmount: selectedSlotDetails.length,
     );
 
-    Get.to(
+    setState(() => _isOpeningSummary = true);
+    await Get.to(
       () => BookingSummaryScreen(
         selectedCafeName: widget.title,
         consoleType: widget.consoleType,
@@ -1060,6 +1082,57 @@ class _BookingScreenState extends State<BookingScreen> {
         requiredConsoleCount: _requiredSelectionCount,
         selectedSquadMembers: widget.selectedSquadMembers,
       ),
+    );
+    if (mounted) setState(() => _isOpeningSummary = false);
+  }
+
+  Widget _buildSlotsErrorState() {
+    return Column(
+      children: [
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.wifi_off_rounded,
+                    color: Colors.white54,
+                    size: 54,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Slots could not be loaded',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    controller.slotsError.value,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(color: Colors.white60),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: () => controller.fetchSlots(
+                      vendorId: widget.vendorId,
+                      gameId: widget.gameId,
+                      date: selectedDate,
+                    ),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Try again'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        buildCalendarButton(),
+      ],
     );
   }
 

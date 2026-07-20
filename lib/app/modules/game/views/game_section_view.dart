@@ -360,63 +360,82 @@ class _GamesSectionState extends State<GamesSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'GAMES BY DEVELOPERS',
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+    return Obx(() {
+      if (!ctrl.isLoading.value && ctrl.games.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Games by ',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                TextSpan(
+                  text: 'Developers',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF00DC00),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        Obx(() {
-          if (ctrl.isLoading.value && ctrl.games.isEmpty) {
-            return const Center(child: RainbowGlowingLoader(size: 40));
-          }
-          if (ctrl.games.isEmpty) {
-            return Center(
-              child: Text(
-                'No games found',
-                style: GoogleFonts.inter(color: Colors.white),
+          const SizedBox(height: 12),
+          Obx(() {
+            if (ctrl.isLoading.value && ctrl.games.isEmpty) {
+              return const Center(child: RainbowGlowingLoader(size: 40));
+            }
+            if (ctrl.games.isEmpty) {
+              return Center(
+                child: Text(
+                  'No games found',
+                  style: GoogleFonts.inter(color: Colors.white),
+                ),
+              );
+            }
+
+            return SizedBox(
+              height: _listH,
+              child: ListView.separated(
+                controller: _scroll,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                physics: const BouncingScrollPhysics(),
+                itemCount: ctrl.hasMore
+                    ? ctrl.games.length +
+                          1 // trailing loader cell
+                    : ctrl.games.length,
+                separatorBuilder: (_, __) => const SizedBox(width: _gap),
+                itemBuilder: (context, i) {
+                  if (i >= ctrl.games.length) {
+                    // loader cell
+                    return const SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: Center(child: AppLinearLoader()),
+                    );
+                  }
+                  final g = ctrl.games[i];
+                  final bg = ctrl.colorForGame(g);
+                  return RepaintBoundary(
+                    child: GameCard(game: g, backgroundColor: bg),
+                  );
+                },
               ),
             );
-          }
-
-          return SizedBox(
-            height: _listH,
-            child: ListView.separated(
-              controller: _scroll,
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              physics: const BouncingScrollPhysics(),
-              itemCount: ctrl.hasMore
-                  ? ctrl.games.length +
-                        1 // trailing loader cell
-                  : ctrl.games.length,
-              separatorBuilder: (_, __) => const SizedBox(width: _gap),
-              itemBuilder: (context, i) {
-                if (i >= ctrl.games.length) {
-                  // loader cell
-                  return const SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: Center(child: AppLinearLoader()),
-                  );
-                }
-                final g = ctrl.games[i];
-                final bg = ctrl.colorForGame(g);
-                return RepaintBoundary(
-                  child: GameCard(game: g, backgroundColor: bg),
-                );
-              },
-            ),
-          );
-        }),
-      ],
-    );
+          }),
+        ],
+      );
+    });
   }
 }
 

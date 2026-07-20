@@ -227,7 +227,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     }
   }
 
-  Future<void> _startBookingFlow(BuildContext context) async {
+  Future<void> _startBookingFlow(
+    BuildContext context, {
+    String? preferredConsoleType,
+  }) async {
     if (_isBookingFlowLaunching) {
       debugPrint('Skipping duplicate booking flow launch');
       return;
@@ -273,6 +276,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                   context: context,
                   email: widget.email,
                   cartItems: cartItems,
+                  initialConsoleType: preferredConsoleType,
                 );
               },
             ),
@@ -288,6 +292,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             context: context,
             email: widget.email,
             cartItems: null,
+            initialConsoleType: preferredConsoleType,
           );
         }
       } else {
@@ -298,6 +303,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           context: context,
           email: widget.email,
           cartItems: null,
+          initialConsoleType: preferredConsoleType,
         );
       }
     } finally {
@@ -1789,6 +1795,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             children: [
               ArenaDetailHeader(
                 imageUrls: imageUrls,
+                title: widget.title,
                 onBack: () => Navigator.of(context).pop(),
                 onShare: () {
                   final shareText =
@@ -1805,10 +1812,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                 },
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 20,
-                ),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1817,16 +1821,20 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                       address: widget.address,
                       openingHours: widget.openingHours,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     ArenaDetailConsolesSection(
                       isLoading: _gamesController.isLoading,
                       games: _gamesController.games,
+                      onConsoleTap: (consoleType) => _startBookingFlow(
+                        context,
+                        preferredConsoleType: consoleType,
+                      ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     _buildPassesSection(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     gameTitlesGrid(_gamesController),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     amenitiesGrid(widget.amenities, excludeFood: hasFood),
                     if (hasFood) ...[
                       const SizedBox(height: 24),
@@ -1879,13 +1887,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                       ]),
                     ],
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
                     ArenaDetailReviewsSection(
                       vendorId: widget.vendorId,
                       initialReviews: widget.reviews,
                     ),
-                    const SizedBox(height: 80),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -1898,13 +1906,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             bottom: 0,
             child: SafeArea(
               top: false,
-              minimum: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              minimum: const EdgeInsets.fromLTRB(16, 10, 16, 14),
               child: GetX<CafeGamesController>(
                 init: _gamesController,
                 builder: (controller) {
                   return SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 54,
                     child: ElevatedButton(
                       onPressed: () async {
                         await _startBookingFlow(context);
@@ -1915,8 +1923,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                             ? const Color(0xff00DC00)
                             : Colors.grey.shade600,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(14),
                         ),
+                        elevation: 0,
                       ),
                       child: Text(
                         controller.shopOpen.value
@@ -1924,8 +1933,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                             : 'Shop Closed',
                         style: GoogleFonts.inter(
                           fontSize: 16,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
+                          color: controller.shopOpen.value
+                              ? Colors.black
+                              : Colors.white,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -2089,6 +2100,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     required BuildContext context,
     required email,
     List<Map<String, dynamic>>? cartItems,
+    String? initialConsoleType,
   }) async {
     return _openModalOnce<dynamic>('book_slot_sheet', () async {
       final safeEmail = (email ?? widget.email).toString();
@@ -2344,7 +2356,17 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       });
 
       int selectedIndex = 0;
-      for (int i = 0; i < consoleOptions.length; i++) {
+      final preferredType = _normalizeConsoleType(initialConsoleType ?? '');
+      final preferredIndex = consoleOptions.indexWhere(
+        (option) =>
+            _normalizeConsoleType((option['type'] ?? '').toString()) ==
+                preferredType &&
+            (option['total_available'] as int? ?? 0) > 0,
+      );
+      if (preferredIndex >= 0) {
+        selectedIndex = preferredIndex;
+      }
+      for (int i = 0; preferredIndex < 0 && i < consoleOptions.length; i++) {
         if ((consoleOptions[i]['total_available'] as int? ?? 0) > 0) {
           selectedIndex = i;
           break;
@@ -2840,9 +2862,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   );
 
   Widget gameTitlesGrid(CafeGamesController controller) {
-    const placeholderImage =
-        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png';
-
     bool _looksLikeConsoleLabel(String value) {
       final v = value
           .trim()
@@ -2909,7 +2928,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     }
 
     String _gameName(Map<String, dynamic> game) {
+      final nestedGame = game['game'];
       final candidates = [
+        if (nestedGame is Map) nestedGame['name'],
+        if (nestedGame is Map) nestedGame['title'],
         game['game_name'],
         game['name'],
         game['title'],
@@ -2925,6 +2947,21 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     }
 
     String _gameImage(Map<String, dynamic> game) {
+      final nestedGame = game['game'];
+      if (nestedGame is Map) {
+        for (final key in const [
+          'image_url',
+          'image',
+          'thumbnail',
+          'cover',
+          'logo',
+        ]) {
+          final value = nestedGame[key];
+          if (value is String && value.trim().isNotEmpty) {
+            return value.trim();
+          }
+        }
+      }
       final orderedKeys = [
         'image_url',
         'image',
@@ -2938,7 +2975,46 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         final v = game[key];
         if (v is String && v.trim().isNotEmpty) return v;
       }
-      return placeholderImage;
+      return '';
+    }
+
+    Widget _gameArtworkFallback(String name) {
+      return Container(
+        width: 90,
+        height: 100,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xff252525), Color(0xff111111)],
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.sports_esports_rounded,
+              color: Color(0xffB7F34A),
+              size: 30,
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: Colors.white70,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return Obx(() {
@@ -2974,7 +3050,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       // platform labels (PC/PS5/XBOX) instead of actual game titles.
       if (displayGames.isEmpty) {
         for (final name in sanitizeArenaGameList(widget.availableGames)) {
-          displayGames.add({'name': name, 'image': placeholderImage});
+          displayGames.add({'name': name, 'image': ''});
         }
       }
 
@@ -2999,7 +3075,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               itemBuilder: (context, index) {
                 final item = displayGames[index];
                 final name = item['name'] ?? 'Game';
-                final image = item['image'] ?? placeholderImage;
+                final image = item['image'] ?? '';
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(
@@ -3015,27 +3091,24 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: CachedNetworkImage(
-                            imageUrl: image,
-                            width: 90,
-                            height: 100,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              width: 90,
-                              height: 100,
-                              color: const Color(0xff1A1A1A),
-                              child: const Center(child: AppLinearLoader()),
-                            ),
-                            errorWidget: (_, __, ___) => Container(
-                              width: 90,
-                              height: 100,
-                              color: const Color(0xff1A1A1A),
-                              child: Image.network(
-                                placeholderImage,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ),
+                          child: image.isEmpty
+                              ? _gameArtworkFallback(name)
+                              : CachedNetworkImage(
+                                  imageUrl: image,
+                                  width: 90,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, __) => Container(
+                                    width: 90,
+                                    height: 100,
+                                    color: const Color(0xff1A1A1A),
+                                    child: const Center(
+                                      child: AppLinearLoader(),
+                                    ),
+                                  ),
+                                  errorWidget: (_, __, ___) =>
+                                      _gameArtworkFallback(name),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 4),

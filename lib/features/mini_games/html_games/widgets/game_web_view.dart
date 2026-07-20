@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -244,7 +245,7 @@ class _GameWebViewState extends State<GameWebView> {
           const Positioned.fill(
             child: ColoredBox(
               color: Color(0xA6000000),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: AppLinearLoader.screen()),
             ),
           ),
         if (_isSubmitting)
@@ -261,11 +262,7 @@ class _GameWebViewState extends State<GameWebView> {
               ),
               child: Row(
                 children: [
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  const AppLinearLoader(width: 30, height: 3),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(

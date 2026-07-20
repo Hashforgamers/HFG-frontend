@@ -20,11 +20,13 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 class OptimizedAppBar extends StatelessWidget {
   final Color gradientBottomColor;
   final Color avatarBorderColor;
+  final bool showModeToggle;
 
   const OptimizedAppBar({
     super.key,
     this.gradientBottomColor = const Color(0xff00DC00),
     this.avatarBorderColor = const Color(0xff00DC00),
+    this.showModeToggle = true,
   });
 
   @override
@@ -42,7 +44,7 @@ class OptimizedAppBar extends StatelessWidget {
       ),
       elevation: 0,
       pinned: false,
-      expandedHeight: 118,
+      expandedHeight: showModeToggle ? 118 : 66,
       flexibleSpace: ClipRRect(
         borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
@@ -163,13 +165,15 @@ class OptimizedAppBar extends StatelessWidget {
           ),
         ),
       ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(52),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-          child: const AppModeSegmentedToggle(compact: true),
-        ),
-      ),
+      bottom: showModeToggle
+          ? const PreferredSize(
+              preferredSize: Size.fromHeight(52),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(10, 0, 10, 8),
+                child: AppModeSegmentedToggle(compact: true),
+              ),
+            )
+          : null,
     );
   }
 

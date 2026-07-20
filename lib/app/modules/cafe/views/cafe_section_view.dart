@@ -74,6 +74,7 @@ class _CafeSectionState extends State<CafeSection> {
   final LocationPermissionService _locationPermissionService =
       locator<LocationPermissionService>();
   final Set<String> _likingCafeIds = <String>{};
+  bool _showCommunityCafes = false;
 
   void _openSheetInBrowser() async {
     final uri = Uri.parse(_sheetUrl);
@@ -700,38 +701,112 @@ class _CafeSectionState extends State<CafeSection> {
   }
 
   Widget _comingSoonNearYouBanner() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: const Color(0xffFF8A1F).withValues(alpha: 0.14),
-        border: Border.all(
-          color: const Color(0xffFF8A1F).withValues(alpha: 0.45),
-        ),
-      ),
-      child: Text(
-        'Coming Soon Near You',
-        style: GoogleFonts.inter(
-          color: const Color(0xffFFAE5C),
-          fontWeight: FontWeight.w700,
-          fontSize: 12.5,
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
+      child: Row(
+        children: [
+          const Icon(Icons.near_me_rounded, color: Color(0xFFFFB15C), size: 14),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'HASH cafes are coming soon near you',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: Colors.white54,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Container(
+            width: 32,
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.10),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildNearbyOffHashSection(double cardWidth) {
-    return _buildExternalCafeSection(
-      cardWidth: cardWidth,
-      title: 'More Cafes Near You',
+  Widget _cafeViewToggle({
+    required bool hasHashCafes,
+    required bool hasCommunityCafes,
+    required bool showCommunity,
+  }) {
+    Widget option({
+      required String label,
+      required IconData icon,
+      required bool selected,
+      required bool enabled,
+      required VoidCallback onTap,
+    }) {
+      final color = selected ? const Color(0xFF00DC00) : Colors.white54;
+      return Expanded(
+        child: GestureDetector(
+          onTap: enabled ? onTap : null,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            decoration: BoxDecoration(
+              color: selected
+                  ? const Color(0xFF00DC00).withValues(alpha: 0.10)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 15, color: enabled ? color : Colors.white24),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    color: enabled ? color : Colors.white24,
+                    fontSize: 11,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          option(
+            label: 'On HASH',
+            icon: Icons.storefront_rounded,
+            selected: !showCommunity,
+            enabled: hasHashCafes,
+            onTap: () => setState(() => _showCommunityCafes = false),
+          ),
+          option(
+            label: 'Community',
+            icon: Icons.favorite_border_rounded,
+            selected: showCommunity,
+            enabled: hasCommunityCafes,
+            onTap: () => setState(() => _showCommunityCafes = true),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildExternalCafeSection({
     required double cardWidth,
     required String title,
+    bool showSectionHeader = true,
+    bool includeTopGap = true,
   }) {
     if (_userLat == null || _userLng == null) {
       return const SizedBox.shrink();
@@ -740,74 +815,52 @@ class _CafeSectionState extends State<CafeSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: _sectionGap),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+        if (includeTopGap) const SizedBox(height: _sectionGap),
+        if (showSectionHeader) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-              ),
-              child: Text(
+              const SizedBox(width: 10),
+              Text(
                 'Within 10 km',
                 style: GoogleFonts.inter(
                   fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white60,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white54,
                   height: 1,
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: const Color(0xFF2A2114).withValues(alpha: 0.72),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: const Color(0xFFFFB357).withValues(alpha: 0.24),
-            ),
+            ],
           ),
+          const SizedBox(height: 8),
+        ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFB357).withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Icon(
-                  Icons.info_outline_rounded,
-                  size: 11,
-                  color: Color(0xFFFFC777),
-                ),
+              const Icon(
+                Icons.favorite_border_rounded,
+                size: 14,
+                color: Color(0xFFFFB86B),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Likes show demand for Hash onboarding. If 100 gamers like a cafe, we can approach the cafe team to bring it onto Hash.',
+                  'Like a cafe to help bring it to HASH. At 100 likes, we’ll contact the venue.',
                   style: GoogleFonts.inter(
-                    fontSize: 9.5,
-                    height: 1.2,
+                    fontSize: 10,
+                    height: 1.3,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFFFFD49C),
+                    color: Colors.white54,
                   ),
                 ),
               ),
@@ -1642,522 +1695,564 @@ class _CafeSectionState extends State<CafeSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              'Browse Cafes',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-            const Spacer(),
-            BounceTap(
-              onTap: _chooseOpenSheet,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Onboard Your Cafe',
-                      style: GoogleFonts.lato(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xff00DC00),
+    return Obx(() {
+      final hasAnyCafe =
+          widget._cafeController.cybercafes.isNotEmpty ||
+          _nearbyOffHashCafes.isNotEmpty ||
+          _isNearbyPlacesLoading;
+      if (!widget._cafeController.isLoading.value && !hasAnyCafe) {
+        return const SizedBox.shrink();
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'Gaming Cafes ',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                    ),
-                    const Icon(Icons.arrow_right_outlined),
-                  ],
+                      TextSpan(
+                        text: 'Near You',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF00DC00),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 0),
-        Obx(() {
-          if (widget._cafeController.isLoading.value) {
-            return SizedBox(
-              height: 230,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                itemCount: 3,
-                separatorBuilder: (_, __) => const SizedBox(width: 20),
-                itemBuilder: (context, index) {
-                  return Shimmer.fromColors(
-                    baseColor: Colors.grey.shade800,
-                    highlightColor: Colors.grey.shade700,
-                    child: Container(
-                      width: 300,
-                      height: 230,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: Colors.grey.shade900,
+              const SizedBox(width: 8),
+              BounceTap(
+                onTap: _chooseOpenSheet,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Onboard Your Cafe',
+                        style: GoogleFonts.lato(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xff00DC00),
+                        ),
                       ),
-                    ),
-                  );
-                },
+                      const Icon(Icons.arrow_right_outlined),
+                    ],
+                  ),
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Obx(() {
+            if (widget._cafeController.isLoading.value) {
+              return SizedBox(
+                height: 230,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  itemCount: 3,
+                  separatorBuilder: (_, __) => const SizedBox(width: 20),
+                  itemBuilder: (context, index) {
+                    return Shimmer.fromColors(
+                      baseColor: Colors.grey.shade800,
+                      highlightColor: Colors.grey.shade700,
+                      child: Container(
+                        width: 300,
+                        height: 230,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.grey.shade900,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            }
+
+            final double cardWidth = MediaQuery.of(context).size.width - 30;
+            final sortedCafes = _sortedCafesByNearest(
+              widget._cafeController.cybercafes,
             );
-          }
+            final nearestKm = _nearestDistanceKm(sortedCafes);
+            final showComingSoon = nearestKm != null && nearestKm > 20;
 
-          final double cardWidth = MediaQuery.of(context).size.width - 30;
-          final sortedCafes = _sortedCafesByNearest(
-            widget._cafeController.cybercafes,
-          );
-          final nearestKm = _nearestDistanceKm(sortedCafes);
-          final showComingSoon = nearestKm != null && nearestKm > 20;
+            final hasInternalCafes = sortedCafes.isNotEmpty;
+            final hasExternalCafes = _nearbyOffHashCafes.isNotEmpty;
+            final shouldShowExternalLoading =
+                !hasInternalCafes && _isNearbyPlacesLoading;
+            final showExternalSection =
+                hasExternalCafes || shouldShowExternalLoading;
+            final showCommunity = _showCommunityCafes || !hasInternalCafes;
 
-          final hasInternalCafes = sortedCafes.isNotEmpty;
-          final hasExternalCafes = _nearbyOffHashCafes.isNotEmpty;
-          final shouldShowExternalLoading =
-              !hasInternalCafes && _isNearbyPlacesLoading;
-          final showExternalSection =
-              hasExternalCafes || shouldShowExternalLoading;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (hasInternalCafes || showExternalSection) ...[
+                  _cafeViewToggle(
+                    hasHashCafes: hasInternalCafes,
+                    hasCommunityCafes: showExternalSection,
+                    showCommunity: showCommunity,
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                if (!showCommunity && hasInternalCafes) ...[
+                  if (showComingSoon) _comingSoonNearYouBanner(),
+                  SizedBox(
+                    height: 210,
+                    width: MediaQuery.of(context).size.width,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      itemCount: sortedCafes.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 20),
+                      itemBuilder: (context, index) {
+                        final cafe = sortedCafes[index];
+                        final images = cafe['images'];
+                        String imageUrl =
+                            'https://next-level.gg/assets/cafes/11.jpg'; // Fallback image
 
-          return ListView(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              if (hasInternalCafes) ...[
-                if (showComingSoon) _comingSoonNearYouBanner(),
-                SizedBox(
-                  height: 210,
-                  width: MediaQuery.of(context).size.width,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    itemCount: sortedCafes.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 20),
-                    itemBuilder: (context, index) {
-                      final cafe = sortedCafes[index];
-                      final images = cafe['images'];
-                      String imageUrl =
-                          'https://next-level.gg/assets/cafes/11.jpg'; // Fallback image
-
-                      if (images != null) {
-                        if (images is List && images.isNotEmpty) {
-                          // If images is a list, get the first image URL
-                          final firstImage = images[0];
-                          if (firstImage is Map &&
-                              firstImage['url'] != null &&
-                              firstImage['url'].toString().isNotEmpty) {
-                            imageUrl = firstImage['url'];
-                          }
-                        } else if (images is String && images.isNotEmpty) {
-                          // If images is a string (URL), use it directly
-                          imageUrl = images;
-                        }
-                      }
-
-                      // Additional fallback check - if the URL is empty or invalid, use default
-                      if (imageUrl.isEmpty ||
-                          imageUrl == 'null' ||
-                          imageUrl == 'undefined') {
-                        imageUrl = 'https://next-level.gg/assets/cafes/11.jpg';
-                      }
-                      final isOpen = _isShopOpen(cafe);
-
-                      // Distance + ETA
-                      double? km;
-                      int? etaMin;
-                      final clat = _cafeLat(cafe);
-                      final clng = _cafeLng(cafe);
-                      if (_userLat != null &&
-                          _userLng != null &&
-                          clat != null &&
-                          clng != null) {
-                        km = _haversineKm(_userLat!, _userLng!, clat, clng);
-                        etaMin = (_avgCitySpeedKmph > 0)
-                            ? (km / _avgCitySpeedKmph * 60).round()
-                            : null;
-                      }
-                      void openCafeDetails() {
-                        // Track gaming cafe viewed event
-                        final cafeId = cafe['vendor_id']?.toString() ?? '';
-                        final cafeName =
-                            cafe['cafe_name']?.toString() ?? 'Unknown Cafe';
-                        final location =
-                            cafe['location']?['address'] ?? 'Unknown';
-                        final email = cafe['email'] ?? 'Email not available';
-
-                        // Handle availableGames field safely
-                        List<String> availableGames = ['Unknown'];
-                        final games = cafe['games'];
-                        if (games != null) {
-                          if (games is List) {
-                            availableGames = games
-                                .map((game) => game.toString())
-                                .toList();
-                          } else if (games is String) {
-                            availableGames = [games];
-                          }
-                        }
-
-                        widget.segmentService.onGamingCafeViewed(
-                          cafeId: cafeId,
-                          cafeName: cafeName,
-                          location: location,
-                          availableGames: availableGames,
-                          email: email,
-                        );
-                        widget.fbEventsService.onGamingCafeViewed(
-                          cafeId: cafeId,
-                          location: location,
-                          availableGames: availableGames,
-                        );
-
-                        // Prepare images list for ArenaDetailView
-                        List<dynamic> imagesList = [];
                         if (images != null) {
                           if (images is List && images.isNotEmpty) {
-                            imagesList = images;
+                            // If images is a list, get the first image URL
+                            final firstImage = images[0];
+                            if (firstImage is Map &&
+                                firstImage['url'] != null &&
+                                firstImage['url'].toString().isNotEmpty) {
+                              imageUrl = firstImage['url'];
+                            }
                           } else if (images is String && images.isNotEmpty) {
-                            // If images is a string, create a list with one item
-                            imagesList = [
-                              {'url': images},
-                            ];
+                            // If images is a string (URL), use it directly
+                            imageUrl = images;
                           }
                         }
 
-                        // Ensure we always have at least one fallback image
-                        if (imagesList.isEmpty) {
-                          imagesList = [
-                            {
-                              'url':
-                                  'https://next-level.gg/assets/cafes/11.jpg',
-                            },
-                          ];
+                        // Additional fallback check - if the URL is empty or invalid, use default
+                        if (imageUrl.isEmpty ||
+                            imageUrl == 'null' ||
+                            imageUrl == 'undefined') {
+                          imageUrl =
+                              'https://next-level.gg/assets/cafes/11.jpg';
+                        }
+                        final isOpen = _isShopOpen(cafe);
+
+                        // Distance + ETA
+                        double? km;
+                        int? etaMin;
+                        final clat = _cafeLat(cafe);
+                        final clng = _cafeLng(cafe);
+                        if (_userLat != null &&
+                            _userLng != null &&
+                            clat != null &&
+                            clng != null) {
+                          km = _haversineKm(_userLat!, _userLng!, clat, clng);
+                          etaMin = (_avgCitySpeedKmph > 0)
+                              ? (km / _avgCitySpeedKmph * 60).round()
+                              : null;
+                        }
+                        void openCafeDetails() {
+                          // Track gaming cafe viewed event
+                          final cafeId = cafe['vendor_id']?.toString() ?? '';
+                          final cafeName =
+                              cafe['cafe_name']?.toString() ?? 'Unknown Cafe';
+                          final location =
+                              cafe['location']?['address'] ?? 'Unknown';
+                          final email = cafe['email'] ?? 'Email not available';
+
+                          // Handle availableGames field safely
+                          List<String> availableGames = ['Unknown'];
+                          final games = cafe['games'];
+                          if (games != null) {
+                            if (games is List) {
+                              availableGames = games
+                                  .map((game) => game.toString())
+                                  .toList();
+                            } else if (games is String) {
+                              availableGames = [games];
+                            }
+                          }
+
+                          widget.segmentService.onGamingCafeViewed(
+                            cafeId: cafeId,
+                            cafeName: cafeName,
+                            location: location,
+                            availableGames: availableGames,
+                            email: email,
+                          );
+                          widget.fbEventsService.onGamingCafeViewed(
+                            cafeId: cafeId,
+                            location: location,
+                            availableGames: availableGames,
+                          );
+
+                          // Prepare images list for ArenaDetailView
+                          List<dynamic> imagesList = [];
+                          if (images != null) {
+                            if (images is List && images.isNotEmpty) {
+                              imagesList = images;
+                            } else if (images is String && images.isNotEmpty) {
+                              // If images is a string, create a list with one item
+                              imagesList = [
+                                {'url': images},
+                              ];
+                            }
+                          }
+
+                          // Ensure we always have at least one fallback image
+                          if (imagesList.isEmpty) {
+                            imagesList = [
+                              {
+                                'url':
+                                    'https://next-level.gg/assets/cafes/11.jpg',
+                              },
+                            ];
+                          }
+
+                          Get.to(
+                            () => ArenaDetailView(
+                              images: imagesList,
+                              title: cafe['cafe_name'] ?? 'Unknown Cafe',
+                              address:
+                                  cafe['location']?['address'] ??
+                                  'Address not available',
+                              openingHours: '9 AM - 12 AM',
+                              availableGames: availableGames,
+                              amenities: cafe["amenities"] ?? [''],
+                              phone:
+                                  cafe['phone'] ??
+                                  cafe['contact_number'] ??
+                                  'Phone not available',
+                              email: cafe['email'] ?? 'Email not available',
+                              ownerName:
+                                  cafe['owner_name'] ?? 'Owner not available',
+                              reviews: const ['Great place!', 'Loved it!'],
+                              vendorId: cafe['vendor_id'],
+                            ),
+                          );
                         }
 
-                        Get.to(
-                          () => ArenaDetailView(
-                            images: imagesList,
-                            title: cafe['cafe_name'] ?? 'Unknown Cafe',
-                            address:
-                                cafe['location']?['address'] ??
-                                'Address not available',
-                            openingHours: '9 AM - 12 AM',
-                            availableGames: availableGames,
-                            amenities: cafe["amenities"] ?? [''],
-                            phone:
-                                cafe['phone'] ??
-                                cafe['contact_number'] ??
-                                'Phone not available',
-                            email: cafe['email'] ?? 'Email not available',
-                            ownerName:
-                                cafe['owner_name'] ?? 'Owner not available',
-                            reviews: const ['Great place!', 'Loved it!'],
-                            vendorId: cafe['vendor_id'],
-                          ),
-                        );
-                      }
-
-                      return BounceTap(
-                        onTap: openCafeDetails,
-                        child: Container(
-                          width: cardWidth,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            color: const Color(0xff0E0E0E),
-                          ),
-                          child: Stack(
-                            children: [
-                              /// Café image
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: CachedNetworkImage(
-                                  imageUrl: imageUrl,
-                                  fit: BoxFit.cover,
-                                  width: cardWidth,
-                                  height: 250,
-                                  placeholder: (_, __) => Container(
-                                    color: const Color(0xff1a1a1a),
-                                    child: const Center(
-                                      child: RainbowGlowingLoader(size: 40),
-                                    ),
-                                  ),
-                                  errorWidget: (_, __, ___) => Container(
-                                    color: const Color(0xff1a1a1a),
-                                    alignment: Alignment.center,
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(
-                                          Icons.storefront,
-                                          color: Colors.white54,
-                                          size: 60,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Cafe Image',
-                                          style: GoogleFonts.inter(
-                                            color: Colors.white54,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              /// Frosted footer with info
-                              Positioned(
-                                left: 0,
-                                right: 0,
-                                top: 0,
-                                child: ClipRRect(
+                        return BounceTap(
+                          onTap: openCafeDetails,
+                          child: Container(
+                            width: cardWidth,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              color: const Color(0xff0E0E0E),
+                            ),
+                            child: Stack(
+                              children: [
+                                /// Café image
+                                ClipRRect(
                                   borderRadius: BorderRadius.circular(20),
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(
-                                      sigmaX: 4,
-                                      sigmaY: 4,
-                                    ),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.1,
-                                        ),
+                                  child: CachedNetworkImage(
+                                    imageUrl: imageUrl,
+                                    fit: BoxFit.cover,
+                                    width: cardWidth,
+                                    height: 250,
+                                    placeholder: (_, __) => Container(
+                                      color: const Color(0xff1a1a1a),
+                                      child: const Center(
+                                        child: RainbowGlowingLoader(size: 40),
                                       ),
+                                    ),
+                                    errorWidget: (_, __, ___) => Container(
+                                      color: const Color(0xff1a1a1a),
+                                      alignment: Alignment.center,
                                       child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
-                                          /// Header row: Name + Console
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.circle,
-                                                size: 8,
-                                                color: isOpen
-                                                    ? const Color(0xff00DC00)
-                                                    : Colors.redAccent,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Expanded(
-                                                child: Text(
-                                                  toStartCase(
-                                                    cafe['cafe_name']
-                                                            ?.toString() ??
-                                                        'Unknown Cafe',
-                                                  ),
-                                                  style: GoogleFonts.inter(
-                                                    color: Colors.white,
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              CachedNetworkImage(
-                                                imageUrl:
-                                                    'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-02_hvvehr.png',
-                                                height: 16,
-                                                width: 16,
-                                                fit: BoxFit.cover,
-                                                placeholder: (_, __) =>
-                                                    const Center(
-                                                      child:
-                                                          RainbowGlowingLoader(
-                                                            size: 4,
-                                                          ),
-                                                    ),
-                                                errorWidget: (_, __, ___) =>
-                                                    const Icon(
-                                                      Icons.error,
-                                                      color: Colors.red,
-                                                    ),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                'Consoles',
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.white,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
+                                          const Icon(
+                                            Icons.storefront,
+                                            color: Colors.white54,
+                                            size: 60,
                                           ),
-                                          const SizedBox(height: 4),
-
-                                          /// Distance + Time + Platform Icons
-                                          Row(
-                                            children: [
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                km == null
-                                                    ? '-- km'
-                                                    : '${km.toStringAsFixed(1)} km${etaMin != null ? ' • ~${etaMin} min' : ''}',
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.white70,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              const Icon(
-                                                Icons.arrow_forward,
-                                                size: 13,
-                                              ),
-                                              const Spacer(),
-                                              _buildPlatformIcon(
-                                                icon:
-                                                    "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png",
-                                              ),
-                                              const SizedBox(width: 8),
-                                              _buildPlatformIcon(
-                                                icon:
-                                                    "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png",
-                                              ),
-                                              const SizedBox(width: 8),
-                                              _buildPlatformIcon(
-                                                icon:
-                                                    "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png",
-                                              ),
-                                            ],
-                                          ),
-                                          if (index == 0) ...[
-                                            const SizedBox(height: 8),
-                                            Align(
-                                              alignment: Alignment.centerLeft,
-                                              child: Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 2,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(
-                                                    0xFFFFB020,
-                                                  ).withValues(alpha: 0.95),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    SizedBox(
-                                                      width: 12,
-                                                      height: 12,
-                                                      child: Lottie.asset(
-                                                        'assets/fire.json',
-                                                        fit: BoxFit.contain,
-                                                        repeat: true,
-                                                        animate: true,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      'Filling Fast',
-                                                      style: GoogleFonts.inter(
-                                                        color: Colors.black,
-                                                        fontSize: 9,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Cafe Image',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white54,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
                                             ),
-                                          ],
+                                          ),
                                         ],
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              Positioned(
-                                left: 12,
-                                right: 12,
-                                bottom: 12,
-                                child: SizedBox(
-                                  height: 38,
+
+                                /// Frosted footer with info
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  top: 0,
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(20),
                                     child: BackdropFilter(
                                       filter: ImageFilter.blur(
-                                        sigmaX: 8,
-                                        sigmaY: 8,
+                                        sigmaX: 4,
+                                        sigmaY: 4,
                                       ),
-                                      child: OutlinedButton(
-                                        onPressed: openCafeDetails,
-                                        style: OutlinedButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xff00DC00,
-                                          ).withValues(alpha: 0.22),
-                                          foregroundColor: const Color(
-                                            0xff00DC00,
-                                          ),
-                                          side: const BorderSide(
-                                            color: Color(0xff00DC00),
-                                            width: 1.2,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(20),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.1,
                                           ),
                                         ),
-                                        child: Text(
-                                          'Book Now',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w800,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            /// Header row: Name + Console
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.circle,
+                                                  size: 8,
+                                                  color: isOpen
+                                                      ? const Color(0xff00DC00)
+                                                      : Colors.redAccent,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: Text(
+                                                    toStartCase(
+                                                      cafe['cafe_name']
+                                                              ?.toString() ??
+                                                          'Unknown Cafe',
+                                                    ),
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white,
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                CachedNetworkImage(
+                                                  imageUrl:
+                                                      'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-02_hvvehr.png',
+                                                  height: 16,
+                                                  width: 16,
+                                                  fit: BoxFit.cover,
+                                                  placeholder: (_, __) =>
+                                                      const Center(
+                                                        child:
+                                                            RainbowGlowingLoader(
+                                                              size: 4,
+                                                            ),
+                                                      ),
+                                                  errorWidget: (_, __, ___) =>
+                                                      const Icon(
+                                                        Icons.error,
+                                                        color: Colors.red,
+                                                      ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  'Consoles',
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+
+                                            /// Distance + Time + Platform Icons
+                                            Row(
+                                              children: [
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  km == null
+                                                      ? '-- km'
+                                                      : '${km.toStringAsFixed(1)} km${etaMin != null ? ' • ~${etaMin} min' : ''}',
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white70,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                const Icon(
+                                                  Icons.arrow_forward,
+                                                  size: 13,
+                                                ),
+                                                const Spacer(),
+                                                _buildPlatformIcon(
+                                                  icon:
+                                                      "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png",
+                                                ),
+                                                const SizedBox(width: 8),
+                                                _buildPlatformIcon(
+                                                  icon:
+                                                      "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png",
+                                                ),
+                                                const SizedBox(width: 8),
+                                                _buildPlatformIcon(
+                                                  icon:
+                                                      "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png",
+                                                ),
+                                              ],
+                                            ),
+                                            if (index == 0) ...[
+                                              const SizedBox(height: 8),
+                                              Align(
+                                                alignment: Alignment.centerLeft,
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(
+                                                      0xFFFFB020,
+                                                    ).withValues(alpha: 0.95),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      SizedBox(
+                                                        width: 12,
+                                                        height: 12,
+                                                        child: Lottie.asset(
+                                                          'assets/fire.json',
+                                                          fit: BoxFit.contain,
+                                                          repeat: true,
+                                                          animate: true,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        'Filling Fast',
+                                                        style:
+                                                            GoogleFonts.inter(
+                                                              color:
+                                                                  Colors.black,
+                                                              fontSize: 9,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                            ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 12,
+                                  right: 12,
+                                  bottom: 12,
+                                  child: SizedBox(
+                                    height: 38,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: BackdropFilter(
+                                        filter: ImageFilter.blur(
+                                          sigmaX: 8,
+                                          sigmaY: 8,
+                                        ),
+                                        child: OutlinedButton(
+                                          onPressed: openCafeDetails,
+                                          style: OutlinedButton.styleFrom(
+                                            backgroundColor: const Color(
+                                              0xff00DC00,
+                                            ).withValues(alpha: 0.22),
+                                            foregroundColor: const Color(
+                                              0xff00DC00,
+                                            ),
+                                            side: const BorderSide(
+                                              color: Color(0xff00DC00),
+                                              width: 1.2,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'Book Now',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w800,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
+                ],
+                if (showCommunity && showExternalSection)
+                  _buildExternalCafeSection(
+                    cardWidth: cardWidth,
+                    title: '',
+                    showSectionHeader: false,
+                    includeTopGap: false,
+                  ),
+                if (!hasInternalCafes &&
+                    !hasExternalCafes &&
+                    !_isNearbyPlacesLoading)
+                  const SizedBox(height: 4),
+                if (!hasInternalCafes &&
+                    !hasExternalCafes &&
+                    !_isNearbyPlacesLoading)
+                  _buildBrowseEmptyState(),
               ],
-              if (hasInternalCafes && showExternalSection)
-                const SizedBox(height: _sectionGap),
-              if (hasInternalCafes && showExternalSection)
-                _buildNearbyOffHashSection(cardWidth),
-              if (!hasInternalCafes && showExternalSection)
-                _buildExternalCafeSection(
-                  cardWidth: cardWidth,
-                  title: 'Help Bring Cafes to Hash',
-                ),
-              if (!hasInternalCafes &&
-                  !hasExternalCafes &&
-                  !_isNearbyPlacesLoading)
-                const SizedBox(height: 4),
-              if (!hasInternalCafes &&
-                  !hasExternalCafes &&
-                  !_isNearbyPlacesLoading)
-                _buildBrowseEmptyState(),
-            ],
-          );
-        }),
-      ],
-    );
+            );
+          }),
+        ],
+      );
+    });
   }
 
   Widget _buildPlatformIcon({required String icon}) {

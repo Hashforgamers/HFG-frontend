@@ -12,6 +12,7 @@ import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/extra_services_model.dart';
+import 'package:hash/core/repositories/model/event_team_members_response.dart';
 import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
@@ -453,6 +454,32 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> fetchNearbyPlayers({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 10,
+  }) async {
+    final dio = await networkProvider.auth();
+    final response = await dio.get(
+      ApiEndpoints.nearbyUsers(
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: radiusKm,
+      ),
+    );
+    final body = response.data;
+    final rawPlayers = body is List
+        ? body
+        : body is Map && body['players'] is List
+        ? body['players'] as List
+        : const <dynamic>[];
+    return rawPlayers
+        .whereType<Map>()
+        .map((player) => Map<String, dynamic>.from(player))
+        .toList();
+  }
+
+  @override
   Future<Map<String, dynamic>> fetchVendorGames(int vendorId) async {
     // Dashboard vendor-games drives UI cards, booking service ids drive slot API.
     final dashboardDio = await networkProvider.auth();
@@ -541,7 +568,11 @@ class RemoteRepo implements RemoteRepoInterface {
       }
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data is List ? response.data : [];
+        final List<dynamic> data = response.data is List
+            ? response.data as List
+            : response.data is Map && response.data['games'] is List
+            ? response.data['games'] as List
+            : const <dynamic>[];
         final hasDashboardCatalog = data.any((item) {
           if (item is! Map) return false;
           final game = item['game'];
@@ -613,6 +644,7 @@ class RemoteRepo implements RemoteRepoInterface {
           }
 
           return {
+            'game_id': game['id'],
             'game_name': _sanitizeGameTitle(game['name'] ?? game['title']),
             'game_platform': game['platform'],
             'genre': game['genre'],
@@ -2465,18 +2497,22 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> fetchEventLeaderboard({
+  Future<Map<String, dynamic>> fetchEventLeaderboard({
     required String eventId,
+    String stage = 'auto',
   }) async {
-    final dio = await networkProvider.auth();
+    final dio = networkProvider.noAuth();
     final endpoint = ApiEndpoints.eventLeaderboard(eventId);
     try {
-      final response = await dio.get(endpoint);
+      final response = await dio.get(
+        endpoint,
+        queryParameters: {'stage': stage},
+      );
       if (response.statusCode == 200) {
-        return _extractDynamicList(
-          response.data,
-          candidateKeys: const ['leaderboard', 'teams', 'data', 'results'],
-        );
+        if (response.data is Map) {
+          return Map<String, dynamic>.from(response.data as Map);
+        }
+        throw Exception('Unexpected leaderboard response format');
       }
       AppLogger.e(
         'Leaderboard API non-200 | eventId=$eventId | status=${response.statusCode} | endpoint=$endpoint | body=${response.data}',
@@ -2499,6 +2535,16 @@ class RemoteRepo implements RemoteRepoInterface {
       );
       rethrow;
     }
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchGamerProfile({required int userId}) async {
+    final dio = networkProvider.noAuth();
+    final response = await dio.get(ApiEndpoints.gamerProfile(userId));
+    if (response.statusCode == 200 && response.data is Map) {
+      return Map<String, dynamic>.from(response.data as Map);
+    }
+    throw Exception('Failed to fetch gamer profile: ${response.statusCode}');
   }
 
   @override
@@ -2603,7 +2649,7 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> fetchEventTeamMembers({
+  Future<EventTeamMembersResponse> fetchEventTeamMembers({
     required String eventId,
     required String teamId,
   }) async {
@@ -2613,9 +2659,18 @@ class RemoteRepo implements RemoteRepoInterface {
         ApiEndpoints.eventTeamMembers(eventId, teamId),
       );
       if (response.statusCode == 200) {
-        return _extractDynamicList(
-          response.data,
-          candidateKeys: const ['members', 'users', 'team_members', 'data'],
+        final payload = _asMap(response.data);
+        final tournamentValue = payload['tournament'];
+        final tournament = tournamentValue is Map
+            ? Map<String, dynamic>.from(tournamentValue)
+            : <String, dynamic>{};
+        return EventTeamMembersResponse(
+          eventId: (payload['event_id'] ?? eventId).toString(),
+          tournament: tournament,
+          members: _extractDynamicList(
+            response.data,
+            candidateKeys: const ['members', 'users', 'team_members', 'data'],
+          ),
         );
       }
       throw Exception(

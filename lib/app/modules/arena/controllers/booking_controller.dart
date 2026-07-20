@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class BookingController extends GetxController {
   static const Duration _userBookingsCacheTtl = Duration(minutes: 2);
   final isLoading = false.obs;
+  final isSlotsLoading = false.obs;
+  final slotsError = ''.obs;
   final slots = <Map<String, dynamic>>[].obs; // Holds fetched slots
   final userBookings = <Map<String, dynamic>>[].obs; // Holds user bookings
   final selectedSlots = RxMap<int, List<int>>(
@@ -195,7 +197,8 @@ class BookingController extends GetxController {
     required int gameId,
     required String date, // e.g., '20250519'
   }) async {
-    _setLoading(true);
+    isSlotsLoading.value = true;
+    slotsError.value = '';
     try {
       final slotList = await _remoteRepo.fetchSlots(
         vendorId: vendorId,
@@ -208,10 +211,24 @@ class BookingController extends GetxController {
       slots.assignAll(filteredAndSortedSlots);
     } catch (e) {
       _logError('Error fetching slots: $e');
+      slotsError.value = _friendlyError(e);
       slots.clear();
     } finally {
-      _setLoading(false);
+      isSlotsLoading.value = false;
     }
+  }
+
+  String _friendlyError(Object error) {
+    final message = error.toString().toLowerCase();
+    if (message.contains('timeout')) {
+      return 'The cafe is taking too long to respond. Please try again.';
+    }
+    if (message.contains('socket') ||
+        message.contains('network') ||
+        message.contains('connection')) {
+      return 'Check your internet connection and try again.';
+    }
+    return 'We could not load slots for this date. Please try again.';
   }
 
   /// Create a booking

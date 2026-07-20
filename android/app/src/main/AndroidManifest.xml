@@ -61,8 +61,8 @@
                     android:pathPrefix="/contest"/>
                 <data
                     android:scheme="https"
-                    android:host="www.hashforgamers.com"
-                    android:pathPrefix="/contest"/>
+                    android:host="hashforgamers.com"
+                    android:pathPrefix="/team/join"/>
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
@@ -70,8 +70,8 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.com"
-                    android:pathPrefix="/team/join"/>
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/contest"/>
                 <data
                     android:scheme="https"
                     android:host="www.hashforgamers.com"

@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
+import 'package:hash/app/modules/tournaments_section/models/gamer_profile_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,6 +33,7 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
 
   List<TournamentModel> _allJoinableTournaments = [];
   List<Map<String, dynamic>> _myTeams = const [];
+  GamerProfileModel? _gamerProfile;
   String _selectedCategory = 'All';
   Future<void>? _fetchTournamentsRequest;
   int _fetchGeneration = 0;
@@ -120,19 +122,40 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
         _joinedByTab['Completed'] = (joinedPayload['completed'] ?? const [])
             .map((e) => TournamentModel.fromJson({...e, 'is_joined': true}))
             .toList();
+
+        final joinedTournamentIds = _joinedByTab.values
+            .expand((tournaments) => tournaments)
+            .map((tournament) => tournament.id.trim().toLowerCase())
+            .where((id) => id.isNotEmpty)
+            .toSet();
+        _allJoinableTournaments = _allJoinableTournaments
+            .map(
+              (tournament) =>
+                  joinedTournamentIds.contains(
+                    tournament.id.trim().toLowerCase(),
+                  )
+                  ? tournament.copyWith(isJoined: true)
+                  : tournament,
+            )
+            .toList();
       }
 
       final myTeams = await _fetchMyTeamsSafe(userId: userId);
       if (!_isRequestCurrent(requestGeneration)) return;
-      _myTeams = _cloneMyTeams(myTeams);
+      _myTeams = _enrichTeamsWithJoinedTournaments(myTeams);
+      _gamerProfile = await _fetchGamerProfileSafe(userId);
+      if (!_isRequestCurrent(requestGeneration)) return;
 
       _cacheByScope[cacheScope] = _TournamentHomeCacheEntry(
         fetchedAt: DateTime.now(),
         joinableTournaments: List<TournamentModel>.from(
-          _allJoinableTournaments,
+          _allJoinableTournaments.where(
+            (tournament) => tournament.matchesFilter(_selectedCategory),
+          ),
         ),
         joinedByTab: _cloneJoinedByTab(_joinedByTab),
         myTeams: _cloneMyTeams(_myTeams),
+        gamerProfile: _gamerProfile,
       );
 
       _emitLoadedForSelectedCategory();
@@ -163,6 +186,7 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
           _allJoinableTournaments,
         ),
         myTeams: _cloneMyTeams(_myTeams),
+        gamerProfile: _gamerProfile,
       ),
     );
   }
@@ -177,11 +201,23 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
     }
   }
 
+  Future<GamerProfileModel?> _fetchGamerProfileSafe(int? userId) async {
+    if (userId == null || userId <= 0) return null;
+    try {
+      return GamerProfileModel.fromJson(
+        await remoteRepo.fetchGamerProfile(userId: userId),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   void _applyCacheSnapshot(_TournamentHomeCacheEntry snapshot) {
     _allJoinableTournaments = List<TournamentModel>.from(
       snapshot.joinableTournaments,
     );
     _myTeams = _cloneMyTeams(snapshot.myTeams);
+    _gamerProfile = snapshot.gamerProfile;
 
     final clonedJoined = _cloneJoinedByTab(snapshot.joinedByTab);
     for (final key in _joinedByTab.keys) {
@@ -276,6 +312,45 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
     );
   }
 
+  List<Map<String, dynamic>> _enrichTeamsWithJoinedTournaments(
+    List<Map<String, dynamic>> teams,
+  ) {
+    final joinedById = <String, TournamentModel>{};
+    for (final tournament in _joinedByTab.values.expand((items) => items)) {
+      final id = tournament.id.trim().toLowerCase();
+      if (id.isNotEmpty) joinedById[id] = tournament;
+    }
+
+    return teams.map((rawTeam) {
+      final team = Map<String, dynamic>.from(rawTeam);
+      final existingValue = team['tournament'] ?? team['event'];
+      final existing = existingValue is Map
+          ? Map<String, dynamic>.from(existingValue)
+          : <String, dynamic>{};
+      final eventId =
+          (team['event_id'] ?? existing['event_id'] ?? existing['id'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+      final joined = joinedById[eventId];
+      if (joined == null) return team;
+
+      team['event_id'] = team['event_id'] ?? joined.id;
+      team['tournament'] = <String, dynamic>{
+        'id': joined.id,
+        'event_id': joined.id,
+        'title': joined.title,
+        'name': joined.title,
+        'source': joined.source,
+        'image_url': joined.imageUrl,
+        'banner': joined.banner,
+        'status': joined.statusLabel,
+        ...existing,
+      };
+      return team;
+    }).toList();
+  }
+
   bool _isRequestCurrent(int requestGeneration) {
     return !isClosed && requestGeneration == _fetchGeneration;
   }
@@ -318,12 +393,14 @@ class _TournamentHomeCacheEntry {
     required this.joinableTournaments,
     required this.joinedByTab,
     required this.myTeams,
+    required this.gamerProfile,
   });
 
   final DateTime fetchedAt;
   final List<TournamentModel> joinableTournaments;
   final Map<String, List<TournamentModel>> joinedByTab;
   final List<Map<String, dynamic>> myTeams;
+  final GamerProfileModel? gamerProfile;
 
   bool get isFresh =>
       DateTime.now().difference(fetchedAt) <= TournamentHomeCubit._cacheTtl;

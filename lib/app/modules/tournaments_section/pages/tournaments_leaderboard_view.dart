@@ -63,7 +63,13 @@ class _TournamentsLeaderboardViewState
                     if (state is TournamentsLeaderboardLoading) {
                       return const TournamentsLoader.screen();
                     } else if (state is TournamentsLeaderboardLoaded) {
-                      return _buildLeaderboardList(state.leaderboard);
+                      if (!state.isAvailable || state.leaderboard.isEmpty) {
+                        return _pendingResults();
+                      }
+                      return _buildLeaderboardList(
+                        state.leaderboard,
+                        state.stage,
+                      );
                     } else if (state is TournamentsLeaderboardError) {
                       return Center(
                         child: Text(
@@ -81,7 +87,32 @@ class _TournamentsLeaderboardViewState
     );
   }
 
-  Widget _buildLeaderboardList(List<Map<String, dynamic>> leaderboard) {
+  Widget _pendingResults() => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.schedule_rounded, color: Colors.white38, size: 32),
+        const SizedBox(height: 10),
+        Text(
+          'Results are being prepared',
+          style: GoogleFonts.inter(
+            color: Colors.white70,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Check back after the matches conclude.',
+          style: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildLeaderboardList(
+    List<Map<String, dynamic>> leaderboard,
+    String stage,
+  ) {
     return ListView.separated(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(16),
@@ -91,8 +122,9 @@ class _TournamentsLeaderboardViewState
       itemBuilder: (context, index) {
         final player = leaderboard[index];
         final rank = player['rank'];
-        final name = player['player'];
-        final points = player['points'];
+        final name = (player['team_name'] ?? 'Team ${index + 1}').toString();
+        final score = player['score'];
+        final amount = player['amount'];
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -141,7 +173,13 @@ class _TournamentsLeaderboardViewState
                 ),
               ),
               Text(
-                '$points pts',
+                amount != null
+                    ? '${player['currency'] ?? ''} $amount'
+                    : score != null
+                    ? '$score'
+                    : stage == 'winners'
+                    ? 'Winner'
+                    : '—',
                 style: GoogleFonts.orbitron(
                   color: const Color(0xff00DC00),
                   fontSize: 13,

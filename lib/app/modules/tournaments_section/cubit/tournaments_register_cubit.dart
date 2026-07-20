@@ -1,8 +1,11 @@
 import 'package:equatable/equatable.dart';
+import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/app/modules/community/services/community_api.dart';
+import 'package:hash/app/modules/tournaments_section/services/tournament_payment_service.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
@@ -23,16 +26,113 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
   final squadMissionsService = locator<SquadMissionsService>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final CommunityApi communityApi = CommunityApi();
+  final TournamentPaymentService paymentService = TournamentPaymentService();
 
   Future<void> registerTeam({
     required String eventId,
     required String leaderName,
     required String teamName,
+    String source = 'cafe',
+    String teamMode = 'team',
     List<String> players = const [],
-    String? paymentReference,
+    TournamentPaymentResult? payment,
   }) async {
     emit(TournamentsRegisterLoading());
     try {
+      if (source.trim().toLowerCase() == 'community') {
+        if (teamMode.trim().toLowerCase() != 'solo') {
+          throw Exception(
+            'Community team tournament registration is not supported yet.',
+          );
+        }
+        final registration = await communityApi.registerForTournament(
+          eventId,
+          paymentReference: payment?.paymentReference.isNotEmpty == true
+              ? payment!.paymentReference
+              : null,
+          razorpayOrderId: payment?.orderId,
+        );
+        final registrationId = registration.id;
+        final isPaidRegistration = payment?.paymentReference.isNotEmpty == true;
+        Map<String, dynamic> verification = const <String, dynamic>{};
+
+        if (isPaidRegistration) {
+          if (payment?.requiresVerification != true) {
+            throw Exception('Razorpay returned an incomplete payment result.');
+          }
+          try {
+            verification = await paymentService.verifyRegistrationPayment(
+              payment: payment!,
+              registrationId: registrationId,
+              tournamentId: eventId,
+              community: true,
+            );
+          } on DioException catch (error) {
+            if (!_isNetworkFailure(error)) rethrow;
+            verification = await _refreshCommunitySettlement(
+              registrationId: registrationId,
+            );
+          }
+
+          if (!_isPaidAndConfirmed(verification)) {
+            final refreshed = await _refreshCommunitySettlement(
+              registrationId: registrationId,
+            );
+            if (refreshed.isNotEmpty) verification = refreshed;
+          }
+
+          if (!_isPaidAndConfirmed(verification)) {
+            TournamentHomeCubit.invalidateCache();
+            emit(
+              TournamentsRegisterSettlementPending(
+                registrationId: registrationId,
+                message:
+                    'Payment was received. We are confirming your tournament spot automatically.',
+              ),
+            );
+            return;
+          }
+        } else if (registration.status.toLowerCase() != 'confirmed') {
+          throw Exception('Free registration was not confirmed by the server.');
+        }
+        squadMissionsService.trackAction(
+          action: SquadMissionAction.joinTournament,
+        );
+        segmentService.onCustomEvent('Tournament Joined', {
+          'event_id': eventId,
+          'registration_id': registrationId,
+          'source': 'community',
+        });
+        fbEventsService.onTournamentJoined(
+          eventId: eventId,
+          teamId: registrationId,
+        );
+        TournamentHomeCubit.invalidateCache();
+        emit(
+          TournamentsRegisterSuccess(
+            data: <String, dynamic>{
+              'registration_id': registrationId,
+              // Temporary compatibility alias used by legacy app models.
+              'team_id': registrationId,
+              'status': _readPaymentField(
+                verification,
+                'status',
+                isPaidRegistration ? 'pending_payment' : registration.status,
+              ),
+              'payment_status': _readPaymentField(
+                verification,
+                'payment_status',
+                isPaidRegistration ? 'unpaid' : registration.paymentStatus,
+              ),
+              'source': 'community',
+              'payment_reference': registration.paymentReference ?? '',
+            },
+          ),
+        );
+        return;
+      }
+
       if (leaderName.trim().isEmpty) {
         throw Exception('Leader name is required.');
       }
@@ -69,8 +169,27 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
         "team": teamName,
         "leader": leaderName,
         "players": players.where((e) => e.trim().isNotEmpty).toList(),
-        "payment_reference": paymentReference ?? '',
+        "payment_reference": payment?.paymentReference ?? '',
       };
+
+      if (payment != null) {
+        final verification = await paymentService.verifyRegistrationPayment(
+          payment: payment,
+          registrationId: teamId,
+          tournamentId: eventId,
+          community: false,
+        );
+        result['status'] = _readPaymentField(
+          verification,
+          'status',
+          result['status']?.toString() ?? '',
+        );
+        result['payment_status'] = _readPaymentField(
+          verification,
+          'payment_status',
+          result['payment_status']?.toString() ?? '',
+        );
+      }
 
       await squadMissionsService.setActiveSquad(
         squadKey: teamId,
@@ -260,6 +379,73 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
       return raw.replaceFirst('Exception: ', '');
     }
     return raw;
+  }
+
+  String _readPaymentField(
+    Map<String, dynamic> payload,
+    String key,
+    String fallback,
+  ) {
+    final direct = payload[key]?.toString();
+    if (direct != null && direct.isNotEmpty) return direct;
+    final data = payload['data'];
+    if (data is Map) {
+      final nested = data[key]?.toString();
+      if (nested != null && nested.isNotEmpty) return nested;
+    }
+    final registration = payload['registration'];
+    if (registration is Map) {
+      final nested = registration[key]?.toString();
+      if (nested != null && nested.isNotEmpty) return nested;
+    }
+    return fallback;
+  }
+
+  bool _isPaidAndConfirmed(Map<String, dynamic> payload) {
+    final status = _readPaymentField(payload, 'status', '').toLowerCase();
+    final paymentStatus = _readPaymentField(
+      payload,
+      'payment_status',
+      '',
+    ).toLowerCase();
+    return status == 'confirmed' && paymentStatus == 'paid';
+  }
+
+  bool _isNetworkFailure(DioException error) {
+    return error.response == null ||
+        error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.unknown;
+  }
+
+  Future<Map<String, dynamic>> _refreshCommunitySettlement({
+    required String registrationId,
+  }) async {
+    for (var attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await Future<void>.delayed(const Duration(seconds: 2));
+      try {
+        final joined = await communityApi.myTournaments(role: 'joined');
+        for (final item in joined) {
+          final registration = item.registration;
+          if (registration == null) continue;
+          final matches = registration.id == registrationId;
+          if (!matches) continue;
+          final result = <String, dynamic>{
+            'registration_id': registration.id,
+            'status': registration.status,
+            'payment_status': registration.paymentStatus,
+            'payment_reference': registration.paymentReference ?? '',
+          };
+          if (_isPaidAndConfirmed(result)) return result;
+        }
+      } catch (_) {
+        // The backend settlement queue remains the source of truth. Retry the
+        // joined-tournaments read briefly, then surface a non-failure state.
+      }
+    }
+    return const <String, dynamic>{};
   }
 
   Future<int?> _resolveUserId() async {

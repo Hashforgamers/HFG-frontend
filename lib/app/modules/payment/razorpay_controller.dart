@@ -30,6 +30,8 @@ class RazorpayController extends GetxController {
   RxList<int> slotIdsList = <int>[].obs; // Add this line to store slot IDs
   RxList<Map<String, dynamic>> cartItemsList =
       <Map<String, dynamic>>[].obs; // Add this line to store cart items
+  RxString voucherCode = ''.obs;
+  RxString bookingDate = ''.obs;
   RxBool isPaymentInProgress = false.obs;
   RxString paymentStatus = ''.obs;
   PaymentType? _currentPaymentType;
@@ -106,6 +108,14 @@ class RazorpayController extends GetxController {
     }
 
     _clearWalletSplit();
+  }
+
+  Future<void> cancelPendingBookingPayment() async {
+    if (_currentPaymentType == PaymentType.slotBooking) {
+      await _releasePendingBookings();
+    }
+    await refundPendingWalletContribution();
+    _reset();
   }
 
   // ─────────────────────────── Checkout ───────────────────────────
@@ -222,6 +232,9 @@ class RazorpayController extends GetxController {
           paymentId: r.paymentId!,
           paymentMode: 'gateway',
           slotIds: slotIdsList.toList(),
+          voucherCode: voucherCode.value.trim().isEmpty
+              ? null
+              : voucherCode.value.trim(),
         );
       } else if (_currentPaymentType == PaymentType.passPurchase) {
         final user = await _remoteRepo.getUserFromPreferences();
@@ -276,6 +289,7 @@ class RazorpayController extends GetxController {
       paymentGateway: 'razorpay',
     );
 
+    await _releasePendingBookings();
     await refundPendingWalletContribution();
     _reset();
     Get.snackbar(
@@ -300,6 +314,7 @@ class RazorpayController extends GetxController {
     required String paymentId,
     required String paymentMode,
     required List<int> slotIds,
+    String? voucherCode,
     String? userPassId,
   }) async {
     try {
@@ -318,9 +333,11 @@ class RazorpayController extends GetxController {
       await _remoteRepo.confirmBooking(
         bookingIds: bookingIds,
         paymentId: paymentId,
-        bookDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        bookDate: bookingDate.value.trim().isEmpty
+            ? DateFormat('yyyy-MM-dd').format(DateTime.now())
+            : bookingDate.value.trim(),
         paymentMode: paymentMode, // ★ pass it
-        voucherCode: null,
+        voucherCode: voucherCode,
         extraServices: extraServices.isNotEmpty ? extraServices : null,
         userPassId: userPassId,
       );
@@ -328,7 +345,11 @@ class RazorpayController extends GetxController {
       // Clear selected slots after successful payment
       final bookingController = Get.find<BookingController>();
       bookingController.clearSelectedSlots();
+      await bookingController.fetchUserBookings(forceRefresh: true);
 
+      final confirmedBookingDate = bookingDate.value.trim().isEmpty
+          ? DateFormat('yyyy-MM-dd').format(DateTime.now())
+          : bookingDate.value.trim();
       _reset();
 
       // Navigate to past bookings
@@ -337,10 +358,10 @@ class RazorpayController extends GetxController {
       // Then home (arena tab)
       // Get.find<HomeController>().onItemTapped(1);
       // Get.offAllNamed('/home');
-      await Get.to(
+      await Get.off(
         () => PaymentSuccessScreen(
           method: paymentMode,
-          dateText: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          dateText: confirmedBookingDate,
           timeText: "",
           totalText: "",
           email: "",
@@ -350,14 +371,7 @@ class RazorpayController extends GetxController {
         ),
       );
     } catch (e) {
-      // here call the release booking api
-      await _remoteRepo.releaseBooking(
-        bookings: BookingModel(
-          slotId: slotIds.first,
-          bookingId: bookingIds.first,
-          bookDate: DateTime.now().toIso8601String(),
-        ),
-      );
+      await _releaseBookings(bookingIds: bookingIds, slotIds: slotIds);
       await refundPendingWalletContribution();
       _reset();
       Haptics.error();
@@ -366,6 +380,34 @@ class RazorpayController extends GetxController {
         'Failed to confirm booking: $e',
         snackPosition: SnackPosition.BOTTOM,
       );
+    }
+  }
+
+  Future<void> _releasePendingBookings() async {
+    await _releaseBookings(
+      bookingIds: bookingIdList.toList(),
+      slotIds: slotIdsList.toList(),
+    );
+  }
+
+  Future<void> _releaseBookings({
+    required List<int> bookingIds,
+    required List<int> slotIds,
+  }) async {
+    for (var index = 0; index < bookingIds.length; index++) {
+      if (slotIds.isEmpty) break;
+      final slotId = index < slotIds.length ? slotIds[index] : slotIds.last;
+      try {
+        await _remoteRepo.releaseBooking(
+          bookings: BookingModel(
+            slotId: slotId,
+            bookingId: bookingIds[index],
+            bookDate: DateTime.now().toIso8601String(),
+          ),
+        );
+      } catch (_) {
+        // The backend may already have expired/released this reservation.
+      }
     }
   }
 
@@ -378,6 +420,8 @@ class RazorpayController extends GetxController {
     bookingIdList.clear();
     slotIdsList.clear();
     cartItemsList.clear();
+    voucherCode.value = '';
+    bookingDate.value = '';
     _clearWalletSplit();
   }
 

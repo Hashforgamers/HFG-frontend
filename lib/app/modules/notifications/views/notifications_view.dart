@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
@@ -62,9 +63,7 @@ class _NotificationsViewState extends State<NotificationsView> {
       ),
       body: Obx(() {
         if (_controller.isLoading.value && _controller.notifications.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xff00DC00)),
-          );
+          return const AppLinearLoader.screen();
         }
 
         if (_controller.notifications.isEmpty) {

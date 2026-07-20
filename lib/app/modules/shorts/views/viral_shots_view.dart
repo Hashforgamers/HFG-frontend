@@ -14,45 +14,64 @@ class ViralShotsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'TRENDING SHORTS',
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+    return Obx(() {
+      if (!controller.isLoading.value && controller.shorts.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Trending ',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                TextSpan(
+                  text: 'Shorts',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF00DC00),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        Obx(() {
-          if (controller.isLoading.value) return _shimmerRow();
-          if (controller.shorts.isEmpty) {
-            return Center(
-              child: Text(
-                'No shorts found',
-                style: GoogleFonts.inter(color: Colors.white),
+          const SizedBox(height: 12),
+          Obx(() {
+            if (controller.isLoading.value) return _shimmerRow();
+            if (controller.shorts.isEmpty) {
+              return Center(
+                child: Text(
+                  'No shorts found',
+                  style: GoogleFonts.inter(color: Colors.white),
+                ),
+              );
+            }
+
+            return SizedBox(
+              height: 220,
+              child: ListView.separated(
+                cacheExtent: 600,
+                scrollDirection: Axis.horizontal,
+                itemCount: controller.shorts.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 20),
+                itemBuilder: (context, index) {
+                  final short = controller.shorts[index];
+                  return RepaintBoundary(child: _buildItem(short, index));
+                },
               ),
             );
-          }
-
-          return SizedBox(
-            height: 220,
-            child: ListView.separated(
-              cacheExtent: 600,
-              scrollDirection: Axis.horizontal,
-              itemCount: controller.shorts.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 20),
-              itemBuilder: (context, index) {
-                final short = controller.shorts[index];
-                return RepaintBoundary(child: _buildItem(short, index));
-              },
-            ),
-          );
-        }),
-      ],
-    );
+          }),
+        ],
+      );
+    });
   }
 
   Widget _shimmerRow() {

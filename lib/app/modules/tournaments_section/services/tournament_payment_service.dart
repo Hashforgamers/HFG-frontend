@@ -8,32 +8,44 @@ import 'package:hash/app/modules/tournaments_section/models/tournament_model.dar
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/network_config.dart';
-import 'package:hash/core/repositories/model/capture_payment_model.dart';
-import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
+class TournamentPaymentResult {
+  final String paymentReference;
+  final String? orderId;
+  final String? signature;
+
+  const TournamentPaymentResult({
+    required this.paymentReference,
+    this.orderId,
+    this.signature,
+  });
+
+  bool get requiresVerification =>
+      orderId?.isNotEmpty == true && signature?.isNotEmpty == true;
+}
+
 class TournamentPaymentService {
   final NetworkProvider _networkProvider = locator<NetworkProvider>();
-  final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   static const Duration _checkoutTimeout = Duration(minutes: 4);
 
-  Future<String?> payRegistrationFee({
+  Future<TournamentPaymentResult?> payRegistrationFee({
     required BuildContext context,
     required TournamentModel tournament,
   }) async {
     Razorpay? razorpay;
     final amountRupees = _extractAmount(tournament.entryFee);
     if (amountRupees <= 0) {
-      return 'FREE_${DateTime.now().millisecondsSinceEpoch}';
+      return const TournamentPaymentResult(paymentReference: '');
     }
 
     try {
       final orderId = await _createRazorpayOrder(amountRupees);
       final user = _getUserDetails();
-      final completer = Completer<String?>();
+      final completer = Completer<TournamentPaymentResult?>();
       razorpay = Razorpay();
       final prefill = <String, dynamic>{};
       final normalizedPhone = user.$1.replaceAll(RegExp(r'[^0-9+]'), '').trim();
@@ -45,8 +57,8 @@ class TournamentPaymentService {
         prefill['email'] = normalizedEmail;
       }
 
-      void completeOnce(String? paymentId) {
-        if (!completer.isCompleted) completer.complete(paymentId);
+      void completeOnce(TournamentPaymentResult? result) {
+        if (!completer.isCompleted) completer.complete(result);
       }
 
       razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (dynamic response) {
@@ -55,11 +67,15 @@ class TournamentPaymentService {
           'Tournament payment success: paymentId=${success.paymentId}, orderId=${success.orderId}',
         );
         Haptics.criticalSuccess();
-        _capturePayment(success);
+        final paymentReference = success.paymentId?.isNotEmpty == true
+            ? success.paymentId!
+            : (success.orderId ?? '');
         completeOnce(
-          success.paymentId?.isNotEmpty == true
-              ? success.paymentId
-              : success.orderId,
+          TournamentPaymentResult(
+            paymentReference: paymentReference,
+            orderId: success.orderId,
+            signature: success.signature,
+          ),
         );
       });
       razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (dynamic response) {
@@ -92,7 +108,9 @@ class TournamentPaymentService {
       return await completer.future.timeout(
         _checkoutTimeout,
         onTimeout: () {
-          _showToast(context, 'Payment timed out. Please try again.');
+          if (context.mounted) {
+            _showToast(context, 'Payment timed out. Please try again.');
+          }
           return null;
         },
       );
@@ -104,6 +122,31 @@ class TournamentPaymentService {
         razorpay?.clear();
       } catch (_) {}
     }
+  }
+
+  Future<Map<String, dynamic>> verifyRegistrationPayment({
+    required TournamentPaymentResult payment,
+    required String registrationId,
+    required String tournamentId,
+    required bool community,
+  }) async {
+    if (!payment.requiresVerification) return const <String, dynamic>{};
+    final dio = await _networkProvider.auth();
+    final response = await dio.post(
+      ApiEndpoints.paymentVerify(community: community),
+      data: {
+        'razorpay_payment_id': payment.paymentReference,
+        'razorpay_order_id': payment.orderId,
+        'razorpay_signature': payment.signature,
+        'registration_id': registrationId,
+        // Cafe callbacks historically identify registrations as teams.
+        'team_id': registrationId,
+        'tournament_id': tournamentId,
+      },
+    );
+    final raw = response.data;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    throw Exception('Payment verification returned an invalid response.');
   }
 
   Future<String> _createRazorpayOrder(double amount) async {
@@ -138,17 +181,6 @@ class TournamentPaymentService {
         ? 'HashForGamers'
         : user.name!;
     return (contact, email, name);
-  }
-
-  Future<void> _capturePayment(PaymentSuccessResponse success) async {
-    try {
-      final payload = CapturePaymentModel(
-        razorpayPaymentId: success.paymentId,
-        razorpayOrderId: success.orderId,
-        razorpaySignature: success.signature,
-      );
-      await _remoteRepo.capturePayment(capturePaymentModel: payload);
-    } catch (_) {}
   }
 
   double _extractAmount(String raw) {

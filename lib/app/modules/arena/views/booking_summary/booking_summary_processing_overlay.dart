@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class BookingSummaryProcessingOverlay extends StatelessWidget {
@@ -27,16 +28,11 @@ class BookingSummaryProcessingOverlay extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xff00DC00)),
-            ),
+            const AppLinearLoader.button(),
             const SizedBox(height: 16),
             Text(
               status.isNotEmpty ? status : 'Processing...',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 14,
-              ),
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
           ],
         ),

@@ -13,6 +13,23 @@ import '../modules/splash/bindings/splash_binding.dart';
 import '../modules/splash/views/splash_view.dart';
 import '../modules/wallet/views/wallet_view.dart';
 import '../modules/need_help/need_help_page.dart';
+import '../modules/community/views/host_onboarding_view.dart';
+import '../modules/community/bindings/host_onboarding_binding.dart';
+import '../modules/community/views/host_verification_view.dart';
+import '../modules/community/bindings/host_verification_binding.dart';
+import '../modules/community/views/verification_checkout_view.dart';
+import '../modules/community/bindings/verification_checkout_binding.dart';
+import '../modules/community/views/host_dashboard_view.dart';
+import '../modules/community/bindings/host_dashboard_binding.dart';
+import '../modules/community/views/create_tournament_view.dart';
+import '../modules/community/bindings/create_tournament_binding.dart';
+import '../modules/community/views/tournaments_view.dart';
+import '../modules/community/views/tournament_detail_view.dart';
+import '../modules/community/bindings/tournaments_binding.dart';
+import '../modules/community/views/my_tournaments_view.dart';
+import '../modules/community/bindings/my_tournaments_binding.dart';
+import '../modules/community/views/manage_tournament_view.dart';
+import '../modules/community/bindings/manage_tournament_binding.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -46,6 +63,51 @@ class AppPages {
     GetPage(
       name: AppRoutes.NOTIFICATIONS,
       page: () => const NotificationsView(),
+    ),
+    GetPage(
+      name: AppRoutes.HOST_ONBOARDING,
+      page: () => const HostOnboardingView(),
+      binding: HostOnboardingBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.HOST_VERIFICATION,
+      page: () => const HostVerificationView(),
+      binding: HostVerificationBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.HOST_VERIFICATION_CHECKOUT,
+      page: () => const VerificationCheckoutView(),
+      binding: VerificationCheckoutBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.HOST_DASHBOARD,
+      page: () => const HostDashboardView(),
+      binding: HostDashboardBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.CREATE_TOURNAMENT,
+      page: () => const CreateTournamentView(),
+      binding: CreateTournamentBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.TOURNAMENTS_DISCOVERY,
+      page: () => const TournamentsView(),
+      binding: TournamentsBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.TOURNAMENT_DETAIL,
+      page: () => const TournamentDetailView(),
+      binding: TournamentDetailBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.MY_TOURNAMENTS,
+      page: () => const MyTournamentsView(),
+      binding: MyTournamentsBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.MANAGE_TOURNAMENT,
+      page: () => const ManageTournamentView(),
+      binding: ManageTournamentBinding(),
     ),
   ];
 }

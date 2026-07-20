@@ -31,7 +31,6 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/funnel_notification_service.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
 import '../../../../core/repositories/model/extra_services_model.dart';
 import '../../../data/services/user_controller.dart';
@@ -126,6 +125,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final RxString _paymentStatus = ''.obs;
   bool _paymentAttempted = false;
   bool _paymentCompleted = false;
+  bool _isStartingBooking = false;
 
   // Add this field to store the bookingId to slotId mapping
   Map<int, int> _bookingIdToSlotId = {};
@@ -134,6 +134,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final Rx<PaymentStage> _stage = PaymentStage.idle.obs;
   final RxString _errorMessage = ''.obs;
   Timer? _paymentWatchdog;
+  final List<Worker> _paymentWorkers = <Worker>[];
 
   @override
   void initState() {
@@ -186,6 +187,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       );
     }
     _voucherController.dispose();
+    for (final worker in _paymentWorkers) {
+      worker.dispose();
+    }
+    _paymentWorkers.clear();
     _cancelPaymentWatchdog();
     _resetPaymentState();
     _selectedGamePass.value = null;
@@ -193,71 +198,44 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   }
 
   void _setupPaymentListeners() {
-    // Listen to booking controller loading state
-    ever(bookingController.isLoading, (bool loading) {
-      if (!loading && _isProcessingPayment.value) {
-        // Booking creation completed, payment will be initiated
-        _paymentStatus.value = 'Initiating payment...';
-        _stage.value = PaymentStage.initiatingGateway;
-      }
-    });
-
     // Listen to Razorpay controller payment status
-    ever(razorpayController.paymentStatus, (String status) {
-      if (status.isNotEmpty) {
-        _paymentStatus.value = status;
-        if (status.toLowerCase().contains('success')) {
-          _stage.value = PaymentStage.done;
-          _cancelPaymentWatchdog();
-          // _isProcessingPayment(false);
-        } else if (status.toLowerCase().contains('failed') ||
-            status.toLowerCase().contains('error') ||
-            status.toLowerCase().contains('cancelled')) {
-          _pendingWalletAppliedAmount.value = 0;
-          _stage.value = PaymentStage.error;
-          _errorMessage.value = status;
-          _isProcessingPayment(false);
-          _cancelPaymentWatchdog();
-          razorpayController.isPaymentInProgress(false);
+    _paymentWorkers.add(
+      ever(razorpayController.paymentStatus, (String status) {
+        if (status.isNotEmpty) {
+          _paymentStatus.value = status;
+          if (status.toLowerCase().contains('success')) {
+            _stage.value = PaymentStage.done;
+            _paymentCompleted = true;
+            _cancelPaymentWatchdog();
+          } else if (status.toLowerCase().contains('failed') ||
+              status.toLowerCase().contains('error') ||
+              status.toLowerCase().contains('cancelled')) {
+            _pendingWalletAppliedAmount.value = 0;
+            _stage.value = PaymentStage.error;
+            _errorMessage.value = status;
+            _isProcessingPayment(false);
+            _cancelPaymentWatchdog();
+            razorpayController.isPaymentInProgress(false);
+          }
         }
-      }
-    });
+      }),
+    );
 
     // Listen to Razorpay controller payment progress
-    ever(razorpayController.isPaymentInProgress, (bool inProgress) {
-      if (!inProgress && _isProcessingPayment.value) {
-        // Payment completed (success or failure)
-        if (_stage.value != PaymentStage.done &&
-            _stage.value != PaymentStage.error) {
-          _pendingWalletAppliedAmount.value = 0;
-          _stage.value = PaymentStage.idle;
-        }
-        _cancelPaymentWatchdog();
-        _isProcessingPayment(false);
-        _paymentStatus.value = '';
-      }
-    });
-
-    // Listen to Razorpay payment status changes
-    ever(razorpayController.paymentStatus, (String status) {
-      if (status.isNotEmpty) {
-        _paymentStatus.value = status;
-        if (status.toLowerCase().contains('successful')) {
-          _stage.value = PaymentStage.done;
+    _paymentWorkers.add(
+      ever(razorpayController.isPaymentInProgress, (bool inProgress) {
+        if (!inProgress && _isProcessingPayment.value) {
+          if (_stage.value != PaymentStage.done &&
+              _stage.value != PaymentStage.error) {
+            _pendingWalletAppliedAmount.value = 0;
+            _stage.value = PaymentStage.idle;
+          }
           _cancelPaymentWatchdog();
-          // _isProcessingPayment(false);
-        } else if (status.toLowerCase().contains('failed') ||
-            status.toLowerCase().contains('error') ||
-            status.toLowerCase().contains('cancelled')) {
-          _pendingWalletAppliedAmount.value = 0;
-          _stage.value = PaymentStage.error;
-          _errorMessage.value = status;
           _isProcessingPayment(false);
-          _cancelPaymentWatchdog();
-          razorpayController.isPaymentInProgress(false);
+          _paymentStatus.value = '';
         }
-      }
-    });
+      }),
+    );
   }
 
   void _startPaymentWatchdog({
@@ -292,6 +270,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   }) async {
     if (fromWallet) {
       await _rollbackWalletContributionIfNeeded();
+    } else if (_stage.value == PaymentStage.initiatingGateway ||
+        _stage.value == PaymentStage.openingRazorpay ||
+        razorpayController.isPaymentInProgress.value) {
+      await razorpayController.cancelPendingBookingPayment();
     }
     _stage.value = PaymentStage.error;
     _errorMessage.value = errorMessage;
@@ -673,6 +655,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return double.tryParse(value.toString()) ?? 0;
   }
 
+  int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
+  }
+
   List<Map<String, dynamic>> _buildSquadMembersPayload() {
     return widget.selectedSquadMembers
         .map((member) {
@@ -772,9 +760,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   void _configureRazorpayBookingContext(List<int> bookingIds) {
     razorpayController.bookingIdList.value = bookingIds;
     razorpayController.slotIdsList.value = widget.selectedSlots
-        .map((slot) => slot['slot_id'] as int)
+        .map((slot) => _asInt(slot['slot_id']))
+        .whereType<int>()
         .toList();
     razorpayController.cartItemsList.value = _getValidatedCartItems();
+    razorpayController.voucherCode.value = _appliedVoucher.value?.code ?? '';
+    razorpayController.bookingDate.value = _formattedBookDate;
   }
 
   double calculateDiscount() {
@@ -1311,7 +1302,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
     // Check if total price is valid
     double totalPrice = calculateTotalPrice();
-    if (totalPrice <= 0) {
+    final hasFullDiscount =
+        _appliedVoucher.value != null &&
+        _isHundredPercentVoucher(_appliedVoucher.value!);
+    if (totalPrice.isNaN ||
+        totalPrice < 0 ||
+        (totalPrice == 0 && !hasFullDiscount)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Invalid total price!'),
@@ -1876,12 +1872,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     String? selectedPassId,
     required bool isPayAtCafe,
   }) async {
+    if (_isStartingBooking || _isProcessingPayment.value) return;
+    _isStartingBooking = true;
     if (!_validateBooking()) {
+      _isStartingBooking = false;
       return;
     }
 
     final hasRegisteredPhone = await _ensureRegisteredPhoneForBooking();
     if (!hasRegisteredPhone) {
+      _isStartingBooking = false;
       return;
     }
 
@@ -1890,6 +1890,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
     // Start loading state
     _isProcessingPayment(true);
+    _isStartingBooking = false;
     _stage.value = PaymentStage.creatingBooking;
 
     try {
@@ -1903,8 +1904,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       int amountInPaisa = (totalPrice * 100).round();
 
       List<int> slotIds = widget.selectedSlots
-          .map((slot) => slot['slot_id'] as int)
+          .map((slot) => _asInt(slot['slot_id']))
+          .whereType<int>()
           .toList();
+
+      if (slotIds.length != widget.selectedSlots.length) {
+        throw Exception('One or more selected slots are no longer valid.');
+      }
 
       // Use the new mapping function
       _bookingIdToSlotId = await createBookingWithSlotMap(
@@ -1970,10 +1976,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           ),
         );
         await _shareBookingWithSquadMembers(bookingIds);
-        Get.to(
+        bookingController.clearSelectedSlots();
+        await bookingController.fetchUserBookings(forceRefresh: true);
+        Get.off(
           () => PaymentSuccessScreen(
             isBookingCreatedOnly: true,
-            dateText: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+            dateText: _formattedBookDate,
             timeText: "",
             totalText: totalPrice.toString(),
             email: "",
@@ -2036,7 +2044,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       }
 
       // b) VOUCHER route (if voucher is applied and not using Razorpay or Wallet)
-      if (isVoucherApplied && _appliedVoucher.value != null) {
+      if (isVoucherApplied &&
+          _appliedVoucher.value != null &&
+          totalPrice <= 0.01) {
         _stage.value = PaymentStage.confirmingVoucher;
         await confirmBooking(
           bookingIds: bookingIds,
@@ -2234,12 +2244,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       // Clear selected slots after successful booking
       bookingController.clearSelectedSlots();
+      await bookingController.fetchUserBookings(forceRefresh: true);
 
-      // Navigate to past bookings first
-      await Get.to(
+      await Get.off(
         () => PaymentSuccessScreen(
           method: paymentMode,
-          dateText: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          dateText: _formattedBookDate,
           timeText: "",
           totalText: totalPrice.toString(),
           email: "",
@@ -2337,13 +2347,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         Map<int, int> map = {};
         if (data['bookings'] != null) {
           for (final b in data['bookings']) {
-            if (b['booking_id'] != null && b['slot_id'] != null) {
-              map[b['booking_id']] = b['slot_id'];
+            final bookingId = _asInt(b['booking_id']);
+            final slotId = _asInt(b['slot_id']);
+            if (bookingId != null && slotId != null) {
+              map[bookingId] = slotId;
             }
           }
         } else if (data['booking_ids'] != null) {
           // fallback: assume 1:1 with slotIds order
-          final ids = List<int>.from(data['booking_ids']);
+          final ids = (data['booking_ids'] as List)
+              .map(_asInt)
+              .whereType<int>()
+              .toList();
           for (int i = 0; i < ids.length && i < slotIds.length; i++) {
             map[ids[i]] = slotIds[i];
           }

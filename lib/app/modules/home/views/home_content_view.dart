@@ -22,6 +22,7 @@ import 'package:hash/app/modules/profile/user_profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
 import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/rewards/widgets/squad_missions_card.dart';
+import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -36,6 +37,8 @@ import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/data/models/user_model.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/utils/encrypt_util.dart';
+import 'package:hash/utils/widgets/bounce_tap_widget.dart';
+import 'package:hash/utils/widgets/hash_wordmark.dart';
 
 import '../../support/support_screen.dart';
 import 'package:hash/core/utils/app_logger.dart';
@@ -62,7 +65,7 @@ class _HomeContentViewState extends State<HomeContentView>
 
   // Scroll controller for optimization
   late final ScrollController _scrollController;
-  static const double _sectionGap = 20.0;
+  static const double _sectionGap = 24.0;
   static const double _horizontalSectionPadding = 8.0;
 
   final remoteRepo = locator<RemoteRepoInterface>();
@@ -77,6 +80,7 @@ class _HomeContentViewState extends State<HomeContentView>
 
   List<Widget> _buildVisibleSections() {
     final sections = <Widget>[
+      _buildLazyLoadedSection('hostBanner', _buildHostBanner()),
       _buildLazyLoadedSection('cafe', _cachedCafeSection),
       _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
       _buildLazyLoadedSection('squadMissions', const SquadMissionsCard()),
@@ -173,6 +177,7 @@ class _HomeContentViewState extends State<HomeContentView>
   void _initializeData() {
     _sectionVisibility.addAll({
       'cafe': true,
+      'hostBanner': true,
       'gamePass': true,
       'support': true,
       'miniGames': false,
@@ -772,6 +777,134 @@ class _HomeContentViewState extends State<HomeContentView>
     _cachedGameOnIndiaBanner = const HomeGameOnIndiaBanner();
 
     return _cachedGameOnIndiaBanner!;
+  }
+
+  Widget _buildHostBanner() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.zero,
+          child: Row(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Text(
+                      'Earn with ',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const HashWordmark(fontSize: 15, letterSpacing: 2.5),
+                  ],
+                ),
+              ),
+              Text(
+                'HOST PROGRAM',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFA99AFF),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        BounceTap(
+          onTap: () => Get.toNamed(AppRoutes.HOST_ONBOARDING),
+          child: Container(
+            padding: const EdgeInsets.all(1.5),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF745CFF), width: 1.5),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x4D6D28FF),
+                  blurRadius: 14,
+                  spreadRadius: -4,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14.5),
+              clipBehavior: Clip.antiAlias,
+              child: AspectRatio(
+                aspectRatio: 1672 / 941,
+                child: Image.asset(
+                  'assets/community_host_banner.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _hostBannerFallback(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _hostBannerFallback() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF7A1FA2), Color(0xFFDE3A3A)],
+        ),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const HashWordmark(fontSize: 9, letterSpacing: 1.5),
+              const SizedBox(width: 7),
+              Text(
+                'HOST PROGRAM',
+                style: GoogleFonts.inter(
+                  color: Colors.white70,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Earn lakhs by hosting\ntournaments on HASH',
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Text(
+              'Become a Host  ›',
+              style: GoogleFonts.inter(
+                color: Colors.black,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildShimmerAvatar() {

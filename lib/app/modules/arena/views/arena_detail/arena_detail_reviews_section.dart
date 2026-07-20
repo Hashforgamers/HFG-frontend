@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
@@ -96,11 +97,7 @@ class _ArenaDetailReviewsSectionState extends State<ArenaDetailReviewsSection> {
                 ),
                 const Spacer(),
                 if (snapshot.connectionState == ConnectionState.waiting)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  const AppLinearLoader(width: 30, height: 3),
               ],
             ),
             const SizedBox(height: 10),

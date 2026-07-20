@@ -19,6 +19,19 @@ class TournamentsRegisterSuccess extends TournamentsRegisterState {
   List<Object?> get props => [data];
 }
 
+class TournamentsRegisterSettlementPending extends TournamentsRegisterState {
+  final String registrationId;
+  final String message;
+
+  const TournamentsRegisterSettlementPending({
+    required this.registrationId,
+    required this.message,
+  });
+
+  @override
+  List<Object?> get props => [registrationId, message];
+}
+
 class TournamentsRegisterError extends TournamentsRegisterState {
   final String message;
   const TournamentsRegisterError({required this.message});

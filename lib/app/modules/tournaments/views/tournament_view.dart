@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
+import '../../../routes/app_routes.dart';
 import '../widget/tournament_card.dart';
 
 class TournamentView extends StatelessWidget {
@@ -14,6 +16,19 @@ class TournamentView extends StatelessWidget {
           centerTitle: false,
           title: const Text('Tournaments', style: TextStyle(color: Colors.white)),
           backgroundColor: Colors.black,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: TextButton.icon(
+                onPressed: () => Get.toNamed(AppRoutes.TOURNAMENTS_DISCOVERY),
+                icon: const Icon(Icons.groups_rounded,
+                    color: Color(0xffDE3A3A), size: 20),
+                label: const Text('Community',
+                    style: TextStyle(
+                        color: Color(0xffDE3A3A), fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
           bottom: const TabBar(
             indicatorColor: Color(0xffDE3A3A),
             labelColor: Color(0xffDE3A3A),

@@ -39,16 +39,18 @@ class DeepLinkController extends GetxController {
   }
 
   void _navigateToDeepLink(Uri uri) {
+    final segments = uri.pathSegments
+        .map((segment) => segment.trim().toLowerCase())
+        .where((segment) => segment.isNotEmpty)
+        .toList();
     final isCustomSchemeTeamJoin =
-        uri.host.toLowerCase() == 'team' &&
-        uri.pathSegments.any((segment) => segment.toLowerCase() == 'join');
+        uri.host.toLowerCase() == 'team' && segments.contains('join');
     final isWebTeamJoin =
-        uri.pathSegments.any((segment) => segment.toLowerCase() == 'team') &&
-        uri.pathSegments.any((segment) => segment.toLowerCase() == 'join');
+        segments.length >= 2 && segments[0] == 'team' && segments[1] == 'join';
     final isTeamJoinLink =
         isCustomSchemeTeamJoin ||
         isWebTeamJoin ||
-        uri.pathSegments.any((segment) => segment.toLowerCase() == 'team-join');
+        segments.contains('team-join');
     if (isTeamJoinLink) {
       final eventId = uri.queryParameters['event_id'] ?? '';
       final teamId = uri.queryParameters['team_id'] ?? '';
@@ -64,8 +66,15 @@ class DeepLinkController extends GetxController {
         return;
       }
     }
-    if (uri.pathSegments.contains('contest')) {
-      Get.toNamed('/contestPage', arguments: {'id': uri.queryParameters['id']});
+    final contestIndex = segments.indexOf('contest');
+    if (contestIndex != -1) {
+      final pathId = contestIndex + 1 < uri.pathSegments.length
+          ? uri.pathSegments[contestIndex + 1]
+          : null;
+      Get.toNamed(
+        '/contestPage',
+        arguments: {'id': uri.queryParameters['id'] ?? pathId},
+      );
     } else if (uri.pathSegments.contains('offer')) {
       Get.toNamed('/offerPage');
     } else {

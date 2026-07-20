@@ -68,10 +68,11 @@ class _TournamentsTeamInviteJoinViewState
           teamId: widget.teamId,
         );
       }
-      final members = await _membersCubit.remoteRepo.fetchEventTeamMembers(
+      final response = await _membersCubit.remoteRepo.fetchEventTeamMembers(
         eventId: widget.eventId,
         teamId: widget.teamId,
       );
+      final members = response.members;
       if (!mounted) return;
       setState(() {
         _joined = true;

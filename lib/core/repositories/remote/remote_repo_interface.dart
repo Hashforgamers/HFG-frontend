@@ -3,6 +3,7 @@ import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/extra_services_model.dart';
+import 'package:hash/core/repositories/model/event_team_members_response.dart';
 import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
@@ -37,6 +38,11 @@ abstract class RemoteRepoInterface {
 
   // Vendor related methods
   Future<List<Map<String, dynamic>>> fetchCybercafes();
+  Future<List<Map<String, dynamic>>> fetchNearbyPlayers({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 10,
+  });
   Future<Map<String, dynamic>> fetchVendorGames(int vendorId);
 
   // News related methods
@@ -200,9 +206,11 @@ abstract class RemoteRepoInterface {
 
   Future<List<Map<String, dynamic>>> fetchPublicEvents();
   Future<Map<String, dynamic>> fetchEventById({required String eventId});
-  Future<List<Map<String, dynamic>>> fetchEventLeaderboard({
+  Future<Map<String, dynamic>> fetchEventLeaderboard({
     required String eventId,
+    String stage = 'auto',
   });
+  Future<Map<String, dynamic>> fetchGamerProfile({required int userId});
   Future<Map<String, dynamic>> createEventTeam({
     required String eventId,
     required int userId,
@@ -224,7 +232,7 @@ abstract class RemoteRepoInterface {
     required int userId,
     required String teamId,
   });
-  Future<List<Map<String, dynamic>>> fetchEventTeamMembers({
+  Future<EventTeamMembersResponse> fetchEventTeamMembers({
     required String eventId,
     required String teamId,
   });

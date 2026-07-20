@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
@@ -210,7 +211,7 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
     return Scaffold(
       backgroundColor: ChatPalette.bgBottom,
       appBar: AppBar(
-        backgroundColor: ChatPalette.surface,
+        backgroundColor: ChatPalette.bgBottom,
         surfaceTintColor: Colors.transparent,
         title: Text(
           'Start New Chat',
@@ -252,6 +253,16 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
                     Icons.search,
                     color: ChatPalette.textSecondary,
                   ),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: _searchController.clear,
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: ChatPalette.textSecondary,
+                            size: 18,
+                          ),
+                        ),
                   filled: true,
                   fillColor: ChatPalette.inputFill,
                   contentPadding: const EdgeInsets.symmetric(
@@ -259,8 +270,16 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
                     vertical: 12,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: ChatPalette.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: ChatPalette.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: ChatPalette.primary),
                   ),
                 ),
               ),
@@ -269,11 +288,7 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
               child: Builder(
                 builder: (_) {
                   if (_isLoadingUsers) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: ChatPalette.primary,
-                      ),
-                    );
+                    return const AppLinearLoader.screen();
                   }
 
                   if (_searchError != null) {
@@ -305,7 +320,7 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
                     itemCount: _users.length,
                     separatorBuilder: (context, index) =>
-                        const SizedBox(height: 8),
+                        const Divider(height: 1, color: ChatPalette.border),
                     itemBuilder: (context, index) {
                       final user = _users[index];
                       final display = user.displayName.trim().isEmpty
@@ -318,20 +333,11 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
                       return Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.zero,
                           onTap: _isStartingChat
                               ? null
                               : () => _startDirectChat(user),
                           child: Ink(
-                            decoration: BoxDecoration(
-                              gradient: ChatPalette.cardGradient,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: ChatPalette.border.withValues(
-                                  alpha: 0.6,
-                                ),
-                              ),
-                            ),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 10,
@@ -415,14 +421,7 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
                                       ),
                                     )
                                   else if (_isStartingChat)
-                                    const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: ChatPalette.primary,
-                                      ),
-                                    )
+                                    const AppLinearLoader(width: 28, height: 3)
                                   else
                                     const Icon(
                                       Icons.arrow_forward_ios_rounded,

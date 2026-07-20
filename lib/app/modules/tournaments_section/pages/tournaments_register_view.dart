@@ -6,6 +6,7 @@ import 'package:hash/app/modules/tournaments_section/models/tournament_model.dar
 import 'package:hash/app/modules/tournaments_section/pages/tournament_registration_result_pages.dart';
 import 'package:hash/app/modules/tournaments_section/services/tournament_payment_service.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
+import 'package:hash/app/modules/tournaments_section/widgets/tournament_finalizing_registration_dialog.dart';
 import '../cubit/tournaments_register_cubit.dart';
 
 class TournamentsRegisterView extends StatefulWidget {
@@ -36,6 +37,8 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
   @override
   Widget build(BuildContext context) {
     final t = widget.tournament;
+    final isCommunitySolo =
+        t.source == 'community' && t.teamMode.toLowerCase() == 'solo';
 
     return BlocProvider.value(
       value: _cubit,
@@ -51,6 +54,15 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
               Get.to(
                 () => TournamentRegistrationSuccessPage(
                   tournamentTitle: widget.tournament.title,
+                ),
+              );
+            } else if (state is TournamentsRegisterSettlementPending) {
+              _hideBlockingLoader();
+              if (!mounted) return;
+              Get.to(
+                () => TournamentPaymentProcessingPage(
+                  tournamentTitle: widget.tournament.title,
+                  message: state.message,
                 ),
               );
             } else if (state is TournamentsRegisterError) {
@@ -91,7 +103,9 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          "(You will be the leader by default)",
+                          isCommunitySolo
+                              ? 'Registering as an individual player'
+                              : '(You will be the leader by default)',
                           style: GoogleFonts.inter(
                             color: Colors.orangeAccent,
                             fontSize: 12,
@@ -99,14 +113,15 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
                         ),
                         const SizedBox(height: 20),
 
-                        _buildLabel("Your Name"),
-                        const SizedBox(height: 10),
-                        GradientTextField(controller: nameController),
-
-                        const SizedBox(height: 12),
-                        _buildLabel("Team Name"),
-                        const SizedBox(height: 10),
-                        GradientTextField(controller: teamNameController),
+                        if (!isCommunitySolo) ...[
+                          _buildLabel("Your Name"),
+                          const SizedBox(height: 10),
+                          GradientTextField(controller: nameController),
+                          const SizedBox(height: 12),
+                          _buildLabel("Team Name"),
+                          const SizedBox(height: 10),
+                          GradientTextField(controller: teamNameController),
+                        ],
 
                         const SizedBox(height: 30),
                         _buildRegisterButton(state),
@@ -147,7 +162,7 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
           height: 220,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+              colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
             ),
@@ -182,7 +197,11 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
   );
 
   Widget _buildRegisterButton(TournamentsRegisterState state) {
-    final isLoading = state is TournamentsRegisterLoading || _isPaymentProcessing;
+    final isLoading =
+        state is TournamentsRegisterLoading || _isPaymentProcessing;
+    final isCommunitySolo =
+        widget.tournament.source == 'community' &&
+        widget.tournament.teamMode.toLowerCase() == 'solo';
 
     return Container(
       width: double.infinity,
@@ -198,7 +217,7 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
         onPressed: isLoading
             ? null
             : () {
-              _submitCreateTeam(context);
+                _submitCreateTeam(context);
               },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
@@ -211,7 +230,7 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
         child: isLoading
             ? const TournamentsLoader.button()
             : Text(
-                '+ Create your Team',
+                isCommunitySolo ? 'Register Now' : '+ Create your Team',
                 style: GoogleFonts.inter(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -225,33 +244,36 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
   Future<void> _submitCreateTeam(BuildContext context) async {
     final leaderName = nameController.text.trim();
     final teamName = teamNameController.text.trim();
+    final isCommunitySolo =
+        widget.tournament.source == 'community' &&
+        widget.tournament.teamMode.toLowerCase() == 'solo';
 
-    if (leaderName.isEmpty) {
+    if (!isCommunitySolo && leaderName.isEmpty) {
       _showValidationError('Leader name is required.');
       return;
     }
-    if (leaderName.length < 3) {
+    if (!isCommunitySolo && leaderName.length < 3) {
       _showValidationError('Leader name must be at least 3 characters.');
       return;
     }
-    if (teamName.isEmpty) {
+    if (!isCommunitySolo && teamName.isEmpty) {
       _showValidationError('Team name is required.');
       return;
     }
-    if (teamName.length < 3) {
+    if (!isCommunitySolo && teamName.length < 3) {
       _showValidationError('Team name must be at least 3 characters.');
       return;
     }
 
     setState(() => _isPaymentProcessing = true);
-    String? paymentReference;
+    TournamentPaymentResult? payment;
     try {
-      paymentReference = await _paymentService.payRegistrationFee(
+      payment = await _paymentService.payRegistrationFee(
         context: context,
         tournament: widget.tournament,
       );
       if (!mounted) return;
-      if (paymentReference == null) {
+      if (payment == null) {
         _openPaymentFailedPage('Payment was not completed.');
         return;
       }
@@ -274,7 +296,9 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
       eventId: widget.tournament.id,
       leaderName: leaderName,
       teamName: teamName,
-      paymentReference: paymentReference,
+      source: widget.tournament.source,
+      teamMode: widget.tournament.teamMode,
+      payment: payment,
     );
   }
 
@@ -290,33 +314,10 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) {
-        return PopScope(
-          canPop: false,
-          child: Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 32),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-              decoration: BoxDecoration(
-                color: const Color(0xFF121212),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const TournamentsLoader.button(),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Finalizing registration...',
-                    style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+      barrierColor: Colors.black.withValues(alpha: .82),
+      builder: (_) => TournamentFinalizingRegistrationDialog(
+        tournamentTitle: widget.tournament.title,
+      ),
     );
   }
 

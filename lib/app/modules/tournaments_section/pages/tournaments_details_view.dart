@@ -38,13 +38,13 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
   bool _leaderboardViewTracked = false;
+  bool _leaderboardRequested = false;
 
   @override
   void initState() {
     super.initState();
     _cubit = TournamentsDetailsCubit(widget.tournament);
-    _leaderboardCubit = TournamentsLeaderboardCubit()
-      ..fetchLeaderboard(eventId: widget.tournament.id);
+    _leaderboardCubit = TournamentsLeaderboardCubit();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _segmentService.onCustomEvent('Tournament Viewed', {
         'event_id': widget.tournament.id,
@@ -205,11 +205,9 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
               const SizedBox(height: 30),
 
               // Tabs
-              _buildTabs(),
+              _buildTabs(t),
               const SizedBox(height: 20),
               _buildTabContent(t),
-              const SizedBox(height: 24),
-              _buildLeaderboardSection(),
 
               const SizedBox(height: 25),
 
@@ -243,22 +241,25 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          Get.to(() => TournamentsJoinTeamView(tournament: t));
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.white24),
-                          minimumSize: const Size(double.infinity, 46),
-                        ),
-                        child: Text(
-                          'Join Team with ID',
-                          style: GoogleFonts.inter(color: Colors.white),
+                    if (t.source != 'community')
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Get.to(
+                              () => TournamentsJoinTeamView(tournament: t),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white24),
+                            minimumSize: const Size(double.infinity, 46),
+                          ),
+                          child: Text(
+                            'Join Team with ID',
+                            style: GoogleFonts.inter(color: Colors.white),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 )
               else
@@ -377,8 +378,14 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
   int selectedTabIndex =
       0; // Add this in your _TournamentsDetailsViewState class
 
-  Widget _buildTabs() {
-    final List<String> tabs = ["Overview", "Teams", "Rules", "Technical"];
+  Widget _buildTabs(TournamentModel tournament) {
+    final List<String> tabs = [
+      "Overview",
+      "Teams",
+      "Rules",
+      "Technical",
+      "Leaderboard",
+    ];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2.0),
@@ -406,20 +413,27 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                     setState(() {
                       selectedTabIndex = index;
                     });
+                    if (index == 4) {
+                      _loadLeaderboardIfEligible(tournament);
+                    }
                   },
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Text(
-                          tabs[index],
-                          style: GoogleFonts.inter(
-                            color: isActive ? Colors.white : Colors.white54,
-                            fontWeight: isActive
-                                ? FontWeight.bold
-                                : FontWeight.w500,
-                            fontSize: 13,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            tabs[index],
+                            maxLines: 1,
+                            style: GoogleFonts.inter(
+                              color: isActive ? Colors.white : Colors.white54,
+                              fontWeight: isActive
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ),
@@ -611,9 +625,31 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
             ),
           ],
         );
+      case 4:
+        if (t.status == TournamentStatus.upcoming) {
+          return _buildLeaderboardShell(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Leaderboard will be available after the tournament starts.',
+                style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+              ),
+            ),
+          );
+        }
+        return _buildLeaderboardSection();
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  void _loadLeaderboardIfEligible(TournamentModel tournament) {
+    if (_leaderboardRequested ||
+        tournament.status == TournamentStatus.upcoming) {
+      return;
+    }
+    _leaderboardRequested = true;
+    _leaderboardCubit.fetchLeaderboard(eventId: tournament.id);
   }
 
   Widget _buildLeaderboardSection() {
@@ -676,6 +712,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
               }
 
               if (state is! TournamentsLeaderboardLoaded ||
+                  !state.isAvailable ||
                   state.leaderboard.isEmpty) {
                 return _buildLeaderboardShell(
                   child: Padding(
@@ -684,7 +721,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                       vertical: 16,
                     ),
                     child: Text(
-                      'Leaderboard not available yet.',
+                      'Results are being prepared. Check back after the matches.',
                       style: GoogleFonts.inter(
                         color: Colors.white70,
                         fontSize: 13,
@@ -716,9 +753,10 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                   itemBuilder: (context, index) {
                     final row = items[index];
                     final rank = row['rank'] ?? (index + 1);
-                    final name = (row['player'] ?? 'Team ${index + 1}')
+                    final name = (row['team_name'] ?? 'Team ${index + 1}')
                         .toString();
-                    final points = row['points'];
+                    final score = row['score'];
+                    final amount = row['amount'];
                     return Row(
                       children: [
                         Container(
@@ -756,7 +794,10 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                           ),
                         ),
                         Text(
-                          points == null ? '-' : '$points pts',
+                          amount != null
+                              ? '${row['currency'] ?? ''} $amount'
+                              : score?.toString() ??
+                                    (state.stage == 'winners' ? 'Winner' : '—'),
                           style: GoogleFonts.orbitron(
                             color: const Color(0xff00DC00),
                             fontSize: 12,

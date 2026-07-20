@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/models/chat_message_model.dart';
@@ -200,7 +201,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
 
     final alignment = isMine ? Alignment.centerRight : Alignment.centerLeft;
     final bubbleColor = isMine ? ChatPalette.primary : ChatPalette.surfaceAlt;
-    final textColor = isMine ? Colors.white : ChatPalette.textPrimary;
+    final textColor = isMine ? Colors.black : ChatPalette.textPrimary;
 
     return Align(
       alignment: alignment,
@@ -219,11 +220,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
               bottomLeft: Radius.circular(isMine ? 14 : 4),
               bottomRight: Radius.circular(isMine ? 4 : 14),
             ),
-            border: Border.all(
-              color: isMine
-                  ? Colors.white.withValues(alpha: 0.2)
-                  : ChatPalette.border.withValues(alpha: 0.6),
-            ),
+            border: isMine ? null : Border.all(color: ChatPalette.border),
           ),
           child: Column(
             crossAxisAlignment: isMine
@@ -256,9 +253,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
               Text(
                 _formatTime(message.createdAt),
                 style: GoogleFonts.inter(
-                  color: isMine
-                      ? Colors.white.withValues(alpha: 0.85)
-                      : ChatPalette.textSecondary,
+                  color: isMine ? Colors.black54 : ChatPalette.textSecondary,
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
                 ),
@@ -275,8 +270,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                             : Icons.done_rounded,
                         size: 14,
                         color: message.seenBy.length > 1
-                            ? Colors.white
-                            : ChatPalette.textSecondary,
+                            ? Colors.black
+                            : Colors.black54,
                       ),
                     ],
                   ),
@@ -398,35 +393,19 @@ class _ChatRoomViewState extends State<ChatRoomView> {
               ),
               const SizedBox(height: 10),
               if (actionState != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
+                Text(
+                  actionState == 'joined'
+                      ? 'JOINED'
+                      : actionState == 'already_member'
+                      ? 'ALREADY IN TEAM'
+                      : 'UNABLE TO JOIN',
+                  style: GoogleFonts.inter(
                     color: actionState == 'joined'
-                        ? ChatPalette.success.withValues(alpha: 0.18)
-                        : Colors.redAccent.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: actionState == 'joined'
-                          ? ChatPalette.success
-                          : Colors.redAccent,
-                    ),
-                  ),
-                  child: Text(
-                    actionState == 'joined'
-                        ? 'Joined'
-                        : actionState == 'already_member'
-                        ? 'Already in team'
-                        : 'Unable to join',
-                    style: GoogleFonts.inter(
-                      color: actionState == 'joined'
-                          ? ChatPalette.success
-                          : Colors.redAccent,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
+                        ? ChatPalette.success
+                        : Colors.redAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: .4,
                   ),
                 )
               else
@@ -537,7 +516,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.07),
+                  ),
                   gradient: LinearGradient(
                     colors: isMine
                         ? const [Color(0xFF203F24), Color(0xFF101812)]
@@ -571,7 +552,10 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                                 vertical: 5,
                               ),
                               decoration: BoxDecoration(
-                                border: Border.all(color: edgeColor, width: 1.15),
+                                border: Border.all(
+                                  color: edgeColor,
+                                  width: 1.15,
+                                ),
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
@@ -629,7 +613,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                             Expanded(
                               child: _socialProofChip(
                                 icon: Icons.groups_2_rounded,
-                                label: '$playerCount ${playerCount == 1 ? 'Player' : 'Players'}',
+                                label:
+                                    '$playerCount ${playerCount == 1 ? 'Player' : 'Players'}',
                                 color: const Color(0xFFFFC857),
                               ),
                             ),
@@ -673,7 +658,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF161616),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -743,9 +730,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
               ],
               const SizedBox(height: 8),
               Text(
-                isMine
-                    ? 'Shared with your squad'
-                    : 'Shared with you',
+                isMine ? 'Shared with your squad' : 'Shared with you',
                 style: GoogleFonts.inter(
                   color: ChatPalette.textSecondary,
                   fontSize: 10.8,
@@ -773,28 +758,20 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     required String label,
     required Color color,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.32),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 10,
-            ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: ChatPalette.textSecondary,
+            fontWeight: FontWeight.w600,
+            fontSize: 10,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -909,19 +886,19 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                     vertical: 10,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(
                       color: ChatPalette.border.withValues(alpha: 0.7),
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(
                       color: ChatPalette.border.withValues(alpha: 0.7),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: ChatPalette.primary),
                   ),
                 ),
@@ -937,7 +914,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   color: _isSending
                       ? ChatPalette.surfaceAlt
                       : ChatPalette.primary,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: _isSending
                         ? ChatPalette.primary.withValues(alpha: 0.35)
@@ -948,12 +925,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 child: _isSending
                     ? const Padding(
                         padding: EdgeInsets.all(12.0),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: ChatPalette.primary,
-                        ),
+                        child: AppLinearLoader(width: 24, height: 3),
                       )
-                    : const Icon(Icons.send_rounded, color: Colors.white),
+                    : const Icon(Icons.send_rounded, color: Colors.black),
               ),
             ),
           ],
@@ -969,7 +943,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     return Scaffold(
       backgroundColor: ChatPalette.bgBottom,
       appBar: AppBar(
-        backgroundColor: ChatPalette.surface,
+        backgroundColor: ChatPalette.bgBottom,
         elevation: 0,
         centerTitle: true,
         surfaceTintColor: Colors.transparent,
@@ -1122,11 +1096,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                       if (messagesSnapshot.connectionState ==
                               ConnectionState.waiting &&
                           !(messagesSnapshot.hasData)) {
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            color: ChatPalette.primary,
-                          ),
-                        );
+                        return const AppLinearLoader.screen();
                       }
 
                       final messages = messagesSnapshot.data ?? const [];

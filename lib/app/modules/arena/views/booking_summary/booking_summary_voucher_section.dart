@@ -70,7 +70,7 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                           onTap: onReload,
                           child: const Icon(
                             CupertinoIcons.refresh,
-                            color: const Color(0xff00DC00),
+                            color: Color(0xff00DC00),
                             size: 20,
                           ),
                         ),
@@ -97,7 +97,7 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                   children: [
                     const Icon(
                       Icons.check_circle,
-                      color: const Color(0xff00DC00),
+                      color: Color(0xff00DC00),
                       size: 20,
                     ),
                     const SizedBox(width: 10),
@@ -115,7 +115,9 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                           Text(
                             '${applied.discountPercentage}% discount active',
                             style: GoogleFonts.inter(
-                              color: const Color(0xff00DC00).withValues(alpha: 0.8),
+                              color: const Color(
+                                0xff00DC00,
+                              ).withValues(alpha: 0.8),
                               fontSize: 12,
                             ),
                           ),
@@ -151,7 +153,7 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                       icon: const Icon(
                         Icons.close,
                         size: 18,
-                        color: const Color(0xff00DC00),
+                        color: Color(0xff00DC00),
                       ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -301,15 +303,15 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                               color: canApply
                                   ? Colors.deepOrange.withValues(alpha: 0.08)
                                   : isActive
-                                      ? Colors.grey.shade700
-                                      : Colors.grey.shade800,
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade800,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: canApply
                                     ? Colors.deepOrange.withValues(alpha: 0.3)
                                     : isActive
-                                        ? Colors.orange.withValues(alpha: 0.3)
-                                        : Colors.grey.withValues(alpha: 0.2),
+                                    ? Colors.orange.withValues(alpha: 0.3)
+                                    : Colors.grey.withValues(alpha: 0.2),
                               ),
                             ),
                             child: Column(
@@ -322,8 +324,8 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                                     color: canApply
                                         ? Colors.deepOrange
                                         : isActive
-                                            ? Colors.grey.shade400
-                                            : Colors.grey.shade500,
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade500,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13,
                                   ),
@@ -335,8 +337,8 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                                     color: canApply
                                         ? Colors.white
                                         : isActive
-                                            ? Colors.grey.shade400
-                                            : Colors.grey,
+                                        ? Colors.grey.shade400
+                                        : Colors.grey,
                                     fontSize: 11,
                                   ),
                                 ),
@@ -345,14 +347,14 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                                   canApply
                                       ? 'Available'
                                       : isActive
-                                          ? 'Limited'
-                                          : 'Inactive',
+                                      ? 'Limited'
+                                      : 'Inactive',
                                   style: GoogleFonts.inter(
                                     color: canApply
                                         ? const Color(0xff00DC00)
                                         : isActive
-                                            ? Colors.orange
-                                            : Colors.red,
+                                        ? Colors.orange
+                                        : Colors.red,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -371,7 +373,9 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      canApply ? '1 slot only' : 'Too many slots',
+                                      canApply
+                                          ? '1 slot only'
+                                          : 'Too many slots',
                                       style: GoogleFonts.inter(
                                         color: canApply
                                             ? Colors.orange

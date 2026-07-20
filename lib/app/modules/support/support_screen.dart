@@ -8,9 +8,9 @@ class ContactSupport extends StatelessWidget {
   const ContactSupport({super.key});
 
   void _openWhatsApp() async {
-    const phoneNumber = '+917400377854'; // TODO: Replace with your support number
-    final message = Uri.encodeComponent(
-      '''Hi HashforGamers Support 👋,
+    const phoneNumber =
+        '+917400377854'; // TODO: Replace with your support number
+    final message = Uri.encodeComponent('''Hi HashforGamers Support 👋,
 
 I need help with something.
 
@@ -18,8 +18,7 @@ Issue:
 [Please describe your issue here]
 
 Screenshot (if any):
-[Attach if possible]''',
-    );
+[Attach if possible]''');
     final url = 'https://wa.me/$phoneNumber?text=$message';
 
     if (await canLaunchUrl(Uri.parse(url))) {
@@ -31,18 +30,33 @@ Screenshot (if any):
 
   @override
   Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        Text(
-          'CONTACT SUPPORT',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'Contact ',
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+              TextSpan(
+                text: 'Support',
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF00DC00),
+                ),
+              ),
+            ],
           ),
         ),
-        SizedBox(height: 13,),
+        const SizedBox(height: 12),
         Container(
           width: 460,
           height: 150,
@@ -87,7 +101,6 @@ Screenshot (if any):
                       padding: const EdgeInsets.all(10),
                       child: Column(
                         children: [
-
                           const SizedBox(height: 3),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -112,7 +125,7 @@ Screenshot (if any):
                                     ),
                                   ],
                                 ),
-                              )
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -130,17 +143,20 @@ Screenshot (if any):
                                   ),
                                 ),
                                 child: ShaderMask(
-                                  shaderCallback: (bounds) => const LinearGradient(
-                                    colors: [
-                                      Color(0xff00DC00),
-                                      Color(0xFF00C6FF)
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ).createShader(bounds),
+                                  shaderCallback: (bounds) =>
+                                      const LinearGradient(
+                                        colors: [
+                                          Color(0xff00DC00),
+                                          Color(0xFF00C6FF),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ).createShader(bounds),
                                   child: Container(
                                     alignment: Alignment.center,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
                                     child: const Text(
                                       "Send Message",
                                       style: TextStyle(
@@ -153,7 +169,7 @@ Screenshot (if any):
                                 ),
                               ),
                             ),
-                          )
+                          ),
                         ],
                       ),
                     ),

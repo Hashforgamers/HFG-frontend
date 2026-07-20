@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
@@ -111,7 +112,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
             stream: widget.leaderboardService.leaderboardStream(limit: 80),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return const AppLinearLoader.screen();
               }
 
               final allEntries = snapshot.data ?? [];

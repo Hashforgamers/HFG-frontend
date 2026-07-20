@@ -7,16 +7,14 @@ import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 class HomeGamePassCard extends StatelessWidget {
   final VoidCallback onTap;
 
-  const HomeGamePassCard({
-    super.key,
-    required this.onTap,
-  });
+  const HomeGamePassCard({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return BounceTap(
       onTap: onTap,
-      child: Container(margin: const EdgeInsets.symmetric( vertical: 12),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 12),
         height: 200,
         width: double.infinity,
         decoration: BoxDecoration(
@@ -52,12 +50,26 @@ class HomeGamePassCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Pay with Hash Pass',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Pay with ',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        TextSpan(
+                          text: 'Hash Pass',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF00DC00),
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 4),

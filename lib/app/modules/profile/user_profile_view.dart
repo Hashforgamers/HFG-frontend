@@ -15,6 +15,7 @@ import 'package:hash/app/modules/need_help/need_help_page.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
+import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -64,11 +65,10 @@ class _UserProfileViewState extends State<UserProfileView> {
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: Colors.white10),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
               children: [
-                _buildLogoutButton(),
-                const SizedBox(height: 10),
+                Expanded(child: _buildLogoutButton()),
+                const SizedBox(width: 10),
                 _buildDeleteButton(userController),
               ],
             ),
@@ -87,58 +87,17 @@ class _UserProfileViewState extends State<UserProfileView> {
               icon: CupertinoIcons.person,
               title: 'Profile',
               subtitle: 'Manage your personal details',
-              onTap: () {
-                Get.to(ProfileView());
-              },
+              onTap: () => Get.to(ProfileView()),
             ),
-            // _buildProfileOption(
-            //   icon: CupertinoIcons.bag,
-            //   title: 'My Orders',
-            //   onTap: () {
-            //     Get.to(const GamePassPage());
-            //   },
-            // ),
-            // _buildProfileOption(
-            //   icon: CupertinoIcons.settings,
-            //   title: 'Settings',
-            //   onTap: () {
-            //     // Handle settings
-            //   },
-            // ),
-            // _buildProfileOption(
-            //   icon: CupertinoIcons.money_dollar_circle,
-            //   title: 'Wallet',
-            //   onTap: () {
-            //     // Handle wallet
-            //     // Get.to(WalletDetailView());
-            //     Get.to(const HashCoinPage());
-            //   },
-            // ),
             _buildProfileOption(
               icon: CupertinoIcons.person_2,
               title: 'Refer & Earn',
               subtitle: 'Invite your squad and earn rewards',
               onTap: () {
-                // Track referral initiated event
                 segmentService.onReferralViewed(email: email);
-
                 Get.to(ReferralViewWithController(email: email));
               },
             ),
-            // _buildProfileOption(
-            //   icon: CupertinoIcons.heart,
-            //   title: 'Wishlist',
-            //   onTap: () {
-            //     // Handle wishlist
-            //   },
-            // ),
-            // _buildProfileOption(
-            //   icon: Icons.change_circle_outlined,
-            //   title: 'Change Address',
-            //   onTap: () {
-            //     // Handle change password
-            //   },
-            // ),
             const SizedBox(height: 10),
             _buildSectionLabel('Support'),
             _buildProfileOption(
@@ -146,10 +105,7 @@ class _UserProfileViewState extends State<UserProfileView> {
               title: 'Need Help',
               subtitle: 'Get help with bookings and payments',
               onTap: () {
-                // Track help requested event
                 segmentService.onHelpRequested(email: email);
-
-                // Handle wishlist
                 Get.to(NeedHelpPage());
               },
             ),
@@ -157,17 +113,8 @@ class _UserProfileViewState extends State<UserProfileView> {
               icon: Icons.info_outline,
               title: 'About Us',
               subtitle: 'Learn about Hash For Gamers',
-              onTap: () {
-                Get.to(AboutPage());
-              },
+              onTap: () => Get.to(AboutPage()),
             ),
-            // _buildProfileOption(
-            //   icon: CupertinoIcons.info,
-            //   title: 'About',
-            //   onTap: () {
-            //     // Handle about
-            //   },
-            // ),
             const SizedBox(height: 20),
           ],
         ),
@@ -400,7 +347,7 @@ class _UserProfileViewState extends State<UserProfileView> {
             if (await googleSignIn.isSignedIn()) {
               await googleSignIn.signOut();
             }
-
+            await locator<AuthDataRepository>().clearTokens();
             await FirebaseAuth.instance.signOut(); // clear Firebase session
 
             final prefs = await SharedPreferences.getInstance();
@@ -447,31 +394,26 @@ class _UserProfileViewState extends State<UserProfileView> {
     );
   }
 
-  // inside UserProfileView
   Widget _buildDeleteButton(UserController userController) {
     return SizedBox(
-      width: double.infinity,
+      width: 50,
       height: 50,
-      child: OutlinedButton.icon(
-        onPressed: () =>
-            showBlackCupertinoDeleteDialog(context, userController),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFFCC3A3A), width: 1.2),
-          shape: RoundedRectangleBorder(
+      child: Tooltip(
+        message: 'Delete account',
+        child: Material(
+          color: const Color(0xFF2A1515),
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: () =>
+                showBlackCupertinoDeleteDialog(context, userController),
             borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        icon: const Icon(
-          CupertinoIcons.delete_solid,
-          color: Color(0xFFEE6A6A),
-          size: 18,
-        ),
-        label: Text(
-          'Delete Account',
-          style: GoogleFonts.inter(
-            color: const Color(0xFFEE6A6A),
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
+            child: const Center(
+              child: Icon(
+                CupertinoIcons.delete_solid,
+                color: Color(0xFFEE6A6A),
+                size: 19,
+              ),
+            ),
           ),
         ),
       ),

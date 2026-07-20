@@ -1,4 +1,5 @@
 // splash_controller.dart
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -28,9 +29,9 @@ class SplashController extends GetxController {
   void onReady() {
     super.onReady();
     // Schedule fallback first so startup can never hang on splash.
-    _fallbackTimer = Timer(const Duration(seconds: 6), () {
-      AppLogger.d('Splash fallback fired -> login');
-      _safeNavigate(AppRoutes.LOGIN);
+    _fallbackTimer = Timer(const Duration(seconds: 12), () {
+      AppLogger.d('Splash fallback fired -> local session routing');
+      unawaited(_routeFromLocalSession());
     });
 
     // Run after first frame so Get.context is available
@@ -76,28 +77,27 @@ class SplashController extends GetxController {
     } catch (e, st) {
       AppLogger.d('Splash routing error: $e');
       AppLogger.d('$st');
-      _safeNavigate(AppRoutes.LOGIN);
+      await _routeFromLocalSession();
     }
   }
 
   Future<void> _checkLoginStatus() async {
     if (_navigated) return;
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('user_data');
-    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    final currentUser = await _restoreFirebaseUser();
 
-    if (token == null || token.isEmpty || currentUser == null) {
-      await _resetInvalidSession();
+    if (currentUser == null) {
+      userController.clearSession();
       _safeNavigate(AppRoutes.LOGIN);
       return;
     }
 
+    _hydrateCachedUser(prefs);
     final hasValidUser = await _fetchUserDataIfNeeded();
     if (!hasValidUser) {
-      AppLogger.d('No valid backend user found during splash boot');
-      await _resetInvalidSession();
-      _safeNavigate(AppRoutes.LOGIN);
-      return;
+      AppLogger.d(
+        'Backend profile refresh unavailable during splash; keeping persisted Firebase session',
+      );
     }
 
     AppLogger.d('userId fetched: ${userController.userId}');
@@ -125,7 +125,48 @@ class SplashController extends GetxController {
     }
   }
 
-  Future<void> _resetInvalidSession() async {
+  Future<firebase_auth.User?> _restoreFirebaseUser() async {
+    final auth = firebase_auth.FirebaseAuth.instance;
+    final existing = auth.currentUser;
+    if (existing != null) return existing;
+    try {
+      return await auth.authStateChanges().first.timeout(
+        const Duration(seconds: 4),
+        onTimeout: () => auth.currentUser,
+      );
+    } catch (e) {
+      AppLogger.d('Firebase session restore wait failed: $e');
+      return auth.currentUser;
+    }
+  }
+
+  void _hydrateCachedUser(SharedPreferences prefs) {
+    final cached = prefs.getString('user_data');
+    if (cached == null || cached.isEmpty) return;
+    try {
+      final value = jsonDecode(cached);
+      if (value is Map) {
+        userController.applyBackendUserData(Map<String, dynamic>.from(value));
+      }
+    } catch (e) {
+      AppLogger.d('Ignoring unreadable cached user data: $e');
+    }
+  }
+
+  Future<void> _routeFromLocalSession() async {
+    if (_navigated) return;
+    final prefs = await SharedPreferences.getInstance();
+    final currentUser = await _restoreFirebaseUser();
+    if (currentUser != null) {
+      _hydrateCachedUser(prefs);
+      _safeNavigate(AppRoutes.HOME);
+    } else {
+      userController.clearSession();
+      _safeNavigate(AppRoutes.LOGIN);
+    }
+  }
+
+  Future<void> resetInvalidSession() async {
     userController.clearSession();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_data');

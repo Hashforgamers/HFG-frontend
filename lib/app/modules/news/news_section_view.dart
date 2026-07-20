@@ -74,7 +74,6 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     setState(() => dragOffset = 0.0);
   }
 
-
   void _maybeLoadMore() {
     // When we are within last 4 cards, trigger loadMore
     final total = controller.items.length;
@@ -98,8 +97,10 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     if (dragOffset > 0 && relativeIndex >= 0) {
       dragEffect = dragOffset / 30;
     } else if (dragOffset < 0) {
-      if (relativeIndex == 0) dragEffect = dragOffset / 5;
-      else if (relativeIndex >= 1) dragEffect = dragOffset / 10;
+      if (relativeIndex == 0)
+        dragEffect = dragOffset / 5;
+      else if (relativeIndex >= 1)
+        dragEffect = dragOffset / 10;
     }
     return 20.0 * relativeIndex + dragEffect;
   }
@@ -154,12 +155,29 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'GAMER FIREWIRE',
-            style: GoogleFonts.inter(
-                fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Gamer ',
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                TextSpan(
+                  text: 'Firewire',
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF00DC00),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           Center(
             child: GestureDetector(
               onVerticalDragUpdate: _handleDragUpdate,
@@ -181,10 +199,16 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                         }
 
                         double topOffset = _getTopOffset(relativeIndex);
-                        double horizontalOffset = _getHorizontalOffset(relativeIndex);
-                        double opacity = (1.0 - 0.25 * relativeIndex).clamp(0.0, 1.0);
+                        double horizontalOffset = _getHorizontalOffset(
+                          relativeIndex,
+                        );
+                        double opacity = (1.0 - 0.25 * relativeIndex).clamp(
+                          0.0,
+                          1.0,
+                        );
 
-                        if (_slideDownController.isAnimating && relativeIndex == 0) {
+                        if (_slideDownController.isAnimating &&
+                            relativeIndex == 0) {
                           topOffset -= 30.0 * _slideDownController.value;
                         }
 
@@ -220,7 +244,8 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
               child: Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: SizedBox(
-                  height: 16, width: 16,
+                  height: 16,
+                  width: 16,
                   child: const AppLinearLoader(),
                 ),
               ),
@@ -259,17 +284,18 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       onTap: () async {
         if (item.url.isEmpty) return;
         final uri = Uri.parse(item.url);
-                if (await canLaunchUrl(uri)) {
-                  Haptics.selection();
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
-              },
+        if (await canLaunchUrl(uri)) {
+          Haptics.selection();
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      },
       child: Container(
         height: 150,
         width: 400,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [Color(0x1AFFFFFF), Color(0x1A00DC00)],
           ),
           border: Border.all(color: Colors.white.withOpacity(0.15)),
@@ -286,30 +312,43 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
               ),
             ),
             Positioned(
-              top: 15, bottom: 15, left: 15, right: 15,
+              top: 15,
+              bottom: 15,
+              left: 15,
+              right: 15,
               child: Row(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: item.imageUrl == null
                         ? Container(
-                      height: 120, width: 150,
-                      color: const Color(0xFF1A1A1A),
-                      child: const Icon(Icons.image, color: Colors.white24),
-                    )
+                            height: 120,
+                            width: 150,
+                            color: const Color(0xFF1A1A1A),
+                            child: const Icon(
+                              Icons.image,
+                              color: Colors.white24,
+                            ),
+                          )
                         : CachedNetworkImage(
-                      imageUrl: item.imageUrl!,
-                      height: 120, width: 150, fit: BoxFit.cover,
-                      memCacheWidth: 300, // lightweight caching
-                      placeholder: (_, __) =>
-                      const Center(child: RainbowGlowingLoader(size: 24)),
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.grey,
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.image_not_supported,
-                            color: Colors.white54, size: 36),
-                      ),
-                    ),
+                            imageUrl: item.imageUrl!,
+                            height: 120,
+                            width: 150,
+                            fit: BoxFit.cover,
+                            memCacheWidth: 300, // lightweight caching
+                            placeholder: (_, __) => const Center(
+                              child: RainbowGlowingLoader(size: 24),
+                            ),
+                            errorWidget: (_, __, ___) => Container(
+                              color: Colors.grey,
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.image_not_supported,
+                                color: Colors.white54,
+                                size: 36,
+                              ),
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -320,8 +359,12 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                         Text(
                           item.title,
                           style: GoogleFonts.inter(
-                              fontSize: 14, color: Colors.white, fontWeight: FontWeight.w600),
-                          maxLines: 3, overflow: TextOverflow.ellipsis,
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const Spacer(),
                         // Source + time
@@ -331,7 +374,9 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                               child: Text(
                                 item.source ?? 'Gaming',
                                 style: GoogleFonts.inter(
-                                    fontSize: 11, color: Colors.white70),
+                                  fontSize: 11,
+                                  color: Colors.white70,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -339,10 +384,16 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                             Text(
                               _ago(item.publishedAt),
                               style: GoogleFonts.inter(
-                                  fontSize: 11, color: Colors.white54),
+                                fontSize: 11,
+                                color: Colors.white54,
+                              ),
                             ),
                             const SizedBox(width: 6),
-                            Icon(Icons.chevron_right, size: 16, color: accent.withOpacity(0.9)),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 16,
+                              color: accent.withOpacity(0.9),
+                            ),
                           ],
                         ),
                       ],

@@ -4,6 +4,12 @@ enum TournamentStatus { upcoming, live, completed, unknown }
 
 class TournamentModel {
   final String id;
+  final String source;
+  final String? vendorId;
+  final int? hostUserId;
+  final bool canManage;
+  final String game;
+  final String format;
   final String title;
   final String imageUrl;
   final String banner;
@@ -24,6 +30,12 @@ class TournamentModel {
 
   const TournamentModel({
     required this.id,
+    this.source = 'cafe',
+    this.vendorId,
+    this.hostUserId,
+    this.canManage = false,
+    this.game = '',
+    this.format = '',
     required this.title,
     required this.imageUrl,
     required this.banner,
@@ -74,6 +86,12 @@ class TournamentModel {
 
     return TournamentModel(
       id: (json['id'] ?? json['event_id'] ?? '').toString(),
+      source: (json['source'] ?? 'cafe').toString().toLowerCase(),
+      vendorId: json['vendor_id']?.toString(),
+      hostUserId: _toInt(json['host_user_id']),
+      canManage: _toBool(json['can_manage']),
+      game: (json['game'] ?? '').toString(),
+      format: (json['format'] ?? '').toString(),
       title: (json['title'] ?? json['name'] ?? 'Tournament').toString(),
       imageUrl:
           (json['imageUrl'] ??
@@ -94,7 +112,9 @@ class TournamentModel {
       startDate: _parseDate(
         json['startDate'] ?? json['start_date'] ?? json['start_at'],
       ),
-      endDate: _parseDate(json['endDate'] ?? json['end_date'] ?? json['end_at']),
+      endDate: _parseDate(
+        json['endDate'] ?? json['end_date'] ?? json['end_at'],
+      ),
       status: _parseStatus(json['status'] ?? json['flag']),
       entryFee: _formatEntryFee(entryFee, currency),
       prizePool: (json['prizePool'] ?? json['prize_pool'] ?? '-').toString(),
@@ -112,7 +132,11 @@ class TournamentModel {
               .toString(),
       hostedBy: (json['hostedBy'] ?? json['hosted_by'] ?? 'HashForGamers')
           .toString(),
-      rules: (json['rules'] ?? 'Rules will be announced soon.').toString(),
+      rules:
+          (json['match_rules'] ??
+                  json['rules'] ??
+                  'Rules will be announced soon.')
+              .toString(),
       technical: (json['technical'] ?? 'Technical details coming soon.')
           .toString(),
       teams: teams,
@@ -122,6 +146,12 @@ class TournamentModel {
 
   TournamentModel copyWith({
     String? id,
+    String? source,
+    String? vendorId,
+    int? hostUserId,
+    bool? canManage,
+    String? game,
+    String? format,
     String? title,
     String? imageUrl,
     String? banner,
@@ -142,6 +172,12 @@ class TournamentModel {
   }) {
     return TournamentModel(
       id: id ?? this.id,
+      source: source ?? this.source,
+      vendorId: vendorId ?? this.vendorId,
+      hostUserId: hostUserId ?? this.hostUserId,
+      canManage: canManage ?? this.canManage,
+      game: game ?? this.game,
+      format: format ?? this.format,
       title: title ?? this.title,
       imageUrl: imageUrl ?? this.imageUrl,
       banner: banner ?? this.banner,

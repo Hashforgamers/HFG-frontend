@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/models/chat_room_model.dart';
@@ -88,7 +89,10 @@ class _ChatGroupDetailsViewState extends State<ChatGroupDetailsView> {
               ),
               child: Text(
                 'Save',
-                style: GoogleFonts.inter(color: Colors.white),
+                style: GoogleFonts.inter(
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -281,11 +285,8 @@ class _ChatGroupDetailsViewState extends State<ChatGroupDetailsView> {
     final initial = title.trim().isEmpty ? 'M' : title.trim()[0].toUpperCase();
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        gradient: ChatPalette.cardGradient,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: ChatPalette.border.withValues(alpha: 0.6)),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: ChatPalette.border)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -323,22 +324,15 @@ class _ChatGroupDetailsViewState extends State<ChatGroupDetailsView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isAdmin)
-              Container(
-                margin: const EdgeInsets.only(right: 6),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: ChatPalette.accent.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: ChatPalette.accent.withValues(alpha: 0.6),
-                  ),
-                ),
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
                 child: Text(
-                  'Admin',
+                  'ADMIN',
                   style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 10,
+                    color: ChatPalette.accent,
+                    fontSize: 9,
                     fontWeight: FontWeight.w700,
+                    letterSpacing: .5,
                   ),
                 ),
               ),
@@ -368,7 +362,7 @@ class _ChatGroupDetailsViewState extends State<ChatGroupDetailsView> {
     return Scaffold(
       backgroundColor: ChatPalette.bgBottom,
       appBar: AppBar(
-        backgroundColor: ChatPalette.surface,
+        backgroundColor: ChatPalette.bgBottom,
         surfaceTintColor: Colors.transparent,
         title: Text(
           'Group Details',
@@ -393,11 +387,7 @@ class _ChatGroupDetailsViewState extends State<ChatGroupDetailsView> {
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting &&
                       !snapshot.hasData) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: ChatPalette.primary,
-                      ),
-                    );
+                    return const AppLinearLoader.screen();
                   }
 
                   final room = snapshot.data;
@@ -442,15 +432,8 @@ class _ChatGroupDetailsViewState extends State<ChatGroupDetailsView> {
                     physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          gradient: ChatPalette.cardGradient,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: ChatPalette.border.withValues(alpha: 0.6),
-                          ),
-                        ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -513,17 +496,17 @@ class _ChatGroupDetailsViewState extends State<ChatGroupDetailsView> {
                                         vertical: 11,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
                                     ),
                                     icon: const Icon(
                                       Icons.person_add_alt_1_rounded,
-                                      color: Colors.white,
+                                      color: Colors.black,
                                     ),
                                     label: Text(
                                       'Invite Members',
                                       style: GoogleFonts.inter(
-                                        color: Colors.white,
+                                        color: Colors.black,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),

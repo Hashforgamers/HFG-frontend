@@ -14,19 +14,29 @@ class TournamentsLeaderboardCubit extends Cubit<TournamentsLeaderboardState> {
   Future<void> fetchLeaderboard({required String eventId}) async {
     emit(TournamentsLeaderboardLoading());
     try {
-      final teams = await remoteRepo.fetchEventLeaderboard(eventId: eventId);
-
-      final leaderboard = <Map<String, dynamic>>[];
-      for (var index = 0; index < teams.length; index++) {
-        final item = teams[index];
-        leaderboard.add({
-          'rank': item['rank'] ?? item['position'] ?? (index + 1),
-          'player': item['name'] ?? item['team_name'] ?? 'Team ${index + 1}',
-          'points': item['points'] ?? item['score'] ?? 0,
-        });
-      }
-
-      emit(TournamentsLeaderboardLoaded(leaderboard: leaderboard));
+      final response = await remoteRepo.fetchEventLeaderboard(
+        eventId: eventId,
+        stage: 'auto',
+      );
+      final raw = response['leaderboard'];
+      final leaderboard = raw is List
+          ? raw
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList()
+          : <Map<String, dynamic>>[];
+      emit(
+        TournamentsLeaderboardLoaded(
+          leaderboard: leaderboard,
+          availability:
+              (response['availability'] ??
+                      (leaderboard.isEmpty ? 'not_available_yet' : 'available'))
+                  .toString(),
+          stage: (response['stage'] ?? 'auto').toString(),
+          source: response['source']?.toString(),
+          eventTitle: response['event_title']?.toString(),
+        ),
+      );
     } catch (e, st) {
       AppLogger.e(
         'Leaderboard fetch failed for eventId=$eventId',

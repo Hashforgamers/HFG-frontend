@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/utils/widgets/loader.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/game_pass/cubit/get_vendor_passes_cubit.dart';
 import 'package:hash/app/modules/game_pass/widgets/game_pass_widget.dart';
@@ -38,7 +39,7 @@ class __GamePassPageState extends State<_GamePassPage> {
     return BlocBuilder<GetVendorPassesCubit, GetVendorPassesState>(
       builder: (context, state) {
         if (state is GetVendorPassesLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const AppLinearLoader.screen();
         } else if (state is GetVendorPassesError) {
           return Center(child: Text(state.message));
         } else if (state is GetVendorPassesLoaded) {

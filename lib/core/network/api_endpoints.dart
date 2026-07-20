@@ -12,6 +12,20 @@ class ApiEndpoints {
       '$userOnboardBaseUrl/api/users/phone/registered';
   static String get registeredPhone => '$userOnboardBaseUrl/api/users/phone';
 
+  // Community Tournament Module (userOnboard :: /api/v1/community)
+  // NOTE: the community module is currently only deployed on the shared prod
+  // userOnboard host (the dev `-3nzn` host returns 404). Point this at that
+  // host until dev/staging deploys the module, then switch back to
+  // `FlavorConfig.getBaseUrl('userOnboard')`.
+  static const String communityHost = 'https://hfg-user-onboard.onrender.com';
+  static String get communityBaseUrl => '$communityHost/api/v1/community';
+  static String get communityHostProgram => '$communityBaseUrl/hosts/program';
+  static String get communityMyHostVerification =>
+      '$communityBaseUrl/hosts/me/verification';
+  static String get communityHostVerification =>
+      '$communityBaseUrl/hosts/verification';
+  static String get communityTournaments => '$communityBaseUrl/tournaments';
+
   // Booking Service
   static String get bookingBaseUrl => FlavorConfig.getBaseUrl('booking');
   static String get slotsBaseUrl => '$bookingBaseUrl/api';
@@ -25,6 +39,8 @@ class ApiEndpoints {
   static String get createOffer => '$bookingBaseUrl/api/redeem-voucher';
 
   static String get capturePayment => '$bookingBaseUrl/api/capture_payment';
+  static String paymentVerify({bool community = false}) =>
+      '${community ? communityHost : userOnboardBaseUrl}/api/payments/verify';
   static String get createPaymentOrder => '$bookingBaseUrl/api/create_order';
   static String addMealsToBooking(String bookingId) =>
       '$bookingBaseUrl/api/booking/$bookingId/add-meals';
@@ -196,6 +212,8 @@ class ApiEndpoints {
       '$userOnboardBaseUrl/api/events/$eventId/teams/$teamId';
   static String eventLeaderboard(String eventId) =>
       '$userOnboardBaseUrl/api/events/$eventId/leaderboard';
+  static String gamerProfile(int userId) =>
+      '$userOnboardBaseUrl/api/gamers/$userId/profile';
   static String userNotifications({int limit = 50, bool unreadOnly = false}) =>
       '$userOnboardBaseUrl/api/users/notifications?limit=$limit&unread_only=$unreadOnly';
   static String markNotificationRead(String notificationId) =>
@@ -205,4 +223,10 @@ class ApiEndpoints {
   static String userJoinedTournaments(int userId) =>
       '$userOnboardBaseUrl/api/users/$userId/tournaments/joined';
   static String get userSearch => '$userOnboardBaseUrl/api/users/search';
+  static String nearbyUsers({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 10,
+  }) =>
+      '$userOnboardBaseUrl/api/users/nearby?latitude=$latitude&longitude=$longitude&radius_km=$radiusKm';
 }

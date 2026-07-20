@@ -832,16 +832,7 @@ class _TournamentsTeamMembersViewState
                       SizedBox(
                         height: 280,
                         child: isSearching
-                            ? const Center(
-                                child: SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.4,
-                                    color: Color(0xff00DC00),
-                                  ),
-                                ),
-                              )
+                            ? const Center(child: TournamentsLoader.button())
                             : results.isEmpty
                             ? Center(
                                 child: Text(
@@ -1293,11 +1284,7 @@ class _TournamentsTeamMembersViewState
                       final rooms = snapshot.data ?? const <ChatRoomModel>[];
                       if (snapshot.connectionState == ConnectionState.waiting &&
                           rooms.isEmpty) {
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xff00DC00),
-                          ),
-                        );
+                        return const TournamentsLoader.screen();
                       }
                       if (rooms.isEmpty) {
                         return Center(

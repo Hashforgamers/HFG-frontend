@@ -21,11 +21,18 @@ class TournamentTeamMembersCubit extends Cubit<TournamentTeamMembersState> {
   }) async {
     emit(TournamentTeamMembersLoading());
     try {
-      final members = await remoteRepo.fetchEventTeamMembers(
+      final response = await remoteRepo.fetchEventTeamMembers(
         eventId: eventId,
         teamId: teamId,
       );
-      emit(TournamentTeamMembersLoaded(teamId: teamId, members: members));
+      emit(
+        TournamentTeamMembersLoaded(
+          teamId: teamId,
+          eventId: response.eventId,
+          tournament: response.tournament,
+          members: response.members,
+        ),
+      );
     } catch (e) {
       emit(TournamentTeamMembersError(message: _cleanError(e)));
     }

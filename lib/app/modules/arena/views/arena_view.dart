@@ -9,6 +9,12 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hash/app/modules/arena/views/search_result.dart';
+import 'package:hash/app/modules/arena/services/nearby_player_location_service.dart';
+import 'package:hash/app/modules/chat/models/chat_user_model.dart';
+import 'package:hash/app/modules/chat/services/chat_service.dart';
+import 'package:hash/app/modules/chat/views/chat_room_view.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_home_view.dart';
+import 'package:hash/app/modules/community/services/community_api.dart';
 import 'package:hash/config/app_keys.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -53,6 +59,8 @@ class _ArenaViewState extends State<ArenaView> {
   final FbEventsService _fbEventsService = locator<FbEventsService>();
   final LocationPermissionService _locationPermissionService =
       locator<LocationPermissionService>();
+  final NearbyPlayerLocationService _nearbyLocationService =
+      NearbyPlayerLocationService();
 
   late GoogleMapController _mapCtr;
   late final loc.Location _loc = _locationPermissionService.location;
@@ -66,7 +74,6 @@ class _ArenaViewState extends State<ArenaView> {
   late final String _gmapsKey = AppKeys.googleMapsApiKey;
   late final _polylinePoints = PolylinePoints(apiKey: _gmapsKey); // was ''
 
-  final TextEditingController _searchCtl = TextEditingController();
   final PageController _cafePageController = PageController(
     viewportFraction: 0.9,
   );
@@ -75,6 +82,14 @@ class _ArenaViewState extends State<ArenaView> {
   LatLng? _userLatLng;
   String? _selectedCafeId;
   String _mapStyle = '';
+  final List<Map<String, dynamic>> _nearbyPlayers = [];
+  bool _showPlayers = false;
+  bool _isLoadingPlayers = false;
+  String? _playersError;
+  double _mapZoom = 15;
+  bool _isLocationSharingEnabled = false;
+  bool _isUpdatingLocationSharing = false;
+  DateTime? _lastLocationPublishAt;
 
   // Location-based filtering
   String? _userState;
@@ -158,6 +173,7 @@ class _ArenaViewState extends State<ArenaView> {
   void initState() {
     super.initState();
     _loadAssets();
+    unawaited(_loadLocationSharingPreference());
     _cafesWorker = ever<List<dynamic>>(_cafeCtr.cybercafes, (_) {
       _applyCafeFilterAndRefresh();
     });
@@ -198,7 +214,6 @@ class _ArenaViewState extends State<ArenaView> {
     _mapReady = false;
     _locationSub?.cancel();
     _cafesWorker.dispose();
-    _searchCtl.dispose();
     _cafePageController.dispose();
     _camDebounce?.cancel();
     if (shouldDisposeMap) {
@@ -278,6 +293,8 @@ class _ArenaViewState extends State<ArenaView> {
       if (lat.abs() < 0.0001 && lng.abs() < 0.0001) return;
 
       _userLatLng = LatLng(lat, lng);
+      unawaited(_publishLocationIfNeeded(force: true).catchError((_) {}));
+      unawaited(_fetchNearbyPlayers());
       _tryPlayZoom();
 
       // Optional: first valid update via stream
@@ -285,17 +302,480 @@ class _ArenaViewState extends State<ArenaView> {
       _locationSub = _loc.onLocationChanged.listen((d) {
         final la = d.latitude, lo = d.longitude;
         if (la != null && lo != null) {
-          if (_userLatLng == null) {
-            _userLatLng = LatLng(la, lo);
+          final wasMissingLocation = _userLatLng == null;
+          _userLatLng = LatLng(la, lo);
+          unawaited(_publishLocationIfNeeded().catchError((_) {}));
+          if (wasMissingLocation) {
             _addUserMarker();
             _tryPlayZoom();
-            _locationSub?.cancel();
           }
         }
       });
     } catch (_) {
       /* swallow */
     }
+  }
+
+  Future<void> _fetchNearbyPlayers() async {
+    final origin = _userLatLng;
+    if (origin == null || _isLoadingPlayers) return;
+    if (mounted) {
+      setState(() {
+        _isLoadingPlayers = true;
+        _playersError = null;
+      });
+    }
+    try {
+      final players = await _nearbyLocationService.fetchNearbyPlayers(
+        latitude: origin.latitude,
+        longitude: origin.longitude,
+      );
+      if (!mounted) return;
+      setState(() {
+        _nearbyPlayers
+          ..clear()
+          ..addAll(players);
+      });
+      _refreshCafeMarkers();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _playersError = 'Nearby players are unavailable right now.';
+      });
+    } finally {
+      if (mounted) setState(() => _isLoadingPlayers = false);
+    }
+  }
+
+  Future<void> _loadLocationSharingPreference() async {
+    final enabled = await _nearbyLocationService.isSharingEnabled();
+    if (!mounted) return;
+    setState(() => _isLocationSharingEnabled = enabled);
+    if (enabled) {
+      unawaited(_publishLocationIfNeeded(force: true).catchError((_) {}));
+    }
+  }
+
+  Future<void> _publishLocationIfNeeded({bool force = false}) async {
+    if (!_isLocationSharingEnabled) return;
+    final position = _userLatLng;
+    if (position == null) return;
+    final lastPublish = _lastLocationPublishAt;
+    if (!force &&
+        lastPublish != null &&
+        DateTime.now().difference(lastPublish) < const Duration(minutes: 2)) {
+      return;
+    }
+    await _nearbyLocationService.publishLocation(
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+    _lastLocationPublishAt = DateTime.now();
+  }
+
+  Future<void> _toggleLocationSharing() async {
+    if (_isUpdatingLocationSharing) return;
+    final nextValue = !_isLocationSharingEnabled;
+    setState(() => _isUpdatingLocationSharing = true);
+    try {
+      await _nearbyLocationService.setSharingEnabled(nextValue);
+      if (mounted) {
+        setState(() => _isLocationSharingEnabled = nextValue);
+      }
+      if (nextValue) {
+        await _publishLocationIfNeeded(force: true);
+      } else {
+        _lastLocationPublishAt = null;
+      }
+      if (mounted) {
+        Get.snackbar(
+          nextValue ? 'Location visible' : 'Location hidden',
+          nextValue
+              ? 'Nearby players can now discover your approximate location.'
+              : 'Your location is no longer shared with nearby players.',
+        );
+      }
+    } catch (_) {
+      if (nextValue) {
+        await _nearbyLocationService.setSharingEnabled(false);
+        if (mounted) setState(() => _isLocationSharingEnabled = false);
+      }
+      if (mounted) {
+        Get.snackbar(
+          'Location sharing',
+          'Unable to update your visibility right now.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdatingLocationSharing = false);
+    }
+  }
+
+  LatLng? _latLngFromPlayer(Map<String, dynamic> player) {
+    final location = player['approximate_location'] ?? player['location'];
+    if (location is! Map) return null;
+    final lat = double.tryParse('${location['latitude']}');
+    final lng = double.tryParse('${location['longitude']}');
+    if (lat == null || lng == null) return null;
+    return LatLng(lat, lng);
+  }
+
+  Set<Heatmap> get _playerHeatmaps {
+    if (!_showPlayers) return const <Heatmap>{};
+    final points = _nearbyPlayers
+        .map((player) {
+          final position = _latLngFromPlayer(player);
+          if (position == null) return null;
+          final rawWeight =
+              player['activity_weight'] ??
+              player['activity_score'] ??
+              (player['is_online'] == true ? 1.5 : 0.75);
+          final weight = rawWeight is num
+              ? rawWeight.toDouble().clamp(0.25, 3.0).toDouble()
+              : 1.0;
+          return WeightedLatLng(position, weight: weight);
+        })
+        .whereType<WeightedLatLng>()
+        .toList();
+    if (points.isEmpty) return const <Heatmap>{};
+    return {
+      Heatmap(
+        heatmapId: const HeatmapId('nearby_player_activity'),
+        data: points,
+        radius: const HeatmapRadius.fromPixels(54),
+        opacity: 0.72,
+        maxIntensity: 3,
+        gradient: const HeatmapGradient([
+          HeatmapGradientColor(Color(0x3300DC00), 0.15),
+          HeatmapGradientColor(Color(0xCC00DC00), 0.38),
+          HeatmapGradientColor(Color(0xFFFFD600), 0.68),
+          HeatmapGradientColor(Color(0xFFFF3D3D), 1),
+        ]),
+      ),
+    };
+  }
+
+  Future<void> _connectWithPlayer(Map<String, dynamic> player) async {
+    final roomId = await _roomForPlayer(player);
+    if (roomId == null) return;
+    Get.to(() => ChatRoomView(roomId: roomId));
+  }
+
+  Future<String?> _roomForPlayer(Map<String, dynamic> player) async {
+    final uid = (player['firebase_uid'] ?? player['uid'] ?? '').toString();
+    if (uid.isEmpty) {
+      Get.snackbar('Connect', 'This player is not available for chat yet.');
+      return null;
+    }
+    final user = ChatUserModel.fromMap({...player, 'uid': uid});
+    final chat = Get.isRegistered<ChatService>()
+        ? Get.find<ChatService>()
+        : Get.put(ChatService(), permanent: true);
+    final roomId = await chat.getOrCreateDirectRoom(otherUser: user);
+    return roomId;
+  }
+
+  Future<void> _invitePlayerToCafe(Map<String, dynamic> player) async {
+    final cafes = _sortCafesByDistance(_filteredCafes.toList());
+    if (cafes.isEmpty) {
+      Get.snackbar(
+        'Cafe invite',
+        'No nearby cafes are available to invite to.',
+      );
+      return;
+    }
+    final cafe = await Get.bottomSheet<Map<String, dynamic>>(
+      SafeArea(
+        child: Container(
+          constraints: const BoxConstraints(maxHeight: 520),
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+          decoration: const BoxDecoration(
+            color: Color(0xff121212),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Meet at a cafe',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: cafes.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (_, index) {
+                    final item = cafes[index];
+                    return ListTile(
+                      onTap: () => Get.back(result: item),
+                      tileColor: const Color(0xff1A1A1A),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      leading: const Icon(
+                        Icons.sports_esports_rounded,
+                        color: Color(0xff00DC00),
+                      ),
+                      title: Text(
+                        (item['cafe_name'] ?? 'Gaming cafe').toString(),
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        _formatAddress(item),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: Colors.white54,
+                          fontSize: 12,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
+    if (cafe == null) return;
+    final roomId = await _roomForPlayer(player);
+    if (roomId == null) return;
+    final name = (cafe['cafe_name'] ?? 'Gaming cafe').toString();
+    final position = _latLngFromCafe(cafe);
+    final mapsLink = position == null
+        ? ''
+        : ' https://www.google.com/maps/search/?api=1&query=${position.latitude},${position.longitude}';
+    final chat = Get.find<ChatService>();
+    await chat.sendTextMessage(
+      roomId: roomId,
+      text: '🎮 Want to play at $name? ${_formatAddress(cafe)}$mapsLink',
+    );
+    Get.to(() => ChatRoomView(roomId: roomId));
+  }
+
+  Future<void> _invitePlayerToTournament(Map<String, dynamic> player) async {
+    try {
+      final page = await CommunityApi().listTournaments(
+        view: 'upcoming',
+        perPage: 30,
+        sort: 'soonest',
+      );
+      if (page.items.isEmpty) {
+        Get.to(() => const TournamentsHomeView());
+        return;
+      }
+      final tournament = await Get.bottomSheet(
+        SafeArea(
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 540),
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+            decoration: const BoxDecoration(
+              color: Color(0xff121212),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Invite to a tournament',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: page.items.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (_, index) {
+                      final item = page.items[index];
+                      return ListTile(
+                        onTap: () => Get.back(result: item),
+                        tileColor: const Color(0xff1A1A1A),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        leading: const Icon(
+                          Icons.emoji_events_rounded,
+                          color: Color(0xff00DC00),
+                        ),
+                        title: Text(
+                          item.title,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          item.game,
+                          style: GoogleFonts.inter(
+                            color: Colors.white54,
+                            fontSize: 12,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        isScrollControlled: true,
+      );
+      if (tournament == null) return;
+      final roomId = await _roomForPlayer(player);
+      if (roomId == null) return;
+      final chat = Get.find<ChatService>();
+      await chat.sendTextMessage(
+        roomId: roomId,
+        text:
+            '🏆 I challenge you to join “${tournament.title}” (${tournament.game}). Open Tournaments in Hash to join me!',
+      );
+      Get.to(() => ChatRoomView(roomId: roomId));
+    } catch (_) {
+      Get.snackbar(
+        'Tournament invite',
+        'Unable to load tournaments right now.',
+      );
+    }
+  }
+
+  void _showPlayerActions(Map<String, dynamic> player) {
+    final name = (player['display_name'] ?? player['username'] ?? 'Player')
+        .toString();
+    final games = (player['games'] as List?)?.join(', ') ?? 'Open to play';
+    Get.bottomSheet(
+      SafeArea(
+        child: SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            decoration: const BoxDecoration(
+              color: Color(0xff121212),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  name,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  games,
+                  style: GoogleFonts.inter(color: Colors.white60, fontSize: 13),
+                ),
+                const SizedBox(height: 18),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Get.back();
+                    unawaited(_connectWithPlayer(player));
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                  label: const Text('Message player'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff00DC00),
+                    foregroundColor: Colors.black,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Get.back();
+                          unawaited(_invitePlayerToCafe(player));
+                        },
+                        icon: const Icon(Icons.storefront_rounded),
+                        label: const Text('Meet at cafe'),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: const Color(0xff1A1A1A),
+                          foregroundColor: Colors.white,
+                          side: BorderSide.none,
+                          minimumSize: const Size.fromHeight(46),
+                          textStyle: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Get.back();
+                          unawaited(_invitePlayerToTournament(player));
+                        },
+                        icon: const Icon(Icons.emoji_events_outlined),
+                        label: const Text('Tournament'),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: const Color(0xff1A1A1A),
+                          foregroundColor: Colors.white,
+                          side: BorderSide.none,
+                          minimumSize: const Size.fromHeight(46),
+                          textStyle: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -660,25 +1140,49 @@ class _ArenaViewState extends State<ArenaView> {
         ),
       );
     }
-    for (final cafe in _filteredCafes) {
-      final id = '${cafe['id'] ?? cafe.hashCode}';
-      final pos = _latLngFromCafe(cafe);
-      if (pos == null) continue; // skip invalid
-      nextMarkers.add(
-        Marker(
-          markerId: MarkerId('cafe_$id'),
-          position: pos,
-          icon: id == _selectedCafeId
-              ? (_markerCafeHighlighted ?? BitmapDescriptor.defaultMarker)
-              : (_markerCafe ?? BitmapDescriptor.defaultMarker),
-          infoWindow: InfoWindow(title: cafe['cafe_name'] ?? 'Cafe'),
-          onTap: () {
-            _selectedCafeId = id;
-            _smoothMoveCamera(pos, zoom: 16);
-            _refreshCafeMarkers();
-          },
-        ),
-      );
+    if (_showPlayers && _mapZoom >= 14) {
+      for (final player in _nearbyPlayers) {
+        final id =
+            '${player['user_id'] ?? player['firebase_uid'] ?? player.hashCode}';
+        final pos = _latLngFromPlayer(player);
+        if (pos == null) continue;
+        nextMarkers.add(
+          Marker(
+            markerId: MarkerId('player_$id'),
+            position: pos,
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueGreen,
+            ),
+            infoWindow: InfoWindow(
+              title: (player['display_name'] ?? player['username'] ?? 'Player')
+                  .toString(),
+              snippet: player['is_online'] == true ? 'Online now' : 'Nearby',
+            ),
+            onTap: () => _showPlayerActions(player),
+          ),
+        );
+      }
+    } else {
+      for (final cafe in _filteredCafes) {
+        final id = '${cafe['id'] ?? cafe.hashCode}';
+        final pos = _latLngFromCafe(cafe);
+        if (pos == null) continue; // skip invalid
+        nextMarkers.add(
+          Marker(
+            markerId: MarkerId('cafe_$id'),
+            position: pos,
+            icon: id == _selectedCafeId
+                ? (_markerCafeHighlighted ?? BitmapDescriptor.defaultMarker)
+                : (_markerCafe ?? BitmapDescriptor.defaultMarker),
+            infoWindow: InfoWindow(title: cafe['cafe_name'] ?? 'Cafe'),
+            onTap: () {
+              _selectedCafeId = id;
+              _smoothMoveCamera(pos, zoom: 16);
+              _refreshCafeMarkers();
+            },
+          ),
+        );
+      }
     }
     markers
       ..clear()
@@ -893,6 +1397,7 @@ class _ArenaViewState extends State<ArenaView> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size.height;
+    final mapHeight = (size * 0.48).clamp(300.0, 430.0);
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.black,
@@ -906,7 +1411,7 @@ class _ArenaViewState extends State<ArenaView> {
                 topRight: Radius.circular(8),
               ),
               child: SizedBox(
-                height: size * 0.55,
+                height: mapHeight,
                 width: double.infinity,
                 child: Stack(
                   children: [
@@ -920,6 +1425,7 @@ class _ArenaViewState extends State<ArenaView> {
                         myLocationButtonEnabled: _hasLocationPermission,
                         markers: markers.toSet(),
                         polylines: polylines.toSet(),
+                        heatmaps: _playerHeatmaps,
                         onMapCreated: (ctrl) async {
                           _mapCtr = ctrl;
                           _mapDisposed = false;
@@ -943,6 +1449,10 @@ class _ArenaViewState extends State<ArenaView> {
                           _tryPlayZoom();
                         },
                         zoomControlsEnabled: false,
+                        onCameraMove: (position) {
+                          _mapZoom = position.zoom;
+                        },
+                        onCameraIdle: _refreshCafeMarkers,
                       ),
                     ),
 
@@ -951,31 +1461,118 @@ class _ArenaViewState extends State<ArenaView> {
                       top: 20,
                       left: 16,
                       right: 16,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: TextField(
-                          controller: _searchCtl,
-                          style: GoogleFonts.inter(color: Colors.white),
-                          cursorColor: const Color(0xff00DC00),
-                          decoration: InputDecoration(
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              color: Colors.white70,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => Get.to(SearchResult()),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            height: 52,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xE6111111),
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                            hintText: 'Search location',
-                            hintStyle: GoogleFonts.inter(color: Colors.white70),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 16,
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.search_rounded,
+                                  color: Colors.white70,
+                                  size: 23,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Search cafes or locations',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white60,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          onTap: () => Get.to(SearchResult()),
                         ),
                       ),
                     ),
+                    Positioned(
+                      top: 88,
+                      left: 16,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xE6111111),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            _mapModeButton(
+                              label: 'Cafes',
+                              icon: Icons.sports_esports_rounded,
+                              selected: !_showPlayers,
+                              onTap: () {
+                                setState(() => _showPlayers = false);
+                                _refreshCafeMarkers();
+                              },
+                            ),
+                            _mapModeButton(
+                              label: 'Players',
+                              icon: Icons.people_alt_rounded,
+                              selected: _showPlayers,
+                              onTap: () {
+                                setState(() => _showPlayers = true);
+                                _refreshCafeMarkers();
+                                unawaited(_fetchNearbyPlayers());
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_showPlayers)
+                      Positioned(
+                        top: 143,
+                        left: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 11,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xE6111111),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xff00DC00),
+                                      Color(0xffFFD600),
+                                      Color(0xffFF3D3D),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _mapZoom < 14
+                                    ? 'Zoom in to see players'
+                                    : 'Nearby activity',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white70,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -994,121 +1591,139 @@ class _ArenaViewState extends State<ArenaView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildCafeHeader(),
+                    if (_showPlayers)
+                      _buildPlayersHeader()
+                    else
+                      _buildCafeHeader(),
                     Expanded(
-                      child: Obx(
-                        () => _filteredCafes.isEmpty
-                            ? Center(
-                                child: SingleChildScrollView(
-                                  reverse: true,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (_cafeCtr.isLoading.value &&
-                                          _cafeCtr.cybercafes.isEmpty)
-                                        AppLinearLoader(),
-                                      if (!_cafeCtr.isLoading.value &&
-                                          _cafeCtr.cybercafes.isEmpty)
-                                        Text(
-                                          'Unable to load cafes right now',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 14,
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      if (!_cafeCtr.isLoading.value &&
-                                          _cafeCtr.cybercafes.isNotEmpty &&
-                                          _userState != null)
-                                        Text(
-                                          'No cafes available in $_userState',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 14,
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      const SizedBox(height: 8),
-                                      if (!_cafeCtr.isLoading.value &&
-                                          _cafeCtr.cybercafes.isEmpty)
-                                        GestureDetector(
-                                          onTap: () {
-                                            _cafeCtr.fetchCybercafes(
-                                              forceRefresh: true,
-                                            );
-                                          },
-                                          child: Text(
-                                            'Retry',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 14,
-                                              color: const Color(0xff00DC00),
-                                            ),
-                                          ),
-                                        ),
-                                      if (!_cafeCtr.isLoading.value &&
-                                          _cafeCtr.cybercafes.isNotEmpty &&
-                                          _userState != null)
-                                        GestureDetector(
-                                          onTap: () {
-                                            _showingAllCafes.value = true;
-                                            _filteredCafes.assignAll(
-                                              _sortCafesByDistance(
-                                                _cafeCtr.cybercafes
-                                                    .cast<
-                                                      Map<String, dynamic>
-                                                    >(),
+                      child: _showPlayers
+                          ? _buildNearbyPlayersList()
+                          : Obx(
+                              () => _filteredCafes.isEmpty
+                                  ? Center(
+                                      child: SingleChildScrollView(
+                                        reverse: true,
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (_cafeCtr.isLoading.value &&
+                                                _cafeCtr.cybercafes.isEmpty)
+                                              AppLinearLoader(),
+                                            if (!_cafeCtr.isLoading.value &&
+                                                _cafeCtr.cybercafes.isEmpty)
+                                              Text(
+                                                'Unable to load cafes right now',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 14,
+                                                  color: Colors.white70,
+                                                ),
                                               ),
-                                            );
-                                            _refreshCafeMarkers();
-                                          },
-                                          child: Text(
-                                            'Show all cafes',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 14,
-                                              color: const Color(0xff00DC00),
-                                            ),
-                                          ),
+                                            if (!_cafeCtr.isLoading.value &&
+                                                _cafeCtr
+                                                    .cybercafes
+                                                    .isNotEmpty &&
+                                                _userState != null)
+                                              Text(
+                                                'No cafes available in $_userState',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 14,
+                                                  color: Colors.white70,
+                                                ),
+                                              ),
+                                            const SizedBox(height: 8),
+                                            if (!_cafeCtr.isLoading.value &&
+                                                _cafeCtr.cybercafes.isEmpty)
+                                              GestureDetector(
+                                                onTap: () {
+                                                  _cafeCtr.fetchCybercafes(
+                                                    forceRefresh: true,
+                                                  );
+                                                },
+                                                child: Text(
+                                                  'Retry',
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 14,
+                                                    color: const Color(
+                                                      0xff00DC00,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            if (!_cafeCtr.isLoading.value &&
+                                                _cafeCtr
+                                                    .cybercafes
+                                                    .isNotEmpty &&
+                                                _userState != null)
+                                              GestureDetector(
+                                                onTap: () {
+                                                  _showingAllCafes.value = true;
+                                                  _filteredCafes.assignAll(
+                                                    _sortCafesByDistance(
+                                                      _cafeCtr.cybercafes
+                                                          .cast<
+                                                            Map<String, dynamic>
+                                                          >(),
+                                                    ),
+                                                  );
+                                                  _refreshCafeMarkers();
+                                                },
+                                                child: Text(
+                                                  'Show all cafes',
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 14,
+                                                    color: const Color(
+                                                      0xff00DC00,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
                                         ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : PageView.builder(
-                                controller: _cafePageController,
-                                padEnds: false,
-                                onPageChanged: _focusCafeByIndex,
-                                itemCount: _filteredCafes.length,
-                                itemBuilder: (_, i) {
-                                  final cafe = _filteredCafes[i];
-                                  final imgs =
-                                      (cafe['images'] as List?) ?? const [];
-                                  final img = imgs.isEmpty
-                                      ? 'https://next-level.gg/assets/cafes/11.jpg'
-                                      : (imgs.first is Map &&
-                                                (imgs.first as Map)['url'] !=
-                                                    null
-                                            ? (imgs.first as Map)['url']
-                                                  as String
-                                            : 'https://next-level.gg/assets/cafes/11.jpg');
-                                  final pos = _latLngFromCafe(cafe);
-                                  final id = '${cafe['id'] ?? cafe.hashCode}';
-                                  return Padding(
-                                    padding: EdgeInsets.only(
-                                      left: i == 0 ? 16 : 8,
-                                      right: i == _filteredCafes.length - 1
-                                          ? 16
-                                          : 8,
+                                      ),
+                                    )
+                                  : PageView.builder(
+                                      controller: _cafePageController,
+                                      padEnds: false,
+                                      onPageChanged: _focusCafeByIndex,
+                                      itemCount: _filteredCafes.length,
+                                      itemBuilder: (_, i) {
+                                        final cafe = _filteredCafes[i];
+                                        final imgs =
+                                            (cafe['images'] as List?) ??
+                                            const [];
+                                        final img = imgs.isEmpty
+                                            ? 'https://next-level.gg/assets/cafes/11.jpg'
+                                            : (imgs.first is Map &&
+                                                      (imgs.first
+                                                              as Map)['url'] !=
+                                                          null
+                                                  ? (imgs.first as Map)['url']
+                                                        as String
+                                                  : 'https://next-level.gg/assets/cafes/11.jpg');
+                                        final pos = _latLngFromCafe(cafe);
+                                        final id =
+                                            '${cafe['id'] ?? cafe.hashCode}';
+                                        return Padding(
+                                          padding: EdgeInsets.only(
+                                            left: i == 0 ? 16 : 8,
+                                            right:
+                                                i == _filteredCafes.length - 1
+                                                ? 16
+                                                : 8,
+                                          ),
+                                          child: _buildCafeCard(
+                                            id,
+                                            pos,
+                                            img,
+                                            cafe,
+                                            imgs,
+                                          ),
+                                        );
+                                      },
                                     ),
-                                    child: _buildCafeCard(
-                                      id,
-                                      pos,
-                                      img,
-                                      cafe,
-                                      imgs,
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
+                            ),
                     ),
                   ],
                 ),
@@ -1117,6 +1732,226 @@ class _ArenaViewState extends State<ArenaView> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _mapModeButton({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xff00DC00) : Colors.transparent,
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 17,
+              color: selected ? Colors.black : Colors.white70,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: selected ? Colors.black : Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayersHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+      child: Row(
+        children: [
+          Text(
+            'Players near you',
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xff00DC00).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '${_nearbyPlayers.length} nearby',
+              style: GoogleFonts.inter(
+                color: const Color(0xff00DC00),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const Spacer(),
+          InkWell(
+            onTap: _isUpdatingLocationSharing ? null : _toggleLocationSharing,
+            borderRadius: BorderRadius.circular(20),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: _isLocationSharingEnabled
+                    ? const Color(0xff00DC00).withValues(alpha: 0.14)
+                    : const Color(0xff181818),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _isLocationSharingEnabled
+                      ? const Color(0xff00DC00).withValues(alpha: 0.35)
+                      : Colors.white.withValues(alpha: 0.08),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _isLocationSharingEnabled
+                        ? Icons.visibility_rounded
+                        : Icons.visibility_off_rounded,
+                    size: 14,
+                    color: _isLocationSharingEnabled
+                        ? const Color(0xff00DC00)
+                        : Colors.white54,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    _isLocationSharingEnabled ? 'Visible' : 'Hidden',
+                    style: GoogleFonts.inter(
+                      color: _isLocationSharingEnabled
+                          ? const Color(0xff00DC00)
+                          : Colors.white60,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNearbyPlayersList() {
+    if (_isLoadingPlayers && _nearbyPlayers.isEmpty) {
+      return const Center(child: AppLinearLoader());
+    }
+    if (_nearbyPlayers.isEmpty) {
+      return LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.group_off_rounded,
+                  color: Colors.white38,
+                  size: 42,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _playersError ?? 'No discoverable players nearby yet.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Players appear only when they enable nearby discovery.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+                ),
+                const SizedBox(height: 14),
+                TextButton.icon(
+                  onPressed: _fetchNearbyPlayers,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Refresh nearby players'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xff00DC00),
+                    backgroundColor: const Color(
+                      0xff00DC00,
+                    ).withValues(alpha: 0.1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      itemCount: _nearbyPlayers.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (_, index) {
+        final player = _nearbyPlayers[index];
+        final name = (player['display_name'] ?? player['username'] ?? 'Player')
+            .toString();
+        final distance = player['distance_km'];
+        return ListTile(
+          onTap: () => _showPlayerActions(player),
+          tileColor: const Color(0xff151515),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          leading: CircleAvatar(
+            backgroundColor: const Color(0xff242424),
+            backgroundImage: (player['photo_url'] ?? '').toString().isNotEmpty
+                ? CachedNetworkImageProvider(player['photo_url'].toString())
+                : null,
+            child: (player['photo_url'] ?? '').toString().isEmpty
+                ? const Icon(Icons.person_rounded, color: Colors.white54)
+                : null,
+          ),
+          title: Text(
+            name,
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Text(
+            distance == null ? 'Nearby player' : '${distance} km away',
+            style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
+          ),
+          trailing: const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white38,
+          ),
+        );
+      },
     );
   }
 

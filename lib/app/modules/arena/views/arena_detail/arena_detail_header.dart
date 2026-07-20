@@ -9,13 +9,15 @@ class ArenaDetailHeader extends StatefulWidget {
   final VoidCallback onBack;
   final VoidCallback onShare;
   final double height;
+  final String title;
 
   const ArenaDetailHeader({
     super.key,
     required this.imageUrls,
     required this.onBack,
     required this.onShare,
-    this.height = 260,
+    required this.title,
+    this.height = 210,
   });
 
   @override
@@ -46,12 +48,45 @@ class _ArenaDetailHeaderState extends State<ArenaDetailHeader> {
         children: [
           if (widget.imageUrls.isEmpty)
             Container(
-              color: Colors.black26,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF181818), Color(0xFF0B160D)],
+                ),
+              ),
               alignment: Alignment.center,
-              child: const Icon(
-                Icons.image_not_supported,
-                size: 48,
-                color: Colors.white54,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00DC00).withValues(alpha: .10),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFF00DC00).withValues(alpha: .22),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.sports_esports_rounded,
+                      size: 28,
+                      color: Color(0xFF00DC00),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    widget.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             )
           else
@@ -70,18 +105,33 @@ class _ArenaDetailHeaderState extends State<ArenaDetailHeader> {
                 placeholder: (context, url) =>
                     const Center(child: RainbowGlowingLoader(size: 40)),
                 errorWidget: (_, __, ___) => Container(
-                  color: Colors.grey,
+                  color: const Color(0xFF151515),
                   alignment: Alignment.center,
                   child: const Icon(
-                    Icons.image_not_supported,
-                    size: 40,
-                    color: Colors.white54,
+                    Icons.sports_esports_rounded,
+                    size: 42,
+                    color: Color(0xFF00DC00),
                   ),
                 ),
               ),
             ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 54,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Color(0xFF0F0F0F)],
+                ),
+              ),
+            ),
+          ),
           Positioned(
-            top: 40,
+            top: MediaQuery.paddingOf(context).top + 10,
             left: 16,
             child: _GlassIconButton(
               icon: Icons.arrow_back,
@@ -89,7 +139,7 @@ class _ArenaDetailHeaderState extends State<ArenaDetailHeader> {
             ),
           ),
           Positioned(
-            top: 40,
+            top: MediaQuery.paddingOf(context).top + 10,
             right: 16,
             child: _GlassIconButton(
               icon: Icons.share,
@@ -129,29 +179,27 @@ class _GlassIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onPressed;
 
-  const _GlassIconButton({
-    required this.icon,
-    required this.onPressed,
-  });
+  const _GlassIconButton({required this.icon, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(14),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          width: 56,
-          height: 56,
+          width: 46,
+          height: 46,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white24),
           ),
           child: IconButton(
             icon: Icon(
               icon,
               color: Colors.white,
-              size: icon == Icons.share ? 28 : 32,
+              size: icon == Icons.share ? 22 : 25,
             ),
             onPressed: onPressed,
           ),
