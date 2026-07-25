@@ -53,7 +53,13 @@ class HostOnboardingController extends GetxController {
   String get ctaLabel {
     switch (status) {
       case HostVerificationStatus.pending:
+      case HostVerificationStatus.submitted:
+      case HostVerificationStatus.underReview:
         return 'Verification In Review';
+      case HostVerificationStatus.paymentPending:
+        return 'Complete Verification Payment';
+      case HostVerificationStatus.draft:
+        return 'Continue Verification';
       case HostVerificationStatus.verified:
         return 'Go to Host Dashboard';
       case HostVerificationStatus.suspended:
@@ -61,6 +67,7 @@ class HostOnboardingController extends GetxController {
       case HostVerificationStatus.rejected:
         return 'Re-apply for Verification';
       case HostVerificationStatus.none:
+      case HostVerificationStatus.unknown:
         return 'Get Verified & Start Earning';
     }
   }
@@ -68,6 +75,8 @@ class HostOnboardingController extends GetxController {
   /// Pending/suspended states are terminal for the CTA (nothing to do here).
   bool get ctaEnabled =>
       status != HostVerificationStatus.pending &&
+      status != HostVerificationStatus.submitted &&
+      status != HostVerificationStatus.underReview &&
       status != HostVerificationStatus.suspended;
 
   void onPrimaryCta() {
@@ -83,10 +92,15 @@ class HostOnboardingController extends GetxController {
         );
         return;
       case HostVerificationStatus.pending:
+      case HostVerificationStatus.submitted:
+      case HostVerificationStatus.underReview:
       case HostVerificationStatus.suspended:
         return; // button disabled
+      case HostVerificationStatus.draft:
+      case HostVerificationStatus.paymentPending:
       case HostVerificationStatus.rejected:
       case HostVerificationStatus.none:
+      case HostVerificationStatus.unknown:
         Get.toNamed(
           AppRoutes.HOST_VERIFICATION_CHECKOUT,
           arguments: program.value,

@@ -38,11 +38,33 @@ class HostVerificationController extends GetxController {
   }
 
   String? validate() {
-    return _required(name.text, 'Name') ??
+    final requiredError =
+        _required(name.text, 'Name') ??
         _required(email.text, 'Email') ??
         _required(phone.text, 'Phone') ??
         _required(upiId.text, 'UPI ID') ??
         _required(address.text, 'Address');
+    if (requiredError != null) return requiredError;
+
+    if (name.text.trim().length > 160) {
+      return 'Name must be 160 characters or fewer.';
+    }
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.text.trim())) {
+      return 'Enter a valid email address.';
+    }
+    final phoneValue = phone.text.trim();
+    if (phoneValue.length < 8 || phoneValue.length > 32) {
+      return 'Phone number must be between 8 and 32 characters.';
+    }
+    if (!RegExp(
+      r'^[A-Za-z0-9._-]{2,256}@[A-Za-z][A-Za-z0-9.-]{1,63}$',
+    ).hasMatch(upiId.text.trim())) {
+      return 'Enter a valid UPI ID, such as name@bank.';
+    }
+    if (address.text.trim().length < 10) {
+      return 'Address must be at least 10 characters.';
+    }
+    return null;
   }
 
   Future<void> submit() async {
@@ -83,14 +105,19 @@ class HostVerificationController extends GetxController {
     } on DioException catch (e) {
       final code = e.response?.statusCode;
       final data = e.response?.data;
-      if (code == 401) {
+      final localAuthFailure =
+          code == null &&
+          (e.error?.toString().contains('No access token') == true ||
+              e.message?.contains('No access token') == true);
+      if (code == 401 || localAuthFailure) {
         error.value = data is Map
             ? (data['message'] ?? 'Session expired').toString()
             : 'Session expired. Please login again.';
       } else if (code == 403) {
         error.value = 'You are not authorized.';
-      } else if (data is Map && data['message'] != null) {
-        error.value = data['message'].toString();
+      } else if (data is Map &&
+          (data['message'] != null || data['error'] != null)) {
+        error.value = (data['message'] ?? data['error']).toString();
       } else {
         error.value = 'Could not submit. Please try again.';
       }

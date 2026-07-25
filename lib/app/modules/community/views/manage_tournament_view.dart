@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import '../controllers/manage_tournament_controller.dart';
 import '../models/community_entities.dart';
 import '../models/tournament.dart';
+import '../models/tournament_operations.dart';
+import '../widgets/tournament_bracket.dart';
 import 'community_theme.dart';
 import 'tournaments_view.dart' show ctAmount, ctCurrency, ctStatus;
 import '../../../routes/app_routes.dart';
@@ -15,7 +17,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 6,
       child: Scaffold(
         backgroundColor: CT.bg,
         appBar: AppBar(
@@ -37,6 +39,8 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
             tabs: const [
               Tab(text: 'OVERVIEW'),
               Tab(text: 'ROSTER'),
+              Tab(text: 'TEAMS'),
+              Tab(text: 'MATCHES'),
               Tab(text: 'RESULTS'),
               Tab(text: 'PAYOUTS'),
             ],
@@ -52,6 +56,8 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
             children: [
               _overview(context, tournament),
               _roster(context),
+              _teams(),
+              _matches(),
               _results(context, tournament),
               _payouts(),
             ],
@@ -116,6 +122,10 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                   'Make the tournament discoverable and open its lifecycle.',
               onTap: controller.publish,
             ),
+          if (t.status == 'draft' && controller.readiness.value != null) ...[
+            const SizedBox(height: 8),
+            _readiness(controller.readiness.value!),
+          ],
           if (!isTerminal)
             _action(
               icon: Icons.cancel_outlined,
@@ -180,6 +190,131 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
       ),
     );
   }
+
+  Widget _teams() => RefreshIndicator(
+    onRefresh: controller.load,
+    color: CT.primary,
+    child: controller.teams.isEmpty
+        ? _empty('No teams have been created yet')
+        : ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: controller.teams.length,
+            separatorBuilder: (_, _) => const Divider(color: CT.outline),
+            itemBuilder: (_, index) {
+              final team = controller.teams[index];
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(team.name, style: CT.headline(14)),
+                subtitle: Text(
+                  '${team.acceptedMembers}/${team.members.length} accepted · '
+                  '${team.status.replaceAll('_', ' ')}'
+                  '${team.checkedIn ? ' · checked in' : ''}',
+                  style: CT.body(11),
+                ),
+                trailing: PopupMenuButton<String>(
+                  color: CT.surfaceHigh,
+                  iconColor: Colors.white,
+                  onSelected: (action) => controller.teamAction(team, action),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'approve', child: Text('Approve')),
+                    PopupMenuItem(
+                      value: 'request_information',
+                      child: Text('Request information'),
+                    ),
+                    PopupMenuItem(
+                      value: 'lock_roster',
+                      child: Text('Lock roster'),
+                    ),
+                    PopupMenuItem(value: 'check_in', child: Text('Check in')),
+                    PopupMenuItem(value: 'reject', child: Text('Reject')),
+                  ],
+                ),
+              );
+            },
+          ),
+  );
+
+  Widget _matches() => RefreshIndicator(
+    onRefresh: controller.load,
+    color: CT.primary,
+    child: ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text('Schedule & bracket', style: CT.headline(18))),
+            TextButton.icon(
+              onPressed: controller.acting.value
+                  ? null
+                  : controller.generateMatches,
+              icon: const Icon(Icons.account_tree_outlined),
+              label: const Text('Generate'),
+            ),
+          ],
+        ),
+        TournamentBracket(matches: controller.matches),
+        const SizedBox(height: 12),
+        if (controller.matches.isNotEmpty) ...[
+          Text('Match list', style: CT.headline(15)),
+          ...controller.matches.map(_matchRow),
+        ],
+        const SizedBox(height: 24),
+        Text('Leaderboard', style: CT.headline(18)),
+        const SizedBox(height: 8),
+        if (controller.leaderboard.isEmpty)
+          _emptyInline('Standings will appear after results')
+        else
+          ...controller.leaderboard.map(
+            (entry) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Text('#${entry.rank ?? '—'}', style: CT.headline(14)),
+              title: Text(entry.name, style: CT.headline(14)),
+              subtitle: Text(
+                '${entry.kills} kills · ${entry.penalties} penalty',
+                style: CT.body(11),
+              ),
+              trailing: Text('${entry.points} pts', style: CT.headline(13)),
+            ),
+          ),
+      ],
+    ),
+  );
+
+  Widget _matchRow(CommunityMatch match) => ListTile(
+    contentPadding: EdgeInsets.zero,
+    leading: const Icon(Icons.sports_esports_outlined, color: CT.primary),
+    title: Text(
+      '${match.teamA?.name ?? 'TBD'} vs ${match.teamB?.name ?? 'TBD'}',
+      style: CT.headline(14),
+    ),
+    subtitle: Text(
+      '${match.roundName ?? 'Round ${match.round ?? '—'}'} · '
+      '${match.status.replaceAll('_', ' ')}'
+      '${match.scheduledAt == null ? '' : ' · ${match.scheduledAt!.toLocal()}'}',
+      style: CT.body(11),
+    ),
+  );
+
+  Widget _readiness(TournamentReadiness state) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: CT.card(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          state.readyToPublish ? 'Ready to publish' : 'Publish blockers',
+          style: CT.headline(
+            13,
+            color: state.readyToPublish ? CT.successBright : CT.error,
+          ),
+        ),
+        for (final blocker in state.blockers)
+          Text('• $blocker', style: CT.body(11, color: CT.error)),
+        for (final warning in state.warnings)
+          Text('• $warning', style: CT.body(11, color: CT.muted)),
+      ],
+    ),
+  );
 
   Widget _results(BuildContext context, Tournament tournament) =>
       RefreshIndicator(

@@ -1,5 +1,7 @@
 // Models for the Community Tournament module (tournaments + registrations).
 
+import 'tournament_domain.dart';
+
 class PrizeSplit {
   final int rank;
   final num percent;
@@ -160,7 +162,9 @@ class Tournament {
 
   bool get isFree => entryFee <= 0;
   bool get isFull => registeredPlayersCount >= maxPlayers;
-  bool get canRegister => status == 'registration_open' && !isFull;
+  TournamentStatus get statusValue => tournamentStatusFrom(status);
+  bool get canRegister =>
+      statusValue == TournamentStatus.registrationOpen && !isFull;
 
   static DateTime? _dt(dynamic v) =>
       v == null ? null : DateTime.tryParse(v.toString());
@@ -242,6 +246,8 @@ class Registration {
     amountPaid: (j['amount_paid'] as num?)?.toDouble() ?? 0,
     paymentReference: j['payment_reference'] as String?,
   );
+
+  RegistrationStatus get statusValue => registrationStatusFrom(status);
 }
 
 /// A tournament list item may carry an embedded `registration` (role=joined).

@@ -11,6 +11,7 @@ import '../models/community_entities.dart';
 import '../models/host_program.dart';
 import '../models/host_verification.dart';
 import '../models/tournament.dart';
+import '../models/tournament_operations.dart';
 
 /// Client for the Community Tournament module
 /// (`userOnboard :: /api/v1/community`). Covers every endpoint in the handoff:
@@ -473,6 +474,181 @@ class CommunityApi {
       },
     );
     return _items(res.data).map(Payout.fromJson).toList();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Esports operations extension
+  // ---------------------------------------------------------------------------
+
+  Future<TournamentReadiness> tournamentReadiness(String tournamentId) async {
+    final dio = await _authedDio();
+    final res = await dio.get('/tournaments/$tournamentId/readiness');
+    return TournamentReadiness.fromJson(_map(res.data));
+  }
+
+  Future<List<CommunityTeam>> tournamentTeams(
+    String tournamentId, {
+    bool public = false,
+  }) async {
+    final path = public
+        ? '/tournaments/public/$tournamentId/teams'
+        : '/tournaments/$tournamentId/teams';
+    final res = public
+        ? await _publicDio().get(path)
+        : await (await _authedDio()).get(path);
+    return parseCommunityTeams(res.data);
+  }
+
+  Future<CommunityTeam> createTeam(
+    String tournamentId, {
+    required String name,
+    required List<Map<String, dynamic>> members,
+  }) async {
+    final dio = await _authedDio();
+    final res = await dio.post(
+      '/tournaments/$tournamentId/teams',
+      data: {'name': name, 'members': members},
+    );
+    return CommunityTeam.fromJson(_map(res.data));
+  }
+
+  Future<CommunityTeam> respondToTeamInvitation(
+    String tournamentId,
+    String teamId, {
+    required String action,
+  }) async {
+    final dio = await _authedDio();
+    final res = await dio.post(
+      '/tournaments/$tournamentId/teams/$teamId/invitation',
+      data: {'action': action},
+    );
+    return CommunityTeam.fromJson(_map(res.data));
+  }
+
+  Future<CommunityTeam> replaceTeamRoster(
+    String tournamentId,
+    String teamId, {
+    required List<Map<String, dynamic>> members,
+  }) async {
+    final dio = await _authedDio();
+    final res = await dio.put(
+      '/tournaments/$tournamentId/teams/$teamId/roster',
+      data: {'members': members},
+    );
+    return CommunityTeam.fromJson(_map(res.data));
+  }
+
+  Future<CommunityTeam> manageTeam(
+    String tournamentId,
+    String teamId, {
+    required String action,
+    String? reason,
+    int? seed,
+  }) async {
+    final dio = await _authedDio();
+    final res = await dio.patch(
+      '/tournaments/$tournamentId/teams/$teamId',
+      data: {
+        'action': action,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+        if (seed != null) 'seed': seed,
+      },
+    );
+    return CommunityTeam.fromJson(_map(res.data));
+  }
+
+  Future<List<CommunityMatch>> tournamentMatches(
+    String tournamentId, {
+    bool private = false,
+  }) async {
+    final path =
+        '/tournaments/$tournamentId/matches${private ? '/private' : ''}';
+    final res = private
+        ? await (await _authedDio()).get(path)
+        : await _publicDio().get(path);
+    return parseCommunityMatches(res.data);
+  }
+
+  Future<List<CommunityMatch>> generateMatches(String tournamentId) async {
+    final dio = await _authedDio();
+    final res = await dio.post('/tournaments/$tournamentId/matches/generate');
+    return parseCommunityMatches(res.data);
+  }
+
+  Future<CommunityMatch> operateMatch(
+    String tournamentId,
+    String matchId, {
+    required String action,
+    Map<String, dynamic> fields = const {},
+  }) async {
+    final dio = await _authedDio();
+    final res = await dio.patch(
+      '/tournaments/$tournamentId/matches/$matchId',
+      data: {'action': action, ...fields},
+    );
+    return CommunityMatch.fromJson(_map(res.data));
+  }
+
+  Future<CommunityMatch> submitCaptainResult(
+    String tournamentId,
+    String matchId, {
+    required String winnerTeamId,
+    required int teamAScore,
+    required int teamBScore,
+    List<String> evidenceAssetIds = const [],
+    String? notes,
+  }) async {
+    final dio = await _authedDio();
+    final res = await dio.post(
+      '/tournaments/$tournamentId/matches/$matchId/result-submissions',
+      data: {
+        'winner_team_id': winnerTeamId,
+        'team_a_score': teamAScore,
+        'team_b_score': teamBScore,
+        if (evidenceAssetIds.isNotEmpty) 'evidence_asset_ids': evidenceAssetIds,
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+      },
+    );
+    return CommunityMatch.fromJson(_map(res.data));
+  }
+
+  Future<List<TournamentLeaderboardEntry>> tournamentLeaderboard(
+    String tournamentId,
+  ) async {
+    final res = await _publicDio().get(
+      '/tournaments/$tournamentId/leaderboard',
+    );
+    return parseTournamentLeaderboard(res.data);
+  }
+
+  Future<OrganizerProfile> organizerProfile(int hostUserId) async {
+    final res = await _publicDio().get('/hosts/$hostUserId/profile');
+    return OrganizerProfile.fromJson(_map(res.data));
+  }
+
+  Future<Map<String, dynamic>> submitOrganizerReview(
+    String tournamentId, {
+    required int managementRating,
+    required int communicationRating,
+    required int fairnessRating,
+    required int schedulingRating,
+    required int disputeHandlingRating,
+    String? comment,
+  }) async {
+    final dio = await _authedDio();
+    final res = await dio.post(
+      '/tournaments/$tournamentId/reviews',
+      data: {
+        'management_rating': managementRating,
+        'communication_rating': communicationRating,
+        'fairness_rating': fairnessRating,
+        'scheduling_rating': schedulingRating,
+        'dispute_handling_rating': disputeHandlingRating,
+        if (comment != null && comment.trim().isNotEmpty)
+          'comment': comment.trim(),
+      },
+    );
+    return _map(res.data);
   }
 
   List<Map<String, dynamic>> _items(dynamic payload) {

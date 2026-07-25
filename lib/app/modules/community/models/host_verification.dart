@@ -4,12 +4,35 @@
 // or null when the user has never applied. The `verification_status` drives
 // the onboarding CTA state.
 
-enum HostVerificationStatus { none, pending, verified, rejected, suspended }
+enum HostVerificationStatus {
+  none,
+  draft,
+  paymentPending,
+  pending,
+  submitted,
+  underReview,
+  verified,
+  rejected,
+  suspended,
+  unknown,
+}
 
 HostVerificationStatus hostVerificationStatusFrom(String? raw) {
   switch ((raw ?? '').toLowerCase()) {
+    case '':
+    case 'none':
+    case 'not_submitted':
+      return HostVerificationStatus.none;
+    case 'draft':
+      return HostVerificationStatus.draft;
+    case 'payment_pending':
+      return HostVerificationStatus.paymentPending;
     case 'pending':
       return HostVerificationStatus.pending;
+    case 'submitted':
+      return HostVerificationStatus.submitted;
+    case 'under_review':
+      return HostVerificationStatus.underReview;
     case 'verified':
       return HostVerificationStatus.verified;
     case 'rejected':
@@ -17,7 +40,7 @@ HostVerificationStatus hostVerificationStatusFrom(String? raw) {
     case 'suspended':
       return HostVerificationStatus.suspended;
     default:
-      return HostVerificationStatus.none;
+      return HostVerificationStatus.unknown;
   }
 }
 
@@ -38,6 +61,10 @@ class HostVerification {
   final double onTimePayoutRate;
   final int policyViolationCount;
   final String? rejectionReason;
+  final String? suspensionReason;
+  final DateTime? createdAt;
+  final DateTime? reviewedAt;
+  final DateTime? updatedAt;
 
   const HostVerification({
     required this.id,
@@ -56,7 +83,23 @@ class HostVerification {
     required this.onTimePayoutRate,
     required this.policyViolationCount,
     required this.rejectionReason,
+    this.suspensionReason,
+    this.createdAt,
+    this.reviewedAt,
+    this.updatedAt,
   });
+
+  String? get maskedUpiId {
+    final value = upiId?.trim();
+    if (value == null || value.isEmpty) return null;
+    final at = value.indexOf('@');
+    if (at <= 0) return '••••';
+    final name = value.substring(0, at);
+    final visible = name.length <= 2
+        ? name.substring(0, 1)
+        : name.substring(0, 2);
+    return '$visible${'•' * (name.length - visible.length)}${value.substring(at)}';
+  }
 
   factory HostVerification.fromJson(Map<String, dynamic> json) {
     return HostVerification(
@@ -68,7 +111,9 @@ class HostVerification {
       governmentIdReference: json['government_id_reference'] as String?,
       upiId: json['upi_id'] as String?,
       address: json['address'] as String?,
-      status: hostVerificationStatusFrom(json['verification_status'] as String?),
+      status: hostVerificationStatusFrom(
+        json['verification_status'] as String?,
+      ),
       hostTier: (json['host_tier'] as String?) ?? 'bronze',
       averageRating: (json['average_rating'] as num?)?.toDouble() ?? 0,
       disputeRate: (json['dispute_rate'] as num?)?.toDouble() ?? 0,
@@ -77,6 +122,10 @@ class HostVerification {
       policyViolationCount:
           (json['policy_violation_count'] as num?)?.toInt() ?? 0,
       rejectionReason: json['rejection_reason'] as String?,
+      suspensionReason: json['suspension_reason'] as String?,
+      createdAt: DateTime.tryParse((json['created_at'] ?? '').toString()),
+      reviewedAt: DateTime.tryParse((json['reviewed_at'] ?? '').toString()),
+      updatedAt: DateTime.tryParse((json['updated_at'] ?? '').toString()),
     );
   }
 }

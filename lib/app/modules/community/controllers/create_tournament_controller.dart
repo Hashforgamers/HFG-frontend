@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/app/routes/app_routes.dart';
 
 import '../models/tournament.dart';
 import '../services/community_api.dart';
@@ -288,22 +289,13 @@ class CreateTournamentController extends GetxController {
     try {
       final body = _editablePayload(publish: publish);
       if (isEditing && body.isEmpty) {
-        Get.back(result: _editingTournament);
+        _returnToPreviousScreen(_editingTournament);
         return;
       }
       final Tournament tournament = _editingTournament == null
           ? await _api.createTournament(body)
           : await _api.updateTournament(_editingTournament!.id, body);
-      Get.back(result: tournament);
-      Get.snackbar(
-        isEditing
-            ? 'Tournament updated'
-            : publish
-            ? 'Tournament published'
-            : 'Draft saved',
-        tournament.title,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      _returnToPreviousScreen(tournament);
     } on DioException catch (e) {
       final data = e.response?.data;
       error.value = data is Map && data['message'] != null
@@ -316,6 +308,18 @@ class CreateTournamentController extends GetxController {
     } finally {
       submitting.value = false;
     }
+  }
+
+  void _returnToPreviousScreen(Tournament? result) {
+    final context = Get.context;
+    if (context != null && Navigator.of(context).canPop()) {
+      // Bypass Get.back: GetX attempts to close any queued snackbar first.
+      // A failed snackbar initialization elsewhere can otherwise throw after a
+      // successful tournament mutation and leave this screen visible.
+      Navigator.of(context).pop(result);
+      return;
+    }
+    Get.offNamed(AppRoutes.TOURNAMENTS_DISCOVERY);
   }
 
   Map<String, dynamic> _editablePayload({required bool publish}) {

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../models/community_entities.dart';
 import '../models/tournament.dart';
+import '../models/tournament_operations.dart';
 import '../services/community_api.dart';
 
 class ManageTournamentController extends GetxController {
@@ -13,6 +14,10 @@ class ManageTournamentController extends GetxController {
   final results = <MatchResult>[].obs;
   final disputes = <Dispute>[].obs;
   final payouts = <Payout>[].obs;
+  final teams = <CommunityTeam>[].obs;
+  final matches = <CommunityMatch>[].obs;
+  final leaderboard = <TournamentLeaderboardEntry>[].obs;
+  final readiness = Rxn<TournamentReadiness>();
   final loading = true.obs;
   final acting = false.obs;
   final error = RxnString();
@@ -56,11 +61,22 @@ class ManageTournamentController extends GetxController {
         _safe(() => _api.tournamentResults(tournamentId)),
         _safe(() => _api.tournamentDisputes(tournamentId)),
         _safe(() => _api.tournamentPayouts(tournamentId)),
+        _safe(() => _api.tournamentTeams(tournamentId)),
+        _safe(() => _api.tournamentMatches(tournamentId, private: true)),
+        _safe(() => _api.tournamentLeaderboard(tournamentId)),
       ]);
       registrations.assignAll(lists[0].cast<ManagedRegistration>());
       results.assignAll(lists[1].cast<MatchResult>());
       disputes.assignAll(lists[2].cast<Dispute>());
       payouts.assignAll(lists[3].cast<Payout>());
+      teams.assignAll(lists[4].cast<CommunityTeam>());
+      matches.assignAll(lists[5].cast<CommunityMatch>());
+      leaderboard.assignAll(lists[6].cast<TournamentLeaderboardEntry>());
+      try {
+        readiness.value = await _api.tournamentReadiness(tournamentId);
+      } catch (_) {
+        readiness.value = null;
+      }
     } on DioException catch (e) {
       error.value = _message(e, fallback: 'Could not load host controls.');
     } catch (_) {
@@ -78,9 +94,45 @@ class ManageTournamentController extends GetxController {
     }
   }
 
-  Future<void> publish() => _mutate(
-    () => _api.updateTournament(tournamentId, {'status': 'published'}),
-    success: 'Tournament published',
+  Future<void> publish() async {
+    try {
+      final state = await _api.tournamentReadiness(tournamentId);
+      readiness.value = state;
+      if (!state.readyToPublish) {
+        error.value = state.blockers.isEmpty
+            ? 'Tournament is not ready to publish.'
+            : state.blockers.join('\n');
+        return;
+      }
+    } on DioException catch (e) {
+      error.value = _message(e, fallback: 'Could not validate readiness.');
+      return;
+    }
+    await _mutate(
+      () => _api.updateTournament(tournamentId, {'status': 'published'}),
+      success: 'Tournament published',
+    );
+  }
+
+  Future<void> generateMatches() => _mutate(
+    () => _api.generateMatches(tournamentId),
+    success: 'Schedule and bracket generated',
+  );
+
+  Future<void> teamAction(
+    CommunityTeam team,
+    String action, {
+    String? reason,
+    int? seed,
+  }) => _mutate(
+    () => _api.manageTeam(
+      tournamentId,
+      team.id,
+      action: action,
+      reason: reason,
+      seed: seed,
+    ),
+    success: 'Team updated',
   );
 
   Future<void> saveRoomDetails({
@@ -141,6 +193,8 @@ class ManageTournamentController extends GetxController {
       winners.add({
         'user_id': result.winnerUserId,
         'rank': result.rank,
+        // Per the pinned backend contract, zero delegates calculation to the
+        // authoritative prize distribution stored by the tournament service.
         'amount': 0,
       });
     }

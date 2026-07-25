@@ -42,7 +42,7 @@ void main() async {
     flavor: Flavor.dev,
     appName: 'HFG Dev',
     baseUrls: {
-      'userOnboard': 'https://hfg-user-onboard-3nzn.onrender.com',
+      'userOnboard': 'https://hfg-user-onboard.onrender.com',
       'booking': 'https://hfg-booking-hmnx.onrender.com',
       'dashboard': 'https://hfg-dashboard.onrender.com',
       'login': 'https://hfg-login-1d4c.onrender.com',
