@@ -19,8 +19,11 @@ import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/modules/community/models/host_verification.dart';
 import 'package:hash/app/modules/community/services/community_api.dart';
+import 'package:hash/app/modules/social/friend_service.dart';
+import 'package:hash/app/modules/social/friends_view.dart';
 import 'package:hash/utils/widgets/hash_wordmark.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../data/services/user_controller.dart';
 import '../cubit/tournament_home_cubit.dart';
@@ -33,17 +36,22 @@ class TournamentsHomeView extends StatefulWidget {
   State<TournamentsHomeView> createState() => _TournamentsHomeViewState();
 }
 
-class _TournamentsHomeViewState extends State<TournamentsHomeView> {
+class _TournamentsHomeViewState extends State<TournamentsHomeView>
+    with SingleTickerProviderStateMixin {
   late final TournamentHomeCubit _cubit;
   late final Future<HostVerification?> _hostRegistration;
   late final AnimatedGlitchController _gamerProfileGlitch;
+  late final AnimationController _livePulseController;
+  late final Animation<double> _livePulse;
   final SquadMissionsService _squadMissionsService =
       locator<SquadMissionsService>();
+  final FriendService _friendService = FriendService();
 
   final userController = Get.find<UserController>();
   double _hostSheetUpwardDrag = 0;
   bool _hostDragThresholdReached = false;
   bool _hostSheetOpening = false;
+  Set<String> _savedTournamentIds = <String>{};
 
   @override
   void initState() {
@@ -55,12 +63,50 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
       chance: 32,
       level: .65,
     );
+    _livePulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 720),
+    )..repeat(reverse: true);
+    _livePulse = Tween<double>(begin: .42, end: 1).animate(
+      CurvedAnimation(parent: _livePulseController, curve: Curves.easeInOut),
+    );
     _cubit.fetchTournaments(forceRefresh: false);
+    _loadSavedTournaments();
+  }
+
+  String get _savedTournamentsKey {
+    final uid = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+    return 'saved_tournaments_$uid';
+  }
+
+  Future<void> _loadSavedTournaments() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _savedTournamentIds =
+          prefs.getStringList(_savedTournamentsKey)?.toSet() ?? <String>{};
+    });
+  }
+
+  Future<void> _toggleSavedTournament(TournamentModel tournament) async {
+    final key = '${tournament.source}:${tournament.id}';
+    Haptics.selection();
+    setState(() {
+      if (!_savedTournamentIds.add(key)) {
+        _savedTournamentIds.remove(key);
+      }
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _savedTournamentsKey,
+      _savedTournamentIds.toList(),
+    );
   }
 
   @override
   void dispose() {
     _gamerProfileGlitch.dispose();
+    _livePulseController.dispose();
     _cubit.close();
     super.dispose();
   }
@@ -97,6 +143,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
                     } else if (state is TournamentHomeLoaded) {
                       return _buildBodyContent(
                         state.tournaments,
+                        state.allJoinedTournaments,
                         state.joinableTournaments,
                         state.myTeams,
                         state.gamerProfile,
@@ -125,14 +172,63 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
 
   Widget _buildBodyContent(
     List<TournamentModel> joinedTournaments,
+    List<TournamentModel> allJoinedTournaments,
     List<TournamentModel> joinableTournaments,
     List<Map<String, dynamic>> myTeams,
     GamerProfileModel? gamerProfile,
   ) {
+    final nextTournament = _nextActionTournament(allJoinedTournaments);
+    final liveTournaments = _uniqueTournaments([
+      ...allJoinedTournaments,
+      ...joinableTournaments,
+    ]).where((item) => item.status == TournamentStatus.live).toList();
+    final closingSoon =
+        joinableTournaments.where(_isRegistrationClosingSoon).toList()..sort(
+          (a, b) => a.registrationEndDate!.compareTo(b.registrationEndDate!),
+        );
+    final watchlist =
+        _uniqueTournaments([...allJoinedTournaments, ...joinableTournaments])
+            .where(
+              (item) =>
+                  _savedTournamentIds.contains('${item.source}:${item.id}'),
+            )
+            .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
+        _buildActionCenter(allJoinedTournaments),
+        const SizedBox(height: 24),
+        if (nextTournament != null) ...[
+          _buildNextActionCard(nextTournament),
+          const SizedBox(height: 24),
+        ],
+        if (liveTournaments.isNotEmpty) ...[
+          _sectionTitle('Live now', subtitle: 'Watch the action'),
+          const SizedBox(height: 12),
+          _buildUrgencyRail(liveTournaments, live: true),
+          const SizedBox(height: 26),
+        ],
+        if (closingSoon.isNotEmpty) ...[
+          _sectionTitle(
+            'Registration closing soon',
+            subtitle: 'Secure your slot',
+          ),
+          const SizedBox(height: 12),
+          _buildUrgencyRail(closingSoon.take(8).toList()),
+          const SizedBox(height: 26),
+        ],
+        if (watchlist.isNotEmpty) ...[
+          _sectionTitle('Your watchlist', subtitle: 'Saved for the clutch'),
+          const SizedBox(height: 12),
+          _buildUrgencyRail(
+            watchlist,
+            live: watchlist.every(
+              (item) => item.status == TournamentStatus.live,
+            ),
+          ),
+          const SizedBox(height: 26),
+        ],
         _sectionTitle('Discover tournaments', subtitle: 'Find your next match'),
         const SizedBox(height: 12),
         const _TabsSection(),
@@ -185,6 +281,581 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
       ],
     ),
   );
+
+  Widget _buildActionCenter(List<TournamentModel> joinedTournaments) {
+    final live = joinedTournaments
+        .where((item) => item.status == TournamentStatus.live)
+        .toList();
+    final next = _nextActionTournament(joinedTournaments);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: const Color(0xFF101310),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0x332FD85B)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0x2200DC00),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.bolt_rounded,
+                    color: Color(0xFF00DC00),
+                    size: 21,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Action center',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        'Everything that needs your attention',
+                        style: GoogleFonts.inter(
+                          color: Colors.white54,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Notifications',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => Get.toNamed(AppRoutes.NOTIFICATIONS),
+                  icon: const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 13),
+            StreamBuilder<List<FriendRelationship>>(
+              stream: _friendService.watchRelationships(),
+              builder: (context, friendSnapshot) {
+                final uid = _friendService.currentUid ?? '';
+                final requests = (friendSnapshot.data ?? const [])
+                    .where((item) => item.isIncoming(uid))
+                    .length;
+                return FutureBuilder<HostVerification?>(
+                  future: _hostRegistration,
+                  builder: (context, hostSnapshot) {
+                    final isHost =
+                        hostSnapshot.data?.status ==
+                        HostVerificationStatus.verified;
+                    final actions =
+                        <
+                          ({
+                            IconData icon,
+                            String title,
+                            String subtitle,
+                            Color color,
+                            VoidCallback onTap,
+                          })
+                        >[
+                          if (live.isNotEmpty)
+                            (
+                              icon: Icons.sensors_rounded,
+                              title:
+                                  '${live.length} live ${live.length == 1 ? 'event' : 'events'}',
+                              subtitle: 'Enter now',
+                              color: const Color(0xFFFF5252),
+                              onTap: () => _openTournament(live.first),
+                            )
+                          else if (next != null)
+                            (
+                              icon: Icons.schedule_rounded,
+                              title: 'Next tournament',
+                              subtitle: 'In ${_timeUntil(next.startDate)}',
+                              color: const Color(0xFF00DC00),
+                              onTap: () => _openTournament(next),
+                            ),
+                          if (requests > 0)
+                            (
+                              icon: Icons.person_add_alt_1_rounded,
+                              title:
+                                  '$requests friend ${requests == 1 ? 'request' : 'requests'}',
+                              subtitle: 'Review requests',
+                              color: const Color(0xFF5DA9FF),
+                              onTap: () => Get.to(
+                                () => const FriendsView(initialTab: 1),
+                              ),
+                            ),
+                          if (isHost)
+                            (
+                              icon: Icons.dashboard_customize_rounded,
+                              title: 'Host operations',
+                              subtitle: 'Open command center',
+                              color: const Color(0xFFFFB648),
+                              onTap: () =>
+                                  Get.toNamed(AppRoutes.HOST_DASHBOARD),
+                            ),
+                          (
+                            icon: Icons.notifications_active_outlined,
+                            title: 'Updates',
+                            subtitle: 'Announcements & alerts',
+                            color: const Color(0xFFB88CFF),
+                            onTap: () => Get.toNamed(AppRoutes.NOTIFICATIONS),
+                          ),
+                        ];
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final tileWidth = (constraints.maxWidth - 9) / 2;
+                        return Wrap(
+                          spacing: 9,
+                          runSpacing: 9,
+                          children: actions
+                              .map(
+                                (action) => SizedBox(
+                                  width: tileWidth,
+                                  child: _actionCenterTile(
+                                    icon: action.icon,
+                                    title: action.title,
+                                    subtitle: action.subtitle,
+                                    color: action.color,
+                                    onTap: action.onTap,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _actionCenterTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: const Color(0xFF181A18),
+      borderRadius: BorderRadius.circular(13),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: Padding(
+          padding: const EdgeInsets.all(11),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .13),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: Colors.white54,
+                        fontSize: 9.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  TournamentModel? _nextActionTournament(
+    List<TournamentModel> joinedTournaments,
+  ) {
+    final live = joinedTournaments
+        .where((item) => item.status == TournamentStatus.live)
+        .toList();
+    if (live.isNotEmpty) return live.first;
+
+    final now = DateTime.now();
+    final upcoming =
+        joinedTournaments
+            .where(
+              (item) =>
+                  item.status == TournamentStatus.upcoming &&
+                  (item.startDate == null || item.startDate!.isAfter(now)),
+            )
+            .toList()
+          ..sort((a, b) {
+            if (a.startDate == null) return 1;
+            if (b.startDate == null) return -1;
+            return a.startDate!.compareTo(b.startDate!);
+          });
+    return upcoming.isEmpty ? null : upcoming.first;
+  }
+
+  List<TournamentModel> _uniqueTournaments(List<TournamentModel> tournaments) {
+    final seen = <String>{};
+    return tournaments.where((item) {
+      final key = '${item.source}:${item.id}';
+      return seen.add(key);
+    }).toList();
+  }
+
+  bool _isRegistrationClosingSoon(TournamentModel tournament) {
+    final deadline = tournament.registrationEndDate;
+    if (deadline == null || tournament.isJoined) return false;
+    final remaining = deadline.difference(DateTime.now());
+    return !remaining.isNegative && remaining <= const Duration(days: 7);
+  }
+
+  String _timeUntil(DateTime? date, {String fallback = 'Time TBA'}) {
+    if (date == null) return fallback;
+    final difference = date.difference(DateTime.now());
+    if (difference.isNegative) return 'Now';
+    if (difference.inDays > 0) {
+      return '${difference.inDays}d ${difference.inHours.remainder(24)}h';
+    }
+    if (difference.inHours > 0) {
+      return '${difference.inHours}h ${difference.inMinutes.remainder(60)}m';
+    }
+    return '${difference.inMinutes.clamp(1, 59)}m';
+  }
+
+  void _openTournament(TournamentModel tournament) {
+    Haptics.selection();
+    if (tournament.source == 'community') {
+      Get.toNamed(
+        AppRoutes.TOURNAMENT_DETAIL,
+        arguments: {'id': tournament.id, 'can_manage': tournament.canManage},
+      );
+      return;
+    }
+    Get.to(() => TournamentsDetailsView(tournament: tournament));
+  }
+
+  Widget _buildNextActionCard(TournamentModel tournament) {
+    final isLive = tournament.status == TournamentStatus.live;
+    final image = tournament.banner.isNotEmpty
+        ? tournament.banner
+        : tournament.imageUrl;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Material(
+        color: const Color(0xFF121712),
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: () => _openTournament(tournament),
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            height: 190,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isLive
+                    ? const Color(0x88FF3B30)
+                    : const Color(0x6600DC00),
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(19),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (image.startsWith('http'))
+                    CachedNetworkImage(
+                      imageUrl: image,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, _, _) =>
+                          const ColoredBox(color: Color(0xFF142014)),
+                    )
+                  else
+                    Image.asset(
+                      image,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          const ColoredBox(color: Color(0xFF142014)),
+                    ),
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x33000000), Color(0xEE050705)],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isLive
+                                    ? const Color(0xFFE53935)
+                                    : const Color(0xFF00B83E),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: isLive
+                                  ? FadeTransition(
+                                      opacity: _livePulse,
+                                      child: Text(
+                                        '● LIVE NOW',
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: .5,
+                                        ),
+                                      ),
+                                    )
+                                  : Text(
+                                      'NEXT UP',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: .5,
+                                      ),
+                                    ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              isLive
+                                  ? 'Enter tournament'
+                                  : 'Starts in ${_timeUntil(tournament.startDate)}',
+                              style: GoogleFonts.inter(
+                                color: Colors.white70,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Spacer(),
+                        Text(
+                          tournament.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          [
+                            if (tournament.game.isNotEmpty) tournament.game,
+                            tournament.teamMode,
+                            tournament.players,
+                          ].join(' · '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.account_tree_outlined,
+                              color: Color(0xFF00DC00),
+                              size: 17,
+                            ),
+                            const SizedBox(width: 7),
+                            Text(
+                              'Bracket, matches & chat',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Color(0xFF00DC00),
+                              size: 21,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUrgencyRail(
+    List<TournamentModel> tournaments, {
+    bool live = false,
+  }) {
+    return SizedBox(
+      height: 132,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: tournaments.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final tournament = tournaments[index];
+          final deadline = tournament.registrationEndDate;
+          return Material(
+            color: const Color(0xFF151515),
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: () => _openTournament(tournament),
+              borderRadius: BorderRadius.circular(16),
+              child: Ink(
+                width: 245,
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: live ? const Color(0x55FF3B30) : Colors.white12,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(11),
+                      child: SizedBox(
+                        width: 78,
+                        height: double.infinity,
+                        child: tournament.imageUrl.startsWith('http')
+                            ? CachedNetworkImage(
+                                imageUrl: tournament.imageUrl,
+                                fit: BoxFit.cover,
+                                errorWidget: (_, _, _) =>
+                                    const ColoredBox(color: Color(0xFF202020)),
+                              )
+                            : Image.asset(
+                                tournament.imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    const ColoredBox(color: Color(0xFF202020)),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (live)
+                            FadeTransition(
+                              opacity: _livePulse,
+                              child: Text(
+                                '● LIVE',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFFF5252),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: .4,
+                                ),
+                              ),
+                            )
+                          else
+                            Text(
+                              'CLOSES IN ${_timeUntil(deadline)}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFFFB648),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: .4,
+                              ),
+                            ),
+                          const SizedBox(height: 6),
+                          Text(
+                            tournament.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 13,
+                              height: 1.15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${tournament.players} · ${tournament.entryFee}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: Colors.white60,
+                              fontSize: 10.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   Widget _hostSheetPeek() => Material(
     color: Colors.transparent,
@@ -722,6 +1393,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
   }
 
   Widget _buildTournamentCard(TournamentModel t, {bool showJoinedTag = false}) {
+    final isSaved = _savedTournamentIds.contains('${t.source}:${t.id}');
     final dateFormat = DateFormat('d MMM');
     final start = t.startDate;
     final end = t.endDate;
@@ -824,6 +1496,30 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
                             child: Icon(
                               Icons.ios_share_rounded,
                               color: Colors.white,
+                              size: 17,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 47,
+                      right: 8,
+                      child: Material(
+                        color: Colors.black.withValues(alpha: .68),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => _toggleSavedTournament(t),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Icon(
+                              isSaved
+                                  ? Icons.bookmark_rounded
+                                  : Icons.bookmark_border_rounded,
+                              color: isSaved
+                                  ? const Color(0xFFFFB648)
+                                  : Colors.white,
                               size: 17,
                             ),
                           ),

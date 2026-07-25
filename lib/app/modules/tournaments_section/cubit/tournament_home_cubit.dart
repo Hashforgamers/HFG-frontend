@@ -149,9 +149,7 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
       _cacheByScope[cacheScope] = _TournamentHomeCacheEntry(
         fetchedAt: DateTime.now(),
         joinableTournaments: List<TournamentModel>.from(
-          _allJoinableTournaments.where(
-            (tournament) => tournament.matchesFilter(_selectedCategory),
-          ),
+          _allJoinableTournaments,
         ),
         joinedByTab: _cloneJoinedByTab(_joinedByTab),
         myTeams: _cloneMyTeams(_myTeams),
@@ -182,8 +180,13 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
         tournaments: List<TournamentModel>.from(
           _joinedByTab[_selectedCategory] ?? const <TournamentModel>[],
         ),
+        allJoinedTournaments: List<TournamentModel>.from(
+          _joinedByTab['All'] ?? const <TournamentModel>[],
+        ),
         joinableTournaments: List<TournamentModel>.from(
-          _allJoinableTournaments,
+          _allJoinableTournaments.where(
+            (tournament) => tournament.matchesFilter(_selectedCategory),
+          ),
         ),
         myTeams: _cloneMyTeams(_myTeams),
         gamerProfile: _gamerProfile,

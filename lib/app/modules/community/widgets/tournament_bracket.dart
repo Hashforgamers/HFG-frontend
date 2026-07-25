@@ -1,176 +1,487 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../models/tournament_operations.dart';
 import '../views/community_theme.dart';
 
-class TournamentBracket extends StatelessWidget {
+class TournamentBracket extends StatefulWidget {
   const TournamentBracket({
     super.key,
     required this.matches,
     this.currentTeamId,
+    this.expanded = false,
   });
 
   final List<CommunityMatch> matches;
   final String? currentTeamId;
+  final bool expanded;
 
   @override
-  Widget build(BuildContext context) {
-    if (matches.isEmpty) {
-      return _BracketEmpty();
-    }
-    final grouped = <String, List<CommunityMatch>>{};
-    for (final match in matches) {
-      final label = match.roundName?.trim().isNotEmpty == true
-          ? match.roundName!
-          : 'Round ${match.round ?? 1}';
-      grouped.putIfAbsent(label, () => []).add(match);
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 430;
-        return SizedBox(
-          height: compact ? 300 : 344,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(bottom: 8),
-            itemCount: grouped.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 20),
-            itemBuilder: (context, roundIndex) {
-              final entry = grouped.entries.elementAt(roundIndex);
-              return SizedBox(
-                width: compact ? constraints.maxWidth - 8 : 340,
-                child: _BracketRound(
-                  title: entry.key,
-                  matches: entry.value,
-                  currentTeamId: currentTeamId,
-                  showConnectors: roundIndex < grouped.length - 1,
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
+  State<TournamentBracket> createState() => _TournamentBracketState();
 }
 
-class _BracketRound extends StatelessWidget {
-  const _BracketRound({
-    required this.title,
-    required this.matches,
-    required this.currentTeamId,
-    required this.showConnectors,
-  });
+class _TournamentBracketState extends State<TournamentBracket> {
+  final TransformationController _transform = TransformationController();
 
-  final String title;
-  final List<CommunityMatch> matches;
-  final String? currentTeamId;
-  final bool showConnectors;
+  @override
+  void dispose() {
+    _transform.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            title.toUpperCase(),
-            style: CT.mono(10, color: CT.primaryBright),
+    if (widget.matches.isEmpty) return const _BracketEmpty();
+    final rounds = _groupRounds(widget.matches);
+    final canvasWidth = math.max(760.0, rounds.length * 310.0 + 80);
+    final largestRound = rounds
+        .map((round) => round.matches.length)
+        .fold<int>(1, math.max);
+    final canvasHeight = math.max(560.0, largestRound * 126.0 + 110);
+    final viewportHeight = widget.expanded
+        ? math.max(
+            280.0,
+            MediaQuery.sizeOf(context).height -
+                kToolbarHeight -
+                MediaQuery.paddingOf(context).vertical,
+          )
+        : math.min(610.0, math.max(470.0, canvasHeight));
+
+    return Container(
+      height: viewportHeight,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: const Color(0xFF080A14),
+        borderRadius: BorderRadius.circular(widget.expanded ? 0 : 22),
+        border: widget.expanded
+            ? null
+            : Border.all(color: const Color(0xFF2C3152)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 28,
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(painter: const _ArenaBackgroundPainter()),
+          ),
+          Positioned.fill(
+            top: 54,
+            child: InteractiveViewer(
+              transformationController: _transform,
+              constrained: false,
+              boundaryMargin: const EdgeInsets.all(100),
+              minScale: .45,
+              maxScale: 2.2,
+              trackpadScrollCausesScale: true,
+              child: SizedBox(
+                width: canvasWidth,
+                height: canvasHeight,
+                child: _BracketCanvas(
+                  rounds: rounds,
+                  canvasWidth: canvasWidth,
+                  canvasHeight: canvasHeight,
+                  currentTeamId: widget.currentTeamId,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 16,
+            right: 8,
+            top: 10,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 390;
+                return Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8E5CFF), Color(0xFF00F5D4)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x998E5CFF), blurRadius: 12),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            compact ? 'BRACKET' : 'TOURNAMENT BRACKET',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CT.headline(compact ? 12 : 14),
+                          ),
+                          if (!compact)
+                            Text(
+                              'DRAG TO EXPLORE  •  PINCH TO ZOOM',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: CT.mono(8, color: CT.muted),
+                            ),
+                        ],
+                      ),
+                    ),
+                    _toolButton(
+                      Icons.remove_rounded,
+                      () => _zoom(.82),
+                      tooltip: 'Zoom out',
+                    ),
+                    _toolButton(
+                      Icons.center_focus_strong_rounded,
+                      () => _transform.value = Matrix4.identity(),
+                      tooltip: 'Reset view',
+                    ),
+                    _toolButton(
+                      Icons.add_rounded,
+                      () => _zoom(1.22),
+                      tooltip: 'Zoom in',
+                    ),
+                    if (!widget.expanded)
+                      _toolButton(
+                        Icons.open_in_full_rounded,
+                        () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => Scaffold(
+                              backgroundColor: const Color(0xFF080A14),
+                              appBar: AppBar(
+                                backgroundColor: const Color(0xFF080A14),
+                                foregroundColor: Colors.white,
+                                title: const Text('Tournament bracket'),
+                              ),
+                              body: TournamentBracket(
+                                matches: widget.matches,
+                                currentTeamId: widget.currentTeamId,
+                                expanded: true,
+                              ),
+                            ),
+                          ),
+                        ),
+                        tooltip: 'Open full screen',
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _zoom(double factor) {
+    _transform.value = _transform.value.clone()
+      ..scaleByDouble(factor, factor, factor, 1);
+  }
+
+  Widget _toolButton(
+    IconData icon,
+    VoidCallback onPressed, {
+    required String tooltip,
+  }) => IconButton(
+    tooltip: tooltip,
+    visualDensity: VisualDensity.compact,
+    padding: const EdgeInsets.all(6),
+    constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+    onPressed: onPressed,
+    icon: Icon(icon, size: 19, color: Colors.white),
+  );
+}
+
+class _BracketCanvas extends StatelessWidget {
+  const _BracketCanvas({
+    required this.rounds,
+    required this.canvasWidth,
+    required this.canvasHeight,
+    required this.currentTeamId,
+  });
+
+  final List<_RoundData> rounds;
+  final double canvasWidth;
+  final double canvasHeight;
+  final String? currentTeamId;
+
+  @override
+  Widget build(BuildContext context) {
+    const cardWidth = 246.0;
+    const cardHeight = 92.0;
+    const roundWidth = 310.0;
+    final cardRects = <Rect>[];
+    final cards = <Widget>[];
+
+    for (var roundIndex = 0; roundIndex < rounds.length; roundIndex++) {
+      final round = rounds[roundIndex];
+      final usableHeight = canvasHeight - 104;
+      final slotHeight = usableHeight / math.max(1, round.matches.length);
+      final x = 38.0 + roundIndex * roundWidth;
+      cards.add(
+        Positioned(
+          left: x,
+          top: 18,
+          width: cardWidth,
+          child: _RoundHeader(
+            title: round.title,
+            matchCount: round.matches.length,
+            isFinal: roundIndex == rounds.length - 1,
           ),
         ),
-        Expanded(
-          child: ListView.separated(
-            itemCount: matches.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 18),
-            itemBuilder: (_, index) => _FixtureCard(
-              match: matches[index],
+      );
+      for (
+        var matchIndex = 0;
+        matchIndex < round.matches.length;
+        matchIndex++
+      ) {
+        final y =
+            76.0 + slotHeight * matchIndex + (slotHeight - cardHeight) / 2;
+        cardRects.add(Rect.fromLTWH(x, y, cardWidth, cardHeight));
+        cards.add(
+          Positioned(
+            left: x,
+            top: y,
+            width: cardWidth,
+            height: cardHeight,
+            child: _MatchCard(
+              match: round.matches[matchIndex],
               currentTeamId: currentTeamId,
-              showConnector: showConnectors,
+              featured: roundIndex == rounds.length - 1,
+            ),
+          ),
+        );
+      }
+    }
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: CustomPaint(
+            painter: _BracketConnectorPainter(
+              rounds: rounds,
+              canvasHeight: canvasHeight,
             ),
           ),
         ),
+        ...cards,
       ],
     );
   }
 }
 
-class _FixtureCard extends StatelessWidget {
-  const _FixtureCard({
+class _RoundHeader extends StatelessWidget {
+  const _RoundHeader({
+    required this.title,
+    required this.matchCount,
+    required this.isFinal,
+  });
+  final String title;
+  final int matchCount;
+  final bool isFinal;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(
+        isFinal ? Icons.emoji_events_rounded : Icons.bolt_rounded,
+        size: 16,
+        color: isFinal ? const Color(0xFFFFC857) : const Color(0xFF9A74FF),
+      ),
+      const SizedBox(width: 7),
+      Expanded(
+        child: Text(
+          title.toUpperCase(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: CT.mono(
+            10,
+            color: isFinal ? const Color(0xFFFFC857) : Colors.white,
+          ),
+        ),
+      ),
+      Text(
+        '$matchCount MATCH${matchCount == 1 ? '' : 'ES'}',
+        style: CT.mono(7),
+      ),
+    ],
+  );
+}
+
+class _MatchCard extends StatelessWidget {
+  const _MatchCard({
     required this.match,
     required this.currentTeamId,
-    required this.showConnector,
+    required this.featured,
   });
-
   final CommunityMatch match;
   final String? currentTeamId;
-  final bool showConnector;
+  final bool featured;
 
   @override
   Widget build(BuildContext context) {
+    final live = {'live', 'in_progress'}.contains(match.status);
     return Semantics(
-      container: true,
       label:
           '${match.teamA?.name ?? 'To be decided'} versus '
           '${match.teamB?.name ?? 'To be decided'}, ${match.status}',
-      child: SizedBox(
-        height: 94,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              right: showConnector ? 13 : 0,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF20233F),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFF373B60)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x26000000),
-                      blurRadius: 14,
-                      offset: Offset(0, 8),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: featured
+                ? const [Color(0xFF261A3F), Color(0xFF11162A)]
+                : const [Color(0xFF171B31), Color(0xFF0E1223)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: live
+                ? const Color(0xFF00F5D4)
+                : featured
+                ? const Color(0xFFFFC857)
+                : const Color(0xFF343A60),
+            width: live || featured ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: live ? const Color(0x5500F5D4) : const Color(0x66000000),
+              blurRadius: live ? 18 : 12,
+              offset: const Offset(0, 7),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Column(
+            children: [
+              _TeamLine(
+                team: match.teamA,
+                score: match.teamAScore,
+                winner: match.winnerTeamId == match.teamA?.id,
+                highlighted: currentTeamId == match.teamA?.id,
+              ),
+              Container(height: 1, color: const Color(0xFF303653)),
+              _TeamLine(
+                team: match.teamB,
+                score: match.teamBScore,
+                winner: match.winnerTeamId == match.teamB?.id,
+                highlighted: currentTeamId == match.teamB?.id,
+              ),
+              Container(
+                height: 19,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                color: const Color(0x66000000),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: live ? const Color(0xFF00F5D4) : CT.muted,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      match.status.replaceAll('_', ' ').toUpperCase(),
+                      style: CT.mono(
+                        7,
+                        color: live ? const Color(0xFF00F5D4) : CT.muted,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      match.roundName ?? 'MATCH',
+                      style: CT.mono(7, color: CT.muted),
                     ),
                   ],
                 ),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: _TeamRow(
-                        team: match.teamA,
-                        score: match.teamAScore,
-                        isWinner:
-                            match.winnerTeamId != null &&
-                            match.winnerTeamId == match.teamA?.id,
-                        highlighted: currentTeamId == match.teamA?.id,
-                        top: true,
-                      ),
-                    ),
-                    const Divider(height: 1, color: Color(0xFF343856)),
-                    Expanded(
-                      child: _TeamRow(
-                        team: match.teamB,
-                        score: match.teamBScore,
-                        isWinner:
-                            match.winnerTeamId != null &&
-                            match.winnerTeamId == match.teamB?.id,
-                        highlighted: currentTeamId == match.teamB?.id,
-                        top: false,
-                      ),
-                    ),
-                  ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TeamLine extends StatelessWidget {
+  const _TeamLine({
+    required this.team,
+    required this.score,
+    required this.winner,
+    required this.highlighted,
+  });
+  final CommunityTeam? team;
+  final int? score;
+  final bool winner;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = team?.name ?? 'TBD';
+    return Expanded(
+      child: Container(
+        color: highlighted ? const Color(0x252BFFB0) : Colors.transparent,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF7648E8), Color(0xFF3F2A8A)],
+                ),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Text(
+                name == 'TBD' ? '?' : name.characters.first.toUpperCase(),
+                style: CT.headline(10),
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (team?.seed != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Text('${team!.seed}', style: CT.mono(8)),
+              ),
+            Expanded(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: CT.body(
+                  12,
+                  color: winner ? Colors.white : CT.onSurfaceVariant,
+                  w: winner ? FontWeight.w800 : FontWeight.w600,
                 ),
               ),
             ),
-            if (showConnector)
-              const Positioned(
-                right: 0,
-                top: 23,
-                bottom: 23,
-                width: 14,
-                child: CustomPaint(painter: _ConnectorPainter()),
+            if (winner)
+              const Icon(
+                Icons.arrow_upward_rounded,
+                size: 13,
+                color: Color(0xFF00F5D4),
               ),
+            const SizedBox(width: 6),
+            Text(
+              score?.toString() ?? '—',
+              style: CT.headline(
+                14,
+                color: winner ? const Color(0xFF00F5D4) : Colors.white,
+              ),
+            ),
           ],
         ),
       ),
@@ -178,132 +489,126 @@ class _FixtureCard extends StatelessWidget {
   }
 }
 
-class _TeamRow extends StatelessWidget {
-  const _TeamRow({
-    required this.team,
-    required this.score,
-    required this.isWinner,
-    required this.highlighted,
-    required this.top,
+class _BracketConnectorPainter extends CustomPainter {
+  const _BracketConnectorPainter({
+    required this.rounds,
+    required this.canvasHeight,
   });
-
-  final CommunityTeam? team;
-  final int? score;
-  final bool isWinner;
-  final bool highlighted;
-  final bool top;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = team?.name ?? 'TBD';
-    final seed = team?.seed;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: highlighted ? const Color(0x183DDC84) : Colors.transparent,
-        borderRadius: BorderRadius.vertical(
-          top: top ? const Radius.circular(17) : Radius.zero,
-          bottom: top ? Radius.zero : const Radius.circular(17),
-        ),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 32,
-            child: Text(
-              seed?.toString() ?? '—',
-              textAlign: TextAlign.center,
-              style: CT.mono(10, color: CT.muted),
-            ),
-          ),
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: highlighted ? CT.primary : const Color(0xFF2D3152),
-            ),
-            child: Text(
-              name == 'TBD' ? '?' : name.characters.first.toUpperCase(),
-              style: CT.headline(11),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: CT.body(
-                13,
-                color: Colors.white,
-                w: isWinner ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: 42,
-            height: double.infinity,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: isWinner ? const Color(0xFF7138E8) : Colors.transparent,
-              borderRadius: BorderRadius.only(
-                topRight: top ? const Radius.circular(17) : Radius.zero,
-                bottomRight: top ? Radius.zero : const Radius.circular(17),
-              ),
-            ),
-            child: Text(
-              score?.toString() ?? '—',
-              style: CT.headline(
-                14,
-                color: isWinner ? Colors.white : CT.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConnectorPainter extends CustomPainter {
-  const _ConnectorPainter();
+  final List<_RoundData> rounds;
+  final double canvasHeight;
 
   @override
   void paint(Canvas canvas, Size size) {
+    const cardWidth = 246.0;
+    const cardHeight = 92.0;
+    const roundWidth = 310.0;
     final paint = Paint()
-      ..color = const Color(0xFF454A70)
-      ..strokeWidth = 1.5
+      ..shader = const LinearGradient(
+        colors: [Color(0xFF7548E8), Color(0xFF00D9C0)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width * .58, 0)
-      ..lineTo(size.width * .58, size.height / 2)
-      ..lineTo(size.width, size.height / 2)
-      ..moveTo(0, size.height)
-      ..lineTo(size.width * .58, size.height)
-      ..lineTo(size.width * .58, size.height / 2);
-    canvas.drawPath(path, paint);
+
+    for (var round = 0; round < rounds.length - 1; round++) {
+      final current = rounds[round].matches.length;
+      final next = rounds[round + 1].matches.length;
+      final currentSlot = (canvasHeight - 104) / math.max(1, current);
+      final nextSlot = (canvasHeight - 104) / math.max(1, next);
+      final startX = 38.0 + round * roundWidth + cardWidth;
+      final endX = 38.0 + (round + 1) * roundWidth;
+      for (var index = 0; index < current; index++) {
+        final startY =
+            76.0 + currentSlot * index + (currentSlot - cardHeight) / 2 + 36;
+        final target = math.min(next - 1, index ~/ 2);
+        final endY =
+            76.0 + nextSlot * target + (nextSlot - cardHeight) / 2 + 36;
+        final bendX = (startX + endX) / 2;
+        final path = Path()
+          ..moveTo(startX, startY)
+          ..cubicTo(bendX, startY, bendX, endY, endX, endY);
+        canvas.drawPath(path, paint);
+        canvas.drawCircle(Offset(startX, startY), 3, paint);
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _ConnectorPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _BracketConnectorPainter oldDelegate) =>
+      oldDelegate.rounds != rounds || oldDelegate.canvasHeight != canvasHeight;
+}
+
+class _ArenaBackgroundPainter extends CustomPainter {
+  const _ArenaBackgroundPainter();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final grid = Paint()
+      ..color = const Color(0x102CDBFF)
+      ..strokeWidth = 1;
+    for (double x = 0; x < size.width; x += 34) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
+    }
+    for (double y = 0; y < size.height; y += 34) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+    final glow = Paint()
+      ..shader =
+          const RadialGradient(
+            colors: [Color(0x287548E8), Color(0x00080A14)],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(size.width * .5, size.height * .5),
+              radius: size.width * .55,
+            ),
+          );
+    canvas.drawRect(Offset.zero & size, glow);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _BracketEmpty extends StatelessWidget {
+  const _BracketEmpty();
   @override
   Widget build(BuildContext context) => Container(
-    height: 180,
-    alignment: Alignment.center,
-    decoration: CT.card(),
+    width: double.infinity,
+    padding: const EdgeInsets.all(28),
+    decoration: BoxDecoration(
+      color: const Color(0xFF101424),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0xFF303653)),
+    ),
     child: Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.account_tree_outlined, color: CT.muted, size: 34),
+        const Icon(Icons.account_tree_outlined, color: CT.primary, size: 34),
         const SizedBox(height: 10),
-        Text('Bracket has not been generated', style: CT.body(12)),
+        Text('BRACKET NOT GENERATED', style: CT.mono(10)),
+        const SizedBox(height: 5),
+        Text(
+          'The match tree will appear here when the host generates it.',
+          textAlign: TextAlign.center,
+          style: CT.body(12),
+        ),
       ],
     ),
   );
+}
+
+class _RoundData {
+  const _RoundData(this.title, this.matches);
+  final String title;
+  final List<CommunityMatch> matches;
+}
+
+List<_RoundData> _groupRounds(List<CommunityMatch> matches) {
+  final grouped = <String, List<CommunityMatch>>{};
+  for (final match in matches) {
+    final title = match.roundName?.trim().isNotEmpty == true
+        ? match.roundName!
+        : 'Round ${match.round ?? 1}';
+    grouped.putIfAbsent(title, () => []).add(match);
+  }
+  return grouped.entries
+      .map((entry) => _RoundData(entry.key, entry.value))
+      .toList();
 }

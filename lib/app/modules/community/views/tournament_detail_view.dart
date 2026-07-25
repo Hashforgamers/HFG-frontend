@@ -4,8 +4,13 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../controllers/tournament_detail_controller.dart';
+import '../../chat/views/chat_inbox_view.dart';
+import '../../chat/views/chat_room_view.dart';
+import '../../chat/services/chat_service.dart';
 import '../../../routes/app_routes.dart';
 import '../models/tournament.dart';
+import '../models/tournament_operations.dart';
+import '../widgets/tournament_bracket.dart';
 import '../../tournaments_section/models/tournament_model.dart';
 import '../../tournaments_section/pages/tournaments_register_view.dart';
 import 'community_theme.dart';
@@ -113,6 +118,46 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
               _row('Registration ends', _fmt(t.registrationEndAt)),
               _row('Starts', _fmt(t.tournamentStartAt)),
               const SizedBox(height: 16),
+              if (controller.matches.isNotEmpty ||
+                  {'registration_closed', 'live', 'completed'}.contains(
+                    controller.lifecycleStatus.value?.status ?? t.status,
+                  )) ...[
+                _liveArena(t),
+                const SizedBox(height: 20),
+              ],
+              if (controller.hasJoined.value &&
+                  controller.announcements.isNotEmpty) ...[
+                _section('Tournament updates'),
+                ...controller.announcements
+                    .take(3)
+                    .map(
+                      (item) => Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: CT.card(),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.campaign_outlined,
+                              size: 19,
+                              color: CT.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                (item['message'] ?? item['title'] ?? '')
+                                    .toString(),
+                                style: CT.body(12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                const SizedBox(height: 12),
+              ],
               if (t.rules != null && t.rules!.isNotEmpty) ...[
                 _section('Rules'),
                 Text(t.rules!, style: CT.body(14)),
@@ -168,11 +213,16 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                     AppRoutes.MANAGE_TOURNAMENT,
                     arguments: {'id': t.id},
                   )
+                : controller.hasJoined.value
+                ? () => Get.to(() => const ChatInboxView())
                 : controller.acting.value || !canRegister
                 ? null
                 : () => _openRegistration(t),
             style: ElevatedButton.styleFrom(
-              backgroundColor: controller.canManage.value || canRegister
+              backgroundColor:
+                  controller.canManage.value ||
+                      controller.hasJoined.value ||
+                      canRegister
                   ? CT.primary
                   : CT.surfaceHigh,
               disabledBackgroundColor: CT.surfaceHigh,
@@ -188,6 +238,8 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                 : Text(
                     controller.canManage.value
                         ? 'Manage tournament'
+                        : controller.hasJoined.value
+                        ? 'Open Hash Hub · Tournament chat'
                         : canRegister
                         ? (t.isFree
                               ? 'Register — Free'
@@ -195,7 +247,10 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                         : st.label,
                     style: CT.headline(
                       15,
-                      color: controller.canManage.value || canRegister
+                      color:
+                          controller.canManage.value ||
+                              controller.hasJoined.value ||
+                              canRegister
                           ? Colors.white
                           : CT.muted,
                     ),
@@ -204,6 +259,288 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
         ),
       ),
     );
+  }
+
+  Widget _liveArena(Tournament tournament) {
+    final liveStatus =
+        controller.lifecycleStatus.value?.status ?? tournament.status;
+    final live = liveStatus == 'live';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _section('Live tournament arena')),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: live ? const Color(0x2200F5D4) : const Color(0x227548E8),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: live ? const Color(0xFF00F5D4) : CT.primary,
+                ),
+              ),
+              child: Text(
+                live ? '● LIVE' : liveStatus.replaceAll('_', ' ').toUpperCase(),
+                style: CT.mono(
+                  8,
+                  color: live ? const Color(0xFF00F5D4) : CT.primaryBright,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (controller.hasJoined.value)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF20143C), Color(0xFF10172C)],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF6840C8)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.notifications_active_rounded,
+                  color: Color(0xFF00F5D4),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    'You’re registered. Match assignments, starts and host announcements will alert you here.',
+                    style: CT.body(12, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (controller.currentTeamId.value != null &&
+            _currentPlayerMatch() != null) ...[
+          _playerMatchCard(_currentPlayerMatch()!),
+          const SizedBox(height: 12),
+        ],
+        TournamentBracket(
+          matches: controller.matches,
+          currentTeamId: controller.currentTeamId.value,
+        ),
+        const SizedBox(height: 12),
+        if (controller.hasJoined.value &&
+            controller.participantTeams.isNotEmpty) ...[
+          _playerComms(),
+          const SizedBox(height: 12),
+        ],
+        OutlinedButton.icon(
+          onPressed: () => Get.to(() => const ChatInboxView()),
+          icon: const Icon(Icons.forum_outlined),
+          label: const Text('OPEN HASH HUB'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+            foregroundColor: const Color(0xFF00F5D4),
+            side: const BorderSide(color: Color(0xFF315F66)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  CommunityMatch? _currentPlayerMatch() {
+    final teamId = controller.currentTeamId.value;
+    if (teamId == null) return null;
+    final relevant = controller.matches
+        .where(
+          (match) => match.teamA?.id == teamId || match.teamB?.id == teamId,
+        )
+        .toList();
+    relevant.sort((a, b) {
+      const priority = {
+        'in_progress': 0,
+        'ready': 1,
+        'scheduled': 2,
+        'completed': 3,
+      };
+      return (priority[a.status] ?? 9).compareTo(priority[b.status] ?? 9);
+    });
+    return relevant.firstOrNull;
+  }
+
+  Widget _playerMatchCard(CommunityMatch match) {
+    final mine = controller.currentTeamId.value;
+    final opponent = match.teamA?.id == mine ? match.teamB : match.teamA;
+    final live = {'live', 'in_progress'}.contains(match.status);
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2A1848), Color(0xFF111A32)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: live ? const Color(0xFF00F5D4) : const Color(0xFF8058DD),
+          width: 1.4,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: live ? const Color(0x3300F5D4) : const Color(0x337548E8),
+            blurRadius: 18,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFF33215B),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(
+              live ? Icons.sensors_rounded : Icons.sports_esports_rounded,
+              color: live ? const Color(0xFF00F5D4) : CT.primaryBright,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  live ? 'YOUR MATCH IS LIVE' : 'YOUR NEXT MATCH',
+                  style: CT.mono(
+                    9,
+                    color: live ? const Color(0xFF00F5D4) : CT.primaryBright,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text('vs ${opponent?.name ?? 'TBD'}', style: CT.headline(17)),
+                Text(
+                  match.scheduledAt == null
+                      ? match.status.replaceAll('_', ' ')
+                      : '${match.status.replaceAll('_', ' ')} · ${_fmt(match.scheduledAt)}',
+                  style: CT.body(10.5),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: CT.muted),
+        ],
+      ),
+    );
+  }
+
+  Widget _playerComms() {
+    final myTeamId = controller.currentTeamId.value;
+    final myTeam = controller.participantTeams
+        .where((team) => team.id == myTeamId)
+        .firstOrNull;
+    final opponents = controller.participantTeams
+        .where((team) => team.id != myTeamId)
+        .expand((team) => team.members)
+        .where((member) => member.userId != null)
+        .toList();
+    final teammates = myTeam?.members ?? const [];
+    final players = [...teammates, ...opponents];
+    final unique = <int, CommunityTeamMember>{};
+    for (final player in players) {
+      if (player.userId != null &&
+          player.userId != controller.currentUserId.value) {
+        unique[player.userId!] = player;
+      }
+    }
+    if (unique.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF151A31), Color(0xFF0D1121)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF303A61)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.forum_rounded,
+                size: 19,
+                color: Color(0xFF00F5D4),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Text('PLAYER COMMS', style: CT.mono(10))),
+              Text('HASH HUB', style: CT.mono(8, color: CT.primaryBright)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Message teammates or opponents without leaving the tournament.',
+            style: CT.body(11),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: unique.values.take(12).map((member) {
+              final teammate =
+                  myTeam?.members.any((item) => item.userId == member.userId) ==
+                  true;
+              return ActionChip(
+                avatar: CircleAvatar(
+                  backgroundColor: teammate
+                      ? const Color(0xFF315F66)
+                      : const Color(0xFF4B316D),
+                  child: Text(
+                    member.displayName.characters.first.toUpperCase(),
+                    style: CT.headline(9),
+                  ),
+                ),
+                label: Text(
+                  '${member.displayName}${teammate ? ' · TEAM' : ''}',
+                ),
+                labelStyle: CT.body(10.5, color: Colors.white),
+                backgroundColor: const Color(0xFF202640),
+                side: BorderSide(
+                  color: teammate
+                      ? const Color(0xFF387B78)
+                      : const Color(0xFF503B77),
+                ),
+                onPressed: () => _messagePlayer(member),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _messagePlayer(CommunityTeamMember member) async {
+    final chat = Get.isRegistered<ChatService>()
+        ? Get.find<ChatService>()
+        : Get.put(ChatService(), permanent: true);
+    final candidates = await chat.searchUsers(member.displayName, limit: 20);
+    final user = candidates
+        .where((item) => item.backendUserId == member.userId)
+        .firstOrNull;
+    if (user == null) {
+      Get.snackbar(
+        'Player chat unavailable',
+        '${member.displayName} has not activated Hash Hub chat yet.',
+      );
+      return;
+    }
+    try {
+      final roomId = await chat.getOrCreateDirectRoom(otherUser: user);
+      Get.to(() => ChatRoomView(roomId: roomId));
+    } catch (error) {
+      Get.snackbar('Could not open chat', error.toString());
+    }
   }
 
   Future<void> _openRegistration(Tournament tournament) async {

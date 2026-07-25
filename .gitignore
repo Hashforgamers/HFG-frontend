@@ -54,3 +54,4 @@ android_old/
 # Local env secrets
 .env*.json
 !.env.example.json
+.env

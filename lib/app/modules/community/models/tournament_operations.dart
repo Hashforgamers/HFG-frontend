@@ -151,6 +151,45 @@ class TournamentReadiness {
       );
 }
 
+class TournamentLifecycleStatus {
+  final String id;
+  final String title;
+  final String status;
+  final DateTime? registrationStartAt;
+  final DateTime? registrationEndAt;
+  final DateTime? tournamentStartAt;
+  final DateTime? tournamentEndAt;
+  final int registeredPlayersCount;
+  final int maxPlayers;
+
+  const TournamentLifecycleStatus({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.registrationStartAt,
+    required this.registrationEndAt,
+    required this.tournamentStartAt,
+    required this.tournamentEndAt,
+    required this.registeredPlayersCount,
+    required this.maxPlayers,
+  });
+
+  bool get hasCapacity => registeredPlayersCount < maxPlayers;
+
+  factory TournamentLifecycleStatus.fromJson(Map<String, dynamic> json) =>
+      TournamentLifecycleStatus(
+        id: (json['id'] ?? '').toString(),
+        title: (json['title'] ?? '').toString(),
+        status: (json['status'] ?? 'unknown').toString(),
+        registrationStartAt: _date(json['registration_start_at']),
+        registrationEndAt: _date(json['registration_end_at']),
+        tournamentStartAt: _date(json['tournament_start_at']),
+        tournamentEndAt: _date(json['tournament_end_at']),
+        registeredPlayersCount: _int(json['registered_players_count']) ?? 0,
+        maxPlayers: _int(json['max_players']) ?? 0,
+      );
+}
+
 class TournamentLeaderboardEntry {
   final int? rank;
   final String teamId;

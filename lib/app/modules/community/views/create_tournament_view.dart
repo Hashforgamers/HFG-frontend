@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../controllers/create_tournament_controller.dart';
+import '../services/tournament_banner_service.dart';
 import 'community_theme.dart';
 
 class CreateTournamentView extends GetView<CreateTournamentController> {
@@ -44,6 +45,14 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                     required: false,
                   ),
                   _dropdowns(),
+                  const SizedBox(height: 13),
+                  _field(
+                    'Game mode',
+                    controller.gameMode,
+                    hint: 'Battle Royale, 5v5, Search and Destroy…',
+                    required: false,
+                  ),
+                  _bannerPicker(context),
                   const SizedBox(height: 22),
                   _section('ENTRY & CAPACITY'),
                   Text('Entry fee', style: CT.body(12)),
@@ -139,6 +148,39 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                     controller.tournamentEnd,
                     optional: true,
                   ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _field(
+                          'Match duration (minutes)',
+                          controller.matchDuration,
+                          keyboard: TextInputType.number,
+                          formatters: [FilteringTextInputFormatter.digitsOnly],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _field(
+                          'Break duration (minutes)',
+                          controller.breakDuration,
+                          keyboard: TextInputType.number,
+                          formatters: [FilteringTextInputFormatter.digitsOnly],
+                        ),
+                      ),
+                    ],
+                  ),
+                  _field(
+                    'Concurrent matches',
+                    controller.concurrentMatches,
+                    hint: 'Number of matches that can run at once',
+                    keyboard: TextInputType.number,
+                    formatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+                  Text(
+                    'These settings are used when the bracket is generated.',
+                    style: CT.body(11, color: CT.muted),
+                  ),
                   const SizedBox(height: 22),
                   _section('PRIZE DISTRIBUTION'),
                   Wrap(
@@ -167,7 +209,7 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                     style: CT.body(11, color: CT.muted),
                   ),
                   const SizedBox(height: 22),
-                  _advancedOptions(),
+                  _advancedOptions(context),
                   Obx(
                     () => controller.error.value == null
                         ? const SizedBox.shrink()
@@ -315,7 +357,215 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
     labelStyle: CT.body(11.5, color: CT.onSurface, w: FontWeight.w600),
   );
 
-  Widget _advancedOptions() => Obx(
+  Widget _bannerPicker(BuildContext context) => Obx(() {
+    controller.bannerInputVersion.value;
+    final status = controller.bannerStatus.value;
+    final url = controller.bannerUrl.text.trim();
+    final generating =
+        status == TournamentBannerStatus.generating ||
+        status == TournamentBannerStatus.uploading;
+    final hasBanner = url.isNotEmpty;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CT.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: CT.outline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome_rounded,
+                color: CT.primaryBright,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Text('AI TOURNAMENT BANNER', style: CT.mono(11))),
+              if (controller.bannerSource.value ==
+                  TournamentBannerSource.generated)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: CT.primary.withValues(alpha: .15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'AI generated',
+                    style: CT.body(9.5, color: CT.primaryBright),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          AspectRatio(
+            aspectRatio: 4 / 3,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: generating
+                  ? _bannerLoading(status)
+                  : hasBanner
+                  ? GestureDetector(
+                      onTap: () => _previewBanner(context, url),
+                      child: Image.network(
+                        url,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            controller.generatedBannerFailedToLoad();
+                          });
+                          return _bannerPlaceholder(
+                            'Banner preview failed to load.',
+                          );
+                        },
+                      ),
+                    )
+                  : _bannerPlaceholder(
+                      controller.canGenerateBanner
+                          ? 'Generate a banner designed for\n'
+                                '${controller.game.text} • ${controller.effectiveGameMode} • ${controller.bannerTeamLabel}'
+                          : 'Select a game and game mode to generate a tournament banner.',
+                    ),
+            ),
+          ),
+          if (controller.bannerError.value != null) ...[
+            const SizedBox(height: 9),
+            Text(
+              controller.bannerError.value!,
+              style: CT.body(11, color: CT.error),
+            ),
+          ],
+          const SizedBox(height: 11),
+          if (!hasBanner)
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: controller.canGenerateBanner && !generating
+                        ? controller.generateBanner
+                        : null,
+                    icon: const Icon(Icons.auto_awesome_rounded, size: 17),
+                    label: const Text('Generate Banner'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: CT.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                OutlinedButton(
+                  onPressed: generating ? null : controller.uploadCustomBanner,
+                  child: const Text('Upload'),
+                ),
+              ],
+            )
+          else ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (controller.bannerSource.value ==
+                    TournamentBannerSource.generated)
+                  OutlinedButton.icon(
+                    onPressed: generating
+                        ? null
+                        : () => controller.generateBanner(regenerate: true),
+                    icon: const Icon(Icons.refresh_rounded, size: 17),
+                    label: const Text('Regenerate'),
+                  ),
+                ElevatedButton.icon(
+                  onPressed: generating
+                      ? null
+                      : controller.confirmGeneratedBanner,
+                  icon: const Icon(Icons.check_rounded, size: 17),
+                  label: const Text('Use Banner'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: CT.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: generating ? null : controller.uploadCustomBanner,
+                  child: const Text('Upload Instead'),
+                ),
+                IconButton(
+                  tooltip: 'Remove banner',
+                  onPressed: generating ? null : controller.removeBanner,
+                  icon: const Icon(Icons.delete_outline, color: CT.error),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  });
+
+  Widget _bannerLoading(TournamentBannerStatus status) {
+    final uploading = status == TournamentBannerStatus.uploading;
+    return Container(
+      color: CT.surfaceHigh,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const AppLinearLoader(width: 120, height: 4),
+          const SizedBox(height: 14),
+          Text(
+            uploading
+                ? 'Uploading your tournament banner…'
+                : 'Creating your tournament banner…',
+            textAlign: TextAlign.center,
+            style: CT.body(12, color: CT.muted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bannerPlaceholder(String text) => Container(
+    color: CT.surfaceHigh,
+    alignment: Alignment.center,
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.image_outlined, color: CT.muted, size: 32),
+        const SizedBox(height: 8),
+        Text(text, textAlign: TextAlign.center, style: CT.body(11.5)),
+      ],
+    ),
+  );
+
+  void _previewBanner(BuildContext context, String url) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          children: [
+            InteractiveViewer(child: Image.network(url, fit: BoxFit.contain)),
+            Positioned(
+              right: 4,
+              top: 4,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _advancedOptions(BuildContext context) => Obx(
     () => Column(
       children: [
         InkWell(
@@ -354,22 +604,163 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
           child: controller.advancedExpanded.value
               ? Column(
                   children: [
+                    _section('ESPORTS OPERATIONS'),
+                    _field(
+                      'Platform',
+                      controller.platform,
+                      hint: 'e.g. mobile, pc',
+                      required: false,
+                    ),
+                    _field(
+                      'Organization name',
+                      controller.organizationName,
+                      required: false,
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _field(
+                            'Team size',
+                            controller.teamSize,
+                            keyboard: TextInputType.number,
+                            formatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _field(
+                            'Substitute limit',
+                            controller.substituteLimit,
+                            keyboard: TextInputType.number,
+                            formatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _field(
+                            'Minimum age',
+                            controller.minimumAge,
+                            keyboard: TextInputType.number,
+                            formatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            required: false,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _field(
+                            'Minimum entries',
+                            controller.minEntries,
+                            keyboard: TextInputType.number,
+                            formatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    _field('Region', controller.region, required: false),
+                    _dropdown(
+                      'Registration policy',
+                      controller.registrationPolicy.value,
+                      const {
+                        'automatic': 'Automatic',
+                        'manual_approval': 'Manual approval',
+                      },
+                      (value) => controller.registrationPolicy.value = value,
+                    ),
+                    const SizedBox(height: 13),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      activeThumbColor: CT.primary,
+                      title: Text('Private tournament', style: CT.headline(14)),
+                      subtitle: Text(
+                        'Require an invite code to view or join',
+                        style: CT.body(12),
+                      ),
+                      value: controller.isPrivate.value,
+                      onChanged: (value) => controller.isPrivate.value = value,
+                    ),
+                    if (controller.isPrivate.value)
+                      _field(
+                        'Invite code',
+                        controller.inviteCode,
+                        required: false,
+                      ),
+                    _dateTile(
+                      context,
+                      'Roster lock (optional)',
+                      controller.rosterLockAt,
+                      optional: true,
+                    ),
+                    _dateTile(
+                      context,
+                      'Check-in starts (optional)',
+                      controller.checkInStartAt,
+                      optional: true,
+                    ),
+                    _dateTile(
+                      context,
+                      'Check-in ends (optional)',
+                      controller.checkInEndAt,
+                      optional: true,
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _field(
+                            'Result window (min)',
+                            controller.resultSubmissionWindow,
+                            keyboard: TextInputType.number,
+                            formatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _field(
+                            'Dispute window (min)',
+                            controller.disputeWindow,
+                            keyboard: TextInputType.number,
+                            formatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    _field(
+                      'Max matches per team/day',
+                      controller.maxMatchesPerTeamPerDay,
+                      keyboard: TextInputType.number,
+                      formatters: [FilteringTextInputFormatter.digitsOnly],
+                      required: false,
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      activeThumbColor: CT.primary,
+                      title: Text(
+                        'Require result evidence',
+                        style: CT.headline(14),
+                      ),
+                      value: controller.evidenceRequired.value,
+                      onChanged: (value) =>
+                          controller.evidenceRequired.value = value,
+                    ),
+                    const SizedBox(height: 12),
                     _field(
                       'Rules',
                       controller.rules,
                       maxLines: 4,
-                      required: false,
-                    ),
-                    _field(
-                      'Banner URL',
-                      controller.bannerUrl,
-                      keyboard: TextInputType.url,
-                      required: false,
-                    ),
-                    _field(
-                      'Banner asset ID',
-                      controller.bannerAssetId,
-                      hint: 'Uploaded asset UUID',
                       required: false,
                     ),
                     _field(

@@ -25,6 +25,7 @@ class GamerProfileStoryView extends StatefulWidget {
 
 class _GamerProfileStoryViewState extends State<GamerProfileStoryView> {
   final GlobalKey _storyKey = GlobalKey();
+  final GlobalKey _shareButtonKey = GlobalKey();
   bool _sharing = false;
 
   @override
@@ -66,6 +67,7 @@ class _GamerProfileStoryViewState extends State<GamerProfileStoryView> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
           child: FilledButton.icon(
+            key: _shareButtonKey,
             onPressed: _sharing ? null : _shareStory,
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
@@ -123,7 +125,9 @@ class _GamerProfileStoryViewState extends State<GamerProfileStoryView> {
           sharePositionOrigin: _shareOrigin(),
         ),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('Failed to share gamer story: $error');
+      debugPrintStack(stackTrace: stackTrace);
       if (mounted) {
         Get.snackbar(
           'Story failed the vibe check',
@@ -137,8 +141,10 @@ class _GamerProfileStoryViewState extends State<GamerProfileStoryView> {
   }
 
   Rect? _shareOrigin() {
-    final box = context.findRenderObject() as RenderBox?;
-    return box == null ? null : box.localToGlobal(Offset.zero) & box.size;
+    final box =
+        _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize || box.size.isEmpty) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 }
 

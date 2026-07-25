@@ -15,6 +15,7 @@ class TournamentModel {
   final String banner;
   final DateTime? startDate;
   final DateTime? endDate;
+  final DateTime? registrationEndDate;
   final TournamentStatus status;
   final String entryFee;
   final String prizePool;
@@ -41,6 +42,7 @@ class TournamentModel {
     required this.banner,
     required this.startDate,
     required this.endDate,
+    this.registrationEndDate,
     required this.status,
     required this.entryFee,
     required this.prizePool,
@@ -115,6 +117,11 @@ class TournamentModel {
       endDate: _parseDate(
         json['endDate'] ?? json['end_date'] ?? json['end_at'],
       ),
+      registrationEndDate: _parseDate(
+        json['registration_end_at'] ??
+            json['registration_end_date'] ??
+            json['registration_deadline'],
+      ),
       status: _parseStatus(json['status'] ?? json['flag']),
       entryFee: _formatEntryFee(entryFee, currency),
       prizePool: (json['prizePool'] ?? json['prize_pool'] ?? '-').toString(),
@@ -157,6 +164,7 @@ class TournamentModel {
     String? banner,
     DateTime? startDate,
     DateTime? endDate,
+    DateTime? registrationEndDate,
     TournamentStatus? status,
     String? entryFee,
     String? prizePool,
@@ -183,6 +191,7 @@ class TournamentModel {
       banner: banner ?? this.banner,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
+      registrationEndDate: registrationEndDate ?? this.registrationEndDate,
       status: status ?? this.status,
       entryFee: entryFee ?? this.entryFee,
       prizePool: prizePool ?? this.prizePool,

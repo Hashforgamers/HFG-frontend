@@ -151,6 +151,21 @@ class CommunityApi {
     return Tournament.fromJson(_map(res.data));
   }
 
+  /// GET /tournaments/public/<id>/status (public).
+  Future<TournamentLifecycleStatus> getTournamentStatus(
+    String id, {
+    String? inviteCode,
+  }) async {
+    final res = await _publicDio().get(
+      '/tournaments/public/$id/status',
+      queryParameters: {
+        if (inviteCode != null && inviteCode.trim().isNotEmpty)
+          'invite_code': inviteCode.trim(),
+      },
+    );
+    return TournamentLifecycleStatus.fromJson(_map(res.data));
+  }
+
   // ---------------------------------------------------------------------------
   // Host onboarding / verification
   // ---------------------------------------------------------------------------
@@ -255,6 +270,20 @@ class CommunityApi {
       '/tournaments/$id/cancel',
       data: {if (reason != null) 'reason': reason},
     );
+    return Tournament.fromJson(_map(res.data));
+  }
+
+  /// POST /tournaments/<id>/registrations/close (auth host).
+  Future<Tournament> closeRegistration(String id) async {
+    final dio = await _authedDio();
+    final res = await dio.post('/tournaments/$id/registrations/close');
+    return Tournament.fromJson(_map(res.data));
+  }
+
+  /// POST /tournaments/<id>/start (auth host).
+  Future<Tournament> startTournament(String id) async {
+    final dio = await _authedDio();
+    final res = await dio.post('/tournaments/$id/start');
     return Tournament.fromJson(_map(res.data));
   }
 
@@ -573,6 +602,60 @@ class CommunityApi {
     final dio = await _authedDio();
     final res = await dio.post('/tournaments/$tournamentId/matches/generate');
     return parseCommunityMatches(res.data);
+  }
+
+  Future<CommunityMatch> createMatch(
+    String tournamentId,
+    Map<String, dynamic> body,
+  ) async {
+    final dio = await _authedDio();
+    final res = await dio.post(
+      '/tournaments/$tournamentId/matches',
+      data: body,
+    );
+    return CommunityMatch.fromJson(_map(res.data));
+  }
+
+  Future<Map<String, dynamic>> tournamentControlRoom(
+    String tournamentId,
+  ) async {
+    final dio = await _authedDio();
+    final res = await dio.get('/tournaments/$tournamentId/control-room');
+    return _map(res.data);
+  }
+
+  Future<List<Map<String, dynamic>>> tournamentAuditLog(
+    String tournamentId,
+  ) async {
+    final dio = await _authedDio();
+    final res = await dio.get('/tournaments/$tournamentId/audit-log');
+    return _items(res.data);
+  }
+
+  Future<List<Map<String, dynamic>>> tournamentAnnouncements(
+    String tournamentId,
+  ) async {
+    final dio = await _authedDio();
+    final res = await dio.get('/tournaments/$tournamentId/announcements');
+    return _items(res.data);
+  }
+
+  Future<Map<String, dynamic>> publishAnnouncement(
+    String tournamentId, {
+    required String message,
+    required String audience,
+    List<String> teamIds = const [],
+  }) async {
+    final dio = await _authedDio();
+    final res = await dio.post(
+      '/tournaments/$tournamentId/announcements',
+      data: {
+        'message': message.trim(),
+        'audience': audience,
+        if (audience == 'specific_teams') 'team_ids': teamIds,
+      },
+    );
+    return _map(res.data);
   }
 
   Future<CommunityMatch> operateMatch(

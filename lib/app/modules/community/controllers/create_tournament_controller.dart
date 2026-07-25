@@ -1,13 +1,26 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/routes/app_routes.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/tournament.dart';
 import '../services/community_api.dart';
+import '../services/tournament_banner_service.dart';
 
 class CreateTournamentController extends GetxController {
   final CommunityApi _api = CommunityApi();
+  final TournamentBannerRepository _bannerRepository =
+      PollinationsTournamentBannerRepository();
+  final ImagePicker _imagePicker = ImagePicker();
+  final SegmentSdkService _analytics = locator<SegmentSdkService>();
 
   static const popularGames = ['BGMI', 'Free Fire', 'Valorant', 'COD Mobile'];
 
@@ -16,6 +29,27 @@ class CreateTournamentController extends GetxController {
   final game = TextEditingController();
   final entryFee = TextEditingController(text: '0');
   final maxPlayers = TextEditingController(text: '16');
+  final matchDuration = TextEditingController(text: '45');
+  final breakDuration = TextEditingController(text: '15');
+  final concurrentMatches = TextEditingController(text: '1');
+  final gameMode = TextEditingController();
+  final platform = TextEditingController();
+  final organizationName = TextEditingController();
+  final teamSize = TextEditingController(text: '1');
+  final substituteLimit = TextEditingController(text: '0');
+  final minimumAge = TextEditingController();
+  final region = TextEditingController();
+  final registrationPolicy = 'automatic'.obs;
+  final isPrivate = false.obs;
+  final inviteCode = TextEditingController();
+  final minEntries = TextEditingController(text: '2');
+  final rosterLockAt = Rxn<DateTime>();
+  final checkInStartAt = Rxn<DateTime>();
+  final checkInEndAt = Rxn<DateTime>();
+  final maxMatchesPerTeamPerDay = TextEditingController();
+  final resultSubmissionWindow = TextEditingController(text: '15');
+  final disputeWindow = TextEditingController(text: '30');
+  final evidenceRequired = false.obs;
   final rules = TextEditingController();
   final bannerUrl = TextEditingController();
   final bannerAssetId = TextEditingController();
@@ -38,6 +72,14 @@ class CreateTournamentController extends GetxController {
   final reusedPreviousSetup = false.obs;
   final advancedExpanded = false.obs;
   final error = RxnString();
+  final bannerStatus = TournamentBannerStatus.initial.obs;
+  final bannerSource = Rxn<TournamentBannerSource>();
+  final bannerGenerationPrompt = RxnString();
+  final bannerGenerationSeed = RxnInt();
+  final bannerError = RxnString();
+  final bannerRequestVersion = 0.obs;
+  final bannerInputVersion = 0.obs;
+  bool _bannerRequestActive = false;
   Tournament? _editingTournament;
 
   bool get isEditing => _editingTournament != null;
@@ -52,8 +94,250 @@ class CreateTournamentController extends GetxController {
       _editingTournament = Get.arguments as Tournament;
     }
     _applySchedulePreset(nextWeekend: false);
+    for (final input in [game, gameMode, teamSize, title]) {
+      input.addListener(_markBannerInputsChanged);
+    }
+    ever<String>(tournamentType, (_) => _markBannerInputsChanged());
+    ever<String>(teamMode, (_) => _markBannerInputsChanged());
     _loadSmartDefaults();
   }
+
+  bool get canGenerateBanner =>
+      game.text.trim().isNotEmpty && effectiveGameMode.isNotEmpty;
+  String get effectiveGameMode {
+    final explicit = gameMode.text.trim();
+    if (explicit.isNotEmpty) return explicit;
+    const labels = {
+      'single_elimination': 'Knockout',
+      'double_elimination': 'Knockout',
+      'round_robin': 'League',
+      'battle_royale': 'Battle Royale',
+    };
+    return labels[tournamentType.value] ?? '';
+  }
+
+  String get bannerTeamLabel {
+    final explicit = int.tryParse(teamSize.text.trim());
+    if (explicit != null && explicit > 1) return '${explicit}v$explicit';
+    const labels = {'solo': 'Solo', 'duo': 'Duo', 'squad': 'Squad'};
+    return labels[teamMode.value] ?? 'Team';
+  }
+
+  void _markBannerInputsChanged() {
+    bannerInputVersion.value++;
+    if (bannerStatus.value == TournamentBannerStatus.initial &&
+        canGenerateBanner) {
+      bannerStatus.value = TournamentBannerStatus.ready;
+    }
+  }
+
+  Future<void> generateBanner({bool regenerate = false}) async {
+    if (!canGenerateBanner || _bannerRequestActive) return;
+    if (bannerSource.value == TournamentBannerSource.uploaded &&
+        bannerUrl.text.trim().isNotEmpty) {
+      bannerError.value =
+          'Remove the custom banner before generating an AI replacement.';
+      return;
+    }
+    _bannerRequestActive = true;
+    final startedAt = DateTime.now();
+    unawaited(
+      _analytics.onCustomEvent(
+        regenerate
+            ? 'Tournament Banner Regenerated'
+            : 'Tournament Banner Generate Clicked',
+        _bannerAnalyticsProperties(),
+      ),
+    );
+    unawaited(
+      _analytics.onCustomEvent(
+        'Tournament Banner Generation Started',
+        _bannerAnalyticsProperties(),
+      ),
+    );
+    final request = ++bannerRequestVersion.value;
+    bannerStatus.value = TournamentBannerStatus.generating;
+    bannerError.value = null;
+    try {
+      final result = await _bannerRepository.generate(
+        gameName: game.text,
+        gameType: effectiveGameMode,
+        tournamentFormat: tournamentType.value.replaceAll('_', ' '),
+        teamSize: bannerTeamLabel,
+        tournamentName: title.text,
+      );
+      if (request != bannerRequestVersion.value || isClosed) return;
+      final response =
+          await Dio(
+            BaseOptions(
+              connectTimeout: const Duration(seconds: 20),
+              receiveTimeout: const Duration(seconds: 90),
+            ),
+          ).get<List<int>>(
+            result.imageUrl,
+            options: Options(responseType: ResponseType.bytes),
+          );
+      final bytes = response.data;
+      final contentType =
+          response.headers.value(Headers.contentTypeHeader) ?? 'image/jpeg';
+      if (bytes == null ||
+          bytes.length < 1024 ||
+          !contentType.toLowerCase().startsWith('image/')) {
+        throw const TournamentBannerException(
+          'The image provider returned an invalid banner. Please regenerate.',
+          type: 'invalid_image',
+        );
+      }
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) throw Exception('Sign in to generate a banner.');
+      final key = 'tournament_banners/$uid/ai_${result.seed}.jpg';
+      final ref = FirebaseStorage.instance.ref(key);
+      await ref.putData(
+        Uint8List.fromList(bytes),
+        SettableMetadata(contentType: contentType),
+      );
+      final permanentUrl = await ref.getDownloadURL();
+      final asset = await _api.createFileAsset(
+        purpose: 'banner',
+        fileUrl: permanentUrl,
+        storageKey: key,
+        mimeType: contentType,
+        fileSizeBytes: bytes.length,
+        metadata: {
+          'source': 'generated',
+          'provider': result.provider,
+          'seed': result.seed,
+        },
+      );
+      if (request != bannerRequestVersion.value || isClosed) return;
+      bannerUrl.text = permanentUrl;
+      bannerAssetId.text = asset.id;
+      bannerGenerationPrompt.value = result.prompt;
+      bannerGenerationSeed.value = result.seed;
+      bannerSource.value = TournamentBannerSource.generated;
+      bannerStatus.value = TournamentBannerStatus.generated;
+      unawaited(
+        _analytics.onCustomEvent('Tournament Banner Generation Succeeded', {
+          ..._bannerAnalyticsProperties(),
+          'provider': result.provider,
+          'generation_duration_ms': DateTime.now()
+              .difference(startedAt)
+              .inMilliseconds,
+        }),
+      );
+    } on TournamentBannerException catch (exception) {
+      if (request != bannerRequestVersion.value || isClosed) return;
+      bannerError.value = exception.message;
+      bannerStatus.value = TournamentBannerStatus.failure;
+      unawaited(
+        _analytics.onCustomEvent('Tournament Banner Generation Failed', {
+          ..._bannerAnalyticsProperties(),
+          'failure_type': exception.type,
+        }),
+      );
+    } catch (_) {
+      if (request != bannerRequestVersion.value || isClosed) return;
+      bannerError.value =
+          'Banner generation is temporarily unavailable. Try again or upload your own banner.';
+      bannerStatus.value = TournamentBannerStatus.failure;
+      unawaited(
+        _analytics.onCustomEvent('Tournament Banner Generation Failed', {
+          ..._bannerAnalyticsProperties(),
+          'failure_type': 'unexpected',
+        }),
+      );
+    } finally {
+      _bannerRequestActive = false;
+    }
+  }
+
+  void confirmGeneratedBanner() {
+    if (bannerUrl.text.trim().isEmpty) return;
+    bannerStatus.value = TournamentBannerStatus.selected;
+    unawaited(
+      _analytics.onCustomEvent(
+        'Tournament Generated Banner Selected',
+        _bannerAnalyticsProperties(),
+      ),
+    );
+  }
+
+  void generatedBannerFailedToLoad() {
+    bannerError.value =
+        'The generated image could not be loaded. Try regenerating it.';
+    bannerStatus.value = TournamentBannerStatus.failure;
+  }
+
+  Future<void> uploadCustomBanner() async {
+    if (_bannerRequestActive) return;
+    final selected = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1536,
+      maxHeight: 1152,
+    );
+    if (selected == null || isClosed) return;
+    bannerStatus.value = TournamentBannerStatus.uploading;
+    bannerError.value = null;
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) throw Exception('Sign in to upload a banner.');
+      final key =
+          'tournament_banners/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final ref = FirebaseStorage.instance.ref(key);
+      await ref.putData(
+        await selected.readAsBytes(),
+        SettableMetadata(contentType: selected.mimeType ?? 'image/jpeg'),
+      );
+      final url = await ref.getDownloadURL();
+      final asset = await _api.createFileAsset(
+        purpose: 'banner',
+        fileUrl: url,
+        storageKey: key,
+        mimeType: selected.mimeType ?? 'image/jpeg',
+        fileSizeBytes: await selected.length(),
+        metadata: const {'source': 'host_upload'},
+      );
+      if (isClosed) return;
+      bannerUrl.text = url;
+      bannerAssetId.text = asset.id;
+      bannerSource.value = TournamentBannerSource.uploaded;
+      bannerGenerationPrompt.value = null;
+      bannerGenerationSeed.value = null;
+      bannerStatus.value = TournamentBannerStatus.selected;
+      unawaited(
+        _analytics.onCustomEvent(
+          'Tournament Custom Banner Uploaded',
+          _bannerAnalyticsProperties(),
+        ),
+      );
+    } catch (_) {
+      bannerError.value =
+          'Could not upload that banner. Check your connection and try again.';
+      bannerStatus.value = TournamentBannerStatus.failure;
+    }
+  }
+
+  void removeBanner() {
+    bannerRequestVersion.value++;
+    bannerUrl.clear();
+    bannerAssetId.clear();
+    bannerSource.value = null;
+    bannerGenerationPrompt.value = null;
+    bannerGenerationSeed.value = null;
+    bannerError.value = null;
+    bannerStatus.value = canGenerateBanner
+        ? TournamentBannerStatus.ready
+        : TournamentBannerStatus.initial;
+  }
+
+  Map<String, dynamic> _bannerAnalyticsProperties() => {
+    'game': game.text.trim(),
+    'game_type': effectiveGameMode,
+    'team_size': bannerTeamLabel,
+    'tournament_format': tournamentType.value,
+    'provider': 'pollinations',
+  };
 
   Future<void> _loadSmartDefaults() async {
     try {
@@ -96,6 +380,29 @@ class CreateTournamentController extends GetxController {
     registrationEnd.value = template.registrationEndAt?.toLocal();
     tournamentStart.value = template.tournamentStartAt?.toLocal();
     tournamentEnd.value = template.tournamentEndAt?.toLocal();
+    matchDuration.text = (template.matchDurationMinutes ?? 45).toString();
+    breakDuration.text = (template.breakDurationMinutes ?? 15).toString();
+    concurrentMatches.text = template.concurrentMatches.toString();
+    gameMode.text = template.gameMode ?? '';
+    platform.text = template.platform ?? '';
+    organizationName.text = template.organizationName ?? '';
+    teamSize.text = (template.teamSize ?? 1).toString();
+    substituteLimit.text = (template.substituteLimit ?? 0).toString();
+    minimumAge.text = template.minimumAge?.toString() ?? '';
+    region.text = template.region ?? '';
+    registrationPolicy.value = template.registrationPolicy ?? 'automatic';
+    isPrivate.value = template.isPrivate;
+    inviteCode.text = template.inviteCode ?? '';
+    minEntries.text = (template.minEntries ?? 2).toString();
+    rosterLockAt.value = template.rosterLockAt?.toLocal();
+    checkInStartAt.value = template.checkInStartAt?.toLocal();
+    checkInEndAt.value = template.checkInEndAt?.toLocal();
+    maxMatchesPerTeamPerDay.text =
+        template.maxMatchesPerTeamPerDay?.toString() ?? '';
+    resultSubmissionWindow.text = (template.resultSubmissionWindowMinutes ?? 15)
+        .toString();
+    disputeWindow.text = (template.disputeWindowMinutes ?? 30).toString();
+    evidenceRequired.value = template.evidenceRequired;
     if (template.prizeDistribution.isNotEmpty) {
       final values = [firstPrizePercent, secondPrizePercent, thirdPrizePercent];
       for (final value in values) {
@@ -257,6 +564,41 @@ class CreateTournamentController extends GetxController {
     if (eventEnd != null && !eventEnd.isAfter(eventStart)) {
       return 'Tournament end must be after its start.';
     }
+    final matchMinutes = int.tryParse(matchDuration.text.trim());
+    if (matchMinutes == null || matchMinutes < 1) {
+      return 'Match duration must be at least 1 minute.';
+    }
+    final breakMinutes = int.tryParse(breakDuration.text.trim());
+    if (breakMinutes == null || breakMinutes < 0) {
+      return 'Break duration cannot be negative.';
+    }
+    final parallelMatches = int.tryParse(concurrentMatches.text.trim());
+    if (parallelMatches == null || parallelMatches < 1) {
+      return 'Concurrent matches must be at least 1.';
+    }
+    final size = int.tryParse(teamSize.text.trim());
+    if (size == null || size < 1) return 'Team size must be at least 1.';
+    final substitutes = int.tryParse(substituteLimit.text.trim());
+    if (substitutes == null || substitutes < 0) {
+      return 'Substitute limit cannot be negative.';
+    }
+    final minimum = int.tryParse(minEntries.text.trim());
+    if (minimum == null || minimum < 2 || minimum > capacity) {
+      return 'Minimum entries must be between 2 and maximum players.';
+    }
+    if (checkInStartAt.value != null &&
+        checkInEndAt.value != null &&
+        !checkInEndAt.value!.isAfter(checkInStartAt.value!)) {
+      return 'Check-in must end after it starts.';
+    }
+    final resultWindow = int.tryParse(resultSubmissionWindow.text.trim());
+    final disputeMinutes = int.tryParse(disputeWindow.text.trim());
+    if (resultWindow == null || resultWindow < 1) {
+      return 'Result submission window must be at least 1 minute.';
+    }
+    if (disputeMinutes == null || disputeMinutes < 1) {
+      return 'Dispute window must be at least 1 minute.';
+    }
     final prizes = _prizeDistribution();
     final total = prizes.fold<double>(
       0,
@@ -328,6 +670,8 @@ class CreateTournamentController extends GetxController {
       'description': _nullableText(description.text),
       'banner_url': _nullableText(bannerUrl.text),
       'banner_asset_id': _nullableText(bannerAssetId.text),
+      'banner_source': bannerSource.value?.name,
+      'banner_generation_seed': bannerGenerationSeed.value,
       'game': game.text.trim(),
       'tournament_type': tournamentType.value,
       'team_mode': teamMode.value,
@@ -340,6 +684,33 @@ class CreateTournamentController extends GetxController {
       'registration_end_at': registrationEnd.value!.toUtc().toIso8601String(),
       'tournament_start_at': tournamentStart.value!.toUtc().toIso8601String(),
       'tournament_end_at': tournamentEnd.value?.toUtc().toIso8601String(),
+      'match_duration_minutes': int.parse(matchDuration.text.trim()),
+      'break_duration_minutes': int.parse(breakDuration.text.trim()),
+      'schedule_config': {
+        'concurrent_matches': int.parse(concurrentMatches.text.trim()),
+      },
+      'game_mode': _nullableText(gameMode.text),
+      'platform': _nullableText(platform.text),
+      'organization_name': _nullableText(organizationName.text),
+      'team_size': int.parse(teamSize.text.trim()),
+      'substitute_limit': int.parse(substituteLimit.text.trim()),
+      'minimum_age': int.tryParse(minimumAge.text.trim()),
+      'region': _nullableText(region.text),
+      'registration_policy': registrationPolicy.value,
+      'is_private': isPrivate.value,
+      'invite_code': isPrivate.value ? _nullableText(inviteCode.text) : null,
+      'min_entries': int.parse(minEntries.text.trim()),
+      'roster_lock_at': rosterLockAt.value?.toUtc().toIso8601String(),
+      'check_in_start_at': checkInStartAt.value?.toUtc().toIso8601String(),
+      'check_in_end_at': checkInEndAt.value?.toUtc().toIso8601String(),
+      'max_matches_per_team_per_day': int.tryParse(
+        maxMatchesPerTeamPerDay.text.trim(),
+      ),
+      'result_submission_window_minutes': int.parse(
+        resultSubmissionWindow.text.trim(),
+      ),
+      'dispute_window_minutes': int.parse(disputeWindow.text.trim()),
+      'rules_config': {'evidence_required': evidenceRequired.value},
       'rules': _nullableText(rules.text),
       'prize_distribution': _prizeDistribution(),
       'discord_link': _nullableText(discordLink.text),
@@ -375,6 +746,28 @@ class CreateTournamentController extends GetxController {
           ?.toUtc()
           .toIso8601String(),
       'tournament_end_at': existing.tournamentEndAt?.toUtc().toIso8601String(),
+      'match_duration_minutes': existing.matchDurationMinutes,
+      'break_duration_minutes': existing.breakDurationMinutes,
+      'schedule_config': {'concurrent_matches': existing.concurrentMatches},
+      'game_mode': _nullableText(existing.gameMode),
+      'platform': _nullableText(existing.platform),
+      'organization_name': _nullableText(existing.organizationName),
+      'team_size': existing.teamSize,
+      'substitute_limit': existing.substituteLimit,
+      'minimum_age': existing.minimumAge,
+      'region': _nullableText(existing.region),
+      'registration_policy': existing.registrationPolicy,
+      'is_private': existing.isPrivate,
+      'invite_code': _nullableText(existing.inviteCode),
+      'min_entries': existing.minEntries,
+      'roster_lock_at': existing.rosterLockAt?.toUtc().toIso8601String(),
+      'check_in_start_at': existing.checkInStartAt?.toUtc().toIso8601String(),
+      'check_in_end_at': existing.checkInEndAt?.toUtc().toIso8601String(),
+      'max_matches_per_team_per_day': existing.maxMatchesPerTeamPerDay,
+      'result_submission_window_minutes':
+          existing.resultSubmissionWindowMinutes,
+      'dispute_window_minutes': existing.disputeWindowMinutes,
+      'rules_config': {'evidence_required': existing.evidenceRequired},
       'rules': _nullableText(existing.rules),
       'prize_distribution': existing.prizeDistribution
           .map((item) => item.toJson())
@@ -430,6 +823,21 @@ class CreateTournamentController extends GetxController {
       game,
       entryFee,
       maxPlayers,
+      matchDuration,
+      breakDuration,
+      concurrentMatches,
+      gameMode,
+      platform,
+      organizationName,
+      teamSize,
+      substituteLimit,
+      minimumAge,
+      region,
+      inviteCode,
+      minEntries,
+      maxMatchesPerTeamPerDay,
+      resultSubmissionWindow,
+      disputeWindow,
       rules,
       bannerUrl,
       bannerAssetId,

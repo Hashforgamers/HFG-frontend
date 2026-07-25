@@ -11,13 +11,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/about/about_page.dart';
+import 'package:hash/app/modules/community/models/host_verification.dart';
+import 'package:hash/app/modules/community/services/community_api.dart';
 import 'package:hash/app/modules/need_help/need_help_page.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
+import 'package:hash/app/modules/social/friend_service.dart';
+import 'package:hash/app/modules/social/friends_view.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../utils/widgets/glow_neon_loader.dart';
 import '../../data/services/user_controller.dart';
@@ -33,6 +38,15 @@ class UserProfileView extends StatefulWidget {
 class _UserProfileViewState extends State<UserProfileView> {
   UserController userController = Get.put(UserController());
   final segmentService = locator<SegmentSdkService>();
+  final FriendService _friendService = FriendService();
+  late Future<HostVerification?> _hostVerification;
+  int _profileTab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _hostVerification = CommunityApi().getMyHostVerification();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,79 +57,87 @@ class _UserProfileViewState extends State<UserProfileView> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         centerTitle: false,
-        title: Text(
-          'Profile',
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+        title: Obx(
+          () => Text(
+            _profileHandle(),
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         backgroundColor: Colors.black,
         elevation: 0,
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF121212),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white10),
-            ),
-            child: Row(
-              children: [
-                Expanded(child: _buildLogoutButton()),
-                const SizedBox(width: 10),
-                _buildDeleteButton(userController),
-              ],
-            ),
+        actions: [
+          IconButton(
+            tooltip: 'Share profile',
+            onPressed: _shareProfile,
+            icon: const Icon(CupertinoIcons.paperplane, color: Colors.white),
           ),
-        ),
+          IconButton(
+            tooltip: 'Settings',
+            onPressed: () => _showSettingsSheet(email),
+            icon: const Icon(CupertinoIcons.line_horizontal_3),
+          ),
+          const SizedBox(width: 6),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+      body: RefreshIndicator(
+        color: const Color(0xff00DC00),
+        backgroundColor: const Color(0xFF171717),
+        onRefresh: () async {
+          final uid = FirebaseAuth.instance.currentUser?.uid;
+          if (uid != null) await userController.fetchUserData(uid);
+          if (mounted) {
+            setState(() {
+              _hostVerification = CommunityApi().getMyHostVerification();
+            });
+          }
+        },
         child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 32),
           children: [
-            const SizedBox(height: 16),
-            _buildProfileHeader(userController),
-            const SizedBox(height: 24),
-            _buildSectionLabel('Account'),
-            _buildProfileOption(
-              icon: CupertinoIcons.person,
-              title: 'Profile',
-              subtitle: 'Manage your personal details',
-              onTap: () => Get.to(ProfileView()),
-            ),
-            _buildProfileOption(
-              icon: CupertinoIcons.person_2,
-              title: 'Refer & Earn',
-              subtitle: 'Invite your squad and earn rewards',
-              onTap: () {
-                segmentService.onReferralViewed(email: email);
-                Get.to(ReferralViewWithController(email: email));
-              },
-            ),
             const SizedBox(height: 10),
-            _buildSectionLabel('Support'),
-            _buildProfileOption(
-              icon: Icons.question_mark,
-              title: 'Need Help',
-              subtitle: 'Get help with bookings and payments',
-              onTap: () {
-                segmentService.onHelpRequested(email: email);
-                Get.to(NeedHelpPage());
-              },
+            _buildProfileHeader(userController),
+            const SizedBox(height: 18),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _profileAction(
+                      label: 'Edit profile',
+                      onTap: () => Get.to(() => ProfileView()),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _profileAction(
+                      label: 'Share profile',
+                      onTap: _shareProfile,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _squareAction(
+                    icon: CupertinoIcons.person_add,
+                    tooltip: 'Find players',
+                    onTap: () => Get.to(() => const FriendsView(initialTab: 2)),
+                  ),
+                ],
+              ),
             ),
-            _buildProfileOption(
-              icon: Icons.info_outline,
-              title: 'About Us',
-              subtitle: 'Learn about Hash For Gamers',
-              onTap: () => Get.to(AboutPage()),
+            const SizedBox(height: 24),
+            _buildGamingHighlights(),
+            const SizedBox(height: 14),
+            _buildGamePassport(),
+            const SizedBox(height: 22),
+            _buildProfileTabs(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
+              child: _buildProfileTabContent(email),
             ),
-            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -150,118 +172,831 @@ class _UserProfileViewState extends State<UserProfileView> {
       final hasPhoto = photoUrl.isNotEmpty;
       final name = (user.name ?? '').trim();
       final displayName = name.isEmpty ? 'Hash Player' : name;
-      final email = user.contact?.electronicAddress?.emailId ?? '';
       final gameTag = user.gameUserName?.trim() ?? '';
 
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 94,
+                  height: 94,
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: SweepGradient(
+                      colors: [
+                        Color(0xff00DC00),
+                        Color(0xff7CFF6B),
+                        Color(0xff00DC00),
+                        Color(0xff087F23),
+                        Color(0xff00DC00),
+                      ],
+                    ),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      color: Colors.black,
+                      shape: BoxShape.circle,
+                    ),
+                    child: CircleAvatar(
+                      backgroundColor: const Color(0xFF151515),
+                      backgroundImage: hasPhoto
+                          ? CachedNetworkImageProvider(photoUrl)
+                          : null,
+                      child: hasPhoto
+                          ? null
+                          : const Icon(
+                              CupertinoIcons.person_fill,
+                              color: Color(0xff00DC00),
+                              size: 38,
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: StreamBuilder<List<FriendRelationship>>(
+                    stream: _friendService.watchRelationships(),
+                    builder: (context, snapshot) {
+                      final relationships = snapshot.data ?? const [];
+                      final friends = relationships
+                          .where((item) => item.status == 'accepted')
+                          .length;
+                      final requests = relationships
+                          .where(
+                            (item) => item.isIncoming(
+                              _friendService.currentUid ?? '',
+                            ),
+                          )
+                          .length;
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _profileStat(
+                            '$friends',
+                            'Friends',
+                            () =>
+                                Get.to(() => const FriendsView(initialTab: 0)),
+                          ),
+                          _profileStat(
+                            '$requests',
+                            'Requests',
+                            () =>
+                                Get.to(() => const FriendsView(initialTab: 1)),
+                          ),
+                          _profileStat(
+                            gameTag.isEmpty ? '—' : '1',
+                            'Game ID',
+                            () => Get.to(() => ProfileView()),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                FutureBuilder<HostVerification?>(
+                  future: _hostVerification,
+                  builder: (context, snapshot) {
+                    final isRegisteredHost =
+                        snapshot.data?.status ==
+                        HostVerificationStatus.verified;
+                    if (!isRegisteredHost) return const SizedBox.shrink();
+                    return const Tooltip(
+                      message: 'Verified HASH host',
+                      child: Icon(
+                        Icons.verified_rounded,
+                        color: Color(0xFF3897F0),
+                        size: 18,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              gameTag.isEmpty ? 'HASH gamer' : '@$gameTag',
+              style: GoogleFonts.inter(
+                color: gameTag.isEmpty
+                    ? Colors.white54
+                    : const Color(0xff00DC00),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              'Play. Compete. Connect. 🎮',
+              style: GoogleFonts.inter(color: Colors.white, height: 1.35),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _profileStat(String value, String label, VoidCallback onTap) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _profileAction({required String label, required VoidCallback onTap}) {
+    return SizedBox(
+      height: 36,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: const Color(0xFF171717),
+          side: const BorderSide(color: Colors.white12),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
+  Widget _squareAction({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox(
+        width: 40,
+        height: 36,
+        child: Material(
+          color: const Color(0xFF171717),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(9),
+            side: const BorderSide(color: Colors.white12),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(9),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGamingHighlights() {
+    final highlights = [
+      (
+        CupertinoIcons.game_controller,
+        'Game ID',
+        () => Get.to(() => ProfileView()),
+      ),
+      (
+        Icons.emoji_events_outlined,
+        'Tournaments',
+        () => Get.toNamed(AppRoutes.MY_TOURNAMENTS),
+      ),
+      (
+        CupertinoIcons.person_2,
+        'Squad',
+        () => Get.to(() => const FriendsView()),
+      ),
+      (CupertinoIcons.gift, 'Rewards', () => Get.toNamed(AppRoutes.WALLET)),
+    ];
+    return SizedBox(
+      height: 89,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: highlights.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 20),
+        itemBuilder: (context, index) {
+          final item = highlights[index];
+          return GestureDetector(
+            onTap: item.$3,
+            child: SizedBox(
+              width: 67,
+              child: Column(
+                children: [
+                  Container(
+                    width: 61,
+                    height: 61,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: DecoratedBox(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF151A15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        item.$1,
+                        color: const Color(0xff00DC00),
+                        size: 25,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    item.$2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(color: Colors.white, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildProfileTabs() {
+    return Container(
+      height: 50,
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: Colors.white12),
+          bottom: BorderSide(color: Colors.white12),
+        ),
+      ),
+      child: Row(
+        children: [
+          _profileTabButton(0, Icons.grid_on_rounded, 'LOADOUT'),
+          _profileTabButton(1, Icons.emoji_events_outlined, 'BADGES'),
+          _profileTabButton(2, CupertinoIcons.person_2, 'SQUAD'),
+        ],
+      ),
+    );
+  }
+
+  Widget _profileTabButton(int index, IconData icon, String label) {
+    final selected = _profileTab == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _profileTab = index),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  color: selected ? Colors.white : Colors.white38,
+                  size: 18,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    color: selected ? Colors.white : Colors.white38,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .4,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              height: 2,
+              width: selected ? 58 : 0,
+              color: const Color(0xff00DC00),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGamePassport() {
+    return Obx(() {
+      final user = userController.user.value;
+      final gameId = user.gameUserName?.trim() ?? '';
       return Container(
-        padding: const EdgeInsets.all(18),
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(18),
           gradient: const LinearGradient(
-            colors: [Color(0xFF101010), Color(0xFF171717), Color(0xFF102010)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
+            colors: [Color(0xFF18251A), Color(0xFF12131A)],
           ),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: const Color(0x4400DC00)),
         ),
         child: Row(
           children: [
             Container(
-              width: 82,
-              height: 82,
-              padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [Color(0xff00DC00), Color(0xff00DC00)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0x2200DC00),
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: CircleAvatar(
-                backgroundColor: const Color(0xFF101010),
-                backgroundImage: hasPhoto
-                    ? CachedNetworkImageProvider(photoUrl)
-                    : null,
-                child: hasPhoto
-                    ? null
-                    : const Icon(
-                        CupertinoIcons.person_fill,
-                        color: Color(0xff00DC00),
-                        size: 36,
-                      ),
+              child: const Icon(
+                Icons.badge_rounded,
+                color: Color(0xFF00DC00),
+                size: 25,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    displayName,
+                    'HASH GAME PASSPORT',
                     style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF00DC00),
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: .7,
                     ),
                   ),
-                  if (email.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      email,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(color: Colors.white60),
+                  const SizedBox(height: 5),
+                  Text(
+                    gameId.isEmpty ? 'LOADOUT NOT SET' : '@$gameId',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
                     ),
-                  ],
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0x222B8A3E),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0x5540D656)),
-                    ),
-                    child: Text(
-                      gameTag.isEmpty
-                          ? 'Game ID: Not set'
-                          : 'Game ID: $gameTag',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xff00DC00),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  ),
+                  Text(
+                    gameId.isEmpty
+                        ? 'Add your gamer ID to get discovered.'
+                        : 'Ready for LFG, squads and ranked.',
+                    style: GoogleFonts.inter(
+                      color: Colors.white54,
+                      fontSize: 10.5,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Material(
-              color: Colors.white10,
-              borderRadius: BorderRadius.circular(12),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => Get.to(ProfileView()),
-                child: const Padding(
-                  padding: EdgeInsets.all(9),
-                  child: Icon(
-                    CupertinoIcons.pencil,
-                    color: Color(0xff00DC00),
-                    size: 18,
-                  ),
-                ),
+            IconButton(
+              tooltip: 'Edit loadout',
+              onPressed: () => Get.to(() => ProfileView()),
+              icon: const Icon(
+                Icons.tune_rounded,
+                color: Colors.white70,
+                size: 20,
               ),
             ),
           ],
         ),
       );
     });
+  }
+
+  Widget _buildProfileTabContent(String email) {
+    switch (_profileTab) {
+      case 1:
+        return _buildBadgesTab();
+      case 2:
+        return _buildSquadTab();
+      default:
+        return _buildFeatureGrid(email);
+    }
+  }
+
+  Widget _buildBadgesTab() {
+    final referrals = userController.user.value.referralCount ?? 0;
+    return FutureBuilder<HostVerification?>(
+      future: _hostVerification,
+      builder: (context, snapshot) {
+        final verifiedHost =
+            snapshot.data?.status == HostVerificationStatus.verified;
+        final badges = [
+          (
+            'OG PLAYER',
+            'HASH account ready',
+            Icons.sports_esports_rounded,
+            true,
+          ),
+          (
+            'SQUAD BUILDER',
+            'Refer 3 players',
+            Icons.groups_rounded,
+            referrals >= 3,
+          ),
+          (
+            'TOURNEY HOST',
+            'Verified HASH host',
+            Icons.workspace_premium_rounded,
+            verifiedHost,
+          ),
+          ('CLUTCH MODE', 'Tournament win', Icons.bolt_rounded, false),
+        ];
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: badges.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.25,
+          ),
+          itemBuilder: (context, index) {
+            final badge = badges[index];
+            return Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: badge.$4
+                    ? const Color(0xFF172219)
+                    : const Color(0xFF131313),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: badge.$4 ? const Color(0x4400DC00) : Colors.white10,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    badge.$3,
+                    color: badge.$4 ? const Color(0xFF00DC00) : Colors.white24,
+                  ),
+                  const Spacer(),
+                  Text(
+                    badge.$1,
+                    style: GoogleFonts.inter(
+                      color: badge.$4 ? Colors.white : Colors.white38,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    badge.$4 ? 'UNLOCKED' : badge.$2,
+                    style: GoogleFonts.inter(
+                      color: badge.$4
+                          ? const Color(0xFF00DC00)
+                          : Colors.white30,
+                      fontSize: 9,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSquadTab() {
+    return StreamBuilder<List<FriendRelationship>>(
+      stream: _friendService.watchRelationships(),
+      builder: (context, snapshot) {
+        final uid = _friendService.currentUid ?? '';
+        final relationships = snapshot.data ?? const [];
+        final friends = relationships
+            .where((item) => item.status == 'accepted')
+            .length;
+        final requests = relationships
+            .where((item) => item.isIncoming(uid))
+            .length;
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF141719),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            children: [
+              const Icon(
+                Icons.groups_2_rounded,
+                color: Color(0xFF5DA9FF),
+                size: 38,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '$friends in your squad · $requests pending',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Stack up. Queue together. Run it back.',
+                style: GoogleFonts.inter(color: Colors.white54, fontSize: 11),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Get.to(() => const FriendsView()),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5DA9FF),
+                    foregroundColor: Colors.black,
+                  ),
+                  child: Text(
+                    'OPEN SQUAD',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFeatureGrid(String email) {
+    final features = [
+      (
+        'My tournaments',
+        'Compete & manage',
+        Icons.emoji_events_rounded,
+        const Color(0xFF1B321D),
+        () => Get.toNamed(AppRoutes.MY_TOURNAMENTS),
+      ),
+      (
+        'Friends',
+        'Your gaming squad',
+        CupertinoIcons.person_2_fill,
+        const Color(0xFF17243A),
+        () => Get.to(() => const FriendsView()),
+      ),
+      (
+        'HASH Wallet',
+        'Coins & rewards',
+        CupertinoIcons.creditcard_fill,
+        const Color(0xFF332A17),
+        () => Get.toNamed(AppRoutes.WALLET),
+      ),
+      (
+        'Refer squad',
+        'Invite & earn',
+        CupertinoIcons.gift_fill,
+        const Color(0xFF301D36),
+        () {
+          segmentService.onReferralViewed(email: email);
+          Get.to(() => ReferralViewWithController(email: email));
+        },
+      ),
+    ];
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: features.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1.08,
+      ),
+      itemBuilder: (context, index) {
+        final item = features[index];
+        return Material(
+          color: item.$4,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: item.$5,
+            borderRadius: BorderRadius.circular(16),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white10),
+              ),
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(
+                      item.$3,
+                      color: const Color(0xff00DC00),
+                      size: 23,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    item.$1,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    item.$2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: Colors.white60,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _profileHandle() {
+    final gameTag = userController.user.value.gameUserName?.trim() ?? '';
+    if (gameTag.isNotEmpty) return '@$gameTag';
+    final name = userController.user.value.name?.trim() ?? '';
+    if (name.isEmpty) return 'hash.gamer';
+    return '@${name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '.')}';
+  }
+
+  Future<void> _shareProfile() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final name = userController.user.value.name?.trim();
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final origin = renderBox == null
+        ? const Rect.fromLTWH(0, 0, 1, 1)
+        : renderBox.localToGlobal(Offset.zero) & renderBox.size;
+    await SharePlus.instance.share(
+      ShareParams(
+        text:
+            'Check out ${name?.isNotEmpty == true ? name : 'my'} gamer profile on HASH 🎮\n'
+            'https://hashforgamers.com/profile/$uid',
+        subject: 'HASH gamer profile',
+        sharePositionOrigin: origin,
+      ),
+    );
+  }
+
+  Future<void> _showSettingsSheet(String email) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.82,
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+          decoration: const BoxDecoration(
+            color: Color(0xFF0F0F0F),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Settings and activity',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _buildSectionLabel('Your account'),
+                _buildProfileOption(
+                  icon: CupertinoIcons.person,
+                  title: 'Edit profile',
+                  subtitle: 'Personal details and game identity',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Get.to(() => ProfileView());
+                  },
+                ),
+                _buildProfileOption(
+                  icon: CupertinoIcons.person_2,
+                  title: 'Friends and requests',
+                  subtitle: 'Manage your Hash connections',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Get.to(() => const FriendsView());
+                  },
+                ),
+                _buildProfileOption(
+                  icon: CupertinoIcons.gift,
+                  title: 'Refer & Earn',
+                  subtitle: 'Invite your squad and earn rewards',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    segmentService.onReferralViewed(email: email);
+                    Get.to(() => ReferralViewWithController(email: email));
+                  },
+                ),
+                const SizedBox(height: 8),
+                _buildSectionLabel('Support and information'),
+                _buildProfileOption(
+                  icon: CupertinoIcons.question_circle,
+                  title: 'Need help',
+                  subtitle: 'Bookings, payments and account support',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    segmentService.onHelpRequested(email: email);
+                    Get.to(() => NeedHelpPage());
+                  },
+                ),
+                _buildProfileOption(
+                  icon: CupertinoIcons.info_circle,
+                  title: 'About HASH',
+                  subtitle: 'Hash For Gamers',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Get.to(() => AboutPage());
+                  },
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _buildLogoutButton()),
+                    const SizedBox(width: 10),
+                    _buildDeleteButton(userController),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildProfileOption({

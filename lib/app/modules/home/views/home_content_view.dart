@@ -16,6 +16,7 @@ import 'package:hash/app/modules/home/widgets/home_game_on_india_banner.dart';
 import 'package:hash/app/modules/home/widgets/home_game_pass_card.dart';
 import 'package:hash/app/modules/home/widgets/optimized_app_bar.dart';
 import 'package:hash/app/modules/home/widgets/welcome_aboard_dialog.dart';
+import 'package:hash/app/modules/home/controllers/home_controller.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
 import 'package:hash/app/modules/profile/user_profile_view.dart';
@@ -24,6 +25,7 @@ import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/rewards/widgets/squad_missions_card.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
+import 'package:hash/app/modules/social/friends_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,14 +35,12 @@ import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/modules/home/widgets/refer_friend_modal.dart';
-import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/data/models/user_model.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/utils/encrypt_util.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/hash_wordmark.dart';
 
-import '../../support/support_screen.dart';
 import 'package:hash/core/utils/app_logger.dart';
 
 class HomeContentView extends StatefulWidget {
@@ -81,15 +81,15 @@ class _HomeContentViewState extends State<HomeContentView>
   List<Widget> _buildVisibleSections() {
     final sections = <Widget>[
       _buildLazyLoadedSection('hostBanner', _buildHostBanner()),
+      _buildLazyLoadedSection('playerLobby', _buildPlayerLobby()),
       _buildLazyLoadedSection('cafe', _cachedCafeSection),
-      _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
       _buildLazyLoadedSection('squadMissions', const SquadMissionsCard()),
-      _buildLazyLoadedSection('referral', _buildReferFriendModal()),
-      _buildLazyLoadedSection('miniGames', _cachedMiniGamesSection),
       _buildLazyLoadedSection('shorts', _cachedShortsSection),
+      _buildLazyLoadedSection('miniGames', _cachedMiniGamesSection),
+      _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
       _buildLazyLoadedSection('games', _cachedGamesSection),
       _buildLazyLoadedSection('news', _cachedNewsSection),
-      _buildLazyLoadedSection('support', _cachedSupportSection),
+      _buildLazyLoadedSection('referral', _buildReferFriendModal()),
       _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
     ];
 
@@ -108,7 +108,6 @@ class _HomeContentViewState extends State<HomeContentView>
   Widget? _cachedGamePassContainer;
   Widget? _cachedGameOnIndiaBanner;
   late final Widget _cachedCafeSection;
-  late final Widget _cachedSupportSection;
   late final Widget _cachedMiniGamesSection;
   late final Widget _cachedShortsSection;
   late final Widget _cachedNewsSection;
@@ -152,7 +151,6 @@ class _HomeContentViewState extends State<HomeContentView>
   void _initializeSections() {
     // Reuse long-lived section widgets to avoid rebuilding heavy trees.
     _cachedCafeSection = CafeSection();
-    _cachedSupportSection = const ContactSupport();
     _cachedMiniGamesSection = const MiniGamesSection();
     _cachedShortsSection = ViralShotsSection();
     _cachedNewsSection = const GamerNewsSection();
@@ -176,14 +174,14 @@ class _HomeContentViewState extends State<HomeContentView>
 
   void _initializeData() {
     _sectionVisibility.addAll({
+      'playerLobby': true,
       'cafe': true,
-      'hostBanner': true,
       'gamePass': true,
-      'support': true,
-      'miniGames': false,
-      'squadMissions': false,
+      'hostBanner': true,
+      'miniGames': true,
+      'squadMissions': true,
       'referral': false,
-      'shorts': false,
+      'shorts': true,
       'news': false,
       'games': false,
       'gameOnIndia': false,
@@ -503,6 +501,218 @@ class _HomeContentViewState extends State<HomeContentView>
     }
 
     return RepaintBoundary(child: child);
+  }
+
+  Widget _buildPlayerLobby() {
+    return Obx(() {
+      final bookings = bookingController.userBookings.where((booking) {
+        final status = (booking['status'] ?? '').toString().toLowerCase();
+        return status.contains('confirm') ||
+            status.contains('pending') ||
+            status.contains('success');
+      }).toList();
+      final nextBooking = bookings.isEmpty ? null : bookings.first;
+      final slot = nextBooking?['slot'];
+      final slotMap = slot is Map
+          ? Map<String, dynamic>.from(slot)
+          : const <String, dynamic>{};
+      final gamingType = slotMap['gaming_type_id'];
+      final gamingMap = gamingType is Map
+          ? Map<String, dynamic>.from(gamingType)
+          : const <String, dynamic>{};
+      final cafeValue = gamingMap['cafe_name'];
+      final cafeMap = cafeValue is Map
+          ? Map<String, dynamic>.from(cafeValue)
+          : const <String, dynamic>{};
+      final cafeName =
+          (cafeMap['cafe_name'] ??
+                  cafeMap['name'] ??
+                  gamingMap['cafe_name'] ??
+                  'Gaming café')
+              .toString();
+      final gameName = (gamingMap['game_name'] ?? 'Your setup').toString();
+
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF101C14), Color(0xFF101115), Color(0xFF17121F)],
+          ),
+          border: Border.all(color: const Color(0x3D00DC00)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x2600DC00),
+              blurRadius: 26,
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0x2200DC00),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0x4400DC00)),
+                  ),
+                  child: Text(
+                    'YOUR LOBBY',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF6DFF78),
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: .8,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  nextBooking == null ? 'QUEUE: OPEN' : 'SESSION LOCKED',
+                  style: GoogleFonts.inter(
+                    color: nextBooking == null
+                        ? Colors.white54
+                        : const Color(0xFF00DC00),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .5,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 15),
+            Text(
+              nextBooking == null ? 'Ready to lock in?' : cafeName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 21,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              nextBooking == null
+                  ? 'Find your setup, squad up, or jump into ranked.'
+                  : '$gameName is queued. Pull up with the squad.',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: Colors.white60,
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 42,
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => Get.find<HomeController>().onItemTapped(
+                  nextBooking == null ? 1 : 2,
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00DC00),
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: Icon(
+                  nextBooking == null
+                      ? Icons.radar_rounded
+                      : Icons.sports_esports_rounded,
+                  size: 19,
+                ),
+                label: Text(
+                  nextBooking == null ? 'FIND A SETUP' : 'OPEN SESSION',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .4,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 13),
+            Row(
+              children: [
+                Expanded(
+                  child: _lobbyQuickAction(
+                    icon: Icons.group_add_rounded,
+                    label: 'SQUAD UP',
+                    onTap: () => Get.to(() => const FriendsView(initialTab: 2)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _lobbyQuickAction(
+                    icon: Icons.emoji_events_rounded,
+                    label: 'RANKED',
+                    onTap: () => Get.find<HomeController>().onItemTapped(3),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _lobbyQuickAction(
+                    icon: Icons.history_rounded,
+                    label: 'SESSIONS',
+                    onTap: () => Get.find<HomeController>().onItemTapped(2),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _lobbyQuickAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white.withValues(alpha: .055),
+      borderRadius: BorderRadius.circular(11),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(11),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
+          child: Column(
+            children: [
+              Icon(icon, color: Colors.white, size: 18),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: Colors.white70,
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .25,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildOptimizedAppBar() {

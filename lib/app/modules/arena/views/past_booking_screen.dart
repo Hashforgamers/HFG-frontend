@@ -214,6 +214,215 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     );
   }
 
+  Widget _buildNextSessionHero() {
+    final confirmed =
+        ctr.userBookings
+            .where((booking) => _statusBucket(booking['status']) == 'confirmed')
+            .toList()
+          ..sort((a, b) {
+            final aId = int.tryParse('${a['booking_id'] ?? 0}') ?? 0;
+            final bId = int.tryParse('${b['booking_id'] ?? 0}') ?? 0;
+            return bId.compareTo(aId);
+          });
+    final booking = confirmed.isEmpty ? null : confirmed.first;
+    if (booking == null) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF121712),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0x3300DC00)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: const Color(0x2200DC00),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.add_business_rounded,
+                color: Color(0xFF00DC00),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'NO SESSION QUEUED',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Lock a setup and pull up.',
+                    style: GoogleFonts.inter(
+                      color: Colors.white54,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => Get.find<HomeController>().onItemTapped(1),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF00DC00),
+              ),
+              child: const Text('FIND SETUP'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final slot = booking['slot'] is Map
+        ? Map<String, dynamic>.from(booking['slot'] as Map)
+        : const <String, dynamic>{};
+    final gaming = slot['gaming_type_id'] is Map
+        ? Map<String, dynamic>.from(slot['gaming_type_id'] as Map)
+        : const <String, dynamic>{};
+    final cafe = gaming['cafe_name'] is Map
+        ? Map<String, dynamic>.from(gaming['cafe_name'] as Map)
+        : const <String, dynamic>{};
+    final time = slot['time'] is Map
+        ? Map<String, dynamic>.from(slot['time'] as Map)
+        : const <String, dynamic>{};
+    final cafeName = (cafe['cafe_name'] ?? cafe['name'] ?? 'Gaming café')
+        .toString();
+    final game = (gaming['game_name'] ?? 'Gaming setup').toString();
+    final date = (booking['book_date'] ?? 'Date locked').toString();
+    final start = _fmt(time['start_time']?.toString());
+    final end = _fmt(time['end_time']?.toString());
+    final code = (booking['access_code'] ?? '').toString();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF132417), Color(0xFF111318)],
+        ),
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: const Color(0x6600DC00)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00B840),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'LOCKED IN',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .5,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '#${booking['booking_id'] ?? '--'}',
+                style: GoogleFonts.inter(
+                  color: Colors.white54,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          Text(
+            cafeName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$game · $date · $start–$end',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: Colors.white60,
+              fontSize: 11,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              if (code.isNotEmpty)
+                Expanded(
+                  child: Container(
+                    height: 42,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'ACCESS  $code',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF93F80A),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .6,
+                      ),
+                    ),
+                  ),
+                ),
+              if (code.isNotEmpty) const SizedBox(width: 9),
+              SizedBox(
+                height: 42,
+                child: ElevatedButton.icon(
+                  onPressed: () => _tabController.animateTo(1),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00DC00),
+                    foregroundColor: Colors.black,
+                  ),
+                  icon: const Icon(Icons.confirmation_number_rounded, size: 17),
+                  label: Text(
+                    'OPEN TICKET',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext ctx) => Scaffold(
     backgroundColor: Colors.black,
@@ -228,8 +437,12 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'My Bookings',
-                  style: GoogleFonts.inter(fontSize: 18, color: Colors.white),
+                  'Sessions',
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 IconButton(
                   splashRadius: 18,
@@ -258,6 +471,8 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
               ],
             ),
           ),
+          Obx(() => _buildNextSessionHero()),
+          const SizedBox(height: 12),
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 10),
             child: Container(
@@ -300,11 +515,11 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                 overlayColor: MaterialStateProperty.all(Colors.transparent),
                 tabs: [
                   Tab(
-                    child: _TabChip(text: 'All', count: _countFor('all')),
+                    child: _TabChip(text: 'All Runs', count: _countFor('all')),
                   ),
                   Tab(
                     child: _TabChip(
-                      text: 'Confirmed',
+                      text: 'Locked',
                       count: _countFor('confirmed'),
                     ),
                   ),

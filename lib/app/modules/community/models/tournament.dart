@@ -107,6 +107,27 @@ class Tournament {
   final DateTime? registrationEndAt;
   final DateTime? tournamentStartAt;
   final DateTime? tournamentEndAt;
+  final int? matchDurationMinutes;
+  final int? breakDurationMinutes;
+  final int concurrentMatches;
+  final String? gameMode;
+  final String? platform;
+  final String? organizationName;
+  final int? teamSize;
+  final int? substituteLimit;
+  final int? minimumAge;
+  final String? region;
+  final String? registrationPolicy;
+  final bool isPrivate;
+  final String? inviteCode;
+  final int? minEntries;
+  final DateTime? rosterLockAt;
+  final DateTime? checkInStartAt;
+  final DateTime? checkInEndAt;
+  final int? maxMatchesPerTeamPerDay;
+  final int? resultSubmissionWindowMinutes;
+  final int? disputeWindowMinutes;
+  final bool evidenceRequired;
   final String? rules;
   final List<PrizeSplit> prizeDistribution;
   final String? discordLink;
@@ -142,6 +163,27 @@ class Tournament {
     required this.registrationEndAt,
     required this.tournamentStartAt,
     required this.tournamentEndAt,
+    this.matchDurationMinutes,
+    this.breakDurationMinutes,
+    this.concurrentMatches = 1,
+    this.gameMode,
+    this.platform,
+    this.organizationName,
+    this.teamSize,
+    this.substituteLimit,
+    this.minimumAge,
+    this.region,
+    this.registrationPolicy,
+    this.isPrivate = false,
+    this.inviteCode,
+    this.minEntries,
+    this.rosterLockAt,
+    this.checkInStartAt,
+    this.checkInEndAt,
+    this.maxMatchesPerTeamPerDay,
+    this.resultSubmissionWindowMinutes,
+    this.disputeWindowMinutes,
+    this.evidenceRequired = false,
     required this.rules,
     required this.prizeDistribution,
     required this.discordLink,
@@ -187,6 +229,36 @@ class Tournament {
     registrationEndAt: _dt(j['registration_end_at']),
     tournamentStartAt: _dt(j['tournament_start_at']),
     tournamentEndAt: _dt(j['tournament_end_at']),
+    matchDurationMinutes: (j['match_duration_minutes'] as num?)?.toInt(),
+    breakDurationMinutes: (j['break_duration_minutes'] as num?)?.toInt(),
+    concurrentMatches:
+        (j['schedule_config'] is Map
+                ? (j['schedule_config'] as Map)['concurrent_matches'] as num?
+                : null)
+            ?.toInt() ??
+        1,
+    gameMode: j['game_mode']?.toString(),
+    platform: j['platform']?.toString(),
+    organizationName: j['organization_name']?.toString(),
+    teamSize: (j['team_size'] as num?)?.toInt(),
+    substituteLimit: (j['substitute_limit'] as num?)?.toInt(),
+    minimumAge: (j['minimum_age'] as num?)?.toInt(),
+    region: j['region']?.toString(),
+    registrationPolicy: j['registration_policy']?.toString(),
+    isPrivate: j['is_private'] == true,
+    inviteCode: j['invite_code']?.toString(),
+    minEntries: (j['min_entries'] as num?)?.toInt(),
+    rosterLockAt: _dt(j['roster_lock_at']),
+    checkInStartAt: _dt(j['check_in_start_at']),
+    checkInEndAt: _dt(j['check_in_end_at']),
+    maxMatchesPerTeamPerDay: (j['max_matches_per_team_per_day'] as num?)
+        ?.toInt(),
+    resultSubmissionWindowMinutes:
+        (j['result_submission_window_minutes'] as num?)?.toInt(),
+    disputeWindowMinutes: (j['dispute_window_minutes'] as num?)?.toInt(),
+    evidenceRequired:
+        j['rules_config'] is Map &&
+        (j['rules_config'] as Map)['evidence_required'] == true,
     rules: j['rules'] as String?,
     prizeDistribution:
         (j['prize_distribution'] as List?)

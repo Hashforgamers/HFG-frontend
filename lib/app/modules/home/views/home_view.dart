@@ -658,6 +658,8 @@ class _HomeViewState extends State<HomeView> {
             BottomNavigationBar(
               type: BottomNavigationBarType.fixed,
               enableFeedback: true,
+              showSelectedLabels: false,
+              showUnselectedLabels: false,
               currentIndex: controller.selectedIndex.value,
               onTap: (index) {
                 if (index == 2 && HomeController.isHashShopReleased) {
@@ -668,31 +670,34 @@ class _HomeViewState extends State<HomeView> {
                 }
                 controller.onItemTapped(index);
               },
-              selectedFontSize: 0,
-              unselectedFontSize: 0,
               backgroundColor: Colors.black,
               selectedItemColor: const Color(0xff00DC00),
               unselectedItemColor: Colors.grey[800],
               items: <BottomNavigationBarItem>[
                 _buildNavigationItem(
                   'assets/navbar_icons/Vector (1).png',
+                  label: 'Home',
                   isSelected: controller.selectedIndex.value == 0,
                 ),
                 _buildNavigationItem(
                   'assets/navbar_icons/maki_gaming.png',
+                  label: 'Squad Up',
                   isSelected: controller.selectedIndex.value == 1,
                 ),
                 _buildNavigationItem(
                   'assets/navbar_icons/Group.png',
+                  label: 'Sessions',
                   isSelected: controller.selectedIndex.value == 2,
                   isSpecial: true,
                 ),
                 _buildNavigationItem(
                   'assets/navbar_icons/trophy.png',
+                  label: 'Compete',
                   isSelected: controller.selectedIndex.value == 3,
                 ),
                 _buildNavigationItem(
                   'assets/navbar_icons/Vector (3).png',
+                  label: 'Me',
                   isSelected: controller.selectedIndex.value == 4,
                 ),
               ],
@@ -864,6 +869,7 @@ class _HomeViewState extends State<HomeView> {
   // --- BottomNavigationBar Item Builder ---
   BottomNavigationBarItem _buildNavigationItem(
     String iconPath, {
+    required String label,
     required bool isSelected,
     bool isSpecial = false,
   }) {
@@ -886,7 +892,7 @@ class _HomeViewState extends State<HomeView> {
             colorBlendMode: BlendMode.srcIn,
           ),
         ),
-        label: '',
+        label: label,
       );
     }
 
@@ -902,7 +908,7 @@ class _HomeViewState extends State<HomeView> {
           colorBlendMode: BlendMode.srcIn,
         ),
       ),
-      label: '',
+      label: label,
     );
   }
 

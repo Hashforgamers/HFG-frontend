@@ -15,6 +15,10 @@ import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/views/chat_room_view.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_home_view.dart';
 import 'package:hash/app/modules/community/services/community_api.dart';
+import 'package:hash/app/modules/social/friend_service.dart';
+import 'package:hash/app/modules/social/friends_view.dart';
+import 'package:hash/app/modules/social/lfg_service.dart';
+import 'package:hash/app/modules/social/lfg_lobby_view.dart';
 import 'package:hash/config/app_keys.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -25,7 +29,8 @@ import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:location/location.dart' as loc;
-import 'package:flutter/services.dart' show PlatformException, rootBundle;
+import 'package:flutter/services.dart'
+    show HapticFeedback, PlatformException, rootBundle;
 import 'package:geocoding/geocoding.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart'
     hide NetworkProvider;
@@ -61,6 +66,8 @@ class _ArenaViewState extends State<ArenaView> {
       locator<LocationPermissionService>();
   final NearbyPlayerLocationService _nearbyLocationService =
       NearbyPlayerLocationService();
+  final FriendService _friendService = FriendService();
+  final LfgService _lfgService = LfgService();
 
   late GoogleMapController _mapCtr;
   late final loc.Location _loc = _locationPermissionService.location;
@@ -318,7 +325,7 @@ class _ArenaViewState extends State<ArenaView> {
 
   Future<void> _fetchNearbyPlayers() async {
     final origin = _userLatLng;
-    if (origin == null || _isLoadingPlayers) return;
+    if (_isLoadingPlayers) return;
     if (mounted) {
       setState(() {
         _isLoadingPlayers = true;
@@ -326,21 +333,33 @@ class _ArenaViewState extends State<ArenaView> {
       });
     }
     try {
-      final players = await _nearbyLocationService.fetchNearbyPlayers(
-        latitude: origin.latitude,
-        longitude: origin.longitude,
-      );
+      final allPlayers = await _friendService.allPlayers();
+      final nearbyPlayers = origin == null
+          ? const <Map<String, dynamic>>[]
+          : await _nearbyLocationService.fetchNearbyPlayers(
+              latitude: origin.latitude,
+              longitude: origin.longitude,
+            );
+      final merged = <String, Map<String, dynamic>>{};
+      for (final player in allPlayers) {
+        final uid = (player['firebase_uid'] ?? player['uid'] ?? '').toString();
+        if (uid.isNotEmpty) merged[uid] = player;
+      }
+      for (final player in nearbyPlayers) {
+        final uid = (player['firebase_uid'] ?? player['uid'] ?? '').toString();
+        if (uid.isNotEmpty) merged[uid] = {...?merged[uid], ...player};
+      }
       if (!mounted) return;
       setState(() {
         _nearbyPlayers
           ..clear()
-          ..addAll(players);
+          ..addAll(merged.values);
       });
       _refreshCafeMarkers();
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _playersError = 'Nearby players are unavailable right now.';
+        _playersError = 'Players are unavailable right now.';
       });
     } finally {
       if (mounted) setState(() => _isLoadingPlayers = false);
@@ -388,11 +407,14 @@ class _ArenaViewState extends State<ArenaView> {
         _lastLocationPublishAt = null;
       }
       if (mounted) {
-        Get.snackbar(
-          nextValue ? 'Location visible' : 'Location hidden',
-          nextValue
-              ? 'Nearby players can now discover your approximate location.'
-              : 'Your location is no longer shared with nearby players.',
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            content: Text(
+              nextValue
+                  ? 'Nearby players can now discover your approximate location.'
+                  : 'Your location is no longer shared with nearby players.',
+            ),
+          ),
         );
       }
     } catch (_) {
@@ -401,9 +423,10 @@ class _ArenaViewState extends State<ArenaView> {
         if (mounted) setState(() => _isLocationSharingEnabled = false);
       }
       if (mounted) {
-        Get.snackbar(
-          'Location sharing',
-          'Unable to update your visibility right now.',
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text('Unable to update your visibility right now.'),
+          ),
         );
       }
     } finally {
@@ -714,7 +737,7 @@ class _ArenaViewState extends State<ArenaView> {
                 const SizedBox(height: 18),
                 ElevatedButton.icon(
                   onPressed: () {
-                    Get.back();
+                    Navigator.of(context).pop();
                     unawaited(_connectWithPlayer(player));
                   },
                   icon: const Icon(Icons.chat_bubble_outline_rounded),
@@ -726,12 +749,33 @@ class _ArenaViewState extends State<ArenaView> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final uid = (player['firebase_uid'] ?? player['uid'] ?? '')
+                        .toString();
+                    if (uid.isEmpty) return;
+                    await _friendService.sendRequest(uid);
+                    if (!mounted) return;
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                      SnackBar(content: Text('Friend request sent to $name.')),
+                    );
+                  },
+                  icon: const Icon(Icons.person_add_alt_1_rounded),
+                  label: const Text('Add friend'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Color(0xff00DC00)),
+                    minimumSize: const Size.fromHeight(46),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          Get.back();
+                          Navigator.of(context).pop();
                           unawaited(_invitePlayerToCafe(player));
                         },
                         icon: const Icon(Icons.storefront_rounded),
@@ -751,7 +795,7 @@ class _ArenaViewState extends State<ArenaView> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          Get.back();
+                          Navigator.of(context).pop();
                           unawaited(_invitePlayerToTournament(player));
                         },
                         icon: const Icon(Icons.emoji_events_outlined),
@@ -769,12 +813,169 @@ class _ArenaViewState extends State<ArenaView> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      unawaited(_showPlayerSafetySheet(player));
+                    },
+                    icon: const Icon(
+                      Icons.shield_outlined,
+                      color: Colors.white54,
+                      size: 17,
+                    ),
+                    label: Text(
+                      'Safety options',
+                      style: GoogleFonts.inter(color: Colors.white54),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ),
       ),
       isScrollControlled: true,
+    );
+  }
+
+  Future<void> _showPlayerSafetySheet(Map<String, dynamic> player) async {
+    final uid = (player['firebase_uid'] ?? player['uid'] ?? '').toString();
+    final name = (player['display_name'] ?? player['username'] ?? 'Player')
+        .toString();
+    if (uid.isEmpty || !mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF121212),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(
+                Icons.flag_outlined,
+                color: Color(0xFFFFB648),
+              ),
+              title: const Text(
+                'Report player',
+                style: TextStyle(color: Colors.white),
+              ),
+              subtitle: const Text(
+                'Flag toxic or unsafe behaviour',
+                style: TextStyle(color: Colors.white54),
+              ),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                await _reportPlayer(uid, name);
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.block_rounded,
+                color: Color(0xFFFF5252),
+              ),
+              title: const Text(
+                'Block player',
+                style: TextStyle(color: Colors.white),
+              ),
+              subtitle: const Text(
+                'Hide them and remove the connection',
+                style: TextStyle(color: Colors.white54),
+              ),
+              onTap: () async {
+                final confirmed = await showDialog<bool>(
+                  context: sheetContext,
+                  builder: (dialogContext) => AlertDialog(
+                    backgroundColor: const Color(0xFF171717),
+                    title: Text(
+                      'Block $name?',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    content: const Text(
+                      'They will disappear from Squad Up and your friendship will be removed.',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: const Text(
+                          'Block',
+                          style: TextStyle(color: Color(0xFFFF5252)),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true) return;
+                await _friendService.blockPlayer(uid);
+                if (!mounted) return;
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+                await _fetchNearbyPlayers();
+                if (!mounted) return;
+                ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                  SnackBar(content: Text('$name has been blocked.')),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _reportPlayer(String uid, String name) async {
+    const reasons = [
+      'Toxic behaviour',
+      'Harassment',
+      'Spam or scam',
+      'Fake profile',
+      'Unsafe offline behaviour',
+    ];
+    final reason = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF121212),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Report $name',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            ...reasons.map(
+              (item) => ListTile(
+                title: Text(
+                  item,
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white30,
+                ),
+                onTap: () => Navigator.pop(sheetContext, item),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (reason == null) return;
+    await _friendService.reportPlayer(targetUid: uid, reason: reason);
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(content: Text('Report submitted for review.')),
     );
   }
 
@@ -794,6 +995,70 @@ class _ArenaViewState extends State<ArenaView> {
         ),
       );
     });
+  }
+
+  Future<void> _changeMapZoom(double amount) async {
+    if (!_mapReady || _mapDisposed) return;
+    final nextZoom = (_mapZoom + amount).clamp(3.0, 20.0);
+    if ((nextZoom - _mapZoom).abs() < 0.01) return;
+    HapticFeedback.selectionClick();
+    setState(() => _mapZoom = nextZoom);
+    await _safeAnimateCamera(CameraUpdate.zoomTo(nextZoom));
+  }
+
+  Widget _buildMapZoomControls() {
+    return Material(
+      color: const Color(0xF20A0D0B),
+      elevation: 10,
+      shadowColor: Colors.black54,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        width: 44,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: const Color(0xFF9DA59F), width: 0.7),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _mapZoomButton(
+              icon: Icons.add_rounded,
+              label: 'Zoom in',
+              onTap: () => _changeMapZoom(1),
+            ),
+            const Divider(height: 1, thickness: 1, color: Color(0xFF454B47)),
+            _mapZoomButton(
+              icon: Icons.remove_rounded,
+              label: 'Zoom out',
+              onTap: () => _changeMapZoom(-1),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mapZoomButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(3),
+          child: SizedBox(
+            width: 44,
+            height: 42,
+            child: Icon(icon, color: const Color(0xFFE8EBE9), size: 24),
+          ),
+        ),
+      ),
+    );
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -1396,340 +1661,384 @@ class _ArenaViewState extends State<ArenaView> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size.height;
-    final mapHeight = (size * 0.48).clamp(300.0, 430.0);
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Column(
-          children: [
-            // Map with rounded top corners
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-              child: SizedBox(
-                height: mapHeight,
-                width: double.infinity,
-                child: Stack(
-                  children: [
-                    Obx(
-                      () => GoogleMap(
-                        initialCameraPosition: const CameraPosition(
-                          target: LatLng(20, 77),
-                          zoom: 4,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final defaultMapHeight = (constraints.maxHeight * 0.48).clamp(
+              300.0,
+              430.0,
+            );
+            final cafeCardWidth = (constraints.maxWidth * 0.9) - 32;
+            final cafeCardHeight = (cafeCardWidth / 1.65).clamp(178.0, 220.0);
+            const cafeHeaderHeight = 70.0;
+            final cafePanelHeight = cafeHeaderHeight + cafeCardHeight;
+            final mapHeight = _showPlayers
+                ? defaultMapHeight
+                : (constraints.maxHeight - cafePanelHeight).clamp(
+                    300.0,
+                    constraints.maxHeight,
+                  );
+            return Column(
+              children: [
+                // Map with rounded top corners
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(8),
+                    topRight: Radius.circular(8),
+                  ),
+                  child: SizedBox(
+                    height: mapHeight,
+                    width: double.infinity,
+                    child: Stack(
+                      children: [
+                        Obx(
+                          () => GoogleMap(
+                            initialCameraPosition: const CameraPosition(
+                              target: LatLng(20, 77),
+                              zoom: 4,
+                            ),
+                            myLocationEnabled: _hasLocationPermission,
+                            myLocationButtonEnabled: _hasLocationPermission,
+                            mapToolbarEnabled: false,
+                            compassEnabled: false,
+                            buildingsEnabled: false,
+                            indoorViewEnabled: false,
+                            markers: markers.toSet(),
+                            polylines: polylines.toSet(),
+                            heatmaps: _playerHeatmaps,
+                            onMapCreated: (ctrl) async {
+                              _mapCtr = ctrl;
+                              _mapDisposed = false;
+                              _mapReady = true;
+
+                              // iOS: give the renderer a moment before styling
+                              if (defaultTargetPlatform == TargetPlatform.iOS) {
+                                await Future.delayed(
+                                  const Duration(milliseconds: 200),
+                                );
+                              }
+
+                              try {
+                                if (_mapStyle.isNotEmpty) {
+                                  await _mapCtr.setMapStyle(_mapStyle);
+                                }
+                              } catch (e) {
+                                debugPrint('setMapStyle error: $e');
+                              }
+
+                              _tryPlayZoom();
+                            },
+                            zoomControlsEnabled: false,
+                            onCameraMove: (position) {
+                              _mapZoom = position.zoom;
+                            },
+                            onCameraIdle: _refreshCafeMarkers,
+                          ),
                         ),
-                        myLocationEnabled: _hasLocationPermission,
-                        myLocationButtonEnabled: _hasLocationPermission,
-                        markers: markers.toSet(),
-                        polylines: polylines.toSet(),
-                        heatmaps: _playerHeatmaps,
-                        onMapCreated: (ctrl) async {
-                          _mapCtr = ctrl;
-                          _mapDisposed = false;
-                          _mapReady = true;
 
-                          // iOS: give the renderer a moment before styling
-                          if (defaultTargetPlatform == TargetPlatform.iOS) {
-                            await Future.delayed(
-                              const Duration(milliseconds: 200),
-                            );
-                          }
-
-                          try {
-                            if (_mapStyle.isNotEmpty) {
-                              await _mapCtr.setMapStyle(_mapStyle);
-                            }
-                          } catch (e) {
-                            debugPrint('setMapStyle error: $e');
-                          }
-
-                          _tryPlayZoom();
-                        },
-                        zoomControlsEnabled: false,
-                        onCameraMove: (position) {
-                          _mapZoom = position.zoom;
-                        },
-                        onCameraIdle: _refreshCafeMarkers,
-                      ),
-                    ),
-
-                    // Search bar
-                    Positioned(
-                      top: 20,
-                      left: 16,
-                      right: 16,
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => Get.to(SearchResult()),
-                          borderRadius: BorderRadius.circular(14),
+                        // Search bar
+                        Positioned(
+                          top: 14,
+                          left: 16,
+                          right: 16,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => Get.to(SearchResult()),
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                height: 46,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xF20A0D0B),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: const Color(0xFF747C76),
+                                    width: 0.7,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.search_rounded,
+                                      color: Color(0xFF00F020),
+                                      size: 21,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'SEARCH THE CITY',
+                                      style: GoogleFonts.orbitron(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 70,
+                          left: 16,
                           child: Container(
-                            height: 52,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: const Color(0xE6111111),
-                              borderRadius: BorderRadius.circular(14),
+                              color: const Color(0xF20A0D0B),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: const Color(0xFF747C76),
+                                width: 0.7,
+                              ),
                             ),
                             child: Row(
                               children: [
-                                const Icon(
-                                  Icons.search_rounded,
-                                  color: Colors.white70,
-                                  size: 23,
+                                _mapModeButton(
+                                  label: 'Cafes',
+                                  icon: Icons.sports_esports_rounded,
+                                  selected: !_showPlayers,
+                                  onTap: () {
+                                    setState(() => _showPlayers = false);
+                                    _refreshCafeMarkers();
+                                  },
                                 ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Search cafes or locations',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white60,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                _mapModeButton(
+                                  label: 'Players',
+                                  icon: Icons.people_alt_rounded,
+                                  selected: _showPlayers,
+                                  onTap: () {
+                                    setState(() => _showPlayers = true);
+                                    _refreshCafeMarkers();
+                                    unawaited(_fetchNearbyPlayers());
+                                  },
                                 ),
                               ],
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 88,
-                      left: 16,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xE6111111),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          children: [
-                            _mapModeButton(
-                              label: 'Cafes',
-                              icon: Icons.sports_esports_rounded,
-                              selected: !_showPlayers,
-                              onTap: () {
-                                setState(() => _showPlayers = false);
-                                _refreshCafeMarkers();
-                              },
-                            ),
-                            _mapModeButton(
-                              label: 'Players',
-                              icon: Icons.people_alt_rounded,
-                              selected: _showPlayers,
-                              onTap: () {
-                                setState(() => _showPlayers = true);
-                                _refreshCafeMarkers();
-                                unawaited(_fetchNearbyPlayers());
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (_showPlayers)
-                      Positioned(
-                        top: 143,
-                        left: 16,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 11,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xE6111111),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 7,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xff00DC00),
-                                      Color(0xffFFD600),
-                                      Color(0xffFF3D3D),
-                                    ],
+                        if (_showPlayers)
+                          Positioned(
+                            top: 125,
+                            left: 16,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 11,
+                                vertical: 7,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xE6111111),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xff00DC00),
+                                          Color(0xffFFD600),
+                                          Color(0xffFF3D3D),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _mapZoom < 14
+                                        ? 'Zoom in to see players'
+                                        : 'Nearby activity',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white70,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _mapZoom < 14
-                                    ? 'Zoom in to see players'
-                                    : 'Nearby activity',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white70,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
+                        Positioned(
+                          right: 16,
+                          bottom: 18,
+                          child: _buildMapZoomControls(),
                         ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            // Nearby Cafes Section
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(8),
-                    topRight: Radius.circular(8),
+                      ],
+                    ),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_showPlayers)
-                      _buildPlayersHeader()
-                    else
-                      _buildCafeHeader(),
-                    Expanded(
-                      child: _showPlayers
-                          ? _buildNearbyPlayersList()
-                          : Obx(
-                              () => _filteredCafes.isEmpty
-                                  ? Center(
-                                      child: SingleChildScrollView(
-                                        reverse: true,
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (_cafeCtr.isLoading.value &&
-                                                _cafeCtr.cybercafes.isEmpty)
-                                              AppLinearLoader(),
-                                            if (!_cafeCtr.isLoading.value &&
-                                                _cafeCtr.cybercafes.isEmpty)
-                                              Text(
-                                                'Unable to load cafes right now',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 14,
-                                                  color: Colors.white70,
-                                                ),
-                                              ),
-                                            if (!_cafeCtr.isLoading.value &&
-                                                _cafeCtr
-                                                    .cybercafes
-                                                    .isNotEmpty &&
-                                                _userState != null)
-                                              Text(
-                                                'No cafes available in $_userState',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 14,
-                                                  color: Colors.white70,
-                                                ),
-                                              ),
-                                            const SizedBox(height: 8),
-                                            if (!_cafeCtr.isLoading.value &&
-                                                _cafeCtr.cybercafes.isEmpty)
-                                              GestureDetector(
-                                                onTap: () {
-                                                  _cafeCtr.fetchCybercafes(
-                                                    forceRefresh: true,
-                                                  );
-                                                },
-                                                child: Text(
-                                                  'Retry',
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 14,
-                                                    color: const Color(
-                                                      0xff00DC00,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            if (!_cafeCtr.isLoading.value &&
-                                                _cafeCtr
-                                                    .cybercafes
-                                                    .isNotEmpty &&
-                                                _userState != null)
-                                              GestureDetector(
-                                                onTap: () {
-                                                  _showingAllCafes.value = true;
-                                                  _filteredCafes.assignAll(
-                                                    _sortCafesByDistance(
-                                                      _cafeCtr.cybercafes
-                                                          .cast<
-                                                            Map<String, dynamic>
-                                                          >(),
-                                                    ),
-                                                  );
-                                                  _refreshCafeMarkers();
-                                                },
-                                                child: Text(
-                                                  'Show all cafes',
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 14,
-                                                    color: const Color(
-                                                      0xff00DC00,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    )
-                                  : PageView.builder(
-                                      controller: _cafePageController,
-                                      padEnds: false,
-                                      onPageChanged: _focusCafeByIndex,
-                                      itemCount: _filteredCafes.length,
-                                      itemBuilder: (_, i) {
-                                        final cafe = _filteredCafes[i];
-                                        final imgs =
-                                            (cafe['images'] as List?) ??
-                                            const [];
-                                        final img = imgs.isEmpty
-                                            ? 'https://next-level.gg/assets/cafes/11.jpg'
-                                            : (imgs.first is Map &&
-                                                      (imgs.first
-                                                              as Map)['url'] !=
-                                                          null
-                                                  ? (imgs.first as Map)['url']
-                                                        as String
-                                                  : 'https://next-level.gg/assets/cafes/11.jpg');
-                                        final pos = _latLngFromCafe(cafe);
-                                        final id =
-                                            '${cafe['id'] ?? cafe.hashCode}';
-                                        return Padding(
-                                          padding: EdgeInsets.only(
-                                            left: i == 0 ? 16 : 8,
-                                            right:
-                                                i == _filteredCafes.length - 1
-                                                ? 16
-                                                : 8,
-                                          ),
-                                          child: _buildCafeCard(
-                                            id,
-                                            pos,
-                                            img,
-                                            cafe,
-                                            imgs,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                            ),
+                // Nearby Cafes Section
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8),
+                      ),
                     ),
-                  ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_showPlayers) ...[
+                          _buildPlayersHeader(),
+                          _buildLfgRail(),
+                        ] else
+                          _buildCafeHeader(),
+                        Expanded(
+                          child: _showPlayers
+                              ? _buildNearbyPlayersList()
+                              : Obx(
+                                  () => _filteredCafes.isEmpty
+                                      ? Center(
+                                          child: SingleChildScrollView(
+                                            reverse: true,
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                if (_cafeCtr.isLoading.value &&
+                                                    _cafeCtr.cybercafes.isEmpty)
+                                                  AppLinearLoader(),
+                                                if (!_cafeCtr.isLoading.value &&
+                                                    _cafeCtr.cybercafes.isEmpty)
+                                                  Text(
+                                                    'Unable to load cafes right now',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 14,
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ),
+                                                if (!_cafeCtr.isLoading.value &&
+                                                    _cafeCtr
+                                                        .cybercafes
+                                                        .isNotEmpty &&
+                                                    _userState != null)
+                                                  Text(
+                                                    'No cafes available in $_userState',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 14,
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ),
+                                                const SizedBox(height: 8),
+                                                if (!_cafeCtr.isLoading.value &&
+                                                    _cafeCtr.cybercafes.isEmpty)
+                                                  GestureDetector(
+                                                    onTap: () {
+                                                      _cafeCtr.fetchCybercafes(
+                                                        forceRefresh: true,
+                                                      );
+                                                    },
+                                                    child: Text(
+                                                      'Retry',
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 14,
+                                                        color: const Color(
+                                                          0xff00DC00,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                if (!_cafeCtr.isLoading.value &&
+                                                    _cafeCtr
+                                                        .cybercafes
+                                                        .isNotEmpty &&
+                                                    _userState != null)
+                                                  GestureDetector(
+                                                    onTap: () {
+                                                      _showingAllCafes.value =
+                                                          true;
+                                                      _filteredCafes.assignAll(
+                                                        _sortCafesByDistance(
+                                                          _cafeCtr.cybercafes
+                                                              .cast<
+                                                                Map<
+                                                                  String,
+                                                                  dynamic
+                                                                >
+                                                              >(),
+                                                        ),
+                                                      );
+                                                      _refreshCafeMarkers();
+                                                    },
+                                                    child: Text(
+                                                      'Show all cafes',
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 14,
+                                                        color: const Color(
+                                                          0xff00DC00,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        )
+                                      : PageView.builder(
+                                          controller: _cafePageController,
+                                          padEnds: false,
+                                          onPageChanged: _focusCafeByIndex,
+                                          itemCount: _filteredCafes.length,
+                                          itemBuilder: (_, i) {
+                                            final cafe = _filteredCafes[i];
+                                            final imgs =
+                                                (cafe['images'] as List?) ??
+                                                const [];
+                                            final img = imgs.isEmpty
+                                                ? 'https://next-level.gg/assets/cafes/11.jpg'
+                                                : (imgs.first is Map &&
+                                                          (imgs.first
+                                                                  as Map)['url'] !=
+                                                              null
+                                                      ? (imgs.first
+                                                                as Map)['url']
+                                                            as String
+                                                      : 'https://next-level.gg/assets/cafes/11.jpg');
+                                            final pos = _latLngFromCafe(cafe);
+                                            final id =
+                                                '${cafe['id'] ?? cafe.hashCode}';
+                                            return Padding(
+                                              padding: EdgeInsets.only(
+                                                left: i == 0 ? 16 : 8,
+                                                right:
+                                                    i ==
+                                                        _filteredCafes.length -
+                                                            1
+                                                    ? 16
+                                                    : 8,
+                                              ),
+                                              child: _buildCafeCard(
+                                                id,
+                                                pos,
+                                                img,
+                                                cafe,
+                                                imgs,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -1747,8 +2056,8 @@ class _ArenaViewState extends State<ArenaView> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xff00DC00) : Colors.transparent,
-          borderRadius: BorderRadius.circular(11),
+          color: selected ? const Color(0xFF00F020) : Colors.transparent,
+          borderRadius: BorderRadius.circular(2),
         ),
         child: Row(
           children: [
@@ -1759,11 +2068,12 @@ class _ArenaViewState extends State<ArenaView> {
             ),
             const SizedBox(width: 6),
             Text(
-              label,
-              style: GoogleFonts.inter(
+              label.toUpperCase(),
+              style: GoogleFonts.orbitron(
                 color: selected ? Colors.black : Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
               ),
             ),
           ],
@@ -1778,7 +2088,7 @@ class _ArenaViewState extends State<ArenaView> {
       child: Row(
         children: [
           Text(
-            'Players near you',
+            'Squad Up',
             style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: 18,
@@ -1793,7 +2103,7 @@ class _ArenaViewState extends State<ArenaView> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${_nearbyPlayers.length} nearby',
+              '${_nearbyPlayers.length}',
               style: GoogleFonts.inter(
                 color: const Color(0xff00DC00),
                 fontSize: 11,
@@ -1802,6 +2112,14 @@ class _ArenaViewState extends State<ArenaView> {
             ),
           ),
           const Spacer(),
+          IconButton(
+            tooltip: 'Friends and requests',
+            onPressed: () => Get.to(() => const FriendsView()),
+            icon: const Icon(
+              Icons.people_alt_outlined,
+              color: Color(0xff00DC00),
+            ),
+          ),
           InkWell(
             onTap: _isUpdatingLocationSharing ? null : _toggleLocationSharing,
             borderRadius: BorderRadius.circular(20),
@@ -1851,6 +2169,436 @@ class _ArenaViewState extends State<ArenaView> {
     );
   }
 
+  Widget _buildLfgRail() {
+    return StreamBuilder<List<LfgPost>>(
+      stream: _lfgService.watchActive(),
+      builder: (context, snapshot) {
+        final posts = snapshot.data ?? const <LfgPost>[];
+        return SizedBox(
+          height: 98,
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            scrollDirection: Axis.horizontal,
+            itemCount: posts.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(width: 9),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return Material(
+                  color: const Color(0xFF102313),
+                  borderRadius: BorderRadius.circular(15),
+                  child: InkWell(
+                    onTap: _showLfgComposer,
+                    borderRadius: BorderRadius.circular(15),
+                    child: Container(
+                      width: 132,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: const Color(0x5500DC00)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.campaign_rounded,
+                            color: Color(0xFF00DC00),
+                            size: 20,
+                          ),
+                          const Spacer(),
+                          Text(
+                            'DROP AN LFG',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          Text(
+                            'Find your stack',
+                            style: GoogleFonts.inter(
+                              color: Colors.white54,
+                              fontSize: 9.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+              final post = posts[index - 1];
+              final mine = post.uid == _lfgService.currentUid;
+              return Material(
+                color: const Color(0xFF171717),
+                borderRadius: BorderRadius.circular(15),
+                child: InkWell(
+                  onTap: mine
+                      ? () => _showOwnLfgActions(post)
+                      : () => Get.to(() => LfgLobbyView(post: post)),
+                  borderRadius: BorderRadius.circular(15),
+                  child: Container(
+                    width: 190,
+                    padding: const EdgeInsets.all(11),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 22,
+                          backgroundColor: const Color(0xFF252525),
+                          backgroundImage: post.photoUrl.isEmpty
+                              ? null
+                              : CachedNetworkImageProvider(post.photoUrl),
+                          child: post.photoUrl.isEmpty
+                              ? const Icon(
+                                  Icons.person_rounded,
+                                  color: Colors.white54,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      mine ? 'YOUR LFG' : post.displayName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF00DC00),
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  if (post.micOn) ...[
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.mic_rounded,
+                                      color: Colors.white54,
+                                      size: 12,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                post.game,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '${post.mode} · ${_lfgTimeLeft(post.expiresAt)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white54,
+                                  fontSize: 9.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  String _lfgTimeLeft(DateTime expiresAt) {
+    final left = expiresAt.difference(DateTime.now());
+    if (left.inHours > 0) return '${left.inHours}h left';
+    return '${left.inMinutes.clamp(1, 59)}m left';
+  }
+
+  Future<void> _showOwnLfgActions(LfgPost post) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF121212),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(
+                  Icons.forum_rounded,
+                  color: Color(0xFF00DC00),
+                ),
+                title: const Text(
+                  'Open squad lobby',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Text and voice drops',
+                  style: TextStyle(color: Colors.white54),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Get.to(() => LfgLobbyView(post: post));
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.edit_rounded,
+                  color: Color(0xFF00DC00),
+                ),
+                title: const Text(
+                  'Update LFG',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Change your queue and vibe',
+                  style: TextStyle(color: Colors.white54),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _showLfgComposer();
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.stop_circle_outlined,
+                  color: Color(0xFFFF5252),
+                ),
+                title: const Text(
+                  'Go offline',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Close this LFG',
+                  style: TextStyle(color: Colors.white54),
+                ),
+                onTap: () async {
+                  await _lfgService.close();
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showLfgComposer() async {
+    var game = 'Valorant';
+    var mode = 'Ranked';
+    var micOn = true;
+    var durationHours = 2;
+    final noteController = TextEditingController();
+    final published = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+            decoration: const BoxDecoration(
+              color: Color(0xFF101010),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 38,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Drop an LFG',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tell the lobby what you’re queueing for.',
+                      style: GoogleFonts.inter(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    _lfgChoiceLabel('GAME'),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      children:
+                          ['Valorant', 'BGMI', 'Free Fire MAX', 'CODM', 'CS2']
+                              .map(
+                                (value) => ChoiceChip(
+                                  label: Text(value),
+                                  selected: game == value,
+                                  onSelected: (_) =>
+                                      setSheetState(() => game = value),
+                                ),
+                              )
+                              .toList(),
+                    ),
+                    const SizedBox(height: 15),
+                    _lfgChoiceLabel('VIBE'),
+                    Wrap(
+                      spacing: 7,
+                      children: ['Ranked', 'Chill', 'Scrims']
+                          .map(
+                            (value) => ChoiceChip(
+                              label: Text(value),
+                              selected: mode == value,
+                              onSelected: (_) =>
+                                  setSheetState(() => mode = value),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: micOn,
+                      activeTrackColor: const Color(0xFF00DC00),
+                      title: const Text(
+                        'Mic on',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      subtitle: const Text(
+                        'Voice comms preferred',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                      onChanged: (value) => setSheetState(() => micOn = value),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'Stay live',
+                          style: GoogleFonts.inter(color: Colors.white70),
+                        ),
+                        const Spacer(),
+                        DropdownButton<int>(
+                          dropdownColor: const Color(0xFF202020),
+                          value: durationHours,
+                          style: GoogleFonts.inter(color: Colors.white),
+                          items: const [1, 2, 4]
+                              .map(
+                                (hours) => DropdownMenuItem(
+                                  value: hours,
+                                  child: Text(
+                                    '$hours hour${hours == 1 ? '' : 's'}',
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) =>
+                              setSheetState(() => durationHours = value ?? 2),
+                        ),
+                      ],
+                    ),
+                    TextField(
+                      controller: noteController,
+                      maxLength: 80,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Need 2, Silver–Gold, no tilt...',
+                        hintStyle: const TextStyle(color: Colors.white38),
+                        filled: true,
+                        fillColor: const Color(0xFF1A1A1A),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          await _lfgService.publish(
+                            game: game,
+                            mode: mode,
+                            micOn: micOn,
+                            note: noteController.text,
+                            duration: Duration(hours: durationHours),
+                          );
+                          if (sheetContext.mounted) {
+                            Navigator.pop(sheetContext, true);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00DC00),
+                          foregroundColor: Colors.black,
+                        ),
+                        child: Text(
+                          'GO LIVE IN LOBBY',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    noteController.dispose();
+    if (published == true && mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(content: Text('LFG is live. Squad incoming.')),
+      );
+    }
+  }
+
+  Widget _lfgChoiceLabel(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      text,
+      style: GoogleFonts.inter(
+        color: Colors.white54,
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        letterSpacing: .7,
+      ),
+    ),
+  );
+
   Widget _buildNearbyPlayersList() {
     if (_isLoadingPlayers && _nearbyPlayers.isEmpty) {
       return const Center(child: AppLinearLoader());
@@ -1872,13 +2620,13 @@ class _ArenaViewState extends State<ArenaView> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  _playersError ?? 'No discoverable players nearby yet.',
+                  _playersError ?? 'No players are available yet.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Players appear only when they enable nearby discovery.',
+                  'All Hash Hub players will appear here.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
                 ),
@@ -1886,7 +2634,7 @@ class _ArenaViewState extends State<ArenaView> {
                 TextButton.icon(
                   onPressed: _fetchNearbyPlayers,
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Refresh nearby players'),
+                  label: const Text('Refresh players'),
                   style: TextButton.styleFrom(
                     foregroundColor: const Color(0xff00DC00),
                     backgroundColor: const Color(
@@ -1943,7 +2691,7 @@ class _ArenaViewState extends State<ArenaView> {
             ),
           ),
           subtitle: Text(
-            distance == null ? 'Nearby player' : '${distance} km away',
+            distance == null ? 'Hash Hub player' : '${distance} km away',
             style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
           ),
           trailing: const Icon(
@@ -1962,282 +2710,307 @@ class _ArenaViewState extends State<ArenaView> {
     Map<String, dynamic> cafe,
     List<dynamic> images,
   ) {
-    return BounceTap(
-      onTap: () async {
-        _selectedCafeId = id;
-        _smoothMoveCamera(pos, zoom: 16);
-        _refreshCafeMarkers();
-        await Future.delayed(const Duration(milliseconds: 600));
-        await Get.to(
-          () => ArenaDetailView(
-            images: images,
-            title: cafe['cafe_name'] ?? 'Unknown Cafe',
-            address: _formatAddress(cafe),
-            openingHours: _formatOpeningHours(cafe),
-            availableGames: extractArenaAvailableGames(cafe),
-            amenities: cafe['amenities'] ?? [],
-            phone: cafe['phone'] ?? 'Phone not available',
-            email: cafe['email'] ?? 'Email not available',
-            ownerName: cafe['owner_name'] ?? 'Owner not available',
-            reviews: cafe['reviews'] ?? ['Great place!'],
-            vendorId: cafe['vendor_id'] ?? 0,
-          ),
-        );
-      },
-      child: Container(
-        width: 330,
-        height: 140, // a touch taller for breathing room
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          color: Colors.black,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background image — fill the card precisely
-            CachedNetworkImage(
-              imageUrl: img,
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
-              // Hint the cache with 2x widget size (optional)
-
-              // memCacheWidth: 660,
-              // memCacheHeight: 280,
-              placeholder: (_, __) =>
-                  const Center(child: RainbowGlowingLoader(size: 40)),
-              errorWidget: (_, __, ___) => Container(
-                color: Colors.grey,
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.image_not_supported,
-                  color: Colors.white54,
-                  size: 40,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final cardHeight = (availableWidth / 1.65).clamp(178.0, 220.0);
+        return Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            width: availableWidth,
+            height: cardHeight,
+            child: BounceTap(
+              onTap: () async {
+                _selectedCafeId = id;
+                _smoothMoveCamera(pos, zoom: 16);
+                _refreshCafeMarkers();
+                await Future.delayed(const Duration(milliseconds: 600));
+                await Get.to(
+                  () => ArenaDetailView(
+                    images: images,
+                    title: cafe['cafe_name'] ?? 'Unknown Cafe',
+                    address: _formatAddress(cafe),
+                    openingHours: _formatOpeningHours(cafe),
+                    availableGames: extractArenaAvailableGames(cafe),
+                    amenities: cafe['amenities'] ?? [],
+                    phone: cafe['phone'] ?? 'Phone not available',
+                    email: cafe['email'] ?? 'Email not available',
+                    ownerName: cafe['owner_name'] ?? 'Owner not available',
+                    reviews: cafe['reviews'] ?? ['Great place!'],
+                    vendorId: cafe['vendor_id'] ?? 0,
+                  ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(25),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                  color: Colors.black,
                 ),
-              ),
-            ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Background image — fill the card precisely
+                    CachedNetworkImage(
+                      imageUrl: img,
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.high,
+                      // Hint the cache with 2x widget size (optional)
 
-            // Subtle gradient for contrast (cheaper than full blur)
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    const Color(0xCC000000), // ~80% black at bottom
-                    const Color(0x66000000), // ~40%
-                    const Color(0x00000000), // transparent
+                      // memCacheWidth: 660,
+                      // memCacheHeight: 280,
+                      placeholder: (_, __) =>
+                          const Center(child: RainbowGlowingLoader(size: 40)),
+                      errorWidget: (_, __, ___) => Container(
+                        color: Colors.grey,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          color: Colors.white54,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+
+                    // Subtle gradient for contrast (cheaper than full blur)
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            const Color(0xCC000000), // ~80% black at bottom
+                            const Color(0x66000000), // ~40%
+                            const Color(0x00000000), // transparent
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Optional mild blur just for the bottom band (keep sigma low)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      top: 53, // glassy bottom 40–60px
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(20),
+                        ),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(
+                            sigmaX: 4,
+                            sigmaY: 4,
+                          ), // was 10 (heavier)
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                    ),
+
+                    // Content
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                          horizontal: 16,
+                        ),
+                        child: Builder(
+                          builder: (_) {
+                            final bool isOpen = _isShopOpen(cafe);
+                            final Color openColor = isOpen
+                                ? const Color(0xff00DC00)
+                                : Colors.red;
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Title
+                                Text(
+                                  toStartCase(
+                                    cafe['cafe_name']?.toString() ??
+                                        'Unknown Cafe',
+                                  ),
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+
+                                const SizedBox(height: 4),
+
+                                // Status · Distance · Duration
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.circle,
+                                      size: 8,
+                                      color: openColor,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      isOpen ? 'Open' : 'Closed',
+                                      style: GoogleFonts.inter(
+                                        color: openColor,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+
+                                    // separator
+                                    _miniSeparator(),
+
+                                    // Distance + duration (or placeholders)
+                                    FutureBuilder<Map<String, String>>(
+                                      future: _distanceFuture(id, pos),
+                                      builder: (_, snap) {
+                                        final dist =
+                                            snap.data?['distance'] ?? '--';
+                                        final dur =
+                                            snap.data?['duration'] ?? '--';
+                                        return Row(
+                                          children: [
+                                            Text(
+                                              dist,
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            _miniSeparator(),
+                                            Text(
+                                              dur,
+                                              style: GoogleFonts.inter(
+                                                color: Colors.grey,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                // Buttons
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 36,
+                                        child: ElevatedButton.icon(
+                                          onPressed: pos == null
+                                              ? null
+                                              : () {
+                                                  final p = pos;
+                                                  _drawRoute(p);
+                                                },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(
+                                              0xff00DC00,
+                                            ),
+                                            disabledBackgroundColor:
+                                                const Color(
+                                                  0xff00DC00,
+                                                ).withValues(alpha: 0.35),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 6,
+                                            ),
+                                            elevation: 0,
+                                          ),
+                                          icon: const Icon(
+                                            Icons.directions_outlined,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          label: Text(
+                                            'Directions',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 36,
+                                        child: ElevatedButton.icon(
+                                          onPressed: pos == null
+                                              ? null
+                                              : () {
+                                                  final p = pos;
+                                                  _openExternalMaps(p);
+                                                },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white
+                                                .withValues(alpha: 0.13),
+                                            disabledBackgroundColor: Colors
+                                                .white
+                                                .withValues(alpha: 0.08),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              side: BorderSide(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.13,
+                                                ),
+                                              ),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 6,
+                                            ),
+                                            elevation: 0,
+                                          ),
+                                          icon: const Icon(
+                                            Icons.map_outlined,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          label: Text(
+                                            'View on maps',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-
-            // Optional mild blur just for the bottom band (keep sigma low)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              top: 53, // glassy bottom 40–60px
-              child: ClipRRect(
-                borderRadius: const BorderRadius.all(Radius.circular(20)),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: 4,
-                    sigmaY: 4,
-                  ), // was 10 (heavier)
-                  child: const SizedBox.expand(),
-                ),
-              ),
-            ),
-
-            // Content
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 16,
-                ),
-                child: Builder(
-                  builder: (_) {
-                    final bool isOpen = _isShopOpen(cafe);
-                    final Color openColor = isOpen
-                        ? const Color(0xff00DC00)
-                        : Colors.red;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Title
-                        Text(
-                          toStartCase(
-                            cafe['cafe_name']?.toString() ?? 'Unknown Cafe',
-                          ),
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            height: 1.1,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-
-                        const SizedBox(height: 4),
-
-                        // Status · Distance · Duration
-                        Row(
-                          children: [
-                            Icon(Icons.circle, size: 8, color: openColor),
-                            const SizedBox(width: 6),
-                            Text(
-                              isOpen ? 'Open' : 'Closed',
-                              style: GoogleFonts.inter(
-                                color: openColor,
-                                fontSize: 12,
-                              ),
-                            ),
-
-                            // separator
-                            _miniSeparator(),
-
-                            // Distance + duration (or placeholders)
-                            FutureBuilder<Map<String, String>>(
-                              future: _distanceFuture(id, pos),
-                              builder: (_, snap) {
-                                final dist = snap.data?['distance'] ?? '--';
-                                final dur = snap.data?['duration'] ?? '--';
-                                return Row(
-                                  children: [
-                                    Text(
-                                      dist,
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    _miniSeparator(),
-                                    Text(
-                                      dur,
-                                      style: GoogleFonts.inter(
-                                        color: Colors.grey,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        // Buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: SizedBox(
-                                height: 36,
-                                child: ElevatedButton.icon(
-                                  onPressed: pos == null
-                                      ? null
-                                      : () {
-                                          final p = pos;
-                                          _drawRoute(p);
-                                        },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xff00DC00),
-                                    disabledBackgroundColor: const Color(
-                                      0xff00DC00,
-                                    ).withValues(alpha: 0.35),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 6,
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  icon: const Icon(
-                                    Icons.directions_outlined,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  label: Text(
-                                    'Directions',
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: SizedBox(
-                                height: 36,
-                                child: ElevatedButton.icon(
-                                  onPressed: pos == null
-                                      ? null
-                                      : () {
-                                          final p = pos;
-                                          _openExternalMaps(p);
-                                        },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white.withValues(
-                                      alpha: 0.13,
-                                    ),
-                                    disabledBackgroundColor: Colors.white
-                                        .withValues(alpha: 0.08),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      side: BorderSide(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.13,
-                                        ),
-                                      ),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 6,
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  icon: const Icon(
-                                    Icons.map_outlined,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  label: Text(
-                                    'View on maps',
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-
-      //
+          ),
+        );
+      },
     );
   }
 

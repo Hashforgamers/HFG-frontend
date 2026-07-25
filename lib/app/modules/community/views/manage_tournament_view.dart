@@ -17,7 +17,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 6,
+      length: 7,
       child: Scaffold(
         backgroundColor: CT.bg,
         appBar: AppBar(
@@ -43,6 +43,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
               Tab(text: 'MATCHES'),
               Tab(text: 'RESULTS'),
               Tab(text: 'PAYOUTS'),
+              Tab(text: 'CONTROL'),
             ],
           ),
         ),
@@ -57,9 +58,10 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
               _overview(context, tournament),
               _roster(context),
               _teams(),
-              _matches(),
+              _matches(context),
               _results(context, tournament),
               _payouts(),
+              _controlRoom(context),
             ],
           );
         }),
@@ -76,44 +78,15 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(t.title, style: CT.display(24)),
-          const SizedBox(height: 6),
-          Text(status.label, style: CT.mono(10, color: status.color)),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              _metric('${t.registeredPlayersCount}/${t.maxPlayers}', 'PLAYERS'),
-              _metric(
-                '${ctCurrency(t.currency)}${ctAmount(t.prizePool)}',
-                'PRIZE POOL',
-              ),
-              _metric(
-                '${ctCurrency(t.currency)}${ctAmount(t.organizerCommissionAmount)}',
-                'EARNINGS',
-              ),
-            ],
-          ),
-          const SizedBox(height: 28),
-          if (!isTerminal) ...[
-            _action(
-              icon: Icons.edit_outlined,
-              title: 'Edit tournament',
-              subtitle: 'Update details, schedule, links, capacity and prizes.',
-              onTap: () async {
-                final result = await Get.toNamed(
-                  AppRoutes.CREATE_TOURNAMENT,
-                  arguments: t,
-                );
-                if (result is Tournament) controller.load();
-              },
+          _overviewHero(t, status),
+          const SizedBox(height: 14),
+          _lifecycleProgress(t.status),
+          const SizedBox(height: 22),
+          if (!isTerminal)
+            _overviewSectionTitle(
+              'NEXT ACTIONS',
+              'Move the tournament forward',
             ),
-            _action(
-              icon: Icons.meeting_room_outlined,
-              title: 'Publish room details',
-              subtitle: 'Game-neutral lobby, schedule and custom join fields.',
-              onTap: () => _roomDialog(context, t),
-            ),
-          ],
           if (t.status == 'draft')
             _action(
               icon: Icons.publish_rounded,
@@ -126,6 +99,73 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
             const SizedBox(height: 8),
             _readiness(controller.readiness.value!),
           ],
+          if (t.status == 'registration_open')
+            _action(
+              icon: Icons.lock_clock_outlined,
+              title: 'Close registration',
+              subtitle:
+                  'Stop new entries now. This cannot be reopened by the scheduler.',
+              onTap: () => _confirmLifecycle(
+                context,
+                title: 'Close registration?',
+                message:
+                    'New players will no longer be able to enter this tournament.',
+                confirmLabel: 'Close registration',
+                action: controller.closeRegistration,
+              ),
+            ),
+          if (t.status == 'registration_closed' && controller.matches.isEmpty)
+            _action(
+              icon: Icons.account_tree_outlined,
+              title: 'Generate bracket',
+              subtitle:
+                  'Create matches from confirmed entries before going live.',
+              onTap: controller.generateMatches,
+              loading: controller.generatingMatches.value,
+            ),
+          if (t.status == 'registration_closed' &&
+              controller.matches.isNotEmpty)
+            _action(
+              icon: Icons.play_circle_outline_rounded,
+              title: 'Start tournament',
+              subtitle:
+                  'Move the tournament to live now and begin operating matches.',
+              onTap: () => _confirmLifecycle(
+                context,
+                title: 'Start tournament now?',
+                message:
+                    'The start time will be updated to now and the tournament will become live.',
+                confirmLabel: 'Start tournament',
+                action: controller.startTournament,
+              ),
+            ),
+          if (!isTerminal) ...[
+            const SizedBox(height: 14),
+            _overviewSectionTitle(
+              'ADMINISTRATION',
+              'Configuration and safety controls',
+            ),
+          ],
+          if (!isTerminal)
+            _action(
+              icon: Icons.edit_outlined,
+              title: 'Edit tournament',
+              subtitle: 'Schedule, format, capacity, prizes and rules.',
+              onTap: () async {
+                final result = await Get.toNamed(
+                  AppRoutes.CREATE_TOURNAMENT,
+                  arguments: t,
+                );
+                if (result is Tournament) controller.load();
+              },
+            ),
+          if (!isTerminal)
+            _action(
+              icon: Icons.meeting_room_outlined,
+              title: 'Room and lobby',
+              subtitle: 'Publish secure join details for confirmed players.',
+              onTap: () => _roomDialog(context, t),
+            ),
           if (!isTerminal)
             _action(
               icon: Icons.cancel_outlined,
@@ -140,93 +180,541 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
     );
   }
 
-  Widget _roster(BuildContext context) => RefreshIndicator(
-    onRefresh: controller.load,
-    color: CT.primary,
-    child: controller.registrations.isEmpty
-        ? _empty('No registrations yet')
-        : ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: controller.registrations.length,
-            separatorBuilder: (_, __) => const Divider(color: CT.outline),
-            itemBuilder: (_, index) =>
-                _registrationRow(context, controller.registrations[index]),
-          ),
+  Widget _roster(BuildContext context) => Column(
+    children: [
+      _tabHeader(
+        icon: Icons.groups_2_outlined,
+        title: 'Participant roster',
+        subtitle:
+            '${controller.registrations.where((item) => item.status == 'confirmed').length} confirmed · '
+            '${controller.registrations.where((item) => item.checkedInAt != null).length} checked in',
+      ),
+      Expanded(
+        child: RefreshIndicator(
+          onRefresh: controller.load,
+          color: CT.primary,
+          child: controller.registrations.isEmpty
+              ? _empty('No registrations yet')
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  itemCount: controller.registrations.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 9),
+                  itemBuilder: (_, index) => _registrationRow(
+                    context,
+                    controller.registrations[index],
+                  ),
+                ),
+        ),
+      ),
+    ],
   );
 
-  Widget _registrationRow(BuildContext context, ManagedRegistration item) {
-    final checkedIn = item.checkedInAt != null;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(
-        backgroundColor: CT.surfaceHigh,
-        backgroundImage: item.gamer.avatarUrl?.isNotEmpty == true
-            ? NetworkImage(item.gamer.avatarUrl!)
-            : null,
-        child: item.gamer.avatarUrl?.isNotEmpty == true
-            ? null
-            : const Icon(Icons.person_outline, color: Colors.white),
+  Widget _overviewHero(Tournament t, dynamic status) {
+    final capacity = t.maxPlayers <= 0
+        ? 0.0
+        : (t.registeredPlayersCount / t.maxPlayers).clamp(0.0, 1.0);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF251746), Color(0xFF10172C), Color(0xFF0D1820)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFF4B3979)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x44000000),
+            blurRadius: 22,
+            offset: Offset(0, 12),
+          ),
+        ],
       ),
-      title: Text(item.gamer.displayName, style: CT.headline(14)),
-      subtitle: Text(
-        '${item.gamer.gameUsername.isEmpty ? item.status : '@${item.gamer.gameUsername} · ${item.status}'}${checkedIn ? ' · checked in' : ''}',
-        style: CT.body(11),
-      ),
-      trailing: PopupMenuButton<String>(
-        color: CT.surfaceHigh,
-        iconColor: Colors.white,
-        onSelected: (action) => controller.registrationAction(item, action),
-        itemBuilder: (_) => [
-          if (item.status == 'confirmed')
-            PopupMenuItem(
-              value: checkedIn ? 'undo_check_in' : 'check_in',
-              child: Text(checkedIn ? 'Undo check-in' : 'Check in'),
-            ),
-          const PopupMenuItem(
-            value: 'remove_participant',
-            child: Text('Remove participant'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t.game.toUpperCase(), style: CT.mono(9)),
+                    const SizedBox(height: 5),
+                    Text(
+                      t.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: CT.display(23),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: status.color.withValues(alpha: .13),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: status.color.withValues(alpha: .7)),
+                ),
+                child: Text(
+                  status.label.toString().toUpperCase(),
+                  style: CT.mono(8, color: status.color),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _metric(
+                '${t.registeredPlayersCount}/${t.maxPlayers}',
+                'PLAYERS',
+                Icons.groups_2_outlined,
+              ),
+              const SizedBox(width: 8),
+              _metric(
+                '${ctCurrency(t.currency)}${ctAmount(t.prizePool)}',
+                'PRIZE POOL',
+                Icons.emoji_events_outlined,
+              ),
+              const SizedBox(width: 8),
+              _metric(
+                '${ctCurrency(t.currency)}${ctAmount(t.organizerCommissionAmount)}',
+                'EARNINGS',
+                Icons.account_balance_wallet_outlined,
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: capacity,
+                    minHeight: 6,
+                    backgroundColor: const Color(0xFF272D45),
+                    valueColor: const AlwaysStoppedAnimation(Color(0xFF00F5D4)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text('${(capacity * 100).round()}% FULL', style: CT.mono(8)),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _teams() => RefreshIndicator(
+  Widget _lifecycleProgress(String status) {
+    const stages = [
+      ('draft', 'SETUP'),
+      ('registration_open', 'REGISTER'),
+      ('registration_closed', 'LOCKED'),
+      ('live', 'LIVE'),
+      ('completed', 'DONE'),
+    ];
+    final aliases = {'published': 1, 'cancelled': 4};
+    final active =
+        aliases[status] ??
+        stages.indexWhere((stage) => stage.$1 == status).clamp(0, 4);
+    return Row(
+      children: List.generate(stages.length, (index) {
+        final reached = index <= active;
+        return Expanded(
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 25,
+                      height: 25,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: reached ? CT.primary : CT.surfaceHigh,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: reached ? CT.primaryBright : CT.outline,
+                        ),
+                      ),
+                      child: reached && index < active
+                          ? const Icon(
+                              Icons.check_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            )
+                          : Text('${index + 1}', style: CT.mono(8)),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      stages[index].$2,
+                      maxLines: 1,
+                      style: CT.mono(
+                        7,
+                        color: reached ? Colors.white : CT.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (index < stages.length - 1)
+                Container(
+                  width: 10,
+                  height: 1,
+                  color: index < active ? CT.primary : CT.outline,
+                ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _overviewSectionTitle(String title, String subtitle) => Padding(
+    padding: const EdgeInsets.only(bottom: 9),
+    child: Row(
+      children: [
+        Container(
+          width: 3,
+          height: 28,
+          decoration: BoxDecoration(
+            color: CT.primary,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: CT.mono(10, color: Colors.white)),
+            Text(subtitle, style: CT.body(10.5)),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Widget _registrationRow(BuildContext context, ManagedRegistration item) {
+    final checkedIn = item.checkedInAt != null;
+    return Container(
+      decoration: _dataCardDecoration(
+        accent: checkedIn ? const Color(0xFF00C9A7) : null,
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        leading: CircleAvatar(
+          backgroundColor: const Color(0xFF292447),
+          backgroundImage: item.gamer.avatarUrl?.isNotEmpty == true
+              ? NetworkImage(item.gamer.avatarUrl!)
+              : null,
+          child: item.gamer.avatarUrl?.isNotEmpty == true
+              ? null
+              : const Icon(Icons.person_outline, color: Colors.white),
+        ),
+        title: Text(item.gamer.displayName, style: CT.headline(14)),
+        subtitle: Text(
+          item.gamer.gameUsername.isEmpty
+              ? item.status.replaceAll('_', ' ')
+              : '@${item.gamer.gameUsername}',
+          style: CT.body(10.5),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _statusPill(
+              checkedIn ? 'CHECKED IN' : item.status,
+              checkedIn ? const Color(0xFF00C9A7) : CT.primaryBright,
+            ),
+            PopupMenuButton<String>(
+              color: CT.surfaceHigh,
+              iconColor: Colors.white,
+              onSelected: (action) =>
+                  controller.registrationAction(item, action),
+              itemBuilder: (_) => [
+                if (item.status == 'confirmed')
+                  PopupMenuItem(
+                    value: checkedIn ? 'undo_check_in' : 'check_in',
+                    child: Text(checkedIn ? 'Undo check-in' : 'Check in'),
+                  ),
+                const PopupMenuItem(
+                  value: 'remove_participant',
+                  child: Text('Remove participant'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _teams() => Column(
+    children: [
+      _tabHeader(
+        icon: Icons.shield_outlined,
+        title: 'Teams',
+        subtitle:
+            '${controller.teams.length} total · ${controller.teams.where((team) => team.checkedIn).length} checked in',
+      ),
+      Expanded(
+        child: RefreshIndicator(
+          onRefresh: controller.load,
+          color: CT.primary,
+          child: controller.teams.isEmpty
+              ? _empty('No teams have been created yet')
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  itemCount: controller.teams.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 9),
+                  itemBuilder: (_, index) {
+                    final team = controller.teams[index];
+                    return Container(
+                      decoration: _dataCardDecoration(
+                        accent: team.checkedIn ? const Color(0xFF00C9A7) : null,
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 13,
+                          vertical: 7,
+                        ),
+                        leading: Container(
+                          width: 42,
+                          height: 42,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF6540BA), Color(0xFF292050)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            team.seed?.toString() ??
+                                team.name.characters.first.toUpperCase(),
+                            style: CT.headline(13),
+                          ),
+                        ),
+                        title: Text(team.name, style: CT.headline(14)),
+                        subtitle: Text(
+                          '${team.acceptedMembers}/${team.members.length} accepted · '
+                          '${team.status.replaceAll('_', ' ')}'
+                          '${team.checkedIn ? ' · checked in' : ''}',
+                          style: CT.body(11),
+                        ),
+                        trailing: PopupMenuButton<String>(
+                          color: CT.surfaceHigh,
+                          iconColor: Colors.white,
+                          onSelected: (action) =>
+                              controller.teamAction(team, action),
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'approve',
+                              child: Text('Approve'),
+                            ),
+                            PopupMenuItem(
+                              value: 'request_information',
+                              child: Text('Request information'),
+                            ),
+                            PopupMenuItem(
+                              value: 'lock_roster',
+                              child: Text('Lock roster'),
+                            ),
+                            PopupMenuItem(
+                              value: 'check_in',
+                              child: Text('Check in'),
+                            ),
+                            PopupMenuItem(
+                              value: 'reject',
+                              child: Text('Reject'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ),
+    ],
+  );
+
+  Widget _matches(BuildContext context) => DefaultTabController(
+    length: 3,
+    child: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 10, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Tournament operations', style: CT.headline(18)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${controller.matches.length} matches · '
+                      '${controller.leaderboard.length} ranked teams',
+                      style: CT.body(11),
+                    ),
+                  ],
+                ),
+              ),
+              if (controller.tournament.value?.status ==
+                      'registration_closed' &&
+                  controller.matches.isEmpty)
+                FilledButton.icon(
+                  onPressed: controller.generatingMatches.value
+                      ? null
+                      : controller.generateMatches,
+                  icon: controller.generatingMatches.value
+                      ? const SizedBox(
+                          width: 24,
+                          child: AppLinearLoader(width: 24, height: 3),
+                        )
+                      : const Icon(Icons.account_tree_outlined, size: 18),
+                  label: Text(
+                    controller.generatingMatches.value
+                        ? 'Generating'
+                        : 'Generate',
+                  ),
+                ),
+              if (controller.teams.length >= 2)
+                IconButton.filledTonal(
+                  tooltip: 'Create match manually',
+                  onPressed: controller.acting.value
+                      ? null
+                      : () => _manualMatchDialog(context),
+                  icon: const Icon(Icons.add_rounded),
+                ),
+            ],
+          ),
+        ),
+        if (controller.error.value != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: _inlineError(controller.error.value!),
+          ),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: CT.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: CT.outline),
+          ),
+          child: TabBar(
+            indicatorSize: TabBarIndicatorSize.tab,
+            dividerColor: Colors.transparent,
+            indicator: BoxDecoration(
+              color: CT.primary,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            labelColor: Colors.white,
+            unselectedLabelColor: CT.muted,
+            labelStyle: CT.headline(11),
+            tabs: const [
+              Tab(icon: Icon(Icons.account_tree_outlined), text: 'BRACKET'),
+              Tab(icon: Icon(Icons.sports_esports_outlined), text: 'MATCHES'),
+              Tab(icon: Icon(Icons.leaderboard_outlined), text: 'RANKING'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: TabBarView(
+            children: [
+              _bracketTab(),
+              _matchListTab(context),
+              _leaderboardTab(),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _bracketTab() => RefreshIndicator(
     onRefresh: controller.load,
     color: CT.primary,
-    child: controller.teams.isEmpty
-        ? _empty('No teams have been created yet')
+    child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      children: [TournamentBracket(matches: controller.matches)],
+    ),
+  );
+
+  Widget _matchListTab(BuildContext context) => RefreshIndicator(
+    onRefresh: controller.load,
+    color: CT.primary,
+    child: controller.matches.isEmpty
+        ? _empty('No matches scheduled yet')
         : ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: controller.teams.length,
-            separatorBuilder: (_, _) => const Divider(color: CT.outline),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            itemCount: controller.matches.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (_, index) =>
+                _matchRow(context, controller.matches[index]),
+          ),
+  );
+
+  Widget _leaderboardTab() => RefreshIndicator(
+    onRefresh: controller.load,
+    color: CT.primary,
+    child: controller.leaderboard.isEmpty
+        ? _empty('Standings will appear after results')
+        : ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            itemCount: controller.leaderboard.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (_, index) {
-              final team = controller.teams[index];
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(team.name, style: CT.headline(14)),
-                subtitle: Text(
-                  '${team.acceptedMembers}/${team.members.length} accepted · '
-                  '${team.status.replaceAll('_', ' ')}'
-                  '${team.checkedIn ? ' · checked in' : ''}',
-                  style: CT.body(11),
+              final entry = controller.leaderboard[index];
+              final podium = index < 3;
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
                 ),
-                trailing: PopupMenuButton<String>(
-                  color: CT.surfaceHigh,
-                  iconColor: Colors.white,
-                  onSelected: (action) => controller.teamAction(team, action),
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'approve', child: Text('Approve')),
-                    PopupMenuItem(
-                      value: 'request_information',
-                      child: Text('Request information'),
+                decoration: BoxDecoration(
+                  color: podium ? const Color(0xFF201A38) : CT.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: podium ? const Color(0xFF57418B) : CT.outline,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 38,
+                      child: Text(
+                        '#${entry.rank ?? index + 1}',
+                        style: CT.headline(
+                          15,
+                          color: podium ? CT.primaryBright : Colors.white,
+                        ),
+                      ),
                     ),
-                    PopupMenuItem(
-                      value: 'lock_roster',
-                      child: Text('Lock roster'),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(entry.name, style: CT.headline(14)),
+                          Text(
+                            '${entry.kills} kills · ${entry.penalties} penalty',
+                            style: CT.body(10.5),
+                          ),
+                        ],
+                      ),
                     ),
-                    PopupMenuItem(value: 'check_in', child: Text('Check in')),
-                    PopupMenuItem(value: 'reject', child: Text('Reject')),
+                    Text('${entry.points} pts', style: CT.headline(13)),
                   ],
                 ),
               );
@@ -234,66 +722,318 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
           ),
   );
 
-  Widget _matches() => RefreshIndicator(
+  Widget _matchRow(BuildContext context, CommunityMatch match) => Container(
+    padding: const EdgeInsets.all(13),
+    decoration: BoxDecoration(
+      color: CT.surface,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: CT.outline),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: const Color(0xFF242044),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: const Icon(
+            Icons.sports_esports_outlined,
+            color: CT.primaryBright,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${match.teamA?.name ?? 'TBD'} vs ${match.teamB?.name ?? 'TBD'}',
+                style: CT.headline(14),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '${match.roundName ?? 'Round ${match.round ?? '—'}'} · '
+                '${match.status.replaceAll('_', ' ')}'
+                '${match.scheduledAt == null ? '' : ' · ${match.scheduledAt!.toLocal()}'}',
+                style: CT.body(10.5),
+              ),
+            ],
+          ),
+        ),
+        if (controller.tournament.value?.status == 'live' &&
+            {'scheduled', 'ready'}.contains(match.status))
+          TextButton(
+            onPressed: controller.acting.value
+                ? null
+                : () => _confirmLifecycle(
+                    context,
+                    title: 'Start this match?',
+                    message:
+                        '${match.teamA?.name ?? 'Team A'} vs ${match.teamB?.name ?? 'Team B'} will move to in progress.',
+                    confirmLabel: 'Start match',
+                    action: () => controller.startMatch(match),
+                  ),
+            child: const Text('START'),
+          ),
+      ],
+    ),
+  );
+
+  Widget _controlRoom(BuildContext context) => RefreshIndicator(
     onRefresh: controller.load,
     color: CT.primary,
     child: ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Row(
-          children: [
-            Expanded(child: Text('Schedule & bracket', style: CT.headline(18))),
-            TextButton.icon(
-              onPressed: controller.acting.value
-                  ? null
-                  : controller.generateMatches,
-              icon: const Icon(Icons.account_tree_outlined),
-              label: const Text('Generate'),
-            ),
-          ],
+        _tabHeader(
+          icon: Icons.dashboard_customize_outlined,
+          title: 'Control room',
+          subtitle: 'Live operations, communications and audit history',
+          action: FilledButton.icon(
+            onPressed: controller.acting.value
+                ? null
+                : () => _announcementDialog(context),
+            icon: const Icon(Icons.campaign_outlined, size: 18),
+            label: const Text('ANNOUNCE'),
+          ),
         ),
-        TournamentBracket(matches: controller.matches),
-        const SizedBox(height: 12),
-        if (controller.matches.isNotEmpty) ...[
-          Text('Match list', style: CT.headline(15)),
-          ...controller.matches.map(_matchRow),
-        ],
-        const SizedBox(height: 24),
-        Text('Leaderboard', style: CT.headline(18)),
-        const SizedBox(height: 8),
-        if (controller.leaderboard.isEmpty)
-          _emptyInline('Standings will appear after results')
+        if (controller.controlRoom.isEmpty)
+          _emptyInline('Control-room summary is unavailable')
         else
-          ...controller.leaderboard.map(
-            (entry) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Text('#${entry.rank ?? '—'}', style: CT.headline(14)),
-              title: Text(entry.name, style: CT.headline(14)),
-              subtitle: Text(
-                '${entry.kills} kills · ${entry.penalties} penalty',
-                style: CT.body(11),
+          ...controller.controlRoom.entries
+              .where((entry) => entry.value is num || entry.value is String)
+              .map(
+                (entry) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: _dataCardDecoration(),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 13),
+                    title: Text(
+                      entry.key.replaceAll('_', ' '),
+                      style: CT.body(12),
+                    ),
+                    trailing: Text(
+                      entry.value.toString(),
+                      style: CT.headline(13),
+                    ),
+                  ),
+                ),
               ),
-              trailing: Text('${entry.points} pts', style: CT.headline(13)),
+        const SizedBox(height: 20),
+        _overviewSectionTitle('ANNOUNCEMENTS', 'Participant communication'),
+        const SizedBox(height: 8),
+        if (controller.announcements.isEmpty)
+          _emptyInline('No announcements yet')
+        else
+          ...controller.announcements.map(
+            (item) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: _dataCardDecoration(accent: CT.primaryBright),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 13),
+                leading: const Icon(Icons.campaign_outlined, color: CT.primary),
+                title: Text(
+                  (item['message'] ?? item['title'] ?? 'Announcement')
+                      .toString(),
+                  style: CT.headline(13),
+                ),
+                subtitle: Text(
+                  (item['audience'] ?? 'all_participants')
+                      .toString()
+                      .replaceAll('_', ' '),
+                  style: CT.body(11),
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 20),
+        _overviewSectionTitle('AUDIT TRAIL', 'Recent operational activity'),
+        const SizedBox(height: 8),
+        if (controller.auditLog.isEmpty)
+          _emptyInline('No audit activity yet')
+        else
+          ...controller.auditLog.map(
+            (item) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: _dataCardDecoration(),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 13),
+                leading: const Icon(Icons.history_rounded, color: CT.muted),
+                title: Text(
+                  (item['action'] ?? item['event'] ?? 'Tournament updated')
+                      .toString()
+                      .replaceAll('_', ' '),
+                  style: CT.headline(13),
+                ),
+                subtitle: Text(
+                  (item['created_at'] ?? item['timestamp'] ?? '').toString(),
+                  style: CT.body(11),
+                ),
+              ),
             ),
           ),
       ],
     ),
   );
 
-  Widget _matchRow(CommunityMatch match) => ListTile(
-    contentPadding: EdgeInsets.zero,
-    leading: const Icon(Icons.sports_esports_outlined, color: CT.primary),
-    title: Text(
-      '${match.teamA?.name ?? 'TBD'} vs ${match.teamB?.name ?? 'TBD'}',
-      style: CT.headline(14),
-    ),
-    subtitle: Text(
-      '${match.roundName ?? 'Round ${match.round ?? '—'}'} · '
-      '${match.status.replaceAll('_', ' ')}'
-      '${match.scheduledAt == null ? '' : ' · ${match.scheduledAt!.toLocal()}'}',
-      style: CT.body(11),
-    ),
-  );
+  Future<void> _announcementDialog(BuildContext context) async {
+    final message = TextEditingController();
+    var audience = 'all_participants';
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: CT.surfaceHigh,
+          title: Text('Publish announcement', style: CT.headline(18)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: message,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Message',
+                  hintText: 'Share an update with participants',
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: audience,
+                dropdownColor: CT.surfaceHigh,
+                decoration: const InputDecoration(labelText: 'Audience'),
+                items:
+                    const {
+                          'all_participants': 'All participants',
+                          'captains': 'Captains',
+                          'unchecked_in': 'Not checked in',
+                        }.entries
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item.key,
+                            child: Text(item.value),
+                          ),
+                        )
+                        .toList(),
+                onChanged: (value) =>
+                    setState(() => audience = value ?? audience),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('CANCEL'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, message.text.trim().isNotEmpty),
+              child: const Text('PUBLISH'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final text = message.text.trim();
+    message.dispose();
+    if (submitted == true && text.isNotEmpty) {
+      await controller.publishAnnouncement(message: text, audience: audience);
+    }
+  }
+
+  Future<void> _manualMatchDialog(BuildContext context) async {
+    String? teamAId;
+    String? teamBId;
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: CT.surfaceHigh,
+          title: Text('Create manual match', style: CT.headline(18)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: teamAId,
+                dropdownColor: CT.surfaceHigh,
+                decoration: const InputDecoration(labelText: 'Team A'),
+                items: controller.teams
+                    .map(
+                      (team) => DropdownMenuItem(
+                        value: team.id,
+                        child: Text(team.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setState(() => teamAId = value),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: teamBId,
+                dropdownColor: CT.surfaceHigh,
+                decoration: const InputDecoration(labelText: 'Team B'),
+                items: controller.teams
+                    .map(
+                      (team) => DropdownMenuItem(
+                        value: team.id,
+                        child: Text(team.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setState(() => teamBId = value),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('CANCEL'),
+            ),
+            FilledButton(
+              onPressed:
+                  teamAId != null && teamBId != null && teamAId != teamBId
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              child: const Text('CREATE'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (submitted == true && teamAId != null && teamBId != null) {
+      await controller.createManualMatch(teamAId: teamAId!, teamBId: teamBId!);
+    }
+  }
+
+  Future<void> _confirmLifecycle(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required Future<void> Function() action,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: CT.surfaceHigh,
+        title: Text(title, style: CT.headline(17)),
+        content: Text(message, style: CT.body(13)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await action();
+  }
 
   Widget _readiness(TournamentReadiness state) => Container(
     padding: const EdgeInsets.all(12),
@@ -316,107 +1056,291 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
     ),
   );
 
-  Widget _results(BuildContext context, Tournament tournament) =>
-      RefreshIndicator(
-        onRefresh: controller.load,
-        color: CT.primary,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Row(
-              children: [
-                Expanded(child: Text('Result inbox', style: CT.headline(18))),
-                if (tournament.status != 'completed')
-                  TextButton(
-                    onPressed: controller.acting.value
-                        ? null
-                        : controller.submitVerifiedWinners,
-                    child: const Text('Submit winners'),
-                  ),
-              ],
-            ),
-            if (controller.results.isEmpty)
-              _emptyInline('No submitted results')
-            else
-              ...controller.results.map(_resultRow),
-            const SizedBox(height: 28),
-            Text('Open disputes', style: CT.headline(18)),
-            const SizedBox(height: 8),
-            if (controller.disputes.isEmpty)
-              _emptyInline('No open disputes')
-            else
-              ...controller.disputes.map(
-                (item) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(item.reason, style: CT.headline(14)),
-                  subtitle: Text(item.description, style: CT.body(12)),
-                  trailing: Text(item.status.toUpperCase(), style: CT.mono(8)),
-                ),
-              ),
-          ],
-        ),
-      );
-
-  Widget _resultRow(MatchResult item) => ListTile(
-    contentPadding: EdgeInsets.zero,
-    title: Text(
-      item.winner?.displayName ?? 'Player ${item.winnerUserId ?? ''}',
-      style: CT.headline(14),
-    ),
-    subtitle: Text(
-      'Rank ${item.rank ?? '—'} · ${item.score ?? 'No score'} · ${item.status}',
-      style: CT.body(11),
-    ),
-    trailing: item.status == 'submitted'
-        ? PopupMenuButton<String>(
-            color: CT.surfaceHigh,
-            iconColor: Colors.white,
-            onSelected: (status) => controller.resultAction(item, status),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'verified', child: Text('Verify')),
-              PopupMenuItem(value: 'rejected', child: Text('Reject')),
-            ],
-          )
-        : null,
-  );
-
-  Widget _payouts() => RefreshIndicator(
-    onRefresh: controller.load,
-    color: CT.primary,
-    child: controller.payouts.isEmpty
-        ? _empty('Payouts appear after winners are submitted')
-        : ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: controller.payouts.length,
-            separatorBuilder: (_, __) => const Divider(color: CT.outline),
-            itemBuilder: (_, index) {
-              final item = controller.payouts[index];
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  item.gamer?.displayName ?? 'Winner',
-                  style: CT.headline(14),
-                ),
-                subtitle: Text(
-                  'Rank ${item.rank ?? '—'} · ${item.status.replaceAll('_', ' ')}',
-                  style: CT.body(11),
-                ),
-                trailing: Text(
-                  '${ctCurrency(item.currency)}${ctAmount(item.amount)}',
-                  style: CT.headline(14, color: CT.successBright),
-                ),
-              );
-            },
-          ),
-  );
-
-  Widget _metric(String value, String label) => Expanded(
+  Widget _results(
+    BuildContext context,
+    Tournament tournament,
+  ) => DefaultTabController(
+    length: 2,
     child: Column(
       children: [
-        Text(value, style: CT.headline(16)),
-        const SizedBox(height: 4),
-        Text(label, style: CT.mono(8)),
+        _tabHeader(
+          icon: Icons.fact_check_outlined,
+          title: 'Results center',
+          subtitle:
+              '${controller.results.length} submissions · ${controller.disputes.length} disputes',
+          action: tournament.status != 'completed'
+              ? FilledButton.tonal(
+                  onPressed: controller.acting.value
+                      ? null
+                      : controller.submitVerifiedWinners,
+                  child: const Text('SUBMIT WINNERS'),
+                )
+              : null,
+        ),
+        _compactTabBar(const [Tab(text: 'SUBMISSIONS'), Tab(text: 'DISPUTES')]),
+        const SizedBox(height: 8),
+        Expanded(
+          child: TabBarView(
+            children: [
+              RefreshIndicator(
+                onRefresh: controller.load,
+                child: controller.results.isEmpty
+                    ? _empty('No submitted results')
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                        itemCount: controller.results.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 9),
+                        itemBuilder: (_, index) =>
+                            _resultRow(controller.results[index]),
+                      ),
+              ),
+              RefreshIndicator(
+                onRefresh: controller.load,
+                child: controller.disputes.isEmpty
+                    ? _empty('No open disputes')
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                        itemCount: controller.disputes.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 9),
+                        itemBuilder: (_, index) {
+                          final item = controller.disputes[index];
+                          return Container(
+                            padding: const EdgeInsets.all(13),
+                            decoration: _dataCardDecoration(accent: CT.error),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.gavel_outlined,
+                                  color: CT.error,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(item.reason, style: CT.headline(14)),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        item.description,
+                                        style: CT.body(11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                _statusPill(item.status, CT.error),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
       ],
+    ),
+  );
+
+  Widget _resultRow(MatchResult item) => Container(
+    decoration: _dataCardDecoration(
+      accent: item.status == 'verified' ? CT.successBright : null,
+    ),
+    child: ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+      leading: Container(
+        width: 39,
+        height: 39,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFF292447),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Text('#${item.rank ?? '—'}', style: CT.headline(12)),
+      ),
+      title: Text(
+        item.winner?.displayName ?? 'Player ${item.winnerUserId ?? ''}',
+        style: CT.headline(14),
+      ),
+      subtitle: Text(item.score ?? 'No score supplied', style: CT.body(10.5)),
+      trailing: item.status == 'submitted'
+          ? PopupMenuButton<String>(
+              color: CT.surfaceHigh,
+              iconColor: Colors.white,
+              onSelected: (status) => controller.resultAction(item, status),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'verified', child: Text('Verify')),
+                PopupMenuItem(value: 'rejected', child: Text('Reject')),
+              ],
+            )
+          : _statusPill(
+              item.status,
+              item.status == 'verified' ? CT.successBright : CT.muted,
+            ),
+    ),
+  );
+
+  Widget _payouts() => Column(
+    children: [
+      _tabHeader(
+        icon: Icons.payments_outlined,
+        title: 'Payout tracker',
+        subtitle:
+            '${controller.payouts.length} payouts · '
+            '${controller.payouts.where((item) => item.status == 'paid').length} settled',
+      ),
+      Expanded(
+        child: RefreshIndicator(
+          onRefresh: controller.load,
+          color: CT.primary,
+          child: controller.payouts.isEmpty
+              ? _empty('Payouts appear after winners are submitted')
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  itemCount: controller.payouts.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 9),
+                  itemBuilder: (_, index) {
+                    final item = controller.payouts[index];
+                    final paid = item.status == 'paid';
+                    return Container(
+                      decoration: _dataCardDecoration(
+                        accent: paid ? CT.successBright : null,
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 13,
+                          vertical: 7,
+                        ),
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFF292447),
+                          child: Text(
+                            '#${item.rank ?? '—'}',
+                            style: CT.headline(11),
+                          ),
+                        ),
+                        title: Text(
+                          item.gamer?.displayName ?? 'Winner',
+                          style: CT.headline(14),
+                        ),
+                        subtitle: Text(
+                          'Rank ${item.rank ?? '—'} · ${item.status.replaceAll('_', ' ')}',
+                          style: CT.body(11),
+                        ),
+                        trailing: Text(
+                          '${ctCurrency(item.currency)}${ctAmount(item.amount)}',
+                          style: CT.headline(14, color: CT.successBright),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ),
+    ],
+  );
+
+  Widget _tabHeader({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Widget? action,
+  }) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+    child: Row(
+      children: [
+        Container(
+          width: 43,
+          height: 43,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF6040B3), Color(0xFF292050)],
+            ),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(icon, color: Colors.white, size: 21),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: CT.headline(18)),
+              const SizedBox(height: 2),
+              Text(subtitle, style: CT.body(10.5)),
+            ],
+          ),
+        ),
+        if (action != null) ...[const SizedBox(width: 8), action],
+      ],
+    ),
+  );
+
+  Widget _compactTabBar(List<Tab> tabs) => Container(
+    margin: const EdgeInsets.symmetric(horizontal: 16),
+    padding: const EdgeInsets.all(3),
+    decoration: BoxDecoration(
+      color: CT.surface,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: CT.outline),
+    ),
+    child: TabBar(
+      tabs: tabs,
+      indicatorSize: TabBarIndicatorSize.tab,
+      dividerColor: Colors.transparent,
+      indicator: BoxDecoration(
+        color: CT.primary,
+        borderRadius: BorderRadius.circular(9),
+      ),
+      labelColor: Colors.white,
+      unselectedLabelColor: CT.muted,
+      labelStyle: CT.mono(9),
+    ),
+  );
+
+  BoxDecoration _dataCardDecoration({Color? accent}) => BoxDecoration(
+    color: CT.surface,
+    borderRadius: BorderRadius.circular(15),
+    border: Border.all(color: accent?.withValues(alpha: .55) ?? CT.outline),
+    boxShadow: const [
+      BoxShadow(color: Color(0x22000000), blurRadius: 10, offset: Offset(0, 5)),
+    ],
+  );
+
+  Widget _statusPill(String text, Color color) => Container(
+    constraints: const BoxConstraints(maxWidth: 92),
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .1),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: color.withValues(alpha: .45)),
+    ),
+    child: Text(
+      text.replaceAll('_', ' ').toUpperCase(),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: CT.mono(7, color: color),
+    ),
+  );
+
+  Widget _metric(String value, String label, IconData icon) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+      decoration: BoxDecoration(
+        color: const Color(0x88151A2A),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFF303750)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 17, color: CT.primaryBright),
+          const SizedBox(height: 6),
+          FittedBox(child: Text(value, style: CT.headline(14))),
+          const SizedBox(height: 4),
+          Text(label, maxLines: 1, style: CT.mono(7)),
+        ],
+      ),
     ),
   );
 
@@ -426,16 +1350,46 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
     required String subtitle,
     required VoidCallback onTap,
     bool destructive = false,
-  }) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(vertical: 4),
-    onTap: controller.acting.value ? null : onTap,
-    leading: Icon(icon, color: destructive ? CT.error : CT.primaryBright),
-    title: Text(
-      title,
-      style: CT.headline(14, color: destructive ? CT.error : Colors.white),
+    bool loading = false,
+  }) => Container(
+    margin: const EdgeInsets.only(bottom: 9),
+    decoration: BoxDecoration(
+      color: destructive ? CT.error.withValues(alpha: .06) : CT.surface,
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(
+        color: destructive ? CT.error.withValues(alpha: .35) : CT.outline,
+      ),
     ),
-    subtitle: Text(subtitle, style: CT.body(11)),
-    trailing: const Icon(Icons.chevron_right_rounded, color: CT.muted),
+    child: ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
+      onTap: controller.acting.value ? null : onTap,
+      leading: Container(
+        width: 39,
+        height: 39,
+        decoration: BoxDecoration(
+          color: destructive
+              ? CT.error.withValues(alpha: .12)
+              : CT.primary.withValues(alpha: .14),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: destructive ? CT.error : CT.primaryBright,
+        ),
+      ),
+      title: Text(
+        title,
+        style: CT.headline(13.5, color: destructive ? CT.error : Colors.white),
+      ),
+      subtitle: Text(subtitle, style: CT.body(10.5)),
+      trailing: loading
+          ? const SizedBox(
+              width: 34,
+              child: AppLinearLoader(width: 34, height: 3),
+            )
+          : const Icon(Icons.chevron_right_rounded, color: CT.muted),
+    ),
   );
 
   Widget _empty(String text) => ListView(
@@ -449,6 +1403,14 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
   Widget _emptyInline(String text) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 24),
     child: Text(text, style: CT.body(12)),
+  );
+  Widget _inlineError(String text) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: CT.card().copyWith(
+      border: Border.all(color: CT.error.withValues(alpha: .6)),
+    ),
+    child: Text(text, style: CT.body(12, color: CT.error)),
   );
   Widget _error(String? text) => Center(
     child: Padding(

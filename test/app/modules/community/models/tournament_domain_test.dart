@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hash/app/modules/community/models/host_verification.dart';
 import 'package:hash/app/modules/community/models/tournament.dart';
 import 'package:hash/app/modules/community/models/tournament_domain.dart';
+import 'package:hash/app/modules/community/models/tournament_operations.dart';
 
 void main() {
   group('safe status parsing', () {
@@ -41,6 +42,24 @@ void main() {
       expect(tournament.statusValue, TournamentStatus.unknown);
       expect(tournament.canRegister, isFalse);
       expect(registration.statusValue, RegistrationStatus.unknown);
+    });
+
+    test('tournament parses esports scheduling configuration', () {
+      final tournament = Tournament.fromJson({
+        'id': 't1',
+        'match_duration_minutes': 45,
+        'break_duration_minutes': 15,
+        'schedule_config': {'concurrent_matches': 3},
+        'team_size': 5,
+        'registration_policy': 'manual_approval',
+        'rules_config': {'evidence_required': true},
+      });
+      expect(tournament.matchDurationMinutes, 45);
+      expect(tournament.breakDurationMinutes, 15);
+      expect(tournament.concurrentMatches, 3);
+      expect(tournament.teamSize, 5);
+      expect(tournament.registrationPolicy, 'manual_approval');
+      expect(tournament.evidenceRequired, isTrue);
     });
   });
 
@@ -103,6 +122,27 @@ void main() {
       expect(errors, contains('rosterLockAt'));
       expect(errors, contains('checkInCloseAt'));
       expect(errors, contains('tournamentEndAt'));
+    });
+  });
+
+  group('lifecycle status', () {
+    test('parses the public status response and capacity', () {
+      final status = TournamentLifecycleStatus.fromJson({
+        'id': 't1',
+        'title': 'Friday Cup',
+        'status': 'registration_closed',
+        'registration_start_at': '2026-07-24T10:00:00Z',
+        'registration_end_at': '2026-07-25T10:00:00Z',
+        'tournament_start_at': '2026-07-25T12:00:00Z',
+        'registered_players_count': 8,
+        'max_players': 16,
+      });
+
+      expect(status.status, 'registration_closed');
+      expect(status.registeredPlayersCount, 8);
+      expect(status.maxPlayers, 16);
+      expect(status.hasCapacity, isTrue);
+      expect(status.tournamentStartAt, DateTime.utc(2026, 7, 25, 12));
     });
   });
 

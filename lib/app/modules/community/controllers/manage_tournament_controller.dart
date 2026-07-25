@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 import '../models/community_entities.dart';
@@ -18,8 +19,13 @@ class ManageTournamentController extends GetxController {
   final matches = <CommunityMatch>[].obs;
   final leaderboard = <TournamentLeaderboardEntry>[].obs;
   final readiness = Rxn<TournamentReadiness>();
+  final lifecycleStatus = Rxn<TournamentLifecycleStatus>();
+  final controlRoom = <String, dynamic>{}.obs;
+  final announcements = <Map<String, dynamic>>[].obs;
+  final auditLog = <Map<String, dynamic>>[].obs;
   final loading = true.obs;
   final acting = false.obs;
+  final generatingMatches = false.obs;
   final error = RxnString();
 
   late final String tournamentId;
@@ -73,6 +79,22 @@ class ManageTournamentController extends GetxController {
       matches.assignAll(lists[5].cast<CommunityMatch>());
       leaderboard.assignAll(lists[6].cast<TournamentLeaderboardEntry>());
       try {
+        controlRoom.assignAll(await _api.tournamentControlRoom(tournamentId));
+      } catch (_) {
+        controlRoom.clear();
+      }
+      announcements.assignAll(
+        await _safe(() => _api.tournamentAnnouncements(tournamentId)),
+      );
+      auditLog.assignAll(
+        await _safe(() => _api.tournamentAuditLog(tournamentId)),
+      );
+      try {
+        lifecycleStatus.value = await _api.getTournamentStatus(tournamentId);
+      } catch (_) {
+        lifecycleStatus.value = null;
+      }
+      try {
         readiness.value = await _api.tournamentReadiness(tournamentId);
       } catch (_) {
         readiness.value = null;
@@ -114,10 +136,109 @@ class ManageTournamentController extends GetxController {
     );
   }
 
-  Future<void> generateMatches() => _mutate(
-    () => _api.generateMatches(tournamentId),
-    success: 'Schedule and bracket generated',
+  Future<void> generateMatches() async {
+    if (generatingMatches.value || acting.value) return;
+    generatingMatches.value = true;
+    try {
+      await _mutate(
+        () async {
+          final generated = await _api.generateMatches(tournamentId);
+          await _bestEffortAnnouncement(
+            message:
+                'The tournament bracket is ready. Open the tournament arena to see your match path.',
+            audience: 'all_participants',
+          );
+          return generated;
+        },
+        success: 'Schedule and bracket generated',
+        errorTitle: 'Could not generate bracket',
+        errorFallback: 'Bracket generation failed. Please try again.',
+      );
+    } finally {
+      if (!isClosed) generatingMatches.value = false;
+    }
+  }
+
+  Future<void> closeRegistration() => _mutate(
+    () => _api.closeRegistration(tournamentId),
+    success: 'Registration closed',
   );
+
+  Future<void> startTournament() => _mutate(() async {
+    final started = await _api.startTournament(tournamentId);
+    await _bestEffortAnnouncement(
+      message:
+          'The tournament is now live. Check the bracket and be ready for your match.',
+      audience: 'all_participants',
+    );
+    return started;
+  }, success: 'Tournament is now live');
+
+  Future<void> startMatch(CommunityMatch match) => _mutate(() async {
+    final started = await _api.operateMatch(
+      tournamentId,
+      match.id,
+      action: 'start',
+    );
+    final teamIds = [
+      if (match.teamA?.id.isNotEmpty == true) match.teamA!.id,
+      if (match.teamB?.id.isNotEmpty == true) match.teamB!.id,
+    ];
+    if (teamIds.isNotEmpty) {
+      await _bestEffortAnnouncement(
+        message:
+            '${match.teamA?.name ?? 'Team A'} vs ${match.teamB?.name ?? 'Team B'} is starting now.',
+        audience: 'specific_teams',
+        teamIds: teamIds,
+      );
+    }
+    return started;
+  }, success: 'Match started');
+
+  Future<void> createManualMatch({
+    required String teamAId,
+    required String teamBId,
+    DateTime? scheduledAt,
+  }) => _mutate(
+    () => _api.createMatch(tournamentId, {
+      'team_a_id': teamAId,
+      'team_b_id': teamBId,
+      if (scheduledAt != null)
+        'scheduled_at': scheduledAt.toUtc().toIso8601String(),
+    }),
+    success: 'Match created',
+    errorTitle: 'Could not create match',
+  );
+
+  Future<void> publishAnnouncement({
+    required String message,
+    required String audience,
+  }) => _mutate(
+    () => _api.publishAnnouncement(
+      tournamentId,
+      message: message,
+      audience: audience,
+    ),
+    success: 'Announcement published',
+    errorTitle: 'Could not publish announcement',
+  );
+
+  Future<void> _bestEffortAnnouncement({
+    required String message,
+    required String audience,
+    List<String> teamIds = const [],
+  }) async {
+    try {
+      await _api.publishAnnouncement(
+        tournamentId,
+        message: message,
+        audience: audience,
+        teamIds: teamIds,
+      );
+    } catch (_) {
+      // The lifecycle mutation remains authoritative if communication fails.
+    }
+  }
 
   Future<void> teamAction(
     CommunityTeam team,
@@ -211,6 +332,8 @@ class ManageTournamentController extends GetxController {
   Future<void> _mutate(
     Future<Object?> Function() request, {
     required String success,
+    String errorTitle = 'Could not update tournament',
+    String errorFallback = 'Action could not be completed.',
   }) async {
     if (acting.value) return;
     acting.value = true;
@@ -223,11 +346,11 @@ class ManageTournamentController extends GetxController {
       _showSnackbar(success, '', snackPosition: SnackPosition.BOTTOM);
     } on DioException catch (e) {
       if (isClosed) return;
-      error.value = _message(e, fallback: 'Action could not be completed.');
-      _showSnackbar('Could not update tournament', error.value!);
+      error.value = _message(e, fallback: errorFallback);
+      _showSnackbar(errorTitle, error.value!);
     } catch (_) {
       if (isClosed) return;
-      error.value = 'Action could not be completed.';
+      error.value = errorFallback;
     } finally {
       if (!isClosed) acting.value = false;
     }
@@ -238,14 +361,25 @@ class ManageTournamentController extends GetxController {
     String message, {
     SnackPosition snackPosition = SnackPosition.TOP,
   }) {
-    if (isClosed || Get.overlayContext == null) return;
+    final overlayContext = Get.overlayContext;
+    if (isClosed ||
+        overlayContext == null ||
+        Overlay.maybeOf(overlayContext) == null) {
+      return;
+    }
     Get.snackbar(title, message, snackPosition: snackPosition);
   }
 
   String _message(DioException e, {required String fallback}) {
     final data = e.response?.data;
-    return data is Map && data['message'] != null
-        ? data['message'].toString()
-        : fallback;
+    if (data is Map) {
+      for (final key in ['message', 'detail', 'error']) {
+        final value = data[key];
+        if (value != null && value.toString().trim().isNotEmpty) {
+          return value.toString();
+        }
+      }
+    }
+    return fallback;
   }
 }
