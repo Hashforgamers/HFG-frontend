@@ -311,7 +311,7 @@ class _TournamentCard extends StatelessWidget {
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF0B2410), Color(0xFF090909)],
+        colors: [Color(0xFF2A1708), Color(0xFF090909)],
       ),
     ),
     child: Center(

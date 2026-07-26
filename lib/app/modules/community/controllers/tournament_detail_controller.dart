@@ -1,16 +1,24 @@
 import 'dart:async';
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/service/notification_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/tournament.dart';
 import '../models/tournament_operations.dart';
 import '../services/community_api.dart';
+import '../services/tournament_result_evidence_service.dart';
 
 /// Tournament detail + registration.
 /// Uses authed detail when a session exists (for room_details), else public.
 class TournamentDetailController extends GetxController {
+  static final Map<String, List<CommunityMatch>> _matchCache = {};
+  static final Map<String, String> _matchFingerprints = {};
+
   final CommunityApi _api = CommunityApi();
+  final ImagePicker _imagePicker = ImagePicker();
+  final TournamentResultEvidenceService _evidenceService =
+      TournamentResultEvidenceService();
 
   final Rxn<Tournament> tournament = Rxn<Tournament>();
   final RxBool loading = true.obs;
@@ -46,6 +54,7 @@ class TournamentDetailController extends GetxController {
     } else {
       _id = '';
     }
+    _restoreCachedMatches(private: canManage.value);
     refreshDetail();
     _liveTimer = Timer.periodic(
       const Duration(seconds: 30),
@@ -103,6 +112,7 @@ class TournamentDetailController extends GetxController {
         participantTeams.clear();
       }
       if (hasJoined.value) {
+        await refreshLiveData();
         try {
           announcements.assignAll(await _api.tournamentAnnouncements(_id));
         } catch (_) {
@@ -121,7 +131,10 @@ class TournamentDetailController extends GetxController {
   Future<void> refreshLiveData({bool notify = false}) async {
     if (_id.isEmpty) return;
     try {
-      final nextMatches = await _api.tournamentMatches(_id);
+      final nextMatches = await _api.tournamentMatches(
+        _id,
+        private: hasJoined.value || canManage.value,
+      );
       String? nextStatus = tournament.value?.status;
       try {
         final lifecycle = await _api.getTournamentStatus(_id);
@@ -153,7 +166,10 @@ class TournamentDetailController extends GetxController {
           }
         }
       }
-      matches.assignAll(nextMatches);
+      _updateMatchesIfChanged(
+        nextMatches,
+        private: hasJoined.value || canManage.value,
+      );
       _lastStatus = nextStatus;
       _knownMatchStates
         ..clear()
@@ -168,6 +184,69 @@ class TournamentDetailController extends GetxController {
         announcements.clear();
       }
     }
+  }
+
+  void _restoreCachedMatches({required bool private}) {
+    if (_id.isEmpty) return;
+    final cached =
+        _matchCache[_cacheKey(private)] ?? _matchCache[_cacheKey(false)];
+    if (cached != null && cached.isNotEmpty) {
+      matches.assignAll(cached);
+    }
+  }
+
+  void _updateMatchesIfChanged(
+    List<CommunityMatch> nextMatches, {
+    required bool private,
+  }) {
+    final key = _cacheKey(private);
+    final fingerprint = _matchesFingerprint(nextMatches);
+    if (_matchFingerprints[key] == fingerprint &&
+        _matchesFingerprint(matches) == fingerprint) {
+      return;
+    }
+    final snapshot = List<CommunityMatch>.unmodifiable(nextMatches);
+    _matchCache[key] = snapshot;
+    _matchFingerprints[key] = fingerprint;
+    matches.assignAll(snapshot);
+  }
+
+  String _cacheKey(bool private) => '$_id:${private ? 'private' : 'public'}';
+
+  String _matchesFingerprint(List<CommunityMatch> values) {
+    final sorted = [...values]..sort((a, b) => a.id.compareTo(b.id));
+    return sorted
+        .map(
+          (match) => [
+            match.id,
+            match.round,
+            match.roundName,
+            match.status,
+            match.scheduledAt?.millisecondsSinceEpoch,
+            match.teamA?.id,
+            match.teamA?.name,
+            match.teamA?.members
+                .map(
+                  (member) =>
+                      '${member.userId}:${member.displayName}:${member.role}',
+                )
+                .join(','),
+            match.teamB?.id,
+            match.teamB?.name,
+            match.teamB?.members
+                .map(
+                  (member) =>
+                      '${member.userId}:${member.displayName}:${member.role}',
+                )
+                .join(','),
+            match.winnerTeamId,
+            match.teamAScore,
+            match.teamBScore,
+            match.lobbyId,
+            match.accessCode,
+          ].join('|'),
+        )
+        .join('||');
   }
 
   Future<void> _notify(String title, String body) async {
@@ -200,10 +279,112 @@ class TournamentDetailController extends GetxController {
     }
   }
 
+  CommunityTeam? get currentTeam => participantTeams
+      .where((team) => team.id == currentTeamId.value)
+      .firstOrNull;
+
+  bool get isCurrentUserCaptain =>
+      currentTeam?.members.any(
+        (member) =>
+            member.userId == currentUserId.value && member.role == 'captain',
+      ) ??
+      false;
+
+  Future<String?> pickAndUploadEvidence(String matchId) async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 88,
+      maxWidth: 2000,
+    );
+    if (picked == null) return null;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw Exception('Sign in to upload match evidence.');
+    final match = matches.where((item) => item.id == matchId).firstOrNull;
+    if (match == null) throw Exception('Match details are unavailable.');
+    final analysis = await _evidenceService.analyze(
+      picked.path,
+      match,
+      game: tournament.value?.game,
+    );
+    return _evidenceService.store(
+      tournamentId: _id,
+      match: match,
+      submittedAs: canManage.value ? 'host' : 'participant',
+      analysis: analysis,
+    );
+  }
+
+  Future<void> submitMatchResult({
+    required CommunityMatch match,
+    required String winnerTeamId,
+    required int teamAScore,
+    required int teamBScore,
+    required List<String> evidenceAssetIds,
+    String? notes,
+  }) async {
+    acting.value = true;
+    try {
+      await _api.submitCaptainResult(
+        _id,
+        match.id,
+        winnerTeamId: winnerTeamId,
+        teamAScore: teamAScore,
+        teamBScore: teamBScore,
+        evidenceAssetIds: evidenceAssetIds,
+        notes: notes,
+      );
+      await refreshLiveData();
+      Get.snackbar(
+        'Result locked in',
+        'Waiting for the opposing captain to confirm the same score.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (error) {
+      Get.snackbar(
+        'Result not submitted',
+        _reason(error),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      acting.value = false;
+    }
+  }
+
+  Future<void> openMatchDispute({
+    required CommunityMatch match,
+    required String reason,
+    required String description,
+    required List<String> evidenceAssetIds,
+  }) async {
+    acting.value = true;
+    try {
+      await _api.createDispute(
+        _id,
+        reason: reason,
+        description: description,
+        evidenceAssetIds: evidenceAssetIds,
+      );
+      Get.snackbar(
+        'Dispute opened',
+        'The platform admin review team has been notified.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (error) {
+      Get.snackbar(
+        'Could not open dispute',
+        _reason(error),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      acting.value = false;
+    }
+  }
+
   String _reason(Object e) {
     final s = e.toString();
     if (s.contains('409')) return 'Already registered or tournament is full.';
     if (s.contains('403')) return 'Not allowed for this tournament.';
+    if (s.contains('400')) return 'Check the scores and required evidence.';
     return 'Please try again.';
   }
 

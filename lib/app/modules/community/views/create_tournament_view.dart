@@ -106,81 +106,7 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                   ),
                   const SizedBox(height: 22),
                   _section('SCHEDULE'),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _presetButton(
-                          'This weekend',
-                          Icons.auto_awesome_rounded,
-                          () =>
-                              controller.setSchedulePreset(nextWeekend: false),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _presetButton(
-                          'Next weekend',
-                          Icons.event_available_rounded,
-                          () => controller.setSchedulePreset(nextWeekend: true),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _dateTile(
-                    context,
-                    'Registration starts',
-                    controller.registrationStart,
-                  ),
-                  _dateTile(
-                    context,
-                    'Registration ends',
-                    controller.registrationEnd,
-                  ),
-                  _dateTile(
-                    context,
-                    'Tournament starts',
-                    controller.tournamentStart,
-                  ),
-                  _dateTile(
-                    context,
-                    'Tournament ends (optional)',
-                    controller.tournamentEnd,
-                    optional: true,
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _field(
-                          'Match duration (minutes)',
-                          controller.matchDuration,
-                          keyboard: TextInputType.number,
-                          formatters: [FilteringTextInputFormatter.digitsOnly],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _field(
-                          'Break duration (minutes)',
-                          controller.breakDuration,
-                          keyboard: TextInputType.number,
-                          formatters: [FilteringTextInputFormatter.digitsOnly],
-                        ),
-                      ),
-                    ],
-                  ),
-                  _field(
-                    'Concurrent matches',
-                    controller.concurrentMatches,
-                    hint: 'Number of matches that can run at once',
-                    keyboard: TextInputType.number,
-                    formatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
-                  Text(
-                    'These settings are used when the bracket is generated.',
-                    style: CT.body(11, color: CT.muted),
-                  ),
+                  _scheduleEditor(context),
                   const SizedBox(height: 22),
                   _section('PRIZE DISTRIBUTION'),
                   Wrap(
@@ -269,6 +195,195 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
       ],
     );
   }
+
+  Widget _scheduleEditor(BuildContext context) => Obx(() {
+    final locked = controller.scheduleLocked.value;
+    final checking = controller.scheduleLockChecking.value;
+    final duration = controller.estimatedDuration.value;
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final durationLabel = [
+      if (hours > 0) '${hours}h',
+      if (minutes > 0 || hours == 0) '${minutes}m',
+    ].join(' ');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (checking)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                const SizedBox.square(
+                  dimension: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 8),
+                Text('Checking bracket status…', style: CT.body(11)),
+              ],
+            ),
+          ),
+        if (locked)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: CT.primary.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: CT.primary.withValues(alpha: .35)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lock_clock_outlined, color: CT.primaryBright),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    'Schedule locked because matches exist or the tournament is live. Reschedule individual matches from Match controls.',
+                    style: CT.body(11),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else ...[
+          Row(
+            children: [
+              Expanded(
+                child: _presetButton(
+                  'This weekend',
+                  Icons.auto_awesome_rounded,
+                  () => controller.setSchedulePreset(nextWeekend: false),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _presetButton(
+                  'Next weekend',
+                  Icons.event_available_rounded,
+                  () => controller.setSchedulePreset(nextWeekend: true),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
+        _dateTile(
+          context,
+          'Registration starts',
+          controller.registrationStart,
+          enabled: !locked,
+        ),
+        _dateTile(
+          context,
+          'Registration ends',
+          controller.registrationEnd,
+          enabled: !locked,
+        ),
+        _dateTile(
+          context,
+          'Roster lock',
+          controller.rosterLockAt,
+          enabled: !locked,
+        ),
+        _dateTile(
+          context,
+          'Tournament starts',
+          controller.tournamentStart,
+          enabled: !locked,
+        ),
+        _dateTile(
+          context,
+          'Tournament ends',
+          controller.tournamentEnd,
+          enabled: !locked,
+        ),
+        const SizedBox(height: 2),
+        Row(
+          children: [
+            Expanded(
+              child: _field(
+                'Match duration (minutes)',
+                controller.matchDuration,
+                keyboard: TextInputType.number,
+                formatters: [FilteringTextInputFormatter.digitsOnly],
+                enabled: !locked,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _field(
+                'Break duration (minutes)',
+                controller.breakDuration,
+                keyboard: TextInputType.number,
+                formatters: [FilteringTextInputFormatter.digitsOnly],
+                enabled: !locked,
+              ),
+            ),
+          ],
+        ),
+        _field(
+          'Concurrent matches',
+          controller.concurrentMatches,
+          hint: 'Number of matches that can run at once',
+          keyboard: TextInputType.number,
+          formatters: [FilteringTextInputFormatter.digitsOnly],
+          enabled: !locked,
+        ),
+        if (!locked)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: CT.primaryBright.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: CT.primaryBright.withValues(alpha: .28),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: CT.primaryBright,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Estimated ${controller.estimatedRounds} rounds · $durationLabel for ${controller.estimatedTeamCount} teams. End time updates automatically.',
+                    style: CT.body(11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (controller.scheduleValidationError.value != null && !locked)
+          Padding(
+            padding: const EdgeInsets.only(top: 9),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.error_outline, color: CT.error, size: 18),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    controller.scheduleValidationError.value!,
+                    style: CT.body(11, color: CT.error),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 4),
+        Text(
+          'The backend validates every schedule again when you save.',
+          style: CT.body(10.5, color: CT.muted),
+        ),
+      ],
+    );
+  });
 
   Widget _gamePicker() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,7 +530,7 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                       child: Image.network(
                         url,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) {
+                        errorBuilder: (_, error, stackTrace) {
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             controller.generatedBannerFailedToLoad();
                           });
@@ -697,21 +812,17 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                       ),
                     _dateTile(
                       context,
-                      'Roster lock (optional)',
-                      controller.rosterLockAt,
-                      optional: true,
-                    ),
-                    _dateTile(
-                      context,
                       'Check-in starts (optional)',
                       controller.checkInStartAt,
                       optional: true,
+                      enabled: !controller.scheduleLocked.value,
                     ),
                     _dateTile(
                       context,
                       'Check-in ends (optional)',
                       controller.checkInEndAt,
                       optional: true,
+                      enabled: !controller.scheduleLocked.value,
                     ),
                     Row(
                       children: [
@@ -808,10 +919,12 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
     TextInputType? keyboard,
     List<TextInputFormatter>? formatters,
     bool required = true,
+    bool enabled = true,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 13),
     child: TextField(
       controller: textController,
+      enabled: enabled,
       maxLines: maxLines,
       keyboardType: keyboard,
       inputFormatters: formatters,
@@ -909,11 +1022,12 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
     String label,
     Rxn<DateTime> value, {
     bool optional = false,
+    bool enabled = true,
   }) => Obx(
     () => Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: InkWell(
-        onTap: () => controller.pickDateTime(context, value),
+        onTap: enabled ? () => controller.pickDateTime(context, value) : null,
         borderRadius: BorderRadius.circular(10),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -945,13 +1059,15 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                   ],
                 ),
               ),
-              if (optional && value.value != null)
+              if (optional && value.value != null && enabled)
                 IconButton(
                   onPressed: () => value.value = null,
                   icon: const Icon(Icons.close, color: CT.muted, size: 18),
                 )
-              else
+              else if (enabled)
                 const Icon(Icons.chevron_right, color: CT.muted),
+              if (!enabled)
+                const Icon(Icons.lock_outline, color: CT.muted, size: 18),
             ],
           ),
         ),
@@ -1003,7 +1119,8 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
         children: [
           Expanded(
             child: OutlinedButton(
-              onPressed: controller.submitting.value
+              onPressed:
+                  controller.submitting.value || !controller.canSaveSchedule
                   ? null
                   : () => controller.submit(publish: false),
               style: OutlinedButton.styleFrom(
@@ -1018,7 +1135,8 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
-                onPressed: controller.submitting.value
+                onPressed:
+                    controller.submitting.value || !controller.canSaveSchedule
                     ? null
                     : () => controller.submit(publish: true),
                 style: ElevatedButton.styleFrom(

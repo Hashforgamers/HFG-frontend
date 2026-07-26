@@ -17,9 +17,12 @@ import 'community_theme.dart';
 import 'tournament_share_poster_view.dart';
 import 'tournaments_view.dart' show ctCurrency, ctAmount, ctStatus;
 
-/// Tournament detail — GET /tournaments/<id> (+ register / cancel).
+/// Tournament detail, including registration and live match operations.
 class TournamentDetailView extends GetView<TournamentDetailController> {
   const TournamentDetailView({super.key});
+
+  static const _joinOrange = Color(0xFFF8A241);
+  static const _joinOrangeDark = Color(0xFFC06701);
 
   @override
   Widget build(BuildContext context) {
@@ -73,26 +76,31 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
     return ListView(
       padding: EdgeInsets.zero,
       children: [
-        SizedBox(height: 180, width: double.infinity, child: _banner(t)),
+        AspectRatio(aspectRatio: 16 / 8.5, child: _banner(t)),
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(t.title, style: CT.display(24)),
-              const SizedBox(height: 8),
+              Text(t.title, style: CT.display(26)),
+              const SizedBox(height: 10),
               Row(
                 children: [
-                  _chip(t.game, CT.secondary),
+                  _chip(t.game, _joinOrange),
                   const SizedBox(width: 8),
                   if (t.tournamentType != null)
-                    _chip(t.tournamentType!.replaceAll('_', ' '), CT.muted),
+                    _chip(
+                      t.tournamentType!.replaceAll('_', ' '),
+                      CT.onSurfaceVariant,
+                    ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 22),
               Container(
-                padding: const EdgeInsets.all(14),
-                decoration: CT.card(),
+                padding: const EdgeInsets.only(bottom: 18),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: CT.hairline)),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -108,16 +116,16 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 22),
               if (t.description != null && t.description!.isNotEmpty) ...[
                 _section('About'),
                 Text(t.description!, style: CT.body(14)),
-                const SizedBox(height: 16),
+                const SizedBox(height: 22),
               ],
               _section('Schedule'),
               _row('Registration ends', _fmt(t.registrationEndAt)),
               _row('Starts', _fmt(t.tournamentStartAt)),
-              const SizedBox(height: 16),
+              const SizedBox(height: 22),
               if (controller.matches.isNotEmpty ||
                   {'registration_closed', 'live', 'completed'}.contains(
                     controller.lifecycleStatus.value?.status ?? t.status,
@@ -142,7 +150,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                             const Icon(
                               Icons.campaign_outlined,
                               size: 19,
-                              color: CT.primary,
+                              color: _joinOrange,
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -204,9 +212,20 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
         16,
         12 + Get.mediaQuery.padding.bottom,
       ),
-      child: Obx(
-        () => SizedBox(
-          height: 52,
+      child: Obx(() {
+        final active =
+            controller.canManage.value ||
+            controller.hasJoined.value ||
+            canRegister;
+        return Container(
+          height: 54,
+          decoration: BoxDecoration(
+            gradient: active
+                ? const LinearGradient(colors: [_joinOrange, _joinOrangeDark])
+                : null,
+            color: active ? null : CT.surfaceHigh,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: ElevatedButton(
             onPressed: controller.canManage.value
                 ? () => Get.toNamed(
@@ -219,13 +238,8 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                 ? null
                 : () => _openRegistration(t),
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  controller.canManage.value ||
-                      controller.hasJoined.value ||
-                      canRegister
-                  ? CT.primary
-                  : CT.surfaceHigh,
-              disabledBackgroundColor: CT.surfaceHigh,
+              backgroundColor: Colors.transparent,
+              disabledBackgroundColor: Colors.transparent,
               foregroundColor: Colors.white,
               disabledForegroundColor: CT.muted,
               elevation: 0,
@@ -247,17 +261,12 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                         : st.label,
                     style: CT.headline(
                       15,
-                      color:
-                          controller.canManage.value ||
-                              controller.hasJoined.value ||
-                              canRegister
-                          ? Colors.white
-                          : CT.muted,
+                      color: active ? Colors.white : CT.muted,
                     ),
                   ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 
@@ -274,18 +283,13 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(
-                color: live ? const Color(0x2200F5D4) : const Color(0x227548E8),
+                color: _joinOrange.withValues(alpha: .1),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: live ? const Color(0xFF00F5D4) : CT.primary,
-                ),
+                border: Border.all(color: _joinOrange.withValues(alpha: .6)),
               ),
               child: Text(
                 live ? '● LIVE' : liveStatus.replaceAll('_', ' ').toUpperCase(),
-                style: CT.mono(
-                  8,
-                  color: live ? const Color(0xFF00F5D4) : CT.primaryBright,
-                ),
+                style: CT.mono(8, color: _joinOrange),
               ),
             ),
           ],
@@ -297,17 +301,15 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(13),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF20143C), Color(0xFF10172C)],
-              ),
+              color: CT.surface,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF6840C8)),
+              border: Border.all(color: CT.outline),
             ),
             child: Row(
               children: [
                 const Icon(
                   Icons.notifications_active_rounded,
-                  color: Color(0xFF00F5D4),
+                  color: _joinOrange,
                 ),
                 const SizedBox(width: 11),
                 Expanded(
@@ -340,8 +342,8 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
           label: const Text('OPEN HASH HUB'),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(48),
-            foregroundColor: const Color(0xFF00F5D4),
-            side: const BorderSide(color: Color(0xFF315F66)),
+            foregroundColor: _joinOrange,
+            side: BorderSide(color: _joinOrange.withValues(alpha: .5)),
           ),
         ),
       ],
@@ -375,62 +377,374 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2A1848), Color(0xFF111A32)],
-        ),
-        borderRadius: BorderRadius.circular(18),
+        color: CT.surface,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: live ? const Color(0xFF00F5D4) : const Color(0xFF8058DD),
+          color: _joinOrange.withValues(alpha: live ? .9 : .55),
           width: 1.4,
         ),
         boxShadow: [
           BoxShadow(
-            color: live ? const Color(0x3300F5D4) : const Color(0x337548E8),
+            color: _joinOrange.withValues(alpha: live ? .18 : .1),
             blurRadius: 18,
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFF33215B),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(
-              live ? Icons.sensors_rounded : Icons.sports_esports_rounded,
-              color: live ? const Color(0xFF00F5D4) : CT.primaryBright,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _joinOrange.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  live ? Icons.sensors_rounded : Icons.sports_esports_rounded,
+                  color: _joinOrange,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      live ? 'YOUR MATCH IS LIVE' : 'YOUR NEXT MATCH',
+                      style: CT.mono(9, color: _joinOrange),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'vs ${opponent?.name ?? 'TBD'}',
+                      style: CT.headline(17),
+                    ),
+                    Text(
+                      match.scheduledAt == null
+                          ? match.status.replaceAll('_', ' ')
+                          : '${match.status.replaceAll('_', ' ')} · ${_fmt(match.scheduledAt)}',
+                      style: CT.body(10.5),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'View teams',
+                onPressed: () => _showMatchDetails(match),
+                icon: const Icon(Icons.groups_2_outlined, color: _joinOrange),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
+          if (live || {'completed', 'disputed'}.contains(match.status)) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (controller.isCurrentUserCaptain &&
+                    !{'completed', 'cancelled'}.contains(match.status))
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: controller.acting.value
+                          ? null
+                          : () => _openResultSubmission(match),
+                      icon: const Icon(Icons.upload_file_rounded, size: 18),
+                      label: const Text('UPLOAD RESULT'),
+                    ),
+                  ),
+                if (controller.isCurrentUserCaptain &&
+                    !{'completed', 'cancelled'}.contains(match.status))
+                  const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: controller.acting.value
+                        ? null
+                        : () => _openDispute(match),
+                    icon: const Icon(Icons.gavel_rounded, size: 17),
+                    label: const Text('DISPUTE'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFFFC857),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (!controller.isCurrentUserCaptain)
+              Padding(
+                padding: const EdgeInsets.only(top: 7),
+                child: Text(
+                  'Your captain submits the score. Any player in this match can open a dispute.',
+                  style: CT.body(9.5),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showMatchDetails(CommunityMatch match) {
+    Get.bottomSheet(
+      SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: const BoxDecoration(
+            color: Color(0xFF111526),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  live ? 'YOUR MATCH IS LIVE' : 'YOUR NEXT MATCH',
-                  style: CT.mono(
-                    9,
-                    color: live ? const Color(0xFF00F5D4) : CT.primaryBright,
+                Text('MATCH ROSTERS', style: CT.mono(11, color: _joinOrange)),
+                const SizedBox(height: 14),
+                _teamRoster(match.teamA, match.teamAScore),
+                const SizedBox(height: 12),
+                _teamRoster(match.teamB, match.teamBScore),
+                if (match.lobbyId != null || match.accessCode != null) ...[
+                  const SizedBox(height: 16),
+                  Text('PRIVATE LOBBY', style: CT.mono(9)),
+                  Text(
+                    [
+                      if (match.lobbyId != null) 'ID ${match.lobbyId}',
+                      if (match.accessCode != null) 'Code ${match.accessCode}',
+                    ].join(' · '),
+                    style: CT.body(13, color: Colors.white),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
+  }
+
+  Widget _teamRoster(CommunityTeam? team, int? score) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(13),
+    decoration: CT.card(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                team?.name ?? 'Awaiting winner',
+                style: CT.headline(15),
+              ),
+            ),
+            Text(score?.toString() ?? '—', style: CT.display(22)),
+          ],
+        ),
+        if (team != null && team.members.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          for (final member in team.members)
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_outline, size: 16, color: CT.muted),
+                  const SizedBox(width: 7),
+                  Expanded(child: Text(member.displayName, style: CT.body(12))),
+                  if (member.role == 'captain')
+                    Text('CAPTAIN', style: CT.mono(7, color: _joinOrange)),
+                ],
+              ),
+            ),
+        ],
+      ],
+    ),
+  );
+
+  Future<void> _openResultSubmission(CommunityMatch match) async {
+    final aScore = TextEditingController();
+    final bScore = TextEditingController();
+    final notes = TextEditingController();
+    final evidence = <String>[];
+    String? winner = match.teamA?.id;
+    await Get.dialog<void>(
+      StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: const Color(0xFF15192A),
+          title: const Text('Submit match result'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: winner,
+                  decoration: const InputDecoration(labelText: 'Winner'),
+                  items: [match.teamA, match.teamB]
+                      .whereType<CommunityTeam>()
+                      .where((team) => team.id.isNotEmpty)
+                      .map(
+                        (team) => DropdownMenuItem(
+                          value: team.id,
+                          child: Text(team.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => winner = value,
+                ),
+                TextField(
+                  controller: aScore,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: '${match.teamA?.name ?? 'Team A'} score',
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text('vs ${opponent?.name ?? 'TBD'}', style: CT.headline(17)),
-                Text(
-                  match.scheduledAt == null
-                      ? match.status.replaceAll('_', ' ')
-                      : '${match.status.replaceAll('_', ' ')} · ${_fmt(match.scheduledAt)}',
-                  style: CT.body(10.5),
+                TextField(
+                  controller: bScore,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: '${match.teamB?.name ?? 'Team B'} score',
+                  ),
+                ),
+                TextField(
+                  controller: notes,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    try {
+                      final id = await controller.pickAndUploadEvidence(
+                        match.id,
+                      );
+                      if (id != null) setState(() => evidence.add(id));
+                    } catch (error) {
+                      Get.snackbar(
+                        'Could not read screenshot',
+                        error.toString(),
+                        snackPosition: SnackPosition.BOTTOM,
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  label: Text(
+                    evidence.isEmpty
+                        ? 'ADD RESULT SCREENSHOT'
+                        : '${evidence.length} SCREENSHOT ADDED',
+                  ),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: CT.muted),
-        ],
+          actions: [
+            TextButton(onPressed: Get.back, child: const Text('CANCEL')),
+            ElevatedButton(
+              onPressed: () async {
+                final scoreA = int.tryParse(aScore.text);
+                final scoreB = int.tryParse(bScore.text);
+                if (winner == null || scoreA == null || scoreB == null) {
+                  Get.snackbar(
+                    'Missing result',
+                    'Choose a winner and enter both scores.',
+                  );
+                  return;
+                }
+                Get.back();
+                await controller.submitMatchResult(
+                  match: match,
+                  winnerTeamId: winner!,
+                  teamAScore: scoreA,
+                  teamBScore: scoreB,
+                  evidenceAssetIds: const [],
+                  notes: notes.text,
+                );
+              },
+              child: const Text('SUBMIT'),
+            ),
+          ],
+        ),
       ),
     );
+    aScore.dispose();
+    bScore.dispose();
+    notes.dispose();
+  }
+
+  Future<void> _openDispute(CommunityMatch match) async {
+    final reason = TextEditingController();
+    final description = TextEditingController();
+    final evidence = <String>[];
+    await Get.dialog<void>(
+      StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: const Color(0xFF15192A),
+          title: const Text('Open a dispute'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: reason,
+                  decoration: const InputDecoration(labelText: 'Reason'),
+                ),
+                TextField(
+                  controller: description,
+                  minLines: 3,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                    labelText: 'Explain what happened',
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    try {
+                      final id = await controller.pickAndUploadEvidence(
+                        match.id,
+                      );
+                      if (id != null) setState(() => evidence.add(id));
+                    } catch (error) {
+                      Get.snackbar(
+                        'Could not read screenshot',
+                        error.toString(),
+                        snackPosition: SnackPosition.BOTTOM,
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  label: Text(
+                    evidence.isEmpty
+                        ? 'ADD EVIDENCE'
+                        : '${evidence.length} EVIDENCE FILE ADDED',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: Get.back, child: const Text('CANCEL')),
+            ElevatedButton(
+              onPressed: () async {
+                if (reason.text.trim().isEmpty ||
+                    description.text.trim().isEmpty) {
+                  Get.snackbar(
+                    'Missing details',
+                    'Add a reason and description.',
+                  );
+                  return;
+                }
+                Get.back();
+                await controller.openMatchDispute(
+                  match: match,
+                  reason: reason.text,
+                  description: description.text,
+                  evidenceAssetIds: const [],
+                );
+              },
+              child: const Text('OPEN DISPUTE'),
+            ),
+          ],
+        ),
+      ),
+    );
+    reason.dispose();
+    description.dispose();
   }
 
   Widget _playerComms() {
@@ -438,8 +752,12 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
     final myTeam = controller.participantTeams
         .where((team) => team.id == myTeamId)
         .firstOrNull;
+    final activeMatch = _currentPlayerMatch();
+    final opponentTeamId = activeMatch?.teamA?.id == myTeamId
+        ? activeMatch?.teamB?.id
+        : activeMatch?.teamA?.id;
     final opponents = controller.participantTeams
-        .where((team) => team.id != myTeamId)
+        .where((team) => team.id == opponentTeamId)
         .expand((team) => team.members)
         .where((member) => member.userId != null)
         .toList();
@@ -458,29 +776,25 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF151A31), Color(0xFF0D1121)],
+          colors: [Color(0xFF2A1A0D), Color(0xFF0D0B09)],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF303A61)),
+        border: Border.all(color: const Color(0xFF53351B)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.forum_rounded,
-                size: 19,
-                color: Color(0xFF00F5D4),
-              ),
+              const Icon(Icons.forum_rounded, size: 19, color: _joinOrange),
               const SizedBox(width: 8),
               Expanded(child: Text('PLAYER COMMS', style: CT.mono(10))),
-              Text('HASH HUB', style: CT.mono(8, color: CT.primaryBright)),
+              Text('HASH HUB', style: CT.mono(8, color: _joinOrange)),
             ],
           ),
           const SizedBox(height: 6),
           Text(
-            'Message teammates or opponents without leaving the tournament.',
+            'Your match channel: teammates and your assigned opponent only.',
             style: CT.body(11),
           ),
           const SizedBox(height: 12),
@@ -571,10 +885,25 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
 
   Widget _banner(Tournament t) {
     if (t.bannerUrl != null && t.bannerUrl!.isNotEmpty) {
-      return Image.network(
-        t.bannerUrl!,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _fallback(),
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(
+            t.bannerUrl!,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _fallback(),
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Color(0xB3000000)],
+                stops: [.55, 1],
+              ),
+            ),
+          ),
+        ],
       );
     }
     return _fallback();
@@ -585,13 +914,13 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF0B2410), Color(0xFF090909)],
+        colors: [Color(0xFF2A1708), Color(0xFF090909)],
       ),
     ),
     child: Center(
       child: Icon(
         Icons.sports_esports_rounded,
-        color: CT.primary.withOpacity(0.5),
+        color: _joinOrange.withValues(alpha: 0.55),
         size: 48,
       ),
     ),
@@ -599,7 +928,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
 
   Widget _section(String s) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: Text(s.toUpperCase(), style: CT.mono(11, color: CT.secondary)),
+    child: Text(s.toUpperCase(), style: CT.mono(10, color: _joinOrange)),
   );
 
   Widget _roomDetailsCard(Tournament tournament) {
@@ -612,7 +941,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
       decoration: BoxDecoration(
         color: CT.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: CT.primary.withValues(alpha: .4)),
+        border: Border.all(color: _joinOrange.withValues(alpha: .4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -751,9 +1080,9 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
   Widget _chip(String text, Color color) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
-      color: color.withOpacity(0.12),
+      color: color.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(6),
-      border: Border.all(color: color.withOpacity(0.4)),
+      border: Border.all(color: color.withValues(alpha: 0.4)),
     ),
     child: Text(
       text,
@@ -768,8 +1097,8 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
       icon: Icon(icon, size: 18),
       label: Text(label),
       style: OutlinedButton.styleFrom(
-        foregroundColor: CT.secondary,
-        side: BorderSide(color: CT.secondary.withOpacity(0.6)),
+        foregroundColor: _joinOrange,
+        side: BorderSide(color: _joinOrange.withValues(alpha: 0.5)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     ),

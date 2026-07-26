@@ -366,7 +366,7 @@ class RazorpayController extends GetxController {
           totalText: "",
           email: "",
           onViewInvoice: () {
-            Get.offAllNamed('/home', arguments: {'tabIndex': 2});
+            Get.offAllNamed('/home', arguments: {'tabIndex': 3});
           },
         ),
       );

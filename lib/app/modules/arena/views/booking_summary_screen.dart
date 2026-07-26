@@ -1986,7 +1986,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             totalText: totalPrice.toString(),
             email: "",
             onViewInvoice: () {
-              Get.offAllNamed('/home', arguments: {'tabIndex': 2});
+              Get.offAllNamed('/home', arguments: {'tabIndex': 3});
             },
           ),
         );
@@ -2254,7 +2254,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           totalText: totalPrice.toString(),
           email: "",
           onViewInvoice: () {
-            Get.offAllNamed('/home', arguments: {'tabIndex': 2});
+            Get.offAllNamed('/home', arguments: {'tabIndex': 3});
           },
         ),
       );

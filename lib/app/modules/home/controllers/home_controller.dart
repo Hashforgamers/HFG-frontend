@@ -65,7 +65,7 @@ class HomeController extends GetxController {
     Haptics.navigation();
 
     // --- Keep shop bar aligned with selected tab ---
-    if (index == 2 && isHashShopReleased) {
+    if (index == 3 && isHashShopReleased) {
       isShopOpen.value = true;
     } else if (isShopOpen.value) {
       isShopOpen.value = false;
@@ -104,9 +104,9 @@ class HomeController extends GetxController {
       case 1:
         return const ArenaView();
       case 2:
-        return PastBookingsScreen();
-      case 3:
         return _buildTournamentScreen();
+      case 3:
+        return PastBookingsScreen();
       case 4:
         return const UserProfileView();
       default:

@@ -51,6 +51,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView>
   double _hostSheetUpwardDrag = 0;
   bool _hostDragThresholdReached = false;
   bool _hostSheetOpening = false;
+  bool _actionCenterExpanded = false;
   Set<String> _savedTournamentIds = <String>{};
 
   @override
@@ -289,162 +290,242 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView>
     final next = _nextActionTournament(joinedTournaments);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: const Color(0xFF101310),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0x332FD85B)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0x2200DC00),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.bolt_rounded,
-                    color: Color(0xFF00DC00),
-                    size: 21,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Action center',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      Text(
-                        'Everything that needs your attention',
-                        style: GoogleFonts.inter(
-                          color: Colors.white54,
-                          fontSize: 10.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Notifications',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => Get.toNamed(AppRoutes.NOTIFICATIONS),
-                  icon: const Icon(
-                    Icons.notifications_none_rounded,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+        alignment: Alignment.topCenter,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(13, 11, 11, 11),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF17130E), Color(0xFF0D0D0D)],
             ),
-            const SizedBox(height: 13),
-            StreamBuilder<List<FriendRelationship>>(
-              stream: _friendService.watchRelationships(),
-              builder: (context, friendSnapshot) {
-                final uid = _friendService.currentUid ?? '';
-                final requests = (friendSnapshot.data ?? const [])
-                    .where((item) => item.isIncoming(uid))
-                    .length;
-                return FutureBuilder<HostVerification?>(
-                  future: _hostRegistration,
-                  builder: (context, hostSnapshot) {
-                    final isHost =
-                        hostSnapshot.data?.status ==
-                        HostVerificationStatus.verified;
-                    final actions =
-                        <
-                          ({
-                            IconData icon,
-                            String title,
-                            String subtitle,
-                            Color color,
-                            VoidCallback onTap,
-                          })
-                        >[
-                          if (live.isNotEmpty)
-                            (
-                              icon: Icons.sensors_rounded,
-                              title:
-                                  '${live.length} live ${live.length == 1 ? 'event' : 'events'}',
-                              subtitle: 'Enter now',
-                              color: const Color(0xFFFF5252),
-                              onTap: () => _openTournament(live.first),
-                            )
-                          else if (next != null)
-                            (
-                              icon: Icons.schedule_rounded,
-                              title: 'Next tournament',
-                              subtitle: 'In ${_timeUntil(next.startDate)}',
-                              color: const Color(0xFF00DC00),
-                              onTap: () => _openTournament(next),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0x55F8A241)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => setState(
+                        () => _actionCenterExpanded = !_actionCenterExpanded,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: const Color(0x22F8A241),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                          if (requests > 0)
-                            (
-                              icon: Icons.person_add_alt_1_rounded,
-                              title:
-                                  '$requests friend ${requests == 1 ? 'request' : 'requests'}',
-                              subtitle: 'Review requests',
-                              color: const Color(0xFF5DA9FF),
-                              onTap: () => Get.to(
-                                () => const FriendsView(initialTab: 1),
-                              ),
+                            child: const Icon(
+                              Icons.bolt_rounded,
+                              color: Color(0xFFF8A241),
+                              size: 21,
                             ),
-                          if (isHost)
-                            (
-                              icon: Icons.dashboard_customize_rounded,
-                              title: 'Host operations',
-                              subtitle: 'Open command center',
-                              color: const Color(0xFFFFB648),
-                              onTap: () =>
-                                  Get.toNamed(AppRoutes.HOST_DASHBOARD),
-                            ),
-                          (
-                            icon: Icons.notifications_active_outlined,
-                            title: 'Updates',
-                            subtitle: 'Announcements & alerts',
-                            color: const Color(0xFFB88CFF),
-                            onTap: () => Get.toNamed(AppRoutes.NOTIFICATIONS),
                           ),
-                        ];
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final tileWidth = (constraints.maxWidth - 9) / 2;
-                        return Wrap(
-                          spacing: 9,
-                          runSpacing: 9,
-                          children: actions
-                              .map(
-                                (action) => SizedBox(
-                                  width: tileWidth,
-                                  child: _actionCenterTile(
-                                    icon: action.icon,
-                                    title: action.title,
-                                    subtitle: action.subtitle,
-                                    color: action.color,
-                                    onTap: action.onTap,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Action center',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                              )
-                              .toList(),
+                                Text(
+                                  live.isNotEmpty
+                                      ? '${live.length} live now · Tap to open'
+                                      : next != null
+                                      ? 'Next match ${_timeUntil(next.startDate)} · Tap to open'
+                                      : 'Updates and tournament tools',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white54,
+                                    fontSize: 9.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                IconButton(
+                  tooltip: _actionCenterExpanded ? 'Collapse' : 'Expand',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => setState(
+                      () => _actionCenterExpanded = !_actionCenterExpanded,
+                    ),
+                    icon: AnimatedRotation(
+                      turns: _actionCenterExpanded ? .5 : 0,
+                      duration: const Duration(milliseconds: 220),
+                      child: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Color(0xFFF8A241),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (_actionCenterExpanded) ...[
+                const SizedBox(height: 10),
+                StreamBuilder<List<FriendRelationship>>(
+                  stream: _friendService.watchRelationships(),
+                  builder: (context, friendSnapshot) {
+                    final uid = _friendService.currentUid ?? '';
+                    final requests = (friendSnapshot.data ?? const [])
+                        .where((item) => item.isIncoming(uid))
+                        .length;
+                    return FutureBuilder<HostVerification?>(
+                      future: _hostRegistration,
+                      builder: (context, hostSnapshot) {
+                        final isHost =
+                            hostSnapshot.data?.status ==
+                            HostVerificationStatus.verified;
+                        final actions =
+                            <
+                              ({
+                                IconData icon,
+                                String title,
+                                String subtitle,
+                                Color color,
+                                VoidCallback onTap,
+                              })
+                            >[
+                              if (live.isNotEmpty)
+                                (
+                                  icon: Icons.sensors_rounded,
+                                  title:
+                                      '${live.length} live ${live.length == 1 ? 'event' : 'events'}',
+                                  subtitle: 'Enter now',
+                                  color: const Color(0xFFFF5252),
+                                  onTap: () => _openTournament(live.first),
+                                )
+                              else if (next != null)
+                                (
+                                  icon: Icons.schedule_rounded,
+                                  title: 'Next tournament',
+                                  subtitle: 'In ${_timeUntil(next.startDate)}',
+                                  color: const Color(0xFFF8A241),
+                                  onTap: () => _openTournament(next),
+                                ),
+                              if (requests > 0)
+                                (
+                                  icon: Icons.person_add_alt_1_rounded,
+                                  title:
+                                      '$requests friend ${requests == 1 ? 'request' : 'requests'}',
+                                  subtitle: 'Review requests',
+                                  color: const Color(0xFFF8A241),
+                                  onTap: () => Get.to(
+                                    () => const FriendsView(initialTab: 1),
+                                  ),
+                                ),
+                              if (isHost)
+                                (
+                                  icon: Icons.dashboard_customize_rounded,
+                                  title: 'Host operations',
+                                  subtitle: 'Open command center',
+                                  color: const Color(0xFFF8A241),
+                                  onTap: () =>
+                                      Get.toNamed(AppRoutes.HOST_DASHBOARD),
+                                ),
+                              (
+                                icon: Icons.notifications_active_outlined,
+                                title: 'Updates',
+                                subtitle: 'Announcements & alerts',
+                                color: const Color(0xFFF8A241),
+                                onTap: () =>
+                                    Get.toNamed(AppRoutes.NOTIFICATIONS),
+                              ),
+                            ];
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            final useColumns = constraints.maxWidth >= 560;
+                            final secondaryWidth =
+                                (constraints.maxWidth - 10) / 2;
+                            if (!useColumns) {
+                              return Column(
+                                children: [
+                                  for (
+                                    var index = 0;
+                                    index < actions.length;
+                                    index++
+                                  )
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        bottom: index == actions.length - 1
+                                            ? 0
+                                            : 8,
+                                      ),
+                                      child: _actionCenterTile(
+                                        icon: actions[index].icon,
+                                        title: actions[index].title,
+                                        subtitle: actions[index].subtitle,
+                                        color: actions[index].color,
+                                        onTap: actions[index].onTap,
+                                        featured: index == 0,
+                                      ),
+                                    ),
+                                ],
+                              );
+                            }
+                            return Column(
+                              children: [
+                                _actionCenterTile(
+                                  icon: actions.first.icon,
+                                  title: actions.first.title,
+                                  subtitle: actions.first.subtitle,
+                                  color: actions.first.color,
+                                  onTap: actions.first.onTap,
+                                  featured: true,
+                                ),
+                                if (actions.length > 1) ...[
+                                  const SizedBox(height: 9),
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 9,
+                                    children: actions
+                                        .skip(1)
+                                        .map(
+                                          (action) => SizedBox(
+                                            width: secondaryWidth,
+                                            child: _actionCenterTile(
+                                              icon: action.icon,
+                                              title: action.title,
+                                              subtitle: action.subtitle,
+                                              color: action.color,
+                                              onTap: action.onTap,
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
                         );
                       },
                     );
                   },
-                );
-              },
-            ),
-          ],
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -456,38 +537,53 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView>
     required String subtitle,
     required Color color,
     required VoidCallback onTap,
+    bool featured = false,
   }) {
     return Material(
-      color: const Color(0xFF181A18),
-      borderRadius: BorderRadius.circular(13),
+      color: featured
+          ? color.withValues(alpha: .1)
+          : Colors.white.withValues(alpha: .035),
+      borderRadius: BorderRadius.circular(15),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(15),
         child: Padding(
-          padding: const EdgeInsets.all(11),
+          padding: const EdgeInsets.fromLTRB(11, 11, 10, 11),
           child: Row(
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: featured ? 40 : 36,
+                height: featured ? 40 : 36,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: .13),
-                  borderRadius: BorderRadius.circular(10),
+                  color: color.withValues(alpha: featured ? .2 : .12),
+                  borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(icon, color: color, size: 18),
+                child: Icon(icon, color: color, size: featured ? 21 : 18),
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (featured) ...[
+                      Text(
+                        'UP NEXT',
+                        style: GoogleFonts.inter(
+                          color: color,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                    ],
                     Text(
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         color: Colors.white,
-                        fontSize: 11.5,
+                        fontSize: featured ? 13 : 11.5,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -503,6 +599,12 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView>
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: featured ? color : Colors.white38,
+                size: 17,
               ),
             ],
           ),
@@ -748,12 +850,12 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView>
     bool live = false,
   }) {
     return SizedBox(
-      height: 132,
+      height: live ? 96 : 132,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         itemCount: tournaments.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final tournament = tournaments[index];
           final deadline = tournament.registrationEndDate;
@@ -764,8 +866,8 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView>
               onTap: () => _openTournament(tournament),
               borderRadius: BorderRadius.circular(16),
               child: Ink(
-                width: 245,
-                padding: const EdgeInsets.all(13),
+                width: live ? 218 : 245,
+                padding: EdgeInsets.all(live ? 9 : 13),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
@@ -777,7 +879,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView>
                     ClipRRect(
                       borderRadius: BorderRadius.circular(11),
                       child: SizedBox(
-                        width: 78,
+                        width: live ? 58 : 78,
                         height: double.infinity,
                         child: tournament.imageUrl.startsWith('http')
                             ? CachedNetworkImage(
@@ -794,7 +896,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView>
                               ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: live ? 9 : 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -822,14 +924,14 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView>
                                 letterSpacing: .4,
                               ),
                             ),
-                          const SizedBox(height: 6),
+                          SizedBox(height: live ? 3 : 6),
                           Text(
                             tournament.title,
-                            maxLines: 2,
+                            maxLines: live ? 1 : 2,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(
                               color: Colors.white,
-                              fontSize: 13,
+                              fontSize: live ? 12 : 13,
                               height: 1.15,
                               fontWeight: FontWeight.w700,
                             ),

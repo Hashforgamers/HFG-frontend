@@ -115,7 +115,7 @@ class VerificationCheckoutController extends GetxController {
         'description': 'Official Host Verification',
         'order_id': _activeOrderId,
         if (prefill.isNotEmpty) 'prefill': prefill,
-        'theme': {'color': '#00DC00'},
+        'theme': {'color': '#F8A241'},
         'retry': {'enabled': true, 'max_count': 2},
       });
       Haptics.cta();

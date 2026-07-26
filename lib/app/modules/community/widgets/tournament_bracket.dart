@@ -105,13 +105,13 @@ class _TournamentBracketState extends State<TournamentBracket> {
                       height: 30,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFF8E5CFF), Color(0xFF00F5D4)],
+                          colors: [Color(0xFFF8A241), Color(0xFFC06701)],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                         ),
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: const [
-                          BoxShadow(color: Color(0x998E5CFF), blurRadius: 12),
+                          BoxShadow(color: Color(0x99F8A241), blurRadius: 12),
                         ],
                       ),
                     ),
@@ -296,7 +296,7 @@ class _RoundHeader extends StatelessWidget {
       Icon(
         isFinal ? Icons.emoji_events_rounded : Icons.bolt_rounded,
         size: 16,
-        color: isFinal ? const Color(0xFFFFC857) : const Color(0xFF9A74FF),
+        color: isFinal ? const Color(0xFFFFC857) : CT.primary,
       ),
       const SizedBox(width: 7),
       Expanded(
@@ -331,10 +331,14 @@ class _MatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final live = {'live', 'in_progress'}.contains(match.status);
+    final isResolvedBye =
+        {'completed', 'bye'}.contains(match.status) &&
+        (match.teamA == null || match.teamB == null) &&
+        (match.teamA != null || match.teamB != null);
     return Semantics(
       label:
-          '${match.teamA?.name ?? 'To be decided'} versus '
-          '${match.teamB?.name ?? 'To be decided'}, ${match.status}',
+          '${match.teamA?.name ?? (isResolvedBye ? 'No opponent' : 'To be decided')} versus '
+          '${match.teamB?.name ?? (isResolvedBye ? 'No opponent' : 'To be decided')}, ${match.status}',
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -345,7 +349,7 @@ class _MatchCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: live
-                ? const Color(0xFF00F5D4)
+                ? CT.primary
                 : featured
                 ? const Color(0xFFFFC857)
                 : const Color(0xFF343A60),
@@ -353,7 +357,9 @@ class _MatchCard extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: live ? const Color(0x5500F5D4) : const Color(0x66000000),
+              color: live
+                  ? CT.primary.withValues(alpha: .3)
+                  : const Color(0x66000000),
               blurRadius: live ? 18 : 12,
               offset: const Offset(0, 7),
             ),
@@ -368,13 +374,15 @@ class _MatchCard extends StatelessWidget {
                 score: match.teamAScore,
                 winner: match.winnerTeamId == match.teamA?.id,
                 highlighted: currentTeamId == match.teamA?.id,
+                placeholder: isResolvedBye ? '' : 'TBD',
               ),
-              Container(height: 1, color: const Color(0xFF303653)),
+              Container(height: 1, color: const Color(0xFF44301D)),
               _TeamLine(
                 team: match.teamB,
                 score: match.teamBScore,
                 winner: match.winnerTeamId == match.teamB?.id,
                 highlighted: currentTeamId == match.teamB?.id,
+                placeholder: isResolvedBye ? '' : 'TBD',
               ),
               Container(
                 height: 19,
@@ -386,17 +394,14 @@ class _MatchCard extends StatelessWidget {
                       width: 5,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: live ? const Color(0xFF00F5D4) : CT.muted,
+                        color: live ? CT.primary : CT.muted,
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 5),
                     Text(
                       match.status.replaceAll('_', ' ').toUpperCase(),
-                      style: CT.mono(
-                        7,
-                        color: live ? const Color(0xFF00F5D4) : CT.muted,
-                      ),
+                      style: CT.mono(7, color: live ? CT.primary : CT.muted),
                     ),
                     const Spacer(),
                     Text(
@@ -420,15 +425,20 @@ class _TeamLine extends StatelessWidget {
     required this.score,
     required this.winner,
     required this.highlighted,
+    required this.placeholder,
   });
   final CommunityTeam? team;
   final int? score;
   final bool winner;
   final bool highlighted;
+  final String placeholder;
 
   @override
   Widget build(BuildContext context) {
-    final name = team?.name ?? 'TBD';
+    if (team == null && placeholder.isEmpty) {
+      return const Expanded(child: SizedBox.expand());
+    }
+    final name = team?.name ?? placeholder;
     return Expanded(
       child: Container(
         color: highlighted ? const Color(0x252BFFB0) : Colors.transparent,
@@ -441,12 +451,14 @@ class _TeamLine extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF7648E8), Color(0xFF3F2A8A)],
+                  colors: [Color(0xFFF8A241), Color(0xFFC06701)],
                 ),
                 borderRadius: BorderRadius.circular(7),
               ),
               child: Text(
-                name == 'TBD' ? '?' : name.characters.first.toUpperCase(),
+                team == null
+                    ? (placeholder == 'BYE' ? '—' : '?')
+                    : name.characters.first.toUpperCase(),
                 style: CT.headline(10),
               ),
             ),
@@ -472,15 +484,12 @@ class _TeamLine extends StatelessWidget {
               const Icon(
                 Icons.arrow_upward_rounded,
                 size: 13,
-                color: Color(0xFF00F5D4),
+                color: CT.primary,
               ),
             const SizedBox(width: 6),
             Text(
               score?.toString() ?? '—',
-              style: CT.headline(
-                14,
-                color: winner ? const Color(0xFF00F5D4) : Colors.white,
-              ),
+              style: CT.headline(14, color: winner ? CT.primary : Colors.white),
             ),
           ],
         ),
@@ -504,7 +513,7 @@ class _BracketConnectorPainter extends CustomPainter {
     const roundWidth = 310.0;
     final paint = Paint()
       ..shader = const LinearGradient(
-        colors: [Color(0xFF7548E8), Color(0xFF00D9C0)],
+        colors: [Color(0xFFF8A241), Color(0xFFC06701)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
@@ -542,7 +551,7 @@ class _ArenaBackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final grid = Paint()
-      ..color = const Color(0x102CDBFF)
+      ..color = const Color(0x18F8A241)
       ..strokeWidth = 1;
     for (double x = 0; x < size.width; x += 34) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
@@ -553,7 +562,7 @@ class _ArenaBackgroundPainter extends CustomPainter {
     final glow = Paint()
       ..shader =
           const RadialGradient(
-            colors: [Color(0x287548E8), Color(0x00080A14)],
+            colors: [Color(0x28F8A241), Color(0x00080A14)],
           ).createShader(
             Rect.fromCircle(
               center: Offset(size.width * .5, size.height * .5),
@@ -576,7 +585,7 @@ class _BracketEmpty extends StatelessWidget {
     decoration: BoxDecoration(
       color: const Color(0xFF101424),
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFF303653)),
+      border: Border.all(color: const Color(0xFF44301D)),
     ),
     child: Column(
       children: [
@@ -601,14 +610,18 @@ class _RoundData {
 }
 
 List<_RoundData> _groupRounds(List<CommunityMatch> matches) {
-  final grouped = <String, List<CommunityMatch>>{};
+  final grouped = <int, List<CommunityMatch>>{};
+  final titles = <int, String>{};
   for (final match in matches) {
+    final round = match.round ?? 1;
     final title = match.roundName?.trim().isNotEmpty == true
         ? match.roundName!
-        : 'Round ${match.round ?? 1}';
-    grouped.putIfAbsent(title, () => []).add(match);
+        : 'Round $round';
+    titles[round] = title;
+    grouped.putIfAbsent(round, () => []).add(match);
   }
-  return grouped.entries
-      .map((entry) => _RoundData(entry.key, entry.value))
+  final rounds = grouped.keys.toList()..sort();
+  return rounds
+      .map((round) => _RoundData(titles[round]!, grouped[round]!))
       .toList();
 }

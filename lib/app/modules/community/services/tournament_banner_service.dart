@@ -121,7 +121,7 @@ class TournamentBannerPromptBuilder {
         'game UI. Use a dramatic esports arena composition, energetic action, '
         'professional tournament presentation, cinematic lighting, atmospheric '
         'smoke, particles, depth, intense competition and premium production '
-        'quality. Use HASH brand-inspired neon green and purple accent lighting '
+        'quality. Use HASH brand-inspired orange and amber accent lighting '
         'over a dark background. Landscape banner composition, 4:3 aspect '
         'ratio, subjects safely centred, clean negative space for tournament '
         'information overlays. No written text, no letters, no numbers, no '

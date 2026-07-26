@@ -436,12 +436,12 @@ class _HomeViewState extends State<HomeView> {
 
   void _openShopSection(int sectionIndex) {
     if (!HomeController.isHashShopReleased) {
-      controller.onItemTapped(2);
+      controller.onItemTapped(3);
       return;
     }
     final wasClosed = !controller.isShopOpen.value;
-    if (controller.selectedIndex.value != 2) {
-      controller.onItemTapped(2);
+    if (controller.selectedIndex.value != 3) {
+      controller.onItemTapped(3);
     }
     controller.isShopOpen.value = true;
     shopController.setShopMenuIndex(sectionIndex);
@@ -662,7 +662,7 @@ class _HomeViewState extends State<HomeView> {
               showUnselectedLabels: false,
               currentIndex: controller.selectedIndex.value,
               onTap: (index) {
-                if (index == 2 && HomeController.isHashShopReleased) {
+                if (index == 3 && HomeController.isHashShopReleased) {
                   if (!isShopMenuOpen) {
                     Haptics.medium();
                   }
@@ -685,15 +685,16 @@ class _HomeViewState extends State<HomeView> {
                   isSelected: controller.selectedIndex.value == 1,
                 ),
                 _buildNavigationItem(
-                  'assets/navbar_icons/Group.png',
-                  label: 'Sessions',
+                  'assets/navbar_icons/trophy.png',
+                  label: 'Compete',
                   isSelected: controller.selectedIndex.value == 2,
                   isSpecial: true,
                 ),
                 _buildNavigationItem(
-                  'assets/navbar_icons/trophy.png',
-                  label: 'Compete',
+                  'assets/navbar_icons/Group.png',
+                  label: 'Sessions',
                   isSelected: controller.selectedIndex.value == 3,
+                  iconHeight: 17,
                 ),
                 _buildNavigationItem(
                   'assets/navbar_icons/Vector (3).png',
@@ -774,7 +775,7 @@ class _HomeViewState extends State<HomeView> {
                           children: [
                             GestureDetector(
                               onTap: () {
-                                if (controller.selectedIndex.value == 2 &&
+                                if (controller.selectedIndex.value == 3 &&
                                     isShopMenuOpen) {
                                   controller.onItemTapped(0);
                                 } else {
@@ -872,8 +873,9 @@ class _HomeViewState extends State<HomeView> {
     required String label,
     required bool isSelected,
     bool isSpecial = false,
+    double iconHeight = 22,
   }) {
-    final selected = controller.selectedIndex.value == 3
+    final selected = controller.selectedIndex.value == 2
         ? Color(0xffFBA544)
         : Color(0xff00DC00);
     final unselected = Colors.grey[800];
@@ -903,7 +905,7 @@ class _HomeViewState extends State<HomeView> {
         duration: const Duration(milliseconds: 200),
         child: Image.asset(
           iconPath,
-          height: 22,
+          height: iconHeight,
           color: isSelected ? selected : unselected,
           colorBlendMode: BlendMode.srcIn,
         ),

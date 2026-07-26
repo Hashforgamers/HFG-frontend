@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -12,6 +13,7 @@ import 'package:hash/core/service_locator.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/tournament.dart';
+import '../models/tournament_schedule.dart';
 import '../services/community_api.dart';
 import '../services/tournament_banner_service.dart';
 
@@ -67,6 +69,10 @@ class CreateTournamentController extends GetxController {
   final registrationEnd = Rxn<DateTime>();
   final tournamentStart = Rxn<DateTime>();
   final tournamentEnd = Rxn<DateTime>();
+  final estimatedDuration = Duration.zero.obs;
+  final scheduleValidationError = RxnString();
+  final scheduleLocked = false.obs;
+  final scheduleLockChecking = false.obs;
   final submitting = false.obs;
   final loadingDefaults = true.obs;
   final reusedPreviousSetup = false.obs;
@@ -80,6 +86,7 @@ class CreateTournamentController extends GetxController {
   final bannerRequestVersion = 0.obs;
   final bannerInputVersion = 0.obs;
   bool _bannerRequestActive = false;
+  bool _updatingSchedule = false;
   Tournament? _editingTournament;
 
   bool get isEditing => _editingTournament != null;
@@ -99,8 +106,56 @@ class CreateTournamentController extends GetxController {
     }
     ever<String>(tournamentType, (_) => _markBannerInputsChanged());
     ever<String>(teamMode, (_) => _markBannerInputsChanged());
+    for (final input in [
+      maxPlayers,
+      teamSize,
+      matchDuration,
+      breakDuration,
+      concurrentMatches,
+    ]) {
+      input.addListener(_recalculateSchedule);
+    }
+    for (final input in [
+      registrationStart,
+      registrationEnd,
+      rosterLockAt,
+      checkInStartAt,
+      checkInEndAt,
+      tournamentEnd,
+    ]) {
+      ever<DateTime?>(input, (_) => _validateSchedule());
+    }
     _loadSmartDefaults();
+    if (_editingTournament != null) {
+      unawaited(_resolveScheduleLock());
+    }
   }
+
+  int get estimatedTeamCount {
+    final players = int.tryParse(maxPlayers.text.trim()) ?? 0;
+    final playersPerTeam = int.tryParse(teamSize.text.trim()) ?? 1;
+    if (players <= 0 || playersPerTeam <= 0) return 0;
+    return (players / playersPerTeam).ceil();
+  }
+
+  int get estimatedRounds {
+    final teams = estimatedTeamCount;
+    if (teams <= 1) return 0;
+    return (math.log(teams) / math.ln2).ceil();
+  }
+
+  bool get canSaveSchedule =>
+      scheduleLocked.value || scheduleValidationError.value == null;
+
+  TournamentSchedule get schedule => TournamentSchedule(
+    registrationStartAt: registrationStart.value,
+    registrationEndAt: registrationEnd.value,
+    rosterLockAt: rosterLockAt.value,
+    tournamentStartAt: tournamentStart.value,
+    tournamentEndAt: tournamentEnd.value,
+    checkInStartAt: checkInStartAt.value,
+    checkInEndAt: checkInEndAt.value,
+  );
 
   bool get canGenerateBanner =>
       game.text.trim().isNotEmpty && effectiveGameMode.isNotEmpty;
@@ -361,6 +416,7 @@ class CreateTournamentController extends GetxController {
   }
 
   void _applyTournamentTemplate(Tournament template) {
+    _updatingSchedule = true;
     title.text = template.title;
     selectGame(template.game);
     tournamentType.value = template.tournamentType ?? 'single_elimination';
@@ -415,6 +471,8 @@ class CreateTournamentController extends GetxController {
       }
       _syncPrizePercents();
     }
+    _updatingSchedule = false;
+    _recalculateSchedule(preserveExistingEnd: true);
   }
 
   String ctNumber(double value) => value == value.roundToDouble()
@@ -506,10 +564,15 @@ class CreateTournamentController extends GetxController {
     if (!eventStart.isAfter(now.add(const Duration(hours: 3)))) {
       eventStart = eventStart.add(const Duration(days: 7));
     }
+    _updatingSchedule = true;
     registrationStart.value = now.add(const Duration(minutes: 15));
     registrationEnd.value = eventStart.subtract(const Duration(hours: 2));
     tournamentStart.value = eventStart;
-    tournamentEnd.value = eventStart.add(const Duration(hours: 4));
+    rosterLockAt.value = eventStart.subtract(const Duration(minutes: 15));
+    checkInStartAt.value = eventStart.subtract(const Duration(minutes: 30));
+    checkInEndAt.value = eventStart.subtract(const Duration(minutes: 5));
+    _updatingSchedule = false;
+    _recalculateSchedule();
   }
 
   Future<void> pickDateTime(BuildContext context, Rxn<DateTime> target) async {
@@ -527,13 +590,101 @@ class CreateTournamentController extends GetxController {
       initialTime: TimeOfDay.fromDateTime(initial),
     );
     if (time == null) return;
-    target.value = DateTime(
+    final selected = DateTime(
       date.year,
       date.month,
       date.day,
       time.hour,
       time.minute,
     );
+    if (identical(target, tournamentStart)) {
+      _setTournamentStart(selected);
+    } else {
+      target.value = selected;
+      _validateSchedule();
+    }
+  }
+
+  void _setTournamentStart(DateTime next) {
+    if (scheduleLocked.value) return;
+    final previous = tournamentStart.value;
+    final offset = previous == null ? Duration.zero : next.difference(previous);
+    _updatingSchedule = true;
+    tournamentStart.value = next;
+    if (previous == null) {
+      rosterLockAt.value = next.subtract(const Duration(minutes: 15));
+      checkInStartAt.value = next.subtract(const Duration(minutes: 30));
+      checkInEndAt.value = next.subtract(const Duration(minutes: 5));
+    } else {
+      rosterLockAt.value = rosterLockAt.value?.add(offset);
+      checkInStartAt.value = checkInStartAt.value?.add(offset);
+      checkInEndAt.value = checkInEndAt.value?.add(offset);
+      tournamentEnd.value = tournamentEnd.value?.add(offset);
+    }
+    _updatingSchedule = false;
+    _recalculateSchedule();
+  }
+
+  void _recalculateSchedule({bool preserveExistingEnd = false}) {
+    if (_updatingSchedule || scheduleLocked.value) return;
+    final teams = estimatedTeamCount;
+    final rounds = estimatedRounds;
+    final matchMinutes = int.tryParse(matchDuration.text.trim());
+    final breakMinutes = int.tryParse(breakDuration.text.trim());
+    final concurrency = int.tryParse(concurrentMatches.text.trim());
+    if (teams < 2 ||
+        rounds == 0 ||
+        matchMinutes == null ||
+        matchMinutes < 1 ||
+        breakMinutes == null ||
+        breakMinutes < 0 ||
+        concurrency == null ||
+        concurrency < 1) {
+      estimatedDuration.value = Duration.zero;
+      _validateSchedule();
+      return;
+    }
+
+    estimatedDuration.value = TournamentSchedule.estimateDuration(
+      numberOfTeams: teams,
+      concurrentMatches: concurrency,
+      matchDurationMinutes: matchMinutes,
+      breakDurationMinutes: breakMinutes,
+    );
+    final start = tournamentStart.value;
+    if (!preserveExistingEnd && start != null) {
+      _updatingSchedule = true;
+      tournamentEnd.value = start.add(estimatedDuration.value);
+      _updatingSchedule = false;
+    }
+    _validateSchedule();
+  }
+
+  void _validateSchedule() {
+    if (_updatingSchedule) return;
+    scheduleValidationError.value = schedule.validate();
+  }
+
+  Future<void> _resolveScheduleLock() async {
+    final tournament = _editingTournament;
+    if (tournament == null) return;
+    const immutableStatuses = {'live', 'in_progress', 'completed', 'cancelled'};
+    if (immutableStatuses.contains(tournament.status.toLowerCase())) {
+      scheduleLocked.value = true;
+      return;
+    }
+    scheduleLockChecking.value = true;
+    try {
+      final matches = await _api.tournamentMatches(
+        tournament.id,
+        private: tournament.isPrivate,
+      );
+      scheduleLocked.value = matches.isNotEmpty;
+    } catch (_) {
+      // The backend remains the final authority if match lookup is unavailable.
+    } finally {
+      scheduleLockChecking.value = false;
+    }
   }
 
   String? validate() {
@@ -552,17 +703,15 @@ class CreateTournamentController extends GetxController {
     final regEnd = registrationEnd.value;
     final eventStart = tournamentStart.value;
     final eventEnd = tournamentEnd.value;
-    if (regStart == null || regEnd == null || eventStart == null) {
-      return 'Registration start, registration end, and tournament start are required.';
+    _validateSchedule();
+    if (scheduleValidationError.value != null) {
+      return scheduleValidationError.value;
     }
-    if (!regEnd.isAfter(regStart)) {
-      return 'Registration must end after it starts.';
-    }
-    if (eventStart.isBefore(regEnd)) {
-      return 'Tournament must start after registration closes.';
-    }
-    if (eventEnd != null && !eventEnd.isAfter(eventStart)) {
-      return 'Tournament end must be after its start.';
+    if (regStart == null ||
+        regEnd == null ||
+        eventStart == null ||
+        eventEnd == null) {
+      return 'Complete the tournament schedule.';
     }
     final matchMinutes = int.tryParse(matchDuration.text.trim());
     if (matchMinutes == null || matchMinutes < 1) {

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:location/location.dart' as loc;
 
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
@@ -678,12 +679,56 @@ class _SearchResultState extends State<SearchResult> {
         return const SearchResultEmptyState();
       }
 
-      return ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-        itemCount: items.length,
-        itemBuilder: (context, index) =>
-            RepaintBoundary(child: _buildResultCard(items[index], index)),
+      return LayoutBuilder(
+        builder: (context, constraints) => Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 760,
+              minHeight: constraints.maxHeight,
+              maxHeight: constraints.maxHeight,
+            ),
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
+              itemCount: items.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(2, 5, 2, 13),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${items.length} ${items.length == 1 ? 'CAFE' : 'CAFES'} FOUND',
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (_hasLocationPermission)
+                          Text(
+                            'NEAREST FIRST',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF00DC00),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: .8,
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }
+                final itemIndex = index - 1;
+                return RepaintBoundary(
+                  child: _buildResultCard(items[itemIndex], itemIndex),
+                );
+              },
+            ),
+          ),
+        ),
       );
     });
   }

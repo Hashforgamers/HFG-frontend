@@ -13,7 +13,7 @@ class TournamentRegistrationSuccessPage extends StatelessWidget {
   });
 
   void _continueToTournaments() {
-    Get.offAllNamed(AppRoutes.HOME, arguments: {'tabIndex': 3});
+    Get.offAllNamed(AppRoutes.HOME, arguments: {'tabIndex': 2});
   }
 
   @override
@@ -166,7 +166,7 @@ class TournamentPaymentProcessingPage extends StatelessWidget {
   });
 
   void _continueToTournaments() {
-    Get.offAllNamed(AppRoutes.HOME, arguments: {'tabIndex': 3});
+    Get.offAllNamed(AppRoutes.HOME, arguments: {'tabIndex': 2});
   }
 
   @override

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Design tokens for the Community Tournament module, aligned to the app's
-/// overall HASH theme: black surfaces, neon green actions, restrained purple
-/// esports accents, white text, and soft outlined cards.
+/// overall HASH tournament theme: black surfaces, registration orange actions,
+/// white text, and soft outlined cards.
 class CT {
   CT._();
 
@@ -21,9 +21,9 @@ class CT {
   static const muted = Color(0xFF777777);
 
   // Accents (from the app theme)
-  static const primary = Color(0xFF00DC00);
-  static const primaryBright = Color(0xFF55F05A);
-  static const secondary = Color(0xFF745CFF);
+  static const primary = Color(0xFFF8A241);
+  static const primaryBright = Color(0xFFFFB45E);
+  static const secondary = Color(0xFFC06701);
   static const verifiedBlue = Color(0xFF0096F1);
   static const success = Color(0xFF00C853);
   static const successBright = Color(0xFF55E878);

@@ -110,26 +110,79 @@ class CommunityMatch {
     required this.accessCode,
   });
 
-  factory CommunityMatch.fromJson(Map<String, dynamic> json) => CommunityMatch(
-    id: (json['id'] ?? '').toString(),
-    tournamentId: (json['tournament_id'] ?? '').toString(),
-    round: _int(json['round'] ?? json['round_number']),
-    roundName: (json['round_name'] ?? json['stage'])?.toString(),
-    status: (json['status'] ?? 'scheduled').toString(),
-    scheduledAt: _date(json['scheduled_at'] ?? json['start_at']),
-    teamA: json['team_a'] is Map
-        ? CommunityTeam.fromJson(_map(json['team_a']))
-        : null,
-    teamB: json['team_b'] is Map
-        ? CommunityTeam.fromJson(_map(json['team_b']))
-        : null,
-    winnerTeamId: json['winner_team_id']?.toString(),
-    teamAScore: _int(json['team_a_score'] ?? json['score_a']),
-    teamBScore: _int(json['team_b_score'] ?? json['score_b']),
-    lobbyId: (json['lobby_id'] ?? _map(json['lobby'])['lobby_id'])?.toString(),
-    accessCode: (json['access_code'] ?? _map(json['lobby'])['access_code'])
-        ?.toString(),
-  );
+  factory CommunityMatch.fromJson(Map<String, dynamic> json) {
+    final participants = _list(
+      json['participant_teams'] ?? json['participants'] ?? json['teams'],
+    );
+    return CommunityMatch(
+      id: (json['id'] ?? '').toString(),
+      tournamentId: (json['tournament_id'] ?? '').toString(),
+      round: _int(json['round'] ?? json['round_number']),
+      roundName: (json['round_name'] ?? json['stage'])?.toString(),
+      status: (json['status'] ?? 'scheduled').toString(),
+      scheduledAt: _date(json['scheduled_at'] ?? json['start_at']),
+      teamA: _matchTeam(
+        json,
+        side: 'a',
+        participant: participants.isNotEmpty ? participants.first : null,
+      ),
+      teamB: _matchTeam(
+        json,
+        side: 'b',
+        participant: participants.length > 1 ? participants[1] : null,
+      ),
+      winnerTeamId: (json['winner_team_id'] ?? _map(json['winner_team'])['id'])
+          ?.toString(),
+      teamAScore: _int(
+        json['team_a_score'] ??
+            json['score_a'] ??
+            _map(json['team_a'])['score'],
+      ),
+      teamBScore: _int(
+        json['team_b_score'] ??
+            json['score_b'] ??
+            _map(json['team_b'])['score'],
+      ),
+      lobbyId: (json['lobby_id'] ?? _map(json['lobby'])['lobby_id'])
+          ?.toString(),
+      accessCode: (json['access_code'] ?? _map(json['lobby'])['access_code'])
+          ?.toString(),
+    );
+  }
+}
+
+CommunityTeam? _matchTeam(
+  Map<String, dynamic> json, {
+  required String side,
+  Map<String, dynamic>? participant,
+}) {
+  final snake = 'team_$side';
+  final camel = side == 'a' ? 'teamA' : 'teamB';
+  final nested = json[snake] ?? json[camel] ?? participant;
+  if (nested is Map) {
+    final mapped = _map(nested);
+    final team = mapped['team'] is Map ? _map(mapped['team']) : mapped;
+    if (team.isNotEmpty) return CommunityTeam.fromJson(team);
+  }
+  final id =
+      json['${snake}_id'] ??
+      json['${camel}_id'] ??
+      participant?['team_id'] ??
+      participant?['id'];
+  final name =
+      json['${snake}_name'] ??
+      json['${camel}_name'] ??
+      participant?['team_name'] ??
+      participant?['name'];
+  if (id == null && name == null) return null;
+  return CommunityTeam.fromJson({
+    'id': id ?? '',
+    'tournament_id': json['tournament_id'],
+    'name': name ?? 'Team',
+    if (participant?['seed'] != null) 'seed': participant!['seed'],
+    if (participant?['members'] != null) 'members': participant!['members'],
+    if (participant?['roster'] != null) 'roster': participant!['roster'],
+  });
 }
 
 class TournamentReadiness {

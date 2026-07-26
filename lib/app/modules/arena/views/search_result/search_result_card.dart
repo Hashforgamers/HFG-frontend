@@ -35,33 +35,33 @@ class SearchResultCard extends StatelessWidget {
     final width = MediaQuery.of(context).size.width - 32;
     final dpr = MediaQuery.of(context).devicePixelRatio;
     final memW = (width * dpr).round();
-    const imgH = 188.0;
+    const imgH = 148.0;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: isOpen ? onViewDetails : null,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          margin: const EdgeInsets.only(bottom: 18),
+          margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             gradient: const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.32),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
+                blurRadius: 12,
+                offset: const Offset(0, 7),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -77,13 +77,13 @@ class SearchResultCard extends StatelessWidget {
                               fit: BoxFit.cover,
                               memCacheWidth: memW,
                               memCacheHeight: (imgH * dpr).round(),
-                              placeholder: (_, __) => Container(
+                              placeholder: (_, _) => Container(
                                 color: Colors.grey[800],
                                 child: const Center(
                                   child: RainbowGlowingLoader(size: 32),
                                 ),
                               ),
-                              errorWidget: (_, __, ___) => Container(
+                              errorWidget: (_, _, _) => Container(
                                 color: Colors.grey[800],
                                 child: const Icon(
                                   Icons.image_not_supported,
@@ -98,19 +98,21 @@ class SearchResultCard extends StatelessWidget {
                       left: 10,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
+                          horizontal: 9,
+                          vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: isOpen ? const Color(0xff00DC00) : Colors.red,
+                          color: Colors.black.withValues(alpha: .8),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          isOpen ? 'OPEN' : 'CLOSED',
+                          isOpen ? '●  OPEN NOW' : '●  CLOSED',
                           style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                            color: isOpen
+                                ? const Color(0xff00DC00)
+                                : const Color(0xFFFF5252),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
@@ -155,7 +157,7 @@ class SearchResultCard extends StatelessWidget {
                   ],
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                  padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -166,7 +168,7 @@ class SearchResultCard extends StatelessWidget {
                             child: Text(
                               title,
                               style: GoogleFonts.inter(
-                                fontSize: 17,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
                               ),
@@ -177,7 +179,11 @@ class SearchResultCard extends StatelessWidget {
                           const SizedBox(width: 10),
                           Row(
                             children: [
-                              const Icon(Icons.star, color: Colors.amber, size: 15),
+                              const Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: 15,
+                              ),
                               const SizedBox(width: 3),
                               Text(
                                 '$rating',
@@ -191,7 +197,7 @@ class SearchResultCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -206,7 +212,7 @@ class SearchResultCard extends StatelessWidget {
                               address,
                               style: GoogleFonts.inter(
                                 color: Colors.white70,
-                                fontSize: 13,
+                                fontSize: 11.5,
                                 height: 1.3,
                               ),
                               maxLines: 2,
@@ -226,9 +232,9 @@ class SearchResultCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 13),
+                      const SizedBox(height: 10),
                       SearchResultFeatureChips(features: features),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 11),
                       Row(
                         children: [
                           Expanded(
@@ -245,7 +251,9 @@ class SearchResultCard extends StatelessWidget {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 11,
+                                ),
                               ),
                               child: Text(
                                 isOpen ? 'View Details' : 'Closed',
@@ -267,7 +275,9 @@ class SearchResultCard extends StatelessWidget {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 11,
+                                ),
                               ),
                               child: Text(
                                 isOpen ? 'Book Now' : 'Unavailable',

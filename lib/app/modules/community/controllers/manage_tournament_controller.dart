@@ -1,14 +1,26 @@
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/community_entities.dart';
 import '../models/tournament.dart';
 import '../models/tournament_operations.dart';
 import '../services/community_api.dart';
+import '../services/tournament_result_evidence_service.dart';
+
+class HostMatchEvidence {
+  const HostMatchEvidence({required this.assetId, required this.analysis});
+  final String assetId;
+  final TournamentEvidenceAnalysis analysis;
+}
 
 class ManageTournamentController extends GetxController {
   final CommunityApi _api = CommunityApi();
+  final ImagePicker _imagePicker = ImagePicker();
+  final TournamentResultEvidenceService _evidenceService =
+      TournamentResultEvidenceService();
 
   final tournament = Rxn<Tournament>();
   final registrations = <ManagedRegistration>[].obs;
@@ -194,6 +206,54 @@ class ManageTournamentController extends GetxController {
     }
     return started;
   }, success: 'Match started');
+
+  Future<HostMatchEvidence?> uploadMatchEvidence(CommunityMatch match) async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+      maxWidth: 2200,
+    );
+    if (picked == null) return null;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw StateError('Sign in to upload match evidence.');
+    final analysis = await _evidenceService.analyze(
+      picked.path,
+      match,
+      game: tournament.value?.game,
+    );
+    final recordId = await _evidenceService.store(
+      tournamentId: tournamentId,
+      match: match,
+      submittedAs: 'host',
+      analysis: analysis,
+    );
+    return HostMatchEvidence(assetId: recordId, analysis: analysis);
+  }
+
+  Future<void> completeMatch({
+    required CommunityMatch match,
+    required String winnerTeamId,
+    required int teamAScore,
+    required int teamBScore,
+    required String reason,
+  }) => _mutate(
+    () async {
+      await _api.updateTournament(tournamentId, {'dispute_window_minutes': 15});
+      return _api.operateMatch(
+        tournamentId,
+        match.id,
+        action: 'override_result',
+        fields: {
+          'winner_team_id': winnerTeamId,
+          'team_a_score': teamAScore,
+          'team_b_score': teamBScore,
+          'reason': reason,
+        },
+      );
+    },
+    success: 'Result uploaded · 15-minute dispute window started',
+    errorTitle: 'Could not complete match',
+  );
 
   Future<void> createManualMatch({
     required String teamAId,

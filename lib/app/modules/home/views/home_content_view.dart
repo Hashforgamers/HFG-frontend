@@ -661,7 +661,7 @@ class _HomeContentViewState extends State<HomeContentView>
                   child: _lobbyQuickAction(
                     icon: Icons.emoji_events_rounded,
                     label: 'RANKED',
-                    onTap: () => Get.find<HomeController>().onItemTapped(3),
+                    onTap: () => Get.find<HomeController>().onItemTapped(2),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -669,7 +669,7 @@ class _HomeContentViewState extends State<HomeContentView>
                   child: _lobbyQuickAction(
                     icon: Icons.history_rounded,
                     label: 'SESSIONS',
-                    onTap: () => Get.find<HomeController>().onItemTapped(2),
+                    onTap: () => Get.find<HomeController>().onItemTapped(3),
                   ),
                 ),
               ],
