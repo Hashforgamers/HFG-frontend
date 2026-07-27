@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,8 +14,13 @@ import '../services/community_api.dart';
 import '../services/tournament_result_evidence_service.dart';
 
 class HostMatchEvidence {
-  const HostMatchEvidence({required this.assetId, required this.analysis});
+  const HostMatchEvidence({
+    required this.assetId,
+    required this.evidenceUrl,
+    required this.analysis,
+  });
   final String assetId;
+  final String evidenceUrl;
   final TournamentEvidenceAnalysis analysis;
 }
 
@@ -221,13 +229,39 @@ class ManageTournamentController extends GetxController {
       match,
       game: tournament.value?.game,
     );
-    final recordId = await _evidenceService.store(
+    await _evidenceService.store(
       tournamentId: tournamentId,
       match: match,
       submittedAs: 'host',
       analysis: analysis,
     );
-    return HostMatchEvidence(assetId: recordId, analysis: analysis);
+    final extension = picked.name.contains('.')
+        ? picked.name.split('.').last.toLowerCase()
+        : 'jpg';
+    final storageKey =
+        'tournament_result_evidence/$tournamentId/${match.id}/'
+        '${uid}_${DateTime.now().microsecondsSinceEpoch}.$extension';
+    final ref = FirebaseStorage.instance.ref(storageKey);
+    final mimeType = picked.mimeType ?? 'image/jpeg';
+    await ref.putFile(
+      File(picked.path),
+      SettableMetadata(contentType: mimeType),
+    );
+    final evidenceUrl = await ref.getDownloadURL();
+    final asset = await _api.createFileAsset(
+      purpose: 'result_evidence',
+      fileUrl: evidenceUrl,
+      storageKey: storageKey,
+      mimeType: mimeType,
+      fileSizeBytes: await picked.length(),
+      tournamentId: tournamentId,
+      metadata: {'match_id': match.id, 'submitter_type': 'host'},
+    );
+    return HostMatchEvidence(
+      assetId: asset.id,
+      evidenceUrl: evidenceUrl,
+      analysis: analysis,
+    );
   }
 
   Future<void> completeMatch({
@@ -236,18 +270,31 @@ class ManageTournamentController extends GetxController {
     required int teamAScore,
     required int teamBScore,
     required String reason,
+    required HostMatchEvidence evidence,
   }) => _mutate(
     () async {
       await _api.updateTournament(tournamentId, {'dispute_window_minutes': 15});
-      return _api.operateMatch(
+      return _api.submitHostResultProposal(
         tournamentId,
         match.id,
-        action: 'override_result',
-        fields: {
-          'winner_team_id': winnerTeamId,
-          'team_a_score': teamAScore,
-          'team_b_score': teamBScore,
-          'reason': reason,
+        winnerTeamId: winnerTeamId,
+        teamAScore: teamAScore,
+        teamBScore: teamBScore,
+        evidenceAssetIds: [evidence.assetId],
+        evidenceUrls: [evidence.evidenceUrl],
+        ocrData: {
+          'text': evidence.analysis.rawText,
+          'detected_teams': [
+            if (evidence.analysis.detectedTeamA != null)
+              evidence.analysis.detectedTeamA,
+            if (evidence.analysis.detectedTeamB != null)
+              evidence.analysis.detectedTeamB,
+          ],
+          'scores': {'team_a': teamAScore, 'team_b': teamBScore},
+          'confidence': evidence.analysis.confidence,
+          'submitter_type': 'host',
+          'consensus': '$teamAScore-$teamBScore',
+          if (reason.trim().isNotEmpty) 'note': reason.trim(),
         },
       );
     },

@@ -1793,6 +1793,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
         teamAScore: int.parse(scoreA.text),
         teamBScore: int.parse(scoreB.text),
         reason: reason.text.trim(),
+        evidence: evidence!,
       );
     }
     scoreA.dispose();

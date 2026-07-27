@@ -695,6 +695,31 @@ class CommunityApi {
     return CommunityMatch.fromJson(_map(res.data));
   }
 
+  Future<Map<String, dynamic>> submitHostResultProposal(
+    String tournamentId,
+    String matchId, {
+    required String winnerTeamId,
+    required int teamAScore,
+    required int teamBScore,
+    required List<String> evidenceAssetIds,
+    required List<String> evidenceUrls,
+    required Map<String, dynamic> ocrData,
+  }) async {
+    final dio = await _authedDio();
+    final res = await dio.post(
+      '/tournaments/$tournamentId/matches/$matchId/result-proposals',
+      data: {
+        'winner_team_id': winnerTeamId,
+        'team_a_score': teamAScore,
+        'team_b_score': teamBScore,
+        'evidence_asset_ids': evidenceAssetIds,
+        'evidence_urls': evidenceUrls,
+        'ocr_data': ocrData,
+      },
+    );
+    return _map(res.data);
+  }
+
   Future<List<TournamentLeaderboardEntry>> tournamentLeaderboard(
     String tournamentId,
   ) async {
