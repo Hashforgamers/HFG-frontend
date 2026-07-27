@@ -19,7 +19,7 @@ class HostMatchEvidence {
     required this.evidenceUrl,
     required this.analysis,
   });
-  final String assetId;
+  final String? assetId;
   final String evidenceUrl;
   final TournamentEvidenceAnalysis analysis;
 }
@@ -248,17 +248,25 @@ class ManageTournamentController extends GetxController {
       SettableMetadata(contentType: mimeType),
     );
     final evidenceUrl = await ref.getDownloadURL();
-    final asset = await _api.createFileAsset(
-      purpose: 'result_evidence',
-      fileUrl: evidenceUrl,
-      storageKey: storageKey,
-      mimeType: mimeType,
-      fileSizeBytes: await picked.length(),
-      tournamentId: tournamentId,
-      metadata: {'match_id': match.id, 'submitter_type': 'host'},
-    );
+    String? assetId;
+    try {
+      final asset = await _api.createFileAsset(
+        purpose: 'result_evidence',
+        fileUrl: evidenceUrl,
+        storageKey: storageKey,
+        mimeType: mimeType,
+        fileSizeBytes: await picked.length(),
+        tournamentId: tournamentId,
+        metadata: {'match_id': match.id, 'submitter_type': 'host'},
+      );
+      assetId = asset.id;
+    } on DioException catch (e) {
+      debugPrint(
+        '[RESULT_EVIDENCE_ASSET_ERROR] status=${e.response?.statusCode} data=${e.response?.data}',
+      );
+    }
     return HostMatchEvidence(
-      assetId: asset.id,
+      assetId: assetId,
       evidenceUrl: evidenceUrl,
       analysis: analysis,
     );
@@ -280,7 +288,10 @@ class ManageTournamentController extends GetxController {
         winnerTeamId: winnerTeamId,
         teamAScore: teamAScore,
         teamBScore: teamBScore,
-        evidenceAssetIds: [evidence.assetId],
+        evidenceAssetIds: [
+          if (evidence.assetId != null && evidence.assetId!.isNotEmpty)
+            evidence.assetId!,
+        ],
         evidenceUrls: [evidence.evidenceUrl],
         ocrData: {
           'text': evidence.analysis.rawText,
@@ -453,6 +464,9 @@ class ManageTournamentController extends GetxController {
       _showSnackbar(success, '', snackPosition: SnackPosition.BOTTOM);
     } on DioException catch (e) {
       if (isClosed) return;
+      debugPrint(
+        '[TOURNAMENT_ACTION_ERROR] status=${e.response?.statusCode} data=${e.response?.data}',
+      );
       error.value = _message(e, fallback: errorFallback);
       _showSnackbar(errorTitle, error.value!);
     } catch (_) {

@@ -712,8 +712,8 @@ class CommunityApi {
         'winner_team_id': winnerTeamId,
         'team_a_score': teamAScore,
         'team_b_score': teamBScore,
-        'evidence_asset_ids': evidenceAssetIds,
-        'evidence_urls': evidenceUrls,
+        if (evidenceAssetIds.isNotEmpty) 'evidence_asset_ids': evidenceAssetIds,
+        if (evidenceUrls.isNotEmpty) 'evidence_urls': evidenceUrls,
         'ocr_data': ocrData,
       },
     );

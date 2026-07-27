@@ -1,5 +1,9 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -306,12 +310,35 @@ class TournamentDetailController extends GetxController {
       match,
       game: tournament.value?.game,
     );
-    return _evidenceService.store(
+    await _evidenceService.store(
       tournamentId: _id,
       match: match,
       submittedAs: canManage.value ? 'host' : 'participant',
       analysis: analysis,
     );
+    final extension = picked.name.contains('.')
+        ? picked.name.split('.').last.toLowerCase()
+        : 'jpg';
+    final storageKey =
+        'tournament_result_evidence/$_id/${match.id}/'
+        '${uid}_${DateTime.now().microsecondsSinceEpoch}.$extension';
+    final mimeType = picked.mimeType ?? 'image/jpeg';
+    final ref = FirebaseStorage.instance.ref(storageKey);
+    await ref.putFile(
+      File(picked.path),
+      SettableMetadata(contentType: mimeType),
+    );
+    final evidenceUrl = await ref.getDownloadURL();
+    final asset = await _api.createFileAsset(
+      purpose: 'result_evidence',
+      fileUrl: evidenceUrl,
+      storageKey: storageKey,
+      mimeType: mimeType,
+      fileSizeBytes: await picked.length(),
+      tournamentId: _id,
+      metadata: {'match_id': match.id, 'submitter_type': 'participant'},
+    );
+    return asset.id;
   }
 
   Future<void> submitMatchResult({
@@ -370,6 +397,11 @@ class TournamentDetailController extends GetxController {
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (error) {
+      if (error is DioException) {
+        debugPrint(
+          '[DISPUTE_ERROR] status=${error.response?.statusCode} data=${error.response?.data}',
+        );
+      }
       Get.snackbar(
         'Could not open dispute',
         _reason(error),
@@ -381,6 +413,17 @@ class TournamentDetailController extends GetxController {
   }
 
   String _reason(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map) {
+        for (final key in ['message', 'detail', 'error']) {
+          final value = data[key];
+          if (value != null && value.toString().trim().isNotEmpty) {
+            return value.toString();
+          }
+        }
+      }
+    }
     final s = e.toString();
     if (s.contains('409')) return 'Already registered or tournament is full.';
     if (s.contains('403')) return 'Not allowed for this tournament.';

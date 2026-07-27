@@ -734,7 +734,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                   match: match,
                   reason: reason.text,
                   description: description.text,
-                  evidenceAssetIds: const [],
+                  evidenceAssetIds: evidence,
                 );
               },
               child: const Text('OPEN DISPUTE'),
