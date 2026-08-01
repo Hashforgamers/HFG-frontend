@@ -7,9 +7,16 @@ import '../chat/views/chat_room_view.dart';
 import 'friend_service.dart';
 
 class FriendsView extends StatefulWidget {
-  const FriendsView({super.key, this.initialTab = 0});
+  const FriendsView({
+    super.key,
+    this.initialTab = 0,
+    this.autofocusSearch = false,
+    this.onPlayerSelected,
+  });
 
   final int initialTab;
+  final bool autofocusSearch;
+  final ValueChanged<Map<String, dynamic>>? onPlayerSelected;
 
   @override
   State<FriendsView> createState() => _FriendsViewState();
@@ -84,6 +91,9 @@ class _FriendsViewState extends State<FriendsView> {
           ),
           builder: (_, profile) => _profileCard(
             profile.data,
+            onTap: profile.data == null
+                ? null
+                : () => _selectPlayer(profile.data!),
             trailing: PopupMenuButton<String>(
               onSelected: (action) {
                 if (action == 'message' && profile.data != null) {
@@ -121,6 +131,9 @@ class _FriendsViewState extends State<FriendsView> {
           ),
           builder: (_, profile) => _profileCard(
             profile.data,
+            onTap: profile.data == null
+                ? null
+                : () => _selectPlayer(profile.data!),
             trailing: incoming
                 ? Row(
                     mainAxisSize: MainAxisSize.min,
@@ -159,6 +172,7 @@ class _FriendsViewState extends State<FriendsView> {
               padding: const EdgeInsets.all(16),
               child: TextField(
                 controller: _search,
+                autofocus: widget.autofocusSearch,
                 onChanged: (value) =>
                     setState(() => _query = value.trim().toLowerCase()),
                 decoration: const InputDecoration(
@@ -184,6 +198,7 @@ class _FriendsViewState extends State<FriendsView> {
                             .firstOrNull;
                         return _profileCard(
                           player,
+                          onTap: () => _selectPlayer(player),
                           trailing: relation?.status == 'accepted'
                               ? IconButton(
                                   tooltip: 'Message friend',
@@ -212,6 +227,7 @@ class _FriendsViewState extends State<FriendsView> {
   Widget _profileCard(
     Map<String, dynamic>? profile, {
     required Widget trailing,
+    VoidCallback? onTap,
   }) {
     final name = (profile?['display_name'] ?? profile?['username'] ?? 'Player')
         .toString();
@@ -224,6 +240,7 @@ class _FriendsViewState extends State<FriendsView> {
         border: Border.all(color: const Color(0xFF2D3449)),
       ),
       child: ListTile(
+        onTap: onTap,
         leading: CircleAvatar(
           backgroundImage: photo.isEmpty ? null : NetworkImage(photo),
           child: photo.isEmpty ? const Icon(Icons.person_rounded) : null,
@@ -233,6 +250,13 @@ class _FriendsViewState extends State<FriendsView> {
         trailing: trailing,
       ),
     );
+  }
+
+  void _selectPlayer(Map<String, dynamic> profile) {
+    final callback = widget.onPlayerSelected;
+    if (callback == null) return;
+    Navigator.of(context).pop();
+    callback(profile);
   }
 
   Future<void> _message(Map<String, dynamic> profile) async {

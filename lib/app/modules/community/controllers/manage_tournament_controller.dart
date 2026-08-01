@@ -12,6 +12,7 @@ import '../models/tournament.dart';
 import '../models/tournament_operations.dart';
 import '../services/community_api.dart';
 import '../services/tournament_result_evidence_service.dart';
+import '../services/tournament_analytics.dart';
 
 class HostMatchEvidence {
   const HostMatchEvidence({
@@ -150,10 +151,18 @@ class ManageTournamentController extends GetxController {
       error.value = _message(e, fallback: 'Could not validate readiness.');
       return;
     }
-    await _mutate(
-      () => _api.updateTournament(tournamentId, {'status': 'published'}),
-      success: 'Tournament published',
-    );
+    await _mutate(() async {
+      final updated = await _api.updateTournament(tournamentId, {
+        'status': 'published',
+      });
+      await TournamentAnalytics.log(
+        'tournament_published',
+        updated,
+        sourceScreen: 'manage_tournament',
+        teamStatus: 'host',
+      );
+      return updated;
+    }, success: 'Tournament published');
   }
 
   Future<void> generateMatches() async {
@@ -281,7 +290,6 @@ class ManageTournamentController extends GetxController {
     required HostMatchEvidence evidence,
   }) => _mutate(
     () async {
-      await _api.updateTournament(tournamentId, {'dispute_window_minutes': 15});
       return _api.submitHostResultProposal(
         tournamentId,
         match.id,
@@ -394,15 +402,24 @@ class ManageTournamentController extends GetxController {
     ManagedRegistration registration,
     String action, {
     String? paymentReference,
-  }) => _mutate(
-    () => _api.updateTournamentRegistration(
+  }) => _mutate(() async {
+    final result = await _api.updateTournamentRegistration(
       tournamentId,
       registration.id,
       action: action,
       paymentReference: paymentReference,
-    ),
-    success: 'Participant updated',
-  );
+    );
+    final current = tournament.value;
+    if (action == 'check_in' && current != null) {
+      await TournamentAnalytics.log(
+        'match_checked_in',
+        current,
+        sourceScreen: 'manage_tournament',
+        teamStatus: 'participant',
+      );
+    }
+    return result;
+  }, success: 'Participant updated');
 
   Future<void> resultAction(MatchResult result, String status) => _mutate(
     () => _api.verifyResult(tournamentId, result.id, status: status),
@@ -410,6 +427,15 @@ class ManageTournamentController extends GetxController {
   );
 
   Future<void> submitVerifiedWinners() async {
+    final unresolvedDisputes = disputes.where(
+      (item) => {'open', 'under_review'}.contains(item.status),
+    );
+    if (unresolvedDisputes.isNotEmpty) {
+      error.value =
+          'Winners cannot be submitted while a dispute is open or under review.';
+      _showSnackbar('Winners blocked', error.value!);
+      return;
+    }
     final verified =
         results
             .where(

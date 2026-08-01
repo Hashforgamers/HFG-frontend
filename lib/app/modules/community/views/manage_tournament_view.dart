@@ -1589,7 +1589,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                                   const SizedBox(height: 7),
                                   Text(
                                     evidence == null
-                                        ? 'Upload a clear scoreboard. HASH saves the extracted result, not the image.'
+                                        ? 'Upload a clear scoreboard. HASH stores the evidence asset and extracted result for captain review.'
                                         : 'Check the detected result before submitting.',
                                     style: CT.body(11),
                                   ),

@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -23,6 +24,7 @@ import 'package:hash/config/app_keys.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service/location_permission_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -93,6 +95,7 @@ class _ArenaViewState extends State<ArenaView> {
   bool _showPlayers = false;
   bool _isLoadingPlayers = false;
   String? _playersError;
+  String? _selectedPlayerId;
   double _mapZoom = 15;
   bool _isLocationSharingEnabled = false;
   bool _isUpdatingLocationSharing = false;
@@ -113,7 +116,7 @@ class _ArenaViewState extends State<ArenaView> {
   bool _playedZoom = false; // NEW
   bool _mapDisposed = false;
 
-  BitmapDescriptor? _markerUser, _markerCafe, _markerCafeHighlighted;
+  BitmapDescriptor? _markerCafe, _markerCafeHighlighted, _markerNearbyPlayer;
   String _normState(String? s) {
     if (s == null) return '';
     final t = s.trim().toLowerCase();
@@ -243,15 +246,6 @@ class _ArenaViewState extends State<ArenaView> {
     }
 
     try {
-      _markerUser = await BitmapDescriptor.fromAssetImage(
-        const ImageConfiguration(size: Size(48, 48)),
-        'assets/custom_marker.png',
-      );
-    } catch (_) {
-      _markerUser = BitmapDescriptor.defaultMarker;
-    }
-
-    try {
       _markerCafe = await BitmapDescriptor.asset(
         const ImageConfiguration(size: Size(48, 48)),
         'assets/logo2.png',
@@ -264,6 +258,8 @@ class _ArenaViewState extends State<ArenaView> {
       BitmapDescriptor.hueRed,
     );
 
+    _markerNearbyPlayer = await _createNearbyPlayerMarker();
+
     if (!mounted) return;
     if (_mapReady && _mapStyle.isNotEmpty) {
       try {
@@ -271,6 +267,53 @@ class _ArenaViewState extends State<ArenaView> {
       } catch (_) {}
     }
     _refreshCafeMarkers();
+  }
+
+  Future<BitmapDescriptor> _createNearbyPlayerMarker() async {
+    const canvasSize = 96.0;
+    const markerSize = 44.0;
+    final recorder = PictureRecorder();
+    final canvas = Canvas(recorder);
+    const center = Offset(canvasSize / 2, 38);
+
+    canvas.drawLine(
+      const Offset(48, 59),
+      const Offset(48, 78),
+      Paint()
+        ..color = const Color(0xFF00DC00)
+        ..strokeWidth = 5
+        ..strokeCap = StrokeCap.round,
+    );
+
+    canvas.drawCircle(
+      center + const Offset(0, 3),
+      markerSize / 2 + 2,
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.28)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+    canvas.drawCircle(center, markerSize / 2, Paint()..color = Colors.white);
+    canvas.drawCircle(
+      center,
+      markerSize / 2,
+      Paint()
+        ..color = const Color(0xFF00DC00)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4,
+    );
+
+    final image = await recorder.endRecording().toImage(
+      canvasSize.toInt(),
+      canvasSize.toInt(),
+    );
+    final byteData = await image.toByteData(format: ImageByteFormat.png);
+    image.dispose();
+    if (byteData == null) return BitmapDescriptor.defaultMarker;
+    return BitmapDescriptor.bytes(
+      byteData.buffer.asUint8List(),
+      width: 42,
+      height: 42,
+    );
   }
 
   /* ────────────────────────────────────────────────────────────────────────── */
@@ -840,6 +883,55 @@ class _ArenaViewState extends State<ArenaView> {
     );
   }
 
+  Future<void> _focusPlayerOnMap(Map<String, dynamic> player) async {
+    final position = _latLngFromPlayer(player);
+    if (position == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text('This player is not sharing a recent location.'),
+        ),
+      );
+      _showPlayerActions(player);
+      return;
+    }
+
+    HapticFeedback.selectionClick();
+    await _safeAnimateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: position, zoom: 16.5),
+      ),
+    );
+    if (!_mapReady || _mapDisposed) return;
+    final id =
+        '${player['user_id'] ?? player['firebase_uid'] ?? player.hashCode}';
+    if (mounted) {
+      setState(() => _selectedPlayerId = id);
+      _refreshCafeMarkers();
+    }
+    try {
+      await _mapCtr.showMarkerInfoWindow(MarkerId('player_$id'));
+    } catch (error) {
+      debugPrint('Unable to show player marker info: $error');
+    }
+  }
+
+  void _focusDirectoryPlayerOnMap(Map<String, dynamic> selectedPlayer) {
+    final selectedUid =
+        (selectedPlayer['firebase_uid'] ?? selectedPlayer['uid'] ?? '')
+            .toString();
+    final nearbyPlayer = _nearbyPlayers.where((player) {
+      final uid = (player['firebase_uid'] ?? player['uid'] ?? '').toString();
+      return selectedUid.isNotEmpty && uid == selectedUid;
+    }).firstOrNull;
+    unawaited(
+      _focusPlayerOnMap({
+        ...selectedPlayer,
+        if (nearbyPlayer != null) ...nearbyPlayer,
+      }),
+    );
+  }
+
   Future<void> _showPlayerSafetySheet(Map<String, dynamic> player) async {
     final uid = (player['firebase_uid'] ?? player['uid'] ?? '').toString();
     final name = (player['display_name'] ?? player['username'] ?? 'Player')
@@ -1006,6 +1098,26 @@ class _ArenaViewState extends State<ArenaView> {
     await _safeAnimateCamera(CameraUpdate.zoomTo(nextZoom));
   }
 
+  Future<void> _locateMe() async {
+    HapticFeedback.selectionClick();
+    if (_userLatLng == null) await _initLocation();
+    final location = _userLatLng;
+    if (location == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text('Enable location access to find yourself on the map.'),
+        ),
+      );
+      return;
+    }
+    await _safeAnimateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: location, zoom: _mapZoom.clamp(15.0, 18.0)),
+      ),
+    );
+  }
+
   Widget _buildMapZoomControls() {
     return Material(
       color: const Color(0xF20A0D0B),
@@ -1055,6 +1167,37 @@ class _ArenaViewState extends State<ArenaView> {
             width: 44,
             height: 42,
             child: Icon(icon, color: const Color(0xFFE8EBE9), size: 24),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocateMeButton() {
+    return Material(
+      color: const Color(0xF20A0D0B),
+      elevation: 10,
+      shadowColor: Colors.black54,
+      shape: const CircleBorder(
+        side: BorderSide(color: Color(0xFF9DA59F), width: 0.7),
+      ),
+      child: Semantics(
+        button: true,
+        label: 'Locate me',
+        child: Tooltip(
+          message: 'Locate me',
+          child: InkWell(
+            onTap: _locateMe,
+            customBorder: const CircleBorder(),
+            child: const SizedBox(
+              width: 44,
+              height: 44,
+              child: Icon(
+                Icons.my_location_rounded,
+                color: Color(0xFF00DC00),
+                size: 22,
+              ),
+            ),
           ),
         ),
       ),
@@ -1396,16 +1539,7 @@ class _ArenaViewState extends State<ArenaView> {
 
   void _refreshCafeMarkers() {
     final nextMarkers = <Marker>{};
-    if (_userLatLng != null) {
-      nextMarkers.add(
-        Marker(
-          markerId: const MarkerId('me'),
-          position: _userLatLng!,
-          icon: _markerUser ?? BitmapDescriptor.defaultMarker,
-        ),
-      );
-    }
-    if (_showPlayers && _mapZoom >= 14) {
+    if (_showPlayers) {
       for (final player in _nearbyPlayers) {
         final id =
             '${player['user_id'] ?? player['firebase_uid'] ?? player.hashCode}';
@@ -1415,9 +1549,8 @@ class _ArenaViewState extends State<ArenaView> {
           Marker(
             markerId: MarkerId('player_$id'),
             position: pos,
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueGreen,
-            ),
+            icon: _markerNearbyPlayer ?? BitmapDescriptor.defaultMarker,
+            zIndexInt: id == _selectedPlayerId ? 10 : 1,
             infoWindow: InfoWindow(
               title: (player['display_name'] ?? player['username'] ?? 'Player')
                   .toString(),
@@ -1638,6 +1771,14 @@ class _ArenaViewState extends State<ArenaView> {
     final previousState = (_userState ?? '').trim();
     _userState = state;
     final currentState = (_userState ?? '').trim();
+    if (currentState.isNotEmpty) {
+      locator<AnalyticsService>().log(
+        'city_selected',
+        parameters: {'city': currentState, 'source_screen': 'arena'},
+        deduplicationKey: currentState.toLowerCase(),
+      );
+      locator<AnalyticsService>().setUserProperties(city: currentState);
+    }
     _segmentService.onCustomEvent('Nearby Cafes Viewed', {
       'city': currentState.isEmpty ? 'unknown' : currentState,
     });
@@ -1701,7 +1842,7 @@ class _ArenaViewState extends State<ArenaView> {
                               zoom: 4,
                             ),
                             myLocationEnabled: _hasLocationPermission,
-                            myLocationButtonEnabled: _hasLocationPermission,
+                            myLocationButtonEnabled: false,
                             mapToolbarEnabled: false,
                             compassEnabled: false,
                             buildingsEnabled: false,
@@ -1854,9 +1995,7 @@ class _ArenaViewState extends State<ArenaView> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    _mapZoom < 14
-                                        ? 'Zoom in to see players'
-                                        : 'Nearby activity',
+                                    '${_nearbyPlayers.where((player) => _latLngFromPlayer(player) != null).length} nearby on map',
                                     style: GoogleFonts.inter(
                                       color: Colors.white70,
                                       fontSize: 10,
@@ -1870,7 +2009,14 @@ class _ArenaViewState extends State<ArenaView> {
                         Positioned(
                           right: 16,
                           bottom: 18,
-                          child: _buildMapZoomControls(),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildMapZoomControls(),
+                              const SizedBox(height: 10),
+                              _buildLocateMeButton(),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -2113,8 +2259,21 @@ class _ArenaViewState extends State<ArenaView> {
           ),
           const Spacer(),
           IconButton(
+            tooltip: 'Search players',
+            onPressed: () => Get.to(
+              () => FriendsView(
+                initialTab: 2,
+                autofocusSearch: true,
+                onPlayerSelected: _focusDirectoryPlayerOnMap,
+              ),
+            ),
+            icon: const Icon(Icons.search_rounded, color: Color(0xff00DC00)),
+          ),
+          IconButton(
             tooltip: 'Friends and requests',
-            onPressed: () => Get.to(() => const FriendsView()),
+            onPressed: () => Get.to(
+              () => FriendsView(onPlayerSelected: _focusDirectoryPlayerOnMap),
+            ),
             icon: const Icon(
               Icons.people_alt_outlined,
               color: Color(0xff00DC00),
@@ -2173,6 +2332,9 @@ class _ArenaViewState extends State<ArenaView> {
     return StreamBuilder<List<LfgPost>>(
       stream: _lfgService.watchActive(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          debugPrint('[LFG][rail] ${snapshot.error}');
+        }
         final posts = snapshot.data ?? const <LfgPost>[];
         return SizedBox(
           height: 98,
@@ -2549,15 +2711,42 @@ class _ArenaViewState extends State<ArenaView> {
                       height: 48,
                       child: ElevatedButton(
                         onPressed: () async {
-                          await _lfgService.publish(
-                            game: game,
-                            mode: mode,
-                            micOn: micOn,
-                            note: noteController.text,
-                            duration: Duration(hours: durationHours),
-                          );
-                          if (sheetContext.mounted) {
-                            Navigator.pop(sheetContext, true);
+                          try {
+                            await _lfgService.publish(
+                              game: game,
+                              mode: mode,
+                              micOn: micOn,
+                              note: noteController.text,
+                              duration: Duration(hours: durationHours),
+                            );
+                            if (sheetContext.mounted) {
+                              Navigator.pop(sheetContext, true);
+                            }
+                          } on FirebaseException catch (error, stackTrace) {
+                            debugPrint(
+                              '[LFG][composer] code=${error.code} '
+                              'message=${error.message}',
+                            );
+                            debugPrintStack(stackTrace: stackTrace);
+                            if (!sheetContext.mounted) return;
+                            ScaffoldMessenger.of(sheetContext).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  error.code == 'permission-denied'
+                                      ? 'LFG access is not enabled on the server yet.'
+                                      : 'Could not publish LFG (${error.code}).',
+                                ),
+                              ),
+                            );
+                          } catch (error, stackTrace) {
+                            debugPrint('[LFG][composer] $error');
+                            debugPrintStack(stackTrace: stackTrace);
+                            if (!sheetContext.mounted) return;
+                            ScaffoldMessenger.of(sheetContext).showSnackBar(
+                              const SnackBar(
+                                content: Text('Could not publish LFG.'),
+                              ),
+                            );
                           }
                         },
                         style: ElevatedButton.styleFrom(
@@ -2665,11 +2854,12 @@ class _ArenaViewState extends State<ArenaView> {
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (_, index) {
         final player = _nearbyPlayers[index];
+        final hasMapLocation = _latLngFromPlayer(player) != null;
         final name = (player['display_name'] ?? player['username'] ?? 'Player')
             .toString();
         final distance = player['distance_km'];
         return ListTile(
-          onTap: () => _showPlayerActions(player),
+          onTap: () => _focusPlayerOnMap(player),
           tileColor: const Color(0xff151515),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -2691,12 +2881,22 @@ class _ArenaViewState extends State<ArenaView> {
             ),
           ),
           subtitle: Text(
-            distance == null ? 'Hash Hub player' : '${distance} km away',
+            hasMapLocation
+                ? distance == null
+                      ? 'Tap to view on map'
+                      : '$distance km away · Tap to view on map'
+                : 'Location not shared',
             style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
           ),
-          trailing: const Icon(
-            Icons.chevron_right_rounded,
-            color: Colors.white38,
+          trailing: IconButton(
+            tooltip: 'Player actions',
+            onPressed: () => _showPlayerActions(player),
+            icon: Icon(
+              hasMapLocation
+                  ? Icons.location_on_outlined
+                  : Icons.more_horiz_rounded,
+              color: hasMapLocation ? const Color(0xFF00DC00) : Colors.white38,
+            ),
           ),
         );
       },

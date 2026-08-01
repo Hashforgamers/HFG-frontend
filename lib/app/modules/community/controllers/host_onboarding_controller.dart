@@ -6,6 +6,8 @@ import '../models/host_program.dart';
 import '../models/host_verification.dart';
 import '../services/community_api.dart';
 import '../views/host_dashboard_view.dart';
+import 'package:hash/core/service/analytics_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 /// Drives the Host Onboarding value-prop screen.
 ///
@@ -23,6 +25,11 @@ class HostOnboardingController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    locator<AnalyticsService>().log(
+      'host_verification_started',
+      parameters: const {'source_screen': 'host_onboarding'},
+      deduplicationKey: 'host_onboarding',
+    );
     load();
   }
 

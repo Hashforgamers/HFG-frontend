@@ -10,8 +10,10 @@ import 'package:image_picker/image_picker.dart';
 
 import '../models/tournament.dart';
 import '../models/tournament_operations.dart';
+import '../models/tournament_domain.dart';
 import '../services/community_api.dart';
 import '../services/tournament_result_evidence_service.dart';
+import '../services/tournament_analytics.dart';
 
 /// Tournament detail + registration.
 /// Uses authed detail when a session exists (for room_details), else public.
@@ -114,6 +116,22 @@ class TournamentDetailController extends GetxController {
         currentTeamId.value = null;
         currentUserId.value = null;
         participantTeams.clear();
+      }
+      await TournamentAnalytics.log(
+        'tournament_viewed',
+        t,
+        sourceScreen: 'community_tournaments',
+        teamStatus: hasJoined.value ? 'joined' : 'not_joined',
+        deduplicationKey: t.id,
+      );
+      if (t.statusValue == TournamentStatus.completed) {
+        await TournamentAnalytics.log(
+          'result_viewed',
+          t,
+          sourceScreen: 'tournament_detail',
+          teamStatus: hasJoined.value ? 'joined' : 'spectator',
+          deduplicationKey: t.id,
+        );
       }
       if (hasJoined.value) {
         await refreshLiveData();
@@ -341,7 +359,7 @@ class TournamentDetailController extends GetxController {
     return asset.id;
   }
 
-  Future<void> submitMatchResult({
+  Future<bool> submitMatchResult({
     required CommunityMatch match,
     required String winnerTeamId,
     required int teamAScore,
@@ -350,8 +368,17 @@ class TournamentDetailController extends GetxController {
     String? notes,
   }) async {
     acting.value = true;
+    final endpoint = '/tournaments/$_id/matches/${match.id}/result-submissions';
+    final payload = <String, dynamic>{
+      'winner_team_id': winnerTeamId,
+      'team_a_score': teamAScore,
+      'team_b_score': teamBScore,
+      if (evidenceAssetIds.isNotEmpty) 'evidence_asset_ids': evidenceAssetIds,
+      if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+    };
+    debugPrint('[RESULT_SUBMISSION] POST $endpoint payload=$payload');
     try {
-      await _api.submitCaptainResult(
+      final submitted = await _api.submitCaptainResult(
         _id,
         match.id,
         winnerTeamId: winnerTeamId,
@@ -360,15 +387,64 @@ class TournamentDetailController extends GetxController {
         evidenceAssetIds: evidenceAssetIds,
         notes: notes,
       );
+      debugPrint(
+        '[RESULT_SUBMISSION] success match_id=${submitted.id} '
+        'status=${submitted.status}',
+      );
       await refreshLiveData();
       Get.snackbar(
         'Result locked in',
         'Waiting for the opposing captain to confirm the same score.',
         snackPosition: SnackPosition.BOTTOM,
       );
+      return true;
     } catch (error) {
+      if (error is DioException) {
+        debugPrint(
+          '[RESULT_SUBMISSION_ERROR] POST $endpoint '
+          'status=${error.response?.statusCode} '
+          'response=${error.response?.data} '
+          'type=${error.type} message=${error.message}',
+        );
+      } else {
+        debugPrint('[RESULT_SUBMISSION_ERROR] POST $endpoint error=$error');
+      }
       Get.snackbar(
         'Result not submitted',
+        _reason(error),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
+    } finally {
+      acting.value = false;
+    }
+  }
+
+  Future<void> respondToHostResultProposal({
+    required CommunityMatch match,
+    required String action,
+  }) async {
+    final proposal = match.resultProposal;
+    if (proposal == null || proposal.id.isEmpty) return;
+    acting.value = true;
+    try {
+      await _api.respondToHostResultProposal(
+        _id,
+        match.id,
+        proposal.id,
+        action: action,
+      );
+      await refreshLiveData();
+      Get.snackbar(
+        action == 'accept' ? 'Result accepted' : 'Result disputed',
+        action == 'accept'
+            ? 'Your captain confirmation has been recorded.'
+            : 'The proposal was sent to platform-admin review.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (error) {
+      Get.snackbar(
+        'Result response failed',
         _reason(error),
         snackPosition: SnackPosition.BOTTOM,
       );

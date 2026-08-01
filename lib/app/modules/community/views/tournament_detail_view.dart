@@ -374,6 +374,9 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
     final mine = controller.currentTeamId.value;
     final opponent = match.teamA?.id == mine ? match.teamB : match.teamA;
     final live = {'live', 'in_progress'}.contains(match.status);
+    final proposal = match.resultProposal;
+    final proposalPending =
+        proposal != null && {'pending', 'submitted'}.contains(proposal.status);
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
@@ -439,9 +442,47 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
           ),
           if (live || {'completed', 'disputed'}.contains(match.status)) ...[
             const SizedBox(height: 12),
+            if (proposalPending) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: CT.card(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('HOST RESULT PROPOSAL', style: CT.mono(9)),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${match.teamA?.name ?? 'Team A'} ${proposal.teamAScore ?? 0} · '
+                      '${proposal.teamBScore ?? 0} ${match.teamB?.name ?? 'Team B'}',
+                      style: CT.headline(14),
+                    ),
+                    if (proposal.reviewDeadline != null)
+                      Text(
+                        'Review by ${_fmt(proposal.reviewDeadline!)}',
+                        style: CT.body(9.5, color: CT.muted),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             Row(
               children: [
-                if (controller.isCurrentUserCaptain &&
+                if (controller.isCurrentUserCaptain && proposalPending)
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: controller.acting.value
+                          ? null
+                          : () => controller.respondToHostResultProposal(
+                              match: match,
+                              action: 'accept',
+                            ),
+                      icon: const Icon(Icons.check_circle_outline, size: 18),
+                      label: const Text('ACCEPT'),
+                    ),
+                  )
+                else if (controller.isCurrentUserCaptain &&
                     !{'completed', 'cancelled'}.contains(match.status))
                   Expanded(
                     child: ElevatedButton.icon(
@@ -452,28 +493,31 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                       label: const Text('UPLOAD RESULT'),
                     ),
                   ),
-                if (controller.isCurrentUserCaptain &&
-                    !{'completed', 'cancelled'}.contains(match.status))
+                if (controller.isCurrentUserCaptain && proposalPending)
                   const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: controller.acting.value
-                        ? null
-                        : () => _openDispute(match),
-                    icon: const Icon(Icons.gavel_rounded, size: 17),
-                    label: const Text('DISPUTE'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFFFC857),
+                if (controller.isCurrentUserCaptain && proposalPending)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: controller.acting.value
+                          ? null
+                          : () => controller.respondToHostResultProposal(
+                              match: match,
+                              action: 'dispute',
+                            ),
+                      icon: const Icon(Icons.gavel_rounded, size: 17),
+                      label: const Text('DISPUTE'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFFFC857),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             if (!controller.isCurrentUserCaptain)
               Padding(
                 padding: const EdgeInsets.only(top: 7),
                 child: Text(
-                  'Your captain submits the score. Any player in this match can open a dispute.',
+                  'Your captain submits the score and reviews host result proposals.',
                   style: CT.body(9.5),
                 ),
               ),
@@ -646,15 +690,15 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                   );
                   return;
                 }
-                Get.back();
-                await controller.submitMatchResult(
+                final submitted = await controller.submitMatchResult(
                   match: match,
                   winnerTeamId: winner!,
                   teamAScore: scoreA,
                   teamBScore: scoreB,
-                  evidenceAssetIds: const [],
+                  evidenceAssetIds: evidence,
                   notes: notes.text,
                 );
+                if (submitted) Get.back<void>();
               },
               child: const Text('SUBMIT'),
             ),
@@ -662,89 +706,13 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
         ),
       ),
     );
+    // Let the dialog route and its text fields finish unmounting before their
+    // controllers are disposed. Disposing immediately after Get.back caused
+    // iOS to rebuild a field with an already-disposed controller.
+    await Future<void>.delayed(const Duration(milliseconds: 350));
     aScore.dispose();
     bScore.dispose();
     notes.dispose();
-  }
-
-  Future<void> _openDispute(CommunityMatch match) async {
-    final reason = TextEditingController();
-    final description = TextEditingController();
-    final evidence = <String>[];
-    await Get.dialog<void>(
-      StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: const Color(0xFF15192A),
-          title: const Text('Open a dispute'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: reason,
-                  decoration: const InputDecoration(labelText: 'Reason'),
-                ),
-                TextField(
-                  controller: description,
-                  minLines: 3,
-                  maxLines: 5,
-                  decoration: const InputDecoration(
-                    labelText: 'Explain what happened',
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    try {
-                      final id = await controller.pickAndUploadEvidence(
-                        match.id,
-                      );
-                      if (id != null) setState(() => evidence.add(id));
-                    } catch (error) {
-                      Get.snackbar(
-                        'Could not read screenshot',
-                        error.toString(),
-                        snackPosition: SnackPosition.BOTTOM,
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.add_photo_alternate_outlined),
-                  label: Text(
-                    evidence.isEmpty
-                        ? 'ADD EVIDENCE'
-                        : '${evidence.length} EVIDENCE FILE ADDED',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: Get.back, child: const Text('CANCEL')),
-            ElevatedButton(
-              onPressed: () async {
-                if (reason.text.trim().isEmpty ||
-                    description.text.trim().isEmpty) {
-                  Get.snackbar(
-                    'Missing details',
-                    'Add a reason and description.',
-                  );
-                  return;
-                }
-                Get.back();
-                await controller.openMatchDispute(
-                  match: match,
-                  reason: reason.text,
-                  description: description.text,
-                  evidenceAssetIds: evidence,
-                );
-              },
-              child: const Text('OPEN DISPUTE'),
-            ),
-          ],
-        ),
-      ),
-    );
-    reason.dispose();
-    description.dispose();
   }
 
   Widget _playerComms() {

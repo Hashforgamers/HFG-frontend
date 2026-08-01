@@ -12,6 +12,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/app/modules/tournaments_section/cubit/tournament_home_cubit.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,6 +27,7 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
   final squadMissionsService = locator<SquadMissionsService>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final analyticsService = locator<AnalyticsService>();
   final CommunityApi communityApi = CommunityApi();
   final TournamentPaymentService paymentService = TournamentPaymentService();
 
@@ -99,6 +101,22 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
         squadMissionsService.trackAction(
           action: SquadMissionAction.joinTournament,
         );
+        final lifecycleParams = <String, Object?>{
+          'tournament_id': eventId,
+          'tournament_mode': teamMode,
+          'team_status': 'solo',
+          'source_screen': 'tournament_registration',
+        };
+        if (isPaidRegistration) {
+          await analyticsService.log(
+            'payment_success',
+            parameters: lifecycleParams,
+          );
+        }
+        await analyticsService.log(
+          'tournament_joined',
+          parameters: lifecycleParams,
+        );
         segmentService.onCustomEvent('Tournament Joined', {
           'event_id': eventId,
           'registration_id': registrationId,
@@ -156,6 +174,15 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
       if (teamId.isEmpty) {
         throw Exception('Team created but team id not returned by API');
       }
+      await analyticsService.log(
+        'team_created',
+        parameters: {
+          'tournament_id': eventId,
+          'tournament_mode': teamMode,
+          'team_status': 'created',
+          'source_screen': 'tournament_registration',
+        },
+      );
 
       final registerResponse = await remoteRepo.registerEventTeam(
         eventId: eventId,
@@ -189,6 +216,17 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
           'payment_status',
           result['payment_status']?.toString() ?? '',
         );
+        if (_isPaidAndConfirmed(verification)) {
+          await analyticsService.log(
+            'payment_success',
+            parameters: {
+              'tournament_id': eventId,
+              'tournament_mode': teamMode,
+              'team_status': 'created',
+              'source_screen': 'tournament_registration',
+            },
+          );
+        }
       }
 
       await squadMissionsService.setActiveSquad(
@@ -203,6 +241,15 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
         'team_id': teamId,
       });
       fbEventsService.onTournamentJoined(eventId: eventId, teamId: teamId);
+      await analyticsService.log(
+        'tournament_joined',
+        parameters: {
+          'tournament_id': eventId,
+          'tournament_mode': teamMode,
+          'team_status': 'created',
+          'source_screen': 'tournament_registration',
+        },
+      );
       segmentService.onCustomEvent('Party Created', {
         'party_id': teamId,
         'game_id': eventId,
@@ -212,6 +259,17 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
       TournamentHomeCubit.invalidateCache();
       emit(TournamentsRegisterSuccess(data: result));
     } catch (e) {
+      if (payment != null) {
+        await analyticsService.log(
+          'payment_failed',
+          parameters: {
+            'tournament_id': eventId,
+            'tournament_mode': teamMode,
+            'source_screen': 'tournament_registration',
+            'failure_reason': AnalyticsService.normalizeFailureReason(e),
+          },
+        );
+      }
       emit(TournamentsRegisterError(message: _cleanError(e)));
     }
   }

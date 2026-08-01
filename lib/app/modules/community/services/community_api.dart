@@ -720,6 +720,23 @@ class CommunityApi {
     return _map(res.data);
   }
 
+  Future<Map<String, dynamic>> respondToHostResultProposal(
+    String tournamentId,
+    String matchId,
+    String proposalId, {
+    required String action, // accept | dispute
+  }) async {
+    if (action != 'accept' && action != 'dispute') {
+      throw ArgumentError.value(action, 'action', 'Must be accept or dispute');
+    }
+    final dio = await _authedDio();
+    final res = await dio.post(
+      '/tournaments/$tournamentId/matches/$matchId/'
+      'result-proposals/$proposalId/$action',
+    );
+    return _map(res.data);
+  }
+
   Future<List<TournamentLeaderboardEntry>> tournamentLeaderboard(
     String tournamentId,
   ) async {

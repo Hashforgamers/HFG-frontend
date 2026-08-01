@@ -145,23 +145,92 @@ class _LfgLobbyViewState extends State<LfgLobbyView> {
     try {
       final uid = _service.currentUid;
       if (uid == null) throw StateError('Sign in to send voice notes.');
-      final ref = FirebaseStorage.instance.ref(
-        'lfg_voice/${widget.post.uid}/$uid/'
-        '${DateTime.now().millisecondsSinceEpoch}.m4a',
-      );
-      await ref.putFile(File(path), SettableMetadata(contentType: 'audio/mp4'));
-      final url = await ref.getDownloadURL();
+      final objectPath =
+          'lfg_voice/${widget.post.uid}/$uid/'
+          '${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final snapshot = await _uploadVoiceFile(File(path), objectPath);
+      final url = await _downloadUrlAfterUpload(snapshot.ref);
       await _service.sendVoice(
         lobbyId: widget.post.uid,
         audioUrl: url,
         durationMs: duration.inMilliseconds,
       );
       unawaited(File(path).delete());
-    } catch (error) {
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint(
+        '[LFG][voice-upload] FirebaseException plugin=${error.plugin} '
+        'code=${error.code} message=${error.message}',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+      if (mounted) {
+        _showError(
+          error.code == 'object-not-found'
+              ? 'Voice upload could not be found. Please record it again.'
+              : 'Voice upload failed (${error.code}).',
+        );
+      }
+    } catch (error, stackTrace) {
+      debugPrint('[LFG][voice-upload] $error');
+      debugPrintStack(stackTrace: stackTrace);
       if (mounted) _showError(error);
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
+  }
+
+  Future<TaskSnapshot> _uploadVoiceFile(File file, String objectPath) async {
+    final references = <Reference>[
+      FirebaseStorage.instance.ref(objectPath),
+      FirebaseStorage.instanceFor(
+        bucket: 'gs://hash-ee6fc.appspot.com',
+      ).ref(objectPath),
+    ];
+    FirebaseException? lastStorageError;
+    for (final ref in references) {
+      debugPrint(
+        '[LFG][voice-upload] start bucket=${ref.bucket} path=${ref.fullPath}',
+      );
+      try {
+        final snapshot = await ref.putFile(
+          file,
+          SettableMetadata(contentType: 'audio/mp4'),
+        );
+        if (snapshot.state != TaskState.success) {
+          throw StateError('Voice upload did not complete: ${snapshot.state}');
+        }
+        debugPrint(
+          '[LFG][voice-upload] success bytes=${snapshot.totalBytes} '
+          'bucket=${snapshot.ref.bucket} path=${snapshot.ref.fullPath}',
+        );
+        return snapshot;
+      } on FirebaseException catch (error) {
+        lastStorageError = error;
+        debugPrint(
+          '[LFG][voice-upload] bucket=${ref.bucket} code=${error.code} '
+          'message=${error.message}',
+        );
+        if (error.code != 'object-not-found') rethrow;
+      }
+    }
+    throw lastStorageError ?? StateError('No Firebase Storage bucket worked.');
+  }
+
+  Future<String> _downloadUrlAfterUpload(Reference ref) async {
+    Object? lastError;
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try {
+        return await ref.getDownloadURL();
+      } on FirebaseException catch (error) {
+        lastError = error;
+        debugPrint(
+          '[LFG][voice-url] attempt=$attempt bucket=${ref.bucket} '
+          'path=${ref.fullPath} code=${error.code} message=${error.message}',
+        );
+        if (error.code != 'object-not-found' || attempt == 3) rethrow;
+        await Future<void>.delayed(Duration(milliseconds: attempt * 250));
+      }
+    }
+    throw StateError('Could not resolve voice URL: $lastError');
   }
 
   Future<void> _togglePlayback(LfgLobbyMessage message) async {

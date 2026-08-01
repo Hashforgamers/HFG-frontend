@@ -79,6 +79,36 @@ class CommunityTeam {
   );
 }
 
+class MatchResultProposal {
+  final String id;
+  final String status;
+  final String? winnerTeamId;
+  final int? teamAScore;
+  final int? teamBScore;
+  final DateTime? reviewDeadline;
+
+  const MatchResultProposal({
+    required this.id,
+    required this.status,
+    required this.winnerTeamId,
+    required this.teamAScore,
+    required this.teamBScore,
+    required this.reviewDeadline,
+  });
+
+  factory MatchResultProposal.fromJson(Map<String, dynamic> json) =>
+      MatchResultProposal(
+        id: (json['id'] ?? json['proposal_id'] ?? '').toString(),
+        status: (json['status'] ?? 'pending').toString(),
+        winnerTeamId: json['winner_team_id']?.toString(),
+        teamAScore: _int(json['team_a_score']),
+        teamBScore: _int(json['team_b_score']),
+        reviewDeadline: _date(
+          json['review_deadline'] ?? json['deadline_at'] ?? json['expires_at'],
+        ),
+      );
+}
+
 class CommunityMatch {
   final String id;
   final String tournamentId;
@@ -93,6 +123,7 @@ class CommunityMatch {
   final int? teamBScore;
   final String? lobbyId;
   final String? accessCode;
+  final MatchResultProposal? resultProposal;
 
   const CommunityMatch({
     required this.id,
@@ -108,6 +139,7 @@ class CommunityMatch {
     required this.teamBScore,
     required this.lobbyId,
     required this.accessCode,
+    required this.resultProposal,
   });
 
   factory CommunityMatch.fromJson(Map<String, dynamic> json) {
@@ -147,8 +179,19 @@ class CommunityMatch {
           ?.toString(),
       accessCode: (json['access_code'] ?? _map(json['lobby'])['access_code'])
           ?.toString(),
+      resultProposal: _resultProposal(json),
     );
   }
+}
+
+MatchResultProposal? _resultProposal(Map<String, dynamic> json) {
+  final value =
+      json['result_proposal'] ??
+      json['pending_result_proposal'] ??
+      json['active_result_proposal'];
+  if (value is! Map) return null;
+  final proposal = MatchResultProposal.fromJson(_map(value));
+  return proposal.id.isEmpty ? null : proposal;
 }
 
 CommunityTeam? _matchTeam(

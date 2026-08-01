@@ -15,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/tournament.dart';
 import '../models/tournament_schedule.dart';
 import '../services/community_api.dart';
+import '../services/tournament_analytics.dart';
 import '../services/tournament_banner_service.dart';
 
 class CreateTournamentController extends GetxController {
@@ -786,6 +787,22 @@ class CreateTournamentController extends GetxController {
       final Tournament tournament = _editingTournament == null
           ? await _api.createTournament(body)
           : await _api.updateTournament(_editingTournament!.id, body);
+      if (_editingTournament == null) {
+        await TournamentAnalytics.log(
+          'tournament_created',
+          tournament,
+          sourceScreen: 'create_tournament',
+          teamStatus: 'host',
+        );
+      }
+      if (publish && _editingTournament?.status != 'published') {
+        await TournamentAnalytics.log(
+          'tournament_published',
+          tournament,
+          sourceScreen: 'create_tournament',
+          teamStatus: 'host',
+        );
+      }
       _returnToPreviousScreen(tournament);
     } on DioException catch (e) {
       final data = e.response?.data;

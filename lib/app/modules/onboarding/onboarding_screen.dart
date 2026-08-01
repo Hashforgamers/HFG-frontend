@@ -1,9 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:introduction_screen/introduction_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/core/service/analytics_service.dart';
+import 'package:hash/core/service_locator.dart';
 
-class OnboardingScreen extends StatelessWidget {
+class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
+
+  @override
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends State<OnboardingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    locator<AnalyticsService>().log(
+      'onboarding_started',
+      parameters: const {'source_screen': 'onboarding'},
+      deduplicationKey: 'onboarding',
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +33,11 @@ class OnboardingScreen extends StatelessWidget {
             globalBackgroundColor: Colors.black,
             showSkipButton: false, // hide built-in skip
             pages: [
-              PageViewModel(useScrollView: true,                decoration: PageDecoration(pageMargin:EdgeInsets.only(bottom: 0)),
+              PageViewModel(
+                useScrollView: true,
+                decoration: PageDecoration(
+                  pageMargin: EdgeInsets.only(bottom: 0),
+                ),
 
                 titleWidget: const SizedBox.shrink(),
                 bodyWidget: Column(
@@ -25,85 +46,126 @@ class OnboardingScreen extends StatelessWidget {
                   children: [
                     const SizedBox(height: 100),
 
-                    Image.asset("assets/onboarding_icons/image 180.png",
-                        height: 250),
-                    const SizedBox(height: 50),
-                    Text("Book a slot",
-                        style: GoogleFonts.orbitron(
-                            color: const Color(0xff00DC00),
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold)),
-                    Text("at your Favourite\nGaming Cafe",
-                        style: GoogleFonts.orbitron(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    Text(
-                        "Enjoy immersive gaming, fast PCs, comfortable seating, friendly vibes, and endless fun with friends.",
-                        style: GoogleFonts.inter(
-                            color: Colors.white70, fontSize: 14)),
-                  ],
-                ),
-              ),
-              PageViewModel(useScrollView: true,                decoration: PageDecoration(pageMargin:EdgeInsets.only(bottom: 0)),
-
-                titleWidget: const SizedBox.shrink(),
-                bodyWidget: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [ const SizedBox(height: 100),
-                    Align(
-                      alignment: Alignment.center,
-                      child: Image.asset("assets/onboarding_icons/image 181.png",
-                          height: 250),
+                    Image.asset(
+                      "assets/onboarding_icons/image 180.png",
+                      height: 250,
                     ),
                     const SizedBox(height: 50),
-                    Text("Refer & Earn",
-                        style: GoogleFonts.orbitron(
-                            color: const Color(0xff00DC00),
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold)),
-                    Text("Hash Coins",
-                        style: GoogleFonts.orbitron(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold)),
+                    Text(
+                      "Book a slot",
+                      style: GoogleFonts.orbitron(
+                        color: const Color(0xff00DC00),
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "at your Favourite\nGaming Cafe",
+                      style: GoogleFonts.orbitron(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 10),
                     Text(
-                        "Share with friends, grow your community, unlock exclusive rewards, play more, save more, and enjoy ultimate gaming benefits.",
-                        style: GoogleFonts.inter(
-                            color: Colors.white70, fontSize: 14)),
+                      "Enjoy immersive gaming, fast PCs, comfortable seating, friendly vibes, and endless fun with friends.",
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              PageViewModel(useScrollView: true,
+              PageViewModel(
+                useScrollView: true,
+                decoration: PageDecoration(
+                  pageMargin: EdgeInsets.only(bottom: 0),
+                ),
+
                 titleWidget: const SizedBox.shrink(),
-                decoration: PageDecoration(pageMargin:EdgeInsets.only(bottom: 0)),
                 bodyWidget: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     const SizedBox(height: 100),
-                    Center(
-                      child: Image.asset("assets/onboarding_icons/image 182.png",alignment: Alignment.center,
-                          height: 250),
+                    Align(
+                      alignment: Alignment.center,
+                      child: Image.asset(
+                        "assets/onboarding_icons/image 181.png",
+                        height: 250,
+                      ),
                     ),
                     const SizedBox(height: 50),
-                    Text("Participate",
-                        style: GoogleFonts.orbitron(
-                            color: const Color(0xff00DC00),
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold)),
-                    Text("in Sick Tournaments",
-                        style: GoogleFonts.orbitron(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold)),
+                    Text(
+                      "Refer & Earn",
+                      style: GoogleFonts.orbitron(
+                        color: const Color(0xff00DC00),
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "Hash Coins",
+                      style: GoogleFonts.orbitron(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 10),
                     Text(
-                        "Compete with top gamers, win epic prizes, earn glory, and become a legend in gaming.",
-                        style: GoogleFonts.inter(
-                            color: Colors.white70, fontSize: 14)),
+                      "Share with friends, grow your community, unlock exclusive rewards, play more, save more, and enjoy ultimate gaming benefits.",
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PageViewModel(
+                useScrollView: true,
+                titleWidget: const SizedBox.shrink(),
+                decoration: PageDecoration(
+                  pageMargin: EdgeInsets.only(bottom: 0),
+                ),
+                bodyWidget: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 100),
+                    Center(
+                      child: Image.asset(
+                        "assets/onboarding_icons/image 182.png",
+                        alignment: Alignment.center,
+                        height: 250,
+                      ),
+                    ),
+                    const SizedBox(height: 50),
+                    Text(
+                      "Participate",
+                      style: GoogleFonts.orbitron(
+                        color: const Color(0xff00DC00),
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "in Sick Tournaments",
+                      style: GoogleFonts.orbitron(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      "Compete with top gamers, win epic prizes, earn glory, and become a legend in gaming.",
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -113,10 +175,10 @@ class OnboardingScreen extends StatelessWidget {
             next: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color:Color(0xffB6B6B6) )
-                
+                border: Border.all(color: Color(0xffB6B6B6)),
               ),
-              child: Container(margin: EdgeInsets.all(6),
+              child: Container(
+                margin: EdgeInsets.all(6),
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: Color(0xffB6B6B6),
@@ -125,16 +187,20 @@ class OnboardingScreen extends StatelessWidget {
                 child: const Icon(Icons.chevron_right, color: Colors.black),
               ),
             ),
-            done: Container(padding:  EdgeInsets.symmetric(horizontal: 16,vertical: 6),
+            done: Container(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(15),
-                  color:Colors.white 
-
+                borderRadius: BorderRadius.circular(15),
+                color: Colors.white,
               ),
-              child: Text("Letsgo",
-                  style: GoogleFonts.orbitron(
-                      color: Colors.black,fontSize: 12,
-                      fontWeight: FontWeight.w100)),
+              child: Text(
+                "Letsgo",
+                style: GoogleFonts.orbitron(
+                  color: Colors.black,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w100,
+                ),
+              ),
             ),
             onDone: () {
               Navigator.pushReplacementNamed(context, "/login");
@@ -158,11 +224,14 @@ class OnboardingScreen extends StatelessWidget {
             right: 20,
             child: GestureDetector(
               onTap: () => Navigator.pushReplacementNamed(context, "/login"),
-              child: Text("Skip",
-                  style: GoogleFonts.orbitron(
-                      color: Colors.grey,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500)),
+              child: Text(
+                "Skip",
+                style: GoogleFonts.orbitron(
+                  color: Colors.grey,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ),
         ],

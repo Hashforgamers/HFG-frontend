@@ -17,6 +17,9 @@ import 'package:hash/app/modules/home/widgets/home_game_pass_card.dart';
 import 'package:hash/app/modules/home/widgets/optimized_app_bar.dart';
 import 'package:hash/app/modules/home/widgets/welcome_aboard_dialog.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
+import 'package:hash/app/modules/tournaments_section/cubit/tournament_home_cubit.dart';
+import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
 import 'package:hash/app/modules/profile/user_profile_view.dart';
@@ -58,6 +61,7 @@ class _HomeContentViewState extends State<HomeContentView>
   late final UserController userController;
   late final WalletController walletController;
   late final SegmentSdkService segmentService;
+  late final TournamentHomeCubit tournamentHomeCubit;
 
   // Animation controllers
   late final AnimationController _fadeController;
@@ -137,6 +141,7 @@ class _HomeContentViewState extends State<HomeContentView>
     _fadeController.dispose();
     _slideController.dispose();
     _scrollController.dispose();
+    tournamentHomeCubit.close();
     super.dispose();
   }
 
@@ -146,6 +151,7 @@ class _HomeContentViewState extends State<HomeContentView>
     userController = Get.find<UserController>();
     walletController = Get.find<WalletController>();
     segmentService = locator<SegmentSdkService>();
+    tournamentHomeCubit = TournamentHomeCubit();
   }
 
   void _initializeSections() {
@@ -299,6 +305,7 @@ class _HomeContentViewState extends State<HomeContentView>
         final tasks = <Future<void>>[
           _refreshWalletIfReady(forceRefresh: forceRefresh),
           bookingController.fetchUserBookings(forceRefresh: forceRefresh),
+          tournamentHomeCubit.fetchTournaments(forceRefresh: forceRefresh),
           hashCoinCubit.getHashCoin(forceRefresh: forceRefresh),
         ];
         if (!_fcmRegistered) {
@@ -504,6 +511,170 @@ class _HomeContentViewState extends State<HomeContentView>
   }
 
   Widget _buildPlayerLobby() {
+    return BlocBuilder<TournamentHomeCubit, TournamentHomeState>(
+      bloc: tournamentHomeCubit,
+      builder: (context, state) {
+        if (state is TournamentHomeLoaded) {
+          final upcoming = state.joinableTournaments
+              .where(
+                (tournament) => tournament.status == TournamentStatus.upcoming,
+              )
+              .toList(growable: false);
+          if (upcoming.isNotEmpty) {
+            return _buildUpcomingTournaments(upcoming);
+          }
+        }
+        return _buildLobbyFallback();
+      },
+    );
+  }
+
+  Widget _buildUpcomingTournaments(List<TournamentModel> tournaments) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            children: [
+              Text(
+                'Upcoming Tournaments',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => Get.find<HomeController>().onItemTapped(2),
+                child: const Text('View all'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 210,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: tournaments.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 9),
+            itemBuilder: (_, index) =>
+                _buildUpcomingTournamentCard(tournaments[index]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUpcomingTournamentCard(TournamentModel tournament) {
+    final imagePath = tournament.imageUrl.trim();
+    final image = imagePath.startsWith('http')
+        ? NetworkImage(imagePath)
+        : AssetImage(
+                imagePath.isEmpty
+                    ? 'assets/hash_store_images/tournament_img1.png'
+                    : imagePath,
+              )
+              as ImageProvider;
+    final date = tournament.startDate;
+    final dateLabel = date == null
+        ? 'DATE TBA'
+        : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+    return GestureDetector(
+      onTap: () {
+        if (tournament.source == 'community') {
+          Get.toNamed(
+            AppRoutes.TOURNAMENT_DETAIL,
+            arguments: {
+              'id': tournament.id,
+              'can_manage': tournament.canManage,
+            },
+          );
+        } else {
+          Get.to(() => TournamentsDetailsView(tournament: tournament));
+        }
+      },
+      child: SizedBox(
+        width: 124,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                width: 124,
+                height: 160,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image(image: image, fit: BoxFit.cover),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0x99000000)],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 8,
+                      right: 8,
+                      bottom: 8,
+                      child: Row(
+                        children: [
+                          Text(
+                            tournament.statusLabel.toUpperCase(),
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF00DC00),
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: .7,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            tournament.entryFee,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              tournament.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 12.5,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              dateLabel,
+              style: GoogleFonts.inter(color: Colors.white54, fontSize: 10.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLobbyFallback() {
     return Obx(() {
       final bookings = bookingController.userBookings.where((booking) {
         final status = (booking['status'] ?? '').toString().toLowerCase();

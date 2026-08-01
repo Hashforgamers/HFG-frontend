@@ -100,13 +100,9 @@ class FriendService {
     return {...?doc.data(), 'uid': uid};
   }
 
-  Future<List<Map<String, dynamic>>> allPlayers({int limit = 200}) async {
+  Future<List<Map<String, dynamic>>> allPlayers({int? limit}) async {
     final uid = currentUid;
     if (uid == null) return const [];
-    final snapshot = await _firestore
-        .collection('chat_users')
-        .limit(limit)
-        .get();
     final blockedSnapshot = await _firestore
         .collection('social_blocks')
         .where('blocker_uid', isEqualTo: uid)
@@ -115,10 +111,38 @@ class FriendService {
         .map((doc) => (doc.data()['blocked_uid'] ?? '').toString())
         .where((value) => value.isNotEmpty)
         .toSet();
-    return snapshot.docs
-        .where((doc) => doc.id != uid && !blocked.contains(doc.id))
-        .map((doc) => {...doc.data(), 'uid': doc.id, 'firebase_uid': doc.id})
-        .toList();
+
+    const pageSize = 200;
+    final players = <Map<String, dynamic>>[];
+    DocumentSnapshot<Map<String, dynamic>>? lastDocument;
+
+    while (limit == null || players.length < limit) {
+      final remaining = limit == null ? pageSize : limit - players.length;
+      final queryLimit = remaining.clamp(1, pageSize);
+      Query<Map<String, dynamic>> query = _firestore
+          .collection('chat_users')
+          .orderBy(FieldPath.documentId)
+          .limit(queryLimit);
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+
+      final snapshot = await query.get();
+      for (final document in snapshot.docs) {
+        if (document.id == uid || blocked.contains(document.id)) continue;
+        players.add({
+          ...document.data(),
+          'uid': document.id,
+          'firebase_uid': document.id,
+        });
+        if (limit != null && players.length >= limit) break;
+      }
+
+      if (snapshot.docs.length < queryLimit) break;
+      lastDocument = snapshot.docs.last;
+    }
+
+    return players;
   }
 
   Future<void> blockPlayer(String targetUid) async {

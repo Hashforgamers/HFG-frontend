@@ -12,6 +12,7 @@ import 'package:hash/config/app_keys.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 import '../../../../utils/widgets/bounce_tap_widget.dart';
@@ -168,8 +169,6 @@ class GamesController extends GetxController {
   static int _cachedPage = 1;
 
   final _service = GameService();
-  final _segmentService = locator<SegmentSdkService>();
-  final _fbEventsService = locator<FbEventsService>();
 
   final _palette = const <Color>[
     Color(0xff710000),
@@ -187,7 +186,6 @@ class GamesController extends GetxController {
   final Set<int> _seen = <int>{};
   int _page = 1;
   bool _hasMore = true;
-  bool _sentPreferences = false;
 
   Color colorForGame(Game g) {
     // deterministic per id
@@ -215,7 +213,6 @@ class GamesController extends GetxController {
       _seen
         ..clear()
         ..addAll(games.map((game) => game.id));
-      _trackPreferencesOnce(games);
       return;
     }
 
@@ -232,8 +229,6 @@ class GamesController extends GetxController {
       AppLogger.i(
         '[GamesByDevelopers] Initial load done. fetched=${resp.items.length} unique=${deduped.length}',
       );
-
-      _trackPreferencesOnce(deduped);
 
       // tiny prefetch of next page thumbnails
       _prefetchNextThumbnails();
@@ -301,14 +296,6 @@ class GamesController extends GetxController {
   }
 
   bool get hasMore => _hasMore;
-
-  void _trackPreferencesOnce(List<Game> list) {
-    if (list.isEmpty || _sentPreferences) return;
-    final top = list.take(5).map((g) => g.name).toList(growable: false);
-    _segmentService.onGamePreferencesSet(selectedGames: top);
-    _fbEventsService.onGamePreferencesSet(selectedGames: top);
-    _sentPreferences = true;
-  }
 
   void _saveCache() {
     _cachedGames = games.toList(growable: false);
@@ -490,6 +477,15 @@ class GameCard extends StatelessWidget {
 
     return BounceTap(
       onTap: () {
+        locator<AnalyticsService>().log(
+          'game_selected',
+          parameters: {
+            'game_id': game.id.toString(),
+            'game_name': game.name,
+            'source_screen': 'games',
+          },
+        );
+        locator<AnalyticsService>().setUserProperties(primaryGame: game.name);
         segment.onGameDetailsViewed(
           gameId: game.id.toString(),
           cafeId: 'general',

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class LfgPost {
   const LfgPost({
@@ -94,6 +95,18 @@ class LfgService {
   CollectionReference<Map<String, dynamic>> get _posts =>
       _firestore.collection('social_lfg_posts');
 
+  void _logFailure(String operation, Object error, StackTrace stackTrace) {
+    if (error is FirebaseException) {
+      debugPrint(
+        '[LFG][$operation] FirebaseException '
+        'plugin=${error.plugin} code=${error.code} message=${error.message}',
+      );
+    } else {
+      debugPrint('[LFG][$operation] $error');
+    }
+    debugPrintStack(stackTrace: stackTrace);
+  }
+
   Stream<List<LfgLobbyMessage>> watchLobbyMessages(String lobbyId) {
     return _posts
         .doc(lobbyId)
@@ -105,7 +118,10 @@ class LfgService {
           (snapshot) => snapshot.docs
               .map(LfgLobbyMessage.fromDoc)
               .toList(growable: false),
-        );
+        )
+        .handleError((Object error, StackTrace stackTrace) {
+          _logFailure('watchLobbyMessages lobby=$lobbyId', error, stackTrace);
+        });
   }
 
   Future<Map<String, dynamic>> _currentProfile() async {
@@ -197,18 +213,22 @@ class LfgService {
   }
 
   Stream<List<LfgPost>> watchActive() {
-    return _posts.where('is_active', isEqualTo: true).snapshots().map((
-      snapshot,
-    ) {
-      final now = DateTime.now();
-      final posts =
-          snapshot.docs
-              .map(LfgPost.fromDoc)
-              .where((post) => post.expiresAt.isAfter(now))
-              .toList()
-            ..sort((a, b) => a.expiresAt.compareTo(b.expiresAt));
-      return posts;
-    });
+    return _posts
+        .where('is_active', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) {
+          final now = DateTime.now();
+          final posts =
+              snapshot.docs
+                  .map(LfgPost.fromDoc)
+                  .where((post) => post.expiresAt.isAfter(now))
+                  .toList()
+                ..sort((a, b) => a.expiresAt.compareTo(b.expiresAt));
+          return posts;
+        })
+        .handleError((Object error, StackTrace stackTrace) {
+          _logFailure('watchActive', error, stackTrace);
+        });
   }
 
   Future<void> publish({
@@ -220,27 +240,32 @@ class LfgService {
   }) async {
     final uid = currentUid;
     if (uid == null) throw StateError('Sign in to squad up.');
-    final profile = await _firestore.collection('chat_users').doc(uid).get();
-    final data = profile.data() ?? const <String, dynamic>{};
-    await _posts.doc(uid).set({
-      'uid': uid,
-      'display_name':
-          data['display_name'] ??
-          data['username'] ??
-          _auth.currentUser?.displayName ??
-          'HASH player',
-      'photo_url': data['photo_url'] ?? _auth.currentUser?.photoURL ?? '',
-      'game': game,
-      'mode': mode,
-      'mic_on': micOn,
-      'note': note.trim(),
-      'is_active': true,
-      'owner_id': uid,
-      'member_ids': FieldValue.arrayUnion([uid]),
-      'created_at': FieldValue.serverTimestamp(),
-      'updated_at': FieldValue.serverTimestamp(),
-      'expires_at': Timestamp.fromDate(DateTime.now().add(duration)),
-    }, SetOptions(merge: true));
+    try {
+      final profile = await _firestore.collection('chat_users').doc(uid).get();
+      final data = profile.data() ?? const <String, dynamic>{};
+      await _posts.doc(uid).set({
+        'uid': uid,
+        'display_name':
+            data['display_name'] ??
+            data['username'] ??
+            _auth.currentUser?.displayName ??
+            'HASH player',
+        'photo_url': data['photo_url'] ?? _auth.currentUser?.photoURL ?? '',
+        'game': game,
+        'mode': mode,
+        'mic_on': micOn,
+        'note': note.trim(),
+        'is_active': true,
+        'owner_id': uid,
+        'member_ids': FieldValue.arrayUnion([uid]),
+        'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+        'expires_at': Timestamp.fromDate(DateTime.now().add(duration)),
+      }, SetOptions(merge: true));
+    } catch (error, stackTrace) {
+      _logFailure('publish uid=$uid', error, stackTrace);
+      rethrow;
+    }
   }
 
   Future<void> close() async {

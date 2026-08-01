@@ -5,6 +5,7 @@ import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/device_identifier_service.dart';
+import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service/external_cafe_likes_service.dart';
 import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
@@ -78,6 +79,10 @@ Future<void> setupServiceLocator({bool reset = false}) async {
         deviceIdentifierService: locator<DeviceIdentifierService>(),
       ),
     );
+  }
+
+  if (!locator.isRegistered<AnalyticsService>()) {
+    locator.registerSingleton<AnalyticsService>(AnalyticsService());
   }
 
   if (!locator.isRegistered<FunnelNotificationService>()) {

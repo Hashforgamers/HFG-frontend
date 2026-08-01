@@ -8,6 +8,8 @@ import 'package:hash/app/modules/tournaments_section/services/tournament_payment
 import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
 import 'package:hash/app/modules/tournaments_section/widgets/tournament_finalizing_registration_dialog.dart';
 import '../cubit/tournaments_register_cubit.dart';
+import 'package:hash/core/service/analytics_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 class TournamentsRegisterView extends StatefulWidget {
   final TournamentModel tournament;
@@ -265,19 +267,39 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
       return;
     }
 
+    final analytics = locator<AnalyticsService>();
+    final params = _analyticsParameters();
+    await analytics.log('tournament_join_started', parameters: params);
+    if (!context.mounted) return;
+
     setState(() => _isPaymentProcessing = true);
     TournamentPaymentResult? payment;
     try {
+      if (_entryFeeAmount() > 0) {
+        await analytics.log('payment_started', parameters: params);
+        if (!context.mounted) return;
+      }
       payment = await _paymentService.payRegistrationFee(
         context: context,
         tournament: widget.tournament,
       );
       if (!mounted) return;
       if (payment == null) {
+        await analytics.log(
+          'payment_failed',
+          parameters: {...params, 'failure_reason': 'user_cancelled'},
+        );
         _openPaymentFailedPage('Payment was not completed.');
         return;
       }
     } catch (e) {
+      await analytics.log(
+        'payment_failed',
+        parameters: {
+          ...params,
+          'failure_reason': AnalyticsService.normalizeFailureReason(e),
+        },
+      );
       if (!mounted) return;
       final message = e.toString().replaceFirst('Exception: ', '');
       _openPaymentFailedPage(
@@ -300,6 +322,37 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
       teamMode: widget.tournament.teamMode,
       payment: payment,
     );
+  }
+
+  double _entryFeeAmount() =>
+      double.tryParse(
+        widget.tournament.entryFee.replaceAll(RegExp(r'[^0-9.]'), ''),
+      ) ??
+      0;
+
+  Map<String, Object?> _analyticsParameters() {
+    final tournament = widget.tournament;
+    final playerParts = tournament.players.split('/');
+    final participants = int.tryParse(playerParts.first.trim());
+    final capacity = playerParts.length > 1
+        ? int.tryParse(playerParts.last.trim())
+        : null;
+    return {
+      'tournament_id': tournament.id,
+      'game_id': tournament.game,
+      'game_name': tournament.game,
+      'tournament_mode': tournament.teamMode,
+      'entry_fee': _entryFeeAmount(),
+      'host_id': tournament.hostUserId,
+      'team_status': tournament.teamMode.toLowerCase() == 'solo'
+          ? 'solo'
+          : 'creating',
+      'participant_count': participants,
+      'slots_remaining': participants == null || capacity == null
+          ? null
+          : (capacity - participants).clamp(0, capacity),
+      'source_screen': 'tournament_registration',
+    };
   }
 
   void _showValidationError(String message) {

@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import '../../../routes/app_routes.dart';
 import '../models/tournament.dart';
 import '../services/community_api.dart';
+import 'package:hash/core/service/analytics_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 /// Tournament discovery — GET /tournaments with view/search filters.
 class TournamentsController extends GetxController {
@@ -50,6 +52,15 @@ class TournamentsController extends GetxController {
       );
       items.assignAll(res.items);
       _pages = res.pages;
+      await locator<AnalyticsService>().log(
+        'tournament_list_viewed',
+        parameters: {
+          'source_screen': 'community_tournaments',
+          'tournament_mode': view.value,
+          'participant_count': res.items.length,
+        },
+        deduplicationKey: 'community_tournaments:${view.value}',
+      );
     } catch (_) {
       error.value = 'Could not load tournaments. Pull to retry.';
     } finally {

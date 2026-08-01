@@ -93,21 +93,9 @@ class _GamerProfileStoryViewState extends State<GamerProfileStoryView> {
   Future<void> _shareStory() async {
     setState(() => _sharing = true);
     try {
-      await WidgetsBinding.instance.endOfFrame;
-      var boundary =
-          _storyKey.currentContext?.findRenderObject()
-              as RenderRepaintBoundary?;
-      if (boundary == null || boundary.debugNeedsPaint) {
-        await WidgetsBinding.instance.endOfFrame;
-        boundary =
-            _storyKey.currentContext?.findRenderObject()
-                as RenderRepaintBoundary?;
-      }
-      if (boundary == null || boundary.debugNeedsPaint) {
-        throw StateError('Story is not ready');
-      }
-      final image = await boundary.toImage(pixelRatio: 3);
+      final image = await _captureStory();
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
       if (data == null) throw StateError('Could not render story');
 
       final directory = await getTemporaryDirectory();
@@ -138,6 +126,27 @@ class _GamerProfileStoryViewState extends State<GamerProfileStoryView> {
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
+  }
+
+  Future<ui.Image> _captureStory() async {
+    Object? lastError;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await WidgetsBinding.instance.endOfFrame;
+      final boundary =
+          _storyKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
+      if (boundary == null || !boundary.hasSize || boundary.size.isEmpty) {
+        lastError = StateError('Story is not laid out');
+      } else {
+        try {
+          return await boundary.toImage(pixelRatio: 3);
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    throw StateError('Story is not ready: $lastError');
   }
 
   Rect? _shareOrigin() {

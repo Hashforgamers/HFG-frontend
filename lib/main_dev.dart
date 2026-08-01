@@ -12,6 +12,7 @@ import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
 import 'package:hash/core/service/deeplink_service.dart';
+import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/notification_service.dart';
@@ -106,6 +107,7 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.dark,
           initialRoute: AppRoutes.SPLASH,
           getPages: AppPages.pages,
+          navigatorObservers: [locator<AnalyticsService>().observer],
         ),
       ),
     );

@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'verification_checkout_controller.dart';
 import '../models/host_verification.dart';
 import '../services/community_api.dart';
+import 'package:hash/core/service/analytics_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 /// Backs the host verification form (POST /hosts/verification).
 class HostVerificationController extends GetxController {
@@ -92,6 +94,18 @@ class HostVerificationController extends GetxController {
             ? null
             : govIdRef.text.trim(),
         paymentReference: _paymentReference,
+      );
+      await locator<AnalyticsService>().log(
+        'host_verification_submitted',
+        parameters: {
+          'source_screen': 'host_verification',
+          'host_verified': record.status == HostVerificationStatus.verified,
+        },
+      );
+      await locator<AnalyticsService>().setUserProperties(
+        userRole: record.status == HostVerificationStatus.verified
+            ? 'host'
+            : 'host_candidate',
       );
       await _clearPendingPaymentReference();
       Get.back(result: record.status);

@@ -10,6 +10,8 @@ import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:hash/core/service/meta_app_events.dart';
+import 'package:hash/core/service/analytics_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FbEventsService {
@@ -37,8 +39,26 @@ class FbEventsService {
 
   Map<String, Object> _toFirebaseParams(Map<String, dynamic> input) {
     final result = <String, Object>{};
+    const blockedKeys = {
+      'email',
+      'phone',
+      'phone_number',
+      'mobile',
+      'mobile_number',
+      'name',
+      'full_name',
+      'government_id',
+      'gov_id',
+      'upi_id',
+      'address',
+      'username',
+      'advertising_id',
+      'gaid',
+      'idfa',
+    };
     input.forEach((key, value) {
       final safeKey = _toFirebaseKey(key, fallback: 'param');
+      if (blockedKeys.contains(safeKey)) return;
       if (value == null) return;
       if (value is String || value is num) {
         result[safeKey] = value;
@@ -77,13 +97,29 @@ class FbEventsService {
   ) async {
     final payload = <String, dynamic>{...parameters};
     payload.addAll(await _identityPayload());
+    const piiKeys = {
+      'email',
+      'phone',
+      'phone_number',
+      'mobile',
+      'mobile_number',
+      'name',
+      'full_name',
+      'government_id',
+      'gov_id',
+      'upi_id',
+      'address',
+      'username',
+    };
+    payload.removeWhere(
+      (key, _) => piiKeys.contains(_toFirebaseKey(key, fallback: 'param')),
+    );
     debugPrint(
       '[FbEventsService] Facebook event -> name: $eventName, payload: $payload',
     );
-    final facebookFuture = fbAppEvents.logEvent(
-      name: eventName,
-      parameters: payload,
-    ) as Future<void>;
+    final facebookFuture =
+        fbAppEvents.logEvent(name: eventName, parameters: payload)
+            as Future<void>;
     await Future.wait<void>([
       facebookFuture,
       _logFirebaseEvent(eventName, payload),
@@ -275,11 +311,19 @@ class FbEventsService {
     required String referralBy,
     required String userId,
   }) async {
-    await logEvent('Signup Completed', {
-      'user_id': userId,
-      'referred_by': referralBy,
-      'source': '',
-    });
+    await locator<AnalyticsService>().log(
+      'sign_up',
+      parameters: {'method': 'app', 'source_screen': 'signup'},
+    );
+    await fbAppEvents.logEvent(
+          name: 'Signup Completed',
+          parameters: {
+            'user_id': userId,
+            'referred_by': referralBy,
+            'source': '',
+          },
+        )
+        as Future<void>;
   }
 
   // Event 6 - Login Success
@@ -288,11 +332,24 @@ class FbEventsService {
     required String loginMethod,
     required String deviceId,
   }) async {
-    await logEvent('Login Successful', {
-      'user_id': userId,
-      'device_id': deviceId,
-      'login_method': loginMethod,
-    });
+    await locator<AnalyticsService>().setAuthenticatedUser(userId);
+    await locator<AnalyticsService>().setUserProperties(
+      userRole: 'participant',
+      appLanguage: PlatformDispatcher.instance.locale.languageCode,
+    );
+    await locator<AnalyticsService>().log(
+      'login',
+      parameters: {'method': loginMethod, 'source_screen': 'login'},
+    );
+    await fbAppEvents.logEvent(
+          name: 'Login Successful',
+          parameters: {
+            'user_id': userId,
+            'device_id': deviceId,
+            'login_method': loginMethod,
+          },
+        )
+        as Future<void>;
   }
 
   // Permissions Granted
@@ -749,7 +806,11 @@ class FbEventsService {
     required String eventId,
     required String teamId,
   }) async =>
-      logEvent('Tournament Joined', {'event_id': eventId, 'team_id': teamId});
+      fbAppEvents.logEvent(
+            name: 'Tournament Joined',
+            parameters: {'event_id': eventId, 'team_id': teamId},
+          )
+          as Future<void>;
 
   Future<void> onFriendInvited({
     required String targetUserId,
