@@ -221,7 +221,9 @@ class TournamentModel {
   }
 
   bool matchesFilter(String category) {
-    if (category == 'All') return true;
+    // Completed tournaments remain available in the dedicated Completed tab,
+    // but should not appear among active tournament discovery in All.
+    if (category == 'All') return status != TournamentStatus.completed;
     return statusLabel == category.toLowerCase();
   }
 

@@ -45,7 +45,7 @@ void main() {
   });
 
   group('PollinationsTournamentBannerRepository', () {
-    test('constructs an encoded 4:3 URL without double encoding', () async {
+    test('constructs an encoded 16:9 URL without double encoding', () async {
       final repository = PollinationsTournamentBannerRepository(
         apiKey: 'pk_test_publishable',
         random: Random(1),
@@ -63,9 +63,12 @@ void main() {
       expect(uri.pathSegments.first, 'image');
       expect(uri.pathSegments[1], result.prompt);
       expect(uri.queryParameters['width'], '1536');
-      expect(uri.queryParameters['height'], '1152');
+      expect(uri.queryParameters['height'], '864');
       expect(uri.queryParameters['model'], 'flux');
       expect(uri.queryParameters['nologo'], 'true');
+      expect(uri.queryParameters, isNot(contains('key')));
+      expect(result.authorizationHeader, 'Bearer pk_test_publishable');
+      expect(result.fallbackImageUrl, isNotNull);
     });
 
     test('regeneration creates a different seed', () async {
@@ -86,13 +89,42 @@ void main() {
       expect(second.seed, isNot(first.seed));
     });
 
-    test('rejects missing or non-publishable credentials', () async {
-      final repository = PollinationsTournamentBannerRepository(apiKey: '');
+    test(
+      'uses the keyless image endpoint when credentials are missing',
+      () async {
+        final repository = PollinationsTournamentBannerRepository(apiKey: '');
 
-      await expectLater(
-        repository.generate(gameName: 'BGMI', gameType: 'Squad'),
-        throwsA(isA<TournamentBannerException>()),
-      );
-    });
+        final result = await repository.generate(
+          gameName: 'BGMI',
+          gameType: 'Squad',
+        );
+
+        final uri = Uri.parse(result.imageUrl);
+        expect(uri.host, 'image.pollinations.ai');
+        expect(uri.pathSegments.first, 'prompt');
+        expect(uri.queryParameters, isNot(contains('key')));
+        expect(result.provider, 'pollinations_legacy');
+      },
+    );
+
+    test(
+      'never exposes a server-side secret key in the generated URL',
+      () async {
+        const secret = 'sk_server_only_secret';
+        final repository = PollinationsTournamentBannerRepository(
+          apiKey: secret,
+        );
+
+        final result = await repository.generate(
+          gameName: 'Valorant',
+          gameType: '5v5',
+        );
+
+        expect(result.imageUrl, isNot(contains(secret)));
+        expect(Uri.parse(result.imageUrl).host, 'image.pollinations.ai');
+        expect(result.authorizationHeader, isNull);
+        expect(result.fallbackImageUrl, isNull);
+      },
+    );
   });
 }

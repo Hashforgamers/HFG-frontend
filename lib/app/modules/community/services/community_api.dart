@@ -467,6 +467,25 @@ class CommunityApi {
     return Dispute.fromJson(_map(res.data));
   }
 
+  /// POST /chat/firebase-token (auth)
+  Future<String> firebaseChatToken() async {
+    final dio = await _authedDio();
+    final res = await dio.post('/chat/firebase-token');
+    final data = _map(res.data);
+    final token =
+        (data['custom_token'] ?? data['firebase_token'] ?? data['token'])
+            ?.toString()
+            .trim();
+    if (token == null || token.isEmpty) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        response: res,
+        error: 'Firebase custom token missing from response',
+      );
+    }
+    return token;
+  }
+
   /// GET /tournaments/<id>/disputes (auth host, read-only).
   Future<List<Dispute>> tournamentDisputes(
     String tournamentId, {

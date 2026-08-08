@@ -25,119 +25,135 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
       body: SafeArea(
         child: Column(
           children: [
+            Obx(() => _progressHeader(controller.formStep.value)),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                children: [
-                  Obx(() => _smartDefaultsNote()),
-                  const SizedBox(height: 20),
-                  _section('BASIC DETAILS'),
-                  _field(
-                    'Tournament title',
-                    controller.title,
-                    hint: 'BGMI Friday Cup',
+              child: Obx(
+                () => ListView(
+                  key: ValueKey(
+                    'create_tournament_step_${controller.formStep.value}',
                   ),
-                  _gamePicker(),
-                  _field(
-                    'Description',
-                    controller.description,
-                    maxLines: 3,
-                    required: false,
-                  ),
-                  _dropdowns(),
-                  const SizedBox(height: 13),
-                  _field(
-                    'Game mode',
-                    controller.gameMode,
-                    hint: 'Battle Royale, 5v5, Search and Destroy…',
-                    required: false,
-                  ),
-                  _bannerPicker(context),
-                  const SizedBox(height: 22),
-                  _section('ENTRY & CAPACITY'),
-                  Text('Entry fee', style: CT.body(12)),
-                  const SizedBox(height: 8),
-                  _numberPresets(
-                    controller.entryFee,
-                    const [0, 50, 100, 200],
-                    prefix: '₹',
-                    onSelected: controller.setEntryFee,
-                  ),
-                  const SizedBox(height: 12),
-                  Text('Player capacity', style: CT.body(12)),
-                  const SizedBox(height: 8),
-                  _numberPresets(
-                    controller.maxPlayers,
-                    const [16, 32, 64, 100],
-                    onSelected: (value) =>
-                        controller.setCapacity(value.toInt()),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _field(
-                          'Entry fee (₹)',
-                          controller.entryFee,
-                          keyboard: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          formatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'[0-9.]'),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  children: [
+                    if (controller.formStep.value == 0) ...[
+                      _smartDefaultsNote(),
+                      const SizedBox(height: 20),
+                      _section('ESSENTIALS'),
+                      _field(
+                        'Tournament title',
+                        controller.title,
+                        hint: 'BGMI Friday Cup',
+                      ),
+                      _gamePicker(),
+                      _field(
+                        'Short description',
+                        controller.description,
+                        maxLines: 2,
+                        required: false,
+                      ),
+                      _dropdowns(),
+                      const SizedBox(height: 12),
+                      _teamSizeControl(),
+                      const SizedBox(height: 13),
+                      _field(
+                        'Game mode',
+                        controller.gameMode,
+                        hint: 'Battle Royale, 5v5, Search and Destroy…',
+                        required: false,
+                      ),
+                    ],
+                    if (controller.formStep.value == 2) ...[
+                      _bannerPicker(context),
+                    ],
+                    if (controller.formStep.value == 1) ...[
+                      const SizedBox(height: 22),
+                      _section('ENTRY & CAPACITY'),
+                      Text('Entry fee', style: CT.body(12)),
+                      const SizedBox(height: 8),
+                      _numberPresets(
+                        controller.entryFee,
+                        const [0, 50, 100, 200],
+                        prefix: '₹',
+                        onSelected: controller.setEntryFee,
+                      ),
+                      const SizedBox(height: 12),
+                      Text('Player capacity', style: CT.body(12)),
+                      const SizedBox(height: 8),
+                      _numberPresets(
+                        controller.maxPlayers,
+                        const [16, 32, 64, 100],
+                        onSelected: (value) =>
+                            controller.setCapacity(value.toInt()),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _field(
+                              'Entry fee (₹)',
+                              controller.entryFee,
+                              keyboard: const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              formatters: [
+                                FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.]'),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _field(
+                              'Maximum players',
+                              controller.maxPlayers,
+                              keyboard: TextInputType.number,
+                              formatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _field(
-                          'Maximum players',
-                          controller.maxPlayers,
-                          keyboard: TextInputType.number,
-                          formatters: [FilteringTextInputFormatter.digitsOnly],
-                        ),
+                      Text(
+                        'Paid tournaments require verified host status.',
+                        style: CT.body(11, color: CT.muted),
                       ),
+                      const SizedBox(height: 22),
+                      _section('SCHEDULE'),
+                      _scheduleEditor(context),
                     ],
-                  ),
-                  Text(
-                    'Paid tournaments require verified host status.',
-                    style: CT.body(11, color: CT.muted),
-                  ),
-                  const SizedBox(height: 22),
-                  _section('SCHEDULE'),
-                  _scheduleEditor(context),
-                  const SizedBox(height: 22),
-                  _section('PRIZE DISTRIBUTION'),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _textPreset(
-                        'Winner takes all',
-                        () => controller.setPrizePreset('winner'),
+                    if (controller.formStep.value == 2) ...[
+                      const SizedBox(height: 22),
+                      _section('PRIZE DISTRIBUTION'),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _textPreset(
+                            'Winner takes all',
+                            () => controller.setPrizePreset('winner'),
+                          ),
+                          _textPreset(
+                            'Top 3 · 60/30/10',
+                            () => controller.setPrizePreset('top_3'),
+                          ),
+                          _textPreset(
+                            'Top 3 · 50/30/20',
+                            () => controller.setPrizePreset('balanced'),
+                          ),
+                        ],
                       ),
-                      _textPreset(
-                        'Top 3 · 60/30/10',
-                        () => controller.setPrizePreset('top_3'),
+                      const SizedBox(height: 16),
+                      _prizeDials(),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Drag any ring to adjust. The other prizes rebalance automatically to keep the total at 100%.',
+                        style: CT.body(11, color: CT.muted),
                       ),
-                      _textPreset(
-                        'Top 3 · 50/30/20',
-                        () => controller.setPrizePreset('balanced'),
-                      ),
+                      const SizedBox(height: 22),
+                      _advancedOptions(context),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  _prizeDials(),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Drag any ring to adjust. The other prizes rebalance automatically to keep the total at 100%.',
-                    style: CT.body(11, color: CT.muted),
-                  ),
-                  const SizedBox(height: 22),
-                  _advancedOptions(context),
-                  Obx(
-                    () => controller.error.value == null
+                    controller.error.value == null
                         ? const SizedBox.shrink()
                         : Container(
                             margin: const EdgeInsets.only(top: 8),
@@ -154,13 +170,61 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                               style: CT.body(12, color: CT.error),
                             ),
                           ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             _actions(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _progressHeader(int current) {
+    const labels = ['Basics', 'Registration', 'Finish'];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Column(
+        children: [
+          Row(
+            children: List.generate(labels.length, (index) {
+              final reached = index <= current;
+              return Expanded(
+                child: Container(
+                  height: 4,
+                  margin: EdgeInsets.only(
+                    right: index == labels.length - 1 ? 0 : 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: reached ? CT.primary : CT.outline,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: List.generate(
+              labels.length,
+              (index) => Expanded(
+                child: Text(
+                  labels[index],
+                  textAlign: index == 0
+                      ? TextAlign.left
+                      : index == labels.length - 1
+                      ? TextAlign.right
+                      : TextAlign.center,
+                  style: CT.body(
+                    10.5,
+                    color: index == current ? CT.onSurface : CT.muted,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -519,7 +583,7 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
           ),
           const SizedBox(height: 10),
           AspectRatio(
-            aspectRatio: 4 / 3,
+            aspectRatio: 16 / 9,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: generating
@@ -731,30 +795,11 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                       controller.organizationName,
                       required: false,
                     ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _field(
-                            'Team size',
-                            controller.teamSize,
-                            keyboard: TextInputType.number,
-                            formatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _field(
-                            'Substitute limit',
-                            controller.substituteLimit,
-                            keyboard: TextInputType.number,
-                            formatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                          ),
-                        ),
-                      ],
+                    _field(
+                      'Substitute limit',
+                      controller.substituteLimit,
+                      keyboard: TextInputType.number,
+                      formatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
                     Row(
                       children: [
@@ -968,21 +1013,82 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
       const SizedBox(width: 12),
       Expanded(
         child: Obx(
-          () => _dropdown(
-            'Team mode',
-            controller.teamMode.value,
-            const {
-              'solo': 'Solo',
-              'duo': 'Duo',
-              'squad': 'Squad',
-              'team': 'Team',
-            },
-            (value) => controller.teamMode.value = value,
-          ),
+          () => _dropdown('Team mode', controller.teamMode.value, const {
+            'solo': 'Solo',
+            'duo': 'Duo',
+            'squad': 'Squad',
+            'team': 'Team',
+          }, controller.setTeamMode),
         ),
       ),
     ],
   );
+
+  Widget _teamSizeControl() => Obx(() {
+    final fixedSize = controller.fixedTeamSize;
+    if (fixedSize != null) {
+      final label = controller.teamMode.value == 'solo'
+          ? 'Individual registration'
+          : '$fixedSize players per team';
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: CT.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: CT.outline),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.groups_2_outlined,
+              color: CT.primaryBright,
+              size: 19,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label, style: CT.body(13, color: CT.onSurface)),
+            ),
+            Text('FIXED', style: CT.mono(10, color: CT.muted)),
+          ],
+        ),
+      );
+    }
+    final size = int.tryParse(controller.teamSize.text) ?? 4;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: CT.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: CT.outline),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Players per team',
+              style: CT.body(13, color: CT.onSurface),
+            ),
+          ),
+          IconButton(
+            onPressed: size <= 2
+                ? null
+                : () => controller.setCustomTeamSize(size - 1),
+            icon: const Icon(Icons.remove_circle_outline),
+            color: CT.primaryBright,
+          ),
+          Text('$size', style: CT.headline(16)),
+          IconButton(
+            onPressed: size >= 10
+                ? null
+                : () => controller.setCustomTeamSize(size + 1),
+            icon: const Icon(Icons.add_circle_outline),
+            color: CT.primaryBright,
+          ),
+        ],
+      ),
+    );
+  });
 
   Widget _dropdown(
     String label,
@@ -1117,38 +1223,76 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed:
-                  controller.submitting.value || !controller.canSaveSchedule
-                  ? null
-                  : () => controller.submit(publish: false),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: CT.onSurface,
-                side: const BorderSide(color: CT.outline),
-                minimumSize: const Size.fromHeight(50),
+          if (controller.formStep.value > 0) ...[
+            SizedBox(
+              width: 48,
+              height: 50,
+              child: OutlinedButton(
+                onPressed: controller.submitting.value
+                    ? null
+                    : controller.previousFormStep,
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  foregroundColor: CT.onSurface,
+                  side: const BorderSide(color: CT.outline),
+                ),
+                child: const Icon(Icons.arrow_back_rounded),
               ),
-              child: Text(controller.saveLabel),
             ),
-          ),
-          if (controller.canPublish) ...[
             const SizedBox(width: 12),
+          ],
+          if (controller.formStep.value < 2)
             Expanded(
               child: ElevatedButton(
-                onPressed:
-                    controller.submitting.value || !controller.canSaveSchedule
+                onPressed: controller.submitting.value
                     ? null
-                    : () => controller.submit(publish: true),
+                    : controller.nextFormStep,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: CT.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size.fromHeight(50),
                 ),
-                child: controller.submitting.value
-                    ? const AppLinearLoader.button()
-                    : const Text('Publish'),
+                child: Text(
+                  controller.formStep.value == 0
+                      ? 'Continue to registration'
+                      : 'Review & finish',
+                ),
+              ),
+            )
+          else ...[
+            Expanded(
+              child: OutlinedButton(
+                onPressed:
+                    controller.submitting.value || !controller.canSaveSchedule
+                    ? null
+                    : () => controller.submit(publish: false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: CT.onSurface,
+                  side: const BorderSide(color: CT.outline),
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                child: Text(controller.saveLabel),
               ),
             ),
+            if (controller.canPublish) ...[
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed:
+                      controller.submitting.value || !controller.canSaveSchedule
+                      ? null
+                      : () => controller.submit(publish: true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: CT.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(50),
+                  ),
+                  child: controller.submitting.value
+                      ? const AppLinearLoader.button()
+                      : const Text('Publish'),
+                ),
+              ),
+            ],
           ],
         ],
       ),

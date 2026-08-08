@@ -18,12 +18,16 @@ class TournamentBannerResult {
     required this.prompt,
     required this.seed,
     required this.provider,
+    this.authorizationHeader,
+    this.fallbackImageUrl,
   });
 
   final String imageUrl;
   final String prompt;
   final int seed;
   final String provider;
+  final String? authorizationHeader;
+  final String? fallbackImageUrl;
 }
 
 abstract class TournamentBannerRepository {
@@ -162,12 +166,7 @@ class PollinationsTournamentBannerRepository
     String? tournamentName,
     int? seed,
   }) async {
-    if (_apiKey.isEmpty || !_apiKey.startsWith('pk_')) {
-      throw const TournamentBannerException(
-        'AI banner generation is not configured. Upload a custom banner instead.',
-        type: 'unauthorized',
-      );
-    }
+    final configuredKey = _apiKey.startsWith('pk_') ? _apiKey : null;
     final nextSeed = seed ?? _random.nextInt(999999999);
     final prompt = _promptBuilder.build(
       gameName: gameName,
@@ -178,22 +177,39 @@ class PollinationsTournamentBannerRepository
     );
     final uri = Uri(
       scheme: 'https',
-      host: 'gen.pollinations.ai',
-      pathSegments: ['image', prompt],
+      host: configuredKey == null
+          ? 'image.pollinations.ai'
+          : 'gen.pollinations.ai',
+      pathSegments: [configuredKey == null ? 'prompt' : 'image', prompt],
       queryParameters: {
         'model': 'flux',
         'width': '1536',
-        'height': '1152',
+        'height': '864',
         'seed': nextSeed.toString(),
         'nologo': 'true',
-        'key': _apiKey,
+      },
+    );
+    final fallbackUri = Uri(
+      scheme: 'https',
+      host: 'image.pollinations.ai',
+      pathSegments: ['prompt', prompt],
+      queryParameters: {
+        'model': 'flux',
+        'width': '1536',
+        'height': '864',
+        'seed': nextSeed.toString(),
+        'nologo': 'true',
       },
     );
     return TournamentBannerResult(
       imageUrl: uri.toString(),
       prompt: prompt,
       seed: nextSeed,
-      provider: 'pollinations',
+      provider: configuredKey == null ? 'pollinations_legacy' : 'pollinations',
+      authorizationHeader: configuredKey == null
+          ? null
+          : 'Bearer $configuredKey',
+      fallbackImageUrl: configuredKey == null ? null : fallbackUri.toString(),
     );
   }
 }

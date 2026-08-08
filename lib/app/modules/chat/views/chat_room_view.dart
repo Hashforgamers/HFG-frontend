@@ -10,6 +10,7 @@ import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/theme/chat_palette.dart';
 import 'package:hash/app/modules/chat/views/chat_group_details_view.dart';
+import 'package:hash/app/modules/community/services/community_api.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -19,8 +20,9 @@ import 'package:hash/core/utils/haptics.dart';
 
 class ChatRoomView extends StatefulWidget {
   final String roomId;
+  final String? roomCollection;
 
-  const ChatRoomView({super.key, required this.roomId});
+  const ChatRoomView({super.key, required this.roomId, this.roomCollection});
 
   @override
   State<ChatRoomView> createState() => _ChatRoomViewState();
@@ -67,7 +69,13 @@ class _ChatRoomViewState extends State<ChatRoomView> {
 
   @override
   void dispose() {
-    unawaited(_chatService.setTyping(roomId: widget.roomId, isTyping: false));
+    unawaited(
+      _chatService.setTyping(
+        roomId: widget.roomId,
+        isTyping: false,
+        collection: widget.roomCollection,
+      ),
+    );
     _messageController.dispose();
     _messageFocus.dispose();
     super.dispose();
@@ -147,9 +155,17 @@ class _ChatRoomViewState extends State<ChatRoomView> {
 
     setState(() => _isSending = true);
     try {
-      await _chatService.sendTextMessage(roomId: widget.roomId, text: text);
+      await _chatService.sendTextMessage(
+        roomId: widget.roomId,
+        text: text,
+        collection: widget.roomCollection,
+      );
       _messageController.clear();
-      await _chatService.setTyping(roomId: widget.roomId, isTyping: false);
+      await _chatService.setTyping(
+        roomId: widget.roomId,
+        isTyping: false,
+        collection: widget.roomCollection,
+      );
       _isTyping = false;
       unawaited(
         _segmentService.onCustomEvent('Chat Message Sent', {
@@ -291,6 +307,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     final eventId = (meta['event_id'] ?? '').toString().trim();
     final teamId = (meta['team_id'] ?? '').toString().trim();
     final teamName = (meta['team_name'] ?? 'Team').toString().trim();
+    final communityTeam = meta['community_team'] == true;
     final isLoading = _joiningInviteMessageIds.contains(message.id);
     final actionState = _inviteActionStateByMessageId[message.id];
     final isInvalid = eventId.isEmpty || teamId.isEmpty;
@@ -418,6 +435,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                             messageId: message.id,
                             eventId: eventId,
                             teamId: teamId,
+                            communityTeam: communityTeam,
                           ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ChatPalette.primary,
@@ -789,6 +807,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     required String messageId,
     required String eventId,
     required String teamId,
+    bool communityTeam = false,
   }) async {
     if (_joiningInviteMessageIds.contains(messageId)) return;
 
@@ -802,11 +821,19 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         throw Exception('Unable to identify your account. Please relogin.');
       }
 
-      await _remoteRepo.joinEventTeam(
-        eventId: eventId,
-        teamId: teamId,
-        userId: userId,
-      );
+      if (communityTeam) {
+        await CommunityApi().respondToTeamInvitation(
+          eventId,
+          teamId,
+          action: 'accept',
+        );
+      } else {
+        await _remoteRepo.joinEventTeam(
+          eventId: eventId,
+          teamId: teamId,
+          userId: userId,
+        );
+      }
 
       if (!mounted) return;
       setState(() {
@@ -870,6 +897,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   await _chatService.setTyping(
                     roomId: widget.roomId,
                     isTyping: nextTyping,
+                    collection: widget.roomCollection,
                   );
                 },
                 textInputAction: TextInputAction.send,
@@ -949,7 +977,10 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         surfaceTintColor: Colors.transparent,
         titleSpacing: 0,
         title: StreamBuilder<ChatRoomModel?>(
-          stream: _chatService.streamRoom(widget.roomId),
+          stream: _chatService.streamRoom(
+            widget.roomId,
+            collection: widget.roomCollection,
+          ),
           builder: (context, snapshot) {
             final room = snapshot.data;
             final title = room == null || currentUid == null
@@ -1052,7 +1083,10 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         ),
         actions: [
           StreamBuilder<ChatRoomModel?>(
-            stream: _chatService.streamRoom(widget.roomId),
+            stream: _chatService.streamRoom(
+              widget.roomId,
+              collection: widget.roomCollection,
+            ),
             builder: (context, snapshot) {
               final room = snapshot.data;
               final canOpenDetails = room?.isGroup == true;
@@ -1085,13 +1119,19 @@ class _ChatRoomViewState extends State<ChatRoomView> {
           children: [
             Expanded(
               child: StreamBuilder<ChatRoomModel?>(
-                stream: _chatService.streamRoom(widget.roomId),
+                stream: _chatService.streamRoom(
+                  widget.roomId,
+                  collection: widget.roomCollection,
+                ),
                 builder: (context, roomSnapshot) {
                   final room = roomSnapshot.data;
                   final isGroup = room?.isGroup == true;
 
                   return StreamBuilder<List<ChatMessageModel>>(
-                    stream: _chatService.streamRoomMessages(widget.roomId),
+                    stream: _chatService.streamRoomMessages(
+                      widget.roomId,
+                      collection: widget.roomCollection,
+                    ),
                     builder: (context, messagesSnapshot) {
                       if (messagesSnapshot.connectionState ==
                               ConnectionState.waiting &&

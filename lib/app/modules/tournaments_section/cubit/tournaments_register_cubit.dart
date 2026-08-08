@@ -37,16 +37,16 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
     required String teamName,
     String source = 'cafe',
     String teamMode = 'team',
+    String captainGameId = '',
     List<String> players = const [],
     TournamentPaymentResult? payment,
   }) async {
     emit(TournamentsRegisterLoading());
     try {
       if (source.trim().toLowerCase() == 'community') {
-        if (teamMode.trim().toLowerCase() != 'solo') {
-          throw Exception(
-            'Community team tournament registration is not supported yet.',
-          );
+        final isCommunityTeam = teamMode.trim().toLowerCase() != 'solo';
+        if (isCommunityTeam && teamName.trim().isEmpty) {
+          throw Exception('Team name is required.');
         }
         final registration = await communityApi.registerForTournament(
           eventId,
@@ -98,13 +98,47 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
         } else if (registration.status.toLowerCase() != 'confirmed') {
           throw Exception('Free registration was not confirmed by the server.');
         }
+        String? communityTeamId;
+        if (isCommunityTeam) {
+          final userId = await _resolveUserId();
+          if (userId == null || userId <= 0) {
+            throw Exception('User not found. Please login again.');
+          }
+          final profileGameId = Get.isRegistered<UserController>()
+              ? (Get.find<UserController>().user.value.gameUserName ?? '')
+                    .trim()
+              : '';
+          final gameId = captainGameId.trim().isNotEmpty
+              ? captainGameId.trim()
+              : profileGameId;
+          if (gameId.isEmpty) {
+            throw Exception('Captain in-game ID is required.');
+          }
+          final team = await communityApi.createTeam(
+            eventId,
+            name: teamName.trim(),
+            members: [
+              {'user_id': userId, 'game_id': gameId, 'role': 'captain'},
+            ],
+          );
+          communityTeamId = team.id;
+          await analyticsService.log(
+            'team_created',
+            parameters: {
+              'tournament_id': eventId,
+              'tournament_mode': teamMode,
+              'team_status': 'pending',
+              'source_screen': 'tournament_registration',
+            },
+          );
+        }
         squadMissionsService.trackAction(
           action: SquadMissionAction.joinTournament,
         );
         final lifecycleParams = <String, Object?>{
           'tournament_id': eventId,
           'tournament_mode': teamMode,
-          'team_status': 'solo',
+          'team_status': isCommunityTeam ? 'pending' : 'solo',
           'source_screen': 'tournament_registration',
         };
         if (isPaidRegistration) {
@@ -124,15 +158,16 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
         });
         fbEventsService.onTournamentJoined(
           eventId: eventId,
-          teamId: registrationId,
+          teamId: communityTeamId ?? registrationId,
         );
         TournamentHomeCubit.invalidateCache();
         emit(
           TournamentsRegisterSuccess(
             data: <String, dynamic>{
               'registration_id': registrationId,
-              // Temporary compatibility alias used by legacy app models.
-              'team_id': registrationId,
+              // Legacy screens read team_id even for solo registrations.
+              'team_id': communityTeamId ?? registrationId,
+              if (communityTeamId != null) 'team_name': teamName.trim(),
               'status': _readPaymentField(
                 verification,
                 'status',

@@ -39,8 +39,9 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
   @override
   Widget build(BuildContext context) {
     final t = widget.tournament;
+    final isCommunityTournament = t.source == 'community';
     final isCommunitySolo =
-        t.source == 'community' && t.teamMode.toLowerCase() == 'solo';
+        isCommunityTournament && t.teamMode.toLowerCase() == 'solo';
 
     return BlocProvider.value(
       value: _cubit,
@@ -56,6 +57,11 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
               Get.to(
                 () => TournamentRegistrationSuccessPage(
                   tournamentTitle: widget.tournament.title,
+                  communityTournamentId: widget.tournament.source == 'community'
+                      ? widget.tournament.id
+                      : null,
+                  communityTeamId: state.data['team_id']?.toString(),
+                  communityTeamName: state.data['team_name']?.toString(),
                 ),
               );
             } else if (state is TournamentsRegisterSettlementPending) {
@@ -107,6 +113,8 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
                         Text(
                           isCommunitySolo
                               ? 'Registering as an individual player'
+                              : isCommunityTournament
+                              ? 'Create your roster as captain'
                               : '(You will be the leader by default)',
                           style: GoogleFonts.inter(
                             color: Colors.orangeAccent,
@@ -116,7 +124,11 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
                         const SizedBox(height: 20),
 
                         if (!isCommunitySolo) ...[
-                          _buildLabel("Your Name"),
+                          _buildLabel(
+                            isCommunityTournament
+                                ? 'Captain in-game ID'
+                                : 'Your Name',
+                          ),
                           const SizedBox(height: 10),
                           GradientTextField(controller: nameController),
                           const SizedBox(height: 12),
@@ -249,13 +261,23 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
     final isCommunitySolo =
         widget.tournament.source == 'community' &&
         widget.tournament.teamMode.toLowerCase() == 'solo';
+    final isCommunityTeam =
+        widget.tournament.source == 'community' && !isCommunitySolo;
 
     if (!isCommunitySolo && leaderName.isEmpty) {
-      _showValidationError('Leader name is required.');
+      _showValidationError(
+        isCommunityTeam
+            ? 'Captain in-game ID is required.'
+            : 'Leader name is required.',
+      );
       return;
     }
     if (!isCommunitySolo && leaderName.length < 3) {
-      _showValidationError('Leader name must be at least 3 characters.');
+      _showValidationError(
+        isCommunityTeam
+            ? 'Captain in-game ID must be at least 3 characters.'
+            : 'Leader name must be at least 3 characters.',
+      );
       return;
     }
     if (!isCommunitySolo && teamName.isEmpty) {
@@ -320,6 +342,7 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
       teamName: teamName,
       source: widget.tournament.source,
       teamMode: widget.tournament.teamMode,
+      captainGameId: isCommunitySolo ? '' : leaderName,
       payment: payment,
     );
   }

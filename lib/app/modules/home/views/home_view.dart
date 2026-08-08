@@ -16,6 +16,7 @@ import 'package:hash/app/modules/home/controllers/app_mode_controller.dart';
 import 'package:hash/app/modules/home/controllers/session_progress_controller.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
+import 'package:hash/app/modules/shop_new/view/shop_view.dart';
 import 'package:hash/app/modules/home/widgets/live_session_glass_card.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/fb_events_service.dart';
@@ -59,15 +60,18 @@ class _HomeViewState extends State<HomeView> {
   bool _didSyncChatProfile = false;
   bool _dailyLoginRewardHandled = false;
   bool _isHomeScrolling = false;
+  bool _isShopBarExpanded = false;
   bool _sessionProgressSyncScheduled = false;
   List<Map<String, dynamic>> _pendingSessionProgressBookings =
       <Map<String, dynamic>>[];
   Timer? _fabExpandTimer;
+  Timer? _shopBarCollapseTimer;
   Worker? _bookingsWorker;
 
   @override
   void initState() {
     super.initState();
+    _isShopBarExpanded = controller.isShopOpen.value;
     final appModeController = Get.isRegistered<AppModeController>()
         ? Get.find<AppModeController>()
         : Get.put(AppModeController(), permanent: true);
@@ -435,19 +439,35 @@ class _HomeViewState extends State<HomeView> {
   }
 
   void _openShopSection(int sectionIndex) {
-    if (!HomeController.isHashShopReleased) {
-      controller.onItemTapped(3);
-      return;
-    }
     final wasClosed = !controller.isShopOpen.value;
-    if (controller.selectedIndex.value != 3) {
-      controller.onItemTapped(3);
+    _shopBarCollapseTimer?.cancel();
+    shopController.setShopMenuIndex(sectionIndex);
+    if (!_isShopBarExpanded) {
+      setState(() => _isShopBarExpanded = true);
     }
     controller.isShopOpen.value = true;
-    shopController.setShopMenuIndex(sectionIndex);
     if (wasClosed) {
       Haptics.medium();
     }
+  }
+
+  void _closeShop() {
+    if (!controller.isShopOpen.value && !_isShopBarExpanded) return;
+    Haptics.navigation();
+    controller.isShopOpen.value = false;
+    _shopBarCollapseTimer?.cancel();
+    _shopBarCollapseTimer = Timer(const Duration(milliseconds: 170), () {
+      if (!mounted || !_isShopBarExpanded) return;
+      setState(() => _isShopBarExpanded = false);
+    });
+  }
+
+  void _onMainNavigationTap(int index) {
+    _shopBarCollapseTimer?.cancel();
+    if (_isShopBarExpanded) {
+      setState(() => _isShopBarExpanded = false);
+    }
+    controller.onItemTapped(index);
   }
 
   bool _handleHomeScrollNotification(ScrollNotification notification) {
@@ -479,6 +499,7 @@ class _HomeViewState extends State<HomeView> {
   @override
   void dispose() {
     _fabExpandTimer?.cancel();
+    _shopBarCollapseTimer?.cancel();
     _bookingsWorker?.dispose();
     super.dispose();
   }
@@ -486,30 +507,44 @@ class _HomeViewState extends State<HomeView> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
+    final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
     return Scaffold(
       body: Stack(
         children: [
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
+            duration: const Duration(milliseconds: 280),
+            reverseDuration: const Duration(milliseconds: 240),
             transitionBuilder: (Widget child, Animation<double> animation) {
+              final curvedAnimation = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+                reverseCurve: Curves.easeInCubic,
+              );
               return FadeTransition(
-                opacity: animation,
+                opacity: curvedAnimation,
                 child: SlideTransition(
                   position: Tween<Offset>(
-                    begin: const Offset(0.1, 0),
+                    begin: const Offset(0.035, 0),
                     end: Offset.zero,
-                  ).animate(animation),
+                  ).animate(curvedAnimation),
                   child: child,
                 ),
               );
             },
             child: Obx(() {
+              final isShowingShop =
+                  HomeController.isHashShopReleased &&
+                  controller.isShopOpen.value;
               final screen = RepaintBoundary(
-                key: ValueKey(controller.selectedIndex.value),
-                child: controller.currentScreen.value,
+                key: ValueKey(
+                  isShowingShop ? 'hash_shop' : controller.selectedIndex.value,
+                ),
+                child: isShowingShop
+                    ? const ShopMenuView()
+                    : controller.currentScreen.value,
               );
 
-              if (controller.selectedIndex.value != 0) {
+              if (isShowingShop || controller.selectedIndex.value != 0) {
                 if (_isHomeScrolling) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (!mounted || !_isHomeScrolling) return;
@@ -526,7 +561,8 @@ class _HomeViewState extends State<HomeView> {
             }),
           ),
           Obx(() {
-            if (controller.selectedIndex.value != 0) {
+            if (controller.isShopOpen.value ||
+                controller.selectedIndex.value != 0) {
               return const SizedBox.shrink();
             }
             return Positioned(
@@ -564,7 +600,8 @@ class _HomeViewState extends State<HomeView> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Obx(() {
-        if (controller.selectedIndex.value != 0) {
+        if (controller.isShopOpen.value ||
+            controller.selectedIndex.value != 0) {
           return const SizedBox.shrink();
         }
 
@@ -647,8 +684,12 @@ class _HomeViewState extends State<HomeView> {
 
       // --- Bottom bar with Hash Shop slide animation ---
       bottomNavigationBar: Obx(() {
-        final bool isShopMenuOpen = controller.isShopOpen.value;
+        final bool isShopMenuOpen = _isShopBarExpanded;
         final int activeShopIndex = shopController.shopMenuIndex.value;
+        final double shopActionsWidth = (screenWidth - 140).clamp(
+          0.0,
+          double.infinity,
+        );
 
         return Stack(
           alignment: Alignment.bottomCenter,
@@ -661,15 +702,7 @@ class _HomeViewState extends State<HomeView> {
               showSelectedLabels: false,
               showUnselectedLabels: false,
               currentIndex: controller.selectedIndex.value,
-              onTap: (index) {
-                if (index == 3 && HomeController.isHashShopReleased) {
-                  if (!isShopMenuOpen) {
-                    Haptics.medium();
-                  }
-                  shopController.setShopMenuIndex(0);
-                }
-                controller.onItemTapped(index);
-              },
+              onTap: _onMainNavigationTap,
               backgroundColor: Colors.black,
               selectedItemColor: const Color(0xff00DC00),
               unselectedItemColor: Colors.grey[800],
@@ -708,16 +741,16 @@ class _HomeViewState extends State<HomeView> {
             if (HomeController.isHashShopReleased)
               Positioned(
                 right: 0,
-                bottom: 5,
+                bottom: bottomSafeArea + 5,
                 child: ClipRRect(
                   borderRadius: BorderRadius.horizontal(
                     left: Radius.circular(isShopMenuOpen ? 0 : 24),
                   ),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeOutCubic,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOutCubic,
                       width: isShopMenuOpen ? screenWidth : 84,
                       height: isShopMenuOpen ? 52 : 46,
                       decoration: BoxDecoration(
@@ -766,96 +799,134 @@ class _HomeViewState extends State<HomeView> {
                           ),
                         ],
                       ),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isShopMenuOpen ? 10 : 8,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                if (controller.selectedIndex.value == 3 &&
-                                    isShopMenuOpen) {
-                                  controller.onItemTapped(0);
-                                } else {
-                                  _openShopSection(0);
-                                }
-                              },
-                              child: Row(
-                                children: [
-                                  AnimatedOpacity(
-                                    duration: const Duration(milliseconds: 220),
-                                    opacity: isShopMenuOpen ? 1 : 0,
-                                    child: const Padding(
-                                      padding: EdgeInsets.only(right: 8.0),
-                                      child: Icon(
-                                        Icons.arrow_back_ios_new_sharp,
-                                        size: 12,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    isShopMenuOpen ? "HOME" : "HASH\nSHOP",
-                                    style: GoogleFonts.orbitron(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.6,
-                                    ),
-                                  ),
-                                ],
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withValues(alpha: 0.42),
+                                    Colors.black,
+                                    Colors.black,
+                                  ],
+                                  stops: const [0.0, 0.34, 0.82, 1.0],
+                                ),
                               ),
                             ),
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 280),
-                              curve: Curves.easeOutCubic,
-                              width: isShopMenuOpen
-                                  ? (screenWidth - 140).clamp(
-                                      0.0,
-                                      double.infinity,
-                                    )
-                                  : 0,
-                              margin: EdgeInsets.only(
-                                left: isShopMenuOpen ? 8 : 0,
-                              ),
-                              child: IgnorePointer(
-                                ignoring: !isShopMenuOpen,
-                                child: AnimatedOpacity(
-                                  duration: const Duration(milliseconds: 180),
-                                  opacity: isShopMenuOpen ? 1 : 0,
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isShopMenuOpen ? 10 : 8,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                GestureDetector(
+                                  onTap: () {
+                                    if (isShopMenuOpen) {
+                                      _closeShop();
+                                    } else {
+                                      _openShopSection(0);
+                                    }
+                                  },
                                   child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
                                     children: [
-                                      _shopIcon(
-                                        Icons.storefront_rounded,
-                                        isActive: activeShopIndex == 0,
-                                        onTap: () => _openShopSection(0),
+                                      AnimatedOpacity(
+                                        duration: const Duration(
+                                          milliseconds: 220,
+                                        ),
+                                        opacity: isShopMenuOpen ? 1 : 0,
+                                        child: const Padding(
+                                          padding: EdgeInsets.only(right: 8.0),
+                                          child: Icon(
+                                            Icons.arrow_back_ios_new_sharp,
+                                            size: 12,
+                                            color: Colors.white,
+                                          ),
+                                        ),
                                       ),
-                                      _shopIcon(
-                                        Icons.dashboard_customize_rounded,
-                                        isActive: activeShopIndex == 1,
-                                        onTap: () => _openShopSection(1),
-                                      ),
-                                      _shopIcon(
-                                        Icons.shopping_bag_rounded,
-                                        isActive: activeShopIndex == 2,
-                                        onTap: () => _openShopSection(2),
-                                      ),
-                                      _shopIcon(
-                                        Icons.receipt_long_rounded,
-                                        isActive: activeShopIndex == 3,
-                                        onTap: () => _openShopSection(3),
+                                      AnimatedSwitcher(
+                                        duration: const Duration(
+                                          milliseconds: 150,
+                                        ),
+                                        transitionBuilder: (child, animation) =>
+                                            FadeTransition(
+                                              opacity: animation,
+                                              child: child,
+                                            ),
+                                        child: Text(
+                                          isShopMenuOpen
+                                              ? "HASH\nAPP"
+                                              : "HASH\nSHOP",
+                                          key: ValueKey(isShopMenuOpen),
+                                          style: GoogleFonts.orbitron(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 0.6,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              ),
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 280),
+                                  curve: Curves.easeInOutCubic,
+                                  width: isShopMenuOpen ? shopActionsWidth : 0,
+                                  margin: EdgeInsets.only(
+                                    left: isShopMenuOpen ? 8 : 0,
+                                  ),
+                                  child: ClipRect(
+                                    child: OverflowBox(
+                                      alignment: Alignment.centerRight,
+                                      minWidth: shopActionsWidth,
+                                      maxWidth: shopActionsWidth,
+                                      child: IgnorePointer(
+                                        ignoring: !isShopMenuOpen,
+                                        child: AnimatedOpacity(
+                                          duration: const Duration(
+                                            milliseconds: 150,
+                                          ),
+                                          opacity: isShopMenuOpen ? 1 : 0,
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceEvenly,
+                                            children: [
+                                              _shopIcon(
+                                                Icons.storefront_rounded,
+                                                isActive: activeShopIndex == 0,
+                                                onTap: () =>
+                                                    _openShopSection(0),
+                                              ),
+                                              _shopIcon(
+                                                Icons.shopping_bag_rounded,
+                                                isActive: activeShopIndex == 2,
+                                                onTap: () =>
+                                                    _openShopSection(2),
+                                              ),
+                                              _shopIcon(
+                                                Icons.receipt_long_rounded,
+                                                isActive: activeShopIndex == 3,
+                                                onTap: () =>
+                                                    _openShopSection(3),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -922,8 +993,8 @@ class _HomeViewState extends State<HomeView> {
   }) {
     final activeBg = LinearGradient(
       colors: [
-        const Color(0xff00DC00).withValues(alpha: 0.22),
-        const Color(0xFF7A44C0).withValues(alpha: 0.20),
+        const Color(0xff00DC00).withValues(alpha: 0.28),
+        const Color(0xFF7A44C0).withValues(alpha: 0.32),
       ],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
@@ -942,13 +1013,13 @@ class _HomeViewState extends State<HomeView> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isActive
-                ? const Color(0xFFA78BFF).withValues(alpha: 0.46)
+                ? const Color(0xff00DC00).withValues(alpha: 0.72)
                 : Colors.white.withValues(alpha: 0.12),
           ),
         ),
         child: Icon(
           icon,
-          color: isActive ? const Color(0xFFECE3FF) : Colors.white,
+          color: isActive ? const Color(0xff67FF67) : Colors.white70,
           size: isActive ? 21 : 20,
         ),
       ),

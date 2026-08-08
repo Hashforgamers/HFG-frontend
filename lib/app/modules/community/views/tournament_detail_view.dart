@@ -14,6 +14,7 @@ import '../widgets/tournament_bracket.dart';
 import '../../tournaments_section/models/tournament_model.dart';
 import '../../tournaments_section/pages/tournaments_register_view.dart';
 import 'community_theme.dart';
+import 'community_team_invite_view.dart';
 import 'tournament_share_poster_view.dart';
 import 'tournaments_view.dart' show ctCurrency, ctAmount, ctStatus;
 
@@ -61,7 +62,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
             ),
           );
         }
-        return _body(t);
+        return _body(context, t);
       }),
       bottomNavigationBar: Obx(() {
         final t = controller.tournament.value;
@@ -71,133 +72,155 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
     );
   }
 
-  Widget _body(Tournament t) {
+  Widget _body(BuildContext context, Tournament t) {
     final sym = ctCurrency(t.currency);
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        AspectRatio(aspectRatio: 16 / 8.5, child: _banner(t)),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 600;
+        final pagePadding = wide ? 32.0 : 20.0;
+        return RefreshIndicator(
+          color: _joinOrange,
+          backgroundColor: CT.surface,
+          onRefresh: controller.refreshDetail,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
             children: [
-              Text(t.title, style: CT.display(26)),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _chip(t.game, _joinOrange),
-                  const SizedBox(width: 8),
-                  if (t.tournamentType != null)
-                    _chip(
-                      t.tournamentType!.replaceAll('_', ' '),
-                      CT.onSurfaceVariant,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 22),
-              Container(
-                padding: const EdgeInsets.only(bottom: 18),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: CT.hairline)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _stat(
-                      'ENTRY',
-                      t.isFree ? 'FREE' : '$sym${ctAmount(t.entryFee)}',
-                    ),
-                    _stat('PRIZE POOL', '$sym${ctAmount(t.prizePool)}'),
-                    _stat(
-                      'PLAYERS',
-                      '${t.registeredPlayersCount}/${t.maxPlayers}',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 22),
-              if (t.description != null && t.description!.isNotEmpty) ...[
-                _section('About'),
-                Text(t.description!, style: CT.body(14)),
-                const SizedBox(height: 22),
-              ],
-              _section('Schedule'),
-              _row('Registration ends', _fmt(t.registrationEndAt)),
-              _row('Starts', _fmt(t.tournamentStartAt)),
-              const SizedBox(height: 22),
-              if (controller.matches.isNotEmpty ||
-                  {'registration_closed', 'live', 'completed'}.contains(
-                    controller.lifecycleStatus.value?.status ?? t.status,
-                  )) ...[
-                _liveArena(t),
-                const SizedBox(height: 20),
-              ],
-              if (controller.hasJoined.value &&
-                  controller.announcements.isNotEmpty) ...[
-                _section('Tournament updates'),
-                ...controller.announcements
-                    .take(3)
-                    .map(
-                      (item) => Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: CT.card(),
-                        child: Row(
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Column(
+                    children: [
+                      _hero(t, wide: wide),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          pagePadding,
+                          20,
+                          pagePadding,
+                          28,
+                        ),
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.campaign_outlined,
-                              size: 19,
-                              color: _joinOrange,
+                            _summaryStats(
+                              entry: t.isFree
+                                  ? 'FREE'
+                                  : '$sym${ctAmount(t.entryFee)}',
+                              prize: '$sym${ctAmount(t.prizePool)}',
+                              players:
+                                  '${t.registeredPlayersCount}/${t.maxPlayers}',
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                (item['message'] ?? item['title'] ?? '')
-                                    .toString(),
-                                style: CT.body(12),
-                              ),
+                            const SizedBox(height: 18),
+                            if (controller.matches.isNotEmpty ||
+                                {
+                                  'registration_closed',
+                                  'live',
+                                  'completed',
+                                }.contains(
+                                  controller.lifecycleStatus.value?.status ??
+                                      t.status,
+                                )) ...[
+                              _liveArena(t),
+                              const SizedBox(height: 20),
+                            ],
+                            if (t.description != null &&
+                                t.description!.isNotEmpty) ...[
+                              _section('About'),
+                              Text(t.description!, style: CT.body(14)),
+                              const SizedBox(height: 22),
+                            ],
+                            _section('Schedule'),
+                            _row(
+                              'Registration ends',
+                              _fmt(t.registrationEndAt),
                             ),
+                            _row('Starts', _fmt(t.tournamentStartAt)),
+                            const SizedBox(height: 18),
+                            if (controller.hasJoined.value &&
+                                controller.announcements.isNotEmpty) ...[
+                              _section('Tournament updates'),
+                              ...controller.announcements
+                                  .take(3)
+                                  .map(
+                                    (item) => Container(
+                                      width: double.infinity,
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: CT.card(),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Icon(
+                                            Icons.campaign_outlined,
+                                            size: 19,
+                                            color: _joinOrange,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              (item['message'] ??
+                                                      item['title'] ??
+                                                      '')
+                                                  .toString(),
+                                              style: CT.body(12),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              const SizedBox(height: 12),
+                            ],
+                            if (t.rules != null && t.rules!.isNotEmpty) ...[
+                              _section('Rules'),
+                              Text(t.rules!, style: CT.body(14)),
+                              const SizedBox(height: 16),
+                            ],
+                            if (t.prizeDistribution.isNotEmpty) ...[
+                              _section('Prize split'),
+                              for (final p in t.prizeDistribution)
+                                _row('Rank ${p.rank}', '${p.percent}%'),
+                              const SizedBox(height: 16),
+                            ],
+                            if ((t.roomDetails?.isNotEmpty ?? false) ||
+                                t.roomDetailsData != null) ...[
+                              _section('Room details'),
+                              _roomDetailsCard(t),
+                              const SizedBox(height: 16),
+                            ],
+                            Row(
+                              children: [
+                                if (t.discordLink != null &&
+                                    t.discordLink!.isNotEmpty)
+                                  _linkBtn(
+                                    'Discord',
+                                    Icons.discord,
+                                    t.discordLink!,
+                                  ),
+                                if (t.whatsappLink != null &&
+                                    t.whatsappLink!.isNotEmpty) ...[
+                                  const SizedBox(width: 10),
+                                  _linkBtn(
+                                    'WhatsApp',
+                                    Icons.chat_rounded,
+                                    t.whatsappLink!,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 12),
                           ],
                         ),
                       ),
-                    ),
-                const SizedBox(height: 12),
-              ],
-              if (t.rules != null && t.rules!.isNotEmpty) ...[
-                _section('Rules'),
-                Text(t.rules!, style: CT.body(14)),
-                const SizedBox(height: 16),
-              ],
-              if (t.prizeDistribution.isNotEmpty) ...[
-                _section('Prize split'),
-                for (final p in t.prizeDistribution)
-                  _row('Rank ${p.rank}', '${p.percent}%'),
-                const SizedBox(height: 16),
-              ],
-              if ((t.roomDetails?.isNotEmpty ?? false) ||
-                  t.roomDetailsData != null) ...[
-                _section('Room details'),
-                _roomDetailsCard(t),
-                const SizedBox(height: 16),
-              ],
-              Row(
-                children: [
-                  if (t.discordLink != null && t.discordLink!.isNotEmpty)
-                    _linkBtn('Discord', Icons.discord, t.discordLink!),
-                  if (t.whatsappLink != null && t.whatsappLink!.isNotEmpty) ...[
-                    const SizedBox(width: 10),
-                    _linkBtn('WhatsApp', Icons.chat_rounded, t.whatsappLink!),
-                  ],
-                ],
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 12),
             ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -208,63 +231,114 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
       color: CT.surfaceLow,
       padding: EdgeInsets.fromLTRB(
         16,
-        12,
+        8,
         16,
-        12 + Get.mediaQuery.padding.bottom,
+        8 + Get.mediaQuery.padding.bottom,
       ),
       child: Obx(() {
         final active =
             controller.canManage.value ||
             controller.hasJoined.value ||
             canRegister;
-        return Container(
-          height: 54,
-          decoration: BoxDecoration(
-            gradient: active
-                ? const LinearGradient(colors: [_joinOrange, _joinOrangeDark])
-                : null,
-            color: active ? null : CT.surfaceHigh,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ElevatedButton(
-            onPressed: controller.canManage.value
-                ? () => Get.toNamed(
-                    AppRoutes.MANAGE_TOURNAMENT,
-                    arguments: {'id': t.id},
-                  )
-                : controller.hasJoined.value
-                ? () => Get.to(() => const ChatInboxView())
-                : controller.acting.value || !canRegister
-                ? null
-                : () => _openRegistration(t),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              disabledBackgroundColor: Colors.transparent,
-              foregroundColor: Colors.white,
-              disabledForegroundColor: CT.muted,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: controller.acting.value
-                ? const AppLinearLoader.button()
-                : Text(
-                    controller.canManage.value
-                        ? 'Manage tournament'
-                        : controller.hasJoined.value
-                        ? 'Open Hash Hub · Tournament chat'
-                        : canRegister
-                        ? (t.isFree
-                              ? 'Register — Free'
-                              : 'Register — ${ctCurrency(t.currency)}${ctAmount(t.entryFee)}')
-                        : st.label,
-                    style: CT.headline(
-                      15,
-                      color: active ? Colors.white : CT.muted,
+        final team = controller.currentTeam;
+        final canInvite =
+            controller.hasJoined.value &&
+            controller.isCurrentUserCaptain &&
+            t.teamMode?.toLowerCase() != 'solo' &&
+            team != null;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (canInvite) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: () => Get.to(
+                    () => CommunityTeamInviteView(
+                      tournamentId: t.id,
+                      teamId: team.id,
+                      teamName: team.name,
                     ),
                   ),
-          ),
+                  icon: const Icon(Icons.person_add_alt_1_rounded),
+                  label: Text('Invite teammates', style: CT.headline(14)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xff00DC00),
+                    side: const BorderSide(color: Color(0xff00DC00)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+            Container(
+              constraints: const BoxConstraints(maxWidth: 720),
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: active
+                    ? const LinearGradient(
+                        colors: [_joinOrange, _joinOrangeDark],
+                      )
+                    : null,
+                color: active ? null : CT.surfaceHigh,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ElevatedButton(
+                onPressed: controller.canManage.value
+                    ? () => Get.toNamed(
+                        AppRoutes.MANAGE_TOURNAMENT,
+                        arguments: {'id': t.id},
+                      )
+                    : controller.hasJoined.value
+                    ? () => Get.to(() => const ChatInboxView())
+                    : controller.acting.value || !canRegister
+                    ? null
+                    : () => _openRegistration(t),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  disabledBackgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  disabledForegroundColor: CT.muted,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: controller.acting.value
+                    ? const AppLinearLoader.button()
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (controller.hasJoined.value) ...[
+                            const Icon(Icons.forum_rounded, size: 18),
+                            const SizedBox(width: 8),
+                          ],
+                          Flexible(
+                            child: Text(
+                              controller.canManage.value
+                                  ? 'Manage tournament'
+                                  : controller.hasJoined.value
+                                  ? 'Tournament chat'
+                                  : canRegister
+                                  ? (t.isFree
+                                        ? 'Register — Free'
+                                        : 'Register — ${ctCurrency(t.currency)}${ctAmount(t.entryFee)}')
+                                  : st.label,
+                              overflow: TextOverflow.ellipsis,
+                              style: CT.headline(
+                                14,
+                                color: active ? Colors.white : CT.muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ],
         );
       }),
     );
@@ -274,12 +348,17 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
     final liveStatus =
         controller.lifecycleStatus.value?.status ?? tournament.status;
     final live = liveStatus == 'live';
+    final playerMatch = _currentPlayerMatch();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Expanded(child: _section('Live tournament arena')),
+            Expanded(
+              child: _section(
+                playerMatch != null ? 'Your match' : 'Tournament arena',
+              ),
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(
@@ -295,7 +374,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
           ],
         ),
         const SizedBox(height: 8),
-        if (controller.hasJoined.value)
+        if (controller.hasJoined.value && playerMatch == null)
           Container(
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 12),
@@ -321,9 +400,8 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
               ],
             ),
           ),
-        if (controller.currentTeamId.value != null &&
-            _currentPlayerMatch() != null) ...[
-          _playerMatchCard(_currentPlayerMatch()!),
+        if (controller.currentTeamId.value != null && playerMatch != null) ...[
+          _playerMatchCard(playerMatch),
           const SizedBox(height: 12),
         ],
         TournamentBracket(
@@ -336,16 +414,6 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
           _playerComms(),
           const SizedBox(height: 12),
         ],
-        OutlinedButton.icon(
-          onPressed: () => Get.to(() => const ChatInboxView()),
-          icon: const Icon(Icons.forum_outlined),
-          label: const Text('OPEN HASH HUB'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            foregroundColor: _joinOrange,
-            side: BorderSide(color: _joinOrange.withValues(alpha: .5)),
-          ),
-        ),
       ],
     );
   }
@@ -361,9 +429,13 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
     relevant.sort((a, b) {
       const priority = {
         'in_progress': 0,
-        'ready': 1,
-        'scheduled': 2,
-        'completed': 3,
+        'live': 0,
+        'awaiting_results': 1,
+        'result_pending': 1,
+        'disputed': 1,
+        'ready': 2,
+        'scheduled': 3,
+        'completed': 4,
       };
       return (priority[a.status] ?? 9).compareTo(priority[b.status] ?? 9);
     });
@@ -374,6 +446,19 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
     final mine = controller.currentTeamId.value;
     final opponent = match.teamA?.id == mine ? match.teamB : match.teamA;
     final live = {'live', 'in_progress'}.contains(match.status);
+    final awaitingResults = {
+      'awaiting_results',
+      'result_pending',
+    }.contains(match.status);
+    final disputed = match.status == 'disputed';
+    // The backend lifecycle is authoritative. A host can intentionally start
+    // a match before its planned time, so a future scheduled_at must not block
+    // captains from submitting an early result.
+    final canSubmitResult = live || awaitingResults;
+    final startedEarly =
+        live &&
+        match.scheduledAt != null &&
+        DateTime.now().isBefore(match.scheduledAt!);
     final proposal = match.resultProposal;
     final proposalPending =
         proposal != null && {'pending', 'submitted'}.contains(proposal.status);
@@ -383,12 +468,12 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
         color: CT.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _joinOrange.withValues(alpha: live ? .9 : .55),
+          color: _joinOrange.withValues(alpha: canSubmitResult ? .9 : .55),
           width: 1.4,
         ),
         boxShadow: [
           BoxShadow(
-            color: _joinOrange.withValues(alpha: live ? .18 : .1),
+            color: _joinOrange.withValues(alpha: canSubmitResult ? .18 : .1),
             blurRadius: 18,
           ),
         ],
@@ -406,7 +491,13 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  live ? Icons.sensors_rounded : Icons.sports_esports_rounded,
+                  live
+                      ? Icons.sensors_rounded
+                      : awaitingResults
+                      ? Icons.upload_file_rounded
+                      : disputed
+                      ? Icons.gavel_rounded
+                      : Icons.sports_esports_rounded,
                   color: _joinOrange,
                 ),
               ),
@@ -416,7 +507,13 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      live ? 'YOUR MATCH IS LIVE' : 'YOUR NEXT MATCH',
+                      live
+                          ? 'YOUR MATCH IS LIVE'
+                          : awaitingResults
+                          ? 'SUBMIT MATCH RESULT'
+                          : disputed
+                          ? 'RESULT DISPUTED'
+                          : 'YOUR NEXT MATCH',
                       style: CT.mono(9, color: _joinOrange),
                     ),
                     const SizedBox(height: 4),
@@ -425,7 +522,9 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                       style: CT.headline(17),
                     ),
                     Text(
-                      match.scheduledAt == null
+                      startedEarly
+                          ? '${match.status.replaceAll('_', ' ')} · started early'
+                          : match.scheduledAt == null
                           ? match.status.replaceAll('_', ' ')
                           : '${match.status.replaceAll('_', ' ')} · ${_fmt(match.scheduledAt)}',
                       style: CT.body(10.5),
@@ -440,7 +539,8 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
               ),
             ],
           ),
-          if (live || {'completed', 'disputed'}.contains(match.status)) ...[
+          if (canSubmitResult ||
+              {'completed', 'disputed'}.contains(match.status)) ...[
             const SizedBox(height: 12),
             if (proposalPending) ...[
               Container(
@@ -467,53 +567,97 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
               ),
               const SizedBox(height: 8),
             ],
-            Row(
-              children: [
-                if (controller.isCurrentUserCaptain && proposalPending)
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: controller.acting.value
-                          ? null
-                          : () => controller.respondToHostResultProposal(
-                              match: match,
-                              action: 'accept',
-                            ),
-                      icon: const Icon(Icons.check_circle_outline, size: 18),
-                      label: const Text('ACCEPT'),
-                    ),
-                  )
-                else if (controller.isCurrentUserCaptain &&
-                    !{'completed', 'cancelled'}.contains(match.status))
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: controller.acting.value
-                          ? null
-                          : () => _openResultSubmission(match),
-                      icon: const Icon(Icons.upload_file_rounded, size: 18),
-                      label: const Text('UPLOAD RESULT'),
-                    ),
+            if (disputed)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFC857).withValues(alpha: .08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFFFFC857).withValues(alpha: .35),
                   ),
-                if (controller.isCurrentUserCaptain && proposalPending)
-                  const SizedBox(width: 8),
-                if (controller.isCurrentUserCaptain && proposalPending)
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: controller.acting.value
-                          ? null
-                          : () => controller.respondToHostResultProposal(
-                              match: match,
-                              action: 'dispute',
-                            ),
-                      icon: const Icon(Icons.gavel_rounded, size: 17),
-                      label: const Text('DISPUTE'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFFFC857),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.policy_outlined,
+                      color: Color(0xFFFFC857),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'DISPUTE UNDER REVIEW',
+                            style: CT.mono(9, color: const Color(0xFFFFC857)),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Uploads are locked while the platform admin reviews the submitted results.',
+                            style: CT.body(10.5),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-              ],
-            ),
-            if (!controller.isCurrentUserCaptain)
+                  ],
+                ),
+              )
+            else
+              Row(
+                children: [
+                  if (controller.isCurrentUserCaptain && proposalPending)
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: controller.acting.value
+                            ? null
+                            : () => controller.respondToHostResultProposal(
+                                match: match,
+                                action: 'accept',
+                              ),
+                        icon: const Icon(Icons.check_circle_outline, size: 18),
+                        label: const Text('ACCEPT'),
+                      ),
+                    )
+                  else if (controller.isCurrentUserCaptain &&
+                      !{'completed', 'cancelled'}.contains(match.status))
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: !canSubmitResult || controller.acting.value
+                            ? null
+                            : () => _openResultSubmission(match),
+                        icon: const Icon(Icons.upload_file_rounded, size: 18),
+                        label: Text(
+                          canSubmitResult
+                              ? 'UPLOAD RESULT'
+                              : 'MATCH NOT STARTED',
+                        ),
+                      ),
+                    ),
+                  if (controller.isCurrentUserCaptain && proposalPending)
+                    const SizedBox(width: 8),
+                  if (controller.isCurrentUserCaptain && proposalPending)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: controller.acting.value
+                            ? null
+                            : () => controller.respondToHostResultProposal(
+                                match: match,
+                                action: 'dispute',
+                              ),
+                        icon: const Icon(Icons.gavel_rounded, size: 17),
+                        label: const Text('DISPUTE'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFFFC857),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            if (!disputed && !controller.isCurrentUserCaptain)
               Padding(
                 padding: const EdgeInsets.only(top: 7),
                 child: Text(
@@ -609,6 +753,11 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
     final notes = TextEditingController();
     final evidence = <String>[];
     String? winner = match.teamA?.id;
+    String? submissionError;
+    var submitting = false;
+    var uploadingEvidence = false;
+    var evidenceUploadProgress = 0.0;
+    var evidenceUploadStatus = 'Preparing screenshot…';
     await Get.dialog<void>(
       StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -653,54 +802,135 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
-                  onPressed: () async {
-                    try {
-                      final id = await controller.pickAndUploadEvidence(
-                        match.id,
-                      );
-                      if (id != null) setState(() => evidence.add(id));
-                    } catch (error) {
-                      Get.snackbar(
-                        'Could not read screenshot',
-                        error.toString(),
-                        snackPosition: SnackPosition.BOTTOM,
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  onPressed: submitting || uploadingEvidence
+                      ? null
+                      : () async {
+                          setState(() {
+                            uploadingEvidence = true;
+                            evidenceUploadProgress = 0;
+                            evidenceUploadStatus = 'Choose a screenshot…';
+                            submissionError = null;
+                          });
+                          try {
+                            final id = await controller.pickAndUploadEvidence(
+                              match.id,
+                              onProgress: (progress, status) {
+                                if (!context.mounted) return;
+                                setState(() {
+                                  evidenceUploadProgress = progress;
+                                  evidenceUploadStatus = status;
+                                });
+                              },
+                            );
+                            if (!context.mounted) return;
+                            if (id != null) {
+                              setState(() {
+                                evidence.add(id);
+                                evidenceUploadProgress = 1;
+                                evidenceUploadStatus = 'Screenshot added';
+                              });
+                            }
+                          } catch (error) {
+                            if (context.mounted) {
+                              setState(
+                                () => submissionError =
+                                    'Could not upload screenshot: $error',
+                              );
+                            }
+                          } finally {
+                            if (context.mounted) {
+                              setState(() => uploadingEvidence = false);
+                            }
+                          }
+                        },
+                  icon: uploadingEvidence
+                      ? const SizedBox(
+                          width: 17,
+                          height: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_photo_alternate_outlined),
                   label: Text(
-                    evidence.isEmpty
+                    uploadingEvidence
+                        ? 'UPLOADING ${(evidenceUploadProgress * 100).round()}%'
+                        : evidence.isEmpty
                         ? 'ADD RESULT SCREENSHOT'
                         : '${evidence.length} SCREENSHOT ADDED',
                   ),
                 ),
+                if (uploadingEvidence) ...[
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      value: evidenceUploadProgress,
+                      minHeight: 6,
+                      backgroundColor: CT.surfaceHigh,
+                      color: _joinOrange,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      evidenceUploadStatus,
+                      style: CT.body(10.5, color: CT.muted),
+                    ),
+                  ),
+                ],
+                if (submissionError != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    submissionError!,
+                    style: CT.body(11, color: const Color(0xFFFF7B7B)),
+                  ),
+                ],
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: Get.back, child: const Text('CANCEL')),
+            TextButton(
+              onPressed: submitting || uploadingEvidence ? null : Get.back,
+              child: const Text('CANCEL'),
+            ),
             ElevatedButton(
-              onPressed: () async {
-                final scoreA = int.tryParse(aScore.text);
-                final scoreB = int.tryParse(bScore.text);
-                if (winner == null || scoreA == null || scoreB == null) {
-                  Get.snackbar(
-                    'Missing result',
-                    'Choose a winner and enter both scores.',
-                  );
-                  return;
-                }
-                final submitted = await controller.submitMatchResult(
-                  match: match,
-                  winnerTeamId: winner!,
-                  teamAScore: scoreA,
-                  teamBScore: scoreB,
-                  evidenceAssetIds: evidence,
-                  notes: notes.text,
-                );
-                if (submitted) Get.back<void>();
-              },
-              child: const Text('SUBMIT'),
+              onPressed: submitting || uploadingEvidence
+                  ? null
+                  : () async {
+                      final scoreA = int.tryParse(aScore.text);
+                      final scoreB = int.tryParse(bScore.text);
+                      if (winner == null || scoreA == null || scoreB == null) {
+                        setState(
+                          () => submissionError =
+                              'Choose a winner and enter both scores.',
+                        );
+                        return;
+                      }
+                      setState(() {
+                        submitting = true;
+                        submissionError = null;
+                      });
+                      final submitted = await controller.submitMatchResult(
+                        match: match,
+                        winnerTeamId: winner!,
+                        teamAScore: scoreA,
+                        teamBScore: scoreB,
+                        evidenceAssetIds: evidence,
+                        notes: notes.text,
+                      );
+                      if (!context.mounted) return;
+                      if (submitted) {
+                        Get.back<void>();
+                      } else {
+                        setState(() {
+                          submitting = false;
+                          submissionError =
+                              controller.resultSubmissionError.value ??
+                              'Result was not submitted. Please try again.';
+                        });
+                      }
+                    },
+              child: Text(submitting ? 'SUBMITTING...' : 'SUBMIT'),
             ),
           ],
         ),
@@ -849,6 +1079,99 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
     });
     await Get.to(() => TournamentsRegisterView(tournament: appTournament));
     await controller.refreshDetail();
+  }
+
+  Widget _hero(Tournament tournament, {required bool wide}) {
+    final status = ctStatus(tournament.status);
+    return AspectRatio(
+      aspectRatio: wide ? 16 / 6 : 16 / 7.2,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _banner(tournament),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0x08000000), Color(0xF2000000)],
+                stops: [.25, 1],
+              ),
+            ),
+          ),
+          Positioned(
+            top: 14,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: .58),
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(color: _joinOrange.withValues(alpha: .5)),
+              ),
+              child: Text(
+                status.label.toUpperCase(),
+                style: CT.mono(8, color: _joinOrange),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 18,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  tournament.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: CT.display(wide ? 28 : 23),
+                ),
+                const SizedBox(height: 9),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _chip(tournament.game, _joinOrange),
+                    if (tournament.tournamentType != null)
+                      _chip(
+                        tournament.tournamentType!.replaceAll('_', ' '),
+                        CT.onSurfaceVariant,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryStats({
+    required String entry,
+    required String prize,
+    required String players,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
+      decoration: BoxDecoration(
+        color: CT.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: CT.outline),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _stat('ENTRY', entry)),
+          const SizedBox(height: 36, child: VerticalDivider(color: CT.outline)),
+          Expanded(child: _stat('PRIZE', prize)),
+          const SizedBox(height: 36, child: VerticalDivider(color: CT.outline)),
+          Expanded(child: _stat('PLAYERS', players)),
+        ],
+      ),
+    );
   }
 
   Widget _banner(Tournament t) {

@@ -14,6 +14,9 @@ import '../models/tournament_domain.dart';
 import '../services/community_api.dart';
 import '../services/tournament_result_evidence_service.dart';
 import '../services/tournament_analytics.dart';
+import '../../chat/views/chat_room_view.dart';
+
+typedef EvidenceUploadProgress = void Function(double progress, String status);
 
 /// Tournament detail + registration.
 /// Uses authed detail when a session exists (for room_details), else public.
@@ -32,6 +35,7 @@ class TournamentDetailController extends GetxController {
   final RxBool canManage = false.obs;
   final RxBool hasJoined = false.obs;
   final matches = <CommunityMatch>[].obs;
+  final RxnString resultSubmissionError = RxnString();
   final announcements = <Map<String, dynamic>>[].obs;
   final lifecycleStatus = Rxn<TournamentLifecycleStatus>();
   final currentTeamId = RxnString();
@@ -312,13 +316,17 @@ class TournamentDetailController extends GetxController {
       ) ??
       false;
 
-  Future<String?> pickAndUploadEvidence(String matchId) async {
+  Future<String?> pickAndUploadEvidence(
+    String matchId, {
+    EvidenceUploadProgress? onProgress,
+  }) async {
     final picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 88,
       maxWidth: 2000,
     );
     if (picked == null) return null;
+    onProgress?.call(0.05, 'Preparing screenshot…');
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) throw Exception('Sign in to upload match evidence.');
     final match = matches.where((item) => item.id == matchId).firstOrNull;
@@ -328,6 +336,7 @@ class TournamentDetailController extends GetxController {
       match,
       game: tournament.value?.game,
     );
+    onProgress?.call(0.15, 'Checking screenshot…');
     await _evidenceService.store(
       tournamentId: _id,
       match: match,
@@ -342,11 +351,27 @@ class TournamentDetailController extends GetxController {
         '${uid}_${DateTime.now().microsecondsSinceEpoch}.$extension';
     final mimeType = picked.mimeType ?? 'image/jpeg';
     final ref = FirebaseStorage.instance.ref(storageKey);
-    await ref.putFile(
+    final uploadTask = ref.putFile(
       File(picked.path),
       SettableMetadata(contentType: mimeType),
     );
+    final uploadProgress = uploadTask.snapshotEvents.listen((snapshot) {
+      final total = snapshot.totalBytes;
+      final fraction = total <= 0 ? 0.0 : snapshot.bytesTransferred / total;
+      final percent = (fraction * 100).round();
+      onProgress?.call(
+        0.2 + (fraction.clamp(0.0, 1.0) * 0.7),
+        'Uploading screenshot… $percent%',
+      );
+    });
+    try {
+      await uploadTask;
+    } finally {
+      await uploadProgress.cancel();
+    }
+    onProgress?.call(0.92, 'Securing uploaded image…');
     final evidenceUrl = await ref.getDownloadURL();
+    onProgress?.call(0.96, 'Adding image to result…');
     final asset = await _api.createFileAsset(
       purpose: 'result_evidence',
       fileUrl: evidenceUrl,
@@ -356,6 +381,7 @@ class TournamentDetailController extends GetxController {
       tournamentId: _id,
       metadata: {'match_id': match.id, 'submitter_type': 'participant'},
     );
+    onProgress?.call(1, 'Screenshot added');
     return asset.id;
   }
 
@@ -368,6 +394,7 @@ class TournamentDetailController extends GetxController {
     String? notes,
   }) async {
     acting.value = true;
+    resultSubmissionError.value = null;
     final endpoint = '/tournaments/$_id/matches/${match.id}/result-submissions';
     final payload = <String, dynamic>{
       'winner_team_id': winnerTeamId,
@@ -392,11 +419,6 @@ class TournamentDetailController extends GetxController {
         'status=${submitted.status}',
       );
       await refreshLiveData();
-      Get.snackbar(
-        'Result locked in',
-        'Waiting for the opposing captain to confirm the same score.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
       return true;
     } catch (error) {
       if (error is DioException) {
@@ -409,11 +431,7 @@ class TournamentDetailController extends GetxController {
       } else {
         debugPrint('[RESULT_SUBMISSION_ERROR] POST $endpoint error=$error');
       }
-      Get.snackbar(
-        'Result not submitted',
-        _reason(error),
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      resultSubmissionError.value = _reason(error);
       return false;
     } finally {
       acting.value = false;
@@ -428,7 +446,7 @@ class TournamentDetailController extends GetxController {
     if (proposal == null || proposal.id.isEmpty) return;
     acting.value = true;
     try {
-      await _api.respondToHostResultProposal(
+      final response = await _api.respondToHostResultProposal(
         _id,
         match.id,
         proposal.id,
@@ -442,6 +460,12 @@ class TournamentDetailController extends GetxController {
             : 'The proposal was sent to platform-admin review.',
         snackPosition: SnackPosition.BOTTOM,
       );
+      if (action == 'dispute') {
+        await _openDisputeChat(
+          roomId: response['chat_room_id']?.toString(),
+          roomStatus: response['chat_room_status']?.toString(),
+        );
+      }
     } catch (error) {
       Get.snackbar(
         'Result response failed',
@@ -461,7 +485,7 @@ class TournamentDetailController extends GetxController {
   }) async {
     acting.value = true;
     try {
-      await _api.createDispute(
+      final dispute = await _api.createDispute(
         _id,
         reason: reason,
         description: description,
@@ -469,8 +493,14 @@ class TournamentDetailController extends GetxController {
       );
       Get.snackbar(
         'Dispute opened',
-        'The platform admin review team has been notified.',
+        dispute.chatRoomStatus == 'ready'
+            ? 'Opening the dispute chat.'
+            : 'The platform admin review team has been notified.',
         snackPosition: SnackPosition.BOTTOM,
+      );
+      await _openDisputeChat(
+        roomId: dispute.chatRoomId,
+        roomStatus: dispute.chatRoomStatus,
       );
     } catch (error) {
       if (error is DioException) {
@@ -486,6 +516,22 @@ class TournamentDetailController extends GetxController {
     } finally {
       acting.value = false;
     }
+  }
+
+  Future<void> _openDisputeChat({
+    required String? roomId,
+    required String? roomStatus,
+  }) async {
+    final normalizedRoomId = roomId?.trim() ?? '';
+    if (normalizedRoomId.isEmpty || roomStatus != 'ready') return;
+    final customToken = await _api.firebaseChatToken();
+    await FirebaseAuth.instance.signInWithCustomToken(customToken);
+    await Get.to<void>(
+      () => ChatRoomView(
+        roomId: normalizedRoomId,
+        roomCollection: 'communityDisputeRooms',
+      ),
+    );
   }
 
   String _reason(Object e) {

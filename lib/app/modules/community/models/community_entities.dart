@@ -110,6 +110,8 @@ class Dispute {
   final String description;
   final String status; // open | under_review | approved | rejected | closed
   final GamerSummary? reporter;
+  final String? chatRoomId;
+  final String? chatRoomStatus;
 
   const Dispute({
     required this.id,
@@ -119,6 +121,8 @@ class Dispute {
     required this.description,
     required this.status,
     required this.reporter,
+    required this.chatRoomId,
+    required this.chatRoomStatus,
   });
 
   factory Dispute.fromJson(Map<String, dynamic> j) => Dispute(
@@ -131,6 +135,8 @@ class Dispute {
     reporter: j['reporter'] is Map
         ? GamerSummary.fromJson(Map<String, dynamic>.from(j['reporter']))
         : null,
+    chatRoomId: j['chat_room_id']?.toString(),
+    chatRoomStatus: j['chat_room_status']?.toString(),
   );
 }
 

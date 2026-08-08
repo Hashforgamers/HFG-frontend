@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/routes/app_routes.dart';
+import 'package:hash/app/modules/community/views/community_team_invite_view.dart';
 import 'package:hash/utils/widgets/loader.dart';
 
 class TournamentRegistrationSuccessPage extends StatelessWidget {
   final String tournamentTitle;
+  final String? communityTournamentId;
+  final String? communityTeamId;
+  final String? communityTeamName;
 
   const TournamentRegistrationSuccessPage({
     super.key,
     required this.tournamentTitle,
+    this.communityTournamentId,
+    this.communityTeamId,
+    this.communityTeamName,
   });
 
   void _continueToTournaments() {
@@ -49,6 +56,36 @@ class TournamentRegistrationSuccessPage extends StatelessWidget {
                   style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
                 ),
                 const SizedBox(height: 26),
+                if (communityTournamentId != null &&
+                    communityTeamId != null &&
+                    communityTeamName != null) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Get.to(
+                        () => CommunityTeamInviteView(
+                          tournamentId: communityTournamentId!,
+                          teamId: communityTeamId!,
+                          teamName: communityTeamName!,
+                        ),
+                      ),
+                      icon: const Icon(Icons.person_add_alt_1_rounded),
+                      label: Text(
+                        'Invite teammates',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xff00DC00),
+                        side: const BorderSide(color: Color(0xff00DC00)),
+                        minimumSize: const Size(double.infinity, 52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(

@@ -178,7 +178,9 @@ class TournamentHomeCubit extends Cubit<TournamentHomeState> {
     _emitIfOpen(
       TournamentHomeLoaded(
         tournaments: List<TournamentModel>.from(
-          _joinedByTab[_selectedCategory] ?? const <TournamentModel>[],
+          (_joinedByTab[_selectedCategory] ?? const <TournamentModel>[]).where(
+            (tournament) => tournament.matchesFilter(_selectedCategory),
+          ),
         ),
         allJoinedTournaments: List<TournamentModel>.from(
           _joinedByTab['All'] ?? const <TournamentModel>[],

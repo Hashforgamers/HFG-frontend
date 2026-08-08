@@ -6,7 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:get/get.dart' hide Response;
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -78,6 +78,7 @@ class CreateTournamentController extends GetxController {
   final loadingDefaults = true.obs;
   final reusedPreviousSetup = false.obs;
   final advancedExpanded = false.obs;
+  final formStep = 0.obs;
   final error = RxnString();
   final bannerStatus = TournamentBannerStatus.initial.obs;
   final bannerSource = Rxn<TournamentBannerSource>();
@@ -94,6 +95,38 @@ class CreateTournamentController extends GetxController {
   String get screenTitle => isEditing ? 'Edit Tournament' : 'Create Tournament';
   bool get canPublish => !isEditing || _editingTournament?.status == 'draft';
   String get saveLabel => isEditing ? 'Save changes' : 'Save draft';
+
+  bool nextFormStep() {
+    final message = _validateFormStep(formStep.value);
+    error.value = message;
+    if (message != null) return false;
+    if (formStep.value < 2) formStep.value++;
+    return true;
+  }
+
+  void previousFormStep() {
+    error.value = null;
+    if (formStep.value > 0) formStep.value--;
+  }
+
+  String? _validateFormStep(int step) {
+    if (step == 0) {
+      if (title.text.trim().isEmpty) return 'Add a tournament title.';
+      if (game.text.trim().isEmpty) return 'Choose a game.';
+      final size = int.tryParse(teamSize.text.trim());
+      if (size == null || size < 1) return 'Choose a valid team size.';
+    } else if (step == 1) {
+      final fee = double.tryParse(entryFee.text.trim());
+      if (fee == null || fee < 0) return 'Enter a valid entry fee.';
+      final capacity = int.tryParse(maxPlayers.text.trim());
+      if (capacity == null || capacity < 2) {
+        return 'Maximum players must be at least 2.';
+      }
+      _validateSchedule();
+      return scheduleValidationError.value;
+    }
+    return null;
+  }
 
   @override
   void onInit() {
@@ -137,6 +170,24 @@ class CreateTournamentController extends GetxController {
     final playersPerTeam = int.tryParse(teamSize.text.trim()) ?? 1;
     if (players <= 0 || playersPerTeam <= 0) return 0;
     return (players / playersPerTeam).ceil();
+  }
+
+  int? get fixedTeamSize => switch (teamMode.value) {
+    'solo' => 1,
+    'duo' => 2,
+    'squad' => 4,
+    _ => null,
+  };
+
+  void setTeamMode(String mode) {
+    teamMode.value = mode;
+    final fixedSize = fixedTeamSize;
+    if (fixedSize != null) teamSize.text = fixedSize.toString();
+  }
+
+  void setCustomTeamSize(int size) {
+    teamSize.text = size.clamp(2, 10).toString();
+    teamMode.refresh();
   }
 
   int get estimatedRounds {
@@ -223,16 +274,40 @@ class CreateTournamentController extends GetxController {
         tournamentName: title.text,
       );
       if (request != bannerRequestVersion.value || isClosed) return;
-      final response =
-          await Dio(
-            BaseOptions(
-              connectTimeout: const Duration(seconds: 20),
-              receiveTimeout: const Duration(seconds: 90),
-            ),
-          ).get<List<int>>(
-            result.imageUrl,
-            options: Options(responseType: ResponseType.bytes),
-          );
+      final imageClient = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 20),
+          receiveTimeout: const Duration(seconds: 90),
+        ),
+      );
+      var provider = result.provider;
+      late Response<List<int>> response;
+      try {
+        response = await imageClient.get<List<int>>(
+          result.imageUrl,
+          options: Options(
+            responseType: ResponseType.bytes,
+            headers: {
+              if (result.authorizationHeader != null)
+                'Authorization': result.authorizationHeader,
+            },
+          ),
+        );
+      } on DioException catch (exception) {
+        final canFallback =
+            result.fallbackImageUrl != null &&
+            const {401, 402, 403, 429}.contains(exception.response?.statusCode);
+        if (!canFallback) rethrow;
+        debugPrint(
+          '[TournamentBanner] authenticated provider unavailable '
+          'status=${exception.response?.statusCode}; using safe fallback',
+        );
+        response = await imageClient.get<List<int>>(
+          result.fallbackImageUrl!,
+          options: Options(responseType: ResponseType.bytes),
+        );
+        provider = 'pollinations_legacy';
+      }
       final bytes = response.data;
       final contentType =
           response.headers.value(Headers.contentTypeHeader) ?? 'image/jpeg';
@@ -261,7 +336,7 @@ class CreateTournamentController extends GetxController {
         fileSizeBytes: bytes.length,
         metadata: {
           'source': 'generated',
-          'provider': result.provider,
+          'provider': provider,
           'seed': result.seed,
         },
       );
@@ -275,7 +350,7 @@ class CreateTournamentController extends GetxController {
       unawaited(
         _analytics.onCustomEvent('Tournament Banner Generation Succeeded', {
           ..._bannerAnalyticsProperties(),
-          'provider': result.provider,
+          'provider': provider,
           'generation_duration_ms': DateTime.now()
               .difference(startedAt)
               .inMilliseconds,
@@ -291,11 +366,44 @@ class CreateTournamentController extends GetxController {
           'failure_type': exception.type,
         }),
       );
-    } catch (_) {
+    } on DioException catch (exception) {
+      if (request != bannerRequestVersion.value || isClosed) return;
+      final statusCode = exception.response?.statusCode;
+      final failureType = switch (statusCode) {
+        401 || 403 => 'unauthorized',
+        402 => 'payment_required',
+        429 => 'rate_limited',
+        _ => 'provider_error',
+      };
+      bannerError.value = switch (statusCode) {
+        401 || 403 =>
+          'Banner generation is not authorized. Try again or upload your own banner.',
+        402 =>
+          'AI banner credits are unavailable. Try again later or upload your own banner.',
+        429 =>
+          'You have generated several banners recently. Please try again shortly.',
+        _ =>
+          'Banner generation is temporarily unavailable. Try again or upload your own banner.',
+      };
+      bannerStatus.value = TournamentBannerStatus.failure;
+      debugPrint(
+        '[TournamentBanner] provider request failed '
+        'status=$statusCode type=${exception.type} message=${exception.message}',
+      );
+      unawaited(
+        _analytics.onCustomEvent('Tournament Banner Generation Failed', {
+          ..._bannerAnalyticsProperties(),
+          'failure_type': failureType,
+          if (statusCode != null) 'status_code': statusCode,
+        }),
+      );
+    } catch (exception, stackTrace) {
       if (request != bannerRequestVersion.value || isClosed) return;
       bannerError.value =
           'Banner generation is temporarily unavailable. Try again or upload your own banner.';
       bannerStatus.value = TournamentBannerStatus.failure;
+      debugPrint('[TournamentBanner] generation failed: $exception');
+      debugPrintStack(stackTrace: stackTrace);
       unawaited(
         _analytics.onCustomEvent('Tournament Banner Generation Failed', {
           ..._bannerAnalyticsProperties(),
@@ -421,7 +529,7 @@ class CreateTournamentController extends GetxController {
     title.text = template.title;
     selectGame(template.game);
     tournamentType.value = template.tournamentType ?? 'single_elimination';
-    teamMode.value = template.teamMode ?? 'solo';
+    setTeamMode(template.teamMode ?? 'solo');
     entryFee.text = ctNumber(template.entryFee);
     maxPlayers.text = template.maxPlayers > 0
         ? template.maxPlayers.toString()
@@ -443,7 +551,9 @@ class CreateTournamentController extends GetxController {
     gameMode.text = template.gameMode ?? '';
     platform.text = template.platform ?? '';
     organizationName.text = template.organizationName ?? '';
-    teamSize.text = (template.teamSize ?? 1).toString();
+    if (fixedTeamSize == null) {
+      teamSize.text = (template.teamSize ?? 4).toString();
+    }
     substituteLimit.text = (template.substituteLimit ?? 0).toString();
     minimumAge.text = template.minimumAge?.toString() ?? '';
     region.text = template.region ?? '';
@@ -728,6 +838,10 @@ class CreateTournamentController extends GetxController {
     }
     final size = int.tryParse(teamSize.text.trim());
     if (size == null || size < 1) return 'Team size must be at least 1.';
+    final fixedSize = fixedTeamSize;
+    if (fixedSize != null && size != fixedSize) {
+      return '${teamMode.value.capitalizeFirst} tournaments require $fixedSize player${fixedSize == 1 ? '' : 's'} per team.';
+    }
     final substitutes = int.tryParse(substituteLimit.text.trim());
     if (substitutes == null || substitutes < 0) {
       return 'Substitute limit cannot be negative.';

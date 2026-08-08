@@ -1,7 +1,6 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
-import 'package:hash/app/modules/shop_new/view/shop_view.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_home_view.dart';
 import '../../arena/views/arena_view.dart';
@@ -11,7 +10,7 @@ import '../views/home_content_view.dart';
 
 class HomeController extends GetxController {
   // Keep feature implementations in code, route through flags until release.
-  static const bool isHashShopReleased = false;
+  static const bool isHashShopReleased = true;
   static const bool isTournamentReleased = true;
 
   // --- Reactive states ---
@@ -59,17 +58,15 @@ class HomeController extends GetxController {
     // --- Debounce to avoid flicker ---
     if (now - lastScreenChangeTime < 300) return;
 
+    // Any main navigation action exits the independent Hash Shop overlay.
+    if (isShopOpen.value) {
+      isShopOpen.value = false;
+    }
+
     // --- Prevent double-tap on same tab ---
     if (selectedIndex.value == index) return;
     lastScreenChangeTime = now;
     Haptics.navigation();
-
-    // --- Keep shop bar aligned with selected tab ---
-    if (index == 3 && isHashShopReleased) {
-      isShopOpen.value = true;
-    } else if (isShopOpen.value) {
-      isShopOpen.value = false;
-    }
 
     // --- Begin transition ---
     isScreenTransitioning.value = true;
@@ -112,16 +109,6 @@ class HomeController extends GetxController {
       default:
         return const HomeContentView();
     }
-  }
-
-  Widget _buildHashShopScreen() {
-    if (isHashShopReleased) return const ShopMenuView();
-    return const FeatureComingSoonView(
-      title: 'HashShop Coming Soon',
-      description:
-          'HashShop is under final polish and will be available in a later release.',
-      icon: Icons.shopping_bag_outlined,
-    );
   }
 
   Widget _buildTournamentScreen() {

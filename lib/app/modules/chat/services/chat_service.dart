@@ -497,8 +497,11 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     }, SetOptions(merge: true));
   }
 
-  Stream<ChatRoomModel?> streamRoom(String roomId) {
-    return _roomsRef.doc(roomId).snapshots().map((doc) {
+  CollectionReference<Map<String, dynamic>> _roomCollection(String? name) =>
+      name == null ? _roomsRef : _firestore.collection(name);
+
+  Stream<ChatRoomModel?> streamRoom(String roomId, {String? collection}) {
+    return _roomCollection(collection).doc(roomId).snapshots().map((doc) {
       if (!doc.exists) return null;
       return ChatRoomModel.fromDoc(doc);
     });
@@ -507,8 +510,9 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   Stream<List<ChatMessageModel>> streamRoomMessages(
     String roomId, {
     int limit = 200,
+    String? collection,
   }) {
-    return _roomsRef
+    return _roomCollection(collection)
         .doc(roomId)
         .collection(_messagesCollection)
         .limit(limit)
@@ -516,7 +520,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
         .map((snapshot) {
           final messages = snapshot.docs.map(ChatMessageModel.fromDoc).toList();
           messages.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          unawaited(markRoomMessagesSeen(roomId));
+          unawaited(markRoomMessagesSeen(roomId, collection: collection));
           return messages;
         });
   }
@@ -855,6 +859,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   Future<void> sendTextMessage({
     required String roomId,
     required String text,
+    String? collection,
   }) async {
     final uid = currentUid;
     if (uid == null) {
@@ -865,7 +870,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     if (trimmedText.isEmpty) return;
 
     final senderName = await _resolveCurrentUserNameFromStore(uid);
-    final roomRef = _roomsRef.doc(roomId);
+    final roomRef = _roomCollection(collection).doc(roomId);
     final messageRef = roomRef.collection(_messagesCollection).doc();
     final now = DateTime.now().toIso8601String();
 
@@ -899,6 +904,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     required String eventId,
     required String teamId,
     required String teamName,
+    bool communityTeam = false,
   }) async {
     final uid = currentUid;
     if (uid == null) {
@@ -931,6 +937,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
         'team_id': safeTeamId,
         'team_name': safeTeamName,
         'inviter_uid': uid,
+        if (communityTeam) 'community_team': true,
       },
       'seen_by': [uid],
       'created_at': FieldValue.serverTimestamp(),
@@ -1027,10 +1034,10 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     await batch.commit();
   }
 
-  Future<void> markRoomMessagesSeen(String roomId) async {
+  Future<void> markRoomMessagesSeen(String roomId, {String? collection}) async {
     final uid = currentUid;
     if (uid == null) return;
-    final snap = await _roomsRef
+    final snap = await _roomCollection(collection)
         .doc(roomId)
         .collection(_messagesCollection)
         .orderBy('created_at', descending: true)
@@ -1063,10 +1070,11 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   Future<void> setTyping({
     required String roomId,
     required bool isTyping,
+    String? collection,
   }) async {
     final uid = currentUid;
     if (uid == null) return;
-    await _roomsRef.doc(roomId).set({
+    await _roomCollection(collection).doc(roomId).set({
       'typing_uids': isTyping
           ? FieldValue.arrayUnion([uid])
           : FieldValue.arrayRemove([uid]),
