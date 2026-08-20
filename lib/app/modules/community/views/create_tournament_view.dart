@@ -333,6 +333,7 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
           ),
           const SizedBox(height: 12),
         ],
+        _scheduleGroupLabel('1. Registration'),
         _dateTile(
           context,
           'Registration starts',
@@ -345,22 +346,12 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
           controller.registrationEnd,
           enabled: !locked,
         ),
-        _dateTile(
-          context,
-          'Roster lock',
-          controller.rosterLockAt,
-          enabled: !locked,
-        ),
+        const SizedBox(height: 6),
+        _scheduleGroupLabel('2. Tournament schedule'),
         _dateTile(
           context,
           'Tournament starts',
           controller.tournamentStart,
-          enabled: !locked,
-        ),
-        _dateTile(
-          context,
-          'Tournament ends',
-          controller.tournamentEnd,
           enabled: !locked,
         ),
         const SizedBox(height: 2),
@@ -395,6 +386,24 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
           formatters: [FilteringTextInputFormatter.digitsOnly],
           enabled: !locked,
         ),
+        const SizedBox(height: 6),
+        _scheduleGroupLabel('3. Auto-calculated schedule'),
+        _calculatedDateTile(
+          context,
+          label: 'Roster lock',
+          value: controller.rosterLockAt,
+          overridden: controller.rosterLockOverridden.value,
+          enabled: !locked,
+          onOverrideChanged: controller.setRosterLockOverride,
+        ),
+        _calculatedDateTile(
+          context,
+          label: 'Estimated tournament end',
+          value: controller.tournamentEnd,
+          overridden: controller.tournamentEndOverridden.value,
+          enabled: !locked,
+          onOverrideChanged: controller.setTournamentEndOverride,
+        ),
         if (!locked)
           Container(
             width: double.infinity,
@@ -416,7 +425,7 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Estimated ${controller.estimatedRounds} rounds · $durationLabel for ${controller.estimatedTeamCount} teams. End time updates automatically.',
+                    'Estimated ${controller.estimatedMatches} matches across ${controller.estimatedRounds} rounds · $durationLabel for ${controller.estimatedTeamCount} teams/players. End time updates automatically.',
                     style: CT.body(11),
                   ),
                 ),
@@ -1177,6 +1186,73 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
             ],
           ),
         ),
+      ),
+    ),
+  );
+
+  Widget _scheduleGroupLabel(String label) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(label, style: CT.headline(13, color: CT.primaryBright)),
+  );
+
+  Widget _calculatedDateTile(
+    BuildContext context, {
+    required String label,
+    required Rxn<DateTime> value,
+    required bool overridden,
+    required bool enabled,
+    required ValueChanged<bool> onOverrideChanged,
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: CT.primaryBright.withValues(alpha: .06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: CT.primaryBright.withValues(alpha: .28)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            overridden ? Icons.edit_calendar_outlined : Icons.auto_awesome,
+            color: CT.primaryBright,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: CT.body(11)),
+                const SizedBox(height: 2),
+                Text(
+                  value.value == null
+                      ? 'Waiting for valid dates'
+                      : _date(value.value!),
+                  style: CT.headline(13),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  overridden ? 'Manual override' : 'Calculated automatically',
+                  style: CT.body(10.5, color: CT.muted),
+                ),
+              ],
+            ),
+          ),
+          if (enabled)
+            TextButton(
+              onPressed: () {
+                if (overridden) {
+                  onOverrideChanged(false);
+                } else {
+                  controller.pickDateTime(context, value);
+                }
+              },
+              child: Text(overridden ? 'Use auto' : 'Override'),
+            )
+          else
+            const Icon(Icons.lock_outline, color: CT.muted, size: 18),
+        ],
       ),
     ),
   );

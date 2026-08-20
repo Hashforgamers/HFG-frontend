@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -70,6 +69,8 @@ class CreateTournamentController extends GetxController {
   final registrationEnd = Rxn<DateTime>();
   final tournamentStart = Rxn<DateTime>();
   final tournamentEnd = Rxn<DateTime>();
+  final rosterLockOverridden = false.obs;
+  final tournamentEndOverridden = false.obs;
   final estimatedDuration = Duration.zero.obs;
   final scheduleValidationError = RxnString();
   final scheduleLocked = false.obs;
@@ -138,7 +139,10 @@ class CreateTournamentController extends GetxController {
     for (final input in [game, gameMode, teamSize, title]) {
       input.addListener(_markBannerInputsChanged);
     }
-    ever<String>(tournamentType, (_) => _markBannerInputsChanged());
+    ever<String>(tournamentType, (_) {
+      _markBannerInputsChanged();
+      _recalculateSchedule();
+    });
     ever<String>(teamMode, (_) => _markBannerInputsChanged());
     for (final input in [
       maxPlayers,
@@ -149,9 +153,9 @@ class CreateTournamentController extends GetxController {
     ]) {
       input.addListener(_recalculateSchedule);
     }
+    ever<DateTime?>(registrationEnd, (_) => _recalculateSchedule());
     for (final input in [
       registrationStart,
-      registrationEnd,
       rosterLockAt,
       checkInStartAt,
       checkInEndAt,
@@ -191,10 +195,16 @@ class CreateTournamentController extends GetxController {
   }
 
   int get estimatedRounds {
-    final teams = estimatedTeamCount;
-    if (teams <= 1) return 0;
-    return (math.log(teams) / math.ln2).ceil();
+    return TournamentSchedule.estimateRounds(
+      numberOfTeams: estimatedTeamCount,
+      tournamentFormat: tournamentType.value,
+    );
   }
+
+  int get estimatedMatches => TournamentSchedule.estimateMatches(
+    numberOfTeams: estimatedTeamCount,
+    tournamentFormat: tournamentType.value,
+  );
 
   bool get canSaveSchedule =>
       scheduleLocked.value || scheduleValidationError.value == null;
@@ -682,6 +692,8 @@ class CreateTournamentController extends GetxController {
     rosterLockAt.value = eventStart.subtract(const Duration(minutes: 15));
     checkInStartAt.value = eventStart.subtract(const Duration(minutes: 30));
     checkInEndAt.value = eventStart.subtract(const Duration(minutes: 5));
+    rosterLockOverridden.value = false;
+    tournamentEndOverridden.value = false;
     _updatingSchedule = false;
     _recalculateSchedule();
   }
@@ -711,6 +723,10 @@ class CreateTournamentController extends GetxController {
     if (identical(target, tournamentStart)) {
       _setTournamentStart(selected);
     } else {
+      if (identical(target, rosterLockAt)) rosterLockOverridden.value = true;
+      if (identical(target, tournamentEnd)) {
+        tournamentEndOverridden.value = true;
+      }
       target.value = selected;
       _validateSchedule();
     }
@@ -723,14 +739,17 @@ class CreateTournamentController extends GetxController {
     _updatingSchedule = true;
     tournamentStart.value = next;
     if (previous == null) {
-      rosterLockAt.value = next.subtract(const Duration(minutes: 15));
       checkInStartAt.value = next.subtract(const Duration(minutes: 30));
       checkInEndAt.value = next.subtract(const Duration(minutes: 5));
     } else {
-      rosterLockAt.value = rosterLockAt.value?.add(offset);
       checkInStartAt.value = checkInStartAt.value?.add(offset);
       checkInEndAt.value = checkInEndAt.value?.add(offset);
-      tournamentEnd.value = tournamentEnd.value?.add(offset);
+      if (rosterLockOverridden.value) {
+        rosterLockAt.value = rosterLockAt.value?.add(offset);
+      }
+      if (tournamentEndOverridden.value) {
+        tournamentEnd.value = tournamentEnd.value?.add(offset);
+      }
     }
     _updatingSchedule = false;
     _recalculateSchedule();
@@ -738,6 +757,7 @@ class CreateTournamentController extends GetxController {
 
   void _recalculateSchedule({bool preserveExistingEnd = false}) {
     if (_updatingSchedule || scheduleLocked.value) return;
+    _updateAutomaticRosterLock();
     final teams = estimatedTeamCount;
     final rounds = estimatedRounds;
     final matchMinutes = int.tryParse(matchDuration.text.trim());
@@ -752,6 +772,7 @@ class CreateTournamentController extends GetxController {
         concurrency == null ||
         concurrency < 1) {
       estimatedDuration.value = Duration.zero;
+      if (!tournamentEndOverridden.value) tournamentEnd.value = null;
       _validateSchedule();
       return;
     }
@@ -761,14 +782,45 @@ class CreateTournamentController extends GetxController {
       concurrentMatches: concurrency,
       matchDurationMinutes: matchMinutes,
       breakDurationMinutes: breakMinutes,
+      tournamentFormat: tournamentType.value,
     );
     final start = tournamentStart.value;
-    if (!preserveExistingEnd && start != null) {
+    if (!preserveExistingEnd &&
+        !tournamentEndOverridden.value &&
+        start != null) {
       _updatingSchedule = true;
       tournamentEnd.value = start.add(estimatedDuration.value);
       _updatingSchedule = false;
     }
     _validateSchedule();
+  }
+
+  void _updateAutomaticRosterLock() {
+    if (rosterLockOverridden.value) return;
+    final registrationCloses = registrationEnd.value;
+    final tournamentBegins = tournamentStart.value;
+    if (registrationCloses == null ||
+        tournamentBegins == null ||
+        !tournamentBegins.isAfter(registrationCloses)) {
+      rosterLockAt.value = null;
+      return;
+    }
+    final preferred = tournamentBegins.subtract(const Duration(minutes: 15));
+    rosterLockAt.value = preferred.isAfter(registrationCloses)
+        ? preferred
+        : registrationCloses.add(
+            tournamentBegins.difference(registrationCloses) ~/ 2,
+          );
+  }
+
+  void setRosterLockOverride(bool enabled) {
+    rosterLockOverridden.value = enabled;
+    if (!enabled) _recalculateSchedule();
+  }
+
+  void setTournamentEndOverride(bool enabled) {
+    tournamentEndOverridden.value = enabled;
+    if (!enabled) _recalculateSchedule();
   }
 
   void _validateSchedule() {

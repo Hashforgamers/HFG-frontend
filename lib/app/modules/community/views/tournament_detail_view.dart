@@ -445,7 +445,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
   Widget _playerMatchCard(CommunityMatch match) {
     final mine = controller.currentTeamId.value;
     final opponent = match.teamA?.id == mine ? match.teamB : match.teamA;
-    final live = {'live', 'in_progress'}.contains(match.status);
+    final live = {'active', 'in_progress'}.contains(match.status);
     final awaitingResults = {
       'awaiting_results',
       'result_pending',
@@ -459,9 +459,15 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
         live &&
         match.scheduledAt != null &&
         DateTime.now().isBefore(match.scheduledAt!);
-    final proposal = match.resultProposal;
+    final proposal = controller.proposalFor(match);
     final proposalPending =
         proposal != null && {'pending', 'submitted'}.contains(proposal.status);
+    final canApproveProposal =
+        proposalPending && controller.resultPermission(match, 'can_accept');
+    final canDisputeProposal =
+        proposalPending && controller.resultPermission(match, 'can_dispute');
+    final evidenceUrls = controller.resultEvidenceUrls(match);
+    final remaining = controller.resultTimeRemaining(match);
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
@@ -562,6 +568,38 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                         'Review by ${_fmt(proposal.reviewDeadline!)}',
                         style: CT.body(9.5, color: CT.muted),
                       ),
+                    if (remaining != null)
+                      Text(
+                        remaining == Duration.zero
+                            ? 'Review window ended'
+                            : 'Auto-finalizes in ${remaining.inMinutes}:${remaining.inSeconds.remainder(60).toString().padLeft(2, '0')}',
+                        style: CT.body(9.5, color: CT.muted),
+                      ),
+                    if (evidenceUrls.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 92,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: evidenceUrls.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
+                          itemBuilder: (_, index) => ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              evidenceUrls[index],
+                              width: 150,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Container(
+                                width: 150,
+                                color: CT.surfaceHigh,
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.broken_image_outlined),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -612,7 +650,8 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                   if (controller.isCurrentUserCaptain && proposalPending)
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: controller.acting.value
+                        onPressed:
+                            controller.acting.value || !canApproveProposal
                             ? null
                             : () => controller.respondToHostResultProposal(
                                 match: match,
@@ -642,12 +681,10 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                   if (controller.isCurrentUserCaptain && proposalPending)
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: controller.acting.value
+                        onPressed:
+                            controller.acting.value || !canDisputeProposal
                             ? null
-                            : () => controller.respondToHostResultProposal(
-                                match: match,
-                                action: 'dispute',
-                              ),
+                            : () => _openHostProposalDispute(match),
                         icon: const Icon(Icons.gavel_rounded, size: 17),
                         label: const Text('DISPUTE'),
                         style: OutlinedButton.styleFrom(
@@ -746,6 +783,126 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
       ],
     ),
   );
+
+  Future<void> _openHostProposalDispute(CommunityMatch match) async {
+    final description = TextEditingController();
+    final evidence = <String>[];
+    var uploading = false;
+    var submitting = false;
+    String? dialogError;
+    await Get.dialog<void>(
+      StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: CT.surface,
+          title: const Text('Dispute host result'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Upload your scoreboard first, then explain what is incorrect.',
+                  style: CT.body(11, color: CT.muted),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: description,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Dispute description',
+                    hintText: 'My scoreboard shows 2-1 for Team B.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: uploading || submitting
+                      ? null
+                      : () async {
+                          setState(() {
+                            uploading = true;
+                            dialogError = null;
+                          });
+                          try {
+                            final assetId = await controller
+                                .pickAndUploadEvidence(
+                                  match.id,
+                                  purpose: 'dispute_evidence',
+                                );
+                            if (assetId != null && assetId.isNotEmpty) {
+                              evidence.add(assetId);
+                            }
+                          } catch (error) {
+                            dialogError = error.toString();
+                          } finally {
+                            if (context.mounted) {
+                              setState(() => uploading = false);
+                            }
+                          }
+                        },
+                  icon: uploading
+                      ? const SizedBox.square(
+                          dimension: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_photo_alternate_outlined),
+                  label: Text(
+                    uploading
+                        ? 'UPLOADING...'
+                        : evidence.isEmpty
+                        ? 'UPLOAD SCOREBOARD'
+                        : '${evidence.length} SCREENSHOT ADDED',
+                  ),
+                ),
+                if (dialogError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(dialogError!, style: CT.body(10.5, color: CT.error)),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: uploading || submitting ? null : Get.back,
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              onPressed: uploading || submitting
+                  ? null
+                  : () async {
+                      final reason = description.text.trim();
+                      if (reason.isEmpty || evidence.isEmpty) {
+                        setState(() {
+                          dialogError =
+                              'Add a description and scoreboard screenshot.';
+                        });
+                        return;
+                      }
+                      setState(() {
+                        submitting = true;
+                        dialogError = null;
+                      });
+                      final submitted = await controller
+                          .respondToHostResultProposal(
+                            match: match,
+                            action: 'dispute',
+                            description: reason,
+                            evidenceAssetIds: evidence,
+                          );
+                      if (context.mounted && submitted) Get.back<void>();
+                      if (context.mounted && !submitted) {
+                        setState(() => submitting = false);
+                      }
+                    },
+              child: Text(submitting ? 'SUBMITTING...' : 'OPEN DISPUTE'),
+            ),
+          ],
+        ),
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    description.dispose();
+  }
 
   Future<void> _openResultSubmission(CommunityMatch match) async {
     final aScore = TextEditingController();

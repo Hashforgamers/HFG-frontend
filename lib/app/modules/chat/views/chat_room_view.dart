@@ -11,6 +11,9 @@ import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/theme/chat_palette.dart';
 import 'package:hash/app/modules/chat/views/chat_group_details_view.dart';
 import 'package:hash/app/modules/community/services/community_api.dart';
+import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
+import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -211,6 +214,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     if (message.type == 'team_invite') {
       return _buildTeamInviteCard(message: message, isMine: isMine);
     }
+    if (message.type == 'tournament_deep_link') {
+      return _buildTournamentDeepLink(message: message, isMine: isMine);
+    }
     if (message.type == 'arena_booking_invite') {
       return _buildArenaBookingInviteCard(message: message, isMine: isMine);
     }
@@ -299,6 +305,72 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
   }
 
+  Widget _buildTournamentDeepLink({
+    required ChatMessageModel message,
+    required bool isMine,
+  }) {
+    final meta = _messageMeta(message);
+    final eventId = (meta['event_id'] ?? '').toString().trim();
+    final communityTeam = meta['community_team'] == true;
+    final link = (meta['deep_link'] ?? message.text).toString().trim();
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * .82,
+        ),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF101B12),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: ChatPalette.primary),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tournament link',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 7),
+            SelectableText(
+              link,
+              style: GoogleFonts.inter(
+                color: ChatPalette.primary,
+                fontSize: 12,
+                decoration: TextDecoration.underline,
+                decorationColor: ChatPalette.primary,
+              ),
+            ),
+            const SizedBox(height: 9),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: eventId.isEmpty
+                    ? null
+                    : () => _openTournamentInvite(
+                        eventId: eventId,
+                        communityTeam: communityTeam,
+                      ),
+                icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                label: const Text('Open Tournament'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ChatPalette.primary,
+                  foregroundColor: Colors.black,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTeamInviteCard({
     required ChatMessageModel message,
     required bool isMine,
@@ -307,6 +379,17 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     final eventId = (meta['event_id'] ?? '').toString().trim();
     final teamId = (meta['team_id'] ?? '').toString().trim();
     final teamName = (meta['team_name'] ?? 'Team').toString().trim();
+    final storedDeepLink = (meta['deep_link'] ?? '').toString().trim();
+    final deepLink = storedDeepLink.isNotEmpty
+        ? storedDeepLink
+        : (eventId.isEmpty
+              ? ''
+              : Uri(
+                  scheme: 'hashforgamers',
+                  host: 'tournaments',
+                  path: '/$eventId',
+                  queryParameters: {if (teamId.isNotEmpty) 'team_id': teamId},
+                ).toString());
     final communityTeam = meta['community_team'] == true;
     final isLoading = _joiningInviteMessageIds.contains(message.id);
     final actionState = _inviteActionStateByMessageId[message.id];
@@ -409,6 +492,40 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 ],
               ),
               const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: eventId.isEmpty
+                      ? null
+                      : () => _openTournamentInvite(
+                          eventId: eventId,
+                          communityTeam: communityTeam,
+                        ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: const Text('View Tournament'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: ChatPalette.primary,
+                    side: BorderSide(
+                      color: ChatPalette.primary.withValues(alpha: .7),
+                    ),
+                    minimumSize: const Size.fromHeight(36),
+                  ),
+                ),
+              ),
+              if (deepLink.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                SelectableText(
+                  deepLink,
+                  maxLines: 1,
+                  style: GoogleFonts.inter(
+                    color: ChatPalette.primary,
+                    fontSize: 11,
+                    decoration: TextDecoration.underline,
+                    decorationColor: ChatPalette.primary,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
               if (actionState != null)
                 Text(
                   actionState == 'joined'
@@ -867,6 +984,37 @@ class _ChatRoomViewState extends State<ChatRoomView> {
           _joiningInviteMessageIds.remove(messageId);
         });
       }
+    }
+  }
+
+  Future<void> _openTournamentInvite({
+    required String eventId,
+    required bool communityTeam,
+  }) async {
+    if (communityTeam) {
+      await Get.toNamed(
+        AppRoutes.TOURNAMENT_DETAIL,
+        arguments: {'id': eventId},
+      );
+      return;
+    }
+
+    try {
+      final payload = await _remoteRepo.fetchEventById(eventId: eventId);
+      if (!mounted) return;
+      await Get.to(
+        () => TournamentsDetailsView(
+          tournament: TournamentModel.fromJson(payload),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      Get.snackbar(
+        'Tournament',
+        error.toString().replaceFirst('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
     }
   }
 

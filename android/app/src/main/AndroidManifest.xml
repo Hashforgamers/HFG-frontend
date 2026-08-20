@@ -64,6 +64,10 @@
                     android:scheme="https"
                     android:host="hashforgamers.com"
                     android:pathPrefix="/team/join"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.com"
+                    android:pathPrefix="/tournaments"/>
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
@@ -77,6 +81,10 @@
                     android:scheme="https"
                     android:host="www.hashforgamers.com"
                     android:pathPrefix="/team/join"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/tournaments"/>
             </intent-filter>
 
             <!-- Custom Scheme Deep Links -->
@@ -103,6 +111,12 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="hashforgamers" android:host="team" android:pathPrefix="/join"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="hashforgamers" android:host="tournaments"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

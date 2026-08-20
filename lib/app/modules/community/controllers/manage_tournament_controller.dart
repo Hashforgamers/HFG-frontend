@@ -1,12 +1,10 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../chat/views/chat_room_view.dart';
 import '../models/community_entities.dart';
 import '../models/tournament.dart';
 import '../models/tournament_operations.dart';
@@ -224,6 +222,40 @@ class ManageTournamentController extends GetxController {
     return started;
   }, success: 'Match started');
 
+  Future<void> openDisputeChat(Dispute dispute) async {
+    final roomId = dispute.chatRoomId?.trim() ?? '';
+    if (roomId.isEmpty || dispute.chatRoomStatus != 'ready') {
+      _showSnackbar(
+        'Group chat is not ready',
+        'The backend is still preparing the match dispute room.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+    acting.value = true;
+    try {
+      final customToken = await _api.firebaseChatToken();
+      await FirebaseAuth.instance.signInWithCustomToken(customToken);
+      await Get.to<void>(
+        () => ChatRoomView(
+          roomId: roomId,
+          roomCollection: 'communityDisputeRooms',
+        ),
+      );
+    } catch (error) {
+      debugPrint('[DISPUTE_CHAT_ERROR] dispute=${dispute.id} error=$error');
+      _showSnackbar(
+        'Could not open group chat',
+        error is DioException
+            ? _message(error, fallback: 'The dispute chat could not be opened.')
+            : 'The dispute chat could not be opened.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      acting.value = false;
+    }
+  }
+
   Future<HostMatchEvidence?> uploadMatchEvidence(CommunityMatch match) async {
     final picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
@@ -231,8 +263,9 @@ class ManageTournamentController extends GetxController {
       maxWidth: 2200,
     );
     if (picked == null) return null;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) throw StateError('Sign in to upload match evidence.');
+    if (FirebaseAuth.instance.currentUser == null) {
+      throw StateError('Sign in to upload match evidence.');
+    }
     final analysis = await _evidenceService.analyze(
       picked.path,
       match,
@@ -244,39 +277,18 @@ class ManageTournamentController extends GetxController {
       submittedAs: 'host',
       analysis: analysis,
     );
-    final extension = picked.name.contains('.')
-        ? picked.name.split('.').last.toLowerCase()
-        : 'jpg';
-    final storageKey =
-        'tournament_result_evidence/$tournamentId/${match.id}/'
-        '${uid}_${DateTime.now().microsecondsSinceEpoch}.$extension';
-    final ref = FirebaseStorage.instance.ref(storageKey);
     final mimeType = picked.mimeType ?? 'image/jpeg';
-    await ref.putFile(
-      File(picked.path),
-      SettableMetadata(contentType: mimeType),
+    final upload = await _api.uploadCommunityEvidence(
+      tournamentId: tournamentId,
+      purpose: 'result_evidence',
+      filePath: picked.path,
+      fileName: picked.name,
+      mimeType: mimeType,
+      metadata: {'match_id': match.id, 'submitter_type': 'host'},
     );
-    final evidenceUrl = await ref.getDownloadURL();
-    String? assetId;
-    try {
-      final asset = await _api.createFileAsset(
-        purpose: 'result_evidence',
-        fileUrl: evidenceUrl,
-        storageKey: storageKey,
-        mimeType: mimeType,
-        fileSizeBytes: await picked.length(),
-        tournamentId: tournamentId,
-        metadata: {'match_id': match.id, 'submitter_type': 'host'},
-      );
-      assetId = asset.id;
-    } on DioException catch (e) {
-      debugPrint(
-        '[RESULT_EVIDENCE_ASSET_ERROR] status=${e.response?.statusCode} data=${e.response?.data}',
-      );
-    }
     return HostMatchEvidence(
-      assetId: assetId,
-      evidenceUrl: evidenceUrl,
+      assetId: upload.asset.id,
+      evidenceUrl: upload.secureUrl,
       analysis: analysis,
     );
   }

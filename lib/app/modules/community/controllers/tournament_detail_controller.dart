@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/service/notification_service.dart';
@@ -35,6 +33,7 @@ class TournamentDetailController extends GetxController {
   final RxBool canManage = false.obs;
   final RxBool hasJoined = false.obs;
   final matches = <CommunityMatch>[].obs;
+  final resultStates = <String, Map<String, dynamic>>{}.obs;
   final RxnString resultSubmissionError = RxnString();
   final announcements = <Map<String, dynamic>>[].obs;
   final lifecycleStatus = Rxn<TournamentLifecycleStatus>();
@@ -196,6 +195,7 @@ class TournamentDetailController extends GetxController {
         nextMatches,
         private: hasJoined.value || canManage.value,
       );
+      await _refreshResultStates(nextMatches);
       _lastStatus = nextStatus;
       _knownMatchStates
         ..clear()
@@ -210,6 +210,100 @@ class TournamentDetailController extends GetxController {
         announcements.clear();
       }
     }
+  }
+
+  Future<void> _refreshResultStates(List<CommunityMatch> nextMatches) async {
+    if (!hasJoined.value) return;
+    final reviewMatches = nextMatches.where(
+      (match) =>
+          {'result_pending', 'disputed', 'completed'}.contains(match.status),
+    );
+    for (final match in reviewMatches) {
+      try {
+        final state = await _api.matchResultState(_id, match.id);
+        state['_fetched_at'] = DateTime.now().toUtc().toIso8601String();
+        resultStates[match.id] = state;
+      } catch (error) {
+        debugPrint('[RESULT_STATE_ERROR] match=${match.id} error=$error');
+      }
+    }
+    resultStates.removeWhere(
+      (matchId, _) => !nextMatches.any(
+        (match) =>
+            match.id == matchId &&
+            {'result_pending', 'disputed', 'completed'}.contains(match.status),
+      ),
+    );
+    resultStates.refresh();
+  }
+
+  Map<String, dynamic>? resultStateFor(CommunityMatch match) =>
+      resultStates[match.id];
+
+  MatchResultProposal? proposalFor(CommunityMatch match) {
+    final state = resultStateFor(match);
+    final raw = state?['proposal'] ?? state?['result_proposal'];
+    if (raw is Map) {
+      return MatchResultProposal.fromJson(Map<String, dynamic>.from(raw));
+    }
+    return match.resultProposal;
+  }
+
+  bool resultPermission(CommunityMatch match, String permission) {
+    final state = resultStateFor(match);
+    final permissions = state?['permissions'];
+    final aliases = permission == 'can_accept'
+        ? const ['can_accept', 'can_approve', 'may_accept']
+        : const ['can_dispute', 'may_dispute'];
+    return aliases.any(
+      (key) =>
+          state?[key] == true ||
+          (permissions is Map && permissions[key] == true),
+    );
+  }
+
+  List<String> resultEvidenceUrls(CommunityMatch match) {
+    final state = resultStateFor(match);
+    final proposal = state?['proposal'] ?? state?['result_proposal'];
+    final raw = proposal is Map
+        ? proposal['evidence_urls']
+        : state?['evidence_urls'];
+    return raw is List
+        ? raw
+              .map((item) => item.toString())
+              .where((url) => url.isNotEmpty)
+              .toList()
+        : const [];
+  }
+
+  Duration? resultTimeRemaining(CommunityMatch match) {
+    final state = resultStateFor(match);
+    if (state == null) return null;
+    final expiresAt = DateTime.tryParse(
+      (state['expires_at'] ??
+              (state['proposal'] is Map
+                  ? state['proposal']['expires_at']
+                  : null) ??
+              (state['result_proposal'] is Map
+                  ? state['result_proposal']['expires_at']
+                  : null) ??
+              '')
+          .toString(),
+    );
+    final serverTime = DateTime.tryParse(
+      (state['server_time'] ?? '').toString(),
+    );
+    final fetchedAt = DateTime.tryParse(
+      (state['_fetched_at'] ?? '').toString(),
+    );
+    if (expiresAt == null || serverTime == null || fetchedAt == null) {
+      return null;
+    }
+    final estimatedServerNow = serverTime.toUtc().add(
+      DateTime.now().toUtc().difference(fetchedAt.toUtc()),
+    );
+    final remaining = expiresAt.toUtc().difference(estimatedServerNow);
+    return remaining.isNegative ? Duration.zero : remaining;
   }
 
   void _restoreCachedMatches({required bool private}) {
@@ -318,6 +412,7 @@ class TournamentDetailController extends GetxController {
 
   Future<String?> pickAndUploadEvidence(
     String matchId, {
+    String purpose = 'result_evidence',
     EvidenceUploadProgress? onProgress,
   }) async {
     final picked = await _imagePicker.pickImage(
@@ -327,8 +422,9 @@ class TournamentDetailController extends GetxController {
     );
     if (picked == null) return null;
     onProgress?.call(0.05, 'Preparing screenshot…');
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) throw Exception('Sign in to upload match evidence.');
+    if (FirebaseAuth.instance.currentUser == null) {
+      throw Exception('Sign in to upload match evidence.');
+    }
     final match = matches.where((item) => item.id == matchId).firstOrNull;
     if (match == null) throw Exception('Match details are unavailable.');
     final analysis = await _evidenceService.analyze(
@@ -343,46 +439,25 @@ class TournamentDetailController extends GetxController {
       submittedAs: canManage.value ? 'host' : 'participant',
       analysis: analysis,
     );
-    final extension = picked.name.contains('.')
-        ? picked.name.split('.').last.toLowerCase()
-        : 'jpg';
-    final storageKey =
-        'tournament_result_evidence/$_id/${match.id}/'
-        '${uid}_${DateTime.now().microsecondsSinceEpoch}.$extension';
     final mimeType = picked.mimeType ?? 'image/jpeg';
-    final ref = FirebaseStorage.instance.ref(storageKey);
-    final uploadTask = ref.putFile(
-      File(picked.path),
-      SettableMetadata(contentType: mimeType),
-    );
-    final uploadProgress = uploadTask.snapshotEvents.listen((snapshot) {
-      final total = snapshot.totalBytes;
-      final fraction = total <= 0 ? 0.0 : snapshot.bytesTransferred / total;
-      final percent = (fraction * 100).round();
-      onProgress?.call(
-        0.2 + (fraction.clamp(0.0, 1.0) * 0.7),
-        'Uploading screenshot… $percent%',
-      );
-    });
-    try {
-      await uploadTask;
-    } finally {
-      await uploadProgress.cancel();
-    }
-    onProgress?.call(0.92, 'Securing uploaded image…');
-    final evidenceUrl = await ref.getDownloadURL();
-    onProgress?.call(0.96, 'Adding image to result…');
-    final asset = await _api.createFileAsset(
-      purpose: 'result_evidence',
-      fileUrl: evidenceUrl,
-      storageKey: storageKey,
-      mimeType: mimeType,
-      fileSizeBytes: await picked.length(),
+    final upload = await _api.uploadCommunityEvidence(
       tournamentId: _id,
+      purpose: purpose,
+      filePath: picked.path,
+      fileName: picked.name,
+      mimeType: mimeType,
       metadata: {'match_id': match.id, 'submitter_type': 'participant'},
+      onSendProgress: (sent, total) {
+        final fraction = total <= 0 ? 0.0 : sent / total;
+        final percent = (fraction * 100).round();
+        onProgress?.call(
+          0.2 + (fraction.clamp(0.0, 1.0) * 0.7),
+          'Uploading screenshot… $percent%',
+        );
+      },
     );
     onProgress?.call(1, 'Screenshot added');
-    return asset.id;
+    return upload.asset.id;
   }
 
   Future<bool> submitMatchResult({
@@ -393,6 +468,12 @@ class TournamentDetailController extends GetxController {
     required List<String> evidenceAssetIds,
     String? notes,
   }) async {
+    if (!{'active', 'in_progress', 'awaiting_results'}.contains(match.status)) {
+      resultSubmissionError.value = match.status == 'result_pending'
+          ? 'Review the host proposal. Do not submit a second result.'
+          : 'Result submission is not available for this match state.';
+      return false;
+    }
     acting.value = true;
     resultSubmissionError.value = null;
     final endpoint = '/tournaments/$_id/matches/${match.id}/result-submissions';
@@ -438,12 +519,14 @@ class TournamentDetailController extends GetxController {
     }
   }
 
-  Future<void> respondToHostResultProposal({
+  Future<bool> respondToHostResultProposal({
     required CommunityMatch match,
     required String action,
+    String? description,
+    List<String> evidenceAssetIds = const [],
   }) async {
-    final proposal = match.resultProposal;
-    if (proposal == null || proposal.id.isEmpty) return;
+    final proposal = proposalFor(match);
+    if (proposal == null || proposal.id.isEmpty) return false;
     acting.value = true;
     try {
       final response = await _api.respondToHostResultProposal(
@@ -451,6 +534,8 @@ class TournamentDetailController extends GetxController {
         match.id,
         proposal.id,
         action: action,
+        description: description,
+        evidenceAssetIds: evidenceAssetIds,
       );
       await refreshLiveData();
       Get.snackbar(
@@ -466,12 +551,14 @@ class TournamentDetailController extends GetxController {
           roomStatus: response['chat_room_status']?.toString(),
         );
       }
+      return true;
     } catch (error) {
       Get.snackbar(
         'Result response failed',
         _reason(error),
         snackPosition: SnackPosition.BOTTOM,
       );
+      return false;
     } finally {
       acting.value = false;
     }

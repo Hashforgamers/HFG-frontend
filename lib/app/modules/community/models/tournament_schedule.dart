@@ -27,19 +27,24 @@ class TournamentSchedule {
     final tournamentEnd = tournamentEndAt;
     if (registrationStart == null ||
         registrationEnd == null ||
-        rosterLock == null ||
         tournamentStart == null ||
         tournamentEnd == null) {
-      return 'Registration, roster lock, tournament start, and tournament end are required.';
+      return 'Registration and tournament dates are required.';
     }
     if (!registrationEnd.isAfter(registrationStart)) {
       return 'Registration end must be after registration start.';
     }
-    if (rosterLock.isBefore(registrationEnd)) {
-      return 'Roster lock must be at or after registration end.';
+    if (!tournamentStart.isAfter(registrationEnd)) {
+      return 'Tournament start must be after registration end.';
     }
-    if (rosterLock.isAfter(tournamentStart)) {
-      return 'Roster lock must be at or before tournament start.';
+    if (rosterLock == null) {
+      return 'Roster lock could not be calculated from the selected dates.';
+    }
+    if (!rosterLock.isAfter(registrationEnd)) {
+      return 'Roster lock must be after registration end.';
+    }
+    if (!tournamentStart.isAfter(rosterLock)) {
+      return 'Roster lock must be before tournament start.';
     }
     if (!tournamentEnd.isAfter(tournamentStart)) {
       return 'Tournament end must be after tournament start.';
@@ -57,6 +62,7 @@ class TournamentSchedule {
     required int concurrentMatches,
     required int matchDurationMinutes,
     required int breakDurationMinutes,
+    String tournamentFormat = 'single_elimination',
     int resultBufferMinutesPerRound = 15,
   }) {
     if (numberOfTeams < 2 ||
@@ -65,16 +71,46 @@ class TournamentSchedule {
         breakDurationMinutes < 0) {
       return Duration.zero;
     }
-    final rounds = (math.log(numberOfTeams) / math.ln2).ceil();
-    var matchesInRound = numberOfTeams - math.pow(2, rounds - 1).toInt();
-    var totalMinutes = 0;
-    for (var round = 0; round < rounds; round++) {
-      final waves = (matchesInRound / concurrentMatches).ceil();
-      totalMinutes += waves * matchDurationMinutes;
-      totalMinutes += resultBufferMinutesPerRound;
-      if (round < rounds - 1) totalMinutes += breakDurationMinutes;
-      matchesInRound = math.pow(2, rounds - round - 2).toInt();
-    }
+    final rounds = estimateRounds(
+      numberOfTeams: numberOfTeams,
+      tournamentFormat: tournamentFormat,
+    );
+    final matches = estimateMatches(
+      numberOfTeams: numberOfTeams,
+      tournamentFormat: tournamentFormat,
+    );
+    final waves = (matches / concurrentMatches).ceil();
+    final totalMinutes =
+        waves * matchDurationMinutes +
+        rounds * resultBufferMinutesPerRound +
+        math.max(0, rounds - 1) * breakDurationMinutes;
     return Duration(minutes: totalMinutes);
+  }
+
+  static int estimateRounds({
+    required int numberOfTeams,
+    required String tournamentFormat,
+  }) {
+    if (numberOfTeams < 2) return 0;
+    final eliminationRounds = (math.log(numberOfTeams) / math.ln2).ceil();
+    return switch (tournamentFormat) {
+      'double_elimination' => eliminationRounds * 2 - 1,
+      'round_robin' => numberOfTeams.isEven ? numberOfTeams - 1 : numberOfTeams,
+      'battle_royale' => 1,
+      _ => eliminationRounds,
+    };
+  }
+
+  static int estimateMatches({
+    required int numberOfTeams,
+    required String tournamentFormat,
+  }) {
+    if (numberOfTeams < 2) return 0;
+    return switch (tournamentFormat) {
+      'double_elimination' => numberOfTeams * 2 - 2,
+      'round_robin' => numberOfTeams * (numberOfTeams - 1) ~/ 2,
+      'battle_royale' => 1,
+      _ => numberOfTeams - 1,
+    };
   }
 }

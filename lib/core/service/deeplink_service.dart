@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:app_links/app_links.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_invite_join_view.dart';
+import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/utils/app_logger.dart';
 
 class DeepLinkController extends GetxController {
@@ -65,6 +66,23 @@ class DeepLinkController extends GetxController {
         );
         return;
       }
+    }
+    final isCustomSchemeTournament = const {
+      'tournament',
+      'tournaments',
+    }.contains(uri.host.toLowerCase());
+    final tournamentIndex = segments.indexWhere(
+      (segment) => segment == 'tournament' || segment == 'tournaments',
+    );
+    final tournamentId = isCustomSchemeTournament
+        ? (uri.pathSegments.isNotEmpty ? uri.pathSegments.first.trim() : '')
+        : (tournamentIndex != -1 &&
+                  tournamentIndex + 1 < uri.pathSegments.length
+              ? uri.pathSegments[tournamentIndex + 1].trim()
+              : '');
+    if (tournamentId.isNotEmpty) {
+      Get.toNamed(AppRoutes.TOURNAMENT_DETAIL, arguments: {'id': tournamentId});
+      return;
     }
     final contestIndex = segments.indexOf('contest');
     if (contestIndex != -1) {

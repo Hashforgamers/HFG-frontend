@@ -773,8 +773,10 @@ class _HomeViewState extends State<HomeView> {
                                 end: Alignment.bottomRight,
                                 colors: [
                                   Colors.white.withValues(alpha: 0.08),
-                                  Colors.white.withValues(alpha: 0.03),
-                                  Colors.black.withValues(alpha: 0.25),
+                                  const Color(
+                                    0xFF7A44C0,
+                                  ).withValues(alpha: 0.28),
+                                  Colors.black.withValues(alpha: 0.48),
                                 ],
                               ),
                         boxShadow: [

@@ -1037,7 +1037,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
         Expanded(
           child: TabBarView(
             children: [
-              _bracketTab(),
+              _bracketTab(context),
               _matchListTab(context),
               _leaderboardTab(),
             ],
@@ -1047,13 +1047,30 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
     ),
   );
 
-  Widget _bracketTab() => RefreshIndicator(
+  Widget _bracketTab(BuildContext context) => RefreshIndicator(
     onRefresh: controller.load,
     color: CT.primary,
     child: ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      children: [TournamentBracket(matches: controller.matches)],
+      children: [
+        TournamentBracket(
+          matches: controller.matches,
+          onStartMatch: controller.tournament.value?.status == 'live'
+              ? (match) => _confirmLifecycle(
+                  context,
+                  title: 'Start this match?',
+                  message:
+                      '${match.teamA?.name ?? 'Team A'} vs ${match.teamB?.name ?? 'Team B'} will move to in progress.',
+                  confirmLabel: 'Start match',
+                  action: () => controller.startMatch(match),
+                )
+              : null,
+          onSubmitResult: controller.tournament.value?.status == 'live'
+              ? (match) => _hostResultDialog(context, match)
+              : null,
+        ),
+      ],
     ),
   );
 
@@ -1145,7 +1162,11 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
             ),
           )
         : controller.tournament.value?.status == 'live' &&
-              {'live', 'in_progress', 'disputed'}.contains(match.status)
+              {
+                'active',
+                'in_progress',
+                'awaiting_results',
+              }.contains(match.status)
         ? (label: 'RESULT', onTap: () => _hostResultDialog(context, match))
         : null;
     return Padding(
@@ -1674,6 +1695,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                               DropdownButtonFormField<String>(
                                 key: ValueKey(winnerId),
                                 initialValue: winnerId,
+                                isExpanded: true,
                                 dropdownColor: CT.surfaceHigh,
                                 decoration: const InputDecoration(
                                   prefixIcon: Icon(Icons.emoji_events_outlined),
@@ -1687,6 +1709,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                                         value: team.id,
                                         child: Text(
                                           team.name,
+                                          maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
@@ -2106,6 +2129,26 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                             style: CT.body(10.5),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Match group: host and every player from both teams',
+                            style: CT.body(9.5, color: CT.muted),
+                          ),
+                          const SizedBox(height: 6),
+                          OutlinedButton.icon(
+                            onPressed:
+                                item.chatRoomStatus == 'ready' &&
+                                    item.chatRoomId?.isNotEmpty == true &&
+                                    !controller.acting.value
+                                ? () => controller.openDisputeChat(item)
+                                : null,
+                            icon: const Icon(Icons.forum_outlined, size: 17),
+                            label: Text(
+                              item.chatRoomStatus == 'ready'
+                                  ? 'OPEN GROUP CHAT'
+                                  : 'GROUP CHAT PREPARING',
+                            ),
                           ),
                         ],
                       ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/chat/models/chat_room_model.dart';
+import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/community/services/community_api.dart';
 import 'package:hash/app/modules/social/friends_view.dart';
@@ -185,10 +186,34 @@ class _CommunityTeamInviteViewState extends State<CommunityTeamInviteView> {
           members: roster,
         );
       }
+      final friendUid = (profile['uid'] ?? profile['firebase_uid'] ?? '')
+          .toString()
+          .trim();
+      if (friendUid.isEmpty) {
+        throw Exception(
+          'The roster invitation was created, but this player has no chat account.',
+        );
+      }
+      final chatUser = ChatUserModel.fromMap({...profile, 'uid': friendUid});
+      final roomId = await _chat.getOrCreateDirectRoom(otherUser: chatUser);
+      await _chat.sendTeamInviteMessage(
+        roomId: roomId,
+        eventId: widget.tournamentId,
+        teamId: widget.teamId,
+        teamName: widget.teamName,
+        communityTeam: true,
+      );
+      debugPrint(
+        '[TournamentInvite][Friend] roster and direct chat invite sent '
+        'friend_uid=$friendUid room_id=$roomId tournament_id=${widget.tournamentId} '
+        'team_id=${widget.teamId}',
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Invitation sent. Your friend can now accept it.'),
+          content: Text(
+            'Invitation sent with the tournament link in their chat.',
+          ),
           backgroundColor: Color(0xff00DC00),
         ),
       );

@@ -12,11 +12,15 @@ class TournamentBracket extends StatefulWidget {
     required this.matches,
     this.currentTeamId,
     this.expanded = false,
+    this.onStartMatch,
+    this.onSubmitResult,
   });
 
   final List<CommunityMatch> matches;
   final String? currentTeamId;
   final bool expanded;
+  final ValueChanged<CommunityMatch>? onStartMatch;
+  final ValueChanged<CommunityMatch>? onSubmitResult;
 
   @override
   State<TournamentBracket> createState() => _TournamentBracketState();
@@ -174,6 +178,8 @@ class _TournamentBracketState extends State<TournamentBracket> {
                                 matches: widget.matches,
                                 currentTeamId: widget.currentTeamId,
                                 expanded: true,
+                                onStartMatch: widget.onStartMatch,
+                                onSubmitResult: widget.onSubmitResult,
                               ),
                             ),
                           ),
@@ -287,6 +293,14 @@ class _TournamentBracketState extends State<TournamentBracket> {
         ? 'Schedule to be announced'
         : '${localizations.formatMediumDate(scheduledAt)} · '
               '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(scheduledAt))}';
+    final canStart =
+        widget.onStartMatch != null &&
+        {'scheduled', 'ready'}.contains(match.status) &&
+        match.teamA != null &&
+        match.teamB != null;
+    final canSubmitResult =
+        widget.onSubmitResult != null &&
+        {'active', 'in_progress', 'awaiting_results'}.contains(match.status);
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -352,19 +366,48 @@ class _TournamentBracketState extends State<TournamentBracket> {
                 isCurrent: widget.currentTeamId == match.teamB?.id,
               ),
               const SizedBox(height: 16),
+              if (canStart || canSubmitResult) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      if (canStart) {
+                        widget.onStartMatch!(match);
+                      } else {
+                        widget.onSubmitResult!(match);
+                      }
+                    },
+                    icon: Icon(
+                      canStart
+                          ? Icons.play_arrow_rounded
+                          : Icons.emoji_events_outlined,
+                    ),
+                    label: Text(canStart ? 'START MATCH' : 'ADD RESULT'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      backgroundColor: const Color(0xFFF8A241),
+                      foregroundColor: const Color(0xFF171006),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: OutlinedButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
-                    backgroundColor: const Color(0xFFF8A241),
-                    foregroundColor: const Color(0xFF171006),
+                    foregroundColor: CT.onSurface,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text('DONE'),
+                  child: const Text('CLOSE'),
                 ),
               ),
             ],

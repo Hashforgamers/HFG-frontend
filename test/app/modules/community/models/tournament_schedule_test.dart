@@ -25,7 +25,7 @@ void main() {
       validSchedule(
         rosterLock: start.add(const Duration(minutes: 1)),
       ).validate(),
-      'Roster lock must be at or before tournament start.',
+      'Roster lock must be before tournament start.',
     );
   });
 
@@ -35,7 +35,7 @@ void main() {
         registrationEnd: start.subtract(const Duration(minutes: 10)),
         rosterLock: start.subtract(const Duration(minutes: 20)),
       ).validate(),
-      'Roster lock must be at or after registration end.',
+      'Roster lock must be after registration end.',
     );
   });
 
@@ -49,5 +49,44 @@ void main() {
 
     // Round waves: 2 + 1 + 1 = 4. Three buffers and two breaks.
     expect(duration, const Duration(minutes: 255));
+  });
+
+  test('requires strict roster lock boundaries', () {
+    expect(
+      validSchedule(rosterLock: start).validate(),
+      'Roster lock must be before tournament start.',
+    );
+    final registrationEnd = start.subtract(const Duration(hours: 1));
+    expect(
+      validSchedule(
+        registrationEnd: registrationEnd,
+        rosterLock: registrationEnd,
+      ).validate(),
+      'Roster lock must be after registration end.',
+    );
+  });
+
+  test('uses tournament format to estimate required matches', () {
+    expect(
+      TournamentSchedule.estimateMatches(
+        numberOfTeams: 8,
+        tournamentFormat: 'single_elimination',
+      ),
+      7,
+    );
+    expect(
+      TournamentSchedule.estimateMatches(
+        numberOfTeams: 8,
+        tournamentFormat: 'double_elimination',
+      ),
+      14,
+    );
+    expect(
+      TournamentSchedule.estimateMatches(
+        numberOfTeams: 8,
+        tournamentFormat: 'round_robin',
+      ),
+      28,
+    );
   });
 }

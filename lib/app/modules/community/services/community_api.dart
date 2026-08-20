@@ -714,6 +714,17 @@ class CommunityApi {
     return CommunityMatch.fromJson(_map(res.data));
   }
 
+  Future<Map<String, dynamic>> matchResultState(
+    String tournamentId,
+    String matchId,
+  ) async {
+    final dio = await _authedDio();
+    final res = await dio.get(
+      '/tournaments/$tournamentId/matches/$matchId/result-state',
+    );
+    return _map(res.data);
+  }
+
   Future<Map<String, dynamic>> submitHostResultProposal(
     String tournamentId,
     String matchId, {
@@ -744,6 +755,8 @@ class CommunityApi {
     String matchId,
     String proposalId, {
     required String action, // accept | dispute
+    String? description,
+    List<String> evidenceAssetIds = const [],
   }) async {
     if (action != 'accept' && action != 'dispute') {
       throw ArgumentError.value(action, 'action', 'Must be accept or dispute');
@@ -752,6 +765,14 @@ class CommunityApi {
     final res = await dio.post(
       '/tournaments/$tournamentId/matches/$matchId/'
       'result-proposals/$proposalId/$action',
+      data: action == 'dispute'
+          ? {
+              if (description != null && description.trim().isNotEmpty)
+                'description': description.trim(),
+              if (evidenceAssetIds.isNotEmpty)
+                'evidence_asset_ids': evidenceAssetIds,
+            }
+          : null,
     );
     return _map(res.data);
   }
@@ -831,6 +852,112 @@ class CommunityApi {
       },
     );
     return FileAsset.fromJson(_map(res.data));
+  }
+
+  Future<({FileAsset asset, String secureUrl})> uploadCommunityEvidence({
+    required String tournamentId,
+    required String purpose,
+    required String filePath,
+    required String fileName,
+    required String mimeType,
+    Map<String, dynamic> metadata = const {},
+    void Function(int sent, int total)? onSendProgress,
+  }) async {
+    if (!const {'result_evidence', 'dispute_evidence'}.contains(purpose)) {
+      throw ArgumentError.value(
+        purpose,
+        'purpose',
+        'Unsupported evidence purpose',
+      );
+    }
+    if (!const {
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+    }.contains(mimeType.toLowerCase())) {
+      throw ArgumentError.value(
+        mimeType,
+        'mimeType',
+        'Evidence must be a JPG, PNG, or WebP screenshot',
+      );
+    }
+    final authed = await _authedDio();
+    final signatureResponse = await authed.post(
+      '/tournaments/$tournamentId/evidence/upload-signature',
+      data: {'purpose': purpose},
+    );
+    final signature = _map(signatureResponse.data);
+    final uploadUrl = signature['upload_url']?.toString() ?? '';
+    final apiKey = signature['api_key']?.toString() ?? '';
+    final timestamp = signature['timestamp']?.toString() ?? '';
+    final signedValue = signature['signature']?.toString() ?? '';
+    final folder = signature['folder']?.toString() ?? '';
+    final publicId = signature['public_id']?.toString() ?? '';
+    final allowedFormats = signature['allowed_formats']?.toString() ?? '';
+    final storageKey = signature['storage_key']?.toString() ?? '';
+    if ([
+      uploadUrl,
+      apiKey,
+      timestamp,
+      signedValue,
+      folder,
+      publicId,
+      allowedFormats,
+      storageKey,
+    ].any((value) => value.isEmpty)) {
+      throw StateError('Evidence upload signature is incomplete.');
+    }
+
+    final cloudinary = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 20),
+        sendTimeout: const Duration(seconds: 90),
+        receiveTimeout: const Duration(seconds: 90),
+      ),
+    );
+    final uploadResponse = await cloudinary.post(
+      uploadUrl,
+      data: FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath, filename: fileName),
+        'api_key': apiKey,
+        'timestamp': timestamp,
+        'signature': signedValue,
+        'folder': folder,
+        'public_id': publicId,
+        'allowed_formats': allowedFormats,
+      }),
+      onSendProgress: onSendProgress,
+    );
+    final uploaded = _map(uploadResponse.data);
+    final secureUrl = uploaded['secure_url']?.toString() ?? '';
+    final returnedPublicId = uploaded['public_id']?.toString() ?? '';
+    final bytes = (uploaded['bytes'] as num?)?.toInt();
+    final format = uploaded['format']?.toString().toLowerCase() ?? '';
+    if (secureUrl.isEmpty ||
+        !secureUrl.startsWith('https://') ||
+        returnedPublicId != storageKey ||
+        bytes == null ||
+        bytes <= 0 ||
+        !const {'jpg', 'jpeg', 'png', 'webp'}.contains(format)) {
+      throw StateError('Cloudinary returned invalid evidence metadata.');
+    }
+    final registered = await createFileAsset(
+      purpose: purpose,
+      tournamentId: tournamentId,
+      fileUrl: secureUrl,
+      storageKey: storageKey,
+      mimeType: format == 'jpg' ? 'image/jpeg' : 'image/$format',
+      fileSizeBytes: bytes,
+      metadata: {
+        ...metadata,
+        if (uploaded['width'] is num)
+          'width': (uploaded['width'] as num).toInt(),
+        if (uploaded['height'] is num)
+          'height': (uploaded['height'] as num).toInt(),
+      },
+    );
+    return (asset: registered, secureUrl: secureUrl);
   }
 
   // ---------------------------------------------------------------------------

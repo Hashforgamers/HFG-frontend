@@ -921,8 +921,21 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     final senderName = await _resolveCurrentUserNameFromStore(uid);
     final roomRef = _roomsRef.doc(roomId);
     final messageRef = roomRef.collection(_messagesCollection).doc();
+    final linkMessageRef = roomRef.collection(_messagesCollection).doc();
     final now = DateTime.now().toIso8601String();
-    final previewText = '$senderName shared a team invite: $safeTeamName';
+    final deepLink = Uri(
+      scheme: 'hashforgamers',
+      host: 'tournaments',
+      path: '/$safeEventId',
+      queryParameters: {'team_id': safeTeamId},
+    ).toString();
+    final webLink = Uri.https(
+      'hashforgamers.com',
+      '/tournaments/$safeEventId',
+      {'team_id': safeTeamId},
+    ).toString();
+    final previewText =
+        '$senderName shared a team invite: $safeTeamName\n$deepLink\n$webLink';
 
     final batch = _firestore.batch();
     batch.set(messageRef, {
@@ -937,6 +950,26 @@ class ChatService extends GetxService with WidgetsBindingObserver {
         'team_id': safeTeamId,
         'team_name': safeTeamName,
         'inviter_uid': uid,
+        'deep_link': deepLink,
+        'web_link': webLink,
+        if (communityTeam) 'community_team': true,
+      },
+      'seen_by': [uid],
+      'created_at': FieldValue.serverTimestamp(),
+      'client_created_at': now,
+    });
+    batch.set(linkMessageRef, {
+      'id': linkMessageRef.id,
+      'room_id': roomId,
+      'sender_id': uid,
+      'sender_name': senderName,
+      'text': deepLink,
+      'type': 'tournament_deep_link',
+      'meta': {
+        'event_id': safeEventId,
+        'team_id': safeTeamId,
+        'deep_link': deepLink,
+        'web_link': webLink,
         if (communityTeam) 'community_team': true,
       },
       'seen_by': [uid],
@@ -947,13 +980,17 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     batch.set(roomRef, {
       'updated_at': FieldValue.serverTimestamp(),
       'client_updated_at': now,
-      'last_message': 'Team invite: $safeTeamName',
+      'last_message': deepLink,
       'last_message_sender_id': uid,
       'last_message_at': FieldValue.serverTimestamp(),
       'client_last_message_at': now,
     }, SetOptions(merge: true));
 
     await batch.commit();
+    debugPrint(
+      '[TournamentInvite][Chat] sent room=$roomId event=$safeEventId '
+      'team=$safeTeamId deepLink=$deepLink',
+    );
   }
 
   Future<void> sendArenaBookingInviteMessage({
