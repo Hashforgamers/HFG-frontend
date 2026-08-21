@@ -10,9 +10,12 @@ import '../models/tournament.dart';
 import '../models/tournament_operations.dart';
 import '../models/tournament_domain.dart';
 import '../services/community_api.dart';
+import '../services/dispute_chat_auth.dart';
 import '../services/tournament_result_evidence_service.dart';
 import '../services/tournament_analytics.dart';
 import '../../chat/views/chat_room_view.dart';
+import '../../chat/services/chat_service.dart';
+import '../../chat/models/chat_user_model.dart';
 
 typedef EvidenceUploadProgress = void Function(double progress, String status);
 
@@ -23,6 +26,7 @@ class TournamentDetailController extends GetxController {
   static final Map<String, String> _matchFingerprints = {};
 
   final CommunityApi _api = CommunityApi();
+  late final DisputeChatAuth _disputeChatAuth = DisputeChatAuth(api: _api);
   final ImagePicker _imagePicker = ImagePicker();
   final TournamentResultEvidenceService _evidenceService =
       TournamentResultEvidenceService();
@@ -32,6 +36,8 @@ class TournamentDetailController extends GetxController {
   final RxBool acting = false.obs; // register / cancel in flight
   final RxBool canManage = false.obs;
   final RxBool hasJoined = false.obs;
+  final RxBool membershipResolved = false.obs;
+  final RxBool participantDataLoading = false.obs;
   final matches = <CommunityMatch>[].obs;
   final resultStates = <String, Map<String, dynamic>>{}.obs;
   final RxnString resultSubmissionError = RxnString();
@@ -39,6 +45,7 @@ class TournamentDetailController extends GetxController {
   final lifecycleStatus = Rxn<TournamentLifecycleStatus>();
   final currentTeamId = RxnString();
   final participantTeams = <CommunityTeam>[].obs;
+  final leaderboard = <TournamentLeaderboardEntry>[].obs;
   final currentUserId = Rxn<int>();
   final RxnString error = RxnString();
 
@@ -58,6 +65,13 @@ class TournamentDetailController extends GetxController {
     } else if (arg is Map) {
       _id = (arg['id'] ?? '').toString();
       canManage.value = arg['can_manage'] == true;
+      if (arg['tournament'] is Tournament) {
+        tournament.value = arg['tournament'] as Tournament;
+      }
+      if (arg['has_joined'] == true) {
+        hasJoined.value = true;
+        membershipResolved.value = true;
+      }
     } else if (arg is String) {
       _id = arg;
     } else {
@@ -88,7 +102,6 @@ class TournamentDetailController extends GetxController {
       }
       tournament.value = t;
       canManage.value = canManage.value || t.canManage;
-      await refreshLiveData();
       try {
         final joined = await _api.myTournaments(role: 'joined');
         final joinedItem = joined
@@ -102,24 +115,45 @@ class TournamentDetailController extends GetxController {
             )
             .firstOrNull;
         hasJoined.value = joinedItem != null;
+        membershipResolved.value = true;
         final userId = joinedItem?.registration?.userId;
         currentUserId.value = userId;
-        if (userId != null) {
-          final teams = await _api.tournamentTeams(_id);
+        if (hasJoined.value) {
+          participantDataLoading.value = true;
+          final data = await Future.wait([
+            _api.tournamentTeams(_id).catchError((_) => <CommunityTeam>[]),
+            _api
+                .tournamentLeaderboard(_id)
+                .catchError((_) => <TournamentLeaderboardEntry>[]),
+            _api
+                .tournamentAnnouncements(_id)
+                .catchError((_) => <Map<String, dynamic>>[]),
+          ]);
+          final teams = data[0] as List<CommunityTeam>;
           participantTeams.assignAll(teams);
-          currentTeamId.value = teams
-              .where(
-                (team) => team.members.any((member) => member.userId == userId),
-              )
-              .firstOrNull
-              ?.id;
+          leaderboard.assignAll(data[1] as List<TournamentLeaderboardEntry>);
+          announcements.assignAll(data[2] as List<Map<String, dynamic>>);
+          if (userId != null) {
+            currentTeamId.value = teams
+                .where(
+                  (team) =>
+                      team.members.any((member) => member.userId == userId),
+                )
+                .firstOrNull
+                ?.id;
+          }
         }
       } catch (_) {
-        hasJoined.value = false;
+        if (!membershipResolved.value) hasJoined.value = false;
+        membershipResolved.value = true;
         currentTeamId.value = null;
         currentUserId.value = null;
         participantTeams.clear();
+        leaderboard.clear();
+      } finally {
+        participantDataLoading.value = false;
       }
+      await refreshLiveData();
       await TournamentAnalytics.log(
         'tournament_viewed',
         t,
@@ -136,20 +170,55 @@ class TournamentDetailController extends GetxController {
           deduplicationKey: t.id,
         );
       }
-      if (hasJoined.value) {
-        await refreshLiveData();
-        try {
-          announcements.assignAll(await _api.tournamentAnnouncements(_id));
-        } catch (_) {
-          announcements.clear();
-        }
-      }
     } catch (_) {
       if (tournament.value == null) {
         error.value = 'Could not load this tournament.';
       }
     } finally {
       loading.value = false;
+    }
+  }
+
+  Future<void> messageHost() async {
+    final hostUserId = tournament.value?.hostUserId;
+    if (hostUserId == null) {
+      Get.snackbar('Host chat unavailable', 'Host profile is unavailable.');
+      return;
+    }
+    final chat = Get.isRegistered<ChatService>()
+        ? Get.find<ChatService>()
+        : Get.put(ChatService(), permanent: true);
+    try {
+      final hostFid = tournament.value?.hostFirebaseUid?.trim() ?? '';
+      final host = hostFid.isNotEmpty
+          ? ChatUserModel(
+              uid: hostFid,
+              displayName:
+                  tournament.value?.organizationName ?? 'Tournament Host',
+              username: 'tournament_host',
+              email: '',
+              phoneNumber: '',
+              photoUrl: '',
+              backendUserId: hostUserId,
+              isOnline: false,
+              updatedAt: DateTime.now(),
+              lastSeenAt: null,
+            )
+          : await chat.userByBackendId(hostUserId);
+      if (host == null) {
+        Get.snackbar(
+          'Host chat unavailable',
+          'The host has not activated chat.',
+        );
+        return;
+      }
+      final roomId = await chat.getOrCreateDirectRoom(otherUser: host);
+      Get.to(() => ChatRoomView(roomId: roomId));
+    } catch (_) {
+      Get.snackbar(
+        'Host chat unavailable',
+        'Could not open a chat with the host.',
+      );
     }
   }
 
@@ -549,6 +618,7 @@ class TournamentDetailController extends GetxController {
         await _openDisputeChat(
           roomId: response['chat_room_id']?.toString(),
           roomStatus: response['chat_room_status']?.toString(),
+          match: match,
         );
       }
       return true;
@@ -588,6 +658,7 @@ class TournamentDetailController extends GetxController {
       await _openDisputeChat(
         roomId: dispute.chatRoomId,
         roomStatus: dispute.chatRoomStatus,
+        match: match,
       );
     } catch (error) {
       if (error is DioException) {
@@ -608,17 +679,79 @@ class TournamentDetailController extends GetxController {
   Future<void> _openDisputeChat({
     required String? roomId,
     required String? roomStatus,
+    CommunityMatch? match,
   }) async {
     final normalizedRoomId = roomId?.trim() ?? '';
-    if (normalizedRoomId.isEmpty || roomStatus != 'ready') return;
-    final customToken = await _api.firebaseChatToken();
-    await FirebaseAuth.instance.signInWithCustomToken(customToken);
-    await Get.to<void>(
-      () => ChatRoomView(
+    final normalizedStatus = roomStatus?.trim().toLowerCase() ?? '';
+    if (normalizedRoomId.isEmpty || normalizedStatus != 'ready') {
+      Get.snackbar(
+        'Dispute chat is being prepared',
+        'Open this dispute again shortly from the tournament participant hub.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+    try {
+      await _disputeChatAuth.authenticate();
+      final participantAccounts = _disputeParticipantAccounts(match);
+      final chat = Get.isRegistered<ChatService>()
+          ? Get.find<ChatService>()
+          : Get.put(ChatService(), permanent: true);
+      await chat.ensureDisputeRoom(
         roomId: normalizedRoomId,
-        roomCollection: 'communityDisputeRooms',
-      ),
-    );
+        memberIds: participantAccounts.map((account) => account.firebaseUid).toList(),
+        memberNames: {
+          for (final account in participantAccounts)
+            account.firebaseUid: account.name,
+        },
+        memberUsernames: {
+          for (final account in participantAccounts)
+            account.firebaseUid: account.username,
+        },
+      );
+      await Get.to<void>(
+        () => ChatRoomView(
+          roomId: normalizedRoomId,
+          participantAccounts: participantAccounts,
+        ),
+      );
+    } catch (error) {
+      debugPrint('[DISPUTE_CHAT_ERROR] room=$normalizedRoomId error=$error');
+      Get.snackbar(
+        'Could not open dispute chat',
+        _reason(error),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  List<ChatParticipantAccount> _disputeParticipantAccounts(
+    CommunityMatch? disputedMatch,
+  ) {
+    final accounts = <String, ChatParticipantAccount>{};
+    final hostId = tournament.value?.hostUserId;
+    if (hostId != null) {
+      final uid = 'hfg-user-$hostId';
+      accounts[uid] = ChatParticipantAccount(
+        firebaseUid: uid,
+        name: tournament.value?.organizationName ?? 'Tournament Host',
+        username: 'host',
+      );
+    }
+    for (final team in [disputedMatch?.teamA, disputedMatch?.teamB]) {
+      if (team == null) continue;
+      for (final member in team.members) {
+        final userId = member.userId;
+        if (userId == null) continue;
+        final uid = 'hfg-user-$userId';
+        accounts[uid] = ChatParticipantAccount(
+          firebaseUid: uid,
+          name: member.displayName,
+          username: member.gameId,
+        );
+      }
+    }
+    return accounts.values.toList();
   }
 
   String _reason(Object e) {
@@ -633,6 +766,7 @@ class TournamentDetailController extends GetxController {
         }
       }
     }
+    if (e is StateError) return e.message;
     final s = e.toString();
     if (s.contains('409')) return 'Already registered or tournament is full.';
     if (s.contains('403')) return 'Not allowed for this tournament.';

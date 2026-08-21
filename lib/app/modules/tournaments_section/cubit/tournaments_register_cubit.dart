@@ -31,6 +31,32 @@ class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
   final CommunityApi communityApi = CommunityApi();
   final TournamentPaymentService paymentService = TournamentPaymentService();
 
+  Future<bool> isAlreadyRegistered({
+    required String eventId,
+    required String source,
+  }) async {
+    final normalizedId = eventId.trim().toLowerCase();
+    if (normalizedId.isEmpty) return false;
+    if (source.trim().toLowerCase() == 'community') {
+      final joined = await communityApi.myTournaments(role: 'joined');
+      return joined.any(
+        (item) =>
+            item.tournament.id.trim().toLowerCase() == normalizedId &&
+            !{
+              'cancelled',
+              'rejected',
+            }.contains(item.registration?.status.trim().toLowerCase()),
+      );
+    }
+    final userId = await _resolveUserId();
+    if (userId == null || userId <= 0) return false;
+    final joined = await remoteRepo.fetchJoinedTournaments(userId: userId);
+    return joined.values.expand((items) => items).any((item) {
+      final id = (item['id'] ?? item['event_id'] ?? '').toString();
+      return id.trim().toLowerCase() == normalizedId;
+    });
+  }
+
   Future<void> registerTeam({
     required String eventId,
     required String leaderName,

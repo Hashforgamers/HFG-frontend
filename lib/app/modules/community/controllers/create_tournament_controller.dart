@@ -136,7 +136,14 @@ class CreateTournamentController extends GetxController {
       _editingTournament = Get.arguments as Tournament;
     }
     _applySchedulePreset(nextWeekend: false);
-    for (final input in [game, gameMode, teamSize, title]) {
+    for (final input in [
+      game,
+      gameMode,
+      teamSize,
+      title,
+      description,
+      platform,
+    ]) {
       input.addListener(_markBannerInputsChanged);
     }
     ever<String>(tournamentType, (_) {
@@ -282,6 +289,8 @@ class CreateTournamentController extends GetxController {
         tournamentFormat: tournamentType.value.replaceAll('_', ' '),
         teamSize: bannerTeamLabel,
         tournamentName: title.text,
+        tournamentDescription: description.text,
+        platform: platform.text,
       );
       if (request != bannerRequestVersion.value || isClosed) return;
       final imageClient = Dio(

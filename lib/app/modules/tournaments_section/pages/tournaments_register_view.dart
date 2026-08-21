@@ -28,6 +28,7 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController teamNameController = TextEditingController();
   bool _isPaymentProcessing = false;
+  bool _isCheckingRegistration = false;
   bool _isBlockingLoaderVisible = false;
 
   @override
@@ -212,7 +213,9 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
 
   Widget _buildRegisterButton(TournamentsRegisterState state) {
     final isLoading =
-        state is TournamentsRegisterLoading || _isPaymentProcessing;
+        state is TournamentsRegisterLoading ||
+        _isPaymentProcessing ||
+        _isCheckingRegistration;
     final isCommunitySolo =
         widget.tournament.source == 'community' &&
         widget.tournament.teamMode.toLowerCase() == 'solo';
@@ -287,6 +290,25 @@ class _TournamentsRegisterViewState extends State<TournamentsRegisterView> {
     if (!isCommunitySolo && teamName.length < 3) {
       _showValidationError('Team name must be at least 3 characters.');
       return;
+    }
+
+    setState(() => _isCheckingRegistration = true);
+    try {
+      final alreadyRegistered = await _cubit.isAlreadyRegistered(
+        eventId: widget.tournament.id,
+        source: widget.tournament.source,
+      );
+      if (!mounted) return;
+      if (alreadyRegistered) {
+        _showValidationError('You have already joined this tournament.');
+        return;
+      }
+    } catch (_) {
+      if (!mounted) return;
+      _showValidationError('Could not verify registration. Please try again.');
+      return;
+    } finally {
+      if (mounted) setState(() => _isCheckingRegistration = false);
     }
 
     final analytics = locator<AnalyticsService>();

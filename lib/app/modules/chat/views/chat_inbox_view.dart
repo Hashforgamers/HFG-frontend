@@ -17,6 +17,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/utils/widgets/hash_wordmark.dart';
+import 'package:hash/app/modules/community/services/dispute_chat_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
@@ -42,7 +43,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
   @override
   void initState() {
     super.initState();
-    _chatService.ensureCurrentUserProfile();
+    unawaited(_prepareChatIdentity());
     _searchController.addListener(_handleSearchChanged);
     unawaited(
       _segmentService.onCustomEvent('Chat Inbox Viewed', {
@@ -52,6 +53,16 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     unawaited(
       _fbEventsService.logEvent('Chat Inbox Viewed', {'source': 'chat_tab'}),
     );
+  }
+
+  Future<void> _prepareChatIdentity() async {
+    try {
+      await DisputeChatAuth().authenticate();
+    } catch (_) {
+      // Existing Firebase chat identity remains available for legacy rooms.
+    }
+    await _chatService.ensureCurrentUserProfile();
+    if (mounted) setState(() {});
   }
 
   @override
@@ -64,11 +75,19 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     final roomId = (args is Map && args['roomId'] is String)
         ? (args['roomId'] as String).trim()
         : '';
+    final roomCollection = (args is Map && args['roomCollection'] is String)
+        ? (args['roomCollection'] as String).trim()
+        : '';
     if (roomId.isEmpty) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Get.to(() => ChatRoomView(roomId: roomId));
+      Get.to(
+        () => ChatRoomView(
+          roomId: roomId,
+          roomCollection: roomCollection.isEmpty ? null : roomCollection,
+        ),
+      );
     });
   }
 
@@ -450,8 +469,22 @@ class _ChatInboxViewState extends State<ChatInboxView> {
             ),
             Expanded(
               child: StreamBuilder<List<ChatRoomModel>>(
-                stream: _chatService.streamCurrentUserRooms(),
+                stream: _chatService.streamCurrentUserRoomsIncludingDisputes(),
                 builder: (context, snapshot) {
+                  if (snapshot.hasError && !snapshot.hasData) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          'Could not load chats. Check your connection and try again.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            color: ChatPalette.textSecondary,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
                   if (snapshot.connectionState == ConnectionState.waiting &&
                       !(snapshot.hasData)) {
                     return const AppLinearLoader.screen();
@@ -622,7 +655,11 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     final stamp = room.lastMessageAt ?? room.updatedAt;
     final prefix = title.isEmpty ? 'C' : title[0].toUpperCase();
     final hasAvatar = room.imageUrl.trim().startsWith('http');
-    final badgeText = room.isGroup ? 'GROUP' : 'DIRECT';
+    final badgeText = room.isDispute
+        ? 'DISPUTE'
+        : room.isGroup
+        ? 'GROUP'
+        : 'DIRECT';
     final isMuted = room.mutedUserIds.contains(currentUid);
     final isArchived = room.archivedUserIds.contains(currentUid);
     final actionInProgress = _isRoomActionInProgress(room.id);
@@ -631,7 +668,9 @@ class _ChatInboxViewState extends State<ChatInboxView> {
       final isUnread = _chatService.isRoomUnread(room.id);
       return Dismissible(
         key: ValueKey('chat_${room.id}_${stamp.millisecondsSinceEpoch}'),
-        direction: DismissDirection.horizontal,
+        direction: room.isDispute
+            ? DismissDirection.none
+            : DismissDirection.horizontal,
         background: Container(
           decoration: BoxDecoration(
             color: isMuted ? const Color(0xFF2D2D2D) : const Color(0xFF2A4E22),
@@ -704,7 +743,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.zero,
-            onLongPress: actionInProgress
+            onLongPress: actionInProgress || room.isDispute
                 ? null
                 : () async {
                     try {
@@ -721,7 +760,11 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                 ? null
                 : () {
                     Haptics.selection();
-                    Get.to(() => ChatRoomView(roomId: room.id));
+                    Get.to(
+                      () => ChatRoomView(
+                        roomId: room.id,
+                      ),
+                    );
                   },
             child: Ink(
               decoration: const BoxDecoration(

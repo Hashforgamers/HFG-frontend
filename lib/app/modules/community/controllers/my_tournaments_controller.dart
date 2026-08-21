@@ -41,6 +41,8 @@ class MyTournamentsController extends GetxController {
     }
   }
 
-  void openDetail(Tournament t) =>
-      Get.toNamed(AppRoutes.TOURNAMENT_DETAIL, arguments: t);
+  void openDetail(Tournament t) => Get.toNamed(
+    AppRoutes.TOURNAMENT_DETAIL,
+    arguments: {'id': t.id, 'tournament': t, 'has_joined': true},
+  );
 }

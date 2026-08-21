@@ -92,6 +92,7 @@ class RoomDetailsData {
 class Tournament {
   final String id;
   final int? hostUserId;
+  final String? hostFirebaseUid;
   final bool canManage;
   final String title;
   final String? description;
@@ -148,6 +149,7 @@ class Tournament {
   const Tournament({
     required this.id,
     required this.hostUserId,
+    this.hostFirebaseUid,
     this.canManage = false,
     required this.title,
     required this.description,
@@ -211,9 +213,45 @@ class Tournament {
   static DateTime? _dt(dynamic v) =>
       v == null ? null : DateTime.tryParse(v.toString());
 
+  static String? _hostFid(Map<String, dynamic> json) {
+    String? read(dynamic value) {
+      if (value is! Map) return null;
+      final map = Map<String, dynamic>.from(value);
+      for (final key in const [
+        'fid',
+        'firebase_uid',
+        'firebase_fid',
+        'firebase_id',
+      ]) {
+        final candidate = map[key]?.toString().trim() ?? '';
+        if (candidate.isNotEmpty) return candidate;
+      }
+      for (final key in const ['user', 'gamer', 'profile', 'account']) {
+        final nested = read(map[key]);
+        if (nested != null) return nested;
+      }
+      return null;
+    }
+
+    for (final key in const [
+      'host_fid',
+      'host_firebase_uid',
+      'host_firebase_id',
+    ]) {
+      final candidate = json[key]?.toString().trim() ?? '';
+      if (candidate.isNotEmpty) return candidate;
+    }
+    for (final key in const ['host', 'host_user', 'organizer', 'creator']) {
+      final candidate = read(json[key]);
+      if (candidate != null) return candidate;
+    }
+    return null;
+  }
+
   factory Tournament.fromJson(Map<String, dynamic> j) => Tournament(
     id: (j['id'] ?? '').toString(),
     hostUserId: (j['host_user_id'] as num?)?.toInt(),
+    hostFirebaseUid: _hostFid(j),
     canManage: j['can_manage'] == true,
     title: (j['title'] as String?) ?? '',
     description: j['description'] as String?,

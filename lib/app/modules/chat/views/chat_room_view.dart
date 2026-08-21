@@ -21,11 +21,29 @@ import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
 
+class ChatParticipantAccount {
+  const ChatParticipantAccount({
+    required this.firebaseUid,
+    required this.name,
+    required this.username,
+  });
+
+  final String firebaseUid;
+  final String name;
+  final String username;
+}
+
 class ChatRoomView extends StatefulWidget {
   final String roomId;
   final String? roomCollection;
+  final List<ChatParticipantAccount> participantAccounts;
 
-  const ChatRoomView({super.key, required this.roomId, this.roomCollection});
+  const ChatRoomView({
+    super.key,
+    required this.roomId,
+    this.roomCollection,
+    this.participantAccounts = const [],
+  });
 
   @override
   State<ChatRoomView> createState() => _ChatRoomViewState();
@@ -42,12 +60,38 @@ class _ChatRoomViewState extends State<ChatRoomView> {
   final FocusNode _messageFocus = FocusNode();
   bool _isSending = false;
   bool _isTyping = false;
+  bool _isValidatingRoom = true;
+  String? _roomAccessError;
   final Set<String> _joiningInviteMessageIds = <String>{};
   final Map<String, String> _inviteActionStateByMessageId = <String, String>{};
 
   @override
   void initState() {
     super.initState();
+    unawaited(_validateRoomAccess());
+  }
+
+  Future<void> _validateRoomAccess() async {
+    try {
+      await _chatService.requireAccessibleRoom(
+        widget.roomId,
+        collection: widget.roomCollection,
+      );
+      if (!mounted) return;
+      setState(() => _isValidatingRoom = false);
+      _trackRoomOpened();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isValidatingRoom = false;
+        _roomAccessError = error is TimeoutException
+            ? 'Chat verification timed out. Check your connection and try again.'
+            : error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  void _trackRoomOpened() {
     unawaited(
       _segmentService.onCustomEvent('Chat Room Viewed', {
         'room_id': widget.roomId,
@@ -152,7 +196,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
   }
 
   Future<void> _sendMessage() async {
-    if (_isSending) return;
+    if (_isSending || _isValidatingRoom || _roomAccessError != null) return;
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
@@ -1112,6 +1156,106 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
   }
 
+  void _showDisputeParticipants(ChatRoomModel room) {
+    final accountsByUid = <String, ChatParticipantAccount>{
+      for (final account in widget.participantAccounts)
+        if (account.firebaseUid.trim().isNotEmpty)
+          account.firebaseUid.trim(): account,
+    };
+    final memberIds = <String>{...room.members, ...accountsByUid.keys}.toList();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: ChatPalette.surface,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Dispute participants',
+                style: GoogleFonts.inter(
+                  color: ChatPalette.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${memberIds.length} accounts in this chat',
+                style: GoogleFonts.inter(color: ChatPalette.textSecondary),
+              ),
+              const SizedBox(height: 14),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: memberIds.length,
+                  separatorBuilder: (_, _) => const Divider(
+                    color: ChatPalette.border,
+                    height: 1,
+                  ),
+                  itemBuilder: (context, index) {
+                    final uid = memberIds[index];
+                    final suppliedAccount = accountsByUid[uid];
+                    return StreamBuilder<ChatUserModel?>(
+                      stream: _chatService.streamUserById(uid),
+                      builder: (context, snapshot) {
+                        final account = snapshot.data;
+                        final fallbackName =
+                            suppliedAccount?.name.trim().isNotEmpty == true
+                            ? suppliedAccount!.name.trim()
+                            : room.memberNames[uid]?.trim() ?? '';
+                        final fallbackUsername =
+                            suppliedAccount?.username.trim().isNotEmpty == true
+                            ? suppliedAccount!.username.trim()
+                            : room.memberUsernames[uid]?.trim() ?? '';
+                        final name = account?.displayName.trim().isNotEmpty == true
+                            ? account!.displayName.trim()
+                            : fallbackName.isNotEmpty
+                            ? fallbackName
+                            : 'Tournament participant';
+                        final username = account?.username.trim().isNotEmpty == true
+                            ? account!.username.trim()
+                            : fallbackUsername;
+                        final isCurrent = uid == _chatService.currentUid;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor: ChatPalette.primary,
+                            foregroundColor: Colors.black,
+                            child: Text(
+                              name.characters.first.toUpperCase(),
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          title: Text(
+                            isCurrent ? '$name (You)' : name,
+                            style: GoogleFonts.inter(
+                              color: ChatPalette.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: Text(
+                            username.isNotEmpty ? '@$username' : 'Username unavailable',
+                            style: GoogleFonts.inter(
+                              color: ChatPalette.textSecondary,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUid = _chatService.currentUid;
@@ -1130,9 +1274,17 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             collection: widget.roomCollection,
           ),
           builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Text(
+                'Chat unavailable',
+                style: GoogleFonts.inter(color: ChatPalette.textPrimary),
+              );
+            }
             final room = snapshot.data;
             final title = room == null || currentUid == null
                 ? 'Chat'
+                : room.isDispute
+                ? 'Dispute Group Chat'
                 : room.displayTitleFor(currentUid);
             final typingPeers =
                 room?.typingUserIds.where((id) => id != currentUid).toList() ??
@@ -1151,10 +1303,10 @@ class _ChatRoomViewState extends State<ChatRoomView> {
               );
             }
 
-            if (room.isGroup) {
+            if (room.isGroup || room.isDispute) {
               final subtitle = typingPeers.isNotEmpty
                   ? 'typing...'
-                  : '${room.members.length} members';
+                  : '${{...room.members, ...widget.participantAccounts.map((e) => e.firebaseUid)}.where((id) => id.trim().isNotEmpty).length} members';
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1237,7 +1389,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             ),
             builder: (context, snapshot) {
               final room = snapshot.data;
-              final canOpenDetails = room?.isGroup == true;
+              final canOpenDetails = room?.isDispute == true ||
+                  (room?.isGroup == true && widget.roomCollection == null);
               if (!canOpenDetails) {
                 return const SizedBox.shrink();
               }
@@ -1246,6 +1399,10 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 tooltip: 'Group details',
                 onPressed: () async {
                   Haptics.tap();
+                  if (room!.isDispute) {
+                    _showDisputeParticipants(room);
+                    return;
+                  }
                   final didLeaveGroup = await Get.to<bool>(
                     () => ChatGroupDetailsView(roomId: widget.roomId),
                   );
@@ -1263,73 +1420,143 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       ),
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: ChatPalette.pageGradient),
-        child: Column(
-          children: [
-            Expanded(
-              child: StreamBuilder<ChatRoomModel?>(
-                stream: _chatService.streamRoom(
-                  widget.roomId,
-                  collection: widget.roomCollection,
+        child: _isValidatingRoom
+            ? const AppLinearLoader.screen()
+            : _roomAccessError != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.lock_outline_rounded,
+                        color: ChatPalette.textSecondary,
+                        size: 34,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _roomAccessError!,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: ChatPalette.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _isValidatingRoom = true;
+                            _roomAccessError = null;
+                          });
+                          unawaited(_validateRoomAccess());
+                        },
+                        child: const Text('Try again'),
+                      ),
+                    ],
+                  ),
                 ),
-                builder: (context, roomSnapshot) {
-                  final room = roomSnapshot.data;
-                  final isGroup = room?.isGroup == true;
-
-                  return StreamBuilder<List<ChatMessageModel>>(
-                    stream: _chatService.streamRoomMessages(
-                      widget.roomId,
-                      collection: widget.roomCollection,
-                    ),
-                    builder: (context, messagesSnapshot) {
-                      if (messagesSnapshot.connectionState ==
-                              ConnectionState.waiting &&
-                          !(messagesSnapshot.hasData)) {
-                        return const AppLinearLoader.screen();
-                      }
-
-                      final messages = messagesSnapshot.data ?? const [];
-
-                      if (messages.isEmpty) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 28),
+              )
+            : Column(
+                children: [
+                  Expanded(
+                    child: StreamBuilder<ChatRoomModel?>(
+                      stream: _chatService.streamRoom(
+                        widget.roomId,
+                        collection: widget.roomCollection,
+                      ),
+                      builder: (context, roomSnapshot) {
+                        if (roomSnapshot.hasError) {
+                          return Center(
                             child: Text(
-                              'No messages yet. Say hi and start the conversation.',
-                              textAlign: TextAlign.center,
+                              'Could not read this chat room.',
                               style: GoogleFonts.inter(
                                 color: ChatPalette.textSecondary,
                               ),
                             ),
-                          ),
-                        );
-                      }
-
-                      return ListView.builder(
-                        reverse: true,
-                        keyboardDismissBehavior:
-                            ScrollViewKeyboardDismissBehavior.onDrag,
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                        itemCount: messages.length,
-                        itemBuilder: (context, index) {
-                          final message = messages[index];
-                          final isMine = message.senderId == currentUid;
-
-                          return _buildMessageBubble(
-                            message: message,
-                            isMine: isMine,
-                            isGroup: isGroup,
                           );
-                        },
-                      );
-                    },
-                  );
-                },
+                        }
+                        final room = roomSnapshot.data;
+                        final isGroup = room?.isGroup == true;
+
+                        return StreamBuilder<List<ChatMessageModel>>(
+                          stream: _chatService.streamRoomMessages(
+                            widget.roomId,
+                            collection: widget.roomCollection,
+                          ),
+                          builder: (context, messagesSnapshot) {
+                            if (messagesSnapshot.hasError) {
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 28,
+                                  ),
+                                  child: Text(
+                                    'Messages could not be loaded. You may not have access to this dispute chat.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(
+                                      color: ChatPalette.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            if (messagesSnapshot.connectionState ==
+                                    ConnectionState.waiting &&
+                                !(messagesSnapshot.hasData)) {
+                              return const AppLinearLoader.screen();
+                            }
+
+                            final messages = messagesSnapshot.data ?? const [];
+
+                            if (messages.isEmpty) {
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 28,
+                                  ),
+                                  child: Text(
+                                    'No messages yet. Say hi and start the conversation.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(
+                                      color: ChatPalette.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            return ListView.builder(
+                              reverse: true,
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                12,
+                              ),
+                              itemCount: messages.length,
+                              itemBuilder: (context, index) {
+                                final message = messages[index];
+                                final isMine = message.senderId == currentUid;
+
+                                return _buildMessageBubble(
+                                  message: message,
+                                  isMine: isMine,
+                                  isGroup: isGroup,
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  _buildComposer(),
+                ],
               ),
-            ),
-            _buildComposer(),
-          ],
-        ),
       ),
     );
   }

@@ -13,12 +13,18 @@ void main() {
         gameType: 'Battle Royale',
         tournamentFormat: 'Knockout',
         teamSize: 'Squad',
+        tournamentName: 'Monsoon Mayhem',
+        tournamentDescription: 'An intense rainy-season showdown',
+        platform: 'Mobile',
       );
 
       expect(prompt, contains('realistic mobile battle royale environment'));
       expect(prompt, contains('shrinking-zone tension'));
       expect(prompt, contains('No written text'));
       expect(prompt, contains('4:3'));
+      expect(prompt, contains('Monsoon Mayhem'));
+      expect(prompt, contains('intense rainy-season showdown'));
+      expect(prompt, contains('platform is Mobile'));
     });
 
     test('uses safe fallback for an unknown game and mode', () {
@@ -64,7 +70,7 @@ void main() {
       expect(uri.pathSegments[1], result.prompt);
       expect(uri.queryParameters['width'], '1536');
       expect(uri.queryParameters['height'], '864');
-      expect(uri.queryParameters['model'], 'flux');
+      expect(uri.queryParameters['model'], 'gpt-image-2');
       expect(uri.queryParameters['nologo'], 'true');
       expect(uri.queryParameters, isNot(contains('key')));
       expect(result.authorizationHeader, 'Bearer pk_test_publishable');
@@ -102,6 +108,7 @@ void main() {
         final uri = Uri.parse(result.imageUrl);
         expect(uri.host, 'image.pollinations.ai');
         expect(uri.pathSegments.first, 'prompt');
+        expect(uri.queryParameters['model'], 'flux');
         expect(uri.queryParameters, isNot(contains('key')));
         expect(result.provider, 'pollinations_legacy');
       },

@@ -13,6 +13,16 @@ import '../models/host_verification.dart';
 import '../models/tournament.dart';
 import '../models/tournament_operations.dart';
 
+class FirebaseChatCredentials {
+  const FirebaseChatCredentials({
+    required this.customToken,
+    required this.firebaseUid,
+  });
+
+  final String customToken;
+  final String firebaseUid;
+}
+
 /// Client for the Community Tournament module
 /// (`userOnboard :: /api/v1/community`). Covers every endpoint in the handoff:
 /// public discovery, host onboarding/verification, tournament CRUD,
@@ -468,22 +478,52 @@ class CommunityApi {
   }
 
   /// POST /chat/firebase-token (auth)
-  Future<String> firebaseChatToken() async {
+  Future<FirebaseChatCredentials> firebaseChatCredentials() async {
     final dio = await _authedDio();
     final res = await dio.post('/chat/firebase-token');
     final data = _map(res.data);
-    final token =
-        (data['custom_token'] ?? data['firebase_token'] ?? data['token'])
-            ?.toString()
-            .trim();
-    if (token == null || token.isEmpty) {
+    final token = _nestedValue(data, const [
+      'custom_token',
+      'customToken',
+      'firebase_custom_token',
+      'firebaseCustomToken',
+      'firebase_token',
+      'firebaseToken',
+      'token',
+    ]);
+    final firebaseUid = _nestedValue(data, const [
+      'fid',
+      'firebase_uid',
+      'firebaseUid',
+      'firebase_id',
+      'firebaseId',
+    ]);
+    if (token.isEmpty && firebaseUid.isEmpty) {
       throw DioException(
         requestOptions: res.requestOptions,
         response: res,
-        error: 'Firebase custom token missing from response',
+        error: 'Firebase chat credentials missing from response',
       );
     }
-    return token;
+    return FirebaseChatCredentials(
+      customToken: token,
+      firebaseUid: firebaseUid,
+    );
+  }
+
+  String _nestedValue(Map<String, dynamic> root, List<String> keys) {
+    final pending = <Map<String, dynamic>>[root];
+    while (pending.isNotEmpty) {
+      final current = pending.removeLast();
+      for (final key in keys) {
+        final value = current[key]?.toString().trim() ?? '';
+        if (value.isNotEmpty) return value;
+      }
+      for (final value in current.values) {
+        if (value is Map) pending.add(Map<String, dynamic>.from(value));
+      }
+    }
+    return '';
   }
 
   /// GET /tournaments/<id>/disputes (auth host, read-only).
@@ -784,6 +824,25 @@ class CommunityApi {
       '/tournaments/$tournamentId/leaderboard',
     );
     return parseTournamentLeaderboard(res.data);
+  }
+
+  /// GET /tournaments/<id>/results/overview (auth host/admin).
+  Future<Map<String, dynamic>> tournamentResultsOverview(
+    String tournamentId, {
+    int page = 1,
+    int perPage = 25,
+    String? status,
+  }) async {
+    final dio = await _authedDio();
+    final res = await dio.get(
+      '/tournaments/$tournamentId/results/overview',
+      queryParameters: {
+        'page': page,
+        'per_page': perPage,
+        if (status != null && status.trim().isNotEmpty) 'status': status,
+      },
+    );
+    return _map(res.data);
   }
 
   Future<OrganizerProfile> organizerProfile(int hostUserId) async {

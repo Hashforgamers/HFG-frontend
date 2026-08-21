@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -39,12 +40,17 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
   final FbEventsService _fbEventsService = locator<FbEventsService>();
   bool _leaderboardViewTracked = false;
   bool _leaderboardRequested = false;
+  Timer? _countdownTimer;
+  DateTime _countdownNow = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     _cubit = TournamentsDetailsCubit(widget.tournament);
     _leaderboardCubit = TournamentsLeaderboardCubit();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _countdownNow = DateTime.now());
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _segmentService.onCustomEvent('Tournament Viewed', {
         'event_id': widget.tournament.id,
@@ -55,6 +61,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
 
   @override
   void dispose() {
+    _countdownTimer?.cancel();
     _leaderboardCubit.close();
     _cubit.close();
     super.dispose();
@@ -156,9 +163,9 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                   ),
 
                   const SizedBox(width: 8),
-                  if (t.timeLeft.isNotEmpty)
+                  if (t.startDate != null)
                     Text(
-                      "Starts in ${t.timeLeft}",
+                      _startCountdown(t.startDate!),
                       style: GoogleFonts.inter(
                         color: Colors.white70,
                         fontSize: 12,
@@ -291,6 +298,24 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
         ),
       ],
     );
+  }
+
+  String _startCountdown(DateTime startDate) {
+    final remaining = startDate.difference(_countdownNow);
+    if (remaining <= Duration.zero) return 'Starting now';
+    final days = remaining.inDays;
+    final hours = remaining.inHours.remainder(24).toString().padLeft(2, '0');
+    final minutes = remaining.inMinutes
+        .remainder(60)
+        .toString()
+        .padLeft(2, '0');
+    final seconds = remaining.inSeconds
+        .remainder(60)
+        .toString()
+        .padLeft(2, '0');
+    return days > 0
+        ? 'Starts in ${days}d $hours:$minutes:$seconds'
+        : 'Starts in $hours:$minutes:$seconds';
   }
 
   Widget _buildHeaderBanner(String? bannerPath) {

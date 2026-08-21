@@ -1,5 +1,6 @@
 class CommunityTeamMember {
   final int? userId;
+  final String? firebaseUid;
   final String displayName;
   final String gameId;
   final String role;
@@ -7,6 +8,7 @@ class CommunityTeamMember {
 
   const CommunityTeamMember({
     required this.userId,
+    required this.firebaseUid,
     required this.displayName,
     required this.gameId,
     required this.role,
@@ -17,6 +19,12 @@ class CommunityTeamMember {
     final gamer = _map(json['gamer'] ?? json['user']);
     return CommunityTeamMember(
       userId: _int(json['user_id'] ?? gamer['id']),
+      firebaseUid:
+          (json['fid'] ??
+                  json['firebase_uid'] ??
+                  gamer['fid'] ??
+                  gamer['firebase_uid'])
+              ?.toString(),
       displayName:
           (json['display_name'] ??
                   gamer['display_name'] ??

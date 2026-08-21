@@ -5,10 +5,12 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../chat/views/chat_room_view.dart';
+import '../../chat/services/chat_service.dart';
 import '../models/community_entities.dart';
 import '../models/tournament.dart';
 import '../models/tournament_operations.dart';
 import '../services/community_api.dart';
+import '../services/dispute_chat_auth.dart';
 import '../services/tournament_result_evidence_service.dart';
 import '../services/tournament_analytics.dart';
 
@@ -25,6 +27,7 @@ class HostMatchEvidence {
 
 class ManageTournamentController extends GetxController {
   final CommunityApi _api = CommunityApi();
+  late final DisputeChatAuth _disputeChatAuth = DisputeChatAuth(api: _api);
   final ImagePicker _imagePicker = ImagePicker();
   final TournamentResultEvidenceService _evidenceService =
       TournamentResultEvidenceService();
@@ -37,6 +40,8 @@ class ManageTournamentController extends GetxController {
   final teams = <CommunityTeam>[].obs;
   final matches = <CommunityMatch>[].obs;
   final leaderboard = <TournamentLeaderboardEntry>[].obs;
+  final resultsOverviewSummary = <String, dynamic>{}.obs;
+  final resultsOverviewItems = <Map<String, dynamic>>[].obs;
   final readiness = Rxn<TournamentReadiness>();
   final lifecycleStatus = Rxn<TournamentLifecycleStatus>();
   final controlRoom = <String, dynamic>{}.obs;
@@ -97,6 +102,25 @@ class ManageTournamentController extends GetxController {
       teams.assignAll(lists[4].cast<CommunityTeam>());
       matches.assignAll(lists[5].cast<CommunityMatch>());
       leaderboard.assignAll(lists[6].cast<TournamentLeaderboardEntry>());
+      try {
+        final overview = await _api.tournamentResultsOverview(tournamentId);
+        resultsOverviewSummary.assignAll(
+          overview['summary'] is Map
+              ? Map<String, dynamic>.from(overview['summary'] as Map)
+              : const <String, dynamic>{},
+        );
+        final rawItems = overview['items'];
+        resultsOverviewItems.assignAll(
+          rawItems is List
+              ? rawItems.whereType<Map>().map(
+                  (item) => Map<String, dynamic>.from(item),
+                )
+              : const <Map<String, dynamic>>[],
+        );
+      } catch (_) {
+        resultsOverviewSummary.clear();
+        resultsOverviewItems.clear();
+      }
       try {
         controlRoom.assignAll(await _api.tournamentControlRoom(tournamentId));
       } catch (_) {
@@ -223,8 +247,19 @@ class ManageTournamentController extends GetxController {
   }, success: 'Match started');
 
   Future<void> openDisputeChat(Dispute dispute) async {
-    final roomId = dispute.chatRoomId?.trim() ?? '';
-    if (roomId.isEmpty || dispute.chatRoomStatus != 'ready') {
+    var current = dispute;
+    var roomId = current.chatRoomId?.trim() ?? '';
+    if (roomId.isEmpty) {
+      try {
+        final refreshed = await _api.tournamentDisputes(tournamentId);
+        disputes.assignAll(refreshed);
+        current =
+            refreshed.where((item) => item.id == dispute.id).firstOrNull ??
+            dispute;
+        roomId = current.chatRoomId?.trim() ?? '';
+      } catch (_) {}
+    }
+    if (roomId.isEmpty) {
       _showSnackbar(
         'Group chat is not ready',
         'The backend is still preparing the match dispute room.',
@@ -234,16 +269,31 @@ class ManageTournamentController extends GetxController {
     }
     acting.value = true;
     try {
-      final customToken = await _api.firebaseChatToken();
-      await FirebaseAuth.instance.signInWithCustomToken(customToken);
+      await _disputeChatAuth.authenticate();
+      final participantAccounts = _disputeParticipantAccounts(current);
+      final chat = Get.isRegistered<ChatService>()
+          ? Get.find<ChatService>()
+          : Get.put(ChatService(), permanent: true);
+      await chat.ensureDisputeRoom(
+        roomId: roomId,
+        memberIds: participantAccounts.map((account) => account.firebaseUid).toList(),
+        memberNames: {
+          for (final account in participantAccounts)
+            account.firebaseUid: account.name,
+        },
+        memberUsernames: {
+          for (final account in participantAccounts)
+            account.firebaseUid: account.username,
+        },
+      );
       await Get.to<void>(
         () => ChatRoomView(
           roomId: roomId,
-          roomCollection: 'communityDisputeRooms',
+          participantAccounts: participantAccounts,
         ),
       );
     } catch (error) {
-      debugPrint('[DISPUTE_CHAT_ERROR] dispute=${dispute.id} error=$error');
+      debugPrint('[DISPUTE_CHAT_ERROR] dispute=${current.id} error=$error');
       _showSnackbar(
         'Could not open group chat',
         error is DioException
@@ -254,6 +304,49 @@ class ManageTournamentController extends GetxController {
     } finally {
       acting.value = false;
     }
+  }
+
+  List<ChatParticipantAccount> _disputeParticipantAccounts(Dispute dispute) {
+    final accounts = <String, ChatParticipantAccount>{};
+    final hostId = tournament.value?.hostUserId;
+    if (hostId != null) {
+      final uid = 'hfg-user-$hostId';
+      accounts[uid] = ChatParticipantAccount(
+        firebaseUid: uid,
+        name: tournament.value?.organizationName ?? 'Tournament Host',
+        username: 'host',
+      );
+    }
+
+    CommunityMatch? disputedMatch;
+    for (final item in resultsOverviewItems) {
+      final disputes = item['disputes'];
+      final containsDispute = disputes is List && disputes.whereType<Map>().any(
+        (raw) => (raw['id'] ?? raw['dispute_id']).toString() == dispute.id,
+      );
+      if (!containsDispute || item['match'] is! Map) continue;
+      final matchPayload = Map<String, dynamic>.from(item['match'] as Map);
+      final matchId = (matchPayload['id'] ?? matchPayload['match_id'] ?? '')
+          .toString();
+      disputedMatch = matches.where((match) => match.id == matchId).firstOrNull;
+      disputedMatch ??= CommunityMatch.fromJson(matchPayload);
+      break;
+    }
+
+    for (final team in [disputedMatch?.teamA, disputedMatch?.teamB]) {
+      if (team == null) continue;
+      for (final member in team.members) {
+        final userId = member.userId;
+        if (userId == null) continue;
+        final uid = 'hfg-user-$userId';
+        accounts[uid] = ChatParticipantAccount(
+          firebaseUid: uid,
+          name: member.displayName,
+          username: member.gameId,
+        );
+      }
+    }
+    return accounts.values.toList();
   }
 
   Future<HostMatchEvidence?> uploadMatchEvidence(CommunityMatch match) async {

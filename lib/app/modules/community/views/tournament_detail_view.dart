@@ -7,6 +7,7 @@ import '../controllers/tournament_detail_controller.dart';
 import '../../chat/views/chat_inbox_view.dart';
 import '../../chat/views/chat_room_view.dart';
 import '../../chat/services/chat_service.dart';
+import '../../chat/models/chat_user_model.dart';
 import '../../../routes/app_routes.dart';
 import '../models/tournament.dart';
 import '../models/tournament_operations.dart';
@@ -172,6 +173,10 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                                   ),
                               const SizedBox(height: 12),
                             ],
+                            if (controller.hasJoined.value) ...[
+                              _participantHub(t),
+                              const SizedBox(height: 22),
+                            ],
                             if (t.rules != null && t.rules!.isNotEmpty) ...[
                               _section('Rules'),
                               Text(t.rules!, style: CT.body(14)),
@@ -239,7 +244,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
         final active =
             controller.canManage.value ||
             controller.hasJoined.value ||
-            canRegister;
+            (controller.membershipResolved.value && canRegister);
         final team = controller.currentTeam;
         final canInvite =
             controller.hasJoined.value &&
@@ -294,7 +299,9 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                       )
                     : controller.hasJoined.value
                     ? () => Get.to(() => const ChatInboxView())
-                    : controller.acting.value || !canRegister
+                    : !controller.membershipResolved.value ||
+                          controller.acting.value ||
+                          !canRegister
                     ? null
                     : () => _openRegistration(t),
                 style: ElevatedButton.styleFrom(
@@ -322,6 +329,8 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                                   ? 'Manage tournament'
                                   : controller.hasJoined.value
                                   ? 'Tournament chat'
+                                  : !controller.membershipResolved.value
+                                  ? 'Checking registration…'
                                   : canRegister
                                   ? (t.isFree
                                         ? 'Register — Free'
@@ -341,6 +350,104 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
           ],
         );
       }),
+    );
+  }
+
+  Widget _participantHub(Tournament tournament) {
+    final players = controller.participantTeams
+        .expand((team) => team.members)
+        .where(
+          (member) =>
+              member.role == 'captain' ||
+              {'accepted', 'active'}.contains(member.invitationStatus),
+        )
+        .toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _section('Participant hub'),
+        if (controller.participantDataLoading.value) ...[
+          const AppLinearLoader(),
+          const SizedBox(height: 14),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: controller.messageHost,
+                icon: const Icon(Icons.support_agent_rounded, size: 18),
+                label: const Text('Chat with host'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => Get.to(() => const ChatInboxView()),
+                icon: const Icon(Icons.forum_rounded, size: 18),
+                label: const Text('Tournament chat'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: CT.card(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('LEADERBOARD', style: CT.mono(10, color: _joinOrange)),
+              const SizedBox(height: 10),
+              if (controller.leaderboard.isEmpty)
+                Text('Standings will appear after results.', style: CT.body(12))
+              else
+                ...controller.leaderboard
+                    .take(5)
+                    .map(
+                      (entry) => _row(
+                        '#${entry.rank ?? '-'}  ${entry.name}',
+                        '${entry.points} pts',
+                      ),
+                    ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: CT.card(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'JOINED PLAYERS  ${players.length}',
+                style: CT.mono(10, color: _joinOrange),
+              ),
+              const SizedBox(height: 10),
+              if (players.isEmpty)
+                Text('Player roster is not available yet.', style: CT.body(12))
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: players
+                      .map(
+                        (member) => Chip(
+                          label: Text(member.displayName),
+                          avatar: const Icon(Icons.person_rounded, size: 16),
+                          backgroundColor: CT.surfaceHigh,
+                          side: const BorderSide(color: CT.outline),
+                          labelStyle: CT.body(11, color: Colors.white),
+                        ),
+                      )
+                      .toList(),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1193,6 +1300,27 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
     final chat = Get.isRegistered<ChatService>()
         ? Get.find<ChatService>()
         : Get.put(ChatService(), permanent: true);
+    final fid = member.firebaseUid?.trim() ?? '';
+    if (fid.isNotEmpty) {
+      try {
+        final roomId = await chat.getOrCreateDirectRoom(
+          otherUser: ChatUserModel(
+            uid: fid,
+            displayName: member.displayName,
+            username: member.gameId,
+            email: '',
+            phoneNumber: '',
+            photoUrl: '',
+            backendUserId: member.userId,
+            isOnline: false,
+            updatedAt: DateTime.now(),
+            lastSeenAt: null,
+          ),
+        );
+        Get.to(() => ChatRoomView(roomId: roomId));
+        return;
+      } catch (_) {}
+    }
     final candidates = await chat.searchUsers(member.displayName, limit: 20);
     final user = candidates
         .where((item) => item.backendUserId == member.userId)

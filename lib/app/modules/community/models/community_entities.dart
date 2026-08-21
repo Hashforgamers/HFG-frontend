@@ -24,6 +24,7 @@ class GamerSummary {
 class ManagedRegistration {
   final String id;
   final int? userId;
+  final String? firebaseUid;
   final String status;
   final String paymentStatus;
   final String? paymentReference;
@@ -33,6 +34,7 @@ class ManagedRegistration {
   const ManagedRegistration({
     required this.id,
     required this.userId,
+    required this.firebaseUid,
     required this.status,
     required this.paymentStatus,
     required this.paymentReference,
@@ -44,6 +46,14 @@ class ManagedRegistration {
       ManagedRegistration(
         id: (j['id'] ?? '').toString(),
         userId: (j['user_id'] as num?)?.toInt(),
+        firebaseUid:
+            (j['fid'] ??
+                    j['firebase_uid'] ??
+                    (j['gamer'] is Map ? (j['gamer'] as Map)['fid'] : null) ??
+                    (j['gamer'] is Map
+                        ? (j['gamer'] as Map)['firebase_uid']
+                        : null))
+                ?.toString(),
         status: (j['status'] ?? 'pending_payment').toString(),
         paymentStatus: (j['payment_status'] ?? 'unpaid').toString(),
         paymentReference: j['payment_reference']?.toString(),

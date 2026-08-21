@@ -37,6 +37,8 @@ abstract class TournamentBannerRepository {
     String? tournamentFormat,
     String? teamSize,
     String? tournamentName,
+    String? tournamentDescription,
+    String? platform,
     int? seed,
   });
 }
@@ -100,6 +102,8 @@ class TournamentBannerPromptBuilder {
     String? tournamentFormat,
     String? teamSize,
     String? tournamentName,
+    String? tournamentDescription,
+    String? platform,
   }) {
     final safeGame = _sanitize(gameName, fallback: 'competitive video game');
     final safeMode = _sanitize(gameType, fallback: 'competitive multiplayer');
@@ -108,6 +112,16 @@ class TournamentBannerPromptBuilder {
       fallback: 'competitive tournament',
     );
     final safeTeam = _sanitize(teamSize, fallback: 'team');
+    final safeName = _sanitize(
+      tournamentName,
+      fallback: 'competitive esports tournament',
+    );
+    final safeDescription = _sanitize(
+      tournamentDescription,
+      fallback: 'high-stakes community competition',
+      maxLength: 240,
+    );
+    final safePlatform = _sanitize(platform, fallback: 'gaming platform');
     final visual =
         gameVisualStyles[safeGame.toLowerCase()] ??
         'original competitive gaming environment tailored to the selected gameplay style';
@@ -116,7 +130,12 @@ class TournamentBannerPromptBuilder {
         modeVisualStyles[safeTeam.toLowerCase()] ??
         'Organised competitors facing each other in a clear, high-energy esports composition.';
 
-    return 'Create a premium cinematic esports tournament banner inspired by '
+    return 'Create a premium cinematic esports tournament banner for a '
+        'tournament named "$safeName". Use the tournament description as '
+        'visual context: "$safeDescription". Do not render either phrase as text. '
+        'The selected game is $safeGame and the platform is $safePlatform. '
+        'Build the artwork from these exact tournament selections. '
+        'Create a scene inspired by '
         'the competitive atmosphere of $safeGame. Game mode: $safeMode. '
         'Tournament format: $safeFormat. Team configuration: $safeTeam. '
         'Visual direction: $visual. $mode '
@@ -133,18 +152,27 @@ class TournamentBannerPromptBuilder {
         'no malformed hands, no low-quality details.';
   }
 
-  String _sanitize(String? raw, {required String fallback}) {
+  String _sanitize(
+    String? raw, {
+    required String fallback,
+    int maxLength = 80,
+  }) {
     final value = (raw ?? '')
         .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     if (value.isEmpty) return fallback;
-    return value.length > 80 ? value.substring(0, 80).trim() : value;
+    return value.length > maxLength
+        ? value.substring(0, maxLength).trim()
+        : value;
   }
 }
 
 class PollinationsTournamentBannerRepository
     implements TournamentBannerRepository {
+  static const _premiumModel = 'gpt-image-2';
+  static const _fallbackModel = 'flux';
+
   PollinationsTournamentBannerRepository({
     TournamentBannerPromptBuilder? promptBuilder,
     String apiKey = const String.fromEnvironment('POLLINATIONS_API_KEY'),
@@ -164,6 +192,8 @@ class PollinationsTournamentBannerRepository
     String? tournamentFormat,
     String? teamSize,
     String? tournamentName,
+    String? tournamentDescription,
+    String? platform,
     int? seed,
   }) async {
     final configuredKey = _apiKey.startsWith('pk_') ? _apiKey : null;
@@ -174,6 +204,8 @@ class PollinationsTournamentBannerRepository
       tournamentFormat: tournamentFormat,
       teamSize: teamSize,
       tournamentName: tournamentName,
+      tournamentDescription: tournamentDescription,
+      platform: platform,
     );
     final uri = Uri(
       scheme: 'https',
@@ -182,7 +214,7 @@ class PollinationsTournamentBannerRepository
           : 'gen.pollinations.ai',
       pathSegments: [configuredKey == null ? 'prompt' : 'image', prompt],
       queryParameters: {
-        'model': 'flux',
+        'model': configuredKey == null ? _fallbackModel : _premiumModel,
         'width': '1536',
         'height': '864',
         'seed': nextSeed.toString(),
@@ -194,7 +226,7 @@ class PollinationsTournamentBannerRepository
       host: 'image.pollinations.ai',
       pathSegments: ['prompt', prompt],
       queryParameters: {
-        'model': 'flux',
+        'model': _fallbackModel,
         'width': '1536',
         'height': '864',
         'seed': nextSeed.toString(),

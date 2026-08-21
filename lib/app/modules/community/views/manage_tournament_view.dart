@@ -1937,6 +1937,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
   );
 
   Widget _results(BuildContext context, Tournament tournament) {
+    final overview = controller.resultsOverviewSummary;
     final submitted = controller.results
         .where((item) => item.status == 'submitted')
         .length;
@@ -1950,7 +1951,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
         .where((item) => {'open', 'under_review'}.contains(item.status))
         .length;
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: LayoutBuilder(
         builder: (context, constraints) => Center(
           child: ConstrainedBox(
@@ -1993,22 +1994,25 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                       Row(
                         children: [
                           _rosterMetric(
-                            '$submitted',
-                            'TO REVIEW',
+                            '${overview['captain_submissions'] ?? submitted}',
+                            'SUBMISSIONS',
                             color: CT.onSurfaceVariant,
                           ),
                           _rosterMetric(
-                            '$verified',
-                            'VERIFIED',
+                            '${overview['completed_matches'] ?? verified}',
+                            'COMPLETED',
                             color: CT.primary,
                           ),
                           _rosterMetric(
-                            '$rejected',
-                            'REJECTED',
-                            color: rejected > 0 ? CT.error : CT.muted,
+                            '${overview['pending_proposals'] ?? rejected}',
+                            'PROPOSALS',
+                            color:
+                                (overview['pending_proposals'] ?? rejected) != 0
+                                ? CT.error
+                                : CT.muted,
                           ),
                           _rosterMetric(
-                            '$openDisputes',
+                            '${overview['open_disputes'] ?? openDisputes}',
                             'DISPUTES',
                             color: openDisputes > 0 ? CT.error : CT.muted,
                             last: true,
@@ -2026,13 +2030,21 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                   unselectedLabelColor: CT.muted,
                   labelStyle: CT.mono(9),
                   tabs: [
+                    Tab(
+                      text:
+                          'MATCHES  ${controller.resultsOverviewItems.length}',
+                    ),
                     Tab(text: 'SUBMISSIONS  ${controller.results.length}'),
                     Tab(text: 'DISPUTES  ${controller.disputes.length}'),
                   ],
                 ),
                 Expanded(
                   child: TabBarView(
-                    children: [_resultList(context), _disputeList(context)],
+                    children: [
+                      _resultsOverviewList(context),
+                      _resultList(context),
+                      _disputeList(context),
+                    ],
                   ),
                 ),
               ],
@@ -2042,6 +2054,101 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
       ),
     );
   }
+
+  Widget _resultsOverviewList(BuildContext context) => RefreshIndicator(
+    onRefresh: controller.load,
+    color: CT.primary,
+    child: controller.resultsOverviewItems.isEmpty
+        ? ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              SizedBox(height: MediaQuery.sizeOf(context).height * .18),
+              _emptyContent('No match result activity yet'),
+            ],
+          )
+        : ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+            itemCount: controller.resultsOverviewItems.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (_, index) {
+              final item = controller.resultsOverviewItems[index];
+              final match = item['match'] is Map
+                  ? Map<String, dynamic>.from(item['match'] as Map)
+                  : const <String, dynamic>{};
+              final actions = item['actions'] is Map
+                  ? Map<String, dynamic>.from(item['actions'] as Map)
+                  : const <String, dynamic>{};
+              int count(String key) => item[key] is List
+                  ? (item[key] as List).length
+                  : item[key] == null
+                  ? 0
+                  : 1;
+              final evidenceCount = [
+                ...?item['evidence_urls'] as List?,
+                ...?match['evidence_urls'] as List?,
+              ].length;
+              return Container(
+                padding: const EdgeInsets.all(14),
+                decoration: CT.card(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'MATCH ${match['id'] ?? index + 1}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CT.headline(13),
+                          ),
+                        ),
+                        Text(
+                          (match['status'] ?? 'scheduled')
+                              .toString()
+                              .replaceAll('_', ' ')
+                              .toUpperCase(),
+                          style: CT.mono(8, color: CT.primary),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${match['team_a_score'] ?? '-'}  —  ${match['team_b_score'] ?? '-'}',
+                      style: CT.headline(20),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${count('captain_submissions')} submissions · '
+                      '${count('proposals')} proposals · '
+                      '${count('disputes')} disputes · $evidenceCount evidence',
+                      style: CT.body(11),
+                    ),
+                    const SizedBox(height: 8),
+                    if (actions['requires_referee'] == true)
+                      TextButton.icon(
+                        onPressed: () =>
+                            DefaultTabController.of(context).animateTo(2),
+                        icon: const Icon(Icons.gavel_rounded, size: 16),
+                        label: const Text('REFEREE REVIEW REQUIRED'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: CT.error,
+                          padding: EdgeInsets.zero,
+                        ),
+                      )
+                    else
+                      Text(
+                        actions['can_create_proposal'] == true
+                            ? 'Host proposal available'
+                            : 'No host action required',
+                        style: CT.mono(9, color: CT.muted),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+  );
 
   Widget _resultList(BuildContext context) => RefreshIndicator(
     onRefresh: controller.load,
@@ -2137,17 +2244,14 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                           ),
                           const SizedBox(height: 6),
                           OutlinedButton.icon(
-                            onPressed:
-                                item.chatRoomStatus == 'ready' &&
-                                    item.chatRoomId?.isNotEmpty == true &&
-                                    !controller.acting.value
-                                ? () => controller.openDisputeChat(item)
-                                : null,
+                            onPressed: controller.acting.value
+                                ? null
+                                : () => controller.openDisputeChat(item),
                             icon: const Icon(Icons.forum_outlined, size: 17),
                             label: Text(
-                              item.chatRoomStatus == 'ready'
+                              item.chatRoomId?.isNotEmpty == true
                                   ? 'OPEN GROUP CHAT'
-                                  : 'GROUP CHAT PREPARING',
+                                  : 'CHECK GROUP CHAT',
                             ),
                           ),
                         ],

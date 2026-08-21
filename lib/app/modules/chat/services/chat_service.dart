@@ -265,6 +265,50 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     return users.take(limit).toList();
   }
 
+  Future<ChatUserModel?> userByBackendId(int backendUserId) async {
+    String? profileDisplayName;
+    try {
+      final dio = await locator<NetworkProvider>().auth();
+      final response = await dio.get(ApiEndpoints.gamerProfile(backendUserId));
+      if (response.data is Map) {
+        final payload = Map<String, dynamic>.from(response.data as Map);
+        final raw = payload['data'] is Map
+            ? Map<String, dynamic>.from(payload['data'] as Map)
+            : payload['gamer'] is Map
+            ? Map<String, dynamic>.from(payload['gamer'] as Map)
+            : payload;
+        if (payload['user'] is Map) {
+          raw.addAll(Map<String, dynamic>.from(payload['user'] as Map));
+        }
+        profileDisplayName = _firstNonEmpty([
+          raw['display_name']?.toString(),
+          raw['name']?.toString(),
+          raw['game_username']?.toString(),
+        ], fallback: '');
+        raw['id'] ??= backendUserId;
+        final user = _chatUserFromBackendMap(raw);
+        if (user != null) return user;
+      }
+    } catch (_) {}
+    if (profileDisplayName?.isNotEmpty == true) {
+      final namedUsers = await _searchUsersFromBackend(
+        profileDisplayName!,
+        limit: 50,
+      );
+      final exact = namedUsers
+          .where((user) => user.backendUserId == backendUserId)
+          .firstOrNull;
+      if (exact != null) return exact;
+    }
+    final users = await _searchUsersFromBackend(
+      backendUserId.toString(),
+      limit: 20,
+    );
+    return users
+        .where((user) => user.backendUserId == backendUserId)
+        .firstOrNull;
+  }
+
   Future<List<ChatUserModel>> recentChatUsers({int limit = 60}) async {
     final uid = currentUid;
     if (uid == null) return const [];
@@ -434,6 +478,10 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     });
   }
 
+  Stream<List<ChatRoomModel>> streamCurrentUserRoomsIncludingDisputes() {
+    return streamCurrentUserRooms();
+  }
+
   Future<void> deleteRoomForCurrentUser(String roomId) async {
     final uid = currentUid;
     if (uid == null) {
@@ -503,8 +551,52 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   Stream<ChatRoomModel?> streamRoom(String roomId, {String? collection}) {
     return _roomCollection(collection).doc(roomId).snapshots().map((doc) {
       if (!doc.exists) return null;
-      return ChatRoomModel.fromDoc(doc);
+      return ChatRoomModel.fromDoc(
+        doc,
+        collection: collection ?? ChatRoomModel.primaryCollection,
+      );
     });
+  }
+
+  Future<ChatRoomModel> requireAccessibleRoom(
+    String roomId, {
+    String? collection,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) throw Exception('Please sign in to open this chat.');
+    final doc = await _roomCollection(
+      collection,
+    ).doc(roomId).get().timeout(const Duration(seconds: 12));
+    if (!doc.exists) throw Exception('This chat room is not available yet.');
+    final room = ChatRoomModel.fromDoc(
+      doc,
+      collection: collection ?? ChatRoomModel.primaryCollection,
+    );
+    if (room.members.isNotEmpty && !room.members.contains(uid)) {
+      throw Exception('You do not have access to this chat room.');
+    }
+    return room;
+  }
+
+  Future<void> ensureDisputeRoom({
+    required String roomId,
+    required List<String> memberIds,
+    required Map<String, String> memberNames,
+    required Map<String, String> memberUsernames,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) throw Exception('Please sign in to prepare this chat.');
+    final members = <String>{uid, ...memberIds.where((id) => id.isNotEmpty)};
+    await _roomsRef.doc(roomId).set({
+      'id': roomId,
+      'type': 'dispute',
+      'name': 'Dispute Group Chat',
+      'members': members.toList(),
+      'member_names': memberNames,
+      'member_usernames': memberUsernames,
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
   }
 
   Stream<List<ChatMessageModel>> streamRoomMessages(
