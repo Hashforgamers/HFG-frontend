@@ -1,6 +1,9 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/network_config.dart';
@@ -37,6 +40,7 @@ class CommunityApi {
   /// `uuid`. Community endpoints use that same API token format.
   String? _serverToken;
   DateTime? _serverTokenExp;
+  static Future<String?>? _tokenRefresh;
 
   Future<String?> _authToken() async {
     // Reuse cached server token if still valid.
@@ -48,12 +52,28 @@ class CommunityApi {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwt');
+    var token = prefs.getString('jwt');
+    if (token == null || token.isEmpty || isJwtExpired(token)) {
+      _tokenRefresh ??= _refreshBackendToken().whenComplete(
+        () => _tokenRefresh = null,
+      );
+      token = await _tokenRefresh;
+    }
     if (token == null || token.isEmpty || isJwtExpired(token)) return null;
 
     _serverToken = token;
     _serverTokenExp = _expiryOf(token);
     return token;
+  }
+
+  static Future<String?> _refreshBackendToken() async {
+    final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return null;
+    await firebaseUser.getIdToken(true);
+    final remoteRepo = locator<RemoteRepoInterface>();
+    await remoteRepo.checkUserExistsInAPI(firebaseUser.uid);
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('jwt');
   }
 
   DateTime? _expiryOf(String jwt) {

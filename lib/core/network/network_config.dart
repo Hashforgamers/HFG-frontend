@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/interceptors/api_timing_interceptor.dart';
 import 'package:hash/core/network/interceptors/auth_interceptor.dart';
@@ -7,14 +8,13 @@ import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
+import 'package:hash/utils/encrypt_util.dart';
 
-const bool _enableVerboseNetworkLog = false;
+const bool _enableVerboseNetworkLog = true;
 
 bool _shouldSkipVerboseNetworkLog(RequestOptions options) {
   if (!_enableVerboseNetworkLog) return true;
-  final url = options.uri.toString().toLowerCase();
-  // Avoid dumping full gaming cafe payload in console.
-  return url.contains('/api/vendor/getallgamingcafe');
+  return false;
 }
 
 class NetworkConfig {
@@ -103,6 +103,7 @@ class NetworkConfig {
 
 class NetworkProvider {
   late final Dio _dio;
+  Future<String?>? _jwtRefresh;
 
   NetworkProvider() {
     var options = BaseOptions(
@@ -135,20 +136,33 @@ class NetworkProvider {
   Future<Dio> auth() async {
     try {
       final remoteRepo = locator<RemoteRepoInterface>();
-      final jwt = await remoteRepo.getJwtFromPreferences();
-      if (jwt == null) {
+      var jwt = await remoteRepo.getJwtFromPreferences();
+      if (jwt == null || jwt.isEmpty || isJwtExpired(jwt)) {
+        _jwtRefresh ??= _refreshBackendJwt(
+          remoteRepo,
+        ).whenComplete(() => _jwtRefresh = null);
+        jwt = await _jwtRefresh;
+      }
+      if (jwt == null || jwt.isEmpty || isJwtExpired(jwt)) {
         throw Exception('No auth token available');
       }
-      final token = jwt;
 
       _dio.options.headers = {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
+        'Authorization': 'Bearer $jwt',
       };
       return _dio;
     } catch (e) {
       throw Exception('Failed to initialize authenticated network: $e');
     }
+  }
+
+  Future<String?> _refreshBackendJwt(RemoteRepoInterface remoteRepo) async {
+    final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return null;
+    await firebaseUser.getIdToken(true);
+    await remoteRepo.checkUserExistsInAPI(firebaseUser.uid);
+    return remoteRepo.getJwtFromPreferences();
   }
 
   Dio noAuth({Map<String, dynamic>? headers}) {

@@ -39,8 +39,6 @@ class RazorpayWalletController extends GetxController {
 
   /// Opens the Razorpay checkout with provided amount
   void openCheckout(int amountRupees, String orderId) {
-    if (isPaying.value) return;
-
     final amountPaise = amountRupees * 100;
 
     // Get dynamic user data
@@ -89,6 +87,7 @@ class RazorpayWalletController extends GetxController {
     }
 
     lastPaymentError.value = '';
+    isPaying.value = true;
     _tempAmount = amount;
     // Track add money initiated event
     segmentService.onAddMoneyInitiated(amountEntered: amount.toDouble());
@@ -108,17 +107,23 @@ class RazorpayWalletController extends GetxController {
         final data = response.data is String
             ? jsonDecode(response.data as String)
             : response.data;
+        final orderId = (data is Map ? data['id'] : null)?.toString() ?? '';
+        if (orderId.isEmpty) {
+          throw Exception('Payment order ID was not returned by the server.');
+        }
         _paymentCompleter = Completer<bool>();
-        openCheckout(amount, data['id']);
+        openCheckout(amount, orderId);
         return _paymentCompleter!.future;
       }
 
       lastPaymentError.value = 'Failed to create payment order';
       _showSnackbarSafely("Error", "Failed to create payment order");
+      isPaying.value = false;
       return false;
     } catch (e) {
-      lastPaymentError.value = e.toString();
-      _showSnackbarSafely("Error", "Failed to create payment order");
+      lastPaymentError.value = _paymentErrorMessage(e);
+      _showSnackbarSafely("Error", lastPaymentError.value);
+      isPaying.value = false;
       return false;
     }
   }
@@ -126,43 +131,57 @@ class RazorpayWalletController extends GetxController {
   /// Called when payment is successful
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
     final paymentId = response.paymentId ?? 'Unknown';
-    Haptics.criticalSuccess();
-
-    // Track add money success event
-    segmentService.onAddMoneySuccess(
-      amountAdded: _tempAmount?.toDouble() ?? 0.0,
-      txnId: paymentId,
-    );
-    final capturePaymentModel = CapturePaymentModel(
-      razorpayPaymentId: paymentId,
-      razorpayOrderId: response.orderId,
-      razorpaySignature: response.signature,
-    );
-    remoteRepo.capturePayment(capturePaymentModel: capturePaymentModel);
-    final success = await Get.find<WalletController>().confirmTopUp(
-      amount: (_tempAmount ?? 0).toDouble(),
-      paymentId: paymentId,
-    );
-
-    if (!success) {
-      lastPaymentError.value =
-          Get.find<WalletController>().errorMessage.isNotEmpty
-          ? Get.find<WalletController>().errorMessage
-          : "Failed to credit wallet. Please contact support.";
-      Haptics.error();
-    }
-
-    isPaying.value = false;
-    _completePayment(success);
-
-    if (!success) {
+    var success = false;
+    try {
+      if (response.paymentId?.isNotEmpty != true ||
+          response.orderId?.isNotEmpty != true ||
+          response.signature?.isNotEmpty != true) {
+        throw Exception('Payment verification details are incomplete.');
+      }
+      await remoteRepo.capturePayment(
+        capturePaymentModel: CapturePaymentModel(
+          razorpayPaymentId: paymentId,
+          razorpayOrderId: response.orderId,
+          razorpaySignature: response.signature,
+        ),
+      );
+      success = await Get.find<WalletController>().confirmTopUp(
+        amount: (_tempAmount ?? 0).toDouble(),
+        paymentId: paymentId,
+      );
+      if (!success) {
+        throw Exception(Get.find<WalletController>().errorMessage);
+      }
+      await Haptics.criticalSuccess();
+      segmentService.onAddMoneySuccess(
+        amountAdded: _tempAmount?.toDouble() ?? 0.0,
+        txnId: paymentId,
+      );
+      _showSnackbarSafely(
+        'Wallet updated',
+        'Funds added successfully.',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      lastPaymentError.value = _paymentErrorMessage(e);
+      await Haptics.error();
       _showSnackbarSafely(
         "Error",
-        "Failed to credit wallet. Please contact support.",
+        lastPaymentError.value,
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
+    } finally {
+      isPaying.value = false;
+      _completePayment(success);
     }
+  }
+
+  String _paymentErrorMessage(Object error) {
+    final raw = error.toString().replaceFirst('Exception: ', '').trim();
+    if (raw.isEmpty) return 'Payment could not be completed. Please try again.';
+    return raw;
   }
 
   /// Called when payment fails
@@ -191,27 +210,27 @@ class RazorpayWalletController extends GetxController {
     Color? colorText,
   }) {
     void show() {
-      try {
-        Get.snackbar(
-          title,
-          message,
-          backgroundColor: backgroundColor,
-          colorText: colorText,
+      final context = Get.context;
+      if (context == null) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      if (messenger == null) return;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(message, style: TextStyle(color: colorText)),
+            backgroundColor: backgroundColor,
+          ),
         );
-      } catch (e) {
-        debugPrint(
-          'Wallet snackbar skipped -> title=$title, message=$message, error=$e',
-        );
-      }
     }
 
-    if (Get.overlayContext != null) {
+    if (Get.context != null) {
       show();
       return;
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (Get.overlayContext != null) {
+      if (Get.context != null) {
         show();
         return;
       }

@@ -35,8 +35,6 @@ class _WalletPage extends StatefulWidget {
 }
 
 class __WalletPageState extends State<_WalletPage> {
-  bool _showTxnErrorDetails = false;
-
   @override
   void initState() {
     BlocProvider.of<TransactionCubit>(context).getTransactionHistory();
@@ -48,153 +46,22 @@ class __WalletPageState extends State<_WalletPage> {
     return BlocBuilder<TransactionCubit, TransactionState>(
       builder: (context, state) {
         if (state is TransactionLoading) {
-          return const Center(child: AppLinearLoader());
+          return const WalletScreen(
+            transactions: <TransactionHistoryModel>[],
+            isTransactionLoading: true,
+          );
         }
         if (state is TransactionLoaded) {
           return WalletScreen(transactions: state.transactions);
         }
         if (state is TransactionError) {
-          return _buildTransactionErrorScreen(context, state.message);
+          return WalletScreen(
+            transactions: const <TransactionHistoryModel>[],
+            transactionError: _normalizeTransactionError(state.message),
+          );
         }
-        return _buildTransactionErrorScreen(
-          context,
-          'Something went wrong. Please try again.',
-        );
+        return const WalletScreen(transactions: <TransactionHistoryModel>[]);
       },
-    );
-  }
-
-  Widget _buildTransactionErrorScreen(
-    BuildContext context,
-    String message,
-  ) {
-    final normalized = _normalizeTransactionError(message);
-
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          'Wallet',
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Get.back(),
-          child: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
-      ),
-      body: Center(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: const Color(0xFF111111),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xff00DC00).withOpacity(0.35),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xff00DC00).withOpacity(0.1),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.warning_amber_rounded,
-                color: Color(0xff00DC00),
-                size: 52,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Could not load transactions',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                normalized,
-                style: GoogleFonts.inter(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () =>
-                    BlocProvider.of<TransactionCubit>(context)
-                        .getTransactionHistory(),
-                icon: const Icon(Icons.refresh, color: Colors.black),
-                label: Text(
-                  'Retry',
-                  style: GoogleFonts.inter(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff00DC00),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () {
-                  setState(() => _showTxnErrorDetails = !_showTxnErrorDetails);
-                },
-                child: Text(
-                  _showTxnErrorDetails ? 'Hide details' : 'Show details',
-                  style: GoogleFonts.inter(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              if (_showTxnErrorDetails) ...[
-                const SizedBox(height: 10),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.35),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
-                    ),
-                  ),
-                  child: SelectableText(
-                    message,
-                    style: GoogleFonts.sourceCodePro(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -212,7 +79,15 @@ class __WalletPageState extends State<_WalletPage> {
 
 class WalletScreen extends StatefulWidget {
   final List<TransactionHistoryModel> transactions;
-  const WalletScreen({super.key, required this.transactions});
+  final bool isTransactionLoading;
+  final String? transactionError;
+
+  const WalletScreen({
+    super.key,
+    required this.transactions,
+    this.isTransactionLoading = false,
+    this.transactionError,
+  });
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -223,12 +98,15 @@ class _WalletScreenState extends State<WalletScreen> {
   final razorpayCtr = Get.put(RazorpayWalletController());
   final TextEditingController amountController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
+  final GlobalKey _transactionsKey = GlobalKey();
+  String _transactionFilter = 'all';
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
 
   @override
   void initState() {
     super.initState();
+    searchController.addListener(_refreshTransactionSearch);
     // Track wallet viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
@@ -237,6 +115,18 @@ class _WalletScreenState extends State<WalletScreen> {
         fbEventsService.onWalletViewed(userId: currentUser.uid);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    searchController.removeListener(_refreshTransactionSearch);
+    amountController.dispose();
+    searchController.dispose();
+    super.dispose();
+  }
+
+  void _refreshTransactionSearch() {
+    if (mounted) setState(() {});
   }
 
   // ───────────────────────── UI BUILD ──────────────────────────
@@ -267,9 +157,7 @@ class _WalletScreenState extends State<WalletScreen> {
       ),
       body: Obx(() {
         if (walletCtr.isLoading) {
-          return const Center(
-            child: AppLinearLoader(),
-          );
+          return const Center(child: AppLinearLoader());
         }
 
         // Show error if any
@@ -397,9 +285,7 @@ class _WalletScreenState extends State<WalletScreen> {
               child: _actionButton(
                 icon: Icons.history,
                 label: "Transactions",
-                onTap: () {
-                  // Navigate to transactions page or show transactions
-                },
+                onTap: _scrollToTransactions,
               ),
             ),
             const SizedBox(width: 12),
@@ -452,9 +338,10 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Widget _recentTransactions() {
-    final transactions = widget.transactions;
+    final transactions = _visibleTransactions();
 
     return Column(
+      key: _transactionsKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Header with Filter button
@@ -470,9 +357,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
             ),
             GestureDetector(
-              onTap: () {
-                // Show filter options
-              },
+              onTap: _showTransactionFilter,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -486,7 +371,9 @@ class _WalletScreenState extends State<WalletScreen> {
                 child: Row(
                   children: [
                     Text(
-                      "Filter",
+                      _transactionFilter == 'all'
+                          ? "Filter"
+                          : _transactionFilter.capitalizeFirst!,
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 13,
@@ -538,7 +425,14 @@ class _WalletScreenState extends State<WalletScreen> {
         ),
         const SizedBox(height: 20),
 
-        if (transactions.isEmpty)
+        if (widget.isTransactionLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: AppLinearLoader()),
+          )
+        else if (widget.transactionError != null)
+          _transactionErrorCard(widget.transactionError!)
+        else if (transactions.isEmpty)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(32),
@@ -578,6 +472,99 @@ class _WalletScreenState extends State<WalletScreen> {
             (transaction) => _transactionCardFromHistoryModel(transaction),
           ),
       ],
+    );
+  }
+
+  List<TransactionHistoryModel> _visibleTransactions() {
+    final query = searchController.text.trim().toLowerCase();
+    return widget.transactions.where((transaction) {
+      final type = transaction.type.toLowerCase();
+      final matchesFilter = switch (_transactionFilter) {
+        'credit' => _isCreditTransaction(transaction),
+        'debit' => !_isCreditTransaction(transaction),
+        _ => true,
+      };
+      if (!matchesFilter) return false;
+      if (query.isEmpty) return true;
+      return type.contains(query) ||
+          transaction.referenceId.toLowerCase().contains(query) ||
+          transaction.id.toLowerCase().contains(query) ||
+          transaction.amount.toString().contains(query);
+    }).toList();
+  }
+
+  void _scrollToTransactions() {
+    final target = _transactionsKey.currentContext;
+    if (target != null) {
+      Scrollable.ensureVisible(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  void _showTransactionFilter() {
+    Get.bottomSheet(
+      SafeArea(
+        child: Container(
+          color: const Color(0xFF111111),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <String>['all', 'credit', 'debit'].map((filter) {
+              final selected = filter == _transactionFilter;
+              return ListTile(
+                leading: Icon(
+                  selected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: selected ? const Color(0xff00DC00) : Colors.white54,
+                ),
+                title: Text(
+                  filter.capitalizeFirst!,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  setState(() => _transactionFilter = filter);
+                  Get.back();
+                },
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _transactionErrorCard(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(color: Colors.grey[300]),
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: () => BlocProvider.of<TransactionCubit>(
+              context,
+            ).getTransactionHistory(),
+            icon: const Icon(Icons.refresh, color: Color(0xff00DC00)),
+            label: const Text(
+              'Retry transactions',
+              style: TextStyle(color: Color(0xff00DC00)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -750,6 +737,7 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   // Keep the existing _transactionCardFromModel method for backward compatibility
+  // ignore: unused_element
   Widget _transactionCardFromModel(WalletTransaction transaction) {
     return Container(
       width: double.infinity,
@@ -970,40 +958,64 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.flash_on, color: Colors.black),
-                label: Text(
-                  "ADD MONEY",
-                  style: GoogleFonts.inter(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
+            Obx(
+              () => SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: razorpayCtr.isPaying.value
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
+                        )
+                      : const Icon(Icons.flash_on, color: Colors.black),
+                  label: Text(
+                    razorpayCtr.isPaying.value ? "PLEASE WAIT" : "ADD MONEY",
+                    style: GoogleFonts.inter(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff00DC00),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff00DC00),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
+                  onPressed: razorpayCtr.isPaying.value
+                      ? null
+                      : () async {
+                          final amt = int.tryParse(
+                            amountController.text.trim(),
+                          );
+                          if (amt == null || amt < 50) {
+                            Get.snackbar(
+                              "Invalid",
+                              "Minimum top-up is ₹50",
+                              backgroundColor: Colors.red,
+                              colorText: Colors.white,
+                            );
+                            return;
+                          }
+                          final success = await razorpayCtr.pay(amt);
+                          if (!mounted) return;
+                          if (Get.isBottomSheetOpen == true) Get.back();
+                          if (success) {
+                            amountController.clear();
+                            await walletCtr.refreshWallet();
+                            if (mounted) {
+                              BlocProvider.of<TransactionCubit>(
+                                context,
+                              ).getTransactionHistory();
+                            }
+                          }
+                        },
                 ),
-                onPressed: () {
-                  final amt = int.tryParse(amountController.text.trim());
-                  if (amt == null || amt < 50) {
-                    Get.snackbar(
-                      "Invalid",
-                      "Minimum top-up is ₹50",
-                      backgroundColor: Colors.red,
-                      colorText: Colors.white,
-                    );
-                    return;
-                  }
-                  razorpayCtr.pay(amt);
-                  Get.back();
-                },
               ),
             ),
             const SizedBox(height: 24),

@@ -159,7 +159,7 @@ class TournamentPaymentService {
       'receipt': receiptId,
     };
 
-    final dio = _networkProvider.noAuth();
+    final dio = await _networkProvider.auth();
     final response = await dio.post(url, data: payload);
     if (response.statusCode == 200) {
       final data = response.data is String

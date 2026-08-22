@@ -8,6 +8,7 @@ import 'package:hash/app/modules/game_pass/model/vendor_passes_response.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/network/api_error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
+import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
@@ -21,6 +22,7 @@ import 'package:hash/core/repositories/model/transaction_history_model.dart';
 import 'package:hash/core/repositories/remote/auth_exceptions.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/device_identifier_service.dart';
+import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/utils/encrypt_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1506,7 +1508,14 @@ class RemoteRepo implements RemoteRepoInterface {
       AppLogger.d(
         'Wallet ledger update failed -> api=$endpoint, payload=$payload, status=$statusCode, response=$responseData',
       );
-      rethrow;
+      final backendMessage = responseData is Map
+          ? (responseData['message'] ?? responseData['error'])?.toString()
+          : null;
+      throw Exception(
+        backendMessage?.trim().isNotEmpty == true
+            ? backendMessage
+            : 'Wallet update failed (status: $statusCode).',
+      );
     } catch (e) {
       print('Error adding funds: $e');
       rethrow;
@@ -2200,6 +2209,7 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<void> saveJwtToPreferences(String jwt) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('jwt', jwt);
+    await locator<AuthDataRepository>().updateAccessToken(jwt);
   }
 
   @override
