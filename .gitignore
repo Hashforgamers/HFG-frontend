@@ -55,3 +55,6 @@ android_old/
 .env*.json
 !.env.example.json
 .env
+
+# Local Graphify code knowledge graph
+/graphify-out/

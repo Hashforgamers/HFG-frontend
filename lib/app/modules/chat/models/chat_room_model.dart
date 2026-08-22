@@ -8,6 +8,11 @@ class ChatRoomModel {
   final String type;
   final String name;
   final String imageUrl;
+  final String tournamentId;
+  final String tournamentName;
+  final String matchId;
+  final String matchLabel;
+  final String disputeStatus;
   final List<String> members;
   final List<String> admins;
   final Map<String, String> memberNames;
@@ -28,6 +33,11 @@ class ChatRoomModel {
     required this.type,
     required this.name,
     required this.imageUrl,
+    this.tournamentId = '',
+    this.tournamentName = '',
+    this.matchId = '',
+    this.matchLabel = '',
+    this.disputeStatus = '',
     required this.members,
     required this.admins,
     required this.memberNames,
@@ -43,9 +53,24 @@ class ChatRoomModel {
     required this.deletedForUserIds,
   });
 
-  bool get isGroup => type == 'group';
+  bool get isGroup => const {'group', 'tournament', 'dispute'}.contains(type);
   bool get isDispute =>
       type.toLowerCase() == 'dispute' || id.startsWith('community-dispute-');
+  bool get isTournamentChat =>
+      type.toLowerCase() == 'tournament' ||
+      id.startsWith('community-tournament-');
+  bool get isTournamentConversation => isTournamentChat || isDispute;
+
+  String get tournamentContext {
+    if (isDispute) {
+      return [
+        tournamentName,
+        matchLabel,
+        if (disputeStatus.isNotEmpty) disputeStatus.replaceAll('_', ' '),
+      ].where((value) => value.trim().isNotEmpty).join(' · ');
+    }
+    return tournamentName;
+  }
 
   String displayTitleFor(String currentUid) {
     if (isGroup) {
@@ -91,10 +116,9 @@ class ChatRoomModel {
         final name = (account['display_name'] ?? account['name'] ?? '')
             .toString()
             .trim();
-        final username =
-            (account['username'] ?? account['gameUserName'] ?? '')
-                .toString()
-                .trim();
+        final username = (account['username'] ?? account['gameUserName'] ?? '')
+            .toString()
+            .trim();
         if (name.isNotEmpty) memberNames[uid] = name;
         if (username.isNotEmpty) memberUsernames[uid] = username;
       }
@@ -103,20 +127,20 @@ class ChatRoomModel {
     if (rawMembers is List) {
       for (final value in rawMembers.whereType<Map>()) {
         final account = Map<String, dynamic>.from(value);
-        final uid = (account['fid'] ??
-                account['firebase_uid'] ??
-                account['uid'] ??
-                account['id'] ??
-                '')
-            .toString();
+        final uid =
+            (account['fid'] ??
+                    account['firebase_uid'] ??
+                    account['uid'] ??
+                    account['id'] ??
+                    '')
+                .toString();
         if (uid.isEmpty) continue;
         final name = (account['display_name'] ?? account['name'] ?? '')
             .toString()
             .trim();
-        final username =
-            (account['username'] ?? account['gameUserName'] ?? '')
-                .toString()
-                .trim();
+        final username = (account['username'] ?? account['gameUserName'] ?? '')
+            .toString()
+            .trim();
         if (name.isNotEmpty) memberNames[uid] = name;
         if (username.isNotEmpty) memberUsernames[uid] = username;
       }
@@ -128,6 +152,12 @@ class ChatRoomModel {
       type: (map['type'] ?? 'direct').toString(),
       name: (map['name'] ?? '').toString(),
       imageUrl: (map['image_url'] ?? '').toString(),
+      tournamentId: (map['tournament_id'] ?? '').toString(),
+      tournamentName: (map['tournament_name'] ?? map['tournament_title'] ?? '')
+          .toString(),
+      matchId: (map['match_id'] ?? '').toString(),
+      matchLabel: (map['match_label'] ?? map['round_label'] ?? '').toString(),
+      disputeStatus: (map['dispute_status'] ?? '').toString(),
       members: _memberIds(map['members']),
       admins: _stringList(map['admins']),
       memberNames: memberNames,

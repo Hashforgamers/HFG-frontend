@@ -54,14 +54,19 @@ class DisputeChatAuth {
 
   DisputeChatSession _session(FirebaseApp app, FirebaseAuth auth) {
     final cached = _cachedSession;
-    if (cached != null && cached.auth.currentUser?.uid == auth.currentUser?.uid) {
+    if (cached != null &&
+        cached.auth.currentUser?.uid == auth.currentUser?.uid) {
       return cached;
     }
     final service = ChatService(
       auth: auth,
       firestore: FirebaseFirestore.instanceFor(app: app),
+      roomsCollection: 'communityDisputeRooms',
     );
-    return _cachedSession = DisputeChatSession(auth: auth, chatService: service);
+    return _cachedSession = DisputeChatSession(
+      auth: auth,
+      chatService: service,
+    );
   }
 }
 

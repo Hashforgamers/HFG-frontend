@@ -7,6 +7,7 @@ import '../models/community_entities.dart';
 import '../models/tournament.dart';
 import '../models/tournament_operations.dart';
 import '../widgets/tournament_bracket.dart';
+import '../widgets/tournament_chat_management_panel.dart';
 import 'community_theme.dart';
 import 'tournaments_view.dart' show ctAmount, ctCurrency, ctStatus;
 import '../../../routes/app_routes.dart';
@@ -17,7 +18,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 7,
+      length: 8,
       child: Scaffold(
         backgroundColor: CT.bg,
         appBar: AppBar(
@@ -42,6 +43,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
               Tab(text: 'TEAMS'),
               Tab(text: 'MATCHES'),
               Tab(text: 'RESULTS'),
+              Tab(text: 'MESSAGES'),
               Tab(text: 'PAYOUTS'),
               Tab(text: 'CONTROL'),
             ],
@@ -60,6 +62,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
               _teams(),
               _matches(context),
               _results(context, tournament),
+              TournamentChatManagementPanel(controller: controller),
               _payouts(),
               _controlRoom(context),
             ],

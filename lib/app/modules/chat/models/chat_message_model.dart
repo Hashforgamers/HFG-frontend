@@ -10,6 +10,7 @@ class ChatMessageModel {
   final DateTime createdAt;
   final List<String> seenBy;
   final Map<String, dynamic> meta;
+  final bool immutable;
 
   const ChatMessageModel({
     required this.id,
@@ -21,6 +22,7 @@ class ChatMessageModel {
     required this.createdAt,
     required this.seenBy,
     required this.meta,
+    this.immutable = false,
   });
 
   factory ChatMessageModel.fromMap(Map<String, dynamic> map) {
@@ -30,13 +32,14 @@ class ChatMessageModel {
       senderId: (map['sender_id'] ?? '').toString(),
       senderName: (map['sender_name'] ?? 'Player').toString(),
       text: (map['text'] ?? '').toString(),
-      type: (map['type'] ?? 'text').toString(),
+      type: (map['message_type'] ?? map['type'] ?? 'text').toString(),
       createdAt:
           _parseDateTime(map['created_at']) ??
           _parseDateTime(map['client_created_at']) ??
           DateTime.now(),
       seenBy: _stringList(map['seen_by']),
-      meta: _map(map['meta']),
+      meta: {...map, ..._map(map['meta'])},
+      immutable: map['immutable'] == true,
     );
   }
 

@@ -21,18 +21,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatService extends GetxService with WidgetsBindingObserver {
   static const _usersCollection = 'chat_users';
-  static const _roomsCollection = 'chat_rooms';
+  static const primaryRoomsCollection = 'chat_rooms';
   static const _messagesCollection = 'messages';
   static const _hiddenRecentUsersKeyPrefix = 'chat_hidden_recent_users_';
 
   ChatService({
     FirebaseFirestore? firestore,
     firebase_auth.FirebaseAuth? auth,
+    String roomsCollection = primaryRoomsCollection,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _auth = auth ?? firebase_auth.FirebaseAuth.instance;
+       _auth = auth ?? firebase_auth.FirebaseAuth.instance,
+       _roomsCollection = roomsCollection;
 
   final FirebaseFirestore _firestore;
   final firebase_auth.FirebaseAuth _auth;
+  final String _roomsCollection;
   final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
@@ -472,7 +475,9 @@ class ChatService extends GetxService with WidgetsBindingObserver {
 
     return _roomsRef.where('members', arrayContains: uid).snapshots().map((s) {
       final rooms = s.docs
-          .map(ChatRoomModel.fromDoc)
+          .map(
+            (doc) => ChatRoomModel.fromDoc(doc, collection: _roomsCollection),
+          )
           .where((room) => !room.deletedForUserIds.contains(uid))
           .toList();
       rooms.sort((a, b) {
@@ -576,7 +581,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     if (!doc.exists) throw Exception('This chat room is not available yet.');
     final room = ChatRoomModel.fromDoc(
       doc,
-      collection: collection ?? ChatRoomModel.primaryCollection,
+      collection: collection ?? _roomsCollection,
     );
     if (room.members.isNotEmpty && !room.members.contains(uid)) {
       throw Exception('You do not have access to this chat room.');
@@ -584,25 +589,34 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     return room;
   }
 
-  Future<void> ensureDisputeRoom({
-    required String roomId,
+  Future<String> ensureTournamentRoom({
+    required String tournamentId,
+    required String tournamentName,
     required List<String> memberIds,
+    required List<String> adminIds,
     required Map<String, String> memberNames,
     required Map<String, String> memberUsernames,
   }) async {
     final uid = currentUid;
     if (uid == null) throw Exception('Please sign in to prepare this chat.');
+    final roomId = 'community-tournament-$tournamentId';
     final members = <String>{uid, ...memberIds.where((id) => id.isNotEmpty)};
     await _roomsRef.doc(roomId).set({
       'id': roomId,
-      'type': 'dispute',
-      'name': 'Dispute Group Chat',
+      'type': 'tournament',
+      'name': tournamentName.isEmpty
+          ? 'Tournament Chat'
+          : '$tournamentName · Tournament Chat',
+      'tournament_id': tournamentId,
+      'tournament_name': tournamentName,
       'members': members.toList(),
+      'admins': <String>{...adminIds.where((id) => id.isNotEmpty)}.toList(),
       'member_names': memberNames,
       'member_usernames': memberUsernames,
       'updated_at': FieldValue.serverTimestamp(),
       'client_updated_at': DateTime.now().toIso8601String(),
     }, SetOptions(merge: true));
+    return roomId;
   }
 
   Stream<List<ChatMessageModel>> streamRoomMessages(
@@ -663,7 +677,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   Future<ChatRoomModel?> getRoomById(String roomId) async {
     final doc = await _roomsRef.doc(roomId).get();
     if (!doc.exists) return null;
-    return ChatRoomModel.fromDoc(doc);
+    return ChatRoomModel.fromDoc(doc, collection: _roomsCollection);
   }
 
   Future<String> getOrCreateDirectRoom({
@@ -968,6 +982,8 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     if (trimmedText.isEmpty) return;
 
     final senderName = await _resolveCurrentUserNameFromStore(uid);
+    final isBackendManagedDispute =
+        (collection ?? _roomsCollection) == 'communityDisputeRooms';
     final roomRef = _roomCollection(collection).doc(roomId);
     final messageRef = roomRef.collection(_messagesCollection).doc();
     final now = DateTime.now().toIso8601String();
@@ -980,19 +996,22 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       'sender_name': senderName,
       'text': trimmedText,
       'type': 'text',
+      'message_type': 'user',
       'seen_by': [uid],
       'created_at': FieldValue.serverTimestamp(),
       'client_created_at': now,
     });
 
-    batch.set(roomRef, {
-      'updated_at': FieldValue.serverTimestamp(),
-      'client_updated_at': now,
-      'last_message': trimmedText,
-      'last_message_sender_id': uid,
-      'last_message_at': FieldValue.serverTimestamp(),
-      'client_last_message_at': now,
-    }, SetOptions(merge: true));
+    if (!isBackendManagedDispute) {
+      batch.set(roomRef, {
+        'updated_at': FieldValue.serverTimestamp(),
+        'client_updated_at': now,
+        'last_message': trimmedText,
+        'last_message_sender_id': uid,
+        'last_message_at': FieldValue.serverTimestamp(),
+        'client_last_message_at': now,
+      }, SetOptions(merge: true));
+    }
 
     await batch.commit();
   }
@@ -1172,6 +1191,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   Future<void> markRoomMessagesSeen(String roomId, {String? collection}) async {
     final uid = currentUid;
     if (uid == null) return;
+    if ((collection ?? _roomsCollection) == 'communityDisputeRooms') return;
     final snap = await _roomCollection(collection)
         .doc(roomId)
         .collection(_messagesCollection)
@@ -1209,6 +1229,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   }) async {
     final uid = currentUid;
     if (uid == null) return;
+    if ((collection ?? _roomsCollection) == 'communityDisputeRooms') return;
     await _roomCollection(collection).doc(roomId).set({
       'typing_uids': isTyping
           ? FieldValue.arrayUnion([uid])
@@ -1538,13 +1559,16 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   }
 
   Future<String> _resolveCurrentUserNameFromStore(String uid) async {
-    final profileDoc = await _usersRef.doc(uid).get();
-    if (profileDoc.exists) {
-      final fromProfile = (profileDoc.data()?['display_name'] ?? '').toString();
-      if (fromProfile.trim().isNotEmpty) {
-        return fromProfile.trim();
+    try {
+      final profileDoc = await _usersRef.doc(uid).get();
+      if (profileDoc.exists) {
+        final fromProfile = (profileDoc.data()?['display_name'] ?? '')
+            .toString();
+        if (fromProfile.trim().isNotEmpty) {
+          return fromProfile.trim();
+        }
       }
-    }
+    } catch (_) {}
 
     final currentUser = _auth.currentUser;
     if (currentUser == null) return 'Player';

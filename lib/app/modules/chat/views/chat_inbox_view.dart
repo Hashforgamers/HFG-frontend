@@ -62,7 +62,6 @@ class _ChatInboxViewState extends State<ChatInboxView> {
   Future<void> _prepareChatIdentity() async {
     try {
       final session = await DisputeChatAuth().authenticate();
-      await session.chatService.ensureCurrentUserProfile();
       if (!mounted) return;
       setState(() {
         _disputeChatService = session.chatService;
@@ -92,9 +91,11 @@ class _ChatInboxViewState extends State<ChatInboxView> {
         for (final room in disputeRooms) room.id: room,
       };
       final rooms = byId.values.toList()
-        ..sort((a, b) => (b.lastMessageAt ?? b.updatedAt).compareTo(
-          a.lastMessageAt ?? a.updatedAt,
-        ));
+        ..sort(
+          (a, b) => (b.lastMessageAt ?? b.updatedAt).compareTo(
+            a.lastMessageAt ?? a.updatedAt,
+          ),
+        );
       controller.add(rooms);
     }
 
@@ -197,10 +198,12 @@ class _ChatInboxViewState extends State<ChatInboxView> {
   ) {
     final filteredByType = rooms.where((room) {
       switch (_selectedFilter) {
-        case _InboxFilter.groups:
-          return room.isGroup;
         case _InboxFilter.direct:
-          return !room.isGroup;
+          return !room.isGroup && !room.isTournamentConversation;
+        case _InboxFilter.groups:
+          return room.type == 'group' && !room.isTournamentConversation;
+        case _InboxFilter.tournament:
+          return room.isTournamentConversation;
         case _InboxFilter.all:
           return true;
       }
@@ -516,9 +519,11 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                 children: [
                   _buildFilterChip(_InboxFilter.all, 'All'),
                   const SizedBox(width: 8),
-                  _buildFilterChip(_InboxFilter.groups, 'Groups'),
-                  const SizedBox(width: 8),
                   _buildFilterChip(_InboxFilter.direct, 'Direct'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(_InboxFilter.groups, 'Group'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(_InboxFilter.tournament, 'Tournament'),
                 ],
               ),
             ),
@@ -711,7 +716,9 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     final prefix = title.isEmpty ? 'C' : title[0].toUpperCase();
     final hasAvatar = room.imageUrl.trim().startsWith('http');
     final badgeText = room.isDispute
-        ? 'DISPUTE'
+        ? 'DISPUTE CHAT'
+        : room.isTournamentChat
+        ? 'TOURNAMENT CHAT'
         : room.isGroup
         ? 'GROUP'
         : 'DIRECT';
@@ -720,7 +727,10 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     final actionInProgress = _isRoomActionInProgress(room.id);
 
     return Obx(() {
-      final isUnread = _chatService.isRoomUnread(room.id);
+      final roomService = room.isDispute
+          ? (_disputeChatService ?? _chatService)
+          : _chatService;
+      final isUnread = roomService.isRoomUnread(room.id);
       return Dismissible(
         key: ValueKey('chat_${room.id}_${stamp.millisecondsSinceEpoch}'),
         direction: room.isDispute
@@ -919,6 +929,21 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                   fontSize: 14,
                                 ),
                               ),
+                              if (room.tournamentContext.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  room.tournamentContext,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: room.isDispute
+                                        ? const Color(0xFFE88686)
+                                        : ChatPalette.accent,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 3),
                               if (room.isGroup)
                                 Row(
@@ -944,7 +969,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    _typeTag(room.isGroup, badgeText),
+                                    _typeTag(room, badgeText),
                                   ],
                                 )
                               else
@@ -971,7 +996,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    _typeTag(room.isGroup, badgeText),
+                                    _typeTag(room, badgeText),
                                   ],
                                 ),
                             ],
@@ -1061,11 +1086,15 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     });
   }
 
-  Widget _typeTag(bool isGroup, String label) {
+  Widget _typeTag(ChatRoomModel room, String label) {
     return Text(
       label,
       style: GoogleFonts.inter(
-        color: isGroup ? ChatPalette.accent : ChatPalette.primary,
+        color: room.isDispute
+            ? const Color(0xFFE88686)
+            : room.isTournamentConversation || room.isGroup
+            ? ChatPalette.accent
+            : ChatPalette.primary,
         fontSize: 8.5,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.3,
@@ -1160,4 +1189,4 @@ class _ChatInboxViewState extends State<ChatInboxView> {
   }
 }
 
-enum _InboxFilter { all, groups, direct }
+enum _InboxFilter { all, direct, groups, tournament }

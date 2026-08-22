@@ -258,6 +258,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     required bool isMine,
     required bool isGroup,
   }) {
+    if (message.type == 'system') {
+      return _buildDisputeSystemMessage(message);
+    }
     if (message.type == 'team_invite') {
       return _buildTeamInviteCard(message: message, isMine: isMine);
     }
@@ -351,6 +354,209 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       ),
     );
   }
+
+  Widget _buildDisputeSystemMessage(ChatMessageModel message) {
+    final data = message.meta;
+    final contexts = data['result_contexts'] is List
+        ? (data['result_contexts'] as List).whereType<Map>().toList()
+        : const <Map>[];
+    final evidenceUrls = <String>{};
+    final previewUrl = (data['preview_image_url'] ?? '').toString().trim();
+    if (previewUrl.isNotEmpty) evidenceUrls.add(previewUrl);
+    for (final rawContext in contexts) {
+      final context = Map<String, dynamic>.from(rawContext);
+      final evidence = context['evidence'];
+      if (evidence is! List) continue;
+      for (final rawEvidence in evidence.whereType<Map>()) {
+        final url = (rawEvidence['file_url'] ?? '').toString().trim();
+        if (url.isNotEmpty) evidenceUrls.add(url);
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF211613), Color(0xFF120E0D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ChatPalette.accent.withValues(alpha: .65)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.gavel_rounded,
+                color: ChatPalette.accent,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'DISPUTE OPENED',
+                  style: GoogleFonts.inter(
+                    color: ChatPalette.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .8,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.lock_outline_rounded,
+                color: ChatPalette.textSecondary,
+                size: 15,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SelectableText(
+            message.text,
+            style: GoogleFonts.inter(
+              color: ChatPalette.textPrimary,
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+          if (contexts.length > 1) ...[
+            const SizedBox(height: 12),
+            Text(
+              'SUBMITTED RESULTS',
+              style: GoogleFonts.inter(
+                color: ChatPalette.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ...contexts.asMap().entries.map((entry) {
+              final context = Map<String, dynamic>.from(entry.value);
+              final submitter = context['submitter'] is Map
+                  ? Map<String, dynamic>.from(context['submitter'] as Map)
+                  : const <String, dynamic>{};
+              final submitterName = (submitter['display_name'] ?? 'Participant')
+                  .toString();
+              final winner = (context['winner_team_name'] ?? 'Result submitted')
+                  .toString();
+              final scoreA = context['team_a_score'];
+              final scoreB = context['team_b_score'];
+              final score = scoreA == null || scoreB == null
+                  ? ''
+                  : ' · $scoreA-$scoreB';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '${entry.key + 1}. $submitterName — $winner$score',
+                  style: GoogleFonts.inter(
+                    color: ChatPalette.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }),
+          ],
+          if (evidenceUrls.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'SUBMITTED EVIDENCE',
+              style: GoogleFonts.inter(
+                color: ChatPalette.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 7),
+            SizedBox(
+              height: 116,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: evidenceUrls.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final url = evidenceUrls.elementAt(index);
+                  return InkWell(
+                    onTap: () => _openEvidencePreview(url),
+                    borderRadius: BorderRadius.circular(9),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(9),
+                      child: Image.network(
+                        url,
+                        width: 170,
+                        height: 116,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 170,
+                          color: ChatPalette.surfaceAlt,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            color: ChatPalette.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            'System record · ${_formatTime(message.createdAt)}',
+            style: GoogleFonts.inter(
+              color: ChatPalette.textSecondary,
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openEvidencePreview(String url) => showDialog<void>(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: .94),
+    builder: (dialogContext) => Dialog.fullscreen(
+      backgroundColor: Colors.black,
+      child: SafeArea(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                minScale: .8,
+                maxScale: 5,
+                child: Center(
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Icon(
+                      Icons.broken_image_outlined,
+                      color: Colors.white54,
+                      size: 42,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton.filled(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _buildTournamentDeepLink({
     required ChatMessageModel message,
@@ -1195,10 +1401,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: memberIds.length,
-                  separatorBuilder: (_, _) => const Divider(
-                    color: ChatPalette.border,
-                    height: 1,
-                  ),
+                  separatorBuilder: (_, _) =>
+                      const Divider(color: ChatPalette.border, height: 1),
                   itemBuilder: (context, index) {
                     final uid = memberIds[index];
                     final suppliedAccount = accountsByUid[uid];
@@ -1214,12 +1418,14 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                             suppliedAccount?.username.trim().isNotEmpty == true
                             ? suppliedAccount!.username.trim()
                             : room.memberUsernames[uid]?.trim() ?? '';
-                        final name = account?.displayName.trim().isNotEmpty == true
+                        final name =
+                            account?.displayName.trim().isNotEmpty == true
                             ? account!.displayName.trim()
                             : fallbackName.isNotEmpty
                             ? fallbackName
                             : 'Tournament participant';
-                        final username = account?.username.trim().isNotEmpty == true
+                        final username =
+                            account?.username.trim().isNotEmpty == true
                             ? account!.username.trim()
                             : fallbackUsername;
                         final isCurrent = uid == _chatService.currentUid;
@@ -1230,7 +1436,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                             foregroundColor: Colors.black,
                             child: Text(
                               name.characters.first.toUpperCase(),
-                              style: const TextStyle(fontWeight: FontWeight.w800),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                           title: Text(
@@ -1241,7 +1449,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                             ),
                           ),
                           subtitle: Text(
-                            username.isNotEmpty ? '@$username' : 'Username unavailable',
+                            username.isNotEmpty
+                                ? '@$username'
+                                : 'Username unavailable',
                             style: GoogleFonts.inter(
                               color: ChatPalette.textSecondary,
                             ),
@@ -1392,7 +1602,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             ),
             builder: (context, snapshot) {
               final room = snapshot.data;
-              final canOpenDetails = room?.isDispute == true ||
+              final canOpenDetails =
+                  room?.isDispute == true ||
                   (room?.isGroup == true && widget.roomCollection == null);
               if (!canOpenDetails) {
                 return const SizedBox.shrink();

@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../controllers/tournament_detail_controller.dart';
-import '../../chat/views/chat_inbox_view.dart';
 import '../../chat/views/chat_room_view.dart';
 import '../../chat/services/chat_service.dart';
 import '../../chat/models/chat_user_model.dart';
@@ -298,7 +297,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                         arguments: {'id': t.id},
                       )
                     : controller.hasJoined.value
-                    ? () => Get.to(() => const ChatInboxView())
+                    ? controller.openTournamentChat
                     : !controller.membershipResolved.value ||
                           controller.acting.value ||
                           !canRegister
@@ -382,7 +381,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
             const SizedBox(width: 10),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => Get.to(() => const ChatInboxView()),
+                onPressed: controller.openTournamentChat,
                 icon: const Icon(Icons.forum_rounded, size: 18),
                 label: const Text('Tournament chat'),
               ),
