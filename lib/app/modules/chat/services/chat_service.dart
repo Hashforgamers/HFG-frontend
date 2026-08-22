@@ -25,8 +25,14 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   static const _messagesCollection = 'messages';
   static const _hiddenRecentUsersKeyPrefix = 'chat_hidden_recent_users_';
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
+  ChatService({
+    FirebaseFirestore? firestore,
+    firebase_auth.FirebaseAuth? auth,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? firebase_auth.FirebaseAuth.instance;
+
+  final FirebaseFirestore _firestore;
+  final firebase_auth.FirebaseAuth _auth;
   final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();

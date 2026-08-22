@@ -5,7 +5,6 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../chat/views/chat_room_view.dart';
-import '../../chat/services/chat_service.dart';
 import '../models/community_entities.dart';
 import '../models/tournament.dart';
 import '../models/tournament_operations.dart';
@@ -269,11 +268,9 @@ class ManageTournamentController extends GetxController {
     }
     acting.value = true;
     try {
-      await _disputeChatAuth.authenticate();
+      final disputeSession = await _disputeChatAuth.authenticate();
       final participantAccounts = _disputeParticipantAccounts(current);
-      final chat = Get.isRegistered<ChatService>()
-          ? Get.find<ChatService>()
-          : Get.put(ChatService(), permanent: true);
+      final chat = disputeSession.chatService;
       await chat.ensureDisputeRoom(
         roomId: roomId,
         memberIds: participantAccounts.map((account) => account.firebaseUid).toList(),
@@ -290,6 +287,7 @@ class ManageTournamentController extends GetxController {
         () => ChatRoomView(
           roomId: roomId,
           participantAccounts: participantAccounts,
+          chatService: chat,
         ),
       );
     } catch (error) {

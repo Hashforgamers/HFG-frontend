@@ -692,11 +692,9 @@ class TournamentDetailController extends GetxController {
       return;
     }
     try {
-      await _disputeChatAuth.authenticate();
+      final disputeSession = await _disputeChatAuth.authenticate();
       final participantAccounts = _disputeParticipantAccounts(match);
-      final chat = Get.isRegistered<ChatService>()
-          ? Get.find<ChatService>()
-          : Get.put(ChatService(), permanent: true);
+      final chat = disputeSession.chatService;
       await chat.ensureDisputeRoom(
         roomId: normalizedRoomId,
         memberIds: participantAccounts.map((account) => account.firebaseUid).toList(),
@@ -713,6 +711,7 @@ class TournamentDetailController extends GetxController {
         () => ChatRoomView(
           roomId: normalizedRoomId,
           participantAccounts: participantAccounts,
+          chatService: chat,
         ),
       );
     } catch (error) {

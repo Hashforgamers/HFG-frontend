@@ -37,12 +37,14 @@ class ChatRoomView extends StatefulWidget {
   final String roomId;
   final String? roomCollection;
   final List<ChatParticipantAccount> participantAccounts;
+  final ChatService? chatService;
 
   const ChatRoomView({
     super.key,
     required this.roomId,
     this.roomCollection,
     this.participantAccounts = const [],
+    this.chatService,
   });
 
   @override
@@ -50,7 +52,7 @@ class ChatRoomView extends StatefulWidget {
 }
 
 class _ChatRoomViewState extends State<ChatRoomView> {
-  final ChatService _chatService = Get.find<ChatService>();
+  late final ChatService _chatService;
   final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
@@ -68,6 +70,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
   @override
   void initState() {
     super.initState();
+    _chatService = widget.chatService ?? Get.find<ChatService>();
     unawaited(_validateRoomAccess());
   }
 

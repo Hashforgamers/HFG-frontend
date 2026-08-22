@@ -36,6 +36,8 @@ class _ChatInboxViewState extends State<ChatInboxView> {
   bool _didHandleInitialRoomNavigation = false;
   bool _showArchived = false;
   final Set<String> _actionInProgressRoomIds = <String>{};
+  ChatService? _disputeChatService;
+  late Stream<List<ChatRoomModel>> _roomsStream;
 
   String _query = '';
   _InboxFilter _selectedFilter = _InboxFilter.all;
@@ -43,6 +45,8 @@ class _ChatInboxViewState extends State<ChatInboxView> {
   @override
   void initState() {
     super.initState();
+    _roomsStream = _chatService.streamCurrentUserRooms();
+    unawaited(_chatService.ensureCurrentUserProfile());
     unawaited(_prepareChatIdentity());
     _searchController.addListener(_handleSearchChanged);
     unawaited(
@@ -57,12 +61,60 @@ class _ChatInboxViewState extends State<ChatInboxView> {
 
   Future<void> _prepareChatIdentity() async {
     try {
-      await DisputeChatAuth().authenticate();
+      final session = await DisputeChatAuth().authenticate();
+      await session.chatService.ensureCurrentUserProfile();
+      if (!mounted) return;
+      setState(() {
+        _disputeChatService = session.chatService;
+        _roomsStream = _mergeRoomStreams(
+          _chatService.streamCurrentUserRooms(),
+          session.chatService.streamCurrentUserRooms(),
+        );
+      });
     } catch (_) {
-      // Existing Firebase chat identity remains available for legacy rooms.
+      // Keep legacy/community chat available when dispute auth is unavailable.
     }
-    await _chatService.ensureCurrentUserProfile();
-    if (mounted) setState(() {});
+  }
+
+  Stream<List<ChatRoomModel>> _mergeRoomStreams(
+    Stream<List<ChatRoomModel>> primary,
+    Stream<List<ChatRoomModel>> dispute,
+  ) {
+    late StreamController<List<ChatRoomModel>> controller;
+    StreamSubscription<List<ChatRoomModel>>? primarySubscription;
+    StreamSubscription<List<ChatRoomModel>>? disputeSubscription;
+    var primaryRooms = <ChatRoomModel>[];
+    var disputeRooms = <ChatRoomModel>[];
+
+    void emit() {
+      final byId = <String, ChatRoomModel>{
+        for (final room in primaryRooms) room.id: room,
+        for (final room in disputeRooms) room.id: room,
+      };
+      final rooms = byId.values.toList()
+        ..sort((a, b) => (b.lastMessageAt ?? b.updatedAt).compareTo(
+          a.lastMessageAt ?? a.updatedAt,
+        ));
+      controller.add(rooms);
+    }
+
+    controller = StreamController<List<ChatRoomModel>>(
+      onListen: () {
+        primarySubscription = primary.listen((rooms) {
+          primaryRooms = rooms;
+          emit();
+        }, onError: controller.addError);
+        disputeSubscription = dispute.listen((rooms) {
+          disputeRooms = rooms;
+          emit();
+        });
+      },
+      onCancel: () async {
+        await primarySubscription?.cancel();
+        await disputeSubscription?.cancel();
+      },
+    );
+    return controller.stream;
   }
 
   @override
@@ -86,6 +138,9 @@ class _ChatInboxViewState extends State<ChatInboxView> {
         () => ChatRoomView(
           roomId: roomId,
           roomCollection: roomCollection.isEmpty ? null : roomCollection,
+          chatService: roomId.startsWith('community-dispute-')
+              ? _disputeChatService
+              : null,
         ),
       );
     });
@@ -469,7 +524,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
             ),
             Expanded(
               child: StreamBuilder<List<ChatRoomModel>>(
-                stream: _chatService.streamCurrentUserRoomsIncludingDisputes(),
+                stream: _roomsStream,
                 builder: (context, snapshot) {
                   if (snapshot.hasError && !snapshot.hasData) {
                     return Center(
@@ -763,6 +818,9 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                     Get.to(
                       () => ChatRoomView(
                         roomId: room.id,
+                        chatService: room.isDispute
+                            ? _disputeChatService
+                            : null,
                       ),
                     );
                   },
