@@ -158,7 +158,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
       "receipt": receiptId,
     };
 
-    final dio = locator<NetworkProvider>().noAuth();
+    final dio = await locator<NetworkProvider>().auth();
     final response = await dio.post(url, data: payload);
 
     if (response.statusCode == 200 || response.statusCode == 201) {

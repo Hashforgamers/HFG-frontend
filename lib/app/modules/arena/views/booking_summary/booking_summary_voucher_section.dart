@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/utils/widgets/loader.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 
 class BookingSummaryVoucherSection extends StatelessWidget {
   final TextEditingController voucherController;
@@ -50,12 +51,8 @@ class BookingSummaryVoucherSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Have a Voucher?',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+                'Voucher',
+                style: HomeTokens.title(17),
               ),
               SizedBox(
                 height: 20,

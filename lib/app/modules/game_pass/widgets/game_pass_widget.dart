@@ -104,7 +104,7 @@ class _VendorPassesWidgetState extends State<VendorPassesWidget> {
       'currency': 'INR',
       'receipt': 'vendor_pass_${DateTime.now().millisecondsSinceEpoch}',
     };
-    final dio = _networkProvider.noAuth();
+    final dio = await _networkProvider.auth();
     final response = await dio.post(url, data: payload);
     if (response.statusCode == 200) {
       final data = response.data is String

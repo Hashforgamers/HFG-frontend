@@ -1045,7 +1045,7 @@ class RemoteRepo implements RemoteRepoInterface {
     Map<String, dynamic>? squadDetails,
     int? suggestedExtraControllerQty,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final Map<String, dynamic> requestData = {
         "booking_id": bookingIds,
@@ -1707,7 +1707,7 @@ class RemoteRepo implements RemoteRepoInterface {
     required String vendorId,
     required String bookingId,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       debugPrint(
         'scanQrCode request -> console_id=$consoleId, game_id=$gameId, vendor_id=$vendorId, booking_id=$bookingId',
@@ -2050,11 +2050,17 @@ class RemoteRepo implements RemoteRepoInterface {
 
   @override
   Future<String> releaseBooking({required BookingModel bookings}) async {
-    final dio = networkProvider.noAuth();
+    // Was `noAuth()`, which the endpoint rejects, and passed the model object
+    // straight into the body - Dio encoded it as "Instance of 'BookingModel'",
+    // so the server answered "A list of bookings is required under the
+    // 'bookings' key." Every abandoned payment therefore left its slot frozen.
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
         ApiEndpoints.releaseBooking,
-        data: {'bookings': bookings},
+        data: {
+          'bookings': [bookings.toJson()],
+        },
       );
       if (response.statusCode == 200) {
         return response.data['message'];
@@ -2222,7 +2228,7 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<void> capturePayment({
     required CapturePaymentModel capturePaymentModel,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
         ApiEndpoints.capturePayment,
@@ -2246,7 +2252,7 @@ class RemoteRepo implements RemoteRepoInterface {
     required int amountInPaisa,
     String? receiptPrefix,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     final receiptBase = (receiptPrefix ?? 'order_rcpt').trim();
     final payload = {
       'amount': amountInPaisa,
@@ -2440,7 +2446,7 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<String> makePurchasePassPayment({
     required PurchasePassModel purchasePassModel,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
         ApiEndpoints.purchasePass,

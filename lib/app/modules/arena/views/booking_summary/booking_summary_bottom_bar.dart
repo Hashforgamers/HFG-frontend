@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/utils/widgets/loader.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 
 class BookingSummaryBottomBar extends StatelessWidget {
   final double totalPrice;
@@ -21,7 +22,7 @@ class BookingSummaryBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomAppBar(
-      color: const Color(0xFF0F0F0F),
+      color: HomeTokens.ink,
       elevation: 16,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -64,9 +65,19 @@ class BookingSummaryBottomBar extends StatelessWidget {
               duration: const Duration(milliseconds: 300),
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xff00DC00),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xff00DC00)),
+                gradient: const LinearGradient(
+                  colors: [HomeTokens.greenBright, HomeTokens.green],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: HomeTokens.green.withValues(alpha: 0.32),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
               child: ElevatedButton(
                 onPressed: isProcessing ? null : onPressed,
@@ -87,10 +98,12 @@ class BookingSummaryBottomBar extends StatelessWidget {
                     : Text(
                         showSelectPass ? 'Select Pass' : (buttonLabel ?? 'Pay'),
                         style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          // White on bright green failed contrast; the rest of
+                          // the app's green CTAs use black labels.
+                          color: Colors.black,
+                          letterSpacing: 0.2,
                         ),
                       ),
               ),

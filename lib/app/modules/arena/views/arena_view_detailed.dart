@@ -27,6 +27,7 @@ import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import '../controllers/games_controller.dart';
 
 class ArenaDetailView extends StatefulWidget {
@@ -1812,7 +1813,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                 },
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 132),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1830,7 +1831,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                         preferredConsoleType: consoleType,
                       ),
                     ),
-                    const SizedBox(height: 20),
                     _buildPassesSection(),
                     const SizedBox(height: 20),
                     gameTitlesGrid(_gamesController),
@@ -3022,10 +3022,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Available Games",
-              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-            ),
+            Text('Available games', style: HomeTokens.title(18)),
             const SizedBox(height: 12),
             const SizedBox(
               height: 160,
@@ -3061,10 +3058,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Available Games",
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-          ),
+          Text('Available games', style: HomeTokens.title(18)),
           const SizedBox(height: 12),
           SizedBox(
             height: 160,
@@ -3114,12 +3108,15 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                       const SizedBox(height: 4),
                       SizedBox(
                         width: 90,
-                        height: 16,
-                        child: _MarqueeText(
-                          text: name,
+                        child: Text(
+                          name,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 12,
+                            color: HomeTokens.textSecondary,
+                            fontSize: 11,
+                            height: 1.2,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -3140,12 +3137,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Food & Beverages Offered",
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          'Food & beverages',
+          style: HomeTokens.title(18),
         ),
         const SizedBox(height: 8),
         SizedBox(
@@ -3222,15 +3215,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Facilities",
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
+        Text('Facilities', style: HomeTokens.title(18)),
+        const SizedBox(height: 14),
         SizedBox(
           height: 90,
           child: ListView.separated(
@@ -3266,18 +3252,18 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Container(
-                    width: 50,
-                    padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                  SizedBox(
+                    width: 64,
                     child: Text(
                       displayName,
                       style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.normal,
+                        color: HomeTokens.textSecondary,
+                        fontSize: 10,
+                        height: 1.2,
+                        fontWeight: FontWeight.w600,
                       ),
                       textAlign: TextAlign.center,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

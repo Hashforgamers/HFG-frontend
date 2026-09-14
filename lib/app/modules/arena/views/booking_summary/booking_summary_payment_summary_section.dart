@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 
 class BookingSummaryPaymentSummarySection extends StatelessWidget {
   final double totalPrice;
@@ -108,12 +109,8 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Payment Summary',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
+                      'Payment summary',
+                      style: HomeTokens.title(17),
                     ),
                     const SizedBox(height: 2),
                     Text(

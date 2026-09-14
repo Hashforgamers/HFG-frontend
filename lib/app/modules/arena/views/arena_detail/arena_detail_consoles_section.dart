@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:hash/utils/widgets/loader.dart';
 
 class ArenaDetailConsolesSection extends StatelessWidget {
@@ -21,16 +22,13 @@ class ArenaDetailConsolesSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Available Consoles',
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+          'Available consoles',
+          style: HomeTokens.title(18),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         SizedBox(
-          height: 78,
+          // Two-line labels need the extra height; see _consoleIcon.
+          height: 104,
           child: Obx(() {
             if (isLoading.value) {
               return const Center(child: AppLinearLoader());
@@ -128,7 +126,7 @@ class ArenaDetailConsolesSection extends StatelessWidget {
             return ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: types.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 0),
+              separatorBuilder: (_, _) => const SizedBox(width: 0),
               itemBuilder: (context, index) {
                 final name = types[index]['label'] ?? '';
                 final consoleType = types[index]['key'] ?? '';
@@ -222,15 +220,17 @@ class ArenaDetailConsolesSection extends StatelessWidget {
     final accent = _getConsoleAccentColor(label);
     final imageUrl = _getConsoleImage(label);
     return Padding(
-      padding: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.only(right: 10),
       child: InkWell(
         onTap: onConsoleTap == null ? null : () => onConsoleTap!(consoleType),
-        borderRadius: BorderRadius.circular(24),
-        child: Column(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          width: 82,
+          child: Column(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
@@ -243,28 +243,36 @@ class ArenaDetailConsolesSection extends StatelessWidget {
                 ),
                 border: Border.all(color: accent.withValues(alpha: 0.38)),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(11),
-                child: imageUrl.isEmpty
-                    ? Icon(fallbackIcon, color: accent, size: 22)
-                    : Image.network(
-                        imageUrl,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            Icon(fallbackIcon, color: accent, size: 22),
-                      ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: imageUrl.isEmpty
+                      ? Icon(fallbackIcon, color: accent, size: 24)
+                      : Image.network(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) =>
+                              Icon(fallbackIcon, color: accent, size: 24),
+                        ),
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            SizedBox(
-              width: 64,
-              height: 16,
-              child: _ConsoleMarqueeText(
-                text: label,
-                style: GoogleFonts.inter(fontSize: 11, color: Colors.white),
+              const SizedBox(height: 8),
+              // Long names such as "ARCADE CABINET" used to scroll past on a
+              // permanent marquee, which never sat still long enough to read.
+              Text(
+                label,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: HomeTokens.textSecondary,
+                  fontSize: 10.5,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -333,102 +341,5 @@ class ArenaDetailConsolesSection extends StatelessWidget {
 
   Color _getConsoleAccentColor(String consoleName) {
     return const Color(0xFF00DC00);
-  }
-}
-
-class _ConsoleMarqueeText extends StatefulWidget {
-  const _ConsoleMarqueeText({required this.text, required this.style});
-
-  final String text;
-  final TextStyle style;
-
-  @override
-  State<_ConsoleMarqueeText> createState() => _ConsoleMarqueeTextState();
-}
-
-class _ConsoleMarqueeTextState extends State<_ConsoleMarqueeText>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  double _measureTextWidth(String text, TextStyle style) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-    )..layout();
-    return painter.width;
-  }
-
-  void _startAnimation(Duration duration) {
-    if (_controller.duration != duration || !_controller.isAnimating) {
-      _controller.duration = duration;
-      _controller.repeat();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxWidth = constraints.maxWidth;
-        final textWidth = _measureTextWidth(widget.text, widget.style);
-
-        if (textWidth <= maxWidth) {
-          _controller.stop();
-          return Center(
-            child: Text(
-              widget.text,
-              style: widget.style,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-          );
-        }
-
-        const blankSpace = 18.0;
-        const velocity = 24.0;
-        final distance = textWidth + blankSpace;
-        final seconds = distance / velocity;
-        _startAnimation(Duration(milliseconds: (seconds * 1000).round()));
-
-        return ClipRect(
-          child: OverflowBox(
-            alignment: Alignment.centerLeft,
-            minWidth: maxWidth,
-            maxWidth: double.infinity,
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (_, _) {
-                final offset = -distance * _controller.value;
-                return Transform.translate(
-                  offset: Offset(offset, 0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(widget.text, style: widget.style),
-                      const SizedBox(width: blankSpace),
-                      Text(widget.text, style: widget.style),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
   }
 }

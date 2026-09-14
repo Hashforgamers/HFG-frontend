@@ -13,6 +13,7 @@ import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/deeplink_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -140,7 +141,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     title,
     body,
     details,
-    payload: (message.data['route']?.toString().isNotEmpty == true)
+    payload: (message.data['deep_link']?.toString().isNotEmpty == true)
+        ? message.data['deep_link']!.toString()
+        : (message.data['route']?.toString().isNotEmpty == true)
         ? message.data['route']!.toString()
         : ((message.data['type']?.toString() == 'new_notification')
               ? AppRoutes.NOTIFICATIONS
@@ -492,7 +495,9 @@ class NotificationController extends GetxController {
 
     final details = NotificationDetails(android: android, iOS: ios);
 
-    final payload = (message.data['route']?.toString().isNotEmpty == true)
+    final payload = (message.data['deep_link']?.toString().isNotEmpty == true)
+        ? message.data['deep_link']!.toString()
+        : (message.data['route']?.toString().isNotEmpty == true)
         ? message.data['route']!.toString()
         : (type == 'new_notification'
               ? AppRoutes.NOTIFICATIONS
@@ -577,6 +582,8 @@ class NotificationController extends GetxController {
       return;
     }
 
+    if (await _openDeepLink(payload)) return;
+
     segmentService.onPushNotificationClicked(
       campaignId: '',
       screenTarget: payload,
@@ -635,6 +642,12 @@ class NotificationController extends GetxController {
       return;
     }
 
+    final deepLink = message.data['deep_link']?.toString().trim() ?? '';
+    if (deepLink.isNotEmpty) {
+      unawaited(_openDeepLink(deepLink));
+      return;
+    }
+
     if (route is String && route.isNotEmpty) {
       segmentService.onPushNotificationClicked(
         campaignId: message.data['campaign_id'] ?? '',
@@ -646,6 +659,14 @@ class NotificationController extends GetxController {
       );
       // Get.toNamed(route);
     }
+  }
+
+  Future<bool> _openDeepLink(String raw) async {
+    final uri = Uri.tryParse(raw.trim());
+    if (uri == null || !DeepLinkService.parse(uri).isValid) return false;
+    if (!Get.isRegistered<DeepLinkService>()) return false;
+    await Get.find<DeepLinkService>().handleUri(uri);
+    return true;
   }
 
   Future<void> showChatNotification({

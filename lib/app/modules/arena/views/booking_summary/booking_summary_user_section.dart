@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 
 class BookingSummaryUserSection extends StatelessWidget {
   final String userName;
@@ -17,15 +18,9 @@ class BookingSummaryUserSection extends StatelessWidget {
       margin: const EdgeInsets.only(top: 5),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F1F1F),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: HomeTokens.surface,
+        borderRadius: BorderRadius.circular(HomeTokens.radius),
+        border: Border.all(color: HomeTokens.hairline),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -35,21 +30,13 @@ class BookingSummaryUserSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Booking User',
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF8B8B8B),
-                  fontSize: 14,
-                ),
+                'BOOKING FOR',
+                style: HomeTokens.eyebrow(HomeTokens.textTertiary),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
                 userName,
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+                style: HomeTokens.title(16),
               ),
             ],
           ),
@@ -64,9 +51,10 @@ class BookingSummaryUserSection extends StatelessWidget {
             child: Text(
               'Change',
               style: GoogleFonts.inter(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w500,
-                color: Colors.deepOrange,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+                color: HomeTokens.green,
               ),
             ),
           ),

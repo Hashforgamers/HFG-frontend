@@ -3,6 +3,7 @@ import 'package:hash/utils/widgets/loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 
 class ArenaDetailReviewsSection extends StatefulWidget {
   const ArenaDetailReviewsSection({
@@ -89,11 +90,7 @@ class _ArenaDetailReviewsSectionState extends State<ArenaDetailReviewsSection> {
               children: [
                 Text(
                   'Reviews',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: HomeTokens.title(18),
                 ),
                 const Spacer(),
                 if (snapshot.connectionState == ConnectionState.waiting)

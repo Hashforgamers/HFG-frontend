@@ -121,11 +121,34 @@ class _BookingScreenState extends State<BookingScreen> {
     return indices;
   }
 
+  /// Console slug sent to pricing.
+  ///
+  /// This used to collapse everything that was not PlayStation or Xbox down to
+  /// 'pc', so arcade cabinets, Switch, VR, racing rigs and rooms were all
+  /// priced as a PC while the booking POST sent the real slug in
+  /// `console_type`. Pricing and booking now agree on one vocabulary.
   String get _normalizedConsoleType {
-    final type = widget.consoleType.toLowerCase().trim();
-    if (type.contains('playstation') || type.contains('ps')) return 'ps';
+    final type = widget.consoleType
+        .toLowerCase()
+        .trim()
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+    if (type.isEmpty) return 'pc';
+    if (type.contains('playstation') || type.startsWith('ps')) return 'ps';
     if (type.contains('xbox')) return 'xbox';
-    return 'pc';
+    if (type.contains('nintendo') || type.contains('switch')) {
+      return 'nintendo_switch';
+    }
+    if (type.contains('arcade')) return 'arcade_cabinet';
+    if (type.contains('vr') || type.contains('virtual')) return 'vr_headset';
+    if (type.contains('steam') || type.contains('deck')) return 'steam_deck';
+    if (type.contains('racing') || type.contains('rig')) return 'racing_rig';
+    if (type.contains('simulator')) return 'simulator';
+    if (type.contains('vip')) return 'vip_room';
+    if (type.contains('bootcamp')) return 'bootcamp_room';
+    if (type.contains('private')) return 'private_room';
+    if (type.contains('pc') || type.contains('computer')) return 'pc';
+    return type;
   }
 
   Map<String, dynamic>? get _pricingEngine {
