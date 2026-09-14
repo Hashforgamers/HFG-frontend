@@ -76,7 +76,7 @@ void main() async {
   Get.put(GamesController(), permanent: true);
   Get.put(NotificationController());
   Get.put(AppNotificationsController(), permanent: true);
-  Get.put(DeepLinkController());
+  Get.put(DeepLinkService());
   // Register WalletController after UserController to ensure dependency is available
   Get.put(WalletController());
   Get.put(ShopController(), permanent: true);
@@ -109,6 +109,7 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.dark,
           initialRoute: AppRoutes.SPLASH,
           getPages: AppPages.pages,
+          unknownRoute: AppPages.unknownRoute,
           navigatorObservers: [locator<AnalyticsService>().observer],
         ),
       ),

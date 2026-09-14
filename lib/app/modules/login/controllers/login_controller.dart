@@ -19,19 +19,27 @@ import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/notification_service.dart';
+import 'package:hash/core/service/deeplink_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 
 import '../../../data/models/user_model.dart';
-import '../../../data/services/user_controller.dart' as userModel;
+import '../../../data/services/user_controller.dart' as user_model;
 import '../../../routes/app_routes.dart';
 import 'package:hash/core/utils/app_logger.dart';
 
 class LoginController extends GetxController {
+  static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  static Future<void>? _googleInitialization;
+  static const _googleProfileScopes = <String>[
+    'https://www.googleapis.com/auth/user.birthday.read',
+    'https://www.googleapis.com/auth/user.gender.read',
+    'https://www.googleapis.com/auth/user.addresses.read',
+  ];
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
-  final userModel.UserController userController = Get.put(
-    userModel.UserController(),
+  final user_model.UserController userController = Get.put(
+    user_model.UserController(),
   );
   final remoteRepo = locator<RemoteRepoInterface>();
   final deviceIdentifierService = locator<DeviceIdentifierService>();
@@ -247,29 +255,48 @@ class LoginController extends GetxController {
   Future<void> googleSignIn() async {
     isLoading.value = true;
     try {
+      await (_googleInitialization ??= _googleSignIn.initialize());
+      if (!_googleSignIn.supportsAuthenticate()) {
+        _showErrorSnackbar(
+          'Google Sign-In unavailable',
+          'Google Sign-In is not supported on this device.',
+        );
+        return;
+      }
+
       final advertisingId = await deviceIdentifierService
           .getPreferredAdvertisingId();
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        scopes: const <String>[
-          'email',
-          'profile',
-          'https://www.googleapis.com/auth/user.birthday.read',
-          'https://www.googleapis.com/auth/user.gender.read',
-          'https://www.googleapis.com/auth/user.addresses.read',
-        ],
-      );
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return; // cancelled
+      final googleUser = await _googleSignIn.authenticate();
+      final googleAuth = googleUser.authentication;
+      final idToken = (googleAuth.idToken ?? '').trim();
+      if (idToken.isEmpty) {
+        throw const GoogleSignInException(
+          code: GoogleSignInExceptionCode.providerConfigurationError,
+          description: 'Google did not return an identity token.',
+        );
+      }
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      // `authorizationForScopes` only returns tokens that can be issued with no
+      // user interaction, so on a first sign-in it is always null and the
+      // People lookup below silently yields nothing. Ask for the scopes, and
+      // treat a refusal as "continue without the extra profile fields".
+      String? profileAccessToken;
+      try {
+        profileAccessToken = (await googleUser.authorizationClient
+                .authorizationForScopes(_googleProfileScopes) ??
+            await googleUser.authorizationClient.authorizeScopes(
+              _googleProfileScopes,
+            ))
+            .accessToken;
+      } catch (error) {
+        AppLogger.d('Google profile scopes not granted: $error');
+      }
       final googleProfile = await _fetchGooglePeopleProfile(
-        accessToken: googleAuth.accessToken,
+        accessToken: profileAccessToken,
       );
 
       final credential = firebase_auth.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+        idToken: idToken,
       );
 
       final cred = await _auth.signInWithCredential(credential);
@@ -309,10 +336,78 @@ class LoginController extends GetxController {
         autoSignupIfMissing: true,
         googleProfile: googleProfile,
       );
-    } catch (e) {
-      _showErrorSnackbar('Google Sign-In failed', e.toString());
+    } on GoogleSignInException catch (error, stackTrace) {
+      AppLogger.d(
+        'Google Sign-In failed | code=${error.code.name} | description=${error.description}',
+      );
+      AppLogger.d('$stackTrace');
+      final message = _googleSignInErrorMessage(error);
+      if (message != null) {
+        _showErrorSnackbar('Google Sign-In', message);
+      }
+    } on firebase_auth.FirebaseAuthException catch (error, stackTrace) {
+      AppLogger.d(
+        'Firebase Google authentication failed | code=${error.code} | message=${error.message}',
+      );
+      AppLogger.d('$stackTrace');
+      _showErrorSnackbar(
+        'Google Sign-In',
+        _firebaseGoogleSignInErrorMessage(error),
+      );
+    } catch (error, stackTrace) {
+      AppLogger.d('Unexpected Google Sign-In failure: $error');
+      AppLogger.d('$stackTrace');
+      _showErrorSnackbar(
+        'Google Sign-In',
+        'We could not sign you in. Please try again.',
+      );
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  String? _googleSignInErrorMessage(GoogleSignInException error) {
+    switch (error.code) {
+      case GoogleSignInExceptionCode.canceled:
+        return null;
+      case GoogleSignInExceptionCode.interrupted:
+        return 'Sign-in was interrupted. Please try again.';
+      case GoogleSignInExceptionCode.clientConfigurationError:
+      case GoogleSignInExceptionCode.providerConfigurationError:
+        return 'Google Sign-In is not configured correctly for this app. Please update the app or contact support.';
+      case GoogleSignInExceptionCode.uiUnavailable:
+        return 'Google Sign-In could not open. Return to the app and try again.';
+      case GoogleSignInExceptionCode.userMismatch:
+        return 'The selected Google account does not match the active account. Sign out and try again.';
+      case GoogleSignInExceptionCode.unknownError:
+        final description = (error.description ?? '').toLowerCase();
+        if (description.contains('network') ||
+            description.contains('timeout')) {
+          return 'Check your internet connection and try again.';
+        }
+        return 'Google could not complete sign-in. Please try again.';
+    }
+  }
+
+  String _firebaseGoogleSignInErrorMessage(
+    firebase_auth.FirebaseAuthException error,
+  ) {
+    switch (error.code) {
+      case 'network-request-failed':
+        return 'Check your internet connection and try again.';
+      case 'account-exists-with-different-credential':
+        return 'An account already exists with this email using another sign-in method.';
+      case 'user-disabled':
+        return 'This account has been disabled. Please contact support.';
+      case 'invalid-credential':
+      case 'invalid-id-token':
+        return 'Google could not verify this account. Please select the account again.';
+      case 'operation-not-allowed':
+        return 'Google Sign-In is temporarily unavailable. Please contact support.';
+      case 'too-many-requests':
+        return 'Too many sign-in attempts. Please wait a moment and try again.';
+      default:
+        return 'We could not sign you in with Google. Please try again.';
     }
   }
 
@@ -526,7 +621,9 @@ class LoginController extends GetxController {
       if (userData != null) {
         debugPrint('[iOS Signup][Nav] Existing backend user found, going home');
         await _finalizeExistingUserLogin(userData);
-        Get.offAllNamed(AppRoutes.HOME);
+        if (!await DeepLinkService.resumePendingAfterAuth()) {
+          Get.offAllNamed(AppRoutes.HOME);
+        }
         return;
       }
 
@@ -545,7 +642,9 @@ class LoginController extends GetxController {
           '[iOS Signup][Nav] Auto-signup produced backend user, going home | backendUserId=${createdUserData['id']}',
         );
         await _finalizeExistingUserLogin(createdUserData);
-        Get.offAllNamed(AppRoutes.HOME);
+        if (!await DeepLinkService.resumePendingAfterAuth()) {
+          Get.offAllNamed(AppRoutes.HOME);
+        }
         return;
       }
 

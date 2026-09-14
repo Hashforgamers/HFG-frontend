@@ -1,7 +1,4 @@
-import 'dart:ui';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -22,9 +19,7 @@ import 'package:hash/app/modules/tournaments_section/models/tournament_model.dar
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
-import 'package:hash/app/modules/profile/user_profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
-import 'package:hash/app/modules/rewards/reward_section_view.dart';
 import 'package:hash/app/modules/rewards/widgets/squad_missions_card.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
@@ -32,7 +27,6 @@ import 'package:hash/app/modules/social/friends_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:hash/features/mini_games/mini_game_section.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -43,8 +37,10 @@ import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/utils/encrypt_util.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/hash_wordmark.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 
 import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -70,7 +66,7 @@ class _HomeContentViewState extends State<HomeContentView>
   // Scroll controller for optimization
   late final ScrollController _scrollController;
   static const double _sectionGap = 24.0;
-  static const double _horizontalSectionPadding = 8.0;
+  static const double _maxContentWidth = 720.0;
 
   final remoteRepo = locator<RemoteRepoInterface>();
 
@@ -103,12 +99,12 @@ class _HomeContentViewState extends State<HomeContentView>
   // State variables
   bool isInitialized = false;
   bool _isRefreshing = false;
+  String? _refreshErrorMessage;
   bool showReferModal = false;
   bool _fcmRegistered = false;
   bool _welcomeClaimGateHandled = false;
 
   // Cached widgets for better performance
-  Widget? _cachedAppBar;
   Widget? _cachedGamePassContainer;
   Widget? _cachedGameOnIndiaBanner;
   late final Widget _cachedCafeSection;
@@ -294,7 +290,10 @@ class _HomeContentViewState extends State<HomeContentView>
     if (_isRefreshing) return;
 
     if (!mounted) return;
-    setState(() => _isRefreshing = true);
+    setState(() {
+      _isRefreshing = true;
+      _refreshErrorMessage = null;
+    });
     final fcmCubit = BlocProvider.of<FcmCubit>(context);
     final hashCoinCubit = BlocProvider.of<HashCoinCubit>(context);
 
@@ -326,6 +325,12 @@ class _HomeContentViewState extends State<HomeContentView>
       }
     } catch (e) {
       AppLogger.e('Error refreshing data: $e');
+      if (mounted) {
+        setState(() {
+          _refreshErrorMessage =
+              'We couldn\'t refresh your home feed. Check your connection and try again.';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() => _isRefreshing = false);
@@ -407,14 +412,7 @@ class _HomeContentViewState extends State<HomeContentView>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'REFER TO A FRIEND',
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        const HomeSectionTitle(title: 'Refer to a ', accent: 'Friend'),
         const SizedBox(height: 12),
         ReferFriendModal(
           isDialog: false,
@@ -452,45 +450,136 @@ class _HomeContentViewState extends State<HomeContentView>
     super.build(context);
 
     return Scaffold(
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: () {
-      //     Get.to(HashStoreHomePage());
-      //   },
-      //   child: Icon(Icons.shopping_cart),
-      // ),
+      backgroundColor: Colors.black,
       body: RefreshIndicator(
         onRefresh: () => _refreshData(forceRefresh: true),
         backgroundColor: Colors.black,
+        color: const Color(0xFF00DC00),
         child: CustomScrollView(
           controller: _scrollController,
           physics: const BouncingScrollPhysics(),
           slivers: [
             const OptimizedAppBar(),
             SliverToBoxAdapter(
-              child: FadeTransition(
-                opacity: _fadeController,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.1),
-                    end: Offset.zero,
-                  ).animate(_slideController),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: _horizontalSectionPadding,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: _sectionGap), // top padding
-                        ..._intersperse(
-                          _buildVisibleSections(),
-                          const SizedBox(height: _sectionGap),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final horizontalPadding = constraints.maxWidth >= 600
+                      ? 24.0
+                      : 16.0;
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: _maxContentWidth,
+                      ),
+                      child: FadeTransition(
+                        opacity: _fadeController,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.035),
+                            end: Offset.zero,
+                          ).animate(_slideController),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: horizontalPadding,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 18),
+                                if (_refreshErrorMessage != null) ...[
+                                  _buildRefreshErrorState(),
+                                  const SizedBox(height: 18),
+                                ] else if (!isInitialized && _isRefreshing) ...[
+                                  _buildInitialLoadingState(),
+                                  const SizedBox(height: 18),
+                                ],
+                                ..._intersperse(
+                                  _buildVisibleSections(),
+                                  const SizedBox(height: _sectionGap),
+                                ),
+                                const SizedBox(height: 104),
+                              ],
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: _sectionGap), // bottom padding
-                      ],
+                      ),
                     ),
-                  ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRefreshErrorState() {
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A1717),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0x66FF6B6B)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.wifi_off_rounded, color: Color(0xFFFF8C8C)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _refreshErrorMessage!,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 12.5,
+                  height: 1.35,
                 ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: _isRefreshing
+                  ? null
+                  : () => _refreshData(forceRefresh: true),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInitialLoadingState() {
+    return Semantics(
+      label: 'Loading your home feed',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.055),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFF00DC00),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Getting your next game ready…',
+              style: GoogleFonts.inter(
+                color: Colors.white70,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -537,14 +626,7 @@ class _HomeContentViewState extends State<HomeContentView>
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
             children: [
-              Text(
-                'Upcoming Tournaments',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+              const HomeSectionTitle(title: 'Upcoming ', accent: 'Tournaments'),
               const Spacer(),
               TextButton(
                 onPressed: () => Get.find<HomeController>().onItemTapped(2),
@@ -560,7 +642,7 @@ class _HomeContentViewState extends State<HomeContentView>
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4),
             itemCount: tournaments.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 9),
+            separatorBuilder: (_, _) => const SizedBox(width: 9),
             itemBuilder: (_, index) =>
                 _buildUpcomingTournamentCard(tournaments[index]),
           ),
@@ -703,145 +785,75 @@ class _HomeContentViewState extends State<HomeContentView>
               .toString();
       final gameName = (gamingMap['game_name'] ?? 'Your setup').toString();
 
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF101C14), Color(0xFF101115), Color(0xFF17121F)],
-          ),
-          border: Border.all(color: const Color(0x3D00DC00)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x2600DC00),
-              blurRadius: 26,
-              offset: Offset(0, 12),
-            ),
-          ],
-        ),
+      final locked = nextBooking != null;
+
+      return HomeCard(
+        accent: HomeTokens.green,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0x2200DC00),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: const Color(0x4400DC00)),
-                  ),
-                  child: Text(
-                    'YOUR LOBBY',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF6DFF78),
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: .8,
-                    ),
-                  ),
-                ),
+                const HomeEyebrow('Your lobby'),
                 const Spacer(),
                 Text(
-                  nextBooking == null ? 'QUEUE: OPEN' : 'SESSION LOCKED',
-                  style: GoogleFonts.inter(
-                    color: nextBooking == null
-                        ? Colors.white54
-                        : const Color(0xFF00DC00),
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: .5,
+                  locked ? 'SESSION LOCKED' : 'QUEUE: OPEN',
+                  style: HomeTokens.eyebrow(
+                    locked ? HomeTokens.green : HomeTokens.textTertiary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 10),
             Text(
-              nextBooking == null ? 'Ready to lock in?' : cafeName,
+              locked ? cafeName : 'Ready to lock in?',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 21,
-                fontWeight: FontWeight.w900,
-              ),
+              style: HomeTokens.title(20),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 3),
             Text(
-              nextBooking == null
-                  ? 'Find your setup, squad up, or jump into ranked.'
-                  : '$gameName is queued. Pull up with the squad.',
-              maxLines: 2,
+              locked
+                  ? '$gameName is queued. Pull up with the squad.'
+                  : 'Find your setup, squad up, or jump into ranked.',
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                color: Colors.white60,
-                fontSize: 12,
-                height: 1.35,
-              ),
+              style: HomeTokens.body(HomeTokens.textSecondary, size: 12),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 42,
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => Get.find<HomeController>().onItemTapped(
-                  nextBooking == null ? 1 : 2,
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00DC00),
-                  foregroundColor: Colors.black,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: Icon(
-                  nextBooking == null
-                      ? Icons.radar_rounded
-                      : Icons.sports_esports_rounded,
-                  size: 19,
-                ),
-                label: Text(
-                  nextBooking == null ? 'FIND A SETUP' : 'OPEN SESSION',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: .4,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 13),
+            const SizedBox(height: 14),
+            // CTA and the three shortcuts share one row: stacking them cost
+            // roughly twice the height for the same set of actions.
             Row(
               children: [
                 Expanded(
-                  child: _lobbyQuickAction(
-                    icon: Icons.group_add_rounded,
-                    label: 'SQUAD UP',
-                    onTap: () => Get.to(() => const FriendsView(initialTab: 2)),
+                  child: HomeCta(
+                    height: 48,
+                    label: locked ? 'Open session' : 'Find a setup',
+                    icon: locked
+                        ? Icons.sports_esports_rounded
+                        : Icons.radar_rounded,
+                    onTap: () =>
+                        Get.find<HomeController>().onItemTapped(locked ? 2 : 1),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: _lobbyQuickAction(
-                    icon: Icons.emoji_events_rounded,
-                    label: 'RANKED',
-                    onTap: () => Get.find<HomeController>().onItemTapped(2),
-                  ),
+                HomeIconAction(
+                  icon: Icons.group_add_rounded,
+                  label: 'Squad up',
+                  onTap: () => Get.to(() => const FriendsView(initialTab: 2)),
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: _lobbyQuickAction(
-                    icon: Icons.history_rounded,
-                    label: 'SESSIONS',
-                    onTap: () => Get.find<HomeController>().onItemTapped(3),
-                  ),
+                HomeIconAction(
+                  icon: Icons.emoji_events_rounded,
+                  label: 'Ranked',
+                  onTap: () => Get.find<HomeController>().onItemTapped(2),
+                ),
+                const SizedBox(width: 8),
+                HomeIconAction(
+                  icon: Icons.history_rounded,
+                  label: 'Sessions',
+                  onTap: () => Get.find<HomeController>().onItemTapped(3),
                 ),
               ],
             ),
@@ -849,165 +861,6 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       );
     });
-  }
-
-  Widget _lobbyQuickAction({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.white.withValues(alpha: .055),
-      borderRadius: BorderRadius.circular(11),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(11),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
-          child: Column(
-            children: [
-              Icon(icon, color: Colors.white, size: 18),
-              const SizedBox(height: 5),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  color: Colors.white70,
-                  fontSize: 8.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: .25,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOptimizedAppBar() {
-    if (_cachedAppBar != null) return _cachedAppBar!;
-
-    _cachedAppBar = SliverAppBar(
-      backgroundColor: Colors.transparent,
-      systemOverlayStyle: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-      ),
-      elevation: 0,
-      pinned: false,
-      expandedHeight: 60,
-      flexibleSpace: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFFFFFFFF).withOpacity(0.1),
-                  const Color(0xff00DC00).withOpacity(0.2),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(25),
-            ),
-          ),
-        ),
-      ),
-      leadingWidth: 55,
-      centerTitle: false,
-      leading: Obx(
-        () => Padding(
-          padding: const EdgeInsets.only(left: 10, top: 5),
-          child: userController.isLoading.value
-              ? _buildShimmerAvatar()
-              : GestureDetector(
-                  onTap: () {
-                    Get.to(UserProfileView());
-                  },
-                  child: _buildOptimizedUserAvatar(
-                    userController.user.value.photoUrl,
-                  ),
-                ),
-        ),
-      ),
-      title: Obx(
-        () => Padding(
-          padding: const EdgeInsets.only(top: 15.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Hey, ${userController.user.value.gameUserName}!',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${userController.user.value.contact?.physicalAddress?.addressLine1}',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFB6B6B6),
-                  fontSize: 11.5,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 10),
-          child: BlocBuilder<HashCoinCubit, HashCoinState>(
-            builder: (_, state) => RewardsSection(
-              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
-            ),
-          ),
-        ),
-      ],
-    );
-
-    return _cachedAppBar!;
-  }
-
-  Widget _buildOptimizedUserAvatar(String? photoUrl) {
-    const double size = 40;
-    final effectivePhoto = (photoUrl ?? '').trim().isNotEmpty
-        ? photoUrl!.trim()
-        : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
-              .trim();
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xff00DC00), width: 2),
-      ),
-      child: CircleAvatar(
-        radius: size / 2,
-        backgroundImage: effectivePhoto.isNotEmpty
-            ? CachedNetworkImageProvider(
-                effectivePhoto,
-                errorListener: (error) =>
-                    AppLogger.d('Avatar image error: $error'),
-              )
-            : null,
-        backgroundColor: Colors.white,
-        child: effectivePhoto.isEmpty
-            ? const Icon(Icons.person_rounded, color: Colors.black54)
-            : null,
-      ),
-    );
   }
 
   Widget _buildGamePassContainer() {
@@ -1164,36 +1017,12 @@ class _HomeContentViewState extends State<HomeContentView>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: EdgeInsets.zero,
-          child: Row(
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Text(
-                      'Earn with ',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const HashWordmark(fontSize: 15, letterSpacing: 2.5),
-                  ],
-                ),
-              ),
-              Text(
-                'HOST PROGRAM',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFA99AFF),
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ],
-          ),
+        HomeSectionTitle(
+          title: 'Earn with ',
+          accent: 'HASH',
+          actionLabel: 'Host program',
+          accentColor: const Color(0xFFA99AFF),
+          onAction: () => Get.toNamed(AppRoutes.HOST_ONBOARDING),
         ),
         const SizedBox(height: 12),
         BounceTap(
@@ -1219,7 +1048,7 @@ class _HomeContentViewState extends State<HomeContentView>
                 child: Image.asset(
                   'assets/community_host_banner.png',
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _hostBannerFallback(),
+                  errorBuilder: (_, _, _) => _hostBannerFallback(),
                 ),
               ),
             ),
@@ -1285,14 +1114,6 @@ class _HomeContentViewState extends State<HomeContentView>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildShimmerAvatar() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade800,
-      highlightColor: Colors.grey.shade600,
-      child: const CircleAvatar(radius: 13, backgroundColor: Colors.grey),
     );
   }
 }

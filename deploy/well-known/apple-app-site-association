@@ -1,0 +1,25 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["B5GC6C37H8.com.hashforgamers.app"],
+        "components": [
+          { "/": "/tournament/*" },
+          { "/": "/tournaments/*" },
+          { "/": "/contest/*" },
+          { "/": "/team/join", "?": { "event_id": "?*", "team_id": "?*" } },
+          { "/": "/cafe/*" },
+          { "/": "/game/*" },
+          { "/": "/profile/*" },
+          { "/": "/host/*" },
+          { "/": "/referral/*" },
+          { "/": "/bookings/*" },
+          { "/": "/wallet" },
+          { "/": "/rewards" },
+          { "/": "/passes" },
+          { "/": "/offer" }
+        ]
+      }
+    ]
+  }
+}

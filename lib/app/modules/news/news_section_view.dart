@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -155,28 +156,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: 'Gamer ',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-                TextSpan(
-                  text: 'Firewire',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFF00DC00),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const HomeSectionTitle(title: 'Gamer ', accent: 'Firewire'),
           const SizedBox(height: 12),
           Center(
             child: GestureDetector(

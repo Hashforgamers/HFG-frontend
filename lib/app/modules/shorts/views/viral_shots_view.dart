@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 import 'package:shimmer/shimmer.dart';
 import '../controllers/viral_shorts_controller.dart';
 import 'short_video_player.dart';
@@ -21,28 +22,7 @@ class ViralShotsSection extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: 'Trending ',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                TextSpan(
-                  text: 'Shorts',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF00DC00),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const HomeSectionTitle(title: 'Trending ', accent: 'Shorts'),
           const SizedBox(height: 12),
           Obx(() {
             if (controller.isLoading.value) return _shimmerRow();

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/repositories/remote/remote_repo_interface.dart';
+import '../../../../core/service/deeplink_service.dart';
 import '../../../../core/service/device_identifier_service.dart';
 import '../../../../core/service/fb_events_service.dart';
 import '../../../../core/service/notification_service.dart';
@@ -132,7 +133,9 @@ class VerifyOtpController extends GetxController {
 
         // Option B (alternate): await userController.fetchUserData(user.uid);
 
-        Get.offAllNamed(AppRoutes.HOME);
+        if (!await DeepLinkService.resumePendingAfterAuth()) {
+          Get.offAllNamed(AppRoutes.HOME);
+        }
       } else {
         Get.offAllNamed(
           AppRoutes.SIGNUP,
@@ -199,7 +202,9 @@ class VerifyOtpController extends GetxController {
                         .toString()
                         .trim();
                 unawaited(_syncPushRegistration());
-                Get.offAllNamed(AppRoutes.HOME);
+                if (!await DeepLinkService.resumePendingAfterAuth()) {
+                  Get.offAllNamed(AppRoutes.HOME);
+                }
               } else {
                 Get.offAllNamed(
                   AppRoutes.SIGNUP,

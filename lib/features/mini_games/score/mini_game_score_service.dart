@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,14 +13,12 @@ import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_service.dart';
-import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hash/app/modules/hash_coin/widgets/hash_coin_icon.dart';
 
 class MiniGameScoreService {
   static const _prefsKey = 'mini_game_scores';
   static const _rankRewardClaimsKey = 'mini_game_rank_reward_claims';
-  static const _hashCoinIconUrl =
-      'https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_loog_kze6kr.png';
   static const _topRankRewardClaimLimit = 3;
   static final MiniGameScoreService _instance =
       MiniGameScoreService._internal();
@@ -318,35 +315,18 @@ class MiniGameScoreService {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 76,
-                    height: 76,
-                    padding: const EdgeInsets.all(14),
+                  DecoratedBox(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFFFFD76A).withValues(alpha: 0.24),
-                          const Color(0xFFFF9C28).withValues(alpha: 0.12),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      border: Border.all(
-                        color: const Color(0xFFFFC857).withValues(alpha: 0.2),
-                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFFC857).withValues(alpha: 0.26),
+                          blurRadius: 24,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
-                    child: CachedNetworkImage(
-                      imageUrl: _hashCoinIconUrl,
-                      fit: BoxFit.contain,
-                      placeholder: (context, url) =>
-                          const Center(child: RainbowGlowingLoader(size: 16)),
-                      errorWidget: (context, url, error) => const Icon(
-                        Icons.workspace_premium_rounded,
-                        color: Color(0xFFFFC857),
-                        size: 32,
-                      ),
-                    ),
+                    child: const HashCoinIcon(size: 76),
                   ),
                   const SizedBox(height: 16),
                   Container(
@@ -397,19 +377,7 @@ class MiniGameScoreService {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CachedNetworkImage(
-                          imageUrl: _hashCoinIconUrl,
-                          width: 20,
-                          height: 20,
-                          placeholder: (context, url) => const Center(
-                            child: RainbowGlowingLoader(size: 8),
-                          ),
-                          errorWidget: (context, url, error) => const Icon(
-                            Icons.workspace_premium_rounded,
-                            color: Color(0xFFFFC857),
-                            size: 18,
-                          ),
-                        ),
+                        const HashCoinIcon(size: 20),
                         const SizedBox(width: 8),
                         Text(
                           'You received $amount HashCoins',

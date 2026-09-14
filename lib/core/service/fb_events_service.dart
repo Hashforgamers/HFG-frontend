@@ -226,6 +226,15 @@ class FbEventsService {
     await _logBoth(eventName, parameters);
   }
 
+  Future<void> logMetaOnly(
+    String eventName,
+    Map<String, dynamic> parameters,
+  ) async {
+    final payload = _toFirebaseParams(parameters);
+    await (fbAppEvents.logEvent(name: eventName, parameters: payload)
+        as Future<void>);
+  }
+
   /// iOS only: sync ATT status to Facebook SDK.
   /// When ATT is authorized, advertiser tracking + ID collection are enabled.
   Future<void> configureAdvertiserTrackingForIos({

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -27,8 +26,8 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/app/modules/hash_coin/widgets/daily_login_reward_dialog.dart';
 import 'package:hash/core/utils/haptics.dart';
-import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../controllers/home_controller.dart';
 
@@ -40,8 +39,6 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-  static const String _hashCoinIconUrl =
-      'https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_loog_kze6kr.png';
   final HomeController controller = Get.find();
   final BookingController bookingController = Get.find<BookingController>();
   final ShopController shopController = Get.find<ShopController>();
@@ -162,203 +159,42 @@ class _HomeViewState extends State<HomeView> {
         payload: {'amount': reward, 'source': 'daily_login_reward'},
       );
 
-      await _showDailyLoginRewardPopup(amount: reward);
+      await _showDailyLoginRewardPopup(
+        amount: reward,
+        streak: _dailyLoginStreak(prefs, rewardUserKey, now),
+      );
     } catch (_) {
       // keep home flow silent if reward call fails
     }
   }
 
-  Future<void> _showDailyLoginRewardPopup({required int amount}) async {
-    await Get.dialog<void>(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0E1016).withValues(alpha: 0.96),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: const Color(0xFF37EBF3).withValues(alpha: 0.22),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.32),
-                    blurRadius: 24,
-                    offset: const Offset(0, 14),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 76,
-                    height: 76,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF37EBF3).withValues(alpha: 0.2),
-                          const Color(0xFFF4C342).withValues(alpha: 0.14),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      border: Border.all(
-                        color: const Color(0xFFF4C342).withValues(alpha: 0.22),
-                      ),
-                    ),
-                    child: CachedNetworkImage(
-                      imageUrl: _hashCoinIconUrl,
-                      fit: BoxFit.contain,
-                      placeholder: (_, _) =>
-                          const Center(child: RainbowGlowingLoader(size: 16)),
-                      errorWidget: (_, _, _) => const Icon(
-                        Icons.workspace_premium_rounded,
-                        color: Color(0xFFF4C342),
-                        size: 32,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                    child: Text(
-                      'Daily Login Reward',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF9EF9FF),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Welcome back',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF37EBF3).withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: const Color(0xFF37EBF3).withValues(alpha: 0.16),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CachedNetworkImage(
-                          imageUrl: _hashCoinIconUrl,
-                          width: 20,
-                          height: 20,
-                          placeholder: (_, _) => const Center(
-                            child: RainbowGlowingLoader(size: 8),
-                          ),
-                          errorWidget: (_, _, _) => const Icon(
-                            Icons.workspace_premium_rounded,
-                            color: Color(0xFFF4C342),
-                            size: 18,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'You received $amount HashCoins',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFFFE08A),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Daily logins reward you with a random 5 to 20 HashCoins.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final overlayContext = Get.overlayContext;
-                        if (overlayContext != null) {
-                          final navigator = Navigator.of(
-                            overlayContext,
-                            rootNavigator: true,
-                          );
-                          if (navigator.canPop()) {
-                            navigator.pop();
-                            return;
-                          }
-                        }
+  /// Counts back from today over the per-day claim flags this flow already
+  /// writes, so the streak needs no extra storage and no backend call.
+  int _dailyLoginStreak(
+    SharedPreferences prefs,
+    String rewardUserKey,
+    DateTime today,
+  ) {
+    var streak = 0;
+    for (var back = 0; back < 365; back++) {
+      final day = today.subtract(Duration(days: back));
+      final key =
+          'daily_login_hash_reward_${rewardUserKey}_'
+          '${day.year.toString().padLeft(4, '0')}-'
+          '${day.month.toString().padLeft(2, '0')}-'
+          '${day.day.toString().padLeft(2, '0')}';
+      if (!(prefs.getBool(key) ?? false)) break;
+      streak++;
+    }
+    return streak;
+  }
 
-                        if (!mounted) return;
-                        final navigator = Navigator.of(
-                          context,
-                          rootNavigator: true,
-                        );
-                        if (navigator.canPop()) {
-                          navigator.pop();
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF4C342),
-                        foregroundColor: Colors.black,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Claim',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+  Future<void> _showDailyLoginRewardPopup({
+    required int amount,
+    required int streak,
+  }) async {
+    await Get.dialog<void>(
+      DailyLoginRewardDialog(amount: amount, streak: streak),
     );
   }
 
@@ -699,8 +535,14 @@ class _HomeViewState extends State<HomeView> {
             BottomNavigationBar(
               type: BottomNavigationBarType.fixed,
               enableFeedback: true,
-              showSelectedLabels: false,
+              showSelectedLabels: true,
               showUnselectedLabels: false,
+              selectedFontSize: 10.5,
+              unselectedFontSize: 10,
+              selectedLabelStyle: GoogleFonts.inter(
+                fontWeight: FontWeight.w700,
+                height: 1.4,
+              ),
               currentIndex: controller.selectedIndex.value,
               onTap: _onMainNavigationTap,
               backgroundColor: Colors.black,

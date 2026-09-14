@@ -10,6 +10,7 @@ import 'package:hash/core/service/firebase_in_app_messaging_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/funnel_notification_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/deeplink_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/update_service.dart'; // ← NEW
 import '../../../routes/app_routes.dart';
@@ -184,5 +185,8 @@ class SplashController extends GetxController {
     _fallbackTimer?.cancel();
     AppLogger.d('Splash navigating to $route');
     Get.offAllNamed(route);
+    // Release any deep link that has been waiting for startup routing to
+    // settle, so it lands on top of this route instead of being cleared by it.
+    DeepLinkService.markAppReady();
   }
 }

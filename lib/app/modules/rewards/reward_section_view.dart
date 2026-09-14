@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/global_bottom_sheet_service.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/app/modules/hash_coin/widgets/hash_coin_icon.dart';
 import '../wallet/controllers/wallet_controller.dart';
 import '../wallet/views/wallet_view.dart';
 
@@ -21,7 +22,10 @@ class RewardsSection extends StatelessWidget {
       children: [
         GestureDetector(
           onTap: () => _onRedeemPressed(context),
-          child: _buildPill(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_loog_kze6kr.png", amount: "$hashCoin"),
+          child: _buildPill(
+            icon: const HashCoinIcon(size: 18),
+            amount: "$hashCoin",
+          ),
         ),
         GestureDetector(
           onTap: () => Get.to(WalletPage()),
@@ -31,7 +35,16 @@ class RewardsSection extends StatelessWidget {
             return Stack(
               children: [
                 _buildPill(
-                  icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_coin_logo_hy62ou.png",
+                  icon: CachedNetworkImage(
+                    imageUrl:
+                        "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_coin_logo_hy62ou.png",
+                    height: 18,
+                    width: 18,
+                    placeholder: (_, _) =>
+                        const Center(child: RainbowGlowingLoader(size: 10)),
+                    errorWidget: (_, _, _) =>
+                        const Icon(Icons.error, color: Colors.red),
+                  ),
                   amount: isLoading ? "..." : "₹$walletBalance",
                 ),
                 Positioned(
@@ -66,7 +79,7 @@ class RewardsSection extends StatelessWidget {
     );
   }
 
-  Widget _buildPill({required String icon, required String amount}) {
+  Widget _buildPill({required Widget icon, required String amount}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(25),
       child: BackdropFilter(
@@ -89,15 +102,7 @@ class RewardsSection extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CachedNetworkImage(
-                imageUrl: icon,
-                height: 18,
-                width: 18,
-                placeholder: (_, _) =>
-                    const Center(child: RainbowGlowingLoader(size: 10)),
-                errorWidget: (_, _, _) =>
-                    const Icon(Icons.error, color: Colors.red),
-              ),
+              icon,
               const SizedBox(width: 8),
               Text(
                 amount,

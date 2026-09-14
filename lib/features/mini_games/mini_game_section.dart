@@ -13,6 +13,7 @@ import 'package:hash/features/mini_games/html_games/services/html_mini_game_cata
 import 'package:hash/features/mini_games/html_games/views/html_game_player_screen.dart';
 import 'package:hash/features/mini_games/html_games/widgets/html_mini_game_card.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 import 'flappy_birds/Layouts/Pages/page_start_screen.dart';
 import 'mini_game_card.dart';
 import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
@@ -114,28 +115,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(
             children: [
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'Mini ',
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    TextSpan(
-                      text: 'Games',
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFF00DC00),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              const HomeSectionTitle(title: 'Mini ', accent: 'Games'),
               const Spacer(),
               TextButton.icon(
                 style: TextButton.styleFrom(

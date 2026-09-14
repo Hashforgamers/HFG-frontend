@@ -52,6 +52,131 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             <!-- Web URL Deep Links -->
+            <!-- Scoped to the paths DeepLinkService can actually resolve: a
+                 host-wide filter would pull every marketing and blog URL on the
+                 domain into the app. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/tournament"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/tournaments"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/contest"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/team/join"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/cafe"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/game"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/profile"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/host"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/referral"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/bookings"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/wallet"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/rewards"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/passes"/>
+                <data
+                    android:scheme="https"
+                    android:host="hashforgamers.co.in"
+                    android:pathPrefix="/offer"/>
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/tournament"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/tournaments"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/contest"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/team/join"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/cafe"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/game"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/profile"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/host"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/referral"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/bookings"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/wallet"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/rewards"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/passes"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.co.in"
+                    android:pathPrefix="/offer"/>
+            </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>

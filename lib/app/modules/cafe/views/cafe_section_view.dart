@@ -26,9 +26,11 @@ import 'package:shimmer/shimmer.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:hash/app/modules/hash_coin/widgets/hash_coin_icon.dart';
 
 import '../../../../utils/service.dart';
 import '../../../../utils/widgets/bounce_tap_widget.dart';
+import '../../../../utils/widgets/home_section_title.dart';
 
 class CafeSection extends StatefulWidget {
   CafeSection({super.key});
@@ -46,8 +48,6 @@ class CafeSection extends StatefulWidget {
 
 class _CafeSectionState extends State<CafeSection> {
   static const String _sheetUrl = "https://onboard.hashforgamers.com/";
-  static const String _hashCoinIconUrl =
-      'https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_loog_kze6kr.png';
   static const double _nearbyPlacesRadiusMeters = 10000;
   static const double _hashMatchDistanceKm = 0.35;
   static const List<String> _nearbyGamingKeywords = [
@@ -76,45 +76,17 @@ class _CafeSectionState extends State<CafeSection> {
   final Set<String> _likingCafeIds = <String>{};
   bool _showCommunityCafes = false;
 
-  void _openSheetInBrowser() async {
+  Future<void> _openCafeOnboarding() async {
     final uri = Uri.parse(_sheetUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      Get.snackbar('Link', 'Could not open browser');
-    }
-  }
-
-  Future<void> _chooseOpenSheet() async {
-    final choice = await showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: const Color(0xFF111111),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.open_in_browser, color: Colors.white),
-              title: Text(
-                'Open in browser',
-                style: GoogleFonts.inter(color: Colors.white),
-              ),
-              onTap: () => Navigator.pop(context, 1),
-            ),
-            // ListTile(
-            //   leading: const Icon(Icons.web, color: Colors.white),
-            //   title: Text('Open inside app (WebView)', style: GoogleFonts.inter(color: Colors.white)),
-            //   onTap: () => Navigator.pop(context, 2),
-            // ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (opened) return;
+    Get.snackbar(
+      'Unable to open onboarding',
+      'Please try again, or visit onboard.hashforgamers.com in your browser.',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: const Color(0xFF6A1212),
+      colorText: Colors.white,
     );
-    if (choice == 1) _openSheetInBrowser();
   }
 
   late final loc.Location _loc = _locationPermissionService.location;
@@ -1371,7 +1343,7 @@ class _CafeSectionState extends State<CafeSection> {
             height: 40,
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _chooseOpenSheet,
+              onPressed: _openCafeOnboarding,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xff00DC00),
                 foregroundColor: Colors.black,
@@ -1549,35 +1521,18 @@ class _CafeSectionState extends State<CafeSection> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 72,
-                height: 72,
-                padding: const EdgeInsets.all(14),
+              DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFFFFD46A).withValues(alpha: 0.22),
-                      const Color(0xFFFF9E2C).withValues(alpha: 0.12),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: const Color(0xFFFFC83D).withValues(alpha: 0.28),
-                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFFC83D).withValues(alpha: 0.26),
+                      blurRadius: 24,
+                      spreadRadius: 1,
+                    ),
+                  ],
                 ),
-                child: CachedNetworkImage(
-                  imageUrl: _hashCoinIconUrl,
-                  fit: BoxFit.contain,
-                  placeholder: (_, __) =>
-                      const Center(child: RainbowGlowingLoader(size: 16)),
-                  errorWidget: (_, __, ___) => const Icon(
-                    Icons.workspace_premium_rounded,
-                    color: Color(0xFFFFC83D),
-                    size: 30,
-                  ),
-                ),
+                child: const HashCoinIcon(size: 72),
               ),
               const SizedBox(height: 16),
               Container(
@@ -1627,18 +1582,7 @@ class _CafeSectionState extends State<CafeSection> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CachedNetworkImage(
-                      imageUrl: _hashCoinIconUrl,
-                      width: 20,
-                      height: 20,
-                      placeholder: (_, __) =>
-                          const Center(child: RainbowGlowingLoader(size: 8)),
-                      errorWidget: (_, __, ___) => const Icon(
-                        Icons.workspace_premium_rounded,
-                        color: Color(0xFFFFC83D),
-                        size: 18,
-                      ),
-                    ),
+                    const HashCoinIcon(size: 20),
                     const SizedBox(width: 8),
                     Text(
                       'You received 10 HashCoins',
@@ -1707,61 +1651,11 @@ class _CafeSectionState extends State<CafeSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: 'Gaming Cafes ',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      TextSpan(
-                        text: 'Near You',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF00DC00),
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              BounceTap(
-                onTap: _chooseOpenSheet,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Onboard Your Cafe',
-                        style: GoogleFonts.lato(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: const Color(0xff00DC00),
-                        ),
-                      ),
-                      const Icon(Icons.arrow_right_outlined),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+          HomeSectionTitle(
+            title: 'Gaming Cafes ',
+            accent: 'Near You',
+            actionLabel: 'Add yours',
+            onAction: _openCafeOnboarding,
           ),
           const SizedBox(height: 12),
           Obx(() {

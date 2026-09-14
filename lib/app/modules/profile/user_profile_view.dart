@@ -1078,10 +1078,8 @@ class _UserProfileViewState extends State<UserProfileView> {
       child: ElevatedButton.icon(
         onPressed: () async {
           try {
-            final googleSignIn = GoogleSignIn();
-            if (await googleSignIn.isSignedIn()) {
-              await googleSignIn.signOut();
-            }
+            await GoogleSignIn.instance.initialize();
+            await GoogleSignIn.instance.signOut();
             await locator<AuthDataRepository>().clearTokens();
             await FirebaseAuth.instance.signOut(); // clear Firebase session
 

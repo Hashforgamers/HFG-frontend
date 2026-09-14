@@ -16,6 +16,7 @@ import 'package:hash/app/routes/app_routes.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 
 class OptimizedAppBar extends StatelessWidget {
   final Color gradientBottomColor;
@@ -38,25 +39,26 @@ class OptimizedAppBar extends StatelessWidget {
         : Get.put(AppNotificationsController(), permanent: true);
 
     return SliverAppBar(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.black.withValues(alpha: 0.58),
       systemOverlayStyle: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
       ),
       elevation: 0,
-      pinned: false,
+      pinned: true,
+      toolbarHeight: 66,
       expandedHeight: showModeToggle ? 118 : 66,
       flexibleSpace: ClipRRect(
         borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0xFFFFFFFF).withValues(alpha: 0.1),
-                  gradientBottomColor.withValues(alpha: 0.2),
+                  const Color(0xFFFFFFFF).withValues(alpha: 0.055),
+                  gradientBottomColor.withValues(alpha: 0.12),
                 ],
               ),
               borderRadius: BorderRadius.circular(25),
@@ -89,24 +91,45 @@ class OptimizedAppBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Hey, ${userController.user.value.gameUserName}!',
+                _greeting(userController.user.value.gameUserName),
                 style: GoogleFonts.inter(
                   color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
                 ),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
-              const SizedBox(height: 2),
-              Text(
-                '${userController.user.value.contact?.physicalAddress?.addressLine1}',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFB6B6B6),
-                  fontSize: 11.5,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+              const SizedBox(height: 3),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.location_on_rounded,
+                    color: HomeTokens.textTertiary,
+                    size: 12,
+                  ),
+                  const SizedBox(width: 3),
+                  Flexible(
+                    child: Text(
+                      _locationLabel(
+                        userController
+                            .user
+                            .value
+                            .contact
+                            ?.physicalAddress
+                            ?.addressLine1,
+                      ),
+                      style: GoogleFonts.inter(
+                        color: HomeTokens.textSecondary,
+                        fontSize: 11.5,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -120,6 +143,7 @@ class OptimizedAppBar extends StatelessWidget {
               Obx(() {
                 final unread = notificationsController.unreadCount.value;
                 return IconButton(
+                  tooltip: 'Notifications',
                   onPressed: () => Get.toNamed(AppRoutes.NOTIFICATIONS),
                   icon: Stack(
                     clipBehavior: Clip.none,
@@ -139,7 +163,7 @@ class OptimizedAppBar extends StatelessWidget {
                               vertical: 1,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xff00DC00),
+                              color: HomeTokens.green,
                               borderRadius: BorderRadius.circular(99),
                             ),
                             child: Text(
@@ -177,10 +201,19 @@ class OptimizedAppBar extends StatelessWidget {
     );
   }
 
+  String _greeting(String? username) {
+    final name = (username ?? '').trim();
+    return name.isEmpty ? 'Ready to play?' : 'Hey, $name!';
+  }
+
+  String _locationLabel(String? address) {
+    final value = (address ?? '').trim();
+    return value.isEmpty ? 'Discover gaming near you' : value;
+  }
+
   Widget _buildOptimizedUserAvatar(String? photoUrl) {
     const double size = 40;
-    final effectivePhoto =
-        (photoUrl ?? '').trim().isNotEmpty
+    final effectivePhoto = (photoUrl ?? '').trim().isNotEmpty
         ? photoUrl!.trim()
         : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
               .trim();

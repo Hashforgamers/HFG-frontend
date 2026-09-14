@@ -33,6 +33,14 @@ import '../modules/community/bindings/manage_tournament_binding.dart';
 import 'app_routes.dart';
 
 class AppPages {
+  /// Safety net for any named route that is not registered below: GetX would
+  /// otherwise render its own "route not found" page to the user.
+  static final unknownRoute = GetPage(
+    name: '/not-found',
+    page: () => const HomeView(),
+    binding: HomeBinding(),
+  );
+
   static final pages = [
     GetPage(
       name: AppRoutes.SPLASH,

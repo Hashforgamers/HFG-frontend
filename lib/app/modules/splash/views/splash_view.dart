@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/core/service/deeplink_service.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../routes/app_routes.dart';
 
@@ -20,6 +21,7 @@ class _SplashViewState extends State<SplashView> {
       if (!mounted) return;
       if (Get.currentRoute == AppRoutes.SPLASH) {
         Get.offAllNamed(AppRoutes.LOGIN);
+        DeepLinkService.markAppReady();
       }
     });
   }

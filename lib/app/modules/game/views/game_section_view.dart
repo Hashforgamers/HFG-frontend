@@ -14,6 +14,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 
 import '../../../../utils/widgets/bounce_tap_widget.dart';
 import '../../../../utils/widgets/loader.dart';
@@ -354,28 +355,7 @@ class _GamesSectionState extends State<GamesSection> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: 'Games by ',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                TextSpan(
-                  text: 'Developers',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF00DC00),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const HomeSectionTitle(title: 'Upcoming ', accent: 'Games'),
           const SizedBox(height: 12),
           Obx(() {
             if (ctrl.isLoading.value && ctrl.games.isEmpty) {

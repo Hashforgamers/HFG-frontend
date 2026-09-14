@@ -9,13 +9,17 @@ import 'package:segment_analytics/client.dart';
 import 'package:segment_analytics/event.dart';
 import 'package:segment_analytics/state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class SegmentSdkService {
   SegmentSdkService({required DeviceIdentifierService deviceIdentifierService})
     : _deviceIdentifierService = deviceIdentifierService;
 
   static const writeKey = 'boSN3P9nWQGYQHyM7dK26w2Ef8p621uY';
-  static final analytics = createClient(Configuration(writeKey, debug: true));
+  static final analytics = createClient(
+    Configuration(writeKey, debug: kDebugMode),
+  );
   final DeviceIdentifierService _deviceIdentifierService;
   String _lastIdentityFingerprint = '';
 
@@ -103,6 +107,19 @@ class SegmentSdkService {
     final payload = <String, dynamic>{...(properties ?? <String, dynamic>{})};
     final identity = await _identityPayload();
     payload.addAll(identity);
+    const blocked = {
+      'email',
+      'phone',
+      'phone_number',
+      'mobile',
+      'name',
+      'full_name',
+      'username',
+      'advertising_id',
+      'gaid',
+      'idfa',
+    };
+    payload.removeWhere((key, _) => blocked.contains(key.toLowerCase()));
     await _identifyIfNeeded(identity);
     await analytics.track(name, properties: payload);
   }
@@ -143,11 +160,13 @@ class SegmentSdkService {
 
   // Event 1 - On App Launch
   Future<void> onAppLaunch() async {
+    final package = await PackageInfo.fromPlatform();
     await _track(
       'App Launched',
       properties: {
         'device_type': Platform.isAndroid ? 'android' : 'ios',
-        'app_version': '1.0.0',
+        'app_version': package.version,
+        'build_number': package.buildNumber,
       },
     );
   }

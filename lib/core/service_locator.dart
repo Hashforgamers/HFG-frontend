@@ -82,7 +82,15 @@ Future<void> setupServiceLocator({bool reset = false}) async {
   }
 
   if (!locator.isRegistered<AnalyticsService>()) {
-    locator.registerSingleton<AnalyticsService>(AnalyticsService());
+    locator.registerSingleton<AnalyticsService>(
+      AnalyticsService(
+        preferences: locator<SharedPreferences>(),
+        segmentSink: (name, parameters) =>
+            locator<SegmentSdkService>().onCustomEvent(name, parameters),
+        metaSink: (name, parameters) =>
+            locator<FbEventsService>().logMetaOnly(name, parameters),
+      ),
+    );
   }
 
   if (!locator.isRegistered<FunnelNotificationService>()) {
