@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/arena/views/booking_design.dart';
 
 class BookingSummaryCartSection extends StatelessWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -17,45 +18,29 @@ class BookingSummaryCartSection extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF191919),
-        borderRadius: BorderRadius.circular(15),
-      ),
+    return BookingCard(
+      margin: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text(
-                'Food & Beverages',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+              const Icon(
+                Icons.fastfood_rounded,
+                size: 18,
+                color: BookingColors.textSecondary,
               ),
+              const SizedBox(width: 10),
+              Text('Food & beverages', style: BookingText.title(context)),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xff00DC00).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  summaryText,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xff00DC00),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+              BookingStatusPill(
+                label: summaryText,
+                tone: BookingPillTone.success,
+                dense: true,
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           ...cartItems.map((item) {
             final itemQuantity = (item['qty'] as num?)?.toInt() ?? 1;
             final price = (item['price'] as num?)?.toDouble() ?? 0;
@@ -69,13 +54,13 @@ class BookingSummaryCartSection extends StatelessWidget {
                     height: 32,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .06),
+                      color: BookingColors.surfaceHigh,
                       borderRadius: BorderRadius.circular(9),
                     ),
                     child: Text(
                       '$itemQuantity×',
                       style: GoogleFonts.inter(
-                        color: Colors.white70,
+                        color: BookingColors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -89,7 +74,7 @@ class BookingSummaryCartSection extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         fontSize: 14,
-                        color: Colors.white,
+                        color: BookingColors.textPrimary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -98,8 +83,8 @@ class BookingSummaryCartSection extends StatelessWidget {
                   Text(
                     '₹${total.toStringAsFixed(2)}',
                     style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                      color: BookingColors.textPrimary,
+                      fontWeight: FontWeight.w700,
                       fontSize: 14,
                     ),
                   ),

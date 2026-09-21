@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/arena/views/booking_design.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/utils/widgets/loader.dart';
 
@@ -33,7 +34,7 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
       child: Container(
         height: viewHeight * 0.82,
         decoration: const BoxDecoration(
-          color: Color(0xFF111111),
+          color: BookingColors.bgElevated,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -68,15 +69,12 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CupertinoActivityIndicator(
-                              color: Color(0xff00DC00),
-                            ),
+                            child: CupertinoActivityIndicator(color: BookingColors.accentBright),
                           )
                         : IconButton(
                             onPressed: onRefresh,
                             icon: const Icon(
-                              Icons.refresh_rounded,
-                              color: Color(0xff00DC00),
+                              Icons.refresh_rounded, color: BookingColors.accentBright,
                             ),
                           ),
                   ),
@@ -130,7 +128,7 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               decoration: const BoxDecoration(
-                color: Color(0xFF111111),
+                color: BookingColors.bgElevated,
                 border: Border(top: BorderSide(color: Colors.white10)),
               ),
               child: Row(
@@ -159,9 +157,17 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
                               }
                             : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xff00DC00),
-                          foregroundColor: Colors.black,
+                          backgroundColor: BookingColors.accent,
+                          foregroundColor: BookingColors.textOnAccent,
+                          disabledBackgroundColor: BookingColors.surfaceHigh,
+                          disabledForegroundColor: BookingColors.textMuted,
+                          elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              BookingRadius.button,
+                            ),
+                          ),
                         ),
                         child: Text(
                           'Proceed',
@@ -261,8 +267,12 @@ class _EmptyState extends StatelessWidget {
                   onPurchasePasses();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff00DC00),
-                  foregroundColor: Colors.black,
+                  backgroundColor: BookingColors.accent,
+                  foregroundColor: BookingColors.textOnAccent,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(BookingRadius.button),
+                  ),
                 ),
                 child: Text(
                   'View Passes to Purchase',
@@ -293,13 +303,13 @@ class _PassTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderColor = isSelected
-        ? const Color(0xff00DC00)
+        ? BookingColors.accentBright
         : isExpired
-        ? Colors.red.withValues(alpha: 0.35)
-        : Colors.white24;
+        ? BookingColors.danger.withValues(alpha: 0.35)
+        : BookingColors.border;
     final bgColor = isSelected
-        ? const Color(0xff00DC00).withValues(alpha: 0.12)
-        : const Color(0xFF1E1E1E);
+        ? BookingColors.accent.withValues(alpha: 0.12)
+        : BookingColors.surfaceAlt;
 
     return InkWell(
       borderRadius: BorderRadius.circular(14),
@@ -346,7 +356,7 @@ class _PassTile extends StatelessWidget {
                 if (isSelected)
                   const Icon(
                     Icons.check_circle_rounded,
-                    color: Color(0xff00DC00),
+                    color: BookingColors.accentBright,
                     size: 22,
                   ),
               ],
@@ -368,7 +378,7 @@ class _PassTile extends StatelessWidget {
                 const SizedBox(width: 8),
                 _statusChip(
                   isExpired ? 'EXPIRED' : 'ACTIVE',
-                  isExpired ? Colors.redAccent : const Color(0xff00DC00),
+                  isExpired ? BookingColors.danger : BookingColors.success,
                 ),
                 const SizedBox(width: 6),
                 _statusChip(
@@ -383,9 +393,9 @@ class _PassTile extends StatelessWidget {
                 value: pass.progressValue,
                 minHeight: 6,
                 borderRadius: BorderRadius.circular(8),
-                backgroundColor: Colors.white12,
+                backgroundColor: BookingColors.surfaceHigh,
                 valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xff00DC00),
+                  BookingColors.success,
                 ),
               ),
             ],

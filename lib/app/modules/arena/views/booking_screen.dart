@@ -11,6 +11,7 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'booking_design.dart';
 import 'booking_summary_screen.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -204,48 +205,64 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
-        title: Text(
-          widget.title,
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+    return BookingScaffold(
+      title: widget.title,
+      subtitle: widget.isSquadBooking ? 'Squad booking' : 'Select your slots',
+      titleWidget: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: BookingColors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
+            ),
           ),
-        ),
-        backgroundColor: Colors.black,
+          Text(
+            widget.isSquadBooking ? 'Squad booking' : 'Select your slots',
+            style: GoogleFonts.inter(
+              color: BookingColors.textMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(color: Colors.black),
+      body: SafeArea(
+        top: false,
         child: Obx(() {
           if (controller.isSlotsLoading.value) {
-            return ListView.builder(
-              itemCount: 4,
-              itemBuilder: (context, index) => Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                child: Shimmer.fromColors(
-                  baseColor: Colors.grey[900]!,
-                  highlightColor: Colors.grey[800]!,
-                  child: Container(
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[900],
-                      borderRadius: BorderRadius.circular(12),
+            return Column(
+              children: [
+                _buildDateStrip(),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    itemCount: 5,
+                    itemBuilder: (context, index) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Shimmer.fromColors(
+                        baseColor: BookingColors.surface,
+                        highlightColor: BookingColors.surfaceHigh,
+                        child: Container(
+                          height: 96,
+                          decoration: BoxDecoration(
+                            color: BookingColors.surface,
+                            borderRadius: BorderRadius.circular(
+                              BookingRadius.card,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             );
           }
 
@@ -325,147 +342,115 @@ class _BookingScreenState extends State<BookingScreen> {
   }) {
     return Column(
       children: [
+        _buildDateStrip(),
         Expanded(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-              child: Container(
-                width: double.infinity,
-                constraints: const BoxConstraints(maxWidth: 420),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 28,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xff111111),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xff242424)),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: const BoxDecoration(
-                        color: Color(0xff251515),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(icon, size: 30, color: Color(0xffEF5350)),
+          child: BookingEmptyState(
+            icon: icon,
+            title: title,
+            message: message,
+            footnote: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: BookingColors.surfaceHigh,
+                borderRadius: BorderRadius.circular(BookingRadius.pill),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.calendar_today_rounded,
+                    size: 15,
+                    color: BookingColors.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    selectedDateText,
+                    style: GoogleFonts.inter(
+                      color: BookingColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      message,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xff929292),
-                        fontSize: 14,
-                        height: 1.45,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xff1C1C1C),
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.calendar_today_rounded,
-                            size: 15,
-                            color: Color(0xffB8B8B8),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            selectedDateText,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xffD4D4D4),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-        buildCalendarButton(),
       ],
     );
   }
 
-  Widget buildCalendarButton() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      decoration: const BoxDecoration(
-        color: Color(0xff121212),
-        border: Border(top: BorderSide(color: Color(0xff2D2D2D), width: 1)),
-      ),
-      child: ElevatedButton.icon(
-        onPressed: () async {
-          DateTime? pickedDate = await showDatePicker(
-            context: context,
-            initialDate: DateTime.now(),
-            firstDate: DateTime.now(),
-            lastDate: DateTime.now().add(const Duration(days: 30)),
-            builder: (context, child) {
-              return Theme(data: ThemeData.dark(), child: child!);
-            },
-          );
+  Future<void> _pickDate(DateTime pickedDate) async {
+    setState(() {
+      selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
+      selectedDateText = DateFormat('dd MMM, yyyy').format(pickedDate);
+      _loggedNoSlots = false;
+      _loggedSoldOut = false;
+      _almostFullLoggedSlots.clear();
+      _unavailableLoggedSlots.clear();
+    });
+    controller.clearSelectedSlots();
+    await controller.fetchSlots(
+      vendorId: widget.vendorId,
+      gameId: widget.gameId,
+      date: selectedDate,
+    );
+  }
 
-          if (pickedDate != null && mounted) {
-            setState(() {
-              selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
-              selectedDateText = DateFormat('dd MMM, yyyy').format(pickedDate);
-              _loggedNoSlots = false;
-              _loggedSoldOut = false;
-              _almostFullLoggedSlots.clear();
-              _unavailableLoggedSlots.clear();
-            });
-            controller.clearSelectedSlots();
-            await controller.fetchSlots(
-              vendorId: widget.vendorId,
-              gameId: widget.gameId,
-              date: selectedDate,
+  Future<void> _openCalendar() async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: BookingColors.accent,
+              surface: BookingColors.surface,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (pickedDate != null && mounted) {
+      await _pickDate(pickedDate);
+    }
+  }
+
+  /// Horizontal quick-pick strip of the next two weeks, plus a calendar entry
+  /// point for arbitrary dates — a faster way to switch dates than the old
+  /// single "choose another date" button.
+  Widget _buildDateStrip() {
+    final today = DateTime.now();
+    final days = List.generate(14, (i) => DateTime(today.year, today.month, today.day + i));
+    return Container(
+      padding: const EdgeInsets.only(top: 6, bottom: 10),
+      child: SizedBox(
+        height: 74,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: days.length + 1,
+          separatorBuilder: (_, _) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            if (index == days.length) {
+              return _CalendarChip(onTap: _openCalendar);
+            }
+            final day = days[index];
+            final key = DateFormat('yyyyMMdd').format(day);
+            final selected = key == selectedDate;
+            return _DateChip(
+              day: day,
+              isToday: index == 0,
+              selected: selected,
+              onTap: () {
+                if (!selected) _pickDate(day);
+              },
             );
-          }
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xffDE3A3A),
-          minimumSize: const Size(double.infinity, 54),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          elevation: 0,
-        ),
-        icon: const Icon(Icons.calendar_today, color: Colors.white),
-        label: Text(
-          'Choose another date',
-          style: GoogleFonts.inter(
-            fontSize: 15,
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          },
         ),
       ),
     );
@@ -473,120 +458,74 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Widget buildSlotList() {
     final visibleSlotIndices = _getVisibleSlotIndices();
+    final isCurrentDate =
+        selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
+    final availableSlots = visibleSlotIndices
+        .map((index) => controller.slots[index])
+        .where((slot) {
+          final bool isAvailable =
+              slot['is_available'] ?? slot['isAvailable'] ?? true;
+          final bool isTimeAvailable = isCurrentDate
+              ? controller.isSlotAvailableNow(slot)
+              : true;
+          final int availableConsoles =
+              slot['available_slot'] ??
+              slot['availableSlot'] ??
+              slot['available_slots'] ??
+              0;
+          return isAvailable && isTimeAvailable && availableConsoles > 0;
+        })
+        .toList();
+    final totalAvailableConsoles = availableSlots.fold<int>(0, (sum, slot) {
+      final int availableConsoles =
+          slot['available_slot'] ??
+          slot['availableSlot'] ??
+          slot['available_slots'] ??
+          0;
+      return sum + availableConsoles;
+    });
+    final discountPercent = _asDouble(
+      _squadDetailsEstimate?['discount_percent'],
+    );
+
     return Column(
       children: [
+        _buildDateStrip(),
         Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      selectedDateText,
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Obx(() {
-                      final isCurrentDate =
-                          selectedDate ==
-                          DateFormat('yyyyMMdd').format(DateTime.now());
-                      final availableSlots = visibleSlotIndices
-                          .map((index) {
-                            return controller.slots[index];
-                          })
-                          .where((slot) {
-                            final bool isAvailable =
-                                slot['is_available'] ??
-                                slot['isAvailable'] ??
-                                true;
-                            final bool isTimeAvailable = isCurrentDate
-                                ? controller.isSlotAvailableNow(slot)
-                                : true;
-                            final int availableConsoles =
-                                slot['available_slot'] ??
-                                slot['availableSlot'] ??
-                                slot['available_slots'] ??
-                                0;
-                            return isAvailable &&
-                                isTimeAvailable &&
-                                availableConsoles > 0;
-                          })
-                          .toList();
-                      final totalAvailableConsoles = availableSlots.fold<int>(
-                        0,
-                        (sum, slot) {
-                          final int availableConsoles =
-                              slot['available_slot'] ??
-                              slot['availableSlot'] ??
-                              slot['available_slots'] ??
-                              0;
-                          return sum + availableConsoles;
-                        },
-                      );
-                      final discountPercent = _asDouble(
-                        _squadDetailsEstimate?['discount_percent'],
-                      );
-                      final squadHint =
-                          widget.isSquadBooking && discountPercent > 0
-                          ? ' • save ${discountPercent.toStringAsFixed(discountPercent % 1 == 0 ? 0 : 1)}% with squad'
-                          : '';
-                      return Text(
-                        '${widget.isSquadBooking ? 'Select exactly $_requiredSelectionCount setups' : 'Solo booking'} • $totalAvailableConsoles ${_consoleCollectionLabel(totalAvailableConsoles)} selectable now$squadHint',
-                        style: GoogleFonts.inter(
-                          color: Colors.grey[400],
-                          fontSize: 14,
-                        ),
-                      );
-                    }),
-                  ],
+                child: Text(
+                  widget.isSquadBooking
+                      ? 'Pick exactly $_requiredSelectionCount ${_consoleCollectionLabel(_requiredSelectionCount)}'
+                      : 'Available sessions',
+                  style: BookingText.title(context),
                 ),
               ),
-              IconButton(
-                onPressed: () async {
-                  DateTime? pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 30)),
-                    builder: (context, child) {
-                      return Theme(data: ThemeData.dark(), child: child!);
-                    },
-                  );
-
-                  if (pickedDate != null && mounted) {
-                    setState(() {
-                      selectedDate = DateFormat('yyyyMMdd').format(pickedDate);
-                      selectedDateText = DateFormat(
-                        'dd MMM, yyyy',
-                      ).format(pickedDate);
-                      _loggedNoSlots = false;
-                      _loggedSoldOut = false;
-                      _almostFullLoggedSlots.clear();
-                      _unavailableLoggedSlots.clear();
-                    });
-                    controller.clearSelectedSlots();
-                    await controller.fetchSlots(
-                      vendorId: widget.vendorId,
-                      gameId: widget.gameId,
-                      date: selectedDate,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.calendar_today, color: Colors.white),
+              BookingStatusPill(
+                label: '$totalAvailableConsoles open',
+                tone: totalAvailableConsoles > 0
+                    ? BookingPillTone.success
+                    : BookingPillTone.danger,
+                icon: Icons.bolt_rounded,
+                dense: true,
               ),
+              if (widget.isSquadBooking && discountPercent > 0) ...[
+                const SizedBox(width: 6),
+                BookingStatusPill(
+                  label:
+                      'Squad -${discountPercent.toStringAsFixed(discountPercent % 1 == 0 ? 0 : 1)}%',
+                  tone: BookingPillTone.accent,
+                  dense: true,
+                ),
+              ],
             ],
           ),
         ),
         Expanded(
           child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             itemCount: visibleSlotIndices.length,
             itemBuilder: (context, index) {
               final originalIndex = visibleSlotIndices[index];
@@ -654,78 +593,71 @@ class _BookingScreenState extends State<BookingScreen> {
       );
     }
 
+    final bool hasSelectionHere = controller.selectedSlots.values.any(
+      (times) => times.contains(index),
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelectable
-              ? const Color(0xFF1A1A1D)
-              : const Color(0xFF0F0F0F),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isTimeAvailable
-                ? const Color(0xff2D2D2D)
-                : Colors.grey.shade800,
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: BookingCard(
+        padding: const EdgeInsets.all(16),
+        color: isSelectable ? BookingColors.surface : BookingColors.bgElevated,
+        highlight: hasSelectionHere,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Slot: ${formatTime(slot['start_time'])} - ${formatTime(slot['end_time'])}',
-                  style: GoogleFonts.inter(
-                    color: isTimeAvailable
-                        ? Colors.white.withValues(alpha: 0.85)
-                        : Colors.grey.shade600,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: (isSelectable
+                            ? BookingColors.accent
+                            : BookingColors.textMuted)
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    Icons.schedule_rounded,
+                    size: 19,
+                    color: isSelectable
+                        ? BookingColors.accentBright
+                        : BookingColors.textMuted,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isTimeAvailable
-                        ? (isApiAvailable
-                              ? const Color(0xff00DC00).withValues(alpha: 0.2)
-                              : Colors.red.withValues(alpha: 0.2))
-                        : Colors.grey.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isTimeAvailable
-                          ? (isApiAvailable
-                                ? const Color(0xff00DC00).withValues(alpha: 0.5)
-                                : Colors.red.withValues(alpha: 0.5))
-                          : Colors.grey.withValues(alpha: 0.5),
-                    ),
-                  ),
+                const SizedBox(width: 12),
+                Expanded(
                   child: Text(
-                    !isApiAvailable
-                        ? 'Sold Out'
-                        : (!isTimeAvailable && isCurrentDate)
-                        ? 'Time Expired'
-                        : '$availablePCs ${_consoleCollectionLabel(availablePCs)} available',
+                    '${formatTime(slot['start_time'])} – ${formatTime(slot['end_time'])}',
                     style: GoogleFonts.inter(
-                      color: !isApiAvailable
-                          ? Colors.redAccent
-                          : (isTimeAvailable
-                                ? const Color(0xff00DC00)
-                                : Colors.grey),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      color: isTimeAvailable
+                          ? BookingColors.textPrimary
+                          : BookingColors.textMuted,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
+                ),
+                BookingStatusPill(
+                  label: !isApiAvailable
+                      ? 'Sold out'
+                      : (!isTimeAvailable && isCurrentDate)
+                      ? 'Expired'
+                      : '$availablePCs left',
+                  tone: !isApiAvailable
+                      ? BookingPillTone.danger
+                      : (!isTimeAvailable && isCurrentDate)
+                      ? BookingPillTone.neutral
+                      : (availablePCs <= 2
+                            ? BookingPillTone.warning
+                            : BookingPillTone.success),
+                  dense: true,
                 ),
               ],
             ),
-            const SizedBox(height: 12),
             if (isSelectable) ...[
+              const SizedBox(height: 14),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -742,79 +674,65 @@ class _BookingScreenState extends State<BookingScreen> {
             ] else if (availablePCs > 0 &&
                 !isTimeAvailable &&
                 isCurrentDate) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.orange.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.schedule, color: Colors.orange, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Slot time has passed',
-                      style: GoogleFonts.inter(
-                        color: Colors.orange,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 12),
+              _slotNotice(
+                icon: Icons.schedule_rounded,
+                text: 'Slot time has passed',
+                tone: BookingPillTone.warning,
               ),
             ] else if (!isApiAvailable) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.block, color: Colors.red, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'This slot is sold out',
-                      style: GoogleFonts.inter(
-                        color: Colors.red,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 12),
+              _slotNotice(
+                icon: Icons.block_rounded,
+                text: 'This slot is sold out',
+                tone: BookingPillTone.danger,
               ),
             ] else ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline, color: Colors.red, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'No ${getConsoleType()}s available for this slot',
-                      style: GoogleFonts.inter(
-                        color: Colors.red,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 12),
+              _slotNotice(
+                icon: Icons.info_outline_rounded,
+                text: 'No ${getConsoleType()}s available for this slot',
+                tone: BookingPillTone.danger,
               ),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _slotNotice({
+    required IconData icon,
+    required String text,
+    required BookingPillTone tone,
+  }) {
+    final color = switch (tone) {
+      BookingPillTone.warning => BookingColors.warning,
+      BookingPillTone.danger => BookingColors.danger,
+      _ => BookingColors.textSecondary,
+    };
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.inter(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -828,8 +746,14 @@ class _BookingScreenState extends State<BookingScreen> {
       final isSelected =
           controller.selectedSlots[pcIndex]?.contains(timeIndex) ?? false;
 
-      return GestureDetector(
+      return Semantics(
+        button: true,
+        selected: isSelected,
+        label:
+            '${getConsoleLabel(pcIndex - 1)}${isSelected ? ', selected' : ''}',
+        child: GestureDetector(
         onTap: () {
+          HapticFeedback.selectionClick();
           final selectedConsoleCount = _getSelectedConsoleCount();
           final isNewConsoleSelection =
               !(controller.selectedSlots.containsKey(pcIndex) &&
@@ -878,28 +802,53 @@ class _BookingScreenState extends State<BookingScreen> {
           controller.selectedSlots.refresh();
         },
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
           margin: const EdgeInsets.only(right: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
           decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xff00DC00)
-                : const Color(0xff2D2D2D),
-            borderRadius: BorderRadius.circular(10),
+            gradient: isSelected ? BookingColors.accentGradient : null,
+            color: isSelected ? null : BookingColors.surfaceHigh,
+            borderRadius: BorderRadius.circular(BookingRadius.chip),
             border: Border.all(
               color: isSelected
-                  ? const Color(0xff00DC00)
-                  : Colors.grey.shade700,
+                  ? BookingColors.accentBright
+                  : BookingColors.borderStrong,
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: BookingColors.accent.withValues(alpha: 0.35),
+                      blurRadius: 14,
+                      spreadRadius: -4,
+                    ),
+                  ]
+                : null,
           ),
-          child: Text(
-            getConsoleLabel(pcIndex - 1),
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isSelected) ...[
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 15,
+                  color: BookingColors.textOnAccent,
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                getConsoleLabel(pcIndex - 1),
+                style: GoogleFonts.inter(
+                  color: isSelected
+                      ? BookingColors.textOnAccent
+                      : BookingColors.textSecondary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ],
           ),
+        ),
         ),
       );
     });
@@ -938,102 +887,109 @@ class _BookingScreenState extends State<BookingScreen> {
         pricingEngine?['squad_discount_amount'],
       );
 
-      return SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-          decoration: const BoxDecoration(
-            color: Color(0xff121212),
-            border: Border(top: BorderSide(color: Color(0xff2D2D2D), width: 1)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '$selectedConsoleCount / $_requiredSelectionCount setups • $totalSelectedSlots slot(s)',
-                    style: GoogleFonts.inter(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '₹${totalPrice.toInt()}',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xff00DC00),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              if (widget.isSquadBooking) ...[
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _isLoadingPricingEstimate
-                            ? 'Checking your squad savings...'
-                            : estimatedDiscountPerSlot > 0
-                            ? 'Squad discount applied to each selected time slot'
-                            : 'Final squad savings will be shown once pricing is ready',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+      return BookingBottomBar(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '₹${totalPrice.toInt()}',
                         style: GoogleFonts.inter(
-                          color: Colors.white60,
-                          fontSize: 11,
+                          color: BookingColors.textPrimary,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$selectedConsoleCount/$_requiredSelectionCount ${_consoleCollectionLabel(_requiredSelectionCount)} • $totalSelectedSlots slot(s)',
+                        style: GoogleFonts.inter(
+                          color: BookingColors.textMuted,
+                          fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-                    if (!_isLoadingPricingEstimate &&
-                        estimatedDiscountPerSlot > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: Text(
-                          'You save ₹${estimatedDiscountPerSlot.toStringAsFixed(1)} per slot',
-                          textAlign: TextAlign.right,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xff00DC00),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
+                    ],
+                  ),
+                ),
+                if (widget.isSquadBooking &&
+                    !_isLoadingPricingEstimate &&
+                    estimatedDiscountPerSlot > 0)
+                  BookingStatusPill(
+                    label:
+                        'Save ₹${estimatedDiscountPerSlot.toStringAsFixed(estimatedDiscountPerSlot % 1 == 0 ? 0 : 1)}/slot',
+                    tone: BookingPillTone.success,
+                    icon: Icons.savings_rounded,
+                    dense: true,
+                  ),
+                if (totalSelectedSlots > 0) ...[
+                  const SizedBox(width: 8),
+                  Semantics(
+                    button: true,
+                    label: 'Clear selection',
+                    child: TextButton.icon(
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        controller.clearSelectedSlots();
+                        controller.selectedSlots.refresh();
+                      },
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 16,
+                        color: BookingColors.textSecondary,
+                      ),
+                      label: Text(
+                        'Clear',
+                        style: GoogleFonts.inter(
+                          color: BookingColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: totalSelectedSlots > 0 && !_isOpeningSummary
-                    ? onProceed
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: totalSelectedSlots > 0
-                      ? const Color(0xff00DC00)
-                      : Colors.grey,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
                   ),
-                  elevation: totalSelectedSlots > 0 ? 8 : 0,
-                ),
+                ],
+              ],
+            ),
+            if (widget.isSquadBooking && _isLoadingPricingEstimate) ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
                 child: Text(
-                  'PROCEED',
+                  'Checking your squad savings…',
                   style: GoogleFonts.inter(
-                    fontSize: 16,
-                    color: totalSelectedSlots > 0 ? Colors.white : Colors.black,
-                    fontWeight: FontWeight.bold,
+                    color: BookingColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
             ],
-          ),
+            const SizedBox(height: 14),
+            BookingPrimaryButton(
+              label: 'Proceed',
+              icon: Icons.arrow_forward_rounded,
+              loading: _isOpeningSummary,
+              enabled: totalSelectedSlots > 0,
+              onPressed: totalSelectedSlots > 0 && !_isOpeningSummary
+                  ? onProceed
+                  : null,
+            ),
+          ],
         ),
       );
     });
@@ -1112,49 +1068,29 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget _buildSlotsErrorState() {
     return Column(
       children: [
+        _buildDateStrip(),
         Expanded(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.wifi_off_rounded,
-                    color: Colors.white54,
-                    size: 54,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Slots could not be loaded',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    controller.slotsError.value,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(color: Colors.white60),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: () => controller.fetchSlots(
-                      vendorId: widget.vendorId,
-                      gameId: widget.gameId,
-                      date: selectedDate,
-                    ),
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Try again'),
-                  ),
-                ],
+          child: BookingEmptyState(
+            icon: Icons.wifi_off_rounded,
+            title: 'Slots could not be loaded',
+            message: controller.slotsError.value.isEmpty
+                ? 'Please check your connection and try again.'
+                : controller.slotsError.value,
+            tone: BookingPillTone.neutral,
+            footnote: SizedBox(
+              width: 200,
+              child: BookingSecondaryButton(
+                label: 'Try again',
+                icon: Icons.refresh_rounded,
+                onPressed: () => controller.fetchSlots(
+                  vendorId: widget.vendorId,
+                  gameId: widget.gameId,
+                  date: selectedDate,
+                ),
               ),
             ),
           ),
         ),
-        buildCalendarButton(),
       ],
     );
   }
@@ -1269,5 +1205,129 @@ class _BookingScreenState extends State<BookingScreen> {
           duration: Duration(seconds: 2),
         ),
       );
+  }
+}
+
+/// A single day chip in the quick-pick date strip.
+class _DateChip extends StatelessWidget {
+  const _DateChip({
+    required this.day,
+    required this.isToday,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final DateTime day;
+  final bool isToday;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final weekday = DateFormat('EEE').format(day).toUpperCase();
+    final dayNum = DateFormat('d').format(day);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${isToday ? 'Today' : DateFormat('EEEE').format(day)}, '
+          '${DateFormat('d MMMM').format(day)}',
+      child: GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 56,
+        decoration: BoxDecoration(
+          gradient: selected ? BookingColors.accentGradient : null,
+          color: selected ? null : BookingColors.surface,
+          borderRadius: BorderRadius.circular(BookingRadius.button),
+          border: Border.all(
+            color: selected
+                ? BookingColors.accentBright
+                : BookingColors.border,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: BookingColors.accent.withValues(alpha: 0.3),
+                    blurRadius: 16,
+                    spreadRadius: -4,
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              isToday ? 'TODAY' : weekday,
+              style: GoogleFonts.inter(
+                color: selected
+                    ? BookingColors.textOnAccent.withValues(alpha: 0.8)
+                    : BookingColors.textMuted,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              dayNum,
+              style: GoogleFonts.inter(
+                color: selected
+                    ? BookingColors.textOnAccent
+                    : BookingColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+      ),
+    );
+  }
+}
+
+/// Trailing "open calendar" chip in the date strip.
+class _CalendarChip extends StatelessWidget {
+  const _CalendarChip({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 56,
+        decoration: BoxDecoration(
+          color: BookingColors.surfaceAlt,
+          borderRadius: BorderRadius.circular(BookingRadius.button),
+          border: Border.all(color: BookingColors.borderStrong),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.calendar_month_rounded,
+              color: BookingColors.textSecondary,
+              size: 20,
+            ),
+            SizedBox(height: 4),
+            Text(
+              'More',
+              style: TextStyle(
+                color: BookingColors.textMuted,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

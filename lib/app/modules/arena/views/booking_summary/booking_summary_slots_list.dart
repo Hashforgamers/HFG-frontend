@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/arena/views/booking_design.dart';
 
 class BookingSummarySlotsList extends StatefulWidget {
   final List<Map<String, dynamic>> selectedSlots;
@@ -41,38 +42,35 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
       (sum, slot) => sum + ((slot['price'] ?? 50.0) as num).toDouble(),
     );
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF171717),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white10),
-      ),
+    return BookingCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: BookingColors.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.event_seat_rounded,
+                  size: 18,
+                  color: BookingColors.accentBright,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Selected Slots',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    Text('Selected slots', style: BookingText.title(context)),
                     const SizedBox(height: 3),
                     Text(
                       '${sortedSlots.length} slots • ${widget.selectedDate}',
-                      style: GoogleFonts.inter(
-                        color: Colors.grey.shade500,
-                        fontSize: 12,
-                      ),
+                      style: BookingText.muted(context),
                     ),
                   ],
                 ),
@@ -83,23 +81,23 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                   vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF00DC00).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  color: BookingColors.success.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(BookingRadius.pill),
                 ),
                 child: Text(
                   '₹${totalPrice.toStringAsFixed(0)}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF00DC00),
+                    color: BookingColors.success,
                     fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: _expanded ? 280 : 176),
+            constraints: BoxConstraints(maxHeight: _expanded ? 280 : 200),
             child: ListView.separated(
               shrinkWrap: true,
               physics: const ClampingScrollPhysics(),
@@ -116,12 +114,12 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                 return Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
-                    vertical: 10,
+                    vertical: 11,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF101010),
+                    color: BookingColors.surfaceAlt,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white10),
+                    border: Border.all(color: BookingColors.borderSoft),
                   ),
                   child: Row(
                     children: [
@@ -129,21 +127,21 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                         width: 34,
                         height: 34,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
+                          color: BookingColors.surfaceHigh,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Center(
                           child: Text(
                             '${index + 1}',
                             style: GoogleFonts.inter(
-                              color: Colors.white70,
+                              color: BookingColors.textSecondary,
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 11),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,7 +151,7 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.inter(
-                                color: Colors.white,
+                                color: BookingColors.textPrimary,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -161,10 +159,10 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                             const SizedBox(height: 3),
                             Row(
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.schedule_rounded,
                                   size: 13,
-                                  color: Colors.grey.shade500,
+                                  color: BookingColors.textMuted,
                                 ),
                                 const SizedBox(width: 5),
                                 Expanded(
@@ -172,10 +170,7 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                                     '${slot['start_time']} - ${slot['end_time']}',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.inter(
-                                      color: Colors.grey.shade400,
-                                      fontSize: 12,
-                                    ),
+                                    style: BookingText.muted(context),
                                   ),
                                 ),
                               ],
@@ -187,8 +182,8 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                       Text(
                         '₹${slotPrice.toStringAsFixed(0)}',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF00DC00),
-                          fontSize: 12,
+                          color: BookingColors.textPrimary,
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -201,28 +196,25 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
           if (hasOverflow) ...[
             const SizedBox(height: 10),
             InkWell(
-              onTap: () {
-                setState(() {
-                  _expanded = !_expanded;
-                });
-              },
+              onTap: () => setState(() => _expanded = !_expanded),
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(vertical: 11),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
+                  color: BookingColors.surfaceAlt,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: BookingColors.borderSoft),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       _expanded
-                          ? 'Show Less'
-                          : 'Show All ${sortedSlots.length} Slots',
+                          ? 'Show less'
+                          : 'Show all ${sortedSlots.length} slots',
                       style: GoogleFonts.inter(
-                        color: Colors.white70,
+                        color: BookingColors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -232,7 +224,7 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                       _expanded
                           ? Icons.keyboard_arrow_up_rounded
                           : Icons.keyboard_arrow_down_rounded,
-                      color: Colors.white70,
+                      color: BookingColors.textSecondary,
                       size: 18,
                     ),
                   ],

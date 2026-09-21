@@ -16,6 +16,7 @@ import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_consoles_
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_header.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_info_section.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_reviews_section.dart';
+import 'package:hash/app/modules/arena/views/booking_design.dart';
 import 'package:hash/app/modules/arena/views/booking_screen.dart';
 import 'package:hash/app/modules/arena/views/menu_view.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -1141,15 +1142,15 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           color: isSelected
               ? (showEliteFx
                     ? null
-                    : const Color(0xFF00DC00).withValues(alpha: 0.14))
-              : const Color(0xFF232323),
+                    : BookingColors.accent.withValues(alpha: 0.14))
+              : BookingColors.surfaceAlt,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected
                 ? (showEliteFx
                       ? const Color(0xFF9FE7FF)
-                      : const Color(0xff00DC00))
-                : Colors.white12,
+                      : BookingColors.accentBright)
+                : BookingColors.border,
             width: 1.4,
           ),
           boxShadow: isSelected && showEliteFx
@@ -1788,7 +1789,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         .cast<String>();
 
     return Scaffold(
-      backgroundColor: const Color(0xff0F0F0F),
+      backgroundColor: BookingColors.bg,
       body: Stack(
         children: [
           ListView(
@@ -1904,45 +1905,23 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: SafeArea(
-              top: false,
-              minimum: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-              child: GetX<CafeGamesController>(
-                init: _gamesController,
-                builder: (controller) {
-                  return SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        await _startBookingFlow(context);
-                      },
-
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: controller.shopOpen.value
-                            ? const Color(0xff00DC00)
-                            : Colors.grey.shade600,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        controller.shopOpen.value
-                            ? 'Continue Booking'
-                            : 'Shop Closed',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          color: controller.shopOpen.value
-                              ? Colors.black
-                              : Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+            child: GetX<CafeGamesController>(
+              init: _gamesController,
+              builder: (controller) {
+                final open = controller.shopOpen.value;
+                return BookingBottomBar(
+                  child: BookingPrimaryButton(
+                    label: open ? 'Continue Booking' : 'Shop Closed',
+                    icon: open ? Icons.sports_esports_rounded : Icons.lock_clock,
+                    enabled: open,
+                    onPressed: open
+                        ? () async {
+                            await _startBookingFlow(context);
+                          }
+                        : null,
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -3133,6 +3112,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   }
 
   Widget foodAndBeverageGrid(List<Map<String, String>> items) {
+    // Hide the whole section when there is nothing to show, so cafes without a
+    // menu don't render an empty "Food & beverages" header.
+    if (items.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hash/app/modules/home/widgets/home_design.dart';
+import 'package:hash/app/modules/arena/views/booking_design.dart';
 
-/// One selectable payment method.
+/// One selectable payment method, rendered as a full-width row.
 ///
-/// Rendered as a full-width row rather than a pill: the options used to sit in
-/// two rows of `Expanded` chips, so whichever option had no partner stretched
-/// to full width and read as more important than the rest. A solid green fill
-/// also made the selected option look like a primary button competing with the
-/// Pay CTA, so selection is shown with a tint, a border and a check instead.
+/// Selection is shown with an accent tint, border and a check indicator (not a
+/// solid fill) so the chosen option never competes visually with the primary
+/// Pay CTA at the bottom of the screen.
 class BookingSummaryPaymentOptionChip extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -25,7 +24,7 @@ class BookingSummaryPaymentOptionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = HomeTokens.green;
+    const accent = BookingColors.accent;
 
     return Semantics(
       button: true,
@@ -34,19 +33,22 @@ class BookingSummaryPaymentOptionChip extends StatelessWidget {
       child: Material(
         color: isSelected
             ? accent.withValues(alpha: 0.10)
-            : Colors.white.withValues(alpha: 0.04),
+            : BookingColors.surfaceAlt,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: onTap,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
           borderRadius: BorderRadius.circular(14),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: isSelected
-                    ? accent.withValues(alpha: 0.55)
-                    : HomeTokens.hairline,
+                    ? BookingColors.accentBright
+                    : BookingColors.border,
                 width: isSelected ? 1.4 : 1,
               ),
             ),
@@ -54,8 +56,10 @@ class BookingSummaryPaymentOptionChip extends StatelessWidget {
               children: [
                 Icon(
                   icon,
-                  size: 19,
-                  color: isSelected ? accent : HomeTokens.textSecondary,
+                  size: 20,
+                  color: isSelected
+                      ? BookingColors.accentBright
+                      : BookingColors.textSecondary,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -64,14 +68,18 @@ class BookingSummaryPaymentOptionChip extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      color: isSelected ? Colors.white : HomeTokens.textSecondary,
-                      fontSize: 13.5,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected
+                          ? BookingColors.textPrimary
+                          : BookingColors.textSecondary,
+                      fontSize: 14,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
-                _Indicator(isSelected: isSelected, accent: accent),
+                _Indicator(isSelected: isSelected),
               ],
             ),
           ),
@@ -82,10 +90,9 @@ class BookingSummaryPaymentOptionChip extends StatelessWidget {
 }
 
 class _Indicator extends StatelessWidget {
-  const _Indicator({required this.isSelected, required this.accent});
+  const _Indicator({required this.isSelected});
 
   final bool isSelected;
-  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -95,14 +102,20 @@ class _Indicator extends StatelessWidget {
       height: 20,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isSelected ? accent : Colors.transparent,
+        color: isSelected ? BookingColors.accent : Colors.transparent,
         border: Border.all(
-          color: isSelected ? accent : Colors.white.withValues(alpha: 0.28),
+          color: isSelected
+              ? BookingColors.accentBright
+              : BookingColors.borderStrong,
           width: 1.5,
         ),
       ),
       child: isSelected
-          ? const Icon(Icons.check_rounded, size: 14, color: Colors.black)
+          ? const Icon(
+              Icons.check_rounded,
+              size: 14,
+              color: BookingColors.textOnAccent,
+            )
           : null,
     );
   }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/arena/views/booking_design.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_payment_option_chip.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
-import 'package:hash/app/modules/home/widgets/home_design.dart';
 
 class BookingSummaryPaymentMethodSection extends StatelessWidget {
   final RxString selectedPayment;
@@ -31,22 +31,14 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: HomeTokens.surface,
-        borderRadius: BorderRadius.circular(HomeTokens.radius),
-        border: Border.all(color: HomeTokens.hairline),
-      ),
+    return BookingCard(
+      margin: const EdgeInsets.only(top: 12),
       child: Obx(
         () => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Payment method', style: HomeTokens.title(17)),
+            Text('Payment method', style: BookingText.title(context)),
             const SizedBox(height: 14),
-            // One option per row: an odd count used to leave the last chip
-            // stretched full width, reading as the recommended choice.
             BookingSummaryPaymentOptionChip(
               label: walletBalance > 0
                   ? 'Wallet • ₹${walletBalance.toStringAsFixed(0)}'
@@ -84,11 +76,9 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xff00DC00).withValues(alpha: 0.08),
+                  color: BookingColors.surfaceAlt,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: const Color(0xff00DC00).withValues(alpha: 0.22),
-                  ),
+                  border: Border.all(color: BookingColors.border),
                 ),
                 child: Text(
                   walletTopUpAmount > 0
@@ -99,7 +89,7 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     height: 1.45,
-                    color: Colors.white70,
+                    color: BookingColors.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -107,21 +97,21 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
             ],
             if (selectedPayment.value == 'none' &&
                 selectedGamePass.value != null) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xff00DC00).withValues(alpha: 0.1),
+                  color: BookingColors.success.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: const Color(0xff00DC00).withValues(alpha: 0.3),
+                    color: BookingColors.success.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
                   children: [
                     const Icon(
-                      Icons.check_circle,
-                      color: Color(0xff00DC00),
+                      Icons.check_circle_rounded,
+                      color: BookingColors.success,
                       size: 20,
                     ),
                     const SizedBox(width: 10),
@@ -133,29 +123,29 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
                             'Selected: ${selectedGamePass.value!.name}',
                             style: GoogleFonts.inter(
                               fontSize: 14,
-                              color: const Color(0xff00DC00),
-                              fontWeight: FontWeight.w600,
+                              color: BookingColors.success,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             selectedGamePass.value!.vendorName,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: Colors.grey.shade400,
-                            ),
+                            style: BookingText.muted(context),
                           ),
                         ],
                       ),
                     ),
                     TextButton(
                       onPressed: onClearSelectedPass,
+                      style: TextButton.styleFrom(
+                        foregroundColor: BookingColors.accentBright,
+                      ),
                       child: Text(
                         'Change',
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          color: const Color(0xff00DC00),
-                          fontWeight: FontWeight.w500,
+                          color: BookingColors.accentBright,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),

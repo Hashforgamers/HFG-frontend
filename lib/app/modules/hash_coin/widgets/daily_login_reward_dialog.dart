@@ -56,6 +56,13 @@ class _DailyLoginRewardDialogState extends State<DailyLoginRewardDialog>
     duration: const Duration(milliseconds: 2200),
   );
 
+  /// Fast, irregular flicker that gives the streak flame its living, dancing
+  /// quality and drives the today-segment glow.
+  late final AnimationController _flicker = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1300),
+  );
+
   late final Animation<double> _scale = Tween<double>(begin: 0.9, end: 1)
       .animate(CurvedAnimation(parent: _entry, curve: Curves.easeOutBack));
   late final Animation<double> _fade = CurvedAnimation(
@@ -78,6 +85,7 @@ class _DailyLoginRewardDialogState extends State<DailyLoginRewardDialog>
     super.initState();
     _entry.forward();
     _pulse.repeat(reverse: true);
+    _flicker.repeat(reverse: true);
     Future<void>.delayed(const Duration(milliseconds: 180), () {
       if (!mounted) return;
       _burst.forward();
@@ -90,6 +98,7 @@ class _DailyLoginRewardDialogState extends State<DailyLoginRewardDialog>
     _entry.dispose();
     _burst.dispose();
     _pulse.dispose();
+    _flicker.dispose();
     super.dispose();
   }
 
@@ -296,54 +305,131 @@ class _DailyLoginRewardDialogState extends State<DailyLoginRewardDialog>
 
   /// A visible run is the reason to come back tomorrow, so it earns a place
   /// above the fold rather than a line of body copy.
+  ///
+  /// The row is deliberately alive: a flame that flickers, segments that fill
+  /// in sequence as the card lands, and a today-segment whose glow breathes -
+  /// so a "Day 1" streak reads as something in motion, not a static bar.
   Widget _streakRow() {
     return Column(
       children: [
-        Row(
+        _streakHeader(),
+        const SizedBox(height: 12),
+        AnimatedBuilder(
+          animation: Listenable.merge([_entry, _flicker]),
+          builder: (context, _) {
+            final flick = Curves.easeInOut.transform(_flicker.value);
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(DailyLoginRewardDialog.streakTarget, (
+                index,
+              ) {
+                final filled = index < _filledDays;
+                final isToday = index == _filledDays - 1;
+
+                // Each filled segment lands a beat after the previous one, so
+                // the run reads as filling up rather than appearing at once.
+                final start = (0.3 + index * 0.08).clamp(0.0, 0.85);
+                final raw = ((_entry.value - start) / 0.22).clamp(0.0, 1.0);
+                final appear = filled
+                    ? Curves.easeOutBack.transform(raw)
+                    : 1.0;
+
+                final baseAlpha = filled ? (isToday ? 1.0 : 0.55) : 0.09;
+
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: Transform.scale(
+                      scaleY: filled ? (0.4 + 0.6 * appear.clamp(0.0, 1.0)) : 1,
+                      child: Opacity(
+                        opacity: filled ? raw.clamp(0.2, 1.0) : 1,
+                        child: Container(
+                          height: isToday ? 8 : 6,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            color: filled
+                                ? Color.lerp(
+                                    DailyLoginRewardDialog.gold,
+                                    DailyLoginRewardDialog.goldLight,
+                                    isToday ? flick : 0,
+                                  )!.withValues(alpha: baseAlpha)
+                                : Colors.white.withValues(alpha: 0.09),
+                            boxShadow: isToday
+                                ? [
+                                    BoxShadow(
+                                      color: DailyLoginRewardDialog.gold
+                                          .withValues(
+                                            alpha: 0.35 + flick * 0.4,
+                                          ),
+                                      blurRadius: 8 + flick * 8,
+                                      spreadRadius: flick * 1.5,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Flame + streak label. The flame flickers, lifts and glows on a loop so the
+  /// header carries the "on a run" energy even at a one-day streak.
+  Widget _streakHeader() {
+    return AnimatedBuilder(
+      animation: _flicker,
+      builder: (context, _) {
+        final f = Curves.easeInOut.transform(_flicker.value);
+        return Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(DailyLoginRewardDialog.streakTarget, (index) {
-            final filled = index < _filledDays;
-            final isToday = index == _filledDays - 1;
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: Container(
-                  height: 6,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: filled
-                        ? DailyLoginRewardDialog.gold.withValues(
-                            alpha: isToday ? 1 : 0.55,
-                          )
-                        : Colors.white.withValues(alpha: 0.09),
-                    boxShadow: isToday
-                        ? [
-                            BoxShadow(
-                              color: DailyLoginRewardDialog.gold.withValues(
-                                alpha: 0.5,
-                              ),
-                              blurRadius: 8,
-                            ),
-                          ]
-                        : null,
+          children: [
+            Transform.translate(
+              offset: Offset(0, -f * 1.6),
+              child: Transform.scale(
+                scale: 0.92 + f * 0.16,
+                child: Transform.rotate(
+                  angle: (f - 0.5) * 0.10,
+                  child: Icon(
+                    Icons.local_fire_department_rounded,
+                    size: 22,
+                    color: Color.lerp(
+                      DailyLoginRewardDialog.gold,
+                      DailyLoginRewardDialog.goldLight,
+                      f,
+                    ),
+                    shadows: [
+                      Shadow(
+                        color: DailyLoginRewardDialog.gold.withValues(
+                          alpha: 0.45 + f * 0.4,
+                        ),
+                        blurRadius: 12 + f * 10,
+                      ),
+                    ],
                   ),
                 ),
               ),
-            );
-          }),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          widget.streak > 1
-              ? 'Day ${widget.streak} streak'
-              : 'Streak started - keep it going',
-          style: GoogleFonts.inter(
-            color: DailyLoginRewardDialog.goldLight.withValues(alpha: 0.9),
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
+            ),
+            const SizedBox(width: 8),
+            Text(
+              widget.streak > 1
+                  ? 'Day ${widget.streak} streak'
+                  : 'Streak started - keep it going',
+              style: GoogleFonts.inter(
+                color: DailyLoginRewardDialog.goldLight.withValues(alpha: 0.95),
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

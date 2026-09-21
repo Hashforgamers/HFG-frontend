@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
+import 'package:hash/app/modules/arena/views/booking_design.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_bottom_bar.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_cart_section.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_game_pass_dialog.dart';
@@ -134,6 +135,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final Rx<PaymentStage> _stage = PaymentStage.idle.obs;
   final RxString _errorMessage = ''.obs;
   Timer? _paymentWatchdog;
+  Timer? _paymentSlowNotice;
   final List<Worker> _paymentWorkers = <Worker>[];
 
   @override
@@ -239,10 +241,27 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   }
 
   void _startPaymentWatchdog({
-    Duration timeout = const Duration(seconds: 45),
+    // The payment backend runs on Render, which can cold-start, so the order
+    // creation / gateway-open phase gets a generous budget. The watchdog is
+    // cancelled the moment the Razorpay sheet opens, so this never counts the
+    // user's own time inside the checkout sheet.
+    Duration timeout = const Duration(seconds: 60),
+    Duration slowNoticeAfter = const Duration(seconds: 18),
     required bool fromWallet,
   }) {
     _cancelPaymentWatchdog();
+
+    // Reassure the user before the hard timeout, rather than sitting silent.
+    _paymentSlowNotice = Timer(slowNoticeAfter, () {
+      if (!mounted || !_isProcessingPayment.value) return;
+      final activeGatewayStage =
+          _stage.value == PaymentStage.initiatingGateway ||
+          _stage.value == PaymentStage.openingRazorpay;
+      if (activeGatewayStage) {
+        _paymentStatus.value = 'Still preparing your order…';
+      }
+    });
+
     _paymentWatchdog = Timer(timeout, () async {
       if (!mounted) return;
       if (!_isProcessingPayment.value) return;
@@ -253,7 +272,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       if (!activeGatewayStage) return;
 
       await _failPaymentFlow(
-        'Payment is taking longer than expected. Please try again.',
+        'The payment gateway is taking too long to respond. Please try again.',
         fromWallet: fromWallet,
       );
     });
@@ -262,6 +281,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   void _cancelPaymentWatchdog() {
     _paymentWatchdog?.cancel();
     _paymentWatchdog = null;
+    _paymentSlowNotice?.cancel();
+    _paymentSlowNotice = null;
   }
 
   Future<void> _failPaymentFlow(
@@ -789,6 +810,33 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     razorpayController.cartItemsList.value = _getValidatedCartItems();
     razorpayController.voucherCode.value = _appliedVoucher.value?.code ?? '';
     razorpayController.bookingDate.value = _formattedBookDate;
+    // Surface real details on the success screen instead of blanks.
+    razorpayController.setSuccessContext(
+      amount: calculateTotalPrice(),
+      timeText: _bookingTimeLabel(),
+      email:
+          userController.user.value.contact?.electronicAddress?.emailId ?? '',
+    );
+  }
+
+  /// Human-readable slot time for analytics and the success screen, e.g.
+  /// "10:00:00 - 11:00:00" (with "+N more" when several slots are booked).
+  String _bookingTimeLabel() {
+    if (widget.selectedSlots.isEmpty) return '';
+    final first = widget.selectedSlots.first;
+    final start = (first['start_time'] ?? '').toString().trim();
+    final end = (first['end_time'] ?? '').toString().trim();
+    final base = (start.isEmpty && end.isEmpty) ? '' : '$start - $end';
+    final extra = widget.selectedSlots.length - 1;
+    return extra > 0 ? '$base  +$extra more' : base;
+  }
+
+  /// Currency label for the success screen; empty when the amount is unknown.
+  String _formattedTotalText(double amount) {
+    if (amount <= 0) return '';
+    return amount % 1 == 0
+        ? amount.toStringAsFixed(0)
+        : amount.toStringAsFixed(2);
   }
 
   double calculateDiscount() {
@@ -867,14 +915,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   Widget _buildControllerCounterSection() {
     return Obx(() {
       final count = _selectedControllerCount.value;
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF171717),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white10),
-        ),
+      return BookingCard(
+        margin: const EdgeInsets.only(top: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -883,12 +925,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF00DC00).withValues(alpha: 0.16),
+                    color: BookingColors.accent.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.sports_esports_rounded,
-                    color: Colors.white,
+                    color: BookingColors.accentBright,
                     size: 18,
                   ),
                 ),
@@ -902,16 +944,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: BookingColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 3),
                       Text(
                         'Add the number of controllers needed for this booking.',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.grey.shade400,
-                        ),
+                        style: BookingText.muted(context),
                       ),
                     ],
                   ),
@@ -922,14 +961,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF111111),
+                color: BookingColors.surfaceAlt,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white10),
+                border: Border.all(color: BookingColors.borderSoft),
               ),
               child: Row(
                 children: [
                   _buildCounterButton(
-                    icon: Icons.remove,
+                    icon: Icons.remove_rounded,
                     enabled: count > 1,
                     onTap: () {
                       if (count > 1) {
@@ -945,22 +984,19 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           '$count',
                           style: GoogleFonts.inter(
                             fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            color: BookingColors.textPrimary,
                           ),
                         ),
                         Text(
                           'Controller${count == 1 ? '' : 's'}',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.grey.shade400,
-                          ),
+                          style: BookingText.muted(context),
                         ),
                       ],
                     ),
                   ),
                   _buildCounterButton(
-                    icon: Icons.add,
+                    icon: Icons.add_rounded,
                     enabled: count < 4,
                     onTap: () {
                       if (count < 4) {
@@ -984,15 +1020,20 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: enabled ? const Color(0xFF1D1D1D) : const Color(0xFF151515),
+      color: enabled ? BookingColors.surfaceHigh : BookingColors.bgElevated,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(12),
         child: SizedBox(
-          height: 42,
-          width: 42,
-          child: Icon(icon, color: enabled ? Colors.white : Colors.white24),
+          height: 44,
+          width: 44,
+          child: Icon(
+            icon,
+            color: enabled
+                ? BookingColors.textPrimary
+                : BookingColors.textMuted,
+          ),
         ),
       ),
     );
@@ -1023,48 +1064,67 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           },
         );
       },
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0F0F0F),
-        appBar: AppBar(
-          title: Text(
-            '${widget.selectedCafeName} - ${widget.consoleType}',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+      child: BookingScaffold(
+        titleWidget: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.selectedCafeName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: BookingColors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+              ),
             ),
-          ),
-          backgroundColor: Colors.black,
-          elevation: 1,
-          iconTheme: const IconThemeData(color: Colors.white),
+            Text(
+              '${widget.consoleType} • Review & pay',
+              style: GoogleFonts.inter(
+                color: BookingColors.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
         body: Obx(
           () => Stack(
             children: [
               SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Text(
-                      //   '${widget.selectedCafeName} - ${widget.consoleType}',
-                      //   style: GoogleFonts.inter(
-                      //     fontSize: 22,
-                      //     fontWeight: FontWeight.w600,
-                      //     color: Colors.white,
-                      //   ),
-                      // ),
-                      // const SizedBox(height: 4),
-                      Text(
-                        '${widget.selectedSlots.length} Slot(s) Selected',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFFB0B0B0),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 18),
+                        child: const BookingStepIndicator(
+                          steps: ['Slots', 'Review', 'Done'],
+                          currentIndex: 1,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.event_seat_rounded,
+                            size: 16,
+                            color: BookingColors.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${widget.selectedSlots.length} slot(s) selected',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: BookingColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
 
                       BookingSummarySlotsList(
                         selectedSlots: widget.selectedSlots,
@@ -1167,7 +1227,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             ],
           ),
         ),
-        bottomNavigationBar: Obx(() {
+        bottomBar: Obx(() {
           final isProcessing =
               _isProcessingPayment.value ||
               _stage.value == PaymentStage.creatingBooking ||
@@ -1948,7 +2008,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       }
 
       // Track booking started event
-      final slotTime = widget.selectedSlots.first['time'] ?? 'Unknown';
+      final slotTimeLabel = _bookingTimeLabel();
+      final slotTime = slotTimeLabel.isEmpty ? 'Unknown' : slotTimeLabel;
       segmentService.onBookingStarted(
         cafeId: 'cafe_${widget.gameId}',
         gameId: widget.gameId.toString(),
@@ -2005,9 +2066,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           () => PaymentSuccessScreen(
             isBookingCreatedOnly: true,
             dateText: _formattedBookDate,
-            timeText: "",
-            totalText: totalPrice.toString(),
-            email: "",
+            timeText: _bookingTimeLabel(),
+            totalText: _formattedTotalText(totalPrice),
+            email:
+                userController.user.value.contact?.electronicAddress?.emailId ??
+                '',
             onViewInvoice: () {
               Get.offAllNamed('/home', arguments: {'tabIndex': 3});
             },

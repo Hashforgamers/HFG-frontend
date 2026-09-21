@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hash/app/modules/home/widgets/home_design.dart';
+import 'package:hash/app/modules/arena/views/booking_design.dart';
 
 class BookingSummaryPaymentSummarySection extends StatelessWidget {
   final double totalPrice;
@@ -32,6 +32,8 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
     required this.hasCartItems,
   });
 
+  static const Color _wallet = Color(0xFF42D7FF);
+
   @override
   Widget build(BuildContext context) {
     final savings = discount + squadDiscountAmount;
@@ -46,7 +48,6 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
         _SummaryLine('Extra Controllers', extraControllerFare),
       if (hasCartItems) _SummaryLine('Food & Beverages', cartSubtotal),
       _SummaryLine('Subtotal', subtotal, emphasized: true),
-      _SummaryLine('GST', 0),
     ];
 
     final savingsApplied = <_SummaryLine>[
@@ -61,31 +62,17 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
           'Paid from Wallet',
           walletAppliedAmount,
           isDeduction: true,
-          accentColor: const Color(0xff42D7FF),
+          accentColor: _wallet,
         ),
       _SummaryLine(
         hasWalletFlow ? remainingAmountLabel : 'Payable Now',
         dueNow,
         emphasized: true,
-        accentColor: const Color(0xff00DC00),
       ),
     ];
 
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B1B1B),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+    return BookingCard(
+      margin: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -94,12 +81,12 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xff00DC00).withValues(alpha: 0.12),
+                  color: BookingColors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
-                  Icons.account_balance_wallet_rounded,
-                  color: Color(0xff00DC00),
+                  Icons.receipt_long_rounded,
+                  color: BookingColors.accentBright,
                   size: 18,
                 ),
               ),
@@ -108,20 +95,13 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Payment summary',
-                      style: HomeTokens.title(17),
-                    ),
+                    Text('Payment summary', style: BookingText.title(context)),
                     const SizedBox(height: 2),
                     Text(
                       hasWalletFlow
-                          ? 'See what the booking costs and what you need to pay now.'
-                          : 'Simple breakdown of your final payable amount.',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white54,
-                      ),
+                          ? 'What the booking costs and what you pay now.'
+                          : 'Breakdown of your final payable amount.',
+                      style: BookingText.muted(context),
                     ),
                   ],
                 ),
@@ -129,21 +109,22 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
+          // Hero: amount to pay now.
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xff00DC00).withValues(alpha: 0.18),
-                  const Color(0xff0F2B11),
+                  BookingColors.accent.withValues(alpha: 0.14),
+                  BookingColors.surfaceHigh,
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xff00DC00).withValues(alpha: 0.18),
+                color: BookingColors.accent.withValues(alpha: 0.22),
               ),
             ),
             child: Column(
@@ -154,46 +135,42 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white70,
+                    color: BookingColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   '₹${dueNow.toStringAsFixed(2)}',
                   style: GoogleFonts.inter(
-                    fontSize: 28,
+                    fontSize: 30,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xff00DC00),
+                    letterSpacing: -0.8,
+                    color: BookingColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   hasWalletFlow
-                      ? 'Wallet will be used first. The remaining amount is shown above.'
-                      : 'This is the final amount that will be charged for this booking.',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white70,
-                    height: 1.45,
-                  ),
+                      ? 'Wallet is used first; the remaining amount is shown above.'
+                      : 'Final amount charged for this booking.',
+                  style: BookingText.muted(context),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          _sectionLabel('1. Booking Charges'),
+          _sectionLabel('1 · Booking charges'),
           const SizedBox(height: 10),
           ...bookingCharges.map(_buildSummaryLine),
           if (savingsApplied.isNotEmpty) ...[
             const SizedBox(height: 10),
-            _sectionLabel('2. Savings Applied'),
+            _sectionLabel('2 · Savings applied'),
             const SizedBox(height: 10),
             ...savingsApplied.map(_buildSummaryLine),
           ],
           const SizedBox(height: 10),
           _sectionLabel(
-            hasWalletFlow ? '3. How You Will Pay' : '2. Final Payment',
+            hasWalletFlow ? '3 · How you will pay' : '2 · Final payment',
           ),
           const SizedBox(height: 10),
           ...howYouPay.map(_buildSummaryLine),
@@ -202,9 +179,9 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
+              color: BookingColors.surfaceAlt,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              border: Border.all(color: BookingColors.borderSoft),
             ),
             child: Row(
               children: [
@@ -212,32 +189,24 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
                   child: _miniMetric(
                     'Grand Total',
                     '₹${totalPrice.toStringAsFixed(2)}',
-                    Colors.white,
+                    BookingColors.textPrimary,
                   ),
                 ),
-                Container(
-                  width: 1,
-                  height: 34,
-                  color: Colors.white.withValues(alpha: 0.08),
-                ),
+                Container(width: 1, height: 34, color: BookingColors.border),
                 Expanded(
                   child: _miniMetric(
                     'You Save',
                     '₹${savings.toStringAsFixed(2)}',
-                    const Color(0xff00DC00),
+                    BookingColors.success,
                   ),
                 ),
                 if (walletAppliedAmount > 0) ...[
-                  Container(
-                    width: 1,
-                    height: 34,
-                    color: Colors.white.withValues(alpha: 0.08),
-                  ),
+                  Container(width: 1, height: 34, color: BookingColors.border),
                   Expanded(
                     child: _miniMetric(
                       'Wallet',
                       '₹${walletAppliedAmount.toStringAsFixed(2)}',
-                      const Color(0xff42D7FF),
+                      _wallet,
                     ),
                   ),
                 ],
@@ -251,12 +220,12 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
 
   Widget _sectionLabel(String label) {
     return Text(
-      label,
+      label.toUpperCase(),
       style: GoogleFonts.inter(
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: FontWeight.w700,
-        color: Colors.white54,
-        letterSpacing: 0.3,
+        color: BookingColors.textMuted,
+        letterSpacing: 0.8,
       ),
     );
   }
@@ -266,10 +235,9 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
     return _paymentRow(
       line.label,
       '$prefix${line.amount.toStringAsFixed(2)}',
-      labelColor: line.isDeduction ? const Color(0xffCDEFCF) : null,
+      labelColor: line.isDeduction ? BookingColors.success : null,
       valueColor:
-          line.accentColor ??
-          (line.isDeduction ? const Color(0xff00DC00) : null),
+          line.accentColor ?? (line.isDeduction ? BookingColors.success : null),
       isEmphasized: line.emphasized,
     );
   }
@@ -285,7 +253,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: Colors.white54,
+              color: BookingColors.textMuted,
             ),
           ),
           const SizedBox(height: 5),
@@ -311,16 +279,16 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         color: isEmphasized
-            ? const Color(0xff00DC00).withValues(alpha: 0.08)
-            : Colors.white.withValues(alpha: 0.03),
+            ? BookingColors.accent.withValues(alpha: 0.08)
+            : BookingColors.surfaceAlt,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isEmphasized
-              ? const Color(0xff00DC00).withValues(alpha: 0.18)
-              : Colors.white.withValues(alpha: 0.05),
+              ? BookingColors.accent.withValues(alpha: 0.20)
+              : BookingColors.borderSoft,
         ),
       ),
       child: Row(
@@ -332,7 +300,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: isEmphasized ? 13 : 12,
                 fontWeight: isEmphasized ? FontWeight.w700 : FontWeight.w500,
-                color: labelColor ?? Colors.white70,
+                color: labelColor ?? BookingColors.textSecondary,
               ),
             ),
           ),
@@ -342,7 +310,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: isEmphasized ? 14 : 13,
               fontWeight: isEmphasized ? FontWeight.w800 : FontWeight.w600,
-              color: valueColor ?? Colors.white,
+              color: valueColor ?? BookingColors.textPrimary,
             ),
           ),
         ],

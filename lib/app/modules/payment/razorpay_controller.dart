@@ -36,6 +36,14 @@ class RazorpayController extends GetxController {
   RxString paymentStatus = ''.obs;
   PaymentType? _currentPaymentType;
   String? _passIdForPurchase;
+
+  // Context surfaced on the success screen after a gateway booking. Set by the
+  // summary screen via [setSuccessContext] before checkout opens, so the
+  // confirmation shows the real amount, slot time and email instead of blanks.
+  double successAmount = 0;
+  String successTimeText = '';
+  String successEmail = '';
+
   double _pendingWalletContribution = 0;
   String? _pendingWalletDebitReferenceId;
   String? _pendingWalletRefundReferenceId;
@@ -64,6 +72,25 @@ class RazorpayController extends GetxController {
   void setPassIdForPurchase(String passId) {
     final normalized = passId.trim();
     _passIdForPurchase = normalized.isEmpty ? null : normalized;
+  }
+
+  /// Details shown on the success screen after a successful gateway booking.
+  void setSuccessContext({
+    required double amount,
+    required String timeText,
+    required String email,
+  }) {
+    successAmount = amount;
+    successTimeText = timeText;
+    successEmail = email;
+  }
+
+  /// A currency string for the success screen, or empty when unknown.
+  String get _successTotalText {
+    if (successAmount <= 0) return '';
+    return successAmount % 1 == 0
+        ? successAmount.toStringAsFixed(0)
+        : successAmount.toStringAsFixed(2);
   }
 
   void configureWalletSplit({
@@ -148,7 +175,7 @@ class RazorpayController extends GetxController {
       'description': description,
       'order_id': orderId,
       if (prefill.isNotEmpty) 'prefill': prefill,
-      'theme': {'color': '#F8A241'},
+      'theme': {'color': '#00DC00'},
       'retry': {'enabled': true, 'max_count': 2},
     };
 
@@ -269,12 +296,13 @@ class RazorpayController extends GetxController {
         );
       }
     } catch (e) {
+      debugPrint('Payment completion failed: $e');
       await refundPendingWalletContribution();
       _reset();
       Haptics.error();
       Get.snackbar(
-        'Payment Error',
-        'Failed to complete payment: $e',
+        'Payment could not be confirmed',
+        'If any amount was deducted it will be refunded automatically. Please try again.',
         snackPosition: SnackPosition.BOTTOM,
       );
     }
@@ -365,22 +393,23 @@ class RazorpayController extends GetxController {
         () => PaymentSuccessScreen(
           method: paymentMode,
           dateText: confirmedBookingDate,
-          timeText: "",
-          totalText: "",
-          email: "",
+          timeText: successTimeText,
+          totalText: _successTotalText,
+          email: successEmail,
           onViewInvoice: () {
             Get.offAllNamed('/home', arguments: {'tabIndex': 3});
           },
         ),
       );
     } catch (e) {
+      debugPrint('Confirm booking failed: $e');
       await _releaseBookings(bookingIds: bookingIds, slotIds: slotIds);
       await refundPendingWalletContribution();
       _reset();
       Haptics.error();
       Get.snackbar(
-        'Error',
-        'Failed to confirm booking: $e',
+        'Booking not confirmed',
+        'Your payment is safe. We could not confirm the booking — please try again or contact support.',
         snackPosition: SnackPosition.BOTTOM,
       );
     }

@@ -450,38 +450,78 @@ class _HomeViewState extends State<HomeView> {
 
         final unreadCount = chatService.unreadRoomCount.value;
         const neonGreen = Color(0xff00DC00);
+        final bool showLabel = !_isHomeScrolling;
+        const fabShape = BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(0),
+        );
 
         return Stack(
           clipBehavior: Clip.none,
           children: [
-            FloatingActionButton.extended(
-              heroTag: 'home_chat_fab',
-              isExtended: !_isHomeScrolling,
-              extendedPadding: const EdgeInsets.symmetric(horizontal: 16),
-              backgroundColor: Colors.black,
-              elevation: 0,
-              shape: const RoundedRectangleBorder(
-                side: BorderSide(color: neonGreen, width: 1.6),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(28),
-                  topRight: Radius.circular(28),
-                  bottomLeft: Radius.circular(28),
-                  bottomRight: Radius.circular(0),
-                ),
-              ),
-              onPressed: _openChatInbox,
-              icon: Image.asset(
-                'assets/chat.png',
-                width: 20,
-                height: 20,
-                color: neonGreen,
-                fit: BoxFit.contain,
-              ),
-              label: Text(
-                'Chat',
-                style: GoogleFonts.inter(
-                  color: neonGreen,
-                  fontWeight: FontWeight.w700,
+            // Frosted blurred-glass pill: a translucent surface over a
+            // BackdropFilter so the feed behind shows through, framed by the
+            // neon-green brand border.
+            ClipRRect(
+              borderRadius: fabShape,
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _openChatInbox,
+                    borderRadius: fabShape,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOut,
+                      height: 56,
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      decoration: BoxDecoration(
+                        // Subtle green-tinted frost so the blur reads even over
+                        // dark content.
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.10),
+                            neonGreen.withValues(alpha: 0.08),
+                          ],
+                        ),
+                        borderRadius: fabShape,
+                        border: Border.all(color: neonGreen, width: 1.6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(
+                            'assets/chat.png',
+                            width: 20,
+                            height: 20,
+                            color: neonGreen,
+                            fit: BoxFit.contain,
+                          ),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOut,
+                            child: showLabel
+                                ? Padding(
+                                    padding: const EdgeInsets.only(left: 10),
+                                    child: Text(
+                                      'Chat',
+                                      style: GoogleFonts.inter(
+                                        color: neonGreen,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

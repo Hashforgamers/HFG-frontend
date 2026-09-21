@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'booking_design.dart';
+
 class PaymentSuccessScreen extends StatelessWidget {
   const PaymentSuccessScreen({
     super.key,
@@ -12,7 +14,7 @@ class PaymentSuccessScreen extends StatelessWidget {
     required this.totalText,
     required this.email,
     this.onViewInvoice,
-    this.accentColor = const Color(0xff00DC00),
+    this.accentColor = BookingColors.success,
     this.isBookingCreatedOnly = false,
   });
 
@@ -26,11 +28,11 @@ class PaymentSuccessScreen extends StatelessWidget {
   final Color accentColor;
   final bool isBookingCreatedOnly;
 
-  static const _bg = Color(0xFF0A0F0C);
-  static const _text = Colors.white;
-  static const _muted = Color(0xFF95A29A);
-  static const _card = Color(0xFF121915);
-  static const _cardBorder = Color(0xFF233128);
+  static const _bg = BookingColors.bg;
+  static const _text = BookingColors.textPrimary;
+  static const _muted = BookingColors.textSecondary;
+  static const _card = BookingColors.surface;
+  static const _cardBorder = BookingColors.border;
 
   String _safeValue(String value, {String fallback = '--'}) {
     final v = value.trim();
@@ -171,39 +173,18 @@ class PaymentSuccessScreen extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        if (onViewInvoice != null) {
-                          onViewInvoice!.call();
-                          return;
-                        }
-                        Navigator.of(context).maybePop();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accentColor,
-                        foregroundColor: const Color(0xFF0D1B12),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        textStyle: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('Continue'),
-                          SizedBox(width: 8),
-                          Icon(Icons.arrow_forward_rounded, size: 18),
-                        ],
-                      ),
-                    ),
+                  child: BookingPrimaryButton(
+                    label: 'Continue',
+                    icon: Icons.arrow_forward_rounded,
+                    gradient: BookingColors.successGradient,
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      if (onViewInvoice != null) {
+                        onViewInvoice!.call();
+                        return;
+                      }
+                      Navigator.of(context).maybePop();
+                    },
                   ),
                 ),
               ],
