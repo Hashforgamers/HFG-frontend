@@ -276,20 +276,20 @@ class LoginController extends GetxController {
         );
       }
 
-      // `authorizationForScopes` only returns tokens that can be issued with no
-      // user interaction, so on a first sign-in it is always null and the
-      // People lookup below silently yields nothing. Ask for the scopes, and
-      // treat a refusal as "continue without the extra profile fields".
+      // Deliberately non-interactive. These are restricted scopes
+      // (birthday/gender/addresses) that need OAuth app verification, so
+      // calling `authorizeScopes` here put Google's own consent-or-error UI in
+      // the middle of sign-in - which a try/catch cannot suppress, because it
+      // is not a Dart exception. Sign-in must never depend on optional profile
+      // enrichment, so we only use scopes the user has already granted and
+      // accept null otherwise.
       String? profileAccessToken;
       try {
-        profileAccessToken = (await googleUser.authorizationClient
-                .authorizationForScopes(_googleProfileScopes) ??
-            await googleUser.authorizationClient.authorizeScopes(
-              _googleProfileScopes,
-            ))
-            .accessToken;
+        final existing = await googleUser.authorizationClient
+            .authorizationForScopes(_googleProfileScopes);
+        profileAccessToken = existing?.accessToken;
       } catch (error) {
-        AppLogger.d('Google profile scopes not granted: $error');
+        AppLogger.d('Google profile scopes unavailable: $error');
       }
       final googleProfile = await _fetchGooglePeopleProfile(
         accessToken: profileAccessToken,

@@ -143,10 +143,13 @@ class RazorpayController extends GetxController {
     final options = {
       'key': ApiEndpoints.razorpayKeyWallet,
       'amount': (amount * 100).toInt(),
-      'name': name,
+      'currency': 'INR',
+      'name': name.trim().isEmpty ? 'HashForGamers' : name,
       'description': description,
       'order_id': orderId,
       if (prefill.isNotEmpty) 'prefill': prefill,
+      'theme': {'color': '#F8A241'},
+      'retry': {'enabled': true, 'max_count': 2},
     };
 
     try {

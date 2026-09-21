@@ -2435,6 +2435,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               userController.user.value.contact?.electronicAddress?.emailId ??
               '',
         );
+
+        // Once the Razorpay sheet is open we rely solely on Razorpay's own
+        // success/error callbacks (same as the host-verification flow). The
+        // watchdog only guards the order-creation/gateway-open phase; it must
+        // not count the time the user legitimately spends inside the payment
+        // sheet (choosing UPI app, entering PIN, waiting for bank OTP), which
+        // otherwise cancels the booking with "Payment is taking longer than
+        // expected."
+        _cancelPaymentWatchdog();
       } else {
         if (fromWallet) {
           await _rollbackWalletContributionIfNeeded();

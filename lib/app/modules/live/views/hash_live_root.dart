@@ -242,95 +242,92 @@ class _DiscoverTab extends StatelessWidget {
             final upcoming =
                 upcomingSnapshot.data ?? const <UpcomingStreamModel>[];
 
+            final loadingLive =
+                liveSnapshot.connectionState == ConnectionState.waiting;
+            final loadingUpcoming =
+                upcomingSnapshot.connectionState == ConnectionState.waiting;
+
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
               physics: const BouncingScrollPhysics(),
               children: [
-                _heroSection(),
-                const SizedBox(height: 22),
-                _sectionHeader(
+                // The slogan hero that used to sit here took roughly a sixth of
+                // the viewport to say nothing. On a streaming surface the
+                // content is the hero, so live streams start above the fold.
+                LiveSectionTitle(
                   'Live now',
-                  subtitle: streams.isEmpty ? null : '${streams.length} live',
+                  trailing: streams.isEmpty
+                      ? null
+                      : '${streams.length} streaming',
                 ),
-                const SizedBox(height: 10),
-                if (liveSnapshot.connectionState == ConnectionState.waiting)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(22),
-                      child: CircularProgressIndicator(
-                        color: LiveUi.accentSoft,
-                      ),
-                    ),
-                  )
+                const SizedBox(height: 12),
+                if (loadingLive)
+                  const _LiveLoading(height: 322)
                 else if (streams.isEmpty)
-                  _emptyState(
-                    'No streams live right now.',
+                  LiveEmptyState(
                     icon: Icons.wifi_tethering_off_rounded,
-                    subtitle:
-                        'New live streams will appear here automatically.',
-                  ),
-                if (streams.isNotEmpty)
+                    title: 'Nobody is live right now',
+                    message:
+                        'Streams appear here the moment a host goes live. '
+                        'You could be the first.',
+                    actionLabel: 'Go live',
+                    onAction: () => controller.setTab(1),
+                  )
+                else
                   SizedBox(
                     height: 322,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
+                      clipBehavior: Clip.none,
                       itemCount: streams.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (_, i) =>
                           _StanLiveCard(stream: streams[i], width: 304),
                     ),
                   ),
-                const SizedBox(height: 22),
-                _sectionHeader(
+                const SizedBox(height: 26),
+                LiveSectionTitle(
                   'Coming up',
-                  subtitle: upcoming.isEmpty
+                  trailing: upcoming.isEmpty
                       ? null
                       : '${upcoming.length} scheduled',
                 ),
-                const SizedBox(height: 10),
-                if (upcomingSnapshot.connectionState == ConnectionState.waiting)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(12),
-                      child: CircularProgressIndicator(
-                        color: LiveUi.accentSoft,
-                      ),
-                    ),
-                  )
+                const SizedBox(height: 12),
+                if (loadingUpcoming)
+                  const _LiveLoading(height: 148)
                 else if (upcoming.isEmpty)
-                  _emptyState(
-                    'Nothing scheduled yet.',
+                  LiveEmptyState(
                     icon: Icons.event_available_rounded,
-                    subtitle: 'Scheduled streams and reminders will show here.',
-                  ),
-                if (upcoming.isNotEmpty)
+                    title: 'Nothing scheduled yet',
+                    message:
+                        'Schedule a stream and your followers get a reminder '
+                        'before it starts.',
+                    actionLabel: 'Schedule a stream',
+                    onAction: () => controller.setTab(1),
+                  )
+                else
                   SizedBox(
                     height: 148,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
+                      clipBehavior: Clip.none,
                       itemCount: upcoming.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 10),
                       itemBuilder: (_, i) =>
                           _UpcomingCard(item: upcoming[i], width: 280),
                     ),
                   ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: () => controller.setTab(1),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: LiveUi.accent,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(54),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                // The empty states already offer this action, so only show the
+                // standalone CTA when there is content above it.
+                if (streams.isNotEmpty || upcoming.isNotEmpty) ...[
+                  const SizedBox(height: 26),
+                  LiveCta(
+                    label: 'Start a live stream',
+                    icon: Icons.videocam_rounded,
+                    height: 54,
+                    onTap: () => controller.setTab(1),
                   ),
-                  icon: const Icon(Icons.videocam_rounded),
-                  label: Text(
-                    'Start a live stream',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-                  ),
-                ),
+                ],
               ],
             );
           },
@@ -339,100 +336,22 @@ class _DiscoverTab extends StatelessWidget {
     );
   }
 
-  Widget _heroSection() {
-    return Container(
-      height: 142,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF241116), Color(0xFF15171D), Color(0xFF0C0E13)],
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: LiveUi.accent,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 7),
-                      Text(
-                        'DISCOVER LIVE',
-                        style: GoogleFonts.inter(
-                          color: LiveUi.accentSoft,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Watch. Play.\nGo live.',
-                    style: GoogleFonts.orbitron(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 22,
-                      height: 1.15,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              width: 74,
-              height: 74,
-              decoration: BoxDecoration(
-                color: LiveUi.accent.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.sensors_rounded,
-                color: LiveUi.accentSoft,
-                size: 38,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+}
 
-  Widget _sectionHeader(String title, {String? subtitle}) {
-    return Row(
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 17,
-          ),
-        ),
-        const Spacer(),
-        if (subtitle != null)
-          Text(
-            subtitle,
-            style: GoogleFonts.inter(color: LiveUi.softText, fontSize: 12),
-          ),
-      ],
-    );
-  }
+/// Keeps the horizontal rails at their real height while loading, so the page
+/// does not jump when streams arrive.
+class _LiveLoading extends StatelessWidget {
+  const _LiveLoading({required this.height});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: height,
+    child: const Center(
+      child: CircularProgressIndicator(color: LiveUi.accentSoft),
+    ),
+  );
 }
 
 class _GoLiveTab extends StatelessWidget {
@@ -445,45 +364,17 @@ class _GoLiveTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        Text('Go live', style: LiveUi.heading(24)),
+        const SizedBox(height: 4),
         Text(
-          'Go Live Studio',
-          style: GoogleFonts.orbitron(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
+          'Set it up once, then start or schedule.',
+          style: GoogleFonts.inter(
+            color: LiveUi.textSecondary,
+            fontSize: 13,
+            height: 1.35,
           ),
         ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: LiveUi.cardDecoration(radius: 16),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: LiveUi.accent.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.broadcast_on_home_rounded,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Create, schedule, and manage your streams from one place.',
-                  style: GoogleFonts.inter(
-                    color: Colors.white70,
-                    fontSize: 12.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        const SizedBox(height: 18),
         const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(12),
@@ -491,12 +382,9 @@ class _GoLiveTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Host tools',
-                style: GoogleFonts.inter(
-                  color: LiveUi.softText,
-                  fontWeight: FontWeight.w700,
-                ),
+              const LiveEyebrow(
+                'Quick schedule',
+                color: LiveUi.textTertiary,
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -740,7 +628,14 @@ class _HostTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = Get.find<HashLiveService>();
     final uid = service.currentUid ?? '';
-    if (uid.isEmpty) return _emptyState('Please login to view host profile.');
+    if (uid.isEmpty) {
+      return const LiveEmptyState(
+        icon: Icons.lock_outline_rounded,
+        title: 'Sign in to host',
+        message: 'Your streams, followers and schedule live here once you '
+            'sign in.',
+      );
+    }
 
     return StreamBuilder<Map<String, dynamic>?>(
       stream: service.watchHostProfile(uid),
@@ -823,6 +718,7 @@ class _HostTab extends StatelessWidget {
                           Expanded(
                             child: _hostStatTile(
                               title: 'Followers',
+                              icon: Icons.group_rounded,
                               stream: service.watchHostFollowersCount(uid),
                               onTap: () =>
                                   _showFollowersSheet(context, service, uid),
@@ -832,6 +728,7 @@ class _HostTab extends StatelessWidget {
                           Expanded(
                             child: _hostStatTile(
                               title: 'Streams',
+                              icon: Icons.videocam_rounded,
                               stream: service.watchHostTotalStreams(uid),
                             ),
                           ),
@@ -876,7 +773,16 @@ class _HostTab extends StatelessWidget {
                       );
                     }
                     if (posts.isEmpty) {
-                      return _emptyState('No stream posts yet.');
+                      return LiveEmptyState(
+                        icon: Icons.video_library_rounded,
+                        title: 'No streams yet',
+                        message:
+                            'Streams you finish show up here for your '
+                            'followers to rewatch.',
+                        actionLabel: 'Go live',
+                        onAction: () =>
+                            Get.find<HashLiveController>().setTab(1),
+                      );
                     }
                     return GridView.builder(
                       shrinkWrap: true,
@@ -908,7 +814,16 @@ class _HostTab extends StatelessWidget {
                     final all = snap.data ?? const <UpcomingStreamModel>[];
                     final mine = all.where((e) => e.hostUid == uid).toList();
                     if (mine.isEmpty) {
-                      return _emptyState('No upcoming streams yet.');
+                      return LiveEmptyState(
+                        icon: Icons.event_available_rounded,
+                        title: 'Nothing scheduled',
+                        message:
+                            'Schedule ahead so followers get a reminder '
+                            'before you start.',
+                        actionLabel: 'Schedule a stream',
+                        onAction: () =>
+                            Get.find<HashLiveController>().setTab(1),
+                      );
                     }
                     return Column(
                       children: mine
@@ -1021,54 +936,16 @@ class _HostTab extends StatelessWidget {
   Widget _hostStatTile({
     required String title,
     required Stream<int> stream,
+    IconData? icon,
     VoidCallback? onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: StreamBuilder<int>(
-          stream: stream,
-          builder: (_, snap) {
-            final value = snap.data ?? 0;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      '$value',
-                      style: GoogleFonts.orbitron(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (onTap != null) ...[
-                      const Spacer(),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: Colors.white54,
-                        size: 18,
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  title,
-                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
-                ),
-              ],
-            );
-          },
-        ),
+    return StreamBuilder<int>(
+      stream: stream,
+      builder: (_, snap) => LiveStatTile(
+        value: '${snap.data ?? 0}',
+        label: title,
+        icon: icon,
+        onTap: onTap,
       ),
     );
   }
@@ -1096,11 +973,7 @@ class _HostTab extends StatelessWidget {
                 children: [
                   Text(
                     'Followers',
-                    style: GoogleFonts.orbitron(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
+                    style: LiveUi.heading(17),
                   ),
                   const SizedBox(height: 10),
                   Expanded(
@@ -1470,44 +1343,40 @@ class _StanLiveCard extends StatelessWidget {
               Positioned(
                 top: 10,
                 left: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF4A3D),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'LIVE',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+                child: const LivePill(),
               ),
               Positioned(
                 top: 10,
                 right: 10,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
+                    horizontal: 9,
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.72),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text(
-                    '${stream.viewerCount} watching',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.visibility_rounded,
+                        size: 12,
+                        color: Colors.white70,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        stream.viewerCount > 0
+                            ? '${stream.viewerCount}'
+                            : 'Just started',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1561,61 +1430,12 @@ class _StanLiveCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Get.to(
-                              () => LiveStreamScreen(streamId: stream.id),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(
-                                color: LiveUi.accentSoft,
-                                width: 1.2,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              backgroundColor: Colors.black.withValues(
-                                alpha: 0.22,
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                            child: Text(
-                              'View Stream',
-                              style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => Get.to(
-                              () => LiveStreamScreen(streamId: stream.id),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: LiveUi.accent,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                            child: Text(
-                              'Watch Live',
-                              style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    LiveCta(
+                      label: 'Watch live',
+                      icon: Icons.play_arrow_rounded,
+                      height: 42,
+                      onTap: () =>
+                          Get.to(() => LiveStreamScreen(streamId: stream.id)),
                     ),
                   ],
                 ),
@@ -1702,50 +1522,3 @@ class _UpcomingCard extends StatelessWidget {
     );
   }
 }
-
-Widget _emptyState(
-  String text, {
-  IconData icon = Icons.inbox_outlined,
-  String? subtitle,
-}) => Container(
-  width: double.infinity,
-  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-  decoration: BoxDecoration(
-    color: LiveUi.surface,
-    borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: LiveUi.stroke),
-  ),
-  child: Row(
-    children: [
-      Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: LiveUi.softText, size: 21),
-      ),
-      const SizedBox(width: 14),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              text,
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (subtitle != null) ...[
-              const SizedBox(height: 4),
-              Text(subtitle, style: LiveUi.body),
-            ],
-          ],
-        ),
-      ),
-    ],
-  ),
-);
