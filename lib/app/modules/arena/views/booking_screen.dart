@@ -77,8 +77,20 @@ class _BookingScreenState extends State<BookingScreen> {
   /// Get the console type from the passed parameter
   String getConsoleType() {
     final type = widget.consoleType.toLowerCase().trim();
-    if (type.contains('playstation') || type.contains('ps')) {
+    if (type.contains('playstation 3') ||
+        RegExp(r'\bps\s*3\b').hasMatch(type)) {
+      return 'PS3';
+    }
+    if (type.contains('playstation 4') ||
+        RegExp(r'\bps\s*4\b').hasMatch(type)) {
+      return 'PS4';
+    }
+    if (type.contains('playstation 5') ||
+        RegExp(r'\bps\s*5\b').hasMatch(type)) {
       return 'PS5';
+    }
+    if (type.contains('playstation') || RegExp(r'\bps\b').hasMatch(type)) {
+      return 'PlayStation';
     }
     if (type.contains('xbox')) {
       return 'Xbox';
@@ -425,7 +437,10 @@ class _BookingScreenState extends State<BookingScreen> {
   /// single "choose another date" button.
   Widget _buildDateStrip() {
     final today = DateTime.now();
-    final days = List.generate(14, (i) => DateTime(today.year, today.month, today.day + i));
+    final days = List.generate(
+      14,
+      (i) => DateTime(today.year, today.month, today.day + i),
+    );
     return Container(
       padding: const EdgeInsets.only(top: 6, bottom: 10),
       child: SizedBox(
@@ -612,10 +627,11 @@ class _BookingScreenState extends State<BookingScreen> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: (isSelectable
-                            ? BookingColors.accent
-                            : BookingColors.textMuted)
-                        .withValues(alpha: 0.12),
+                    color:
+                        (isSelectable
+                                ? BookingColors.accent
+                                : BookingColors.textMuted)
+                            .withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(11),
                   ),
                   child: Icon(
@@ -752,103 +768,103 @@ class _BookingScreenState extends State<BookingScreen> {
         label:
             '${getConsoleLabel(pcIndex - 1)}${isSelected ? ', selected' : ''}',
         child: GestureDetector(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          final selectedConsoleCount = _getSelectedConsoleCount();
-          final isNewConsoleSelection =
-              !(controller.selectedSlots.containsKey(pcIndex) &&
-                  (controller.selectedSlots[pcIndex]?.isNotEmpty ?? false));
-          if (isSelected) {
-            controller.selectedSlots[pcIndex]?.remove(timeIndex);
-            if (controller.selectedSlots[pcIndex]?.isEmpty ?? true) {
-              controller.selectedSlots.remove(pcIndex);
-            }
-          } else {
-            if (isNewConsoleSelection &&
-                selectedConsoleCount > 0 &&
-                !_isAllowedTimeForNewConsole(timeIndex)) {
-              _showSlotAlignmentHint();
-              return;
-            }
-            if (isNewConsoleSelection &&
-                selectedConsoleCount >= _requiredSelectionCount) {
-              _showSelectionCountError(
-                'You can only select $_requiredSelectionCount ${_consoleCollectionLabel(_requiredSelectionCount)} for this booking.',
+          onTap: () {
+            HapticFeedback.selectionClick();
+            final selectedConsoleCount = _getSelectedConsoleCount();
+            final isNewConsoleSelection =
+                !(controller.selectedSlots.containsKey(pcIndex) &&
+                    (controller.selectedSlots[pcIndex]?.isNotEmpty ?? false));
+            if (isSelected) {
+              controller.selectedSlots[pcIndex]?.remove(timeIndex);
+              if (controller.selectedSlots[pcIndex]?.isEmpty ?? true) {
+                controller.selectedSlots.remove(pcIndex);
+              }
+            } else {
+              if (isNewConsoleSelection &&
+                  selectedConsoleCount > 0 &&
+                  !_isAllowedTimeForNewConsole(timeIndex)) {
+                _showSlotAlignmentHint();
+                return;
+              }
+              if (isNewConsoleSelection &&
+                  selectedConsoleCount >= _requiredSelectionCount) {
+                _showSelectionCountError(
+                  'You can only select $_requiredSelectionCount ${_consoleCollectionLabel(_requiredSelectionCount)} for this booking.',
+                );
+                return;
+              }
+              controller.selectedSlots[pcIndex] =
+                  controller.selectedSlots[pcIndex] ?? [];
+              controller.selectedSlots[pcIndex]?.add(timeIndex);
+              // message = 'Slot selected for ${getConsoleLabel(pcIndex - 1)}';
+              _segmentService.onCustomEvent('Cafe Slot Selected', {
+                'cafe_id': widget.vendorId.toString(),
+                'slot_time': selectedDateText,
+                'console_type': widget.consoleType,
+              });
+              _fbEventsService.onCafeSlotSelected(
+                cafeId: widget.vendorId.toString(),
+                slotTime: selectedDateText,
               );
-              return;
             }
-            controller.selectedSlots[pcIndex] =
-                controller.selectedSlots[pcIndex] ?? [];
-            controller.selectedSlots[pcIndex]?.add(timeIndex);
-            // message = 'Slot selected for ${getConsoleLabel(pcIndex - 1)}';
-            _segmentService.onCustomEvent('Cafe Slot Selected', {
-              'cafe_id': widget.vendorId.toString(),
-              'slot_time': selectedDateText,
-              'console_type': widget.consoleType,
-            });
-            _fbEventsService.onCafeSlotSelected(
-              cafeId: widget.vendorId.toString(),
-              slotTime: selectedDateText,
-            );
-          }
 
-          // Fluttertoast.showToast(
-          //   msg: message,
-          //   backgroundColor: Colors.black,
-          //   textColor: Colors.white,
-          //   fontSize: 14,
-          // );
+            // Fluttertoast.showToast(
+            //   msg: message,
+            //   backgroundColor: Colors.black,
+            //   textColor: Colors.white,
+            //   fontSize: 14,
+            // );
 
-          controller.selectedSlots.refresh();
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          margin: const EdgeInsets.only(right: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-          decoration: BoxDecoration(
-            gradient: isSelected ? BookingColors.accentGradient : null,
-            color: isSelected ? null : BookingColors.surfaceHigh,
-            borderRadius: BorderRadius.circular(BookingRadius.chip),
-            border: Border.all(
-              color: isSelected
-                  ? BookingColors.accentBright
-                  : BookingColors.borderStrong,
-            ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: BookingColors.accent.withValues(alpha: 0.35),
-                      blurRadius: 14,
-                      spreadRadius: -4,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isSelected) ...[
-                const Icon(
-                  Icons.check_circle_rounded,
-                  size: 15,
-                  color: BookingColors.textOnAccent,
-                ),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                getConsoleLabel(pcIndex - 1),
-                style: GoogleFonts.inter(
-                  color: isSelected
-                      ? BookingColors.textOnAccent
-                      : BookingColors.textSecondary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
+            controller.selectedSlots.refresh();
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            margin: const EdgeInsets.only(right: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            decoration: BoxDecoration(
+              gradient: isSelected ? BookingColors.accentGradient : null,
+              color: isSelected ? null : BookingColors.surfaceHigh,
+              borderRadius: BorderRadius.circular(BookingRadius.chip),
+              border: Border.all(
+                color: isSelected
+                    ? BookingColors.accentBright
+                    : BookingColors.borderStrong,
               ),
-            ],
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: BookingColors.accent.withValues(alpha: 0.35),
+                        blurRadius: 14,
+                        spreadRadius: -4,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isSelected) ...[
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    size: 15,
+                    color: BookingColors.textOnAccent,
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Text(
+                  getConsoleLabel(pcIndex - 1),
+                  style: GoogleFonts.inter(
+                    color: isSelected
+                        ? BookingColors.textOnAccent
+                        : BookingColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
         ),
       );
     });
@@ -1229,63 +1245,64 @@ class _DateChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: '${isToday ? 'Today' : DateFormat('EEEE').format(day)}, '
+      label:
+          '${isToday ? 'Today' : DateFormat('EEEE').format(day)}, '
           '${DateFormat('d MMMM').format(day)}',
       child: GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 56,
-        decoration: BoxDecoration(
-          gradient: selected ? BookingColors.accentGradient : null,
-          color: selected ? null : BookingColors.surface,
-          borderRadius: BorderRadius.circular(BookingRadius.button),
-          border: Border.all(
-            color: selected
-                ? BookingColors.accentBright
-                : BookingColors.border,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 56,
+          decoration: BoxDecoration(
+            gradient: selected ? BookingColors.accentGradient : null,
+            color: selected ? null : BookingColors.surface,
+            borderRadius: BorderRadius.circular(BookingRadius.button),
+            border: Border.all(
+              color: selected
+                  ? BookingColors.accentBright
+                  : BookingColors.border,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: BookingColors.accent.withValues(alpha: 0.3),
+                      blurRadius: 16,
+                      spreadRadius: -4,
+                    ),
+                  ]
+                : null,
           ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: BookingColors.accent.withValues(alpha: 0.3),
-                    blurRadius: 16,
-                    spreadRadius: -4,
-                  ),
-                ]
-              : null,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              isToday ? 'TODAY' : weekday,
-              style: GoogleFonts.inter(
-                color: selected
-                    ? BookingColors.textOnAccent.withValues(alpha: 0.8)
-                    : BookingColors.textMuted,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.4,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                isToday ? 'TODAY' : weekday,
+                style: GoogleFonts.inter(
+                  color: selected
+                      ? BookingColors.textOnAccent.withValues(alpha: 0.8)
+                      : BookingColors.textMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              dayNum,
-              style: GoogleFonts.inter(
-                color: selected
-                    ? BookingColors.textOnAccent
-                    : BookingColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
+              const SizedBox(height: 3),
+              Text(
+                dayNum,
+                style: GoogleFonts.inter(
+                  color: selected
+                      ? BookingColors.textOnAccent
+                      : BookingColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

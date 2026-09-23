@@ -1912,7 +1912,9 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                 return BookingBottomBar(
                   child: BookingPrimaryButton(
                     label: open ? 'Continue Booking' : 'Shop Closed',
-                    icon: open ? Icons.sports_esports_rounded : Icons.lock_clock,
+                    icon: open
+                        ? Icons.sports_esports_rounded
+                        : Icons.lock_clock,
                     enabled: open,
                     onPressed: open
                         ? () async {
@@ -2158,16 +2160,25 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         required int bookingId,
         required double price,
         required int availableCount,
+        required String inventoryKey,
       }) {
         final consoleType = _normalizeConsoleType(rawConsoleType);
         if (consoleType.isEmpty) return;
         final list = gamesByConsole.putIfAbsent(consoleType, () => []);
         final existingIndex = list.indexWhere(
-          (item) => item['game_id'] == bookingId && item['title'] == gameName,
+          (item) => inventoryKey.isNotEmpty
+              ? item['inventory_key'] == inventoryKey
+              : (item['inventory_key'] ?? '').toString().isEmpty &&
+                    item['game_id'] == bookingId &&
+                    item['title'] == gameName,
         );
         if (existingIndex >= 0) {
-          list[existingIndex]['available'] =
-              (list[existingIndex]['available'] as int? ?? 0) + availableCount;
+          // The API can repeat the same setup for a game's metadata.  Its
+          // availability is a snapshot, not an additional physical setup.
+          list[existingIndex]['available'] = math.max(
+            list[existingIndex]['available'] as int? ?? 0,
+            availableCount,
+          );
           if ((list[existingIndex]['price'] as double? ?? 0) <= 0 &&
               price > 0) {
             list[existingIndex]['price'] = price;
@@ -2185,6 +2196,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           'game_id': bookingId,
           'price': price,
           'available': availableCount,
+          'inventory_key': inventoryKey,
         });
       }
 
@@ -2230,10 +2242,28 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             if (c is! Map) continue;
             final consoleMap = Map<String, dynamic>.from(c);
             final rawConsoleType =
-                (readAny(consoleMap, ['console_type', 'consoleType', 'type']) ??
-                        readAny(gameMap, ['game_platform', 'platform']) ??
-                        'pc')
+                (readAny(consoleMap, [
+                          'console_display_name',
+                          'console_slug',
+                          'console_type',
+                          'consoleType',
+                          'type',
+                        ]) ??
+                        readAny(gameMap, [
+                          'console_display_name',
+                          'console_slug',
+                          'console_type',
+                          'consoleType',
+                          'type',
+                          'game_platform',
+                          'platform',
+                          'platform_type',
+                        ]) ??
+                        '')
                     .toString();
+            // Do not invent a PC option when the API omitted the platform.
+            // A known console label is required before rendering a card.
+            if (rawConsoleType.trim().isEmpty) continue;
             final bookingId =
                 asInt(
                   readAny(consoleMap, [
@@ -2251,8 +2281,39 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               readAny(consoleMap, ['price_per_hour']) ?? fallbackPrice,
             );
             final available = availabilityCount(
-              readAny(consoleMap, ['is_available', 'available']) ?? true,
+              readAny(consoleMap, [
+                    'inventory_count',
+                    'available_slot',
+                    'available_slots',
+                    'available_count',
+                    'count',
+                    'quantity',
+                  ]) ??
+                  readAny(consoleMap, [
+                    'is_available',
+                    'isAvailable',
+                    'available',
+                    'bookable',
+                  ]) ??
+                  true,
             );
+            // Non-bookable placeholder inventory (for example, a PC row with
+            // zero slots) must never be offered as a console option.
+            if (available <= 0) continue;
+            final inventoryKey =
+                (readAny(consoleMap, [
+                          'console_id',
+                          'consoleId',
+                          'setup_id',
+                          'setupId',
+                          'station_id',
+                          'stationId',
+                          'id',
+                          'console_number',
+                        ]) ??
+                        '')
+                    .toString()
+                    .trim();
             upsertGame(
               gameName: gameName,
               genre: genre,
@@ -2261,6 +2322,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               bookingId: bookingId,
               price: price,
               availableCount: available,
+              inventoryKey: inventoryKey,
             );
           }
           continue;
@@ -2292,6 +2354,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           bookingId: fallbackBookingId,
           price: fallbackPrice,
           availableCount: fallbackAvailable,
+          inventoryKey: '',
         );
       }
 
@@ -2299,15 +2362,28 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       for (final entry in gamesByConsole.entries) {
         final games = entry.value;
         if (games.isEmpty) continue;
+        // Each game can reference the same physical console type.  Sum only
+        // uniquely identified physical setups; metadata-only rows are used as
+        // a single availability snapshot and cannot inflate that count.
         var totalAvailable = 0;
+        var unkeyedAvailable = 0;
+        final seenInventoryKeys = <String>{};
         double minPrice = 0;
         for (final game in games) {
           final available = game['available'] as int? ?? 0;
           final price = game['price'] as double? ?? 0;
-          totalAvailable += available;
+          final inventoryKey = (game['inventory_key'] ?? '').toString();
+          if (inventoryKey.isEmpty) {
+            unkeyedAvailable = math.max(unkeyedAvailable, available);
+          } else if (seenInventoryKeys.add(inventoryKey)) {
+            totalAvailable += available;
+          }
           if (price > 0 && (minPrice == 0 || price < minPrice)) {
             minPrice = price;
           }
+        }
+        if (totalAvailable == 0) {
+          totalAvailable = unkeyedAvailable;
         }
 
         final primaryBookingGame = games
@@ -2669,7 +2745,21 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         .replaceAll('-', ' ')
         .trim();
     if (name.isEmpty) return '';
-    if (name.contains('playstation') || name.contains('ps')) return 'ps5';
+    if (name.contains('playstation 3') ||
+        RegExp(r'\bps\s*3\b').hasMatch(name)) {
+      return 'ps3';
+    }
+    if (name.contains('playstation 4') ||
+        RegExp(r'\bps\s*4\b').hasMatch(name)) {
+      return 'ps4';
+    }
+    if (name.contains('playstation 5') ||
+        RegExp(r'\bps\s*5\b').hasMatch(name)) {
+      return 'ps5';
+    }
+    if (name.contains('playstation') || RegExp(r'\bps\b').hasMatch(name)) {
+      return 'playstation';
+    }
     if (name.contains('xbox')) return 'xbox';
     if (name.contains('vr') || name.contains('virtual')) return 'vr_headset';
     if (name.contains('nintendo') || name.contains('switch')) {
@@ -2692,8 +2782,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   String _consoleDisplayLabel(String consoleName) {
     switch (_normalizeConsoleType(consoleName)) {
+      case 'ps3':
+        return 'PS3';
+      case 'ps4':
+        return 'PS4';
       case 'ps5':
         return 'PS5';
+      case 'playstation':
+        return 'PLAYSTATION';
       case 'xbox':
         return 'XBOX';
       case 'vr_headset':
@@ -3118,10 +3214,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Food & beverages',
-          style: HomeTokens.title(18),
-        ),
+        Text('Food & beverages', style: HomeTokens.title(18)),
         const SizedBox(height: 8),
         SizedBox(
           height: 90,
@@ -3346,7 +3439,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png';
       case 'xbox':
         return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png';
+      case 'ps3':
+      case 'ps4':
       case 'ps5':
+      case 'playstation':
         return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png';
       case 'vr_headset':
         return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/vr_rzqkbq.png';
@@ -3382,7 +3478,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   String _getConsoleType(String consoleName) {
     switch (_normalizeConsoleType(consoleName)) {
+      case 'ps3':
+        return 'PS3';
+      case 'ps4':
+        return 'PS4';
       case 'ps5':
+        return 'PS5';
+      case 'playstation':
         return 'PS';
       case 'xbox':
         return 'XB';

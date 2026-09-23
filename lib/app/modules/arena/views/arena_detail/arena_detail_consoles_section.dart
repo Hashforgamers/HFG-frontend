@@ -21,10 +21,7 @@ class ArenaDetailConsolesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Available consoles',
-          style: HomeTokens.title(18),
-        ),
+        Text('Available consoles', style: HomeTokens.title(18)),
         const SizedBox(height: 14),
         SizedBox(
           // Two-line labels need the extra height; see _consoleIcon.
@@ -163,7 +160,21 @@ class ArenaDetailConsolesSection extends StatelessWidget {
         .replaceAll('-', ' ')
         .trim();
     if (name.isEmpty) return '';
-    if (name.contains('playstation') || name.contains('ps')) return 'ps5';
+    if (name.contains('playstation 3') ||
+        RegExp(r'\bps\s*3\b').hasMatch(name)) {
+      return 'ps3';
+    }
+    if (name.contains('playstation 4') ||
+        RegExp(r'\bps\s*4\b').hasMatch(name)) {
+      return 'ps4';
+    }
+    if (name.contains('playstation 5') ||
+        RegExp(r'\bps\s*5\b').hasMatch(name)) {
+      return 'ps5';
+    }
+    if (name.contains('playstation') || RegExp(r'\bps\b').hasMatch(name)) {
+      return 'playstation';
+    }
     if (name.contains('xbox')) return 'xbox';
     if (name.contains('vr') || name.contains('virtual')) return 'vr_headset';
     if (name.contains('nintendo') || name.contains('switch')) {
@@ -186,8 +197,14 @@ class ArenaDetailConsolesSection extends StatelessWidget {
 
   String _consoleDisplayLabel(String consoleName) {
     switch (_normalizeConsoleType(consoleName)) {
+      case 'ps3':
+        return 'PS3';
+      case 'ps4':
+        return 'PS4';
       case 'ps5':
         return 'PS5';
+      case 'playstation':
+        return 'PLAYSTATION';
       case 'xbox':
         return 'XBOX';
       case 'vr_headset':
@@ -231,18 +248,18 @@ class ArenaDetailConsolesSection extends StatelessWidget {
               Container(
                 width: 52,
                 height: 52,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    accent.withValues(alpha: 0.28),
-                    accent.withValues(alpha: 0.12),
-                  ],
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      accent.withValues(alpha: 0.28),
+                      accent.withValues(alpha: 0.12),
+                    ],
+                  ),
+                  border: Border.all(color: accent.withValues(alpha: 0.38)),
                 ),
-                border: Border.all(color: accent.withValues(alpha: 0.38)),
-              ),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: imageUrl.isEmpty
