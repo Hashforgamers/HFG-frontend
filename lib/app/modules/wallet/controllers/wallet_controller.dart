@@ -311,6 +311,10 @@ class WalletController extends GetxController {
     }
   }
 
+  /// Single source of truth for the one-time welcome crate amount (in ₹).
+  /// The claim payload and the popup copy both read this, so they can't drift.
+  static const int welcomeBonusAmount = 10;
+
   Future<bool> claimDropCrate() async {
     String userId = _userController.userId.trim();
 
@@ -319,15 +323,48 @@ class WalletController extends GetxController {
       return false;
     }
 
-    try {
-      await _remoteRepo.claimDropCrateBonus(userId: userId, amount: 30);
-      await fetchWallet(); // Refresh balance
-      // _showSuccessMessage("🎉 ₹30 Drop Crate claimed!");
-      return true;
-    } catch (e) {
-      _showErrorMessage("❌ Claim failed: ${e.toString()}");
-      return false;
+    // Deterministic reference so the credit is idempotent: retries (e.g. after a
+    // cold-start timeout) reuse the same reference and can never double-credit,
+    // and each user can only ever receive one welcome crate.
+    final referenceId = 'drop_crate_welcome_$userId';
+
+    Object? lastError;
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await _remoteRepo.claimDropCrateBonus(
+          userId: userId,
+          amount: welcomeBonusAmount,
+          referenceId: referenceId,
+        );
+        await _forceRefreshWallet(); // Guarantee the new balance is loaded
+        return true;
+      } catch (e) {
+        lastError = e;
+        debugPrint('claimDropCrate attempt $attempt/3 failed: $e');
+        if (attempt < 3) {
+          // Backoff gives a spun-down (cold) backend time to wake up.
+          await Future.delayed(Duration(seconds: 2 * attempt));
+        }
+      }
     }
+
+    debugPrint('claimDropCrate exhausted retries: $lastError');
+    _showErrorMessage(
+      "Couldn't claim your ₹$welcomeBonusAmount bonus. Please try again.",
+    );
+    return false;
+  }
+
+  /// Reload the wallet, bypassing the in-flight/dedupe short-circuits so the
+  /// balance shown after a claim is never the stale pre-claim value.
+  Future<void> _forceRefreshWallet() async {
+    final inFlight = _walletRequest;
+    if (inFlight != null) {
+      try {
+        await inFlight; // let any pre-claim load settle first
+      } catch (_) {}
+    }
+    await fetchWallet(forceRefresh: true);
   }
 
   /// Validate funds after payment

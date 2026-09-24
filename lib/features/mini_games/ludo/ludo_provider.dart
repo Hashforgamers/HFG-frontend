@@ -1,15 +1,113 @@
+import 'dart:async';
 import 'dart:math';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/features/mini_games/ludo/ludo_player.dart';
 import 'package:provider/provider.dart';
 
 import 'audio.dart';
 import 'constants.dart';
+import 'online/ludo_match.dart';
+import 'online/ludo_match_service.dart';
 
 class LudoProvider extends ChangeNotifier {
   ///Flags to check if pawn is moving
   bool _isMoving = false;
+
+  // --- Online multiplayer (opt-in). When [_online] is false every code path
+  // below behaves exactly like the original local hot-seat game. ---
+  bool _online = false;
+  LudoMatchService? _matchService;
+  String? _matchId;
+  LudoPlayerType? _mySeat;
+  Set<LudoPlayerType> _activeSeats = kLudoSeatOrder.toSet();
+  StreamSubscription<LudoMatch?>? _matchSub;
+  int _version = 0;
+  bool _finished = false;
+
+  bool get isOnline => _online;
+  LudoPlayerType? get mySeat => _mySeat;
+
+  /// Whether the local device may roll/move right now.
+  bool get isMyTurn => !_online || _currentTurn == _mySeat;
+  bool get onlineFinished => _finished;
+  Set<LudoPlayerType> get activeSeats => _activeSeats;
+
+  /// Switch this provider into networked mode and start mirroring the match doc.
+  void attachOnline({
+    required LudoMatchService service,
+    required String matchId,
+    required LudoPlayerType mySeat,
+    required LudoMatch initial,
+  }) {
+    _online = true;
+    _matchService = service;
+    _matchId = matchId;
+    _mySeat = mySeat;
+    _applyRemote(initial, force: true);
+    _matchSub = service.watch(matchId).listen((m) {
+      if (m != null) _applyRemote(m);
+    });
+  }
+
+  String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  /// Apply an authoritative snapshot from Firestore. Our own writes echo back;
+  /// we skip those (we already hold that state) unless [force] (initial load).
+  void _applyRemote(LudoMatch m, {bool force = false}) {
+    _activeSeats = m.seats.keys.toSet();
+    _version = m.version;
+    _finished = m.status == LudoMatchStatus.finished;
+
+    final fromMe = m.lastWriterUid == _uid;
+    if (fromMe && !force) return; // our own echo — nothing new to apply
+    if (_isMoving && !force) return; // don't clobber a local animation
+
+    _currentTurn = m.turn;
+    _diceResult = m.dice;
+    _diceStarted = false;
+    winners
+      ..clear()
+      ..addAll(m.winners);
+
+    for (final entry in m.pawns.entries) {
+      final p = player(entry.key);
+      final steps = entry.value;
+      for (int i = 0; i < steps.length && i < p.pawns.length; i++) {
+        p.movePawn(i, steps[i]);
+      }
+    }
+    for (final p in players) {
+      p.highlightAllPawns(false);
+    }
+    _isMoving = false;
+    _gameState = _finished ? LudoGameState.finish : LudoGameState.throwDice;
+    notifyListeners();
+  }
+
+  /// Serialize the current board and write it as the authoritative state.
+  void _pushOnline() {
+    if (!_online || _matchService == null || _matchId == null) return;
+    _version++;
+    final pawnMap = <LudoPlayerType, List<int>>{
+      for (final seat in _activeSeats)
+        seat: List<int>.generate(4, (i) => player(seat).pawns[i].step),
+    };
+    // With N seated players the game ends once N-1 have finished.
+    final endThreshold = (_activeSeats.length - 1).clamp(1, 3);
+    final finished = winners.length >= endThreshold;
+    _finished = finished;
+    _matchService!.writeState(
+      _matchId!,
+      turn: _currentTurn,
+      dice: _diceResult,
+      winners: List<LudoPlayerType>.from(winners),
+      pawns: pawnMap,
+      version: _version,
+      status: finished ? LudoMatchStatus.finished : null,
+    );
+  }
 
   ///Flags to stop pawn once disposed
   bool _stopMoving = false;
@@ -20,6 +118,9 @@ class LudoProvider extends ChangeNotifier {
   LudoGameState get gameState => _gameState;
 
   LudoPlayerType _currentTurn = LudoPlayerType.green;
+
+  ///The seat whose turn it currently is.
+  LudoPlayerType get currentTurnSeat => _currentTurn;
 
   int _diceResult = 0;
 
@@ -134,6 +235,7 @@ class LudoProvider extends ChangeNotifier {
   ///This is the function that will be called to throw the dice
   void throwDice() async {
     if (_gameState != LudoGameState.throwDice) return;
+    if (_online && !isMyTurn) return; // only the active seat may roll
     _diceStarted = true;
     notifyListeners();
     Audio.rollDice();
@@ -149,10 +251,9 @@ class LudoProvider extends ChangeNotifier {
 
     Future.delayed(const Duration(seconds: 1)).then((value) {
       _diceStarted = false;
-      var random = Random();
-      _diceResult = random.nextBool()
-          ? 6
-          : random.nextInt(6) + 1; //Random between 1 - 6
+      // Fair, uniform 1–6 roll. (The template was rigged with nextBool() to
+      // force a 6 ~58% of the time.)
+      _diceResult = Random().nextInt(6) + 1;
       notifyListeners();
 
       if (diceResult == 6) {
@@ -162,7 +263,9 @@ class LudoProvider extends ChangeNotifier {
       } else {
         /// all pawns are inside home
         if (currentPlayer.pawnInsideCount == 4) {
-          return nextTurn();
+          nextTurn();
+          _pushOnline();
+          return;
         } else {
           ///Hightlight all pawn outside
           currentPlayer.highlightOutside();
@@ -201,8 +304,11 @@ class LudoProvider extends ChangeNotifier {
       if (currentPlayer.pawns.every((element) => !element.highlight)) {
         if (diceResult == 6) {
           _gameState = LudoGameState.throwDice;
+          _pushOnline(); // show the 6; same player rolls again
+          return;
         } else {
           nextTurn();
+          _pushOnline();
           return;
         }
       }
@@ -217,7 +323,12 @@ class LudoProvider extends ChangeNotifier {
           index,
           (currentPlayer.pawns[index].step + 1) + diceResult,
         );
+        return; // move() commits and pushes on completion
       }
+
+      // Reaching here means we are waiting for the player to pick among several
+      // pawns — publish the dice so opponents see the roll while we choose.
+      _pushOnline();
     });
   }
 
@@ -229,34 +340,54 @@ class LudoProvider extends ChangeNotifier {
 
     currentPlayer.highlightAllPawns(false);
 
-    // int delay = 500;
-    var selectedPlayer = player(type);
-    for (int i = selectedPlayer.pawns[index].step; i < step; i++) {
-      if (_stopMoving) break;
-      if (selectedPlayer.pawns[index].step == i) continue;
-      selectedPlayer.movePawn(index, i);
-      await Audio.playMove();
-      notifyListeners();
-      if (_stopMoving) break;
-    }
-    if (checkToKill(type, index, step, selectedPlayer.path)) {
+    try {
+      var selectedPlayer = player(type);
+      for (int i = selectedPlayer.pawns[index].step; i < step; i++) {
+        if (_stopMoving) break;
+        if (selectedPlayer.pawns[index].step == i) continue;
+        selectedPlayer.movePawn(index, i);
+        await Audio.playMove();
+        notifyListeners();
+        if (_stopMoving) break;
+      }
+      if (checkToKill(type, index, step, selectedPlayer.path)) {
+        _gameState = LudoGameState.throwDice;
+        Audio.playKill();
+        notifyListeners();
+        _pushOnline(); // killer rolls again
+        return;
+      }
+
+      validateWin(type);
+
+      if (diceResult == 6) {
+        _gameState = LudoGameState.throwDice;
+        notifyListeners();
+      } else {
+        nextTurn();
+        notifyListeners();
+      }
+      _pushOnline();
+    } catch (_) {
+      // Never let an unexpected error strand the board in the "moving" state:
+      // hand the turn back so the player can keep rolling.
       _gameState = LudoGameState.throwDice;
+      notifyListeners();
+    } finally {
+      // Always release the movement lock, whatever happened above.
       _isMoving = false;
-      Audio.playKill();
-      notifyListeners();
-      return;
     }
+  }
 
-    validateWin(type);
-
-    if (diceResult == 6) {
-      _gameState = LudoGameState.throwDice;
-      notifyListeners();
-    } else {
-      nextTurn();
-      notifyListeners();
+  /// Force-advance the current turn — used when a player's countdown runs out
+  /// in online play so an idle/disconnected seat can't stall the match.
+  void skipTurn() {
+    if (!_online || !isMyTurn || _isMoving) return;
+    for (final p in players) {
+      p.highlightAllPawns(false);
     }
-    _isMoving = false;
+    nextTurn();
+    _pushOnline();
   }
 
   ///Next turn will be called when the player finish the turn
@@ -276,7 +407,11 @@ class LudoProvider extends ChangeNotifier {
         break;
     }
 
-    if (winners.contains(_currentTurn)) return nextTurn();
+    // Skip players who already finished, and (online) skip empty seats so the
+    // turn only ever lands on a real, still-playing participant.
+    final skip = winners.contains(_currentTurn) ||
+        (_online && !_activeSeats.contains(_currentTurn));
+    if (skip) return nextTurn();
     _gameState = LudoGameState.throwDice;
     notifyListeners();
   }
@@ -307,9 +442,22 @@ class LudoProvider extends ChangeNotifier {
     ]);
   }
 
+  /// Full reset for a "Play again" from the game-over screen.
+  void resetGame() {
+    _stopMoving = false;
+    _isMoving = false;
+    _gameState = LudoGameState.throwDice;
+    _currentTurn = LudoPlayerType.green;
+    _diceResult = 0;
+    _diceStarted = false;
+    startGame();
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _stopMoving = true;
+    _matchSub?.cancel();
     super.dispose();
   }
 

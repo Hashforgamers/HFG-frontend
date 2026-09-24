@@ -2466,10 +2466,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   }) async {
     String receiptId = "order_rcpt_${DateTime.now().millisecondsSinceEpoch}";
     final url = '${FlavorConfig.getBaseUrl('booking')}/api/create_order';
-    final payload = {
+    // The backend requires cafe context (vendor_id / game_id / booking_id) for
+    // payment-policy validation; without it create_order returns 400
+    // `cafe_context_required`.
+    final payload = <String, dynamic>{
       "amount": amountInPaisa,
       "currency": "INR",
       "receipt": receiptId,
+      "vendor_id": widget.vendorId,
+      "game_id": widget.gameId,
+      if (_bookingIdToSlotId.isNotEmpty)
+        "booking_id": _bookingIdToSlotId.keys.first,
     };
     debugPrint('new new new new Payment ID payload: $payload');
     try {

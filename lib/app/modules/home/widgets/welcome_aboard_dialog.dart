@@ -2,13 +2,48 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-class WelcomeAboardDialog extends StatelessWidget {
-  final Future<void> Function() onClaim;
+class WelcomeAboardDialog extends StatefulWidget {
+  /// Performs the claim. Returns `true` only when the bonus was actually
+  /// credited, `false` on failure so the dialog can stay open for a retry.
+  final Future<bool> Function() onClaim;
+
+  /// Bonus amount (in ₹) shown in the copy. Kept in sync with the value the
+  /// claim actually credits.
+  final int amountRupees;
 
   const WelcomeAboardDialog({
     super.key,
     required this.onClaim,
+    required this.amountRupees,
   });
+
+  @override
+  State<WelcomeAboardDialog> createState() => _WelcomeAboardDialogState();
+}
+
+class _WelcomeAboardDialogState extends State<WelcomeAboardDialog> {
+  bool _claiming = false;
+  bool _failed = false;
+
+  Future<void> _handleClaim() async {
+    if (_claiming) return;
+    setState(() {
+      _claiming = true;
+      _failed = false;
+    });
+
+    final claimed = await widget.onClaim();
+    if (!mounted) return;
+
+    if (claimed) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() {
+        _claiming = false;
+        _failed = true;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -231,11 +266,11 @@ class WelcomeAboardDialog extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const Text(
-                              ' ₹30 bonus crate! 🎁',
-                              style: TextStyle(
+                            Text(
+                              ' ₹${widget.amountRupees} bonus crate! 🎁',
+                              style: const TextStyle(
                                 fontSize: 16,
-                                color: const Color(0xff00DC00),
+                                color: Color(0xff00DC00),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -252,12 +287,21 @@ class WelcomeAboardDialog extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (_failed) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      "Couldn't claim right now.\nCheck your connection and try again.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xffFF6B6B),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 40),
                   GestureDetector(
-                    onTap: () async {
-                      Navigator.of(context).pop();
-                      await onClaim();
-                    },
+                    onTap: _claiming ? null : _handleClaim,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(30),
                       child: Stack(
@@ -276,30 +320,64 @@ class WelcomeAboardDialog extends StatelessWidget {
                                   color: Colors.white.withOpacity(0.3),
                                 ),
                               ),
-                              child: ShaderMask(
-                                shaderCallback: (bounds) =>
-                                    const LinearGradient(
-                                  colors: [
-                                    Color(0xff00DC00),
-                                    Color(0xff00DC00),
-                                    Color(0xff00DC00),
-                                  ],
-                                ).createShader(bounds),
-                                child: const Text(
-                                  'Claim Now',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
+                              child: _claiming
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          Color(0xff00DC00),
+                                        ),
+                                      ),
+                                    )
+                                  : ShaderMask(
+                                      shaderCallback: (bounds) =>
+                                          const LinearGradient(
+                                        colors: [
+                                          Color(0xff00DC00),
+                                          Color(0xff00DC00),
+                                          Color(0xff00DC00),
+                                        ],
+                                      ).createShader(bounds),
+                                      child: Text(
+                                        _failed ? 'Try Again' : 'Claim Now',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
+                  if (_failed) ...[
+                    const SizedBox(height: 14),
+                    GestureDetector(
+                      onTap: _claiming
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          'Maybe later',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

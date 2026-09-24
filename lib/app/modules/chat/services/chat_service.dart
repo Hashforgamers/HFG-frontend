@@ -1016,6 +1016,63 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     await batch.commit();
   }
 
+  /// Sends a Ludo match invite into the direct room with [friend]. The message
+  /// carries a `ludo_invite` type + `deep_link` so tapping it (or its
+  /// notification) opens the match lobby via [DeepLinkService].
+  Future<void> sendLudoInviteMessage({
+    required ChatUserModel friend,
+    required String matchId,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to send invites.');
+    }
+    final safeMatchId = matchId.trim();
+    if (safeMatchId.isEmpty) {
+      throw Exception('Invalid match.');
+    }
+
+    final roomId = await getOrCreateDirectRoom(otherUser: friend);
+    final senderName = await _resolveCurrentUserNameFromStore(uid);
+    final deepLink = Uri(
+      scheme: 'hashforgamers',
+      host: 'game',
+      path: '/ludomatch_$safeMatchId',
+    ).toString();
+    final webLink =
+        Uri.https('hashforgamers.com', '/game/ludomatch_$safeMatchId').toString();
+    final previewText =
+        '$senderName invited you to a Ludo match 🎲\nTap to join: $deepLink';
+
+    final roomRef = _roomsRef.doc(roomId);
+    final messageRef = roomRef.collection(_messagesCollection).doc();
+    await messageRef.set({
+      'id': messageRef.id,
+      'room_id': roomId,
+      'sender_id': uid,
+      'sender_name': senderName,
+      'text': previewText,
+      'type': 'ludo_invite',
+      'meta': {
+        'match_id': safeMatchId,
+        'inviter_uid': uid,
+        'inviter_name': senderName,
+        'deep_link': deepLink,
+        'web_link': webLink,
+      },
+      'seen_by': [uid],
+      'created_at': FieldValue.serverTimestamp(),
+      'client_created_at': DateTime.now().toIso8601String(),
+    });
+    await roomRef.set({
+      'last_message': 'Ludo match invite 🎲',
+      'last_message_sender_id': uid,
+      'last_message_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> sendTeamInviteMessage({
     required String roomId,
     required String eventId,

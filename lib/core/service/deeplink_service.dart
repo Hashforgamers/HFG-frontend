@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_invite_join_view.dart';
+import 'package:hash/features/mini_games/ludo/online/ludo_match_screen.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -344,6 +345,17 @@ class DeepLinkService extends GetxController {
       );
       replaceStack ? Get.offAll(page) : Get.to(page);
       return;
+    }
+
+    // Ludo match invite: `.../game/ludomatch_<matchId>` opens the match lobby.
+    if (destination.type == DeepLinkType.game &&
+        (destination.id ?? '').startsWith('ludomatch_')) {
+      final matchId = destination.id!.substring('ludomatch_'.length);
+      if (matchId.isNotEmpty) {
+        Widget page() => LudoMatchScreen(matchId: matchId);
+        replaceStack ? Get.offAll(page) : Get.to(page);
+        return;
+      }
     }
     final route = _routeFor(destination.type);
     if (route == AppRoutes.HOME && destination.type != DeepLinkType.unknown) {

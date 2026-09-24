@@ -20,6 +20,11 @@ class MiniGameScoreService {
   static const _prefsKey = 'mini_game_scores';
   static const _rankRewardClaimsKey = 'mini_game_rank_reward_claims';
   static const _topRankRewardClaimLimit = 3;
+  static const _playRewardKey = 'mini_game_daily_play_reward';
+
+  /// HashCoins granted the first time each game is played on a given day.
+  /// Single source of truth — set to 0 to disable the daily play reward.
+  static const int dailyPlayRewardAmount = 5;
   static final MiniGameScoreService _instance =
       MiniGameScoreService._internal();
 
@@ -55,6 +60,11 @@ class MiniGameScoreService {
 
   Future<bool> recordScore(String gameId, int score) async {
     await _ensureLoaded();
+
+    // Reward simply playing (first finish of each game per day) so every player
+    // earns something, not only those who crack the global top 100.
+    unawaited(_maybeAwardDailyPlayReward(gameId));
+
     final best = _scores[gameId] ?? 0;
     final isNewBest = score > best;
     if (isNewBest) {
@@ -165,6 +175,81 @@ class MiniGameScoreService {
     }
 
     return true;
+  }
+
+  /// Credits [dailyPlayRewardAmount] HashCoins the first time [gameId] is
+  /// played each day. Idempotent per game/user/day via a deterministic
+  /// reference id, so repeated finishes never double-credit. Guests are skipped
+  /// (they can't be credited) and any failure is swallowed to never block play.
+  Future<void> _maybeAwardDailyPlayReward(String gameId) async {
+    if (dailyPlayRewardAmount <= 0) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return;
+
+    await _ensureLoaded();
+    final prefs = await _prefsFuture!;
+    final mapKey = '${_playRewardKey}_$uid';
+    final today = _todayKey();
+    final raw = prefs.getStringList(mapKey) ?? const <String>[];
+    final lastAwardedByGame = <String, String>{};
+    for (final entry in raw) {
+      final i = entry.indexOf(':');
+      if (i > 0) {
+        lastAwardedByGame[entry.substring(0, i)] = entry.substring(i + 1);
+      }
+    }
+    if (lastAwardedByGame[gameId] == today) return; // already rewarded today
+
+    try {
+      final remoteRepo = locator<RemoteRepoInterface>();
+      await remoteRepo.addHashCoins(
+        amount: dailyPlayRewardAmount,
+        source: 'mini_game_daily_play',
+        referenceId: 'mini_game_play_${gameId}_${uid}_$today',
+      );
+
+      lastAwardedByGame[gameId] = today;
+      await prefs.setStringList(
+        mapKey,
+        lastAwardedByGame.entries.map((e) => '${e.key}:${e.value}').toList(),
+      );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = Get.context;
+        if (ctx == null) return;
+        try {
+          BlocProvider.of<HashCoinCubit>(ctx).getHashCoin();
+        } catch (_) {
+          // ignore if cubit context is unavailable
+        }
+      });
+
+      Get.snackbar(
+        'Daily play bonus',
+        '+$dailyPlayRewardAmount HashCoins for playing '
+            '${MiniGameLeaderboardService.readableGameName(gameId)}',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFF141414),
+        colorText: const Color(0xFFEDEDED),
+        margin: const EdgeInsets.all(12),
+      );
+
+      unawaited(
+        _trackArcadeScoreEvent('Arcade Daily Play Reward', {
+          'game_id': gameId,
+          'amount': dailyPlayRewardAmount,
+        }),
+      );
+    } catch (_) {
+      // Never block gameplay on a reward failure; it retries next play.
+    }
+  }
+
+  String _todayKey() {
+    final now = DateTime.now();
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    return '${now.year}-$month-$day';
   }
 
   Future<bool> _creditRankReward({

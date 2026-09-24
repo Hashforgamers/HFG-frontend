@@ -168,6 +168,7 @@ class BoardWidget extends StatelessWidget {
                   value.currentPlayer.type,
                   value.currentPlayer.color,
                   value.gameState,
+                  isMine: !value.isOnline || value.isMyTurn,
                 ),
               ],
             ),
@@ -182,8 +183,9 @@ class BoardWidget extends StatelessWidget {
     BuildContext context,
     LudoPlayerType turn,
     Color color,
-    LudoGameState stage,
-  ) {
+    LudoGameState stage, {
+    bool isMine = true,
+  }) {
     //0 is left, 1 is right
     int x = 0;
     //0 is top, 1 is bottom
@@ -241,9 +243,12 @@ class BoardWidget extends StatelessWidget {
               text: TextSpan(
                 style: TextStyle(fontSize: 8, color: color),
                 children: [
-                  const TextSpan(
-                    text: "Your turn!\n",
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  TextSpan(
+                    text: isMine
+                        ? "Your turn!\n"
+                        : "${turn.name[0].toUpperCase()}${turn.name.substring(1)}'s turn\n",
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                   TextSpan(
                     text: stageText,

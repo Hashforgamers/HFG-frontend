@@ -1436,15 +1436,21 @@ class RemoteRepo implements RemoteRepoInterface {
   @override
   Future<void> claimDropCrateBonus({
     required String userId,
-    int amount = 30,
+    int amount = 10,
+    String? referenceId,
   }) async {
     final dio = await networkProvider.auth();
+    // A stable reference id makes the credit idempotent on the ledger: safe to
+    // retry after a timeout without double-crediting, and enforces the
+    // "one welcome crate per user" rule server-side.
+    final refId =
+        referenceId ?? "drop_crate_${DateTime.now().millisecondsSinceEpoch}";
     try {
       final response = await dio.post(
         '${ApiEndpoints.baseUrl}/wallet',
         data: {
           "amount": amount,
-          "reference_id": "drop_crate_${DateTime.now().millisecondsSinceEpoch}",
+          "reference_id": refId,
         },
       );
 

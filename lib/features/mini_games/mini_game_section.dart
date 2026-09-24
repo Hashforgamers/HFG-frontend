@@ -13,6 +13,7 @@ import 'package:hash/features/mini_games/html_games/services/html_mini_game_cata
 import 'package:hash/features/mini_games/html_games/views/html_game_player_screen.dart';
 import 'package:hash/features/mini_games/html_games/widgets/html_mini_game_card.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
+import 'package:hash/features/mini_games/ludo/ludo_game_screen.dart';
 import 'package:hash/utils/widgets/home_section_title.dart';
 import 'flappy_birds/Layouts/Pages/page_start_screen.dart';
 import 'mini_game_card.dart';
@@ -45,7 +46,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
       MiniGame(
         id: 'fruit_cutting',
         title: "Fruit Cutting",
-        subtitle: "Slice & earn coins",
+        subtitle: "Slice fruit · +coins daily",
         icon: const AssetImage("assets/mini_game_icons/fruit_cutting.png"),
         onTap: () async {
           await Get.to(() => FruitCuttingScreen());
@@ -55,7 +56,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
       MiniGame(
         id: 'plant_vs_zombie',
         title: "Plant vs Zombie",
-        subtitle: "Test gaming knowledge",
+        subtitle: "Defend the lawn · +coins",
         icon: const AssetImage("assets/mini_game_icons/pvz.png"),
         onTap: () async {
           await Get.to(() => PlantVsZombie());
@@ -65,7 +66,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
       MiniGame(
         id: 'pac_man',
         title: "Pac Man",
-        subtitle: "Daily rewards",
+        subtitle: "Dodge ghosts · +coins",
         icon: const AssetImage("assets/mini_game_icons/pacman.png"),
         onTap: () async {
           await Get.to(() => PacManHome());
@@ -75,10 +76,20 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
       MiniGame(
         id: 'laggy_bird',
         title: "Laggy Bird",
-        subtitle: "Daily rewards",
+        subtitle: "Tap to fly · +coins",
         icon: const AssetImage("assets/mini_game_icons/flappy_birds.png"),
         onTap: () async {
           await Get.to(() => const FlappyBirds());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'ludo',
+        title: "Ludo",
+        subtitle: "Roll & race · 2–4 players",
+        icon: const AssetImage("assets/mini_game_icons/ludo_icon.png"),
+        onTap: () async {
+          await Get.to(() => const LudoGameScreen());
           await _loadScores();
         },
       ),
