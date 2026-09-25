@@ -63,6 +63,7 @@ class MiniGameLeaderboardService {
   static const _chatUsersCollection = 'chat_users';
   static const overallGameId = 'overall';
   static const supportedGameIds = <String>[
+    'ludo',
     'fruit_cutting',
     'plant_vs_zombie',
     'pac_man',

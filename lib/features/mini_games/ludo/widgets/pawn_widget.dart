@@ -54,12 +54,12 @@ class PawnWidget extends StatelessWidget {
           Consumer<LudoProvider>(
             builder: (context, provider, child) => GestureDetector(
               onTap: () {
+                if (!provider.isMyTurn) return;
                 if (step == -1) {
                   provider.move(type, index, (step + 1) + 1);
                 } else {
                   provider.move(type, index, (step + 1) + provider.diceResult);
                 }
-                context.read<LudoProvider>().move(type, index, step);
               },
               child: Container(
                 decoration: BoxDecoration(

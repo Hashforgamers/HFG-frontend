@@ -8,6 +8,7 @@ import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/profile/user_profile_view.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
+import 'package:hash/core/localization/app_region.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
@@ -129,13 +130,15 @@ class _TournamentsAppBarState extends State<TournamentsAppBar> {
 
   Widget _walletChip() {
     if (!Get.isRegistered<WalletController>()) {
-      return _balanceChip(Icons.toll_outlined, '₹0', const Color(0xFFFFFF38));
+      return _balanceChip(
+        Icons.toll_outlined,
+        Money.format(0),
+        const Color(0xFFFFFF38),
+      );
     }
     return Obx(() {
       final balance = Get.find<WalletController>().balance;
-      final text = balance == balance.roundToDouble()
-          ? '₹${balance.toInt()}'
-          : '₹${balance.toStringAsFixed(0)}';
+      final text = Money.format(balance, decimals: 0);
       return _balanceChip(Icons.toll_outlined, text, const Color(0xFFFFFF38));
     });
   }

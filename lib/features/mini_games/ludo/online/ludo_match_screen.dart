@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hash/core/utils/haptics.dart';
 import 'package:provider/provider.dart';
 
 import '../constants.dart';
 import '../ludo_provider.dart';
+import '../ludo_score_service.dart';
 import '../widgets/board_widget.dart';
 import '../widgets/dice_widget.dart';
+import '../widgets/ludo_reactions.dart';
 import 'ludo_invite_friends_sheet.dart';
 import 'ludo_match.dart';
 import 'ludo_match_service.dart';
@@ -17,18 +20,31 @@ import 'ludo_match_service.dart';
 /// the synced board once the host starts. Handles auto-joining an open seat for
 /// invited players.
 class LudoMatchScreen extends StatefulWidget {
-  const LudoMatchScreen({super.key, required this.matchId});
+  const LudoMatchScreen({
+    super.key,
+    required this.matchId,
+    this.spectate = false,
+  });
 
   final String matchId;
+
+  /// When true, open as a read-only spectator: never take a seat, never roll,
+  /// just mirror the live board.
+  final bool spectate;
 
   @override
   State<LudoMatchScreen> createState() => _LudoMatchScreenState();
 }
 
 class _LudoMatchScreenState extends State<LudoMatchScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const _accent = Color(0xFF00DC00);
   static const int _turnSeconds = 30;
+
+  // Grace period after a turn's clock expires before *another* seated player is
+  // allowed to force it forward (covers the active player being briefly slow or
+  // reconnecting). The active player skips themselves the instant it hits 0.
+  static const int _abandonGraceMs = 6000;
 
   final LudoMatchService _service = LudoMatchService();
   final LudoProvider _provider = LudoProvider()..startGame();
@@ -39,11 +55,17 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   bool _attached = false;
   bool _joinAttempted = false;
   bool _starting = false;
+  bool _resultRecorded = false;
   String? _error;
 
   Timer? _ticker;
   late final AnimationController _bounce;
   int _lastSkippedTurnMs = 0;
+
+  // In-match emoji reactions.
+  final ValueNotifier<LudoReactionEvent?> _reactionNotifier =
+      ValueNotifier<LudoReactionEvent?>(null);
+  int _lastReactionId = 0;
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
@@ -55,9 +77,14 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       duration: const Duration(milliseconds: 450),
     )..repeat(reverse: true);
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
-    _sub = _service.watch(widget.matchId).listen(_onMatch, onError: (e) {
-      if (mounted) setState(() => _error = e.toString());
-    });
+    _sub = _service
+        .watch(widget.matchId)
+        .listen(
+          _onMatch,
+          onError: (e) {
+            if (mounted) setState(() => _error = e.toString());
+          },
+        );
   }
 
   int _remainingSeconds(LudoMatch match) {
@@ -71,13 +98,24 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   void _onTick() {
     final match = _match;
     if (!mounted || match == null) return;
-    if (match.status != LudoMatchStatus.active) return;
-    // Auto-skip my own turn if the clock runs out, once per turn.
-    if (_remainingSeconds(match) <= 0 &&
-        _provider.isMyTurn &&
+    if (match.status == LudoMatchStatus.active &&
+        match.turnStartedAtMs > 0 &&
         _lastSkippedTurnMs != match.turnStartedAtMs) {
-      _lastSkippedTurnMs = match.turnStartedAtMs;
-      _provider.skipTurn();
+      final elapsedMs =
+          DateTime.now().millisecondsSinceEpoch - match.turnStartedAtMs;
+      final expiredMs = elapsedMs - _turnSeconds * 1000;
+      if (expiredMs >= 0 && _provider.isMyTurn) {
+        // It's my turn and my clock ran out — skip myself.
+        _lastSkippedTurnMs = match.turnStartedAtMs;
+        _provider.skipTurn();
+      } else if (expiredMs >= _abandonGraceMs &&
+          !_provider.isSpectator &&
+          !_provider.isMyTurn) {
+        // The active seat didn't advance in time (likely left/backgrounded) —
+        // a fellow seated player nudges the turn so the match can't freeze.
+        _lastSkippedTurnMs = match.turnStartedAtMs;
+        _provider.forceAdvanceExpiredTurn();
+      }
     }
     setState(() {}); // refresh the countdown display
   }
@@ -89,10 +127,12 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       return;
     }
 
-    var seat = match.seatOf(_uid);
+    var seat = widget.spectate ? null : match.seatOf(_uid);
 
-    // Invited player opening a still-open match: grab a seat once.
-    if (seat == null &&
+    // Invited player opening a still-open match: grab a seat once. Spectators
+    // never take a seat.
+    if (!widget.spectate &&
+        seat == null &&
         match.status == LudoMatchStatus.waiting &&
         !match.isFull &&
         !_joinAttempted) {
@@ -105,7 +145,8 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       }
     }
 
-    if (seat != null && !_attached) {
+    // Attach the mirror once — as a player (seat) or, when spectating, seat-less.
+    if (!_attached && (seat != null || widget.spectate)) {
       _attached = true;
       _provider.attachOnline(
         service: _service,
@@ -115,15 +156,56 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       );
     }
 
-    // Remember this room so an accidental back-out can rejoin it; forget it
-    // once the match is over.
-    if (seat != null &&
-        (match.status == LudoMatchStatus.waiting ||
-            match.status == LudoMatchStatus.active)) {
-      unawaited(_service.saveActiveMatch(widget.matchId));
-    } else if (match.status == LudoMatchStatus.finished ||
-        match.status == LudoMatchStatus.cancelled) {
-      unawaited(_service.clearActiveMatch(widget.matchId));
+    // Spectators don't earn placement points or remember the room to rejoin.
+    if (!widget.spectate) {
+      if (!_resultRecorded &&
+          (match.status == LudoMatchStatus.active ||
+              match.status == LudoMatchStatus.finished)) {
+        final score = ludoPlacementScore(
+          seat: seat,
+          winners: match.winners,
+          participants: match.seats.keys.toSet(),
+          finished: match.status == LudoMatchStatus.finished,
+        );
+        if (score != null) {
+          _resultRecorded = true;
+          unawaited(LudoScoreService.instance.record(score));
+        }
+      }
+
+      // Remember this room so an accidental back-out can rejoin it; forget it
+      // once the match is over.
+      if (seat != null &&
+          (match.status == LudoMatchStatus.waiting ||
+              match.status == LudoMatchStatus.active)) {
+        unawaited(_service.saveActiveMatch(widget.matchId));
+      } else if (match.status == LudoMatchStatus.finished ||
+          match.status == LudoMatchStatus.cancelled) {
+        unawaited(_service.clearActiveMatch(widget.matchId));
+      }
+    }
+
+    // Surface a new emoji reaction (from anyone, including me once it round-trips
+    // through Firestore so every device animates it identically).
+    if (match.reactionId > 0) {
+      if (_lastReactionId == 0) {
+        _lastReactionId = match.reactionId; // don't replay history on first load
+      } else if (match.reactionId != _lastReactionId) {
+        _lastReactionId = match.reactionId;
+        final option = ludoReactionByKey(match.reactionEmoji);
+        if (option != null) {
+          Haptics.light();
+          final seatOf = match.reactionSeat;
+          final name = seatOf != null
+              ? (match.seats[seatOf]?.name.split(' ').first ?? _seatName(seatOf))
+              : '';
+          _reactionNotifier.value = LudoReactionEvent(
+            option: option,
+            id: match.reactionId,
+            label: name,
+          );
+        }
+      }
     }
 
     if (!mounted) return;
@@ -133,10 +215,19 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     });
   }
 
+  void _sendReaction(LudoReactionOption option) {
+    final seat = _mySeat;
+    if (seat == null) return;
+    unawaited(
+      _service.sendReaction(widget.matchId, seat: seat, key: option.key),
+    );
+  }
+
   @override
   void dispose() {
     _ticker?.cancel();
     _bounce.dispose();
+    _reactionNotifier.dispose();
     _sub?.cancel();
     _provider.dispose();
     super.dispose();
@@ -197,6 +288,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
           children: [
             const _Backdrop(),
             SafeArea(child: _body()),
+            LudoReactionLayer(listenable: _reactionNotifier),
           ],
         ),
       ),
@@ -213,9 +305,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     }
     final match = _match;
     if (match == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: _accent),
-      );
+      return const Center(child: CircularProgressIndicator(color: _accent));
     }
 
     return Column(
@@ -251,17 +341,34 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: _accent.withValues(alpha: 0.14),
+              color: (widget.spectate ? const Color(0xFFFF4D4D) : _accent)
+                  .withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(999),
             ),
-            child: const Text(
-              'ONLINE',
-              style: TextStyle(
-                color: _accent,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.spectate) ...[
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFF4D4D),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                ],
+                Text(
+                  widget.spectate ? 'WATCHING' : 'ONLINE',
+                  style: TextStyle(
+                    color: widget.spectate ? const Color(0xFFFF4D4D) : _accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
             ),
           ),
           const Spacer(),
@@ -327,9 +434,11 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
               onPressed: match.isFull
                   ? null
                   : () async {
-                      await Clipboard.setData(ClipboardData(
-                        text: LudoMatchService.inviteLink(widget.matchId),
-                      ));
+                      await Clipboard.setData(
+                        ClipboardData(
+                          text: LudoMatchService.inviteLink(widget.matchId),
+                        ),
+                      );
                       _snack('Invite link copied');
                     },
               style: TextButton.styleFrom(foregroundColor: Colors.white70),
@@ -338,8 +447,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
-              onPressed:
-                  (match.seatCount >= 2 && !_starting) ? _start : null,
+              onPressed: (match.seatCount >= 2 && !_starting) ? _start : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _accent,
                 foregroundColor: const Color(0xFF06130B),
@@ -362,9 +470,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
                     )
                   : const Icon(Icons.play_arrow_rounded),
               label: Text(
-                match.seatCount < 2
-                    ? 'Need at least 2 players'
-                    : 'Start match',
+                match.seatCount < 2 ? 'Need at least 2 players' : 'Start match',
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
@@ -403,8 +509,11 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
               color: color.withValues(alpha: info != null ? 1 : 0.25),
             ),
             child: info == null
-                ? const Icon(Icons.hourglass_empty_rounded,
-                    size: 16, color: Colors.white38)
+                ? const Icon(
+                    Icons.hourglass_empty_rounded,
+                    size: 16,
+                    color: Colors.white38,
+                  )
                 : null,
           ),
           const SizedBox(width: 12),
@@ -426,16 +535,20 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
                 color: _accent.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: const Text('You',
-                  style: TextStyle(
-                    color: _accent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  )),
+              child: const Text(
+                'You',
+                style: TextStyle(
+                  color: _accent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             )
           else if (match.hostUid == info?.uid)
-            const Text('Host',
-                style: TextStyle(color: Colors.white38, fontSize: 12)),
+            const Text(
+              'Host',
+              style: TextStyle(color: Colors.white38, fontSize: 12),
+            ),
         ],
       ),
     );
@@ -457,7 +570,12 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
           ),
         ),
         _diceTray(),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
+        if (match.status == LudoMatchStatus.active && _mySeat != null)
+          LudoReactionBar(onSelected: _sendReaction)
+        else if (widget.spectate && match.status == LudoMatchStatus.active)
+          _spectatorHint(),
+        const SizedBox(height: 10),
         if (match.status == LudoMatchStatus.finished) _finishedOverlay(match),
       ],
     );
@@ -492,8 +610,9 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     final remaining = _remainingSeconds(match);
     final urgent = active && remaining <= 15;
     final ring = urgent ? const Color(0xFFFF4D4D) : color;
-    final initial =
-        (info?.name.trim().isNotEmpty ?? false) ? info!.name.trim()[0].toUpperCase() : '?';
+    final initial = (info?.name.trim().isNotEmpty ?? false)
+        ? info!.name.trim()[0].toUpperCase()
+        : '?';
 
     Widget avatar = SizedBox(
       width: 52,
@@ -523,17 +642,29 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
                 width: 2,
               ),
               boxShadow: active
-                  ? [BoxShadow(color: ring.withValues(alpha: 0.5), blurRadius: 10)]
+                  ? [
+                      BoxShadow(
+                        color: ring.withValues(alpha: 0.5),
+                        blurRadius: 10,
+                      ),
+                    ]
                   : null,
             ),
             clipBehavior: Clip.antiAlias,
             child: info == null
-                ? const Icon(Icons.person_outline_rounded,
-                    size: 18, color: Colors.white38)
+                ? const Icon(
+                    Icons.person_outline_rounded,
+                    size: 18,
+                    color: Colors.white38,
+                  )
                 : (info.photo != null && info.photo!.isNotEmpty
-                    ? Image.network(info.photo!, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _initialAvatar(initial))
-                    : _initialAvatar(initial)),
+                      ? Image.network(
+                          info.photo!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _initialAvatar(initial),
+                        )
+                      : _initialAvatar(initial)),
           ),
         ],
       ),
@@ -541,9 +672,10 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
 
     if (urgent) {
       avatar = ScaleTransition(
-        scale: Tween<double>(begin: 1.0, end: 1.14).animate(
-          CurvedAnimation(parent: _bounce, curve: Curves.easeInOut),
-        ),
+        scale: Tween<double>(
+          begin: 1.0,
+          end: 1.14,
+        ).animate(CurvedAnimation(parent: _bounce, curve: Curves.easeInOut)),
         child: avatar,
       );
     }
@@ -589,16 +721,16 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   }
 
   Widget _initialAvatar(String initial) => Container(
-        alignment: Alignment.center,
-        child: Text(
-          initial,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: 16,
-          ),
-        ),
-      );
+    alignment: Alignment.center,
+    child: Text(
+      initial,
+      style: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w800,
+        fontSize: 16,
+      ),
+    ),
+  );
 
   /// The dice on a warm wooden-style tray, à la a physical board game.
   Widget _diceTray() {
@@ -626,6 +758,29 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     );
   }
 
+  Widget _spectatorHint() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.visibility_rounded, size: 16, color: Colors.white54),
+          SizedBox(width: 8),
+          Text(
+            'You’re watching — live spectator mode',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _finishedOverlay(LudoMatch match) {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -638,12 +793,14 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('🏆 Match finished',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              )),
+          const Text(
+            '🏆 Match finished',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
             'Winner: ${match.winners.isEmpty ? '—' : (match.seats[match.winners.first]?.name ?? _seatName(match.winners.first))}',
@@ -673,16 +830,20 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
           children: [
             Icon(icon, color: Colors.white38, size: 48),
             const SizedBox(height: 14),
-            Text(title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                )),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 6),
-            Text(subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white54, fontSize: 13)),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
+            ),
             const SizedBox(height: 18),
             TextButton(
               onPressed: () => Navigator.of(context).maybePop(),

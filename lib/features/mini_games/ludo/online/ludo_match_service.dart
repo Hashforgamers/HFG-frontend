@@ -51,6 +51,30 @@ class LudoMatchService {
     });
   }
 
+  /// Every in-progress match anyone can drop in and spectate, most-recently
+  /// active first. Sorted client-side so no composite Firestore index is needed.
+  Stream<List<LudoMatch>> watchLiveMatches({int limit = 30}) {
+    return _col
+        .where('status', isEqualTo: statusToString(LudoMatchStatus.active))
+        .limit(limit)
+        .snapshots()
+        .map((snap) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          const staleMs = 15 * 60 * 1000; // 15 min with no move => abandoned
+          final list =
+              snap.docs
+                  .map((d) => LudoMatch.fromMap(d.id, d.data()))
+                  .where(
+                    (m) =>
+                        m.turnStartedAtMs <= 0 ||
+                        now - m.turnStartedAtMs < staleMs,
+                  )
+                  .toList()
+                ..sort((a, b) => b.turnStartedAtMs.compareTo(a.turnStartedAtMs));
+          return list;
+        });
+  }
+
   Future<LudoMatch?> fetch(String matchId) async {
     final snap = await _col.doc(matchId).get();
     final data = snap.data();
@@ -166,17 +190,24 @@ class LudoMatchService {
   }) async {
     final uid = _uid;
     if (uid == null) return;
-    await _col.doc(matchId).update({
-      'turn': turn.name,
-      'dice': dice,
-      'winners': winners.map((e) => e.name).toList(),
-      'pawns': {for (final e in pawns.entries) e.key.name: e.value},
-      'last_writer_uid': uid,
-      'version': version,
-      'turn_started_at_ms': DateTime.now().millisecondsSinceEpoch,
-      if (status != null) 'status': statusToString(status),
-      'updated_at': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _col.doc(matchId).update({
+        'turn': turn.name,
+        'dice': dice,
+        'winners': winners.map((e) => e.name).toList(),
+        'pawns': {for (final e in pawns.entries) e.key.name: e.value},
+        'last_writer_uid': uid,
+        'version': version,
+        'turn_started_at_ms': DateTime.now().millisecondsSinceEpoch,
+        if (status != null) 'status': statusToString(status),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      // A rejected write (e.g. security rules disallowing a non-active seat to
+      // force-advance an abandoned turn) must never crash gameplay. The next
+      // authoritative snapshot will re-sync this device.
+      debugPrint('[LudoMatch] writeState rejected: $e');
+    }
   }
 
   Future<void> cancelMatch(String matchId) async {
@@ -184,6 +215,28 @@ class LudoMatchService {
       'status': statusToString(LudoMatchStatus.cancelled),
       'updated_at': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Broadcast an emoji reaction to everyone in the match. [key] is a stable
+  /// reaction id (see `kLudoReactions`). This only touches the `reaction_*`
+  /// fields (never turn/dice/pawns), so it can be sent on any turn without
+  /// disturbing the authoritative game state. Best-effort: a rejected write
+  /// (e.g. security rules) is swallowed so it never interrupts play.
+  Future<void> sendReaction(
+    String matchId, {
+    required LudoPlayerType seat,
+    required String key,
+  }) async {
+    try {
+      await _col.doc(matchId).update({
+        'reaction_emoji': key,
+        'reaction_seat': seat.name,
+        'reaction_id': DateTime.now().millisecondsSinceEpoch,
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Reactions are cosmetic; never let one break the match.
+    }
   }
 
   // --- Active-match memory so a player can rejoin a room they accidentally

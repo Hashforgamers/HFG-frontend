@@ -2233,12 +2233,24 @@ class RemoteRepo implements RemoteRepoInterface {
   @override
   Future<void> capturePayment({
     required CapturePaymentModel capturePaymentModel,
+    int? bookingId,
+    int? vendorId,
+    int? gameId,
   }) async {
     final dio = await networkProvider.auth();
     try {
+      // Backend requires cafe context (vendor_id / game_id / booking_id) for
+      // payment-policy validation; without it capture returns 400
+      // `cafe_context_required` after a successful payment.
+      final data = <String, dynamic>{
+        ...capturePaymentModel.toJson(),
+        if (bookingId != null) 'booking_id': bookingId,
+        if (vendorId != null) 'vendor_id': vendorId,
+        if (gameId != null) 'game_id': gameId,
+      };
       final response = await dio.post(
         ApiEndpoints.capturePayment,
-        data: capturePaymentModel.toJson(),
+        data: data,
       );
       if (response.statusCode == 200) {
         return;

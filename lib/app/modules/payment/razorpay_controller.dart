@@ -252,6 +252,7 @@ class RazorpayController extends GetxController {
       );
       await _remoteRepo.capturePayment(
         capturePaymentModel: capturePaymentModel,
+        bookingId: bookingIdList.isNotEmpty ? bookingIdList.first : null,
       );
 
       // Handle different payment types

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -54,8 +55,8 @@ class LoginController extends GetxController {
   final phoneController = TextEditingController();
   final otpController = TextEditingController();
 
-  // default India; UI can change it
-  final selectedDialCode = '+91'.obs;
+  // Default from the device region (₹/+91 for India, $/+1 for US); UI can change it.
+  final selectedDialCode = AppRegion.dialCode.obs;
   final supportedDialCodes = const [
     '+1',
     '+44',

@@ -1,3 +1,5 @@
+import '../ludo/ludo_game_screen.dart';
+import '../ludo/ludo_score_service.dart';
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -36,6 +38,13 @@ class MiniGameLeaderboardPage extends StatefulWidget {
 }
 
 class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
+  // Brand palette — Hash green, replacing the old amber theme.
+  static const Color _green = Color(0xFF00DC00);
+  static const Color _gold = Color(0xFFFFC857);
+  static const Color _silver = Color(0xFFC7D2E0);
+  static const Color _bronze = Color(0xFFD8975A);
+  static const Color _panel = Color(0xFF12160F);
+
   late final ChatService _chatService;
   late final SegmentSdkService _segmentService;
   late final FbEventsService _fbEventsService;
@@ -50,6 +59,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
 
   late final List<MapEntry<String, String>> _gameOptions = [
     const MapEntry(MiniGameLeaderboardService.overallGameId, 'Overall'),
+    const MapEntry('ludo', 'Ludo'),
     const MapEntry('fruit_cutting', 'Fruit Cutting'),
     const MapEntry('plant_vs_zombie', 'Plant Vs Zombie'),
     const MapEntry('pac_man', 'Pac Man'),
@@ -62,6 +72,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   @override
   void initState() {
     super.initState();
+    unawaited(LudoScoreService.instance.sync());
     _chatService = Get.find<ChatService>();
     _segmentService = locator<SegmentSdkService>();
     _fbEventsService = locator<FbEventsService>();
@@ -102,7 +113,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF301900), Color(0xFF141414), Color(0xFF000000)],
+            colors: [Color(0xFF06240F), Color(0xFF0A0F0A), Color(0xFF000000)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -207,12 +218,12 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF251405), Color(0xFF131313)],
+          colors: [Color(0xFF0C2A16), Color(0xFF101210)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: _green.withValues(alpha: 0.14)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.28),
@@ -267,17 +278,20 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                         vertical: 7,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0x33FFFFFF),
+                        color: _green.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: _green.withValues(alpha: 0.4),
+                        ),
                       ),
                       child: Text(
                         'Your Rank #$myRank',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
-                          color: Colors.white,
+                          color: _green,
                           fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
@@ -317,12 +331,12 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF4A2200), Color(0xFF1B1C23), Color(0xFF101217)],
+          colors: [Color(0xFF0E3B20), Color(0xFF14181A), Color(0xFF0B0D0F)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: _green.withValues(alpha: 0.12)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.24),
@@ -341,7 +355,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
               height: 92,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0x22FFB347),
+                color: _green.withValues(alpha: 0.10),
               ),
             ),
           ),
@@ -391,13 +405,13 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0x33FFB347),
+                      color: _green.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       'Top 3 capped',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFFFD27A),
+                        color: _green,
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
@@ -441,7 +455,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                     child: _heroMetric(
                       label: 'Your Rank',
                       value: myRank == null ? 'Unranked' : '#$myRank',
-                      accent: const Color(0xFF7EA5FF),
+                      accent: _silver,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -449,7 +463,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                     child: _heroMetric(
                       label: 'Your Score',
                       value: '$myScore',
-                      accent: const Color(0xFF4ADE80),
+                      accent: _green,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -457,7 +471,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                     child: _heroMetric(
                       label: 'Top Score',
                       value: leader == null ? '--' : '$topScore',
-                      accent: const Color(0xFFFFC65C),
+                      accent: _gold,
                     ),
                   ),
                 ],
@@ -476,13 +490,13 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                   children: [
                     const Icon(
                       Icons.workspace_premium_rounded,
-                      color: Color(0xFFFFC65C),
+                      color: _gold,
                       size: 18,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Rewards: #1 gets 100, #2 gets 75, #3 gets 50. Top 3 can only claim each rank reward 3 times. #4-#100 get 1.',
+                        'Rewards · #1 100 · #2 75 · #3 50 · #4–100 get 1 HashCoin',
                         style: GoogleFonts.inter(
                           color: Colors.white70,
                           fontSize: 11.5,
@@ -511,7 +525,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                         _openSelectedGame(context);
                       },
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF8A00),
+                        backgroundColor: _green,
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -703,15 +717,22 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
               duration: const Duration(milliseconds: 220),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               decoration: BoxDecoration(
-                color: selected
-                    ? const Color(0xFFFF8A00)
-                    : Colors.white.withValues(alpha: 0.08),
+                color: selected ? _green : Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
                   color: selected
-                      ? const Color(0xFFFFC05C)
+                      ? _green
                       : Colors.white.withValues(alpha: 0.1),
                 ),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: _green.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ]
+                    : null,
               ),
               child: Text(
                 option.value,
@@ -739,115 +760,71 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
         : (((playerCount - myRank + 1) / playerCount) * 100).round();
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF462100), Color(0xFF1A1A1A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-          width: 0.8,
-        ),
+        borderRadius: BorderRadius.circular(16),
+        color: _panel,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.auto_graph_rounded,
-                color: Color(0xFFFFC65C),
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _selectedGameId == MiniGameLeaderboardService.overallGameId
-                    ? 'Live Arcade Pulse'
-                    : '${_selectedGameLabel()} Pulse',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
-              ),
-            ],
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: _green.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.auto_graph_rounded,
+              color: _green,
+              size: 18,
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _miniStat(
-                  'Players',
-                  '$playerCount',
-                  Icons.groups_rounded,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _miniStat(
-                  'Top Score',
-                  leader == null ? '--' : '${_displayScore(leader)}',
-                  Icons.emoji_events_rounded,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _miniStat(
-                  'Your Percentile',
-                  percentile == 0 ? '--' : '$percentile%',
-                  Icons.trending_up_rounded,
-                ),
-              ),
-            ],
-          ),
-          if (leader != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              '${leader.displayName} is setting the pace in ${_primaryGame(leader.scores)}.',
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              leader == null
+                  ? 'Be the first to set the pace on this board.'
+                  : '${leader.displayName} is setting the pace in ${_primaryGame(leader.scores)}.',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
                 color: Colors.white70,
                 fontSize: 12,
-                height: 1.35,
+                height: 1.3,
+              ),
+            ),
+          ),
+          if (percentile > 0) ...[
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: _green.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.trending_up_rounded,
+                    color: _green,
+                    size: 13,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$percentile%',
+                    style: GoogleFonts.inter(
+                      color: _green,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _miniStat(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: const Color(0xFFFFA94D)),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.orbitron(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: Colors.white60,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
         ],
       ),
     );
@@ -905,7 +882,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   }
 
   Widget _podium(List<LeaderboardEntry> entries, {String? highlightUserId}) {
-    const rankHeights = {1: 214.0, 2: 172.0, 3: 144.0};
+    const rankHeights = {1: 216.0, 2: 188.0, 3: 168.0};
     const order = [1, 0, 2];
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -930,78 +907,73 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
     LeaderboardEntry? data,
     bool isHighlighted = false,
   }) {
-    final accent = _rankColor(rank);
+    final medal = _rankColor(rank);
+    final avatarR = rank == 1 ? 30.0 : 24.0;
+    final hasImg = (data?.avatarUrl ?? '').trim().isNotEmpty;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 6),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      padding: const EdgeInsets.fromLTRB(6, 12, 6, 12),
       height: height,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.14), const Color(0xFF171717)],
+          colors: [medal.withValues(alpha: 0.24), _panel],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isHighlighted
-              ? const Color(0xFF4ADE80)
-              : Colors.white.withValues(alpha: 0.09),
-          width: isHighlighted ? 1.1 : 0.8,
+          color: isHighlighted ? _green : medal.withValues(alpha: 0.45),
+          width: isHighlighted ? 1.4 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: isHighlighted
-                ? const Color(0x224ADE80)
-                : Colors.black.withValues(alpha: 0.22),
-            blurRadius: isHighlighted ? 16 : 10,
-            offset: const Offset(0, 4),
+            color: (isHighlighted ? _green : medal).withValues(
+              alpha: rank == 1 ? 0.34 : 0.18,
+            ),
+            blurRadius: rank == 1 ? 22 : 13,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              'Rank #$rank',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 11,
-              ),
-            ),
+          // Crown for the champion, medal ribbon for the rest.
+          Icon(
+            rank == 1
+                ? Icons.emoji_events_rounded
+                : Icons.military_tech_rounded,
+            color: medal,
+            size: rank == 1 ? 26 : 20,
           ),
+          // Avatar inside a medal-colored ring.
           Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              CircleAvatar(
-                radius: rank == 1 ? 23 : 20,
-                backgroundColor: accent.withValues(alpha: 0.58),
-                backgroundImage: (data?.avatarUrl ?? '').trim().isNotEmpty
-                    ? NetworkImage((data?.avatarUrl ?? '').trim())
-                    : null,
-                child: (data?.avatarUrl ?? '').trim().isNotEmpty
-                    ? null
-                    : Icon(
-                        Icons.person_rounded,
-                        color: Colors.white,
-                        size: rank == 1 ? 22 : 18,
-                      ),
-              ),
-              const SizedBox(height: 8),
-              if (rank == 1)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 6),
-                  child: Icon(
-                    Icons.workspace_premium_rounded,
-                    color: Color(0xFFFFC857),
-                    size: 16,
+              Container(
+                padding: const EdgeInsets.all(2.5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [medal, medal.withValues(alpha: 0.35)],
                   ),
                 ),
+                child: CircleAvatar(
+                  radius: avatarR,
+                  backgroundColor: const Color(0xFF1C201A),
+                  backgroundImage: hasImg
+                      ? NetworkImage((data!.avatarUrl ?? '').trim())
+                      : null,
+                  child: hasImg
+                      ? null
+                      : Icon(
+                          Icons.person_rounded,
+                          color: Colors.white,
+                          size: avatarR,
+                        ),
+                ),
+              ),
+              const SizedBox(height: 8),
               Text(
                 data?.displayName ?? 'Empty',
                 maxLines: 1,
@@ -1013,35 +985,59 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                   fontSize: 12,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                data != null ? '${_displayScore(data)} pts' : '--',
-                style: GoogleFonts.orbitron(
-                  color: Colors.white70,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+              if (isHighlighted)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    'YOU',
+                    style: GoogleFonts.inter(
+                      color: _green,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
-              ),
-              if (isHighlighted) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'YOU',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF4ADE80),
-                    fontSize: 10,
+            ],
+          ),
+          // Score chip above a circular rank medal.
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  data != null ? '${_displayScore(data)}' : '--',
+                  style: GoogleFonts.orbitron(
+                    color: medal,
+                    fontSize: rank == 1 ? 15 : 13,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-              ],
-              if (data != null &&
-                  _selectedGameId !=
-                      MiniGameLeaderboardService.overallGameId) ...[
-                const SizedBox(height: 2),
-                Text(
-                  '${data.totalScore} total',
-                  style: GoogleFonts.inter(color: Colors.white54, fontSize: 10),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: medal),
+                child: Center(
+                  child: Text(
+                    '$rank',
+                    style: GoogleFonts.inter(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                    ),
+                  ),
                 ),
-              ],
+              ),
             ],
           ),
         ],
@@ -1077,15 +1073,13 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isCurrentUser
-              ? const Color(0x332D6A4F)
-              : const Color(0xFF1B1B1B),
-          borderRadius: BorderRadius.circular(13),
+          color: isCurrentUser ? _green.withValues(alpha: 0.12) : _panel,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isCurrentUser
-                ? const Color(0x664ADE80)
-                : Colors.white.withValues(alpha: 0.08),
-            width: 0.8,
+                ? _green.withValues(alpha: 0.5)
+                : Colors.white.withValues(alpha: 0.07),
+            width: isCurrentUser ? 1.1 : 0.8,
           ),
         ),
         child: Row(
@@ -1152,12 +1146,23 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                         ),
                       ),
                       if (isCurrentUser)
-                        Text(
-                          'YOU',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF4ADE80),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 10,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _green.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'YOU',
+                            style: GoogleFonts.inter(
+                              color: _green,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 9,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
                     ],
@@ -1168,7 +1173,9 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 4,
-                      valueColor: AlwaysStoppedAnimation<Color>(accent),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        _green.withValues(alpha: 0.8),
+                      ),
                       backgroundColor: Colors.white12,
                     ),
                   ),
@@ -1197,7 +1204,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                 Text(
                   '$visibleScore pts',
                   style: GoogleFonts.orbitron(
-                    color: const Color(0xFFFFC65C),
+                    color: _gold,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1230,10 +1237,10 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B1B1B),
-        borderRadius: BorderRadius.circular(12),
+        color: _panel,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.09),
+          color: Colors.white.withValues(alpha: 0.07),
           width: 0.8,
         ),
       ),
@@ -1263,8 +1270,8 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
             child: Text(
               'Play',
               style: GoogleFonts.inter(
-                color: const Color(0xFF7EA5FF),
-                fontWeight: FontWeight.w700,
+                color: _green,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -1308,6 +1315,9 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   Future<void> _openGameByKey(BuildContext context, String gameKey) async {
     Widget? target;
     switch (gameKey) {
+      case 'ludo':
+        target = const LudoGameScreen();
+        break;
       case 'fruit_cutting':
         target = FruitCuttingScreen();
         break;
@@ -1352,7 +1362,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
 
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF151A33),
+      backgroundColor: const Color(0xFF12160F),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -1430,7 +1440,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                             Text(
                               '${entry.value}',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF7EA5FF),
+                                color: _gold,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -1466,8 +1476,8 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                             await _openDirectChatWithEntry(data);
                           },
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2C5BFF),
-                            foregroundColor: Colors.white,
+                            backgroundColor: _green,
+                            foregroundColor: Colors.black,
                           ),
                           icon: const Icon(Icons.chat_bubble_rounded),
                           label: const Text('Message'),
@@ -1576,9 +1586,9 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   }
 
   Color _rankColor(int rank) {
-    if (rank == 1) return const Color(0xFFFFC857);
-    if (rank == 2) return const Color(0xFFC7D2E0);
-    if (rank == 3) return const Color(0xFFD8975A);
+    if (rank == 1) return _gold;
+    if (rank == 2) return _silver;
+    if (rank == 3) return _bronze;
     return const Color(0xFF6B7280);
   }
 

@@ -9,10 +9,14 @@ import '../ludo_player.dart';
 
 ///Widget for the board
 class BoardWidget extends StatelessWidget {
-  const BoardWidget({super.key});
+  const BoardWidget({super.key, this.size, this.showTurnIndicator = true});
+
+  final double? size;
+  final bool showTurnIndicator;
 
   ///Return board size
   double ludoBoard(BuildContext context) {
+    if (size != null) return size!;
     double width = MediaQuery.of(context).size.width;
     if (width > 500) {
       return 500;
@@ -33,12 +37,12 @@ class BoardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(10),
+      margin: size == null ? const EdgeInsets.all(10) : EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       width: ludoBoard(context),
       height: ludoBoard(context),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(40),
+        borderRadius: BorderRadius.circular(size == null ? 40 : 18),
         image: const DecorationImage(
           image: AssetImage("assets/ludo/images/board.png"),
           fit: BoxFit.cover,
@@ -163,13 +167,14 @@ class BoardWidget extends StatelessWidget {
               children: [
                 ...playersPawn,
                 ...winners(context, value.winners),
-                turnIndicator(
-                  context,
-                  value.currentPlayer.type,
-                  value.currentPlayer.color,
-                  value.gameState,
-                  isMine: !value.isOnline || value.isMyTurn,
-                ),
+                if (showTurnIndicator)
+                  turnIndicator(
+                    context,
+                    value.currentPlayer.type,
+                    value.currentPlayer.color,
+                    value.gameState,
+                    isMine: !value.isOnline || value.isMyTurn,
+                  ),
               ],
             ),
           );
@@ -248,7 +253,9 @@ class BoardWidget extends StatelessWidget {
                         ? "Your turn!\n"
                         : "${turn.name[0].toUpperCase()}${turn.name.substring(1)}'s turn\n",
                     style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.bold),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   TextSpan(
                     text: stageText,
@@ -266,9 +273,7 @@ class BoardWidget extends StatelessWidget {
   ///This is for the winner widget
   List<Widget> winners(BuildContext context, List<LudoPlayerType> winners) =>
       List.generate(winners.length, (index) {
-        Widget crownImage = Image.asset(
-          "assets/ludo/images/games/ludo/crown/1st.png",
-        );
+        Widget crownImage = Image.asset("assets/ludo/images/crown/1st.png");
 
         //0 is left, 1 is right
         int x = 0;
@@ -277,7 +282,7 @@ class BoardWidget extends StatelessWidget {
 
         if (index == 0) {
           crownImage = Image.asset(
-            "assets/ludo/images/images/crown/1st.png",
+            "assets/ludo/images/crown/1st.png",
             fit: BoxFit.cover,
           );
         } else if (index == 1) {

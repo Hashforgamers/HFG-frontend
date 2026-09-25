@@ -66,6 +66,9 @@ class LudoMatch {
     required this.lastWriterUid,
     required this.version,
     required this.turnStartedAtMs,
+    this.reactionEmoji = '',
+    this.reactionSeat,
+    this.reactionId = 0,
   });
 
   final String id;
@@ -87,6 +90,13 @@ class LudoMatch {
   /// Client epoch millis when the current turn (or last action) began — drives
   /// the per-turn countdown. 0 when unknown.
   final int turnStartedAtMs;
+
+  /// The most recent in-match emoji reaction. [reactionId] is a monotonically
+  /// increasing epoch-ms stamp so every client can tell a fresh reaction from a
+  /// repeated snapshot; 0 means "no reaction yet".
+  final String reactionEmoji;
+  final LudoPlayerType? reactionSeat;
+  final int reactionId;
 
   bool get isFull => seats.length >= 4;
   int get seatCount => seats.length;
@@ -123,6 +133,9 @@ class LudoMatch {
     'last_writer_uid': lastWriterUid,
     'version': version,
     'turn_started_at_ms': turnStartedAtMs,
+    'reaction_emoji': reactionEmoji,
+    if (reactionSeat != null) 'reaction_seat': reactionSeat!.name,
+    'reaction_id': reactionId,
   };
 
   factory LudoMatch.fromMap(String id, Map<String, dynamic> m) {
@@ -156,6 +169,11 @@ class LudoMatch {
       lastWriterUid: (m['last_writer_uid'] ?? '').toString(),
       version: (m['version'] as num?)?.toInt() ?? 0,
       turnStartedAtMs: (m['turn_started_at_ms'] as num?)?.toInt() ?? 0,
+      reactionEmoji: (m['reaction_emoji'] ?? '').toString(),
+      reactionSeat: m['reaction_seat'] == null
+          ? null
+          : seatFromString(m['reaction_seat'].toString()),
+      reactionId: (m['reaction_id'] as num?)?.toInt() ?? 0,
     );
   }
 }

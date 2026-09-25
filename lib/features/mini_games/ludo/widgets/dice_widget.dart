@@ -17,12 +17,17 @@ class DiceWidget extends StatelessWidget {
       builder: (context, value, child) => RippleAnimation(
         color: value.gameState == LudoGameState.throwDice
             ? value.currentPlayer.color
-            : Colors.white.withOpacity(0),
+            : Colors.transparent,
         ripplesCount: 3,
         minRadius: 30,
         repeat: true,
         child: CupertinoButton(
-          onPressed: value.throwDice,
+          onPressed:
+              value.isMyTurn &&
+                  !value.diceStarted &&
+                  value.gameState == LudoGameState.throwDice
+              ? value.throwDice
+              : null,
           padding: const EdgeInsets.only(),
           child: value.diceStarted
               ? Image.asset(

@@ -44,6 +44,16 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
     super.initState();
     _games = [
       MiniGame(
+        id: 'ludo',
+        title: "Ludo",
+        subtitle: "Roll & race · 2–4 players",
+        icon: const AssetImage("assets/mini_game_icons/ludo_icon.png"),
+        onTap: () async {
+          await Get.to(() => const LudoGameScreen());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
         id: 'fruit_cutting',
         title: "Fruit Cutting",
         subtitle: "Slice fruit · +coins daily",
@@ -83,16 +93,6 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
           await _loadScores();
         },
       ),
-      MiniGame(
-        id: 'ludo',
-        title: "Ludo",
-        subtitle: "Roll & race · 2–4 players",
-        icon: const AssetImage("assets/mini_game_icons/ludo_icon.png"),
-        onTap: () async {
-          await Get.to(() => const LudoGameScreen());
-          await _loadScores();
-        },
-      ),
     ];
     _htmlGames = const HtmlMiniGameCatalogService().getGames();
 
@@ -119,6 +119,11 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep Ludo first even when an existing section survives a hot reload.
+    final games = [
+      ..._games.where((game) => game.id == 'ludo'),
+      ..._games.where((game) => game.id != 'ludo'),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -151,11 +156,11 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            itemCount: _games.length + _htmlGames.length,
+            itemCount: games.length + _htmlGames.length,
             separatorBuilder: (context, index) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
-              if (index < _games.length) {
-                final nativeGame = _games[index];
+              if (index < games.length) {
+                final nativeGame = games[index];
                 return RepaintBoundary(
                   child: MiniGameCard(
                     game: nativeGame,
@@ -165,7 +170,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
                 );
               }
 
-              final game = _htmlGames[index - _games.length];
+              final game = _htmlGames[index - games.length];
               return HtmlMiniGameCard(
                 game: game,
                 compact: true,

@@ -185,6 +185,9 @@ abstract class RemoteRepoInterface {
 
   Future<void> capturePayment({
     required CapturePaymentModel capturePaymentModel,
+    int? bookingId,
+    int? vendorId,
+    int? gameId,
   });
   Future<String> createRazorpayOrder({
     required int amountInPaisa,
