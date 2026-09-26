@@ -91,7 +91,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
         subtitle: "Dodge ghosts · +coins",
         icon: const AssetImage("assets/mini_game_icons/pacman.png"),
         onTap: () async {
-          await Get.to(() => PacManHome());
+          await Get.to(() => const PacManHome());
           await _loadScores();
         },
       ),

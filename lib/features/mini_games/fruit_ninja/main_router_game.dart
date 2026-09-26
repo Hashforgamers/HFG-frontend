@@ -10,6 +10,7 @@ import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hash/config/app_keys.dart';
 import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/features/mini_games/common/game_sfx.dart';
 import 'package:hash/features/mini_games/fruit_ninja/presentation/game/game.dart';
 import 'package:hash/features/mini_games/fruit_ninja/presentation/game/widgets/arena_background.dart';
 import 'package:hash/features/mini_games/score/mini_game_score_service.dart';
@@ -99,8 +100,9 @@ class MainRouterGame extends FlameGame with KeyboardEvents {
 
   GamePage? _page;
 
-  /// Pre-loaded slice sound pools (see [GamePage.playRandomSliceSound]).
-  final List<AudioPool> slicePools = [];
+  /// Pre-loaded slice sounds (see [GamePage.playRandomSliceSound]).
+  final GameSfx sfx = GameSfx(prefix: 'assets/audio/');
+  static const sliceSounds = [AppSfx.sfxChopping, AppSfx.sfxCut];
   bool _playing = false;
   bool get isPlaying => _playing;
 
@@ -233,11 +235,7 @@ class MainRouterGame extends FlameGame with KeyboardEvents {
   Future<void> _loadAudio() async {
     try {
       await FlameAudio.audioCache.load(AppSfx.musicBG);
-      for (final sfx in [AppSfx.sfxChopping, AppSfx.sfxCut]) {
-        slicePools.add(
-          await FlameAudio.createPool(sfx, minPlayers: 1, maxPlayers: 3),
-        );
-      }
+      await sfx.load(sliceSounds);
     } catch (e) {
       if (kDebugMode) AppLogger.d('Fruit audio preload failed: $e');
     }
@@ -296,10 +294,7 @@ class MainRouterGame extends FlameGame with KeyboardEvents {
   @override
   void onRemove() {
     stopMusic();
-    for (final pool in slicePools) {
-      unawaited(pool.dispose());
-    }
-    slicePools.clear();
+    unawaited(sfx.dispose());
     super.onRemove();
   }
 }

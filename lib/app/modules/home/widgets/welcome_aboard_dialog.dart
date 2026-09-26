@@ -67,14 +67,7 @@ class _WelcomeAboardDialogState extends State<WelcomeAboardDialog> {
               Color(0xFF8320C3),
               Color(0xFF1541A3),
             ],
-            stops: [
-              0.22,
-              0.28,
-              0.66,
-              0.73,
-              0.97,
-              1.0,
-            ],
+            stops: [0.22, 0.28, 0.66, 0.73, 0.97, 1.0],
             transform: GradientRotation(-1),
           ),
         ),
@@ -329,19 +322,19 @@ class _WelcomeAboardDialogState extends State<WelcomeAboardDialog> {
                                         strokeWidth: 2.5,
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
-                                          Color(0xff00DC00),
-                                        ),
+                                              Color(0xff00DC00),
+                                            ),
                                       ),
                                     )
                                   : ShaderMask(
                                       shaderCallback: (bounds) =>
                                           const LinearGradient(
-                                        colors: [
-                                          Color(0xff00DC00),
-                                          Color(0xff00DC00),
-                                          Color(0xff00DC00),
-                                        ],
-                                      ).createShader(bounds),
+                                            colors: [
+                                              Color(0xff00DC00),
+                                              Color(0xff00DC00),
+                                              Color(0xff00DC00),
+                                            ],
+                                          ).createShader(bounds),
                                       child: Text(
                                         _failed ? 'Try Again' : 'Claim Now',
                                         style: const TextStyle(

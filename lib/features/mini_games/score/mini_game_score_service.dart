@@ -1,11 +1,11 @@
+import 'package:hash/utils/widgets/game_button.dart';
+import 'package:hash/utils/widgets/game_panel.dart';
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
@@ -226,17 +226,22 @@ class MiniGameScoreService {
 
       // GetX shows snackbars asynchronously, so the surrounding try/catch
       // can't catch a missing overlay (e.g. the player already left the app).
-      if (Get.overlayContext != null) {
-        Get.snackbar(
-          'Daily play bonus',
-          '+$dailyPlayRewardAmount HashCoins for playing '
+      // Get.snackbar looks up its overlay asynchronously and throws there
+      // (uncatchable) during route transitions; ScaffoldMessenger is sync.
+      try {
+        final ctx = Get.context;
+        final messenger = ctx == null ? null : ScaffoldMessenger.maybeOf(ctx);
+        messenger?.showSnackBar(
+          SnackBar(
+            content: Text(
+              '+$dailyPlayRewardAmount HashCoins for playing '
               '${MiniGameLeaderboardService.readableGameName(gameId)}',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: const Color(0xFF141414),
-          colorText: const Color(0xFFEDEDED),
-          margin: const EdgeInsets.all(12),
+            ),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF141414),
+          ),
         );
-      }
+      } catch (_) {}
 
       unawaited(
         _trackArcadeScoreEvent('Arcade Daily Play Reward', {
@@ -371,160 +376,17 @@ class MiniGameScoreService {
     required int rank,
     required int amount,
   }) async {
-    final rankSuffix = switch (rank) {
-      1 => '1st',
-      2 => '2nd',
-      3 => '3rd',
-      _ => '#$rank',
-    };
-
     await Get.dialog<void>(
       // Builder gives the button this dialog's own context: Get.back() first
       // tries to close a queued snackbar and throws, leaving Collect dead.
       Builder(
         builder: (dialogContext) => Dialog(
           backgroundColor: Colors.transparent,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0E1016).withValues(alpha: 0.96),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: const Color(0xFFFFC857).withValues(alpha: 0.24),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.32),
-                      blurRadius: 24,
-                      offset: const Offset(0, 14),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(
-                              0xFFFFC857,
-                            ).withValues(alpha: 0.26),
-                            blurRadius: 24,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                      ),
-                      child: const HashCoinIcon(size: 76),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      child: Text(
-                        'Arcade Reward',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFFFDA8A),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Rank $rankSuffix secured',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFC857).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: const Color(
-                            0xFFFFC857,
-                          ).withValues(alpha: 0.18),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const HashCoinIcon(size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'You received $amount HashCoins',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFFDE93),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      rank <= 3
-                          ? 'Top 3 rewards can only be claimed 3 times per rank to prevent abuse.'
-                          : 'Every ranked finish up to #100 earns HashCoins.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFC857),
-                          foregroundColor: Colors.black,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          'Collect',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          child: ArcadeRewardDialog(
+            rank: rank,
+            amount: amount,
+            onCollect: () => Navigator.of(dialogContext).pop(),
           ),
         ),
       ),
@@ -539,4 +401,114 @@ class MiniGameScoreService {
       _scores.values.fold<int>(0, (prev, value) => prev + value);
 
   bool get isLoaded => _loaded;
+}
+
+/// Mini-game rank reward popup, in the chunky game style.
+class ArcadeRewardDialog extends StatelessWidget {
+  const ArcadeRewardDialog({
+    super.key,
+    required this.rank,
+    required this.amount,
+    required this.onCollect,
+  });
+
+  final int rank;
+  final int amount;
+  final VoidCallback onCollect;
+
+  static const _medal = {
+    1: Color(0xFFFFD60A),
+    2: Color(0xFFD9DEE8),
+    3: Color(0xFFE39B5B),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final rankSuffix = switch (rank) {
+      1 => '1ST',
+      2 => '2ND',
+      3 => '3RD',
+      _ => '#$rank',
+    };
+    final rankColor = _medal[rank] ?? Colors.white;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 400),
+      child: GamePanel(
+        headerColors: GameColors.yellow,
+        headerHeight: 64,
+        header: Row(
+          children: [
+            const Text('🏆', style: TextStyle(fontSize: 28)),
+            const SizedBox(width: 8),
+            const Expanded(child: GameText('ARCADE REWARD', size: 22)),
+            GameBadge(label: 'RANK $rankSuffix'),
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(14, 16, 14, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            GameTray(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+              child: Column(
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(
+                            0xFFFFC857,
+                          ).withValues(alpha: 0.45),
+                          blurRadius: 28,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: const HashCoinIcon(size: 76),
+                  ),
+                  const SizedBox(height: 10),
+                  GameText(
+                    'RANK $rankSuffix SECURED',
+                    size: 22,
+                    color: rankColor,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      GameText(
+                        '+$amount',
+                        size: 30,
+                        color: GameColors.yellow.$1,
+                      ),
+                      const SizedBox(width: 6),
+                      Text('HashCoins', style: gameFont(16, Colors.white)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              rank <= 3
+                  ? 'Top 3 rewards can only be claimed 3 times per rank.'
+                  : 'Every ranked finish up to #100 earns HashCoins.',
+              textAlign: TextAlign.center,
+              style: gameFont(13, GameColors.soft),
+            ),
+            const SizedBox(height: 14),
+            GameButton(
+              label: 'Collect',
+              icon: Icons.check_rounded,
+              tone: GameButtonTone.green,
+              height: 52,
+              onPressed: onCollect,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

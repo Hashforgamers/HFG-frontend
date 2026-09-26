@@ -4,11 +4,9 @@ import 'dart:async';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/extensions.dart';
-import 'package:flutter/foundation.dart';
 import 'package:hash/features/mini_games/fruit_ninja/presentation/game/widgets/fruit_component.dart';
 import 'package:hash/features/mini_games/fruit_ninja/presentation/game/widgets/fruit_slice_component.dart';
 import 'package:hash/features/mini_games/fruit_ninja/presentation/game/widgets/slice_component.dart';
-import 'package:hash/core/utils/app_logger.dart';
 
 import '../../core/configs/constants/app_configs.dart';
 import '../../main_router_game.dart';
@@ -210,14 +208,8 @@ class GamePage extends PositionComponent
     final now = DateTime.now();
     if (now.difference(_lastSliceSfxAt).inMilliseconds < 70) return;
     _lastSliceSfxAt = now;
-    final pools = game.slicePools;
-    if (pools.isEmpty) return;
-    try {
-      unawaited(pools[random.nextInt(pools.length)].start(volume: 0.5));
-    } catch (e) {
-      _sliceSfxEnabled = false;
-      if (kDebugMode) AppLogger.d('Slice SFX disabled after failure: $e');
-    }
+    const sounds = MainRouterGame.sliceSounds;
+    game.sfx.play(sounds[random.nextInt(sounds.length)]);
   }
 
   /// Spawn times for this level. Each gap is based on the level/mode interval

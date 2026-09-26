@@ -668,7 +668,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
         target = const PlantVsZombie();
         break;
       case 'pac_man':
-        target = PacManHome();
+        target = const PacManHome();
         break;
       case 'laggy_bird':
         target = const FlappyBirds();

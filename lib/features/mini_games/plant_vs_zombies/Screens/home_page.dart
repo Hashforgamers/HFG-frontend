@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flame_audio/flame_audio.dart';
+import 'package:hash/features/mini_games/common/game_sfx.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -88,11 +88,7 @@ class _PlantVsZombieState extends State<PlantVsZombie>
   bool _newBest = false;
 
   // Audio.
-  final AudioCache _audioCache = AudioCache(
-    prefix: 'assets/plant_vs_zombies/sounds/',
-  );
-  AudioPool? _shotPool;
-  AudioPlayer? _overPlayer;
+  final GameSfx _sfx = GameSfx(prefix: 'assets/plant_vs_zombies/sounds/');
 
   int get _wave => 1 + _score ~/ 10;
 
@@ -110,18 +106,7 @@ class _PlantVsZombieState extends State<PlantVsZombie>
     if (mounted) setState(() => _best = _scores.bestScore(gameId));
   }
 
-  Future<void> _loadAudio() async {
-    try {
-      _shotPool = await AudioPool.create(
-        source: AssetSource('bullet.wav'),
-        audioCache: _audioCache,
-        maxPlayers: 4,
-      );
-      _overPlayer = AudioPlayer()..audioCache = _audioCache;
-    } catch (e) {
-      if (kDebugMode) AppLogger.d('PvZ audio preload failed: $e');
-    }
-  }
+  Future<void> _loadAudio() => _sfx.load(const ['bullet.wav', 'game_over.mp3']);
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -135,8 +120,7 @@ class _PlantVsZombieState extends State<PlantVsZombie>
     WidgetsBinding.instance.removeObserver(this);
     _ticker.dispose();
     _frame.dispose();
-    unawaited(_shotPool?.dispose());
-    unawaited(_overPlayer?.dispose());
+    unawaited(_sfx.dispose());
     super.dispose();
   }
 
@@ -208,11 +192,7 @@ class _PlantVsZombieState extends State<PlantVsZombie>
     });
   }
 
-  Future<void> _playOver() async {
-    try {
-      await _overPlayer?.play(AssetSource('game_over.mp3'), volume: 0.7);
-    } catch (_) {}
-  }
+  Future<void> _playOver() async => _sfx.play('game_over.mp3', volume: 0.7);
 
   // ------------------------------------------------------------ simulation
 
@@ -292,9 +272,7 @@ class _PlantVsZombieState extends State<PlantVsZombie>
     if (_phase != _Phase.playing || _cooldown > 0) return;
     _cooldown = _fireCooldown;
     _bullets.add(_Bullet(_plantLane, _plantX + 0.05));
-    try {
-      unawaited(_shotPool?.start(volume: 0.35));
-    } catch (_) {}
+    _sfx.play('bullet.wav', volume: 0.35);
   }
 
   void _moveTo(int lane) {

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 import 'package:hash/app/modules/hash_coin/cubit/create_offer_cubit.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
+import 'package:hash/app/modules/hash_coin/widgets/hash_coin_icon.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 
@@ -224,10 +225,8 @@ class GlobalBottomSheetService {
                                           shape: BoxShape.circle,
                                           color: accent.withValues(alpha: 0.12),
                                         ),
-                                        child: const Icon(
-                                          Icons.auto_awesome,
-                                          color: accent,
-                                          size: 24,
+                                        child: const Center(
+                                          child: HashCoinIcon(size: 30),
                                         ),
                                       ),
                                       const SizedBox(width: 12),

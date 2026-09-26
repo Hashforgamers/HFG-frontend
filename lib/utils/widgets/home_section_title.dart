@@ -48,7 +48,10 @@ class HomeSectionTitle extends StatelessWidget {
           children: [
             TextSpan(text: title, style: style()),
             if (accent != null)
-              TextSpan(text: accent, style: style(color: accentColor)),
+              TextSpan(
+                text: accent,
+                style: style(color: accentColor),
+              ),
           ],
         ),
         maxLines: maxLines,
@@ -78,7 +81,11 @@ class HomeSectionTitle extends StatelessWidget {
       children: [
         Expanded(child: body),
         const SizedBox(width: 12),
-        _Action(label: actionLabel!, onTap: onAction!, accentColor: accentColor),
+        _Action(
+          label: actionLabel!,
+          onTap: onAction!,
+          accentColor: accentColor,
+        ),
       ],
     );
   }

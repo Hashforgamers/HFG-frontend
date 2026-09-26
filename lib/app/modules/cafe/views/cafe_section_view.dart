@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/cafe/widgets/cafe_card.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:io' show Platform;
@@ -19,7 +20,6 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/location_permission_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/funnel_notification_service.dart';
-import 'package:lottie/lottie.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:location/location.dart' as loc;
 import 'package:shimmer/shimmer.dart';
@@ -1714,14 +1714,14 @@ class _CafeSectionState extends State<CafeSection> {
                 if (!showCommunity && hasInternalCafes) ...[
                   if (showComingSoon) _comingSoonNearYouBanner(),
                   SizedBox(
-                    height: 210,
+                    height: 216,
                     width: MediaQuery.of(context).size.width,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      padding: const EdgeInsets.fromLTRB(0, 3, 0, 10),
                       itemCount: sortedCafes.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 20),
+                      separatorBuilder: (_, __) => const SizedBox(width: 14),
                       itemBuilder: (context, index) {
                         final cafe = sortedCafes[index];
                         final images = cafe['images'];
@@ -1847,280 +1847,18 @@ class _CafeSectionState extends State<CafeSection> {
                           );
                         }
 
-                        return BounceTap(
-                          onTap: openCafeDetails,
-                          child: Container(
-                            width: cardWidth,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              color: const Color(0xff0E0E0E),
-                            ),
-                            child: Stack(
-                              children: [
-                                /// Café image
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: CachedNetworkImage(
-                                    imageUrl: imageUrl,
-                                    fit: BoxFit.cover,
-                                    width: cardWidth,
-                                    height: 250,
-                                    placeholder: (_, __) => Container(
-                                      color: const Color(0xff1a1a1a),
-                                      child: const Center(
-                                        child: RainbowGlowingLoader(size: 40),
-                                      ),
-                                    ),
-                                    errorWidget: (_, __, ___) => Container(
-                                      color: const Color(0xff1a1a1a),
-                                      alignment: Alignment.center,
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(
-                                            Icons.storefront,
-                                            color: Colors.white54,
-                                            size: 60,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Cafe Image',
-                                            style: GoogleFonts.inter(
-                                              color: Colors.white54,
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                /// Frosted footer with info
-                                Positioned(
-                                  left: 0,
-                                  right: 0,
-                                  top: 0,
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(
-                                        sigmaX: 4,
-                                        sigmaY: 4,
-                                      ),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(20),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.1,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            /// Header row: Name + Console
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.circle,
-                                                  size: 8,
-                                                  color: isOpen
-                                                      ? const Color(0xff00DC00)
-                                                      : Colors.redAccent,
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Expanded(
-                                                  child: Text(
-                                                    toStartCase(
-                                                      cafe['cafe_name']
-                                                              ?.toString() ??
-                                                          'Unknown Cafe',
-                                                    ),
-                                                    style: GoogleFonts.inter(
-                                                      color: Colors.white,
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                CachedNetworkImage(
-                                                  imageUrl:
-                                                      'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-02_hvvehr.png',
-                                                  height: 16,
-                                                  width: 16,
-                                                  fit: BoxFit.cover,
-                                                  placeholder: (_, __) =>
-                                                      const Center(
-                                                        child:
-                                                            RainbowGlowingLoader(
-                                                              size: 4,
-                                                            ),
-                                                      ),
-                                                  errorWidget: (_, __, ___) =>
-                                                      const Icon(
-                                                        Icons.error,
-                                                        color: Colors.red,
-                                                      ),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  'Consoles',
-                                                  style: GoogleFonts.inter(
-                                                    color: Colors.white,
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 4),
-
-                                            /// Distance + Time + Platform Icons
-                                            Row(
-                                              children: [
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  km == null
-                                                      ? '-- km'
-                                                      : '${km.toStringAsFixed(1)} km${etaMin != null ? ' • ~${etaMin} min' : ''}',
-                                                  style: GoogleFonts.inter(
-                                                    color: Colors.white70,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                const Icon(
-                                                  Icons.arrow_forward,
-                                                  size: 13,
-                                                ),
-                                                const Spacer(),
-                                                _buildPlatformIcon(
-                                                  icon:
-                                                      "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png",
-                                                ),
-                                                const SizedBox(width: 8),
-                                                _buildPlatformIcon(
-                                                  icon:
-                                                      "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png",
-                                                ),
-                                                const SizedBox(width: 8),
-                                                _buildPlatformIcon(
-                                                  icon:
-                                                      "https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png",
-                                                ),
-                                              ],
-                                            ),
-                                            if (index == 0) ...[
-                                              const SizedBox(height: 8),
-                                              Align(
-                                                alignment: Alignment.centerLeft,
-                                                child: Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 2,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(
-                                                      0xFFFFB020,
-                                                    ).withValues(alpha: 0.95),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      SizedBox(
-                                                        width: 12,
-                                                        height: 12,
-                                                        child: Lottie.asset(
-                                                          'assets/fire.json',
-                                                          fit: BoxFit.contain,
-                                                          repeat: true,
-                                                          animate: true,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        'Filling Fast',
-                                                        style:
-                                                            GoogleFonts.inter(
-                                                              color:
-                                                                  Colors.black,
-                                                              fontSize: 9,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w700,
-                                                            ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  left: 12,
-                                  right: 12,
-                                  bottom: 12,
-                                  child: SizedBox(
-                                    height: 38,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: BackdropFilter(
-                                        filter: ImageFilter.blur(
-                                          sigmaX: 8,
-                                          sigmaY: 8,
-                                        ),
-                                        child: OutlinedButton(
-                                          onPressed: openCafeDetails,
-                                          style: OutlinedButton.styleFrom(
-                                            backgroundColor: const Color(
-                                              0xff00DC00,
-                                            ).withValues(alpha: 0.22),
-                                            foregroundColor: const Color(
-                                              0xff00DC00,
-                                            ),
-                                            side: const BorderSide(
-                                              color: Color(0xff00DC00),
-                                              width: 1.2,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'Book Now',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        return CafeCard(
+                          width: cardWidth,
+                          name: toStartCase(
+                            cafe['cafe_name']?.toString() ?? 'Unknown Cafe',
                           ),
+                          imageUrl: imageUrl,
+                          isOpen: isOpen,
+                          distanceLabel: km == null
+                              ? '-- km'
+                              : '${km.toStringAsFixed(1)} km${etaMin != null ? ' · ~$etaMin min' : ''}',
+                          fillingFast: index == 0,
+                          onTap: openCafeDetails,
                         );
                       },
                     ),
@@ -2147,16 +1885,5 @@ class _CafeSectionState extends State<CafeSection> {
         ],
       );
     });
-  }
-
-  Widget _buildPlatformIcon({required String icon}) {
-    return CachedNetworkImage(
-      imageUrl: icon,
-      height: 18,
-      width: 18,
-      placeholder: (_, _) =>
-          const Center(child: RainbowGlowingLoader(size: 10)),
-      errorWidget: (_, _, _) => const Icon(Icons.error, color: Colors.red),
-    );
   }
 }

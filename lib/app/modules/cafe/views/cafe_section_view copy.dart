@@ -15,8 +15,9 @@ import 'package:hash/core/service/fb_events_service.dart';
 class CafeSection extends StatefulWidget {
   CafeSection({super.key});
 
-  final CybercafesController _cafeController =
-      Get.put(CybercafesController(remoteRepo: locator<RemoteRepoInterface>()));
+  final CybercafesController _cafeController = Get.put(
+    CybercafesController(remoteRepo: locator<RemoteRepoInterface>()),
+  );
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
 
@@ -58,8 +59,10 @@ class _CafeSectionState extends State<CafeSection> {
               height: 230,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 15,
+                ),
                 itemCount: 3,
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
@@ -102,7 +105,8 @@ class _CafeSectionState extends State<CafeSection> {
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
                 final cafe = widget._cafeController.cybercafes[index];
-                final imageUrl = cafe['cover'] ??
+                final imageUrl =
+                    cafe['cover'] ??
                     'https://next-level.gg/assets/cafes/11.jpg'; // Fallback
                 final isOpen = cafe['status'] == 'active';
 
@@ -124,17 +128,19 @@ class _CafeSectionState extends State<CafeSection> {
                       location: location,
                       availableGames: availableGames,
                     );
-                    
+
                     Get.to(
                       () => ArenaDetailView(
                         images: imageUrl,
                         title: cafe['cafe_name'] ?? 'Unknown Cafe',
-                        address: cafe['location']?['address'] ??
+                        address:
+                            cafe['location']?['address'] ??
                             'Address not available',
                         openingHours: '9 AM - 12 AM',
                         availableGames: const ['Game 1', 'Game 2'],
                         amenities: const ['Amenity 1', 'Amenity 2'],
-                        phone: cafe['phone'] ??
+                        phone:
+                            cafe['phone'] ??
                             cafe['contact_number'] ??
                             'Phone not available',
                         email: cafe['email'] ?? 'Email not available',
@@ -168,12 +174,16 @@ class _CafeSectionState extends State<CafeSection> {
                             width: 300,
                             height: 250,
                             placeholder: (_, __) => const Center(
-                                child: RainbowGlowingLoader(size: 40)),
+                              child: RainbowGlowingLoader(size: 40),
+                            ),
                             errorWidget: (_, __, ___) => Container(
                               color: Colors.grey,
                               alignment: Alignment.center,
-                              child: const Icon(Icons.image_not_supported,
-                                  color: Colors.white54, size: 40),
+                              child: const Icon(
+                                Icons.image_not_supported,
+                                color: Colors.white54,
+                                size: 40,
+                              ),
                             ),
                           ),
                         ),
@@ -185,7 +195,8 @@ class _CafeSectionState extends State<CafeSection> {
                           bottom: 0,
                           child: ClipRRect(
                             borderRadius: const BorderRadius.vertical(
-                                bottom: Radius.circular(16)),
+                              bottom: Radius.circular(16),
+                            ),
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                               child: Container(
@@ -207,9 +218,10 @@ class _CafeSectionState extends State<CafeSection> {
                                     Text(
                                       cafe['cafe_name'] ?? 'Unknown Cafe',
                                       style: GoogleFonts.inter(
-                                          color: Colors.white,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold),
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -218,34 +230,42 @@ class _CafeSectionState extends State<CafeSection> {
                                       cafe['location']?['address'] ??
                                           'Address not available',
                                       style: GoogleFonts.inter(
-                                          color: Colors.white70, fontSize: 12),
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 8),
                                     Row(
                                       children: [
-                                        Icon(Icons.circle,
-                                            size: 8,
-                                            color: isOpen
-                                                ? const Color(0xff00DC00)
-                                                : Colors.redAccent),
+                                        Icon(
+                                          Icons.circle,
+                                          size: 8,
+                                          color: isOpen
+                                              ? const Color(0xff00DC00)
+                                              : Colors.redAccent,
+                                        ),
                                         const SizedBox(width: 4),
                                         Text(
                                           isOpen ? 'Open' : 'Closed',
                                           style: GoogleFonts.inter(
-                                              color: isOpen
-                                                  ? const Color(0xff00DC00)
-                                                  : Colors.redAccent,
-                                              fontSize: 12),
+                                            color: isOpen
+                                                ? const Color(0xff00DC00)
+                                                : Colors.redAccent,
+                                            fontSize: 12,
+                                          ),
                                         ),
                                         const Spacer(),
-                                        Text('2.3 km',
-                                            style: GoogleFonts.inter(
-                                                color: Colors.white70,
-                                                fontSize: 12)),
+                                        Text(
+                                          '2.3 km',
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                          ),
+                                        ),
                                       ],
-                                    )
+                                    ),
                                   ],
                                 ),
                               ),

@@ -11,7 +11,5 @@ class HomeBinding extends Bindings {
     Get.lazyPut<BookingController>(() => BookingController());
     Get.lazyPut<UserController>(() => UserController());
     Get.lazyPut<HomeController>(() => HomeController());
-
   }
 }
-

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/rewards/models/squad_weekly_progress.dart';
@@ -19,7 +18,10 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
   final Set<String> _claiming = <String>{};
   late final AnimationController _pulseController;
   late final Animation<double> _pulseScale;
-  late final Animation<double> _pulseOpacity;
+  // Created once: calling watchCurrentWeekProgress() in build opened a new
+  // Firestore listener on every rebuild.
+  late final Stream<SquadWeeklyProgress?> _progress = _service
+      .watchCurrentWeekProgress();
 
   @override
   void initState() {
@@ -29,9 +31,6 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
     _pulseScale = Tween<double>(begin: 1.0, end: 1.12).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-    _pulseOpacity = Tween<double>(begin: 0.32, end: 0.62).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     _service.ensureAndFetchCurrentWeek();
@@ -64,7 +63,7 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<SquadWeeklyProgress?>(
-      stream: _service.watchCurrentWeekProgress(),
+      stream: _progress,
       builder: (context, snapshot) {
         final data = snapshot.data;
         if (snapshot.connectionState == ConnectionState.waiting &&
@@ -93,207 +92,233 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
             ? "You're unstoppable, keep the fire alive!"
             : "You're doing really great, stay on fire!";
 
+        final done = data.missions
+            .where((m) => m.claimed || m.progress >= m.target)
+            .length;
+        final total = data.missions.length;
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFFFF8A3C).withValues(alpha: 0.62),
-                  const Color(0xFFFF6A22).withValues(alpha: 0.52),
-                  const Color(0xFFE64A12).withValues(alpha: 0.46),
-                ],
+            clipBehavior: Clip.antiAlias,
+            decoration: const ShapeDecoration(
+              shape: ContinuousRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(48)),
+                side: BorderSide(color: Color(0x5900DC00), width: 0.8),
               ),
-              boxShadow: [
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF242427), Color(0xFF161618)],
+              ),
+              shadows: [
                 BoxShadow(
-                  color: const Color(0x66A82D00).withValues(alpha: 0.42),
-                  blurRadius: 24,
-                  offset: Offset(0, 14),
+                  color: Color(0x66000000),
+                  blurRadius: 28,
+                  offset: Offset(0, 12),
                 ),
               ],
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.14),
-                width: 1,
-              ),
             ),
             child: Stack(
               children: [
-                // Positioned(
-                //   top: -28,
-                //   left: 0,
-                //   right: 0,
-                //   child: Center(
-                //     child: Container(
-                //       width: 136,
-                //       height: 82,
-                //       decoration: BoxDecoration(
-                //         shape: BoxShape.circle,
-                //         color: const Color(0xFFFFF8D3).withValues(alpha: 0.1),
-                //         boxShadow: [
-                //           BoxShadow(
-                //             color: const Color(0xFFFFF3BF).withValues(alpha: 0.8),
-                //             blurRadius: 28,
-                //             spreadRadius: 8,
-                //           ),
-                //         ],
-                //       ),
-                //     ),
-                //   ),
-                // ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        AnimatedBuilder(
-                          animation: _pulseController,
-                          builder: (_, child) {
-                            return Transform.scale(
-                              scale: _pulseScale.value,
-                              child: child,
-                            );
-                          },
-                          child: SizedBox(
-                            width: 42,
-                            height: 42,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Container(
-                                  width: 42,
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: RadialGradient(
-                                      colors: [
-                                        const Color(0xFFFFF8D2).withValues(
-                                          alpha: _pulseOpacity.value,
-                                        ),
-                                        const Color(
-                                          0xFFFFF8D2,
-                                        ).withValues(alpha: 0.0),
-                                      ],
-                                      stops: const [0.2, 1],
-                                    ),
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.bolt_rounded,
-                                  color: Colors.white.withValues(alpha: 0.98),
-                                  size: 26,
-                                ),
-                              ],
-                            ),
-                          ),
+                Positioned(
+                  bottom: -110,
+                  right: -80,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 240,
+                      height: 240,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [Color(0x2600DC00), Color(0x0000DC00)],
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${data.currentStreak} Days Streak',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -1,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      encouragement,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.88),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 7,
-                      ),
+                  ),
+                ),
+                Positioned(
+                  top: -90,
+                  left: -60,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 240,
+                      height: 240,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        gradient: const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Color(0x66A63A12), Color(0x8CC24116)],
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(dayLabels.length, (index) {
-                          final label = dayLabels[index];
-                          final isToday = index == todayIndex;
-                          final distance = (todayIndex - index);
-                          final isChecked =
-                              distance > 0 && distance <= checkedCount;
-                          return _dayNode(
-                            label: label,
-                            checked: isChecked,
-                            fire: isToday && data.currentStreak > 0,
-                          );
-                        }),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () => _showMissionsSheet(context, data.missions),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.white.withValues(alpha: 0.10),
-                              Colors.white.withValues(alpha: 0.05),
-                            ],
-                          ),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.14),
-                            width: 1,
-                          ),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(2),
-                            topRight: Radius.circular(2),
-                            bottomLeft: Radius.circular(22),
-                            bottomRight: Radius.circular(22),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'See Details',
-                              style: GoogleFonts.inter(
-                                color: Colors.white.withValues(alpha: 0.95),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.chevron_right_rounded,
-                              color: Colors.white,
-                              size: 18,
-                            ),
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            _Sys.orange.withValues(alpha: 0.2),
+                            _Sys.orange.withValues(alpha: 0),
                           ],
                         ),
                       ),
                     ),
-                  ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'WEEKLY STREAK',
+                            style: _text(
+                              12,
+                              _Sys.secondary,
+                              weight: FontWeight.w600,
+                            ).copyWith(letterSpacing: 0.6),
+                          ),
+                          const Spacer(),
+                          Text(
+                            'Best ${data.bestStreak}',
+                            style: _text(
+                              13,
+                              _Sys.secondary,
+                              weight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          AnimatedBuilder(
+                            animation: _pulseController,
+                            builder: (_, child) => Transform.scale(
+                              scale: _pulseScale.value,
+                              child: child,
+                            ),
+                            child: Container(
+                              width: 52,
+                              height: 52,
+                              decoration: ShapeDecoration(
+                                shape: const ContinuousRectangleBorder(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(26),
+                                  ),
+                                ),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    _Sys.orange.withValues(alpha: 0.4),
+                                    _Sys.orange.withValues(alpha: 0.14),
+                                  ],
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.local_fire_department_rounded,
+                                color: _Sys.orange,
+                                size: 30,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '${data.currentStreak}',
+                                      style: _text(
+                                        30,
+                                        Colors.white,
+                                        weight: FontWeight.w800,
+                                      ).copyWith(height: 1),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 3),
+                                      child: Text(
+                                        data.currentStreak == 1
+                                            ? 'Day Streak'
+                                            : 'Days Streak',
+                                        style: _text(
+                                          17,
+                                          Colors.white,
+                                          weight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  encouragement,
+                                  style: _text(14, _Sys.secondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(dayLabels.length, (index) {
+                          final distance = todayIndex - index;
+                          return _dayNode(
+                            label: dayLabels[index],
+                            checked: distance > 0 && distance <= checkedCount,
+                            fire: index == todayIndex && data.currentStreak > 0,
+                            today: index == todayIndex,
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(height: 0.5, color: _Sys.separator),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _showMissionsSheet(context, data.missions),
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.flag_rounded,
+                                size: 18,
+                                color: _Sys.orange,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Weekly missions',
+                                style: _text(
+                                  15,
+                                  Colors.white,
+                                  weight: FontWeight.w500,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '$done of $total',
+                                style: _text(15, _Sys.secondary),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'See Details',
+                                style: _text(
+                                  15,
+                                  _Sys.orange,
+                                  weight: FontWeight.w600,
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                size: 20,
+                                color: _Sys.orange,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -303,71 +328,63 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
     );
   }
 
+  TextStyle _text(double size, Color color, {FontWeight? weight}) =>
+      GoogleFonts.inter(
+        color: color,
+        fontSize: size,
+        fontWeight: weight ?? FontWeight.w400,
+        letterSpacing: size >= 20 ? -0.5 : (size >= 15 ? -0.3 : -0.1),
+        height: 1.25,
+      );
+
+  /// Apple Fitness–style day ring.
   Widget _dayNode({
     required String label,
     required bool checked,
     required bool fire,
+    required bool today,
   }) {
-    return Container(
-      width: 36,
-      alignment: Alignment.center,
-      child: Column(
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: checked
-                  ? LinearGradient(
-                      colors: [
-                        const Color(0xFFFFB06A).withValues(alpha: 0.82),
-                        const Color(0xFFFF7A33).withValues(alpha: 0.76),
-                      ],
-                    )
-                  : null,
-              border: checked
-                  ? null
-                  : Border.all(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      width: 0.9,
+    final lit = checked || fire;
+    return Column(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: lit ? _Sys.orange : _Sys.fill,
+            border: today && !lit
+                ? Border.all(color: _Sys.orange, width: 1.5)
+                : null,
+            boxShadow: lit
+                ? [
+                    BoxShadow(
+                      color: _Sys.orange.withValues(alpha: 0.35),
+                      blurRadius: 10,
                     ),
-              boxShadow: [
-                if (checked)
-                  BoxShadow(
-                    color: const Color(0xFFFFB97C).withValues(alpha: 0.28),
-                    blurRadius: 18,
-                    spreadRadius: 3.2,
-                  )
-                else
-                  BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.06),
-                    blurRadius: 14,
-                    spreadRadius: 2.4,
-                  ),
-              ],
-            ),
-            child: checked
-                ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
-                : fire
-                ? const Icon(
-                    CupertinoIcons.checkmark_circle_fill,
-                    color: Color(0xFFFFD49A),
-                    size: 20,
-                  )
+                  ]
                 : null,
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: Colors.white.withValues(alpha: 0.86),
-              fontWeight: FontWeight.w500,
-              fontSize: 10,
-            ),
+          child: lit
+              ? Icon(
+                  fire
+                      ? Icons.local_fire_department_rounded
+                      : Icons.check_rounded,
+                  color: Colors.black,
+                  size: 18,
+                )
+              : null,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label.substring(0, 1),
+          style: _text(
+            12,
+            today ? _Sys.orange : _Sys.secondary,
+            weight: today ? FontWeight.w700 : FontWeight.w500,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -562,4 +579,12 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
       ),
     );
   }
+}
+
+/// iOS dark-mode system colours used by the card.
+class _Sys {
+  static const orange = Color(0xFFFF9F0A);
+  static const secondary = Color(0x99EBEBF5);
+  static const fill = Color(0x29787880);
+  static const separator = Color(0x33FFFFFF);
 }

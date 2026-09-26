@@ -5,8 +5,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:ui';
 
 import '../../../../utils/widgets/loader.dart';
-import 'package:hash/utils/widgets/game_button.dart';
-import 'package:hash/utils/widgets/game_panel.dart';
 
 class ReferFriendModal extends StatelessWidget {
   final VoidCallback? onReferNow;
@@ -460,8 +458,9 @@ Widget getReferFriendWidget({
   );
 }
 
-/// Home "Refer a friend" card in the chunky game style: steps, the player's
-/// code with copy, their referral stats and a Refer button.
+/// Home "Refer a friend" card in an Apple style: material surface with
+/// continuous corners, three steps, the player's stats, their code with a
+/// copy action and one filled capsule button.
 class _ReferGameCard extends StatelessWidget {
   const _ReferGameCard({
     required this.code,
@@ -475,34 +474,223 @@ class _ReferGameCard extends StatelessWidget {
   final int coins;
   final VoidCallback? onReferNow;
 
+  static const _green = Color(0xFF30D158);
+  static const _yellow = Color(0xFFFFD60A);
+  static const _secondary = Color(0x99EBEBF5);
+  static const _fill = Color(0x29787880);
+  static const _separator = Color(0x33FFFFFF);
+
+  static TextStyle _text(double size, Color color, {FontWeight? weight}) =>
+      GoogleFonts.inter(
+        color: color,
+        fontSize: size,
+        fontWeight: weight ?? FontWeight.w400,
+        letterSpacing: size >= 20 ? -0.5 : (size >= 15 ? -0.3 : -0.1),
+        height: 1.25,
+      );
+
   @override
   Widget build(BuildContext context) {
     final hasCode = code != null && code!.trim().isNotEmpty;
-    return GamePanel(
-      onTap: onReferNow,
-      headerColors: GameColors.green,
-      headerHeight: 70,
-      header: Row(
-        children: [
-          Image.asset(
-            'assets/hash_coin.png',
-            width: 40,
-            height: 40,
-            errorBuilder: (_, _, _) =>
-                const Text('🪙', style: TextStyle(fontSize: 30)),
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: const ShapeDecoration(
+        shape: ContinuousRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(48)),
+          side: BorderSide(color: Color(0x5900DC00), width: 0.8),
+        ),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF242427), Color(0xFF161618)],
+        ),
+        shadows: [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 28,
+            offset: Offset(0, 12),
           ),
-          const SizedBox(width: 10),
-          Expanded(
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            bottom: -110,
+            right: -80,
+            child: IgnorePointer(
+              child: Container(
+                width: 240,
+                height: 240,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [Color(0x2600DC00), Color(0x0000DC00)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: -90,
+            right: -70,
+            child: IgnorePointer(
+              child: Container(
+                width: 240,
+                height: 240,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      _yellow.withValues(alpha: 0.14),
+                      _yellow.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const GameText('INVITE YOUR SQUAD', size: 21),
                 Text(
-                  'You both earn Hash Coins',
-                  style: gameFont(
-                    12.5,
-                    GameColors.outline.withValues(alpha: 0.72),
+                  'REFER & EARN',
+                  style: _text(
+                    12,
+                    _secondary,
+                    weight: FontWeight.w600,
+                  ).copyWith(letterSpacing: 0.6),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      padding: const EdgeInsets.all(10),
+                      decoration: ShapeDecoration(
+                        shape: const ContinuousRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(26)),
+                        ),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            _yellow.withValues(alpha: 0.34),
+                            _yellow.withValues(alpha: 0.12),
+                          ],
+                        ),
+                      ),
+                      child: Image.asset(
+                        'assets/hash_coin.png',
+                        errorBuilder: (_, _, _) => const Icon(
+                          Icons.monetization_on_rounded,
+                          color: _yellow,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Invite your squad',
+                            style: _text(
+                              22,
+                              Colors.white,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'You both earn Hash Coins when they join.',
+                            style: _text(14, _secondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _step(Icons.ios_share_rounded, 'Share code'),
+                    _connector(),
+                    _step(Icons.person_add_alt_1_rounded, 'Friend joins'),
+                    _connector(),
+                    _step(Icons.redeem_rounded, 'Both earn', accent: _yellow),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: const ShapeDecoration(
+                    shape: ContinuousRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(30)),
+                    ),
+                    color: _fill,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _stat(
+                            '$friends',
+                            'Friends joined',
+                            Colors.white,
+                          ),
+                        ),
+                        const VerticalDivider(
+                          width: 1,
+                          thickness: 0.5,
+                          color: _separator,
+                        ),
+                        Expanded(
+                          child: _stat('$coins', 'Coins earned', _yellow),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (hasCode) ...[
+                  const SizedBox(height: 10),
+                  _CodeRow(code: code!.trim()),
+                ],
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: onReferNow == null
+                      ? null
+                      : () {
+                          HapticFeedback.selectionClick();
+                          onReferNow!();
+                        },
+                  child: Container(
+                    height: 50,
+                    decoration: const ShapeDecoration(
+                      shape: StadiumBorder(),
+                      color: _green,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.ios_share_rounded,
+                          color: Colors.black,
+                          size: 19,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Refer Now',
+                          style: _text(
+                            16,
+                            Colors.black,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -510,105 +698,44 @@ class _ReferGameCard extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GameTray(
-            padding: const EdgeInsets.fromLTRB(6, 10, 6, 8),
-            child: Row(
-              children: [
-                _step('1', 'Share\nyour code'),
-                _arrow(),
-                _step('2', 'Friend\nsigns up'),
-                _arrow(),
-                _step('3', 'Both get\ncoins', last: true),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _stat('$friends', 'Friends joined', Colors.white),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _stat('$coins', 'Coins earned', GameColors.yellow.$1),
-              ),
-            ],
-          ),
-          if (hasCode) ...[
-            const SizedBox(height: 10),
-            _CodeRow(code: code!.trim()),
-          ],
-          const SizedBox(height: 12),
-          GameButton(
-            label: 'Refer Now',
-            icon: Icons.ios_share_rounded,
-            tone: GameButtonTone.green,
-            height: 52,
-            onPressed: onReferNow == null
-                ? null
-                : () {
-                    HapticFeedback.selectionClick();
-                    onReferNow!();
-                  },
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _step(String n, String label, {bool last = false}) => Expanded(
-    child: Column(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          padding: const EdgeInsets.all(2.5),
-          decoration: const BoxDecoration(
-            color: GameColors.outline,
-            shape: BoxShape.circle,
-          ),
-          child: Container(
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: last
-                    ? [GameColors.yellow.$1, GameColors.yellow.$2]
-                    : [GameColors.green.$1, GameColors.green.$2],
+  Widget _step(IconData icon, String label, {Color accent = _green}) =>
+      Expanded(
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const ShapeDecoration(
+                shape: ContinuousRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                ),
+                color: _fill,
               ),
+              child: Icon(icon, color: accent, size: 20),
             ),
-            child: GameText(n, size: 16),
-          ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: _text(12, Colors.white, weight: FontWeight.w500),
+            ),
+          ],
         ),
-        const SizedBox(height: 5),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: gameFont(12, Colors.white),
-        ),
-      ],
-    ),
+      );
+
+  Widget _connector() => Padding(
+    padding: const EdgeInsets.only(bottom: 22),
+    child: Container(width: 14, height: 1, color: _separator),
   );
 
-  Widget _arrow() => const Padding(
-    padding: EdgeInsets.only(bottom: 26),
-    child: Icon(Icons.chevron_right_rounded, color: GameColors.soft, size: 20),
-  );
-
-  Widget _stat(String value, String label, Color color) => GameTray(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Column(
-      children: [
-        GameText(value, size: 20, color: color),
-        Text(label, style: gameFont(11.5, GameColors.soft)),
-      ],
-    ),
+  Widget _stat(String value, String label, Color color) => Column(
+    children: [
+      Text(value, style: _text(22, color, weight: FontWeight.w700)),
+      const SizedBox(height: 2),
+      Text(label, style: _text(12, _secondary)),
+    ],
   );
 }
 
@@ -620,38 +747,68 @@ class _CodeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
-      decoration: BoxDecoration(
-        color: GameColors.socket,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: GameColors.trayEdge, width: 2),
+      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+      decoration: const ShapeDecoration(
+        shape: ContinuousRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(30)),
+        ),
+        color: _ReferGameCard._fill,
       ),
       child: Row(
         children: [
-          Text('CODE', style: gameFont(12, GameColors.soft)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              code,
-              overflow: TextOverflow.ellipsis,
-              style: gameFont(20, Colors.white).copyWith(letterSpacing: 2),
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your code',
+                style: _ReferGameCard._text(11, _ReferGameCard._secondary),
+              ),
+              Text(
+                code,
+                style: _ReferGameCard._text(
+                  18,
+                  Colors.white,
+                  weight: FontWeight.w700,
+                ).copyWith(letterSpacing: 2),
+              ),
+            ],
           ),
-          SizedBox(
-            width: 88,
-            child: GameButton(
-              label: 'Copy',
-              tone: GameButtonTone.purple,
-              height: 38,
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: code));
-                HapticFeedback.selectionClick();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Referral code copied')),
-                  );
-                }
-              },
+          const Spacer(),
+          GestureDetector(
+            onTap: () async {
+              await Clipboard.setData(ClipboardData(text: code));
+              HapticFeedback.selectionClick();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Referral code copied')),
+                );
+              }
+            },
+            child: Container(
+              height: 34,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: ShapeDecoration(
+                shape: const StadiumBorder(),
+                color: _ReferGameCard._green.withValues(alpha: 0.18),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.copy_rounded,
+                    size: 15,
+                    color: _ReferGameCard._green,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Copy',
+                    style: _ReferGameCard._text(
+                      14,
+                      _ReferGameCard._green,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

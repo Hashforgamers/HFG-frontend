@@ -321,9 +321,9 @@ class _GamesSectionState extends State<GamesSection> {
   final ctrl = Get.put(GamesController(), permanent: true);
   final _scroll = ScrollController();
 
-  static const _cardW = 115.0;
-  static const _gap = 20.0;
-  static const _listH = 190.0;
+  static const _cardW = 132.0;
+  static const _gap = 12.0;
+  static const _listH = 212.0;
 
   @override
   void initState() {
@@ -375,7 +375,7 @@ class _GamesSectionState extends State<GamesSection> {
               child: ListView.separated(
                 controller: _scroll,
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 2),
+                padding: const EdgeInsets.fromLTRB(2, 0, 2, 12),
                 physics: const BouncingScrollPhysics(),
                 itemCount: ctrl.hasMore
                     ? ctrl.games.length +
@@ -481,100 +481,215 @@ class GameCard extends StatelessWidget {
           margin: const EdgeInsets.all(12),
         );
       },
-      child: Container(
-        height: 150,
-        width: 115,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: Stack(
-          children: [
-            // Cover
-            // inside GameCard.build
-            Positioned.fill(
-              child: game.backgroundImage.isEmpty
-                  ? Container(color: const Color(0xFF1A1A1A))
-                  : hqCachedImage(
-                      context: context,
-                      url: game.backgroundImage,
-                      renderWidth: 115, // widget logical width
-                      renderHeight: 150, // widget logical height
-                      fit: BoxFit.cover,
-                    ),
-            ),
+      child: _AppleGameCard(
+        game: game,
+        backgroundColor: backgroundColor,
+        cover: game.backgroundImage.isEmpty
+            ? null
+            : hqCachedImage(
+                context: context,
+                url: game.backgroundImage,
+                renderWidth: 132,
+                renderHeight: 200,
+                fit: BoxFit.cover,
+              ),
+      ),
+    );
+  }
+}
 
-            // Frosted footer
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(15),
-                  bottom: Radius.circular(20),
+/// Upcoming game card in an Apple poster style: cover with continuous
+/// corners, a frosted release-date chip and a frosted name + rating bar.
+class _AppleGameCard extends StatelessWidget {
+  const _AppleGameCard({
+    required this.game,
+    required this.backgroundColor,
+    required this.cover,
+  });
+
+  final Game game;
+  final Color backgroundColor;
+  final Widget? cover;
+
+  static const _months = [
+    'JAN',
+    'FEB',
+    'MAR',
+    'APR',
+    'MAY',
+    'JUN',
+    'JUL',
+    'AUG',
+    'SEP',
+    'OCT',
+    'NOV',
+    'DEC',
+  ];
+
+  /// "2026-09-28" -> ("SEP", "28"); anything else is shown as-is.
+  (String, String)? get _date {
+    final d = DateTime.tryParse(game.released);
+    if (d == null) return null;
+    return (_months[d.month - 1], d.day.toString());
+  }
+
+  TextStyle _text(double size, Color color, {FontWeight? weight}) =>
+      GoogleFonts.inter(
+        color: color,
+        fontSize: size,
+        fontWeight: weight ?? FontWeight.w400,
+        letterSpacing: -0.15,
+        height: 1.2,
+      );
+
+  Widget _glass({required Widget child, BorderRadius? radius}) {
+    final r = radius ?? BorderRadius.circular(999);
+    return ClipRRect(
+      borderRadius: r,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.35),
+            borderRadius: r,
+            border: Border.all(color: const Color(0x33FFFFFF), width: 0.5),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final date = _date;
+    return Container(
+      width: 132,
+      height: 200,
+      clipBehavior: Clip.antiAlias,
+      decoration: ShapeDecoration(
+        shape: const ContinuousRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(40)),
+          side: BorderSide(color: Color(0x5900DC00), width: 0.8),
+        ),
+        color: Color.lerp(backgroundColor, const Color(0xFF1C1C1E), 0.6),
+        shadows: const [
+          BoxShadow(
+            color: Color(0x59000000),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+          BoxShadow(color: Color(0x2E00DC00), blurRadius: 14, spreadRadius: -2),
+        ],
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          cover ??
+              const Center(
+                child: Icon(
+                  Icons.sports_esports_rounded,
+                  color: Colors.white30,
+                  size: 40,
                 ),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.0),
-                          Colors.black.withOpacity(0.85),
+              ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x59000000),
+                  Color(0x00000000),
+                  Color(0x00000000),
+                  Color(0xB3000000),
+                ],
+                stops: [0, 0.25, 0.5, 1],
+              ),
+            ),
+          ),
+          Positioned(
+            top: 8,
+            left: 8,
+            child: _glass(
+              radius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: date == null
+                    ? Text(
+                        game.released,
+                        style: _text(11, Colors.white, weight: FontWeight.w600),
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            date.$1,
+                            style: _text(
+                              9.5,
+                              const Color(0xFFFF453A),
+                              weight: FontWeight.w700,
+                            ).copyWith(letterSpacing: 0.5),
+                          ),
+                          Text(
+                            date.$2,
+                            style: _text(
+                              17,
+                              Colors.white,
+                              weight: FontWeight.w700,
+                            ).copyWith(height: 1.05),
+                          ),
                         ],
                       ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1C1C1E).withValues(alpha: 0.5),
+                    border: const Border(
+                      top: BorderSide(color: Color(0x1FFFFFFF), width: 0.5),
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          game.name,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          game.released,
-                          style: GoogleFonts.inter(
-                            color: Colors.white70,
-                            fontSize: 11,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            4,
-                            (_) => const Icon(
-                              Icons.star,
-                              color: Color(0xFFE6D009),
-                              size: 12,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        game.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _text(14, Colors.white, weight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: List.generate(
+                          4,
+                          (_) => const Padding(
+                            padding: EdgeInsets.only(right: 1),
+                            child: Icon(
+                              Icons.star_rounded,
+                              color: Color(0xFFFFD60A),
+                              size: 13,
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

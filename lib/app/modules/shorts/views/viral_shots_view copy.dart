@@ -17,15 +17,21 @@ class ViralShotsSection extends StatelessWidget {
         Text(
           'TRENDING SHORTS',
           style: GoogleFonts.inter(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 10),
         Obx(() {
           if (controller.isLoading.value) return _shimmerRow();
           if (controller.shorts.isEmpty) {
             return Center(
-                child: Text('No shorts found',
-                    style: GoogleFonts.inter(color: Colors.white)));
+              child: Text(
+                'No shorts found',
+                style: GoogleFonts.inter(color: Colors.white),
+              ),
+            );
           }
 
           return SizedBox(
@@ -70,8 +76,9 @@ class ViralShotsSection extends StatelessWidget {
 
   Widget _buildItem(YouTubeShort short, int index) {
     return GestureDetector(
-      onTap: () => Get.to(() =>
-          ShortVideoPlayer(shorts: controller.shorts, initialIndex: index)),
+      onTap: () => Get.to(
+        () => ShortVideoPlayer(shorts: controller.shorts, initialIndex: index),
+      ),
       child: Container(
         margin: const EdgeInsets.all(5),
         width: 120,
@@ -124,7 +131,9 @@ class ViralShotsSection extends StatelessWidget {
                         child: Text(
                           short.channelName,
                           style: GoogleFonts.inter(
-                              color: Colors.white, fontSize: 11),
+                            color: Colors.white,
+                            fontSize: 11,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -135,27 +144,35 @@ class ViralShotsSection extends StatelessWidget {
                   Text(
                     short.title,
                     style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold),
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   ElevatedButton(
-                    onPressed: () => Get.to(() => ShortVideoPlayer(
-                        shorts: controller.shorts, initialIndex: index)),
+                    onPressed: () => Get.to(
+                      () => ShortVideoPlayer(
+                        shorts: controller.shorts,
+                        initialIndex: index,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xff00DC00),
                       minimumSize: const Size(0, 26),
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
                     ),
                     child: Text(
                       'Watch',
-                      style:
-                          GoogleFonts.inter(color: Colors.black, fontSize: 12),
+                      style: GoogleFonts.inter(
+                        color: Colors.black,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],

@@ -89,10 +89,7 @@ class _HashHubSplashScreenState extends State<HashHubSplashScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset(
-                'assets/nologoblack.png',
-                width: 220,
-              ),
+              Image.asset('assets/nologoblack.png', width: 220),
               const SizedBox(height: 10),
               Text(
                 'LEVEL UP YOUR GAME',

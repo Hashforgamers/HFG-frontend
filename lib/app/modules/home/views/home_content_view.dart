@@ -40,7 +40,7 @@ import 'package:hash/utils/widgets/hash_wordmark.dart';
 import 'package:hash/utils/widgets/home_section_title.dart';
 
 import 'package:hash/core/utils/app_logger.dart';
-import 'package:hash/app/modules/home/widgets/home_design.dart';
+import 'package:hash/app/modules/home/widgets/home_lobby_card.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -803,200 +803,16 @@ class _HomeContentViewState extends State<HomeContentView>
       final gameName = (gamingMap['game_name'] ?? 'Your setup').toString();
 
       final locked = nextBooking != null;
+      final home = Get.find<HomeController>();
 
-      // Bespoke, border-less lobby card: a soft green-tinted gradient with a
-      // radial bloom and layered shadows gives it depth without an outline.
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(HomeTokens.radius),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF15251B), Color(0xFF0E1116)],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.40),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
-            ),
-            BoxShadow(
-              color: HomeTokens.green.withValues(alpha: 0.12),
-              blurRadius: 34,
-              spreadRadius: -8,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(HomeTokens.radius),
-          child: Stack(
-            children: [
-              // Green bloom in the top-right for a subtle energy glow.
-              Positioned(
-                top: -90,
-                right: -70,
-                child: IgnorePointer(
-                  child: Container(
-                    width: 230,
-                    height: 230,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          HomeTokens.green.withValues(alpha: 0.18),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const HomeEyebrow('Your lobby'),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                (locked
-                                        ? HomeTokens.green
-                                        : HomeTokens.textTertiary)
-                                    .withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: locked
-                                      ? HomeTokens.green
-                                      : HomeTokens.textTertiary,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                locked ? 'SESSION LOCKED' : 'QUEUE: OPEN',
-                                style: HomeTokens.eyebrow(
-                                  locked
-                                      ? HomeTokens.green
-                                      : HomeTokens.textTertiary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(11),
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                HomeTokens.green.withValues(alpha: 0.30),
-                                HomeTokens.green.withValues(alpha: 0.10),
-                              ],
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.sports_esports_rounded,
-                            color: HomeTokens.greenBright,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                locked ? cafeName : 'Ready to lock in?',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: HomeTokens.title(19),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                locked
-                                    ? '$gameName is queued. Pull up with the squad.'
-                                    : 'Find your setup, squad up, or jump into ranked.',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: HomeTokens.body(
-                                  HomeTokens.textSecondary,
-                                  size: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    // CTA and the three shortcuts share one row: stacking them
-                    // cost roughly twice the height for the same set of actions.
-                    Row(
-                      children: [
-                        Expanded(
-                          child: HomeCta(
-                            height: 48,
-                            label: locked ? 'Open session' : 'Find a setup',
-                            icon: locked
-                                ? Icons.sports_esports_rounded
-                                : Icons.radar_rounded,
-                            onTap: () => Get.find<HomeController>()
-                                .onItemTapped(locked ? 2 : 1),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        HomeIconAction(
-                          icon: Icons.group_add_rounded,
-                          label: 'Squad up',
-                          onTap: () =>
-                              Get.to(() => const FriendsView(initialTab: 2)),
-                        ),
-                        const SizedBox(width: 8),
-                        HomeIconAction(
-                          icon: Icons.emoji_events_rounded,
-                          label: 'Ranked',
-                          onTap: () =>
-                              Get.find<HomeController>().onItemTapped(2),
-                        ),
-                        const SizedBox(width: 8),
-                        HomeIconAction(
-                          icon: Icons.history_rounded,
-                          label: 'Sessions',
-                          onTap: () =>
-                              Get.find<HomeController>().onItemTapped(3),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+      return HomeLobbyCard(
+        locked: locked,
+        cafeName: cafeName,
+        gameName: gameName,
+        onPrimary: () => home.onItemTapped(locked ? 2 : 1),
+        onSquadUp: () => Get.to(() => const FriendsView(initialTab: 2)),
+        onRanked: () => home.onItemTapped(2),
+        onSessions: () => home.onItemTapped(3),
       );
     });
   }
