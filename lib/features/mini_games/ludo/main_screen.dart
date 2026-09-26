@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'ludo_score_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:hash/app/modules/home/widgets/home_design.dart';
-import 'package:hash/utils/widgets/home_section_title.dart';
-import 'package:hash/utils/widgets/hash_wordmark.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/utils/widgets/game_button.dart';
+import 'package:hash/utils/widgets/game_panel.dart';
+import 'package:hash/features/mini_games/ludo/widgets/ludo_seat_token.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/features/mini_games/ludo/widgets/board_widget.dart';
 import 'package:hash/features/mini_games/ludo/widgets/dice_widget.dart';
@@ -36,6 +35,7 @@ class _MainScreenState extends State<MainScreen>
   Timer? _ticker;
   late final AnimationController _bounce;
   LudoPlayerType? _lastSeat;
+  LudoGameState? _lastStage;
   int _turnStartMs = 0;
   int _remaining = _turnSeconds;
 
@@ -61,13 +61,19 @@ class _MainScreenState extends State<MainScreen>
       return;
     }
     final now = DateTime.now().millisecondsSinceEpoch;
-    // Reset the clock whenever the active seat changes.
+    // Restart the clock for every decision: a new seat, a fresh roll after a
+    // six, or a pawn to pick after rolling.
     final seat = game.currentTurnSeat;
-    if (seat != _lastSeat) {
-      _lastSeat = seat;
+    final stage = game.gameState;
+    final newDecision =
+        stage != _lastStage &&
+        (stage == LudoGameState.throwDice || stage == LudoGameState.pickPawn);
+    if (seat != _lastSeat || newDecision) {
       _turnStartMs = now;
       Audio.stopTicking();
     }
+    _lastSeat = seat;
+    _lastStage = stage;
     _remaining = (_turnSeconds - ((now - _turnStartMs) / 1000).floor()).clamp(
       0,
       _turnSeconds,
@@ -158,22 +164,13 @@ class _MainScreenState extends State<MainScreen>
   }
 
   Future<void> _newGame() async {
-    final restart = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Start a new game?'),
-        content: Text('Your current local game will be reset.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Keep playing'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('New game'),
-          ),
-        ],
-      ),
+    final restart = await showGameDialog(
+      context,
+      title: 'NEW GAME?',
+      message: 'Your current game will be reset.',
+      cancelLabel: 'Keep Playing',
+      confirmLabel: 'Restart',
+      confirmTone: GameButtonTone.red,
     );
     if (restart == true && mounted) context.read<LudoProvider>().resetGame();
   }
@@ -182,76 +179,44 @@ class _MainScreenState extends State<MainScreen>
   Widget build(BuildContext context) {
     final game = context.read<LudoProvider>();
     return Scaffold(
-      backgroundColor: HomeTokens.ink,
+      backgroundColor: GameColors.bgBottom,
       body: Stack(
         children: [
+          const GameBackground(),
           SafeArea(
             child: Center(
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 560),
+                constraints: const BoxConstraints(maxWidth: 560),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Row(
                         children: [
-                          HomeIconAction(
-                            icon: Icons.arrow_back_ios_new_rounded,
-                            label: 'Game modes',
-                            onTap: () => Navigator.of(context).maybePop(),
-                            size: 42,
+                          GameIconButton(
+                            icon: Icons.arrow_back_rounded,
+                            tooltip: 'Game modes',
+                            onPressed: () => Navigator.of(context).maybePop(),
                           ),
-                          Spacer(),
-                          HashWordmark(
-                            fontSize: 20,
-                            letterSpacing: 5,
-                            accentColor: HomeTokens.green,
+                          const SizedBox(width: 10),
+                          const GameText('LUDO', size: 26),
+                          const SizedBox(width: 8),
+                          GameBadge(
+                            label: game.againstAi ? 'VS AI' : 'PASS & PLAY',
                           ),
-                          Spacer(),
-                          HomeIconAction(
+                          const Spacer(),
+                          GameIconButton(
                             icon: Icons.restart_alt_rounded,
-                            label: 'New game',
-                            onTap: _newGame,
-                            size: 42,
+                            tooltip: 'New game',
+                            colors: GameColors.red,
+                            onPressed: _newGame,
                           ),
                         ],
                       ),
-                      SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: HomeSectionTitle(
-                              title: 'Ludo ',
-                              accent: 'Arena',
-                            ),
-                          ),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: HomeTokens.green.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: HomeTokens.green.withValues(alpha: 0.25),
-                              ),
-                            ),
-                            child: Text(
-                              game.againstAi
-                                  ? 'SOLO · VS AI'
-                                  : 'LOCAL · 4 PLAYERS',
-                              style: HomeTokens.eyebrow(
-                                HomeTokens.green,
-                              ).copyWith(fontSize: 9, letterSpacing: 0.5),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       _playerRow(LudoPlayerType.green, LudoPlayerType.yellow),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       // Board flexes to fill remaining space so the whole
                       // screen fits without scrolling.
                       Expanded(
@@ -261,22 +226,16 @@ class _MainScreenState extends State<MainScreen>
                               final side = c.maxWidth < c.maxHeight
                                   ? c.maxWidth
                                   : c.maxHeight;
-                              return HomeCard(
-                                padding: EdgeInsets.all(8),
-                                child: BoardWidget(
-                                  size: side - 32,
-                                  showTurnIndicator: false,
-                                ),
-                              );
+                              return _boardFrame(side - 14);
                             },
                           ),
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       _playerRow(LudoPlayerType.red, LudoPlayerType.blue),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       _turnControl(),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       LudoReactionBar(
                         onSelected: _onReactionTap,
                         padding: EdgeInsets.zero,
@@ -294,10 +253,26 @@ class _MainScreenState extends State<MainScreen>
     );
   }
 
+  /// Thick dark frame + lip around the board so it sits like a game piece.
+  Widget _boardFrame(double side) => Container(
+    padding: const EdgeInsets.fromLTRB(4, 4, 4, 9),
+    decoration: BoxDecoration(
+      color: GameColors.outline,
+      borderRadius: BorderRadius.circular(18),
+      boxShadow: const [
+        BoxShadow(color: Color(0x80000000), blurRadius: 18, offset: Offset(0, 10)),
+      ],
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BoardWidget(size: side, showTurnIndicator: false),
+    ),
+  );
+
   Widget _playerRow(LudoPlayerType left, LudoPlayerType right) => Row(
     children: [
       Expanded(child: _playerCard(left)),
-      SizedBox(width: 12),
+      const SizedBox(width: 10),
       Expanded(child: _playerCard(right)),
     ],
   );
@@ -311,129 +286,86 @@ class _MainScreenState extends State<MainScreen>
       final finished = player.pawns
           .where((pawn) => pawn.step == player.path.length - 1)
           .length;
-      return AnimatedContainer(
-        duration: Duration(milliseconds: 220),
-        padding: EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: active
-              ? player.color.withValues(alpha: 0.12)
-              : HomeTokens.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: active
-                ? player.color.withValues(alpha: 0.7)
-                : HomeTokens.hairline,
+      final showTimer = active && !game.isAiTurn;
+      final urgent = showTimer && _remaining <= 15;
+      final isMe = type == LudoPlayerType.green && game.againstAi;
+      final isAi = game.againstAi && !isMe;
+
+      Widget token = LudoSeatToken(
+        color: player.color,
+        name: isAi ? null : (isMe ? 'You' : _playerName(type)),
+        icon: isAi ? Icons.smart_toy_rounded : null,
+        photo: isMe ? _myPhoto : null,
+        size: 36,
+        glow: active,
+        progress: showTimer ? _remaining / _turnSeconds : null,
+        progressColor: urgent ? const Color(0xFFFF4D4D) : null,
+      );
+      if (urgent) {
+        token = ScaleTransition(
+          scale: Tween<double>(begin: 1.0, end: 1.12).animate(
+            CurvedAnimation(parent: _bounce, curve: Curves.easeInOut),
           ),
+          child: token,
+        );
+      }
+
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.all(2.5),
+        decoration: BoxDecoration(
+          color: active ? player.color : GameColors.outline,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: active
+              ? [BoxShadow(color: player.color.withValues(alpha: 0.5), blurRadius: 12)]
+              : null,
         ),
-        child: Row(
-          children: [
-            Builder(
-              builder: (_) {
-                final showTimer = active && !game.isAiTurn;
-                final urgent = showTimer && _remaining <= 15;
-                final ringColor = urgent
-                    ? const Color(0xFFFF4D4D)
-                    : player.color;
-                Widget box = SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      if (showTimer)
-                        SizedBox(
-                          width: 40,
-                          height: 40,
-                          child: CircularProgressIndicator(
-                            value: (_remaining / _turnSeconds).clamp(0.0, 1.0),
-                            strokeWidth: 3,
-                            valueColor: AlwaysStoppedAnimation(ringColor),
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.10,
-                            ),
-                          ),
-                        ),
-                      Container(
-                        width: 32,
-                        height: 32,
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          color: player.color.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child:
-                            (type == LudoPlayerType.green &&
-                                game.againstAi &&
-                                (_myPhoto?.isNotEmpty ?? false))
-                            ? Image.network(
-                                _myPhoto!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => Icon(
-                                  Icons.person_rounded,
-                                  color: player.color,
-                                  size: 21,
-                                ),
-                              )
-                            : Icon(
-                                active
-                                    ? Icons.person_rounded
-                                    : Icons.person_outline_rounded,
-                                color: player.color,
-                                size: 21,
-                              ),
+        child: Container(
+          height: 60,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(13.5),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [GameColors.bodyTop, GameColors.bodyBottom],
+            ),
+          ),
+          child: Row(
+            children: [
+              token,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isMe
+                          ? 'You'
+                          : (isAi
+                                ? '${_playerName(type)} Bot'
+                                : _playerName(type)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: gameFont(14, Colors.white),
+                    ),
+                    Text(
+                      active
+                          ? (game.isAiTurn ? 'Thinking…' : 'Your turn · ${_remaining}s')
+                          : '$finished/4 home',
+                      style: gameFont(
+                        11.5,
+                        urgent
+                            ? const Color(0xFFFF6B6B)
+                            : (active ? player.color : GameColors.soft),
                       ),
-                    ],
-                  ),
-                );
-                if (urgent) {
-                  box = ScaleTransition(
-                    scale: Tween<double>(begin: 1.0, end: 1.12).animate(
-                      CurvedAnimation(parent: _bounce, curve: Curves.easeInOut),
                     ),
-                    child: box,
-                  );
-                }
-                return box;
-              },
-            ),
-            SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    game.againstAi
-                        ? (type == LudoPlayerType.green
-                              ? 'You · Green'
-                              : '${_playerName(type)} · AI')
-                        : _playerName(type),
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
-                  SizedBox(height: 3),
-                  Text(
-                    active
-                        ? (game.isAiTurn
-                              ? 'THINKING…'
-                              : 'YOUR TURN · ${_remaining}s')
-                        : '$finished / 4 finished',
-                    style: GoogleFonts.inter(
-                      color: (active && !game.isAiTurn && _remaining <= 15)
-                          ? const Color(0xFFFF4D4D)
-                          : (active
-                                ? player.color
-                                : HomeTokens.textSecondary),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     },
@@ -445,30 +377,31 @@ class _MainScreenState extends State<MainScreen>
           game.gameState == LudoGameState.throwDice &&
           !game.diceStarted &&
           game.isMyTurn;
-      return Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: HomeTokens.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: HomeTokens.hairline),
-        ),
+      return GamePanel(
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
         child: Row(
           children: [
-            SizedBox(width: 56, height: 56, child: DiceWidget()),
-            SizedBox(width: 16),
+            Container(
+              width: 62,
+              height: 62,
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: GameColors.socket,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: GameColors.trayEdge, width: 2),
+              ),
+              child: const DiceWidget(),
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  GameText(
                     '${_playerName(game.currentPlayer.type)}’s move',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    ),
+                    size: 17,
                   ),
-                  SizedBox(height: 5),
+                  const SizedBox(height: 2),
                   Text(
                     game.isAiTurn
                         ? 'AI is playing…'
@@ -477,27 +410,20 @@ class _MainScreenState extends State<MainScreen>
                         : canRoll
                         ? 'Roll a six to leave home'
                         : _stageText(game.gameState),
-                    style: GoogleFonts.inter(
-                      color: HomeTokens.textSecondary,
-                      fontSize: 11,
-                    ),
+                    style: gameFont(12.5, GameColors.soft),
                   ),
                 ],
               ),
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             SizedBox(
-              width: 84,
-              child: IgnorePointer(
-                ignoring: !canRoll,
-                child: Opacity(
-                  opacity: canRoll ? 1 : 0.4,
-                  child: HomeCta(
-                    label: 'Roll',
-                    onTap: game.throwDice,
-                    height: 46,
-                  ),
-                ),
+              width: 100,
+              child: GameButton(
+                label: 'Roll',
+                icon: Icons.casino_rounded,
+                tone: GameButtonTone.green,
+                height: 50,
+                onPressed: canRoll ? game.throwDice : null,
               ),
             ),
           ],
@@ -509,73 +435,82 @@ class _MainScreenState extends State<MainScreen>
   Widget _gameOverOverlay(BuildContext context) {
     return Consumer<LudoProvider>(
       builder: (context, value, _) {
-        if (value.winners.length < 3) return SizedBox.shrink();
+        if (value.winners.length < 3) return const SizedBox.shrink();
         final ranking = value.winners;
-        const medals = ['🥇', '🥈', '🥉'];
+        const places = ['1ST', '2ND', '3RD'];
+        const medalColors = [
+          Color(0xFFFFD60A),
+          Color(0xFFD9DEE8),
+          Color(0xFFE39B5B),
+        ];
         return Container(
-          color: Colors.black.withValues(alpha: 0.82),
+          color: Colors.black.withValues(alpha: 0.75),
           alignment: Alignment.center,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('🏆', style: GoogleFonts.inter(fontSize: 56)),
-                SizedBox(height: 8),
-                Text(
-                  'Game over',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                SizedBox(height: 20),
-                for (int i = 0; i < ranking.length; i++)
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: GamePanel(
+              headerColors: GameColors.yellow,
+              headerHeight: 70,
+              header: const Center(child: GameText('GAME OVER', size: 30)),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  GameTray(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
                       children: [
-                        Text(medals[i], style: GoogleFonts.inter(fontSize: 22)),
-                        SizedBox(width: 10),
-                        Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: value.player(ranking[i]).color,
+                        for (int i = 0; i < ranking.length; i++)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 5),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 44,
+                                  child: GameText(
+                                    places[i],
+                                    size: 16,
+                                    color: medalColors[i],
+                                  ),
+                                ),
+                                LudoSeatToken(
+                                  color: value.player(ranking[i]).color,
+                                  name: _playerName(ranking[i]),
+                                  size: 34,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _playerName(ranking[i]),
+                                    style: gameFont(18, Colors.white),
+                                  ),
+                                ),
+                                if (i == 0)
+                                  Text('👑', style: TextStyle(fontSize: 28, height: 1)),
+                              ],
+                            ),
                           ),
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          _playerName(ranking[i]),
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
                       ],
                     ),
                   ),
-                SizedBox(height: 28),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: HomeCta(
-                    onTap: () => value.resetGame(),
+                  const SizedBox(height: 14),
+                  GameButton(
+                    label: 'Play Again',
                     icon: Icons.refresh_rounded,
-                    label: 'Play again',
+                    tone: GameButtonTone.green,
+                    onPressed: () => value.resetGame(),
                   ),
-                ),
-                SizedBox(height: 12),
-                TextButton(
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  style: TextButton.styleFrom(foregroundColor: Colors.white70),
-                  child: Text('Exit to games'),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  GameButton(
+                    label: 'Exit',
+                    tone: GameButtonTone.purple,
+                    height: 46,
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                ],
+              ),
             ),
           ),
         );

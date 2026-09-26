@@ -65,8 +65,10 @@ class LudoMatchService {
               snap.docs
                   .map((d) => LudoMatch.fromMap(d.id, d.data()))
                   .where(
+                    // No turn timestamp means the match never advanced (or
+                    // predates the turn clock), so treat it as abandoned.
                     (m) =>
-                        m.turnStartedAtMs <= 0 ||
+                        m.turnStartedAtMs > 0 &&
                         now - m.turnStartedAtMs < staleMs,
                   )
                   .toList()

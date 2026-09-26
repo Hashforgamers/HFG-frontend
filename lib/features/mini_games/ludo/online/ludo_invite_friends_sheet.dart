@@ -4,6 +4,10 @@ import 'package:get/get.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/social/friend_service.dart';
+import 'package:hash/utils/widgets/game_button.dart';
+import 'package:hash/utils/widgets/game_panel.dart';
+
+import '../widgets/ludo_seat_token.dart';
 
 /// Bottom sheet listing the player's accepted friends so the host can invite
 /// them to a Ludo match. Each invite posts a `ludo_invite` chat message
@@ -110,64 +114,109 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF101319),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.7,
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(999),
+      decoration: const BoxDecoration(
+        color: GameColors.outline,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      padding: const EdgeInsets.fromLTRB(3, 3, 3, 0),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(23)),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [GameColors.bodyTop, GameColors.bodyBottom],
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GameHeaderBand(
+                colors: GameColors.purple,
+                height: 64,
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GameText('INVITE PLAYERS', size: 22),
+                        ],
+                      ),
+                    ),
+                    GameIconButton(
+                      icon: Icons.close_rounded,
+                      size: 38,
+                      colors: GameColors.red,
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Invite players',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'They’ll get a match invite in chat.',
-            style: TextStyle(color: Colors.white54, fontSize: 13),
-          ),
-          const SizedBox(height: 14),
-          _segmentedToggle(),
-          const SizedBox(height: 10),
-          TextField(
-            onChanged: (v) => setState(() => _query = v),
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: _showEveryone ? 'Search players' : 'Search friends',
-              hintStyle: const TextStyle(color: Colors.white38),
-              prefixIcon: const Icon(Icons.search_rounded, color: Colors.white38),
-              filled: true,
-              fillColor: const Color(0xFF171A21),
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+              Flexible(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    14,
+                    12,
+                    14,
+                    16 + MediaQuery.of(context).padding.bottom,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'They’ll get a match invite in chat.',
+                        style: gameFont(14, GameColors.soft),
+                      ),
+                      const SizedBox(height: 10),
+                      _segmentedToggle(),
+                      const SizedBox(height: 10),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: GameColors.socket,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: GameColors.trayEdge,
+                            width: 2,
+                          ),
+                        ),
+                        child: TextField(
+                          onChanged: (v) => setState(() => _query = v),
+                          style: gameFont(15, Colors.white),
+                          cursorColor: _accent,
+                          decoration: InputDecoration(
+                            hintText: _showEveryone
+                                ? 'Search players'
+                                : 'Search friends',
+                            hintStyle: gameFont(15, GameColors.soft.withValues(alpha: 0.5)),
+                            prefixIcon: const Icon(
+                              Icons.search_rounded,
+                              color: GameColors.soft,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Flexible(child: _content()),
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Flexible(child: _content()),
-        ],
+        ),
       ),
     );
   }
@@ -178,31 +227,37 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
       return Expanded(
         child: GestureDetector(
           onTap: () => setState(() => _showEveryone = everyone),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 9),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            height: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: selected ? _accent : Colors.transparent,
-              borderRadius: BorderRadius.circular(999),
+              gradient: selected
+                  ? LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [GameColors.green.$1, GameColors.green.$2],
+                    )
+                  : null,
+              borderRadius: BorderRadius.circular(11),
+              border: selected
+                  ? Border.all(color: GameColors.outline, width: 2)
+                  : null,
             ),
-            child: Text(
-              label,
-              style: TextStyle(
-                color: selected ? const Color(0xFF06130B) : Colors.white70,
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
-              ),
-            ),
+            child: selected
+                ? GameText(label, size: 16)
+                : Text(label, style: gameFont(16, GameColors.soft)),
           ),
         ),
       );
     }
 
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFF171A21),
-        borderRadius: BorderRadius.circular(999),
+        color: GameColors.socket,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: GameColors.trayEdge, width: 2),
       ),
       child: Row(children: [seg('Friends', false), seg('Everyone', true)]),
     );
@@ -218,8 +273,10 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
     if (_error != null) {
       return Padding(
         padding: const EdgeInsets.all(20),
-        child: Text('Couldn’t load players: $_error',
-            style: const TextStyle(color: Colors.white54)),
+        child: Text(
+          'Couldn’t load players: $_error',
+          style: gameFont(14, GameColors.soft),
+        ),
       );
     }
     final list = _visibleList;
@@ -230,17 +287,17 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
           _query.isNotEmpty
               ? 'No players match “$_query”.'
               : (_showEveryone
-                  ? 'No players found.'
-                  : 'No friends yet. Switch to Everyone to invite any player.'),
+                    ? 'No players found.'
+                    : 'No friends yet. Switch to Everyone to invite any player.'),
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white54),
+          style: gameFont(14, GameColors.soft),
         ),
       );
     }
     return ListView.separated(
       shrinkWrap: true,
       itemCount: list.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (_, i) => _friendRow(list[i]),
     );
   }
@@ -248,79 +305,36 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
   Widget _friendRow(ChatUserModel friend) {
     final busy = _inviting.contains(friend.uid);
     final done = _invited.contains(friend.uid);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF171A21),
-        borderRadius: BorderRadius.circular(14),
-      ),
+    return GameTray(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: const Color(0xFF23262E),
-            backgroundImage:
-                friend.photoUrl.isNotEmpty ? NetworkImage(friend.photoUrl) : null,
-            child: friend.photoUrl.isEmpty
-                ? Text(
-                    (friend.displayName.isNotEmpty
-                            ? friend.displayName[0]
-                            : '?')
-                        .toUpperCase(),
-                    style: const TextStyle(color: Colors.white70),
-                  )
-                : null,
+          LudoSeatToken(
+            color: GameColors.purple.$1,
+            name: friend.displayName.isEmpty ? '?' : friend.displayName,
+            photo: friend.photoUrl,
+            size: 40,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               friend.displayName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
+              style: gameFont(15, Colors.white),
             ),
           ),
-          if (done)
-            const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.check_rounded, color: _accent, size: 18),
-                SizedBox(width: 4),
-                Text('Invited',
-                    style: TextStyle(
-                        color: _accent, fontWeight: FontWeight.w700)),
-              ],
-            )
-          else
-            SizedBox(
-              height: 34,
-              child: ElevatedButton(
-                onPressed: busy ? null : () => _invite(friend),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _accent,
-                  foregroundColor: const Color(0xFF06130B),
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
+          SizedBox(
+            width: 100,
+            child: done
+                ? const Center(child: GameBadge(label: '✓ SENT'))
+                : GameButton(
+                    label: busy ? '...' : 'Invite',
+                    tone: GameButtonTone.green,
+                    height: 40,
+                    onPressed: busy ? null : () => _invite(friend),
                   ),
-                ),
-                child: busy
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white54,
-                        ),
-                      )
-                    : const Text('Invite',
-                        style: TextStyle(fontWeight: FontWeight.w800)),
-              ),
-            ),
+          ),
         ],
       ),
     );

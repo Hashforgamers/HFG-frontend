@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/utils/widgets/game_button.dart';
+import 'package:hash/utils/widgets/game_panel.dart';
 import 'package:provider/provider.dart';
 
 import '../audio.dart';
@@ -13,6 +15,7 @@ import '../ludo_score_service.dart';
 import '../widgets/board_widget.dart';
 import '../widgets/dice_widget.dart';
 import '../widgets/ludo_reactions.dart';
+import '../widgets/ludo_seat_token.dart';
 import 'ludo_invite_friends_sheet.dart';
 import 'ludo_match.dart';
 import 'ludo_match_service.dart';
@@ -319,10 +322,10 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
           if (!didPop) _leaveAndExit();
         },
         child: Scaffold(
-          backgroundColor: const Color(0xFF0B0D12),
+          backgroundColor: GameColors.bgBottom,
           body: Stack(
             children: [
-              const _Backdrop(),
+              const GameBackground(),
               SafeArea(child: _body()),
               LudoReactionLayer(listenable: _reactionNotifier),
             ],
@@ -348,33 +351,16 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     }
 
     final onePlayerLeft = match.seatCount <= 2;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF14161C),
-        title: const Text(
-          'Leave match?',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
-        ),
-        content: Text(
-          onePlayerLeft
-              ? 'If you leave now, your opponent wins the match.'
-              : 'You’ll forfeit and the others will keep playing without you.',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            style: TextButton.styleFrom(foregroundColor: Colors.white70),
-            child: const Text('Keep playing'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFFFF4D4D)),
-            child: const Text('Leave'),
-          ),
-        ],
-      ),
+    final confirmed = await showGameDialog(
+      context,
+      title: 'LEAVE MATCH?',
+      message: onePlayerLeft
+          ? 'If you leave now, your opponent wins the match.'
+          : 'You’ll forfeit and the others will keep playing without you.',
+      cancelLabel: 'Keep Playing',
+      confirmLabel: 'Leave',
+      confirmTone: GameButtonTone.red,
+      headerColors: GameColors.red,
     );
     if (confirmed != true) return;
 
@@ -415,63 +401,24 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
 
   Widget _header(LudoMatch match) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 8, 14, 4),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
       child: Row(
         children: [
-          IconButton(
+          GameIconButton(
+            icon: Icons.arrow_back_rounded,
+            tooltip: 'Leave',
             onPressed: _leaveAndExit,
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
           ),
-          const Text(
-            'Ludo',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          const SizedBox(width: 10),
+          const GameText('LUDO', size: 26),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: (widget.spectate ? const Color(0xFFFF4D4D) : _accent)
-                  .withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (widget.spectate) ...[
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFF4D4D),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                ],
-                Text(
-                  widget.spectate ? 'WATCHING' : 'ONLINE',
-                  style: TextStyle(
-                    color: widget.spectate ? const Color(0xFFFF4D4D) : _accent,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
-            ),
+          GameBadge(
+            label: widget.spectate ? 'WATCHING' : 'ONLINE',
+            dot: widget.spectate ? const Color(0xFFFF3B30) : _accent,
+            pulse: _bounce,
           ),
           const Spacer(),
-          Text(
-            '${match.seatCount}/4',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          GameBadge(label: '${match.seatCount}/4'),
         ],
       ),
     );
@@ -482,93 +429,88 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   Widget _lobby(LudoMatch match) {
     final isHost = match.hostUid == _uid;
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 8),
-          const Text(
-            'Match lobby',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
+          GamePanel(
+            headerColors: GameColors.green,
+            header: Row(
+              children: [
+                const Expanded(child: GameText('MATCH LOBBY', size: 22)),
+                GameBadge(
+                  label: match.isFull ? 'FULL' : 'OPEN',
+                  dot: const Color(0xFF7CF06B),
+                  pulse: match.isFull ? null : _bounce,
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  isHost
+                      ? 'Invite up to 3 friends, then start when everyone’s in.'
+                      : 'Waiting for the host to start the match…',
+                  textAlign: TextAlign.center,
+                  style: gameFont(14, GameColors.soft),
+                ),
+                const SizedBox(height: 12),
+                GameTray(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    children: [
+                      for (final seat in kLudoSeatOrder) _seatRow(match, seat),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            isHost
-                ? 'Invite up to 3 friends, then start when everyone’s in.'
-                : 'Waiting for the host to start the match…',
-            style: const TextStyle(color: Colors.white60, fontSize: 13),
-          ),
-          const SizedBox(height: 20),
-          for (final seat in kLudoSeatOrder) _seatRow(match, seat),
-          const SizedBox(height: 24),
           if (isHost) ...[
-            OutlinedButton.icon(
-              onPressed: match.isFull ? null : _invite,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _accent,
-                side: BorderSide(color: _accent.withValues(alpha: 0.5)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: GameButton(
+                    label: 'Invite',
+                    icon: Icons.person_add_alt_1_rounded,
+                    tone: GameButtonTone.purple,
+                    height: 50,
+                    onPressed: match.isFull ? null : _invite,
+                  ),
                 ),
-              ),
-              icon: const Icon(Icons.person_add_alt_1_rounded),
-              label: const Text(
-                'Invite friends',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GameButton(
+                    label: 'Copy Link',
+                    icon: Icons.link_rounded,
+                    tone: GameButtonTone.yellow,
+                    height: 50,
+                    onPressed: match.isFull
+                        ? null
+                        : () async {
+                            await Clipboard.setData(
+                              ClipboardData(
+                                text: LudoMatchService.inviteLink(
+                                  widget.matchId,
+                                ),
+                              ),
+                            );
+                            _snack('Invite link copied');
+                          },
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
-            TextButton.icon(
-              onPressed: match.isFull
-                  ? null
-                  : () async {
-                      await Clipboard.setData(
-                        ClipboardData(
-                          text: LudoMatchService.inviteLink(widget.matchId),
-                        ),
-                      );
-                      _snack('Invite link copied');
-                    },
-              style: TextButton.styleFrom(foregroundColor: Colors.white70),
-              icon: const Icon(Icons.link_rounded, size: 18),
-              label: const Text('Copy invite link'),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
+            GameButton(
+              label: _starting ? 'Starting…' : 'Start Match',
+              icon: _starting ? null : Icons.play_arrow_rounded,
+              subtitle: match.seatCount < 2 ? 'Need at least 2 players' : null,
+              tone: GameButtonTone.green,
+              height: match.seatCount < 2 ? 62 : 56,
               onPressed: (match.seatCount >= 2 && !_starting) ? _start : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _accent,
-                foregroundColor: const Color(0xFF06130B),
-                disabledBackgroundColor: const Color(0xFF1B2A20),
-                disabledForegroundColor: Colors.white38,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              icon: _starting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white54,
-                      ),
-                    )
-                  : const Icon(Icons.play_arrow_rounded),
-              label: Text(
-                match.seatCount < 2 ? 'Need at least 2 players' : 'Start match',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                ),
-              ),
             ),
           ],
         ],
@@ -580,68 +522,32 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     final info = match.seats[seat];
     final isMe = seat == _mySeat;
     final color = _seatColor(seat);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF14161C),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: info != null
-              ? color.withValues(alpha: 0.5)
-              : Colors.white.withValues(alpha: 0.06),
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
       child: Row(
         children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color.withValues(alpha: info != null ? 1 : 0.25),
-            ),
-            child: info == null
-                ? const Icon(
-                    Icons.hourglass_empty_rounded,
-                    size: 16,
-                    color: Colors.white38,
-                  )
-                : null,
+          LudoSeatToken(
+            color: color,
+            name: info?.name,
+            photo: info?.photo,
+            size: 44,
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              info?.name ?? 'Empty seat',
+              info?.name ?? 'Waiting for player…',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: info != null ? Colors.white : Colors.white38,
-                fontWeight: FontWeight.w700,
+              style: gameFont(
+                16,
+                info != null ? Colors.white : GameColors.soft.withValues(alpha: 0.5),
               ),
             ),
           ),
           if (isMe)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: _accent.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Text(
-                'You',
-                style: TextStyle(
-                  color: _accent,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            )
-          else if (match.hostUid == info?.uid)
-            const Text(
-              'Host',
-              style: TextStyle(color: Colors.white38, fontSize: 12),
-            ),
+            const GameBadge(label: 'YOU')
+          else if (info != null && match.hostUid == info.uid)
+            const GameBadge(label: 'HOST'),
         ],
       ),
     );
@@ -654,16 +560,43 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       children: [
         _playersStrip(match),
         const SizedBox(height: 6),
+        // Size the board to the space left so it sits centred in its frame
+        // (the player strip already shows whose turn it is).
         Expanded(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: BoardWidget(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: LayoutBuilder(
+              builder: (context, c) {
+                const frameX = 8.0; // 4 + 4
+                const frameY = 13.0; // 4 top + 9 lip
+                final side = (c.maxWidth - frameX < c.maxHeight - frameY
+                        ? c.maxWidth - frameX
+                        : c.maxHeight - frameY)
+                    .clamp(0.0, 520.0);
+                return Center(
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 9),
+                    decoration: BoxDecoration(
+                      color: GameColors.outline,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x80000000),
+                          blurRadius: 18,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: BoardWidget(size: side, showTurnIndicator: false),
+                  ),
+                );
+              },
             ),
           ),
         ),
+        const SizedBox(height: 8),
         _diceTray(),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         // Both seated players and spectators can react.
         if (match.status == LudoMatchStatus.active &&
             (_mySeat != null || widget.spectate))
@@ -674,8 +607,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     );
   }
 
-  /// A Ludo King–style row of player panels: avatar, name and a countdown ring
-  /// around whoever's turn it is.
+  /// A row of player tokens with a countdown ring around whoever's turn it is.
   Widget _playersStrip(LudoMatch match) {
     return Consumer<LudoProvider>(
       builder: (context, provider, _) {
@@ -683,13 +615,16 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
             ? null
             : provider.currentTurnSeat;
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              for (final seat in kLudoSeatOrder)
-                _playerChip(match, seat, seat == active),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: GameTray(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                for (final seat in kLudoSeatOrder)
+                  _playerChip(match, seat, seat == active),
+              ],
+            ),
           ),
         );
       },
@@ -701,65 +636,24 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     final color = _seatColor(seat);
     final isMe = seat == _mySeat;
     final remaining = _remainingSeconds(match);
-    final urgent = active && remaining <= 15;
+    // Matches written without a turn timestamp can't be timed.
+    final timed = active && match.turnStartedAtMs > 0;
+    final urgent = timed && remaining <= 15;
     final ring = urgent ? const Color(0xFFFF4D4D) : color;
-    final initial = (info?.name.trim().isNotEmpty ?? false)
-        ? info!.name.trim()[0].toUpperCase()
-        : '?';
 
     Widget avatar = SizedBox(
-      width: 52,
-      height: 52,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          if (active)
-            SizedBox(
-              width: 52,
-              height: 52,
-              child: CircularProgressIndicator(
-                value: (remaining / _turnSeconds).clamp(0.0, 1.0),
-                strokeWidth: 3,
-                valueColor: AlwaysStoppedAnimation(ring),
-                backgroundColor: Colors.white.withValues(alpha: 0.10),
-              ),
-            ),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color.withValues(alpha: info != null ? 1 : 0.22),
-              border: Border.all(
-                color: active ? ring : Colors.black.withValues(alpha: 0.25),
-                width: 2,
-              ),
-              boxShadow: active
-                  ? [
-                      BoxShadow(
-                        color: ring.withValues(alpha: 0.5),
-                        blurRadius: 10,
-                      ),
-                    ]
-                  : null,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: info == null
-                ? const Icon(
-                    Icons.person_outline_rounded,
-                    size: 18,
-                    color: Colors.white38,
-                  )
-                : (info.photo != null && info.photo!.isNotEmpty
-                      ? Image.network(
-                          info.photo!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              _initialAvatar(initial),
-                        )
-                      : _initialAvatar(initial)),
-          ),
-        ],
+      width: 58,
+      height: 58,
+      child: Center(
+        child: LudoSeatToken(
+          color: color,
+          name: info?.name,
+          photo: info?.photo,
+          size: 44,
+          glow: active,
+          progress: timed ? remaining / _turnSeconds : null,
+          progressColor: ring,
+        ),
       ),
     );
 
@@ -774,38 +668,29 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     }
 
     return Opacity(
-      opacity: info != null ? 1 : 0.5,
+      opacity: info != null ? 1 : 0.55,
       child: SizedBox(
         width: 74,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             avatar,
-            const SizedBox(height: 5),
+            const SizedBox(height: 2),
             Text(
               info == null
                   ? 'Empty'
                   : (isMe ? 'You' : info.name.split(' ').first),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: active ? Colors.white : Colors.white70,
-                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                fontSize: 12,
-              ),
+              style: gameFont(13, active ? Colors.white : GameColors.soft),
             ),
             SizedBox(
-              height: 16,
-              child: active
-                  ? Text(
-                      '${remaining}s',
-                      style: TextStyle(
-                        color: ring,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
-                      ),
-                    )
-                  : null,
+              height: 18,
+              child: timed
+                  ? GameText('${remaining}s', size: 13, color: ring)
+                  : (active
+                        ? Text('Playing', style: gameFont(12, ring))
+                        : null),
             ),
           ],
         ),
@@ -813,76 +698,83 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     );
   }
 
-  Widget _initialAvatar(String initial) => Container(
-    alignment: Alignment.center,
-    child: Text(
-      initial,
-      style: const TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.w800,
-        fontSize: 16,
-      ),
-    ),
-  );
-
-  /// The dice on a warm wooden-style tray, à la a physical board game.
+  /// The dice in a chunky socket.
   Widget _diceTray() {
     return Container(
-      width: 92,
-      height: 92,
-      alignment: Alignment.center,
+      width: 96,
+      height: 100,
+      padding: const EdgeInsets.fromLTRB(3, 3, 3, 8),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF3A2C1E), Color(0xFF241A11)],
-        ),
-        border: Border.all(color: const Color(0xFF5A4632)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
+        color: GameColors.outline,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(color: Color(0x80000000), blurRadius: 14, offset: Offset(0, 6)),
         ],
       ),
-      child: const SizedBox(width: 56, height: 56, child: DiceWidget()),
+      child: Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(21),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [GameColors.bodyTop, GameColors.bodyBottom],
+          ),
+        ),
+        child: Container(
+          width: 66,
+          height: 66,
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: GameColors.socket,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: GameColors.trayEdge, width: 2),
+          ),
+          child: const DiceWidget(),
+        ),
+      ),
     );
   }
 
   Widget _finishedOverlay(LudoMatch match) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF14161C),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _accent.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            '🏆 Match finished',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+    final winner = match.winners.isEmpty ? null : match.winners.first;
+    final winnerName = winner == null
+        ? '—'
+        : (match.seats[winner]?.name ?? _seatName(winner));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: GamePanel(
+        headerColors: GameColors.yellow,
+        header: const Center(child: GameText('MATCH OVER', size: 24)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (winner != null)
+                  LudoSeatToken(
+                    color: _seatColor(winner),
+                    name: winnerName,
+                    photo: match.seats[winner]?.photo,
+                    size: 40,
+                  ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: GameText('$winnerName wins!', size: 18),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Winner: ${match.winners.isEmpty ? '—' : (match.seats[match.winners.first]?.name ?? _seatName(match.winners.first))}',
-            style: const TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 14),
-          TextButton(
-            onPressed: () => Navigator.of(context).maybePop(),
-            style: TextButton.styleFrom(foregroundColor: _accent),
-            child: const Text('Exit to games'),
-          ),
-        ],
+            const SizedBox(height: 12),
+            GameButton(
+              label: 'Exit to Games',
+              tone: GameButtonTone.purple,
+              height: 46,
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -894,69 +786,33 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   }) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white38, size: 48),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white54, fontSize: 13),
-            ),
-            const SizedBox(height: 18),
-            TextButton(
-              onPressed: () => Navigator.of(context).maybePop(),
-              child: const Text('Go back'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Backdrop extends StatelessWidget {
-  const _Backdrop();
-
-  @override
-  Widget build(BuildContext context) {
-    // A warm "game table" backdrop — deep wood tones with a soft felt-green
-    // glow behind the board, rather than a neon look.
-    return Positioned.fill(
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF2E2114), Color(0xFF17110B)],
+        padding: const EdgeInsets.all(24),
+        child: GamePanel(
+          headerColors: GameColors.red,
+          header: Row(
+            children: [
+              GameIcon(icon: icon, size: 26),
+              const SizedBox(width: 10),
+              Expanded(child: GameText(title, size: 20)),
+            ],
           ),
-        ),
-        child: Align(
-          alignment: Alignment.center,
-          child: FractionallySizedBox(
-            widthFactor: 1.2,
-            heightFactor: 0.6,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFF1E5A3A).withValues(alpha: 0.28),
-                    Colors.transparent,
-                  ],
-                ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: gameFont(14, GameColors.soft),
               ),
-            ),
+              const SizedBox(height: 14),
+              GameButton(
+                label: 'Go Back',
+                tone: GameButtonTone.purple,
+                height: 46,
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+            ],
           ),
         ),
       ),

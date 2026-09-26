@@ -1,4 +1,5 @@
 import 'package:animated_emoji/animated_emoji.dart';
+import 'package:hash/utils/widgets/game_panel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -70,7 +71,7 @@ class LudoReactionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 50,
+      height: 52,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -84,16 +85,27 @@ class LudoReactionBar extends StatelessWidget {
               Haptics.selection();
               onSelected(option);
             },
+            // Chunky socket to match the game panels.
             child: Container(
-              width: 46,
-              height: 46,
-              alignment: Alignment.center,
+              width: 48,
+              height: 50,
+              padding: const EdgeInsets.fromLTRB(2.5, 2.5, 2.5, 5),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                color: GameColors.outline,
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: AnimatedEmoji(option.emoji, size: 30, repeat: false),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(11.5),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [GameColors.bodyTop, GameColors.bodyBottom],
+                  ),
+                ),
+                child: AnimatedEmoji(option.emoji, size: 28, repeat: false),
+              ),
             ),
           );
         },
