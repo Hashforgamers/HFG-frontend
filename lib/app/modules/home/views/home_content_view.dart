@@ -425,21 +425,15 @@ class _HomeContentViewState extends State<HomeContentView>
       children: [
         const HomeSectionTitle(title: 'Refer to a ', accent: 'Friend'),
         const SizedBox(height: 12),
-        ReferFriendModal(
-          isDialog: false,
-          onReferNow: () {
-            segmentService.onReferralViewed(
-              email:
-                  userController
-                      .user
-                      .value
-                      .contact
-                      ?.electronicAddress
-                      ?.emailId ??
-                  '',
-            );
-            Get.to(
-              () => ReferralViewWithController(
+        Obx(() {
+          final user = userController.user.value;
+          return ReferFriendModal(
+            isDialog: false,
+            referralCode: user.referralCode,
+            referralCount: user.referralCount,
+            referralRewards: user.referralRewards,
+            onReferNow: () {
+              segmentService.onReferralViewed(
                 email:
                     userController
                         .user
@@ -448,10 +442,22 @@ class _HomeContentViewState extends State<HomeContentView>
                         ?.electronicAddress
                         ?.emailId ??
                     '',
-              ),
-            );
-          },
-        ),
+              );
+              Get.to(
+                () => ReferralViewWithController(
+                  email:
+                      userController
+                          .user
+                          .value
+                          .contact
+                          ?.electronicAddress
+                          ?.emailId ??
+                      '',
+                ),
+              );
+            },
+          );
+        }),
       ],
     );
   }
