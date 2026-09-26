@@ -21,6 +21,9 @@ import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart
 import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
 import 'mini_game_leaderboard_service.dart';
 import 'mini_game_score_service.dart';
+import 'package:hash/utils/widgets/game_button.dart';
+import 'package:hash/utils/widgets/game_panel.dart';
+import '../ludo/widgets/ludo_seat_token.dart';
 
 class MiniGameLeaderboardPage extends StatefulWidget {
   final MiniGameScoreService scoreService;
@@ -43,7 +46,6 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   static const Color _gold = Color(0xFFFFC857);
   static const Color _silver = Color(0xFFC7D2E0);
   static const Color _bronze = Color(0xFFD8975A);
-  static const Color _panel = Color(0xFF12160F);
 
   late final ChatService _chatService;
   late final SegmentSdkService _segmentService;
@@ -86,604 +88,148 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
-        ),
-        title: Text(
-          'Arcade Leaderboard',
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Open leaderboard chat',
-            onPressed: _openingChat ? null : () => _openLeaderboardChat(),
-            icon: const Icon(Icons.forum_rounded, color: Colors.white),
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF06240F), Color(0xFF0A0F0A), Color(0xFF000000)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: StreamBuilder<List<LeaderboardEntry>>(
-            stream: widget.leaderboardService.leaderboardStream(limit: 80),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const AppLinearLoader.screen();
-              }
-
-              final allEntries = snapshot.data ?? [];
-              final entries = widget.leaderboardService.rankEntriesForGame(
-                allEntries,
-                gameId: _selectedGameId,
-              );
-
-              if (allEntries.isEmpty) return _emptyState();
-
-              final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
-              final rest = entries.length > 3
-                  ? entries.sublist(3)
-                  : <LeaderboardEntry>[];
-              final myIndex = entries.indexWhere(
-                (entry) => entry.userId == currentUid,
-              );
-              final myEntry = myIndex >= 0 ? entries[myIndex] : null;
-              final myRank = myIndex >= 0 ? myIndex + 1 : null;
-              final nextTarget = myIndex > 0 ? entries[myIndex - 1] : null;
-              final topScore = entries.isEmpty
-                  ? 0
-                  : _displayScore(entries.first);
-
-              return ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                children: [
-                  _buildFilterStrip(),
-                  const SizedBox(height: 14),
-                  _buildTopPlayersHero(
-                    entries: entries,
-                    myEntry: myEntry,
-                    myRank: myRank,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildHeroBoardCard(
-                    context: context,
-                    entries: entries,
-                    myRank: myRank,
-                    myEntry: myEntry,
-                    topScore: topScore,
-                    playerCount: entries.length,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPulseCard(entries: entries, myRank: myRank),
-                  if (myEntry != null && nextTarget != null) ...[
-                    const SizedBox(height: 12),
-                    _nextTargetCard(
-                      context: context,
-                      myEntry: myEntry,
-                      nextTarget: nextTarget,
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  if (rest.isNotEmpty) ...[
-                    Text(
-                      'Challengers',
-                      style: GoogleFonts.inter(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...rest.asMap().entries.map(
-                      (entry) => _leaderboardTile(
-                        context: context,
-                        rank: entry.key + 4,
-                        data: entry.value,
-                        topScore: topScore,
-                        isCurrentUser: entry.value.userId == currentUid,
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopPlayersHero({
-    required List<LeaderboardEntry> entries,
-    required LeaderboardEntry? myEntry,
-    required int? myRank,
-  }) {
-    final top3 = entries.take(3).toList();
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0C2A16), Color(0xFF101210)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _green.withValues(alpha: 0.14)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.28),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: GameColors.bgBottom,
+      body: Stack(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entries.isEmpty ? 'Arcade Board' : 'Top Players',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.spaceGrotesk(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
+          const GameBackground(),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+                  child: Row(
+                    children: [
+                      GameIconButton(
+                        icon: Icons.arrow_back_rounded,
+                        tooltip: 'Back',
+                        onPressed: () => Navigator.pop(context),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      entries.isEmpty
-                          ? 'No ranked runs yet.'
-                          : 'The current board leaders and crown holders.',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: Colors.white70,
-                        fontSize: 12,
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: GameText('LEADERBOARD', size: 24),
                       ),
-                    ),
-                  ],
+                      StreamBuilder<int>(
+                        stream: _chatService.streamUnreadCountForRoom(
+                          _leaderboardLobbyRoomId,
+                        ),
+                        builder: (context, snapshot) {
+                          final unread = snapshot.data ?? 0;
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              GameIconButton(
+                                icon: Icons.forum_rounded,
+                                tooltip: 'Open leaderboard chat',
+                                colors: GameColors.green,
+                                onPressed: _openingChat
+                                    ? null
+                                    : () => _openLeaderboardChat(),
+                              ),
+                              if (unread > 0)
+                                Positioned(
+                                  top: -6,
+                                  right: -6,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFF3B30),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: GameColors.outline,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      unread > 99 ? '99+' : '$unread',
+                                      style: gameFont(11, Colors.white),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              if (myRank != null) ...[
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Align(
-                    alignment: Alignment.topRight,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _green.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: _green.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Text(
-                        'Your Rank #$myRank',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          color: _green,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                _buildFilterStrip(),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: StreamBuilder<List<LeaderboardEntry>>(
+                    stream: widget.leaderboardService.leaderboardStream(
+                      limit: 80,
                     ),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const AppLinearLoader.screen();
+                      }
+                      final allEntries = snapshot.data ?? [];
+                      if (allEntries.isEmpty) return _emptyState();
+
+                      final entries = widget.leaderboardService
+                          .rankEntriesForGame(
+                            allEntries,
+                            gameId: _selectedGameId,
+                          );
+                      final currentUid =
+                          FirebaseAuth.instance.currentUser?.uid ?? '';
+                      final rest = entries.length > 3
+                          ? entries.sublist(3)
+                          : <LeaderboardEntry>[];
+                      final myIndex = entries.indexWhere(
+                        (entry) => entry.userId == currentUid,
+                      );
+                      final myEntry = myIndex >= 0 ? entries[myIndex] : null;
+                      final myRank = myIndex >= 0 ? myIndex + 1 : null;
+                      final nextTarget = myIndex > 0
+                          ? entries[myIndex - 1]
+                          : null;
+                      final topScore = entries.isEmpty
+                          ? 0
+                          : _displayScore(entries.first);
+
+                      return ListView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+                        children: [
+                          _buildPodiumPanel(
+                            context: context,
+                            entries: entries,
+                            myRank: myRank,
+                            topScore: topScore,
+                          ),
+                          const SizedBox(height: 14),
+                          _buildYouPanel(
+                            context: context,
+                            myEntry: myEntry,
+                            myRank: myRank,
+                            nextTarget: nextTarget,
+                            topScore: topScore,
+                            players: entries.length,
+                          ),
+                          if (rest.isNotEmpty) ...[
+                            const SizedBox(height: 18),
+                            const GameText('CHALLENGERS', size: 18),
+                            const SizedBox(height: 10),
+                            for (final (i, entry) in rest.indexed)
+                              _leaderboardTile(
+                                context: context,
+                                rank: i + 4,
+                                data: entry,
+                                topScore: topScore,
+                                isCurrentUser: entry.userId == currentUid,
+                              ),
+                          ],
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],
-            ],
-          ),
-          const SizedBox(height: 18),
-          if (entries.isEmpty)
-            _emptyFilteredState()
-          else
-            _podium(top3, highlightUserId: myEntry?.userId),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeroBoardCard({
-    required BuildContext context,
-    required List<LeaderboardEntry> entries,
-    required LeaderboardEntry? myEntry,
-    required int? myRank,
-    required int topScore,
-    required int playerCount,
-  }) {
-    final leader = entries.isEmpty ? null : entries.first;
-    final myScore = myEntry != null
-        ? _displayScore(myEntry)
-        : _selectedGameId == MiniGameLeaderboardService.overallGameId
-        ? widget.scoreService.totalScore
-        : widget.scoreService.bestScore(_selectedGameId);
-    final isLeader = myRank == 1 && myEntry != null;
-    final gap = leader == null ? 0 : (topScore - myScore).clamp(0, 999999);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0E3B20), Color(0xFF14181A), Color(0xFF0B0D0F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _green.withValues(alpha: 0.12)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.24),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -12,
-            top: -10,
-            child: Container(
-              width: 92,
-              height: 92,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _green.withValues(alpha: 0.10),
-              ),
-            ),
-          ),
-          Positioned(
-            left: -16,
-            bottom: -34,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.03),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      _selectedGameId ==
-                              MiniGameLeaderboardService.overallGameId
-                          ? 'ALL GAMES'
-                          : _selectedGameLabel().toUpperCase(),
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _green.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      'Top 3 capped',
-                      style: GoogleFonts.inter(
-                        color: _green,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                isLeader
-                    ? 'You are controlling this board.'
-                    : leader == null
-                    ? 'No one owns this board yet.'
-                    : '${leader.displayName} is the player to beat.',
-                style: GoogleFonts.spaceGrotesk(
-                  color: Colors.white,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w700,
-                  height: 1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                leader == null
-                    ? 'Set the first benchmark and pull everyone into chase mode.'
-                    : isLeader
-                    ? 'Hold the line, defend the crown, and keep pressure on the rest of the lobby.'
-                    : gap == 0
-                    ? 'You are in striking distance. Push one more strong run.'
-                    : '$gap pts separate you from the current crown.',
-                style: GoogleFonts.inter(
-                  color: Colors.white70,
-                  fontSize: 12.5,
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _heroMetric(
-                      label: 'Your Rank',
-                      value: myRank == null ? 'Unranked' : '#$myRank',
-                      accent: _silver,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _heroMetric(
-                      label: 'Your Score',
-                      value: '$myScore',
-                      accent: _green,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _heroMetric(
-                      label: 'Top Score',
-                      value: leader == null ? '--' : '$topScore',
-                      accent: _gold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.workspace_premium_rounded,
-                      color: _gold,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Rewards · #1 100 · #2 75 · #3 50 · #4–100 get 1 HashCoin',
-                        style: GoogleFonts.inter(
-                          color: Colors.white70,
-                          fontSize: 11.5,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        if (_selectedGameId ==
-                            MiniGameLeaderboardService.overallGameId) {
-                          if (myEntry != null) {
-                            _openBestGame(context, myEntry);
-                          } else {
-                            _openSelectedGame(context);
-                          }
-                          return;
-                        }
-                        _openSelectedGame(context);
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _green,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: Text(
-                        isLeader ? 'Defend Crown' : 'Play Now',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: StreamBuilder<int>(
-                      stream: _chatService.streamUnreadCountForRoom(
-                        _leaderboardLobbyRoomId,
-                      ),
-                      builder: (context, snapshot) {
-                        final unreadCount = snapshot.data ?? 0;
-                        return OutlinedButton(
-                          onPressed: _openingChat
-                              ? null
-                              : () => _openLeaderboardChat(),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: unreadCount > 0
-                                  ? const Color(
-                                      0xFF42D7FF,
-                                    ).withValues(alpha: 0.45)
-                                  : Colors.white.withValues(alpha: 0.12),
-                            ),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  const Icon(Icons.forum_rounded),
-                                  if (unreadCount > 0)
-                                    Positioned(
-                                      right: -8,
-                                      top: -8,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 5,
-                                          vertical: 2,
-                                        ),
-                                        constraints: const BoxConstraints(
-                                          minWidth: 18,
-                                          minHeight: 18,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF42D7FF),
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: const Color(
-                                                0xFF42D7FF,
-                                              ).withValues(alpha: 0.35),
-                                              blurRadius: 10,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            unreadCount > 99
-                                                ? '99+'
-                                                : '$unreadCount',
-                                            style: GoogleFonts.inter(
-                                              color: Colors.black,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  _openingChat
-                                      ? 'Opening...'
-                                      : unreadCount > 0
-                                      ? 'Open Lobby ($unreadCount)'
-                                      : 'Open Lobby',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Active board size: $playerCount players',
-                style: GoogleFonts.inter(
-                  color: Colors.white54,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _heroMetric({
-    required String label,
-    required String value,
-    required Color accent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: GoogleFonts.orbitron(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: Colors.white60,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -693,16 +239,16 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
 
   Widget _buildFilterStrip() {
     return SizedBox(
-      height: 38,
+      height: 46,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _gameOptions.length,
         separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final option = _gameOptions[index];
           final selected = option.key == _selectedGameId;
-          return InkWell(
-            borderRadius: BorderRadius.circular(999),
+          return GestureDetector(
             onTap: () {
               if (_selectedGameId == option.key) return;
               setState(() => _selectedGameId = option.key);
@@ -714,34 +260,36 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
               );
             },
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              duration: const Duration(milliseconds: 160),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              margin: EdgeInsets.only(top: selected ? 0 : 3, bottom: 3),
               decoration: BoxDecoration(
-                color: selected ? _green : Colors.white.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: selected
-                      ? _green
-                      : Colors.white.withValues(alpha: 0.1),
+                  color: selected ? GameColors.outline : GameColors.trayEdge,
+                  width: 2.5,
                 ),
+                gradient: selected
+                    ? LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [GameColors.green.$1, GameColors.green.$2],
+                      )
+                    : null,
+                color: selected ? null : GameColors.socket,
                 boxShadow: selected
-                    ? [
+                    ? const [
                         BoxShadow(
-                          color: _green.withValues(alpha: 0.35),
-                          blurRadius: 12,
-                          offset: const Offset(0, 3),
+                          color: Color(0xFF1B7F24),
+                          offset: Offset(0, 3),
                         ),
                       ]
                     : null,
               ),
-              child: Text(
-                option.value,
-                style: GoogleFonts.inter(
-                  color: selected ? Colors.black : Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              child: selected
+                  ? GameText(option.value, size: 15)
+                  : Text(option.value, style: gameFont(15, GameColors.soft)),
             ),
           );
         },
@@ -749,82 +297,205 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
     );
   }
 
-  Widget _buildPulseCard({
+  Widget _buildPodiumPanel({
+    required BuildContext context,
     required List<LeaderboardEntry> entries,
     required int? myRank,
+    required int topScore,
   }) {
-    final leader = entries.isEmpty ? null : entries.first;
-    final playerCount = entries.length;
-    final percentile = myRank == null || playerCount == 0
-        ? 0
-        : (((playerCount - myRank + 1) / playerCount) * 100).round();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: _panel,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-      ),
-      child: Row(
+    final top3 = entries.take(3).toList();
+    return GamePanel(
+      headerColors: GameColors.yellow,
+      header: Row(
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: _green.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.auto_graph_rounded,
-              color: _green,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 10),
+          const Text('🏆', style: TextStyle(fontSize: 26)),
+          const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              leader == null
-                  ? 'Be the first to set the pace on this board.'
-                  : '${leader.displayName} is setting the pace in ${_primaryGame(leader.scores)}.',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                color: Colors.white70,
-                fontSize: 12,
-                height: 1.3,
-              ),
+            child: GameText(
+              entries.isEmpty ? 'NO RUNS YET' : 'TOP PLAYERS',
+              size: 22,
             ),
           ),
-          if (percentile > 0) ...[
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: _green.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.trending_up_rounded,
-                    color: _green,
-                    size: 13,
+          if (myRank != null) GameBadge(label: 'YOU #$myRank'),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(10, 16, 10, 12),
+      child: entries.isEmpty
+          ? _emptyFilteredState()
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Classic 2 · 1 · 3 podium order.
+                for (final rank in const [2, 1, 3])
+                  Expanded(
+                    child: rank <= top3.length
+                        ? _podiumSpot(
+                            context: context,
+                            rank: rank,
+                            data: top3[rank - 1],
+                            topScore: topScore,
+                          )
+                        : const SizedBox.shrink(),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$percentile%',
-                    style: GoogleFonts.inter(
-                      color: _green,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
+    );
+  }
+
+  Widget _podiumSpot({
+    required BuildContext context,
+    required int rank,
+    required LeaderboardEntry data,
+    required int topScore,
+  }) {
+    final color = _rankColor(rank);
+    final pedestal = switch (rank) {
+      1 => 78.0,
+      2 => 58.0,
+      _ => 44.0,
+    };
+    return GestureDetector(
+      onTap: () => _showPlayerSheet(
+        context: context,
+        rank: rank,
+        data: data,
+        topScore: topScore,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              LudoSeatToken(
+                color: color,
+                name: data.displayName,
+                photo: data.avatarUrl,
+                size: rank == 1 ? 64 : 52,
+                glow: rank == 1,
+              ),
+              if (rank == 1)
+                Positioned(
+                  top: -20,
+                  child: Text('👑', style: TextStyle(fontSize: 30, height: 1)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            data.displayName.split(' ').first,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: gameFont(14, Colors.white),
+          ),
+          GameText('${_displayScore(data)}', size: 15, color: color),
+          const SizedBox(height: 6),
+          // Chunky pedestal.
+          Container(
+            height: pedestal,
+            margin: const EdgeInsets.symmetric(horizontal: 6),
+            padding: const EdgeInsets.fromLTRB(2.5, 2.5, 2.5, 6),
+            decoration: BoxDecoration(
+              color: GameColors.outline,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Container(
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(9.5),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color.lerp(color, Colors.white, 0.3)!, color],
+                ),
+              ),
+              child: GameText('$rank', size: rank == 1 ? 32 : 26),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildYouPanel({
+    required BuildContext context,
+    required LeaderboardEntry? myEntry,
+    required int? myRank,
+    required LeaderboardEntry? nextTarget,
+    required int topScore,
+    required int players,
+  }) {
+    Widget stat(String label, String value, Color color) => Expanded(
+      child: GameTray(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
+          children: [
+            GameText(value, size: 20, color: color),
+            const SizedBox(height: 2),
+            Text(label, style: gameFont(11.5, GameColors.soft)),
           ],
+        ),
+      ),
+    );
+
+    final gap = myEntry != null && nextTarget != null
+        ? (_displayScore(nextTarget) - _displayScore(myEntry)).clamp(1, 999999)
+        : null;
+    final line = myEntry == null
+        ? 'Play ${_selectedGameLabel()} to get on the board!'
+        : nextTarget == null
+        ? 'You’re #1. Defend the crown!'
+        : 'Beat ${nextTarget.displayName.split(' ').first} by $gap pts';
+
+    return GamePanel(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              stat('Your rank', myRank == null ? '—' : '#$myRank', Colors.white),
+              const SizedBox(width: 8),
+              stat(
+                'Your score',
+                myEntry == null ? '0' : '${_displayScore(myEntry)}',
+                GameColors.green.$1,
+              ),
+              const SizedBox(width: 8),
+              stat('Top score', '$topScore', GameColors.yellow.$1),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Text('🔥', style: TextStyle(fontSize: 20)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(line, style: gameFont(15, Colors.white)),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 100,
+                child: GameButton(
+                  label: 'Play',
+                  tone: GameButtonTone.green,
+                  height: 46,
+                  onPressed: () =>
+                      myEntry != null &&
+                          _selectedGameId ==
+                              MiniGameLeaderboardService.overallGameId
+                      ? _openBestGame(context, myEntry)
+                      : _openSelectedGame(context),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$players players on the ${_selectedGameLabel()} board',
+            style: gameFont(12, GameColors.soft),
+          ),
         ],
       ),
     );
@@ -832,215 +503,41 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
 
   Widget _emptyState() {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.sports_esports_rounded,
-            color: Colors.white38,
-            size: 50,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: GamePanel(
+          headerColors: GameColors.purple,
+          header: const Center(child: GameText('NO SCORES YET', size: 22)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Play any mini game to put the first score on the board.',
+                textAlign: TextAlign.center,
+                style: gameFont(14, GameColors.soft),
+              ),
+              const SizedBox(height: 12),
+              GameButton(
+                label: 'Play Ludo',
+                tone: GameButtonTone.green,
+                height: 48,
+                onPressed: () => _openGameByKey(context, 'ludo'),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'No scores yet.\nStart a mini game and claim rank #1.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(color: Colors.white70, height: 1.4),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _emptyFilteredState() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.hourglass_empty_rounded, color: Colors.white54),
-          const SizedBox(height: 10),
-          Text(
-            'No scores in ${_selectedGameLabel()} yet.',
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Be the first to set the benchmark.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _podium(List<LeaderboardEntry> entries, {String? highlightUserId}) {
-    const rankHeights = {1: 216.0, 2: 188.0, 3: 168.0};
-    const order = [1, 0, 2];
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: order.map((idx) {
-        final rank = idx + 1;
-        final data = idx < entries.length ? entries[idx] : null;
-        return Expanded(
-          child: _pillarCard(
-            rank: rank,
-            data: data,
-            height: rankHeights[rank] ?? 150,
-            isHighlighted: data?.userId == highlightUserId,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _pillarCard({
-    required int rank,
-    required double height,
-    LeaderboardEntry? data,
-    bool isHighlighted = false,
-  }) {
-    final medal = _rankColor(rank);
-    final avatarR = rank == 1 ? 30.0 : 24.0;
-    final hasImg = (data?.avatarUrl ?? '').trim().isNotEmpty;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 5),
-      padding: const EdgeInsets.fromLTRB(6, 12, 6, 12),
-      height: height,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [medal.withValues(alpha: 0.24), _panel],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isHighlighted ? _green : medal.withValues(alpha: 0.45),
-          width: isHighlighted ? 1.4 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (isHighlighted ? _green : medal).withValues(
-              alpha: rank == 1 ? 0.34 : 0.18,
-            ),
-            blurRadius: rank == 1 ? 22 : 13,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Crown for the champion, medal ribbon for the rest.
-          Icon(
-            rank == 1
-                ? Icons.emoji_events_rounded
-                : Icons.military_tech_rounded,
-            color: medal,
-            size: rank == 1 ? 26 : 20,
-          ),
-          // Avatar inside a medal-colored ring.
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(2.5),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [medal, medal.withValues(alpha: 0.35)],
-                  ),
-                ),
-                child: CircleAvatar(
-                  radius: avatarR,
-                  backgroundColor: const Color(0xFF1C201A),
-                  backgroundImage: hasImg
-                      ? NetworkImage((data!.avatarUrl ?? '').trim())
-                      : null,
-                  child: hasImg
-                      ? null
-                      : Icon(
-                          Icons.person_rounded,
-                          color: Colors.white,
-                          size: avatarR,
-                        ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                data?.displayName ?? 'Empty',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-              if (isHighlighted)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    'YOU',
-                    style: GoogleFonts.inter(
-                      color: _green,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          // Score chip above a circular rank medal.
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  data != null ? '${_displayScore(data)}' : '--',
-                  style: GoogleFonts.orbitron(
-                    color: medal,
-                    fontSize: rank == 1 ? 15 : 13,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: medal),
-                child: Center(
-                  child: Text(
-                    '$rank',
-                    style: GoogleFonts.inter(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Text(
+        'No ranked runs for ${_selectedGameLabel()} yet. Be the first!',
+        textAlign: TextAlign.center,
+        style: gameFont(14, GameColors.soft),
       ),
     );
   }
@@ -1052,230 +549,72 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
     required int topScore,
     required bool isCurrentUser,
   }) {
-    final accent = _rankColor(rank);
-    final visibleScore = _displayScore(data);
-    final progress = topScore <= 0
-        ? 0.0
-        : (visibleScore / topScore).clamp(0, 1).toDouble();
     final subtitle = _selectedGameId == MiniGameLeaderboardService.overallGameId
         ? 'Main: ${_primaryGame(data.scores)}'
         : 'Total: ${data.totalScore} pts';
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(13),
-      onTap: () => _showPlayerSheet(
-        context: context,
-        rank: rank,
-        data: data,
-        topScore: topScore,
-      ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: isCurrentUser ? _green.withValues(alpha: 0.12) : _panel,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isCurrentUser
-                ? _green.withValues(alpha: 0.5)
-                : Colors.white.withValues(alpha: 0.07),
-            width: isCurrentUser ? 1.1 : 0.8,
-          ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GestureDetector(
+        onTap: () => _showPlayerSheet(
+          context: context,
+          rank: rank,
+          data: data,
+          topScore: topScore,
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accent.withValues(alpha: 0.14),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.14),
-                  width: 0.8,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  '$rank',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(2.5, 2.5, 2.5, 5),
+          decoration: BoxDecoration(
+            color: isCurrentUser ? GameColors.green.$2 : GameColors.outline,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(13.5),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [GameColors.bodyTop, GameColors.bodyBottom],
               ),
             ),
-            const SizedBox(width: 10),
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.white12,
-              backgroundImage: (data.avatarUrl ?? '').trim().isNotEmpty
-                  ? NetworkImage((data.avatarUrl ?? '').trim())
-                  : null,
-              child: (data.avatarUrl ?? '').trim().isNotEmpty
-                  ? null
-                  : const Icon(
-                      Icons.person_rounded,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    data.displayName,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 38,
+                  child: GameText('#$rank', size: 16, color: GameColors.soft),
+                ),
+                LudoSeatToken(
+                  color: isCurrentUser
+                      ? GameColors.green.$1
+                      : GameColors.purple.$1,
+                  name: data.displayName,
+                  photo: data.avatarUrl,
+                  size: 40,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          subtitle,
-                          style: GoogleFonts.inter(
-                            color: Colors.white60,
-                            fontSize: 11,
-                          ),
-                        ),
+                      Text(
+                        isCurrentUser ? 'You' : data.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: gameFont(15, Colors.white),
                       ),
-                      if (isCurrentUser)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _green.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            'YOU',
-                            style: GoogleFonts.inter(
-                              color: _green,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 9,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
+                      Text(subtitle, style: gameFont(11.5, GameColors.soft)),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 4,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        _green.withValues(alpha: 0.8),
-                      ),
-                      backgroundColor: Colors.white12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (!isCurrentUser)
-                  IconButton(
-                    onPressed: () => _openDirectChatWithEntry(data),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.06),
-                      minimumSize: const Size(34, 34),
-                      padding: EdgeInsets.zero,
-                    ),
-                    icon: const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      color: Colors.white70,
-                      size: 16,
-                    ),
-                  ),
-                const SizedBox(height: 4),
-                Text(
-                  '$visibleScore pts',
-                  style: GoogleFonts.orbitron(
-                    color: _gold,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
                 ),
-                if (_selectedGameId != MiniGameLeaderboardService.overallGameId)
-                  Text(
-                    '${data.totalScore} total',
-                    style: GoogleFonts.inter(
-                      color: Colors.white54,
-                      fontSize: 10,
-                    ),
-                  ),
+                GameText(
+                  '${_displayScore(data)}',
+                  size: 17,
+                  color: GameColors.yellow.$1,
+                ),
               ],
             ),
-          ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _nextTargetCard({
-    required BuildContext context,
-    required LeaderboardEntry myEntry,
-    required LeaderboardEntry nextTarget,
-  }) {
-    final gap = (_displayScore(nextTarget) - _displayScore(myEntry)).clamp(
-      1,
-      999999,
-    );
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: _panel,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.07),
-          width: 0.8,
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.local_fire_department_rounded,
-            color: Color(0xFFFF9E44),
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Beat ${nextTarget.displayName} by $gap pts',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () =>
-                _selectedGameId == MiniGameLeaderboardService.overallGameId
-                ? _openBestGame(context, myEntry)
-                : _openSelectedGame(context),
-            child: Text(
-              'Play',
-              style: GoogleFonts.inter(
-                color: _green,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1319,10 +658,10 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
         target = const LudoGameScreen();
         break;
       case 'fruit_cutting':
-        target = FruitCuttingScreen();
+        target = const FruitCuttingScreen();
         break;
       case 'plant_vs_zombie':
-        target = PlantVsZombie();
+        target = const PlantVsZombie();
         break;
       case 'pac_man':
         target = PacManHome();

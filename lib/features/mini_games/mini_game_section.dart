@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/features/mini_games/pacman/HomePage.dart';
 import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart';
 import 'package:hash/core/service/fb_events_service.dart';
@@ -15,6 +14,8 @@ import 'package:hash/features/mini_games/html_games/widgets/html_mini_game_card.
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
 import 'package:hash/features/mini_games/ludo/ludo_game_screen.dart';
 import 'package:hash/utils/widgets/home_section_title.dart';
+import 'package:hash/utils/widgets/game_button.dart';
+import 'package:hash/utils/widgets/game_panel.dart';
 import 'flappy_birds/Layouts/Pages/page_start_screen.dart';
 import 'mini_game_card.dart';
 import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
@@ -59,7 +60,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
         subtitle: "Slice fruit · +coins daily",
         icon: const AssetImage("assets/mini_game_icons/fruit_cutting.png"),
         onTap: () async {
-          await Get.to(() => FruitCuttingScreen());
+          await Get.to(() => const FruitCuttingScreen());
           await _loadScores();
         },
       ),
@@ -69,7 +70,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
         subtitle: "Defend the lawn · +coins",
         icon: const AssetImage("assets/mini_game_icons/pvz.png"),
         onTap: () async {
-          await Get.to(() => PlantVsZombie());
+          await Get.to(() => const PlantVsZombie());
           await _loadScores();
         },
       ),
@@ -119,11 +120,9 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
 
   @override
   Widget build(BuildContext context) {
-    // Keep Ludo first even when an existing section survives a hot reload.
-    final games = [
-      ..._games.where((game) => game.id == 'ludo'),
-      ..._games.where((game) => game.id != 'ludo'),
-    ];
+    // Ludo gets its own featured card; the row holds the other games.
+    final ludo = _games.where((game) => game.id == 'ludo').firstOrNull;
+    final games = _games.where((game) => game.id != 'ludo').toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -133,24 +132,22 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
             children: [
               const HomeSectionTitle(title: 'Mini ', accent: 'Games'),
               const Spacer(),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                ),
-                onPressed: () => _showLeaderboard(context, _scoreService),
-                icon: const Icon(Icons.leaderboard_outlined, size: 18),
-                label: Text(
-                  'Leaderboard (${_scoreService.totalScore})',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+              GestureDetector(
+                onTap: () => _showLeaderboard(context, _scoreService),
+                child: GameBadge(
+                  label: '🏆 Leaderboard · ${_scoreService.totalScore}',
                 ),
               ),
             ],
           ),
         ),
+        if (ludo != null) ...[
+          _FeaturedGameTile(
+            game: ludo,
+            best: _scoresLoaded ? _scoreService.bestScore('ludo') : null,
+          ),
+          const SizedBox(height: 12),
+        ],
         SizedBox(
           height: 132,
           child: ListView.separated(
@@ -210,6 +207,86 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
       () => MiniGameLeaderboardPage(
         scoreService: scoreService,
         leaderboardService: _leaderboardService,
+      ),
+    );
+  }
+}
+
+/// Featured card for Ludo: chunky game panel with a Play button.
+class _FeaturedGameTile extends StatelessWidget {
+  const _FeaturedGameTile({required this.game, required this.best});
+
+  final MiniGame game;
+  final int? best;
+
+  @override
+  Widget build(BuildContext context) {
+    return GamePanel(
+      onTap: game.onTap,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      child: Row(
+        children: [
+          Container(
+            width: 76,
+            height: 76,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: GameColors.outline,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(17),
+              child: Image(image: game.icon, fit: BoxFit.cover),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const GameText('LUDO', size: 26),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF3B30),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: GameColors.outline,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text('ONLINE', style: gameFont(10, Colors.white)),
+                    ),
+                  ],
+                ),
+                Text(
+                  'Online · vs AI · Pass & Play',
+                  style: gameFont(12.5, GameColors.soft),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  best == null || best == 0 ? 'No best yet' : 'Best $best',
+                  style: gameFont(12, GameColors.yellow.$1),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 92,
+            child: GameButton(
+              label: 'Play',
+              tone: GameButtonTone.green,
+              height: 48,
+              onPressed: game.onTap,
+            ),
+          ),
+        ],
       ),
     );
   }

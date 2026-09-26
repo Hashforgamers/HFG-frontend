@@ -224,15 +224,19 @@ class MiniGameScoreService {
         }
       });
 
-      Get.snackbar(
-        'Daily play bonus',
-        '+$dailyPlayRewardAmount HashCoins for playing '
-            '${MiniGameLeaderboardService.readableGameName(gameId)}',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xFF141414),
-        colorText: const Color(0xFFEDEDED),
-        margin: const EdgeInsets.all(12),
-      );
+      // GetX shows snackbars asynchronously, so the surrounding try/catch
+      // can't catch a missing overlay (e.g. the player already left the app).
+      if (Get.overlayContext != null) {
+        Get.snackbar(
+          'Daily play bonus',
+          '+$dailyPlayRewardAmount HashCoins for playing '
+              '${MiniGameLeaderboardService.readableGameName(gameId)}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFF141414),
+          colorText: const Color(0xFFEDEDED),
+          margin: const EdgeInsets.all(12),
+        );
+      }
 
       unawaited(
         _trackArcadeScoreEvent('Arcade Daily Play Reward', {
@@ -375,142 +379,150 @@ class MiniGameScoreService {
     };
 
     await Get.dialog<void>(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0E1016).withValues(alpha: 0.96),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: const Color(0xFFFFC857).withValues(alpha: 0.24),
+      // Builder gives the button this dialog's own context: Get.back() first
+      // tries to close a queued snackbar and throws, leaving Collect dead.
+      Builder(
+        builder: (dialogContext) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0E1016).withValues(alpha: 0.96),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: const Color(0xFFFFC857).withValues(alpha: 0.24),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.32),
+                      blurRadius: 24,
+                      offset: const Offset(0, 14),
+                    ),
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.32),
-                    blurRadius: 24,
-                    offset: const Offset(0, 14),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFFC857).withValues(alpha: 0.26),
-                          blurRadius: 24,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                    child: const HashCoinIcon(size: 76),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                    child: Text(
-                      'Arcade Reward',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFFFDA8A),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Rank $rankSuffix secured',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFC857).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: const Color(0xFFFFC857).withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const HashCoinIcon(size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'You received $amount HashCoins',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFFFDE93),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(
+                              0xFFFFC857,
+                            ).withValues(alpha: 0.26),
+                            blurRadius: 24,
+                            spreadRadius: 1,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: const HashCoinIcon(size: 76),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    rank <= 3
-                        ? 'Top 3 rewards can only be claimed 3 times per rank to prevent abuse.'
-                        : 'Every ranked finish up to #100 earns HashCoins.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: ElevatedButton(
-                      onPressed: () => Get.back<void>(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFC857),
-                        foregroundColor: Colors.black,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.08),
                         ),
                       ),
                       child: Text(
-                        'Collect',
+                        'Arcade Reward',
                         style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFFFFDA8A),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Text(
+                      'Rank $rankSuffix secured',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFC857).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(
+                            0xFFFFC857,
+                          ).withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const HashCoinIcon(size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'You received $amount HashCoins',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFFDE93),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      rank <= 3
+                          ? 'Top 3 rewards can only be claimed 3 times per rank to prevent abuse.'
+                          : 'Every ranked finish up to #100 earns HashCoins.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFC857),
+                          foregroundColor: Colors.black,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Collect',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
