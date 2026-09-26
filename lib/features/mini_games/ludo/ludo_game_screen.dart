@@ -238,10 +238,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
               const GameText('LUDO', size: 34),
               Text(
                 'Roll the dice. Race to home.',
-                style: gameFont(
-                  14,
-                  GameColors.outline.withValues(alpha: 0.75),
-                ),
+                style: gameFont(14, GameColors.outline.withValues(alpha: 0.75)),
               ),
             ],
           ),

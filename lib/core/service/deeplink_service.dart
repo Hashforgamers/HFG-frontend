@@ -1,3 +1,4 @@
+import 'package:hash/features/mini_games/snakes_ladders/snl_match_screen.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -218,9 +219,8 @@ class DeepLinkService extends GetxController {
         : (segments.isNotEmpty ? segments.first : host);
     final offset = fromHost ? 0 : 1;
     String? idAt(int i) => at(offset + i);
-    String? lowerAt(int i) => offset + i < segments.length
-        ? segments[offset + i]
-        : null;
+    String? lowerAt(int i) =>
+        offset + i < segments.length ? segments[offset + i] : null;
     final id = idAt(0);
     if (_tournamentRoots.contains(root)) {
       final tournamentId = id;
@@ -357,6 +357,16 @@ class DeepLinkService extends GetxController {
         return;
       }
     }
+    // Snakes & Ladders invite: `.../game/snlmatch_<matchId>`.
+    if (destination.type == DeepLinkType.game &&
+        (destination.id ?? '').startsWith('snlmatch_')) {
+      final matchId = destination.id!.substring('snlmatch_'.length);
+      if (matchId.isNotEmpty) {
+        Widget page() => SnlMatchScreen(matchId: matchId);
+        replaceStack ? Get.offAll(page) : Get.to(page);
+        return;
+      }
+    }
     final route = _routeFor(destination.type);
     if (route == AppRoutes.HOME && destination.type != DeepLinkType.unknown) {
       // The link parsed, but its destination has no screen yet. Land on home
@@ -428,6 +438,7 @@ class DeepLinkService extends GetxController {
       (await _prefs).getBool('isLoggedIn') == true;
   Future<SharedPreferences> get _prefs async =>
       _preferences ??= await SharedPreferences.getInstance();
+
   /// Analytics is optional plumbing here: the locator may not hold the service
   /// yet during a cold start, and these calls are fired unawaited.
   Future<void> _track(String name, Map<String, Object?> parameters) async {

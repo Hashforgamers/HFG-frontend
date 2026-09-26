@@ -216,7 +216,7 @@ class MiniGameLeaderboardService {
         ? 'mini_games_lounge'
         : 'mini_games_$safeGameId';
     final roomName = safeGameId.isEmpty
-        ? 'Mini Games Lounge'
+        ? 'Hash Arcade Lounge'
         : '${readableGameName(safeGameId)} Arena';
     final displayName = user.displayName ?? user.email ?? 'Player';
 

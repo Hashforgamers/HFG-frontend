@@ -72,7 +72,9 @@ class LudoMatchService {
                         now - m.turnStartedAtMs < staleMs,
                   )
                   .toList()
-                ..sort((a, b) => b.turnStartedAtMs.compareTo(a.turnStartedAtMs));
+                ..sort(
+                  (a, b) => b.turnStartedAtMs.compareTo(a.turnStartedAtMs),
+                );
           return list;
         });
   }
@@ -122,7 +124,10 @@ class LudoMatchService {
       'hashforgamers://game/ludomatch_$matchId';
 
   /// Join the first empty seat (or a specific one) transactionally.
-  Future<LudoPlayerType> joinMatch(String matchId, {LudoPlayerType? seat}) async {
+  Future<LudoPlayerType> joinMatch(
+    String matchId, {
+    LudoPlayerType? seat,
+  }) async {
     final uid = _uid;
     if (uid == null) throw Exception('Please sign in to join.');
     final me = _me();
@@ -147,8 +152,9 @@ class LudoMatchService {
         throw Exception('This match is full.');
       }
 
-      final target =
-          (seat != null && !match.seats.containsKey(seat)) ? seat : match.firstEmptySeat();
+      final target = (seat != null && !match.seats.containsKey(seat))
+          ? seat
+          : match.firstEmptySeat();
       if (target == null) throw Exception('No seats available.');
 
       tx.update(ref, {
@@ -256,11 +262,9 @@ class LudoMatchService {
         } else if (match.turn == seat) {
           // It was the leaver's turn — hand it to the next remaining player.
           updates['turn'] = _nextSeatAmong(seat, remaining).name;
-          updates['turn_started_at_ms'] =
-              DateTime.now().millisecondsSinceEpoch;
+          updates['turn_started_at_ms'] = DateTime.now().millisecondsSinceEpoch;
         }
-      } else if (match.status == LudoMatchStatus.waiting &&
-          remaining.isEmpty) {
+      } else if (match.status == LudoMatchStatus.waiting && remaining.isEmpty) {
         updates['status'] = statusToString(LudoMatchStatus.cancelled);
       }
 

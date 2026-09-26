@@ -172,8 +172,10 @@ class _LudoReactionLayerState extends State<LudoReactionLayer>
           builder: (context, _) {
             final t = _ctrl.value;
             final scale = (t < 0.2 ? t / 0.2 : 1.0).clamp(0.0, 1.0) * 1.1;
-            final opacity = (t < 0.75 ? 1.0 : (1 - (t - 0.75) / 0.25))
-                .clamp(0.0, 1.0);
+            final opacity = (t < 0.75 ? 1.0 : (1 - (t - 0.75) / 0.25)).clamp(
+              0.0,
+              1.0,
+            );
             final dy = -160.0 * Curves.easeOut.transform(t);
             return Align(
               alignment: const Alignment(0, 0.32),

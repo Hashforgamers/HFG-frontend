@@ -30,8 +30,6 @@ class FruitSliceComponent extends ParticleSystemComponent {
           lifespan: 0.5, // Duration each particle stays visible on the screen
           // Defines how each particle is generated
           generator: (i) {
-
-
             // Creates an individual particle with acceleration and speed
             return AcceleratedParticle(
               acceleration: Vector2(

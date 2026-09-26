@@ -1,4 +1,5 @@
 import '../ludo/ludo_game_screen.dart';
+import '../snakes_ladders/snl_game_screen.dart';
 import '../ludo/ludo_score_service.dart';
 import 'dart:async';
 
@@ -62,6 +63,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   late final List<MapEntry<String, String>> _gameOptions = [
     const MapEntry(MiniGameLeaderboardService.overallGameId, 'Overall'),
     const MapEntry('ludo', 'Ludo'),
+    const MapEntry('snakes_ladders', 'Snakes & Ladders'),
     const MapEntry('fruit_cutting', 'Fruit Cutting'),
     const MapEntry('plant_vs_zombie', 'Plant Vs Zombie'),
     const MapEntry('pac_man', 'Pac Man'),
@@ -105,9 +107,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 10),
-                      const Expanded(
-                        child: GameText('LEADERBOARD', size: 24),
-                      ),
+                      const Expanded(child: GameText('LEADERBOARD', size: 24)),
                       StreamBuilder<int>(
                         stream: _chatService.streamUnreadCountForRoom(
                           _leaderboardLobbyRoomId,
@@ -163,8 +163,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                       limit: 80,
                     ),
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState ==
-                          ConnectionState.waiting) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
                         return const AppLinearLoader.screen();
                       }
                       final allEntries = snapshot.data ?? [];
@@ -455,7 +454,11 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
         children: [
           Row(
             children: [
-              stat('Your rank', myRank == null ? '—' : '#$myRank', Colors.white),
+              stat(
+                'Your rank',
+                myRank == null ? '—' : '#$myRank',
+                Colors.white,
+              ),
               const SizedBox(width: 8),
               stat(
                 'Your score',
@@ -471,9 +474,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
             children: [
               const Text('🔥', style: TextStyle(fontSize: 20)),
               const SizedBox(width: 6),
-              Expanded(
-                child: Text(line, style: gameFont(15, Colors.white)),
-              ),
+              Expanded(child: Text(line, style: gameFont(15, Colors.white))),
               const SizedBox(width: 8),
               SizedBox(
                 width: 100,
@@ -656,6 +657,9 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
     switch (gameKey) {
       case 'ludo':
         target = const LudoGameScreen();
+        break;
+      case 'snakes_ladders':
+        target = const SnlGameScreen();
         break;
       case 'fruit_cutting':
         target = const FruitCuttingScreen();

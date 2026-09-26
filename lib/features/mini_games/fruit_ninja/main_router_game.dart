@@ -286,7 +286,10 @@ class MainRouterGame extends FlameGame with KeyboardEvents {
       2 *
           (AppConfig.gravity.abs() + AppConfig.acceleration.abs()) *
           // Peak below the HUD (pause/lives/score row).
-          (size.y - AppConfig.objSize * 2 - _hudHeight).clamp(1, double.infinity),
+          (size.y - AppConfig.objSize * 2 - _hudHeight).clamp(
+            1,
+            double.infinity,
+          ),
     );
   }
 

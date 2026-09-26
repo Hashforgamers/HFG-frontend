@@ -12,6 +12,8 @@ import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/theme/chat_palette.dart';
 import 'package:hash/app/modules/chat/views/chat_group_details_view.dart';
 import 'package:hash/app/modules/chat/widgets/ludo_invite_card.dart';
+import 'package:hash/features/mini_games/snakes_ladders/snl_match_screen.dart';
+import 'package:hash/features/mini_games/snakes_ladders/snl_match_service.dart';
 import 'package:hash/app/modules/community/services/community_api.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
@@ -274,6 +276,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     }
     if (message.type == 'ludo_invite') {
       return _buildLudoInviteCard(message: message, isMine: isMine);
+    }
+    if (message.type == 'snl_invite') {
+      return _buildLudoInviteCard(message: message, isMine: isMine, snl: true);
     }
 
     final alignment = isMine ? Alignment.centerRight : Alignment.centerLeft;
@@ -856,13 +861,18 @@ class _ChatRoomViewState extends State<ChatRoomView> {
   Widget _buildLudoInviteCard({
     required ChatMessageModel message,
     required bool isMine,
+    bool snl = false,
   }) {
     final meta = _messageMeta(message);
     final matchId = (meta['match_id'] ?? '').toString().trim();
     final inviterName = (meta['inviter_name'] ?? 'A friend').toString().trim();
     void open() {
       if (matchId.isEmpty) return;
-      Get.to(() => LudoMatchScreen(matchId: matchId));
+      Get.to(
+        () => snl
+            ? SnlMatchScreen(matchId: matchId)
+            : LudoMatchScreen(matchId: matchId),
+      );
     }
 
     return Align(
@@ -879,6 +889,24 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             isMine: isMine,
             timeLabel: _formatTime(message.createdAt),
             onOpen: open,
+            title: snl ? 'SNAKES' : 'LUDO',
+            iconAsset: snl
+                ? 'assets/mini_game_icons/snakes_ladders.png'
+                : 'assets/mini_game_icons/ludo_icon.png',
+            lobby: snl && matchId.isNotEmpty
+                ? SnlMatchService()
+                      .watch(matchId)
+                      .map(
+                        (m) => m == null
+                            ? null
+                            : InviteLobby(
+                                status: m.status,
+                                seats: m.seats,
+                                turn: m.turn,
+                                winners: m.winners,
+                              ),
+                      )
+                : null,
           ),
         ),
       ),

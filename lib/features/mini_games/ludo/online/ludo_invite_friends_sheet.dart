@@ -13,9 +13,17 @@ import '../widgets/ludo_seat_token.dart';
 /// them to a Ludo match. Each invite posts a `ludo_invite` chat message
 /// (which surfaces a notification on the friend's device).
 class LudoInviteFriendsSheet extends StatefulWidget {
-  const LudoInviteFriendsSheet({super.key, required this.matchId});
+  const LudoInviteFriendsSheet({
+    super.key,
+    required this.matchId,
+    this.sendInvite,
+  });
 
   final String matchId;
+
+  /// Sends the invite; defaults to a Ludo invite. Other games (e.g. Snakes &
+  /// Ladders) pass their own chat message sender.
+  final Future<void> Function(ChatUserModel friend, String matchId)? sendInvite;
 
   @override
   State<LudoInviteFriendsSheet> createState() => _LudoInviteFriendsSheetState();
@@ -61,15 +69,14 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
         ),
         // Everyone else on Hash — lets you match with players who aren't
         // already friends.
-        _friends.allPlayers(limit: 200).then(
-          (rows) => rows.map(ChatUserModel.fromMap).toList(),
-        ),
+        _friends
+            .allPlayers(limit: 200)
+            .then((rows) => rows.map(ChatUserModel.fromMap).toList()),
       ]);
 
       if (!mounted) return;
       setState(() {
-        _friendList =
-            (results[0]).whereType<ChatUserModel>().toList();
+        _friendList = (results[0]).whereType<ChatUserModel>().toList();
         _allList = (results[1]).whereType<ChatUserModel>().toList();
         _loading = false;
       });
@@ -87,16 +94,26 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return base;
     return base
-        .where((u) =>
-            u.displayName.toLowerCase().contains(q) ||
-            u.username.toLowerCase().contains(q))
+        .where(
+          (u) =>
+              u.displayName.toLowerCase().contains(q) ||
+              u.username.toLowerCase().contains(q),
+        )
         .toList();
   }
 
   Future<void> _invite(ChatUserModel friend) async {
     setState(() => _inviting.add(friend.uid));
     try {
-      await _chat.sendLudoInviteMessage(friend: friend, matchId: widget.matchId);
+      final send = widget.sendInvite;
+      if (send != null) {
+        await send(friend, widget.matchId);
+      } else {
+        await _chat.sendLudoInviteMessage(
+          friend: friend,
+          matchId: widget.matchId,
+        );
+      }
       if (!mounted) return;
       setState(() {
         _inviting.remove(friend.uid);
@@ -105,9 +122,9 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _inviting.remove(friend.uid));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invite failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Invite failed: $e')));
     }
   }
 
@@ -145,9 +162,7 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          GameText('INVITE PLAYERS', size: 22),
-                        ],
+                        children: [GameText('INVITE PLAYERS', size: 22)],
                       ),
                     ),
                     GameIconButton(
@@ -196,7 +211,10 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
                             hintText: _showEveryone
                                 ? 'Search players'
                                 : 'Search friends',
-                            hintStyle: gameFont(15, GameColors.soft.withValues(alpha: 0.5)),
+                            hintStyle: gameFont(
+                              15,
+                              GameColors.soft.withValues(alpha: 0.5),
+                            ),
                             prefixIcon: const Icon(
                               Icons.search_rounded,
                               color: GameColors.soft,

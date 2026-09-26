@@ -260,7 +260,11 @@ class _MainScreenState extends State<MainScreen>
       color: GameColors.outline,
       borderRadius: BorderRadius.circular(18),
       boxShadow: const [
-        BoxShadow(color: Color(0x80000000), blurRadius: 18, offset: Offset(0, 10)),
+        BoxShadow(
+          color: Color(0x80000000),
+          blurRadius: 18,
+          offset: Offset(0, 10),
+        ),
       ],
     ),
     child: ClipRRect(
@@ -303,9 +307,10 @@ class _MainScreenState extends State<MainScreen>
       );
       if (urgent) {
         token = ScaleTransition(
-          scale: Tween<double>(begin: 1.0, end: 1.12).animate(
-            CurvedAnimation(parent: _bounce, curve: Curves.easeInOut),
-          ),
+          scale: Tween<double>(
+            begin: 1.0,
+            end: 1.12,
+          ).animate(CurvedAnimation(parent: _bounce, curve: Curves.easeInOut)),
           child: token,
         );
       }
@@ -317,7 +322,12 @@ class _MainScreenState extends State<MainScreen>
           color: active ? player.color : GameColors.outline,
           borderRadius: BorderRadius.circular(16),
           boxShadow: active
-              ? [BoxShadow(color: player.color.withValues(alpha: 0.5), blurRadius: 12)]
+              ? [
+                  BoxShadow(
+                    color: player.color.withValues(alpha: 0.5),
+                    blurRadius: 12,
+                  ),
+                ]
               : null,
         ),
         child: Container(
@@ -352,7 +362,9 @@ class _MainScreenState extends State<MainScreen>
                     ),
                     Text(
                       active
-                          ? (game.isAiTurn ? 'Thinking…' : 'Your turn · ${_remaining}s')
+                          ? (game.isAiTurn
+                                ? 'Thinking…'
+                                : 'Your turn · ${_remaining}s')
                           : '$finished/4 home',
                       style: gameFont(
                         11.5,
@@ -488,7 +500,10 @@ class _MainScreenState extends State<MainScreen>
                                   ),
                                 ),
                                 if (i == 0)
-                                  Text('👑', style: TextStyle(fontSize: 28, height: 1)),
+                                  Text(
+                                    '👑',
+                                    style: TextStyle(fontSize: 28, height: 1),
+                                  ),
                               ],
                             ),
                           ),

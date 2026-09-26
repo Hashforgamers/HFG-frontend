@@ -65,7 +65,9 @@ class LudoSeatToken extends StatelessWidget {
 
   Widget _filled() {
     final trimmed = name?.trim() ?? '';
-    final initial = trimmed.isEmpty ? '?' : trimmed.characters.first.toUpperCase();
+    final initial = trimmed.isEmpty
+        ? '?'
+        : trimmed.characters.first.toUpperCase();
     final fallback = icon != null
         ? GameIcon(icon: icon!, size: size * 0.45)
         : GameText(initial, size: size * 0.36);

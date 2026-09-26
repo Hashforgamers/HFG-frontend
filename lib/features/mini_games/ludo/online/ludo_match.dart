@@ -26,8 +26,10 @@ const List<LudoPlayerType> kLudoSeatOrder = [
   LudoPlayerType.red,
 ];
 
-LudoPlayerType seatFromString(String s) =>
-    kLudoSeatOrder.firstWhere((e) => e.name == s, orElse: () => LudoPlayerType.green);
+LudoPlayerType seatFromString(String s) => kLudoSeatOrder.firstWhere(
+  (e) => e.name == s,
+  orElse: () => LudoPlayerType.green,
+);
 
 /// A player occupying a seat.
 class LudoSeatInfo {
@@ -114,26 +116,21 @@ class LudoMatch {
     return null;
   }
 
-  LudoPlayerType? firstEmptySeat() =>
-      kLudoSeatOrder.where((s) => !seats.containsKey(s)).cast<LudoPlayerType?>().firstWhere(
-            (s) => s != null,
-            orElse: () => null,
-          );
+  LudoPlayerType? firstEmptySeat() => kLudoSeatOrder
+      .where((s) => !seats.containsKey(s))
+      .cast<LudoPlayerType?>()
+      .firstWhere((s) => s != null, orElse: () => null);
 
   Map<String, dynamic> toMap() => {
     'id': id,
     'host_uid': hostUid,
     'status': statusToString(status),
-    'seats': {
-      for (final e in seats.entries) e.key.name: e.value.toMap(),
-    },
+    'seats': {for (final e in seats.entries) e.key.name: e.value.toMap()},
     'invited_uids': invitedUids,
     'turn': turn.name,
     'dice': dice,
     'winners': winners.map((e) => e.name).toList(),
-    'pawns': {
-      for (final e in pawns.entries) e.key.name: e.value,
-    },
+    'pawns': {for (final e in pawns.entries) e.key.name: e.value},
     'last_writer_uid': lastWriterUid,
     'version': version,
     'turn_started_at_ms': turnStartedAtMs,
@@ -168,8 +165,9 @@ class LudoMatch {
           const [],
       pawns: {
         for (final e in pawnsRaw.entries)
-          seatFromString(e.key.toString()):
-              (e.value as List).map((v) => (v as num).toInt()).toList(),
+          seatFromString(e.key.toString()): (e.value as List)
+              .map((v) => (v as num).toInt())
+              .toList(),
       },
       lastWriterUid: (m['last_writer_uid'] ?? '').toString(),
       version: (m['version'] as num?)?.toInt() ?? 0,

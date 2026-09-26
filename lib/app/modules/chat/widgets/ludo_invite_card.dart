@@ -12,6 +12,38 @@ import 'package:hash/utils/widgets/game_panel.dart';
 /// (thick outline, 3D lip, glossy header) to match [GameButton].
 ///
 /// It listens to the match document so seats, status and the button stay live.
+/// The lobby facts the card needs, shared by every seat-based game.
+class InviteLobby {
+  const InviteLobby({
+    required this.status,
+    required this.seats,
+    required this.turn,
+    required this.winners,
+  });
+
+  factory InviteLobby.fromLudo(LudoMatch m) => InviteLobby(
+    status: m.status,
+    seats: m.seats,
+    turn: m.turn,
+    winners: m.winners,
+  );
+
+  final LudoMatchStatus status;
+  final Map<LudoPlayerType, LudoSeatInfo> seats;
+  final LudoPlayerType turn;
+  final List<LudoPlayerType> winners;
+
+  bool get isFull => seats.length >= 4;
+  int get seatCount => seats.length;
+
+  LudoPlayerType? seatOf(String uid) {
+    for (final e in seats.entries) {
+      if (e.value.uid == uid) return e.key;
+    }
+    return null;
+  }
+}
+
 class LudoInviteCard extends StatefulWidget {
   const LudoInviteCard({
     super.key,
@@ -20,7 +52,15 @@ class LudoInviteCard extends StatefulWidget {
     required this.isMine,
     required this.timeLabel,
     required this.onOpen,
+    this.lobby,
+    this.title = 'LUDO',
+    this.iconAsset = 'assets/mini_game_icons/ludo_icon.png',
   });
+
+  /// Live lobby for a non-Ludo game; defaults to watching the Ludo match.
+  final Stream<InviteLobby?>? lobby;
+  final String title;
+  final String iconAsset;
 
   final String matchId;
   final String inviterName;
@@ -57,13 +97,17 @@ class _LudoInviteCardState extends State<LudoInviteCard>
     vsync: this,
     duration: const Duration(milliseconds: 900),
   );
-  Stream<LudoMatch?>? _stream;
+  Stream<InviteLobby?>? _stream;
 
   @override
   void initState() {
     super.initState();
     if (widget.matchId.isNotEmpty) {
-      _stream = LudoMatchService().watch(widget.matchId);
+      _stream =
+          widget.lobby ??
+          LudoMatchService()
+              .watch(widget.matchId)
+              .map((m) => m == null ? null : InviteLobby.fromLudo(m));
     }
   }
 
@@ -83,7 +127,7 @@ class _LudoInviteCardState extends State<LudoInviteCard>
     super.dispose();
   }
 
-  _LobbyState _stateOf(AsyncSnapshot<LudoMatch?> snap) {
+  _LobbyState _stateOf(AsyncSnapshot<InviteLobby?> snap) {
     if (_stream == null) return _LobbyState.closed;
     if (!snap.hasData && snap.connectionState == ConnectionState.waiting) {
       return _LobbyState.loading;
@@ -109,7 +153,7 @@ class _LudoInviteCardState extends State<LudoInviteCard>
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<LudoMatch?>(
+    return StreamBuilder<InviteLobby?>(
       stream: _stream,
       builder: (context, snap) {
         final match = snap.data;
@@ -149,7 +193,7 @@ class _LudoInviteCardState extends State<LudoInviteCard>
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const GameText('LUDO', size: 24),
+              GameText(widget.title, size: 24),
               Text(
                 widget.isMine ? 'Your match · 4P' : '4-player match',
                 style: gameFont(12, GameColors.outline.withValues(alpha: 0.7)),
@@ -173,7 +217,7 @@ class _LudoInviteCardState extends State<LudoInviteCard>
     child: ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Image.asset(
-        'assets/mini_game_icons/ludo_icon.png',
+        widget.iconAsset,
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) =>
             const Icon(Icons.casino_rounded, color: Colors.white, size: 24),
@@ -203,7 +247,7 @@ class _LudoInviteCardState extends State<LudoInviteCard>
   }
 
   /// Recessed tray holding the four seat tokens and the summary line.
-  Widget _tray(LudoMatch? match, _LobbyState state) {
+  Widget _tray(InviteLobby? match, _LobbyState state) {
     final winner =
         state == _LobbyState.finished && (match?.winners.isNotEmpty ?? false)
         ? match!.winners.first
@@ -288,7 +332,7 @@ class _LudoInviteCardState extends State<LudoInviteCard>
     return first.isEmpty ? 'Player' : first;
   }
 
-  String _summary(LudoMatch? match, _LobbyState state) {
+  String _summary(InviteLobby? match, _LobbyState state) {
     final count = match?.seatCount ?? 0;
     final open = 4 - count;
     return switch (state) {
@@ -302,7 +346,7 @@ class _LudoInviteCardState extends State<LudoInviteCard>
     };
   }
 
-  String _turnLine(LudoMatch? match, int count) {
+  String _turnLine(InviteLobby? match, int count) {
     final name = match?.seats[match.turn]?.name;
     if (name == null || name.trim().isEmpty) {
       return 'In progress with $count players';
@@ -310,7 +354,7 @@ class _LudoInviteCardState extends State<LudoInviteCard>
     return '${_firstName(name.trim())}’s turn · $count players';
   }
 
-  String _winnerLine(LudoMatch? match) {
+  String _winnerLine(InviteLobby? match) {
     if (match == null || match.winners.isEmpty) return 'Match ended';
     final name = match.seats[match.winners.first]?.name ?? 'A player';
     return '${_firstName(name)} won the match!';
@@ -318,7 +362,7 @@ class _LudoInviteCardState extends State<LudoInviteCard>
 
   Widget _button(
     _LobbyState state,
-    LudoMatch? match,
+    InviteLobby? match,
     bool seated,
     bool enabled,
   ) {

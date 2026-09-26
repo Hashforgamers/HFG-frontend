@@ -206,7 +206,8 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     // through Firestore so every device animates it identically).
     if (match.reactionId > 0) {
       if (_lastReactionId == 0) {
-        _lastReactionId = match.reactionId; // don't replay history on first load
+        _lastReactionId =
+            match.reactionId; // don't replay history on first load
       } else if (match.reactionId != _lastReactionId) {
         _lastReactionId = match.reactionId;
         final option = ludoReactionByKey(match.reactionEmoji);
@@ -216,8 +217,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
           final String label;
           if (seatOf != null) {
             label =
-                match.seats[seatOf]?.name.split(' ').first ??
-                _seatName(seatOf);
+                match.seats[seatOf]?.name.split(' ').first ?? _seatName(seatOf);
           } else if (match.reactionName.trim().isNotEmpty) {
             // Spectator reaction — tag it so players know it's from the crowd.
             label = '${match.reactionName.split(' ').first} 👀';
@@ -540,7 +540,9 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
               overflow: TextOverflow.ellipsis,
               style: gameFont(
                 16,
-                info != null ? Colors.white : GameColors.soft.withValues(alpha: 0.5),
+                info != null
+                    ? Colors.white
+                    : GameColors.soft.withValues(alpha: 0.5),
               ),
             ),
           ),
@@ -569,10 +571,11 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
               builder: (context, c) {
                 const frameX = 8.0; // 4 + 4
                 const frameY = 13.0; // 4 top + 9 lip
-                final side = (c.maxWidth - frameX < c.maxHeight - frameY
-                        ? c.maxWidth - frameX
-                        : c.maxHeight - frameY)
-                    .clamp(0.0, 520.0);
+                final side =
+                    (c.maxWidth - frameX < c.maxHeight - frameY
+                            ? c.maxWidth - frameX
+                            : c.maxHeight - frameY)
+                        .clamp(0.0, 520.0);
                 return Center(
                   child: Container(
                     padding: const EdgeInsets.fromLTRB(4, 4, 4, 9),
@@ -708,7 +711,11 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         color: GameColors.outline,
         borderRadius: BorderRadius.circular(24),
         boxShadow: const [
-          BoxShadow(color: Color(0x80000000), blurRadius: 14, offset: Offset(0, 6)),
+          BoxShadow(
+            color: Color(0x80000000),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
         ],
       ),
       child: Container(
@@ -761,9 +768,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
                     size: 40,
                   ),
                 const SizedBox(width: 10),
-                Flexible(
-                  child: GameText('$winnerName wins!', size: 18),
-                ),
+                Flexible(child: GameText('$winnerName wins!', size: 18)),
               ],
             ),
             const SizedBox(height: 12),

@@ -1022,6 +1022,35 @@ class ChatService extends GetxService with WidgetsBindingObserver {
   Future<void> sendLudoInviteMessage({
     required ChatUserModel friend,
     required String matchId,
+  }) => _sendGameInviteMessage(
+    friend: friend,
+    matchId: matchId,
+    type: 'ludo_invite',
+    pathPrefix: 'ludomatch_',
+    gameName: 'Ludo',
+    emoji: '🎲',
+  );
+
+  /// Snakes & Ladders counterpart of [sendLudoInviteMessage] (`snl_invite`).
+  Future<void> sendSnlInviteMessage({
+    required ChatUserModel friend,
+    required String matchId,
+  }) => _sendGameInviteMessage(
+    friend: friend,
+    matchId: matchId,
+    type: 'snl_invite',
+    pathPrefix: 'snlmatch_',
+    gameName: 'Snakes & Ladders',
+    emoji: '🐍',
+  );
+
+  Future<void> _sendGameInviteMessage({
+    required ChatUserModel friend,
+    required String matchId,
+    required String type,
+    required String pathPrefix,
+    required String gameName,
+    required String emoji,
   }) async {
     final uid = currentUid;
     if (uid == null) {
@@ -1037,12 +1066,14 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     final deepLink = Uri(
       scheme: 'hashforgamers',
       host: 'game',
-      path: '/ludomatch_$safeMatchId',
+      path: '/$pathPrefix$safeMatchId',
     ).toString();
-    final webLink =
-        Uri.https('hashforgamers.com', '/game/ludomatch_$safeMatchId').toString();
+    final webLink = Uri.https(
+      'hashforgamers.com',
+      '/game/$pathPrefix$safeMatchId',
+    ).toString();
     final previewText =
-        '$senderName invited you to a Ludo match 🎲\nTap to join: $deepLink';
+        '$senderName invited you to a $gameName match $emoji\nTap to join: $deepLink';
 
     final roomRef = _roomsRef.doc(roomId);
     final messageRef = roomRef.collection(_messagesCollection).doc();
@@ -1052,7 +1083,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       'sender_id': uid,
       'sender_name': senderName,
       'text': previewText,
-      'type': 'ludo_invite',
+      'type': type,
       'meta': {
         'match_id': safeMatchId,
         'inviter_uid': uid,
@@ -1065,7 +1096,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       'client_created_at': DateTime.now().toIso8601String(),
     });
     await roomRef.set({
-      'last_message': 'Ludo match invite 🎲',
+      'last_message': '$gameName match invite $emoji',
       'last_message_sender_id': uid,
       'last_message_at': FieldValue.serverTimestamp(),
       'updated_at': FieldValue.serverTimestamp(),

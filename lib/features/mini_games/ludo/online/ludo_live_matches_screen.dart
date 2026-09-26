@@ -64,9 +64,7 @@ class _LudoLiveMatchesScreenState extends State<LudoLiveMatchesScreen> {
                         onPressed: () => Navigator.of(context).maybePop(),
                       ),
                       const SizedBox(width: 10),
-                      const Expanded(
-                        child: GameText('LIVE MATCHES', size: 24),
-                      ),
+                      const Expanded(child: GameText('LIVE MATCHES', size: 24)),
                       const GameBadge(label: 'LIVE', dot: _live),
                     ],
                   ),
@@ -115,7 +113,8 @@ class _LudoLiveMatchesScreenState extends State<LudoLiveMatchesScreen> {
 
   Widget _matchCard(LudoMatch match) {
     final hostName =
-        match.seats[match.occupiedSeats.isNotEmpty
+        match
+            .seats[match.occupiedSeats.isNotEmpty
                 ? match.occupiedSeats.first
                 : LudoPlayerType.green]
             ?.name ??
@@ -128,10 +127,7 @@ class _LudoLiveMatchesScreenState extends State<LudoLiveMatchesScreen> {
       header: Row(
         children: [
           Expanded(
-            child: GameText(
-              '${hostName.split(' ').first}’s match',
-              size: 19,
-            ),
+            child: GameText('${hostName.split(' ').first}’s match', size: 19),
           ),
           const GameBadge(label: 'LIVE', dot: Colors.white),
         ],

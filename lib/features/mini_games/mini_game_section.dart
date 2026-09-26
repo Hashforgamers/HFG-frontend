@@ -13,6 +13,7 @@ import 'package:hash/features/mini_games/html_games/views/html_game_player_scree
 import 'package:hash/features/mini_games/html_games/widgets/html_mini_game_card.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
 import 'package:hash/features/mini_games/ludo/ludo_game_screen.dart';
+import 'package:hash/features/mini_games/snakes_ladders/snl_game_screen.dart';
 import 'package:hash/utils/widgets/home_section_title.dart';
 import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
@@ -51,6 +52,16 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
         icon: const AssetImage("assets/mini_game_icons/ludo_icon.png"),
         onTap: () async {
           await Get.to(() => const LudoGameScreen());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'snakes_ladders',
+        title: "Snakes & Ladders",
+        subtitle: "Race to 100 · 2–4 players",
+        icon: const AssetImage("assets/mini_game_icons/snakes_ladders.png"),
+        onTap: () async {
+          await Get.to(() => const SnlGameScreen());
           await _loadScores();
         },
       ),
@@ -130,7 +141,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(
             children: [
-              const HomeSectionTitle(title: 'Mini ', accent: 'Games'),
+              const HomeSectionTitle(title: 'Hash ', accent: 'Arcade'),
               const Spacer(),
               GestureDetector(
                 onTap: () => _showLeaderboard(context, _scoreService),

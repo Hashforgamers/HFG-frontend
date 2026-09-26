@@ -8,6 +8,7 @@ import 'package:flame/components.dart';
 
 class AppConfig {
   static const gravity = -9.81;
+
   /// Fruit/bomb size in logical px (was 50; bumped for easier slicing).
   static const double objSize = 72;
   static const double acceleration = -400;
