@@ -11,6 +11,7 @@ import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/theme/chat_palette.dart';
 import 'package:hash/app/modules/chat/views/chat_group_details_view.dart';
+import 'package:hash/app/modules/chat/widgets/ludo_invite_card.dart';
 import 'package:hash/app/modules/community/services/community_api.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
@@ -856,7 +857,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     required ChatMessageModel message,
     required bool isMine,
   }) {
-    const green = Color(0xFF00DC00);
     final meta = _messageMeta(message);
     final matchId = (meta['match_id'] ?? '').toString().trim();
     final inviterName = (meta['inviter_name'] ?? 'A friend').toString().trim();
@@ -871,94 +871,14 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.sizeOf(context).width * 0.86,
         ),
-        child: GestureDetector(
-          onTap: matchId.isEmpty ? null : open,
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF14231A), Color(0xFF0F1512)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: green.withValues(alpha: 0.4)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: green.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.casino_rounded,
-                        size: 16,
-                        color: green,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Ludo Match Invite',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  isMine
-                      ? 'You invited friends to a Ludo match.'
-                      : '$inviterName invited you to play Ludo 🎲',
-                  style: GoogleFonts.inter(
-                    color: ChatPalette.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: matchId.isEmpty ? null : open,
-                    icon: const Icon(Icons.sports_esports_rounded, size: 16),
-                    label: Text(
-                      isMine ? 'Open lobby' : 'Join match',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: green,
-                      foregroundColor: const Color(0xFF06130B),
-                      disabledBackgroundColor: Colors.white12,
-                      minimumSize: const Size.fromHeight(38),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _formatTime(message.createdAt),
-                  style: GoogleFonts.inter(
-                    color: ChatPalette.textSecondary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: LudoInviteCard(
+            matchId: matchId,
+            inviterName: inviterName,
+            isMine: isMine,
+            timeLabel: _formatTime(message.createdAt),
+            onOpen: open,
           ),
         ),
       ),
