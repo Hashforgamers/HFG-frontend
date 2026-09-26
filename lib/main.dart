@@ -1,3 +1,4 @@
+import 'package:hash/core/navigation/blur_popup_observer.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -110,7 +111,10 @@ class MyApp extends StatelessWidget {
           initialRoute: AppRoutes.SPLASH,
           getPages: AppPages.pages,
           unknownRoute: AppPages.unknownRoute,
-          navigatorObservers: [locator<AnalyticsService>().observer],
+          navigatorObservers: [
+            locator<AnalyticsService>().observer,
+            BlurPopupObserver(),
+          ],
         ),
       ),
     );

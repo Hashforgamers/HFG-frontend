@@ -1,3 +1,4 @@
+import 'package:hash/core/navigation/blur_popup_observer.dart';
 import 'dart:async';
 
 import 'package:clarity_flutter/clarity_flutter.dart';
@@ -117,8 +118,11 @@ class MyApp extends StatelessWidget {
                 theme: AppTheme.dark,
                 initialRoute: AppRoutes.SPLASH,
                 getPages: AppPages.pages,
-          unknownRoute: AppPages.unknownRoute,
-                navigatorObservers: [locator<AnalyticsService>().observer],
+                unknownRoute: AppPages.unknownRoute,
+                navigatorObservers: [
+                  locator<AnalyticsService>().observer,
+                  BlurPopupObserver(),
+                ],
               ),
             ),
           ),
