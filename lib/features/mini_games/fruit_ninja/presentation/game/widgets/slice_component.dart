@@ -14,6 +14,7 @@ class SliceTrailComponent extends Component {
   final Paint paint = Paint()
     ..color = AppColors.white
     ..strokeWidth = 7
+    ..strokeCap = StrokeCap.round
     ..style = PaintingStyle.stroke;
   final Random random = Random();
 

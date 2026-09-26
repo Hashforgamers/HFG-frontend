@@ -11,52 +11,50 @@ import 'package:hash/features/mini_games/fruit_ninja/core/configs/theme/app_colo
 import 'dart:math';
 
 // Defines a component for the fruit slicing effect, using particles to create the visual effect.
+final Random _random = Random();
+const List<Color> _colors = [
+  AppColors.darkOrange,
+  Colors.red,
+  Colors.yellow,
+  Color(0xff00DC00),
+  Colors.blue,
+];
+
 class FruitSliceComponent extends ParticleSystemComponent {
   // Constructor that initializes the particle system with the given position
   FruitSliceComponent(Vector2 position)
     : super(
         // Generates a particle effect
         particle: Particle.generate(
-          count:
-              15, // Number of particles to generate (reduced for performance)
+          count: 10,
           lifespan: 0.5, // Duration each particle stays visible on the screen
           // Defines how each particle is generated
           generator: (i) {
-            final random =
-                Random(); // Random instance for generating varied values
 
-            // List of colors used for particles
-            final colors = [
-              AppColors.darkOrange,
-              Colors.red,
-              Colors.yellow,
-              const Color(0xff00DC00),
-              Colors.blue,
-            ];
 
             // Creates an individual particle with acceleration and speed
             return AcceleratedParticle(
               acceleration: Vector2(
-                (random.nextDouble() - 0.5) *
+                (_random.nextDouble() - 0.5) *
                     25, // Random acceleration on the x-axis
-                (random.nextDouble() - 0.5) *
+                (_random.nextDouble() - 0.5) *
                     25, // Random acceleration on the y-axis
               ),
               speed: Vector2(
-                (random.nextDouble() - 0.5) *
+                (_random.nextDouble() - 0.5) *
                     50, // Random initial speed on the x-axis
-                (random.nextDouble() - 0.5) *
+                (_random.nextDouble() - 0.5) *
                     50, // Random initial speed on the y-axis
               ),
               position: position, // Initial position of the particle
               child: CircleParticle(
                 radius:
                     1 +
-                    random.nextDouble() * 2, // Random radius between 1 and 3
+                    _random.nextDouble() * 2, // Random radius between 1 and 3
                 paint: Paint()
                   ..color =
-                      colors[random.nextInt(
-                        colors.length,
+                      _colors[_random.nextInt(
+                        _colors.length,
                       )], // Random color from the list
               ),
             );

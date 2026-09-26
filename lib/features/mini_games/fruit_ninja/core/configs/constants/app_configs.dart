@@ -8,7 +8,9 @@ import 'package:flame/components.dart';
 
 class AppConfig {
   static const gravity = -9.81;
-  static const double objSize = 50;
+  /// Fruit/bomb size in logical px (was 50; bumped for easier slicing).
+  static const double objSize = 72;
   static const double acceleration = -400;
-  static final Vector2 shapeSize = Vector2.all(50);
+  // A fresh vector each time: a shared static Vector2 is mutable.
+  static Vector2 get shapeSize => Vector2.all(objSize);
 }

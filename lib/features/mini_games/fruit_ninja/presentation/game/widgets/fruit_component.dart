@@ -76,10 +76,8 @@ class FruitComponent extends SpriteComponent
     angle %= 2 * pi; // Keep angle within 0 to 2π.
 
     // Update position based on velocity and gravity.
-    position += Vector2(
-      velocity.x,
-      -(velocity.y * dt - .5 * AppConfig.gravity * dt * dt),
-    );
+    position.x += velocity.x;
+    position.y -= velocity.y * dt - .5 * AppConfig.gravity * dt * dt;
 
     // Update vertical velocity with acceleration and gravity.
     velocity.y += (AppConfig.acceleration + AppConfig.gravity) * dt;
