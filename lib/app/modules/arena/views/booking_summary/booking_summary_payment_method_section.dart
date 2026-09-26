@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/views/booking_design.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_payment_option_chip.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class BookingSummaryPaymentMethodSection extends StatelessWidget {
   final RxString selectedPayment;
@@ -41,7 +42,7 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
             const SizedBox(height: 14),
             BookingSummaryPaymentOptionChip(
               label: walletBalance > 0
-                  ? 'Wallet • ₹${walletBalance.toStringAsFixed(0)}'
+                  ? 'Wallet • ${Money.symbol}${walletBalance.toStringAsFixed(0)}'
                   : 'Wallet',
               icon: Icons.account_balance_wallet_rounded,
               isSelected: selectedPayment.value == 'wallet',
@@ -82,7 +83,7 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
                 ),
                 child: Text(
                   walletTopUpAmount > 0
-                      ? 'Your wallet currently has ₹${walletBalance.toStringAsFixed(2)}. We will add ₹${walletTopUpAmount.toStringAsFixed(2)} to the wallet first, refresh the balance here, and then complete this booking using wallet payment.'
+                      ? 'Your wallet currently has ${Money.symbol}${walletBalance.toStringAsFixed(2)}. We will add ${Money.symbol}${walletTopUpAmount.toStringAsFixed(2)} to the wallet first, refresh the balance here, and then complete this booking using wallet payment.'
                       : walletAppliedAmount > 0
                       ? 'Entire booking will be covered by your wallet balance.'
                       : 'Wallet payment is selected. We will complete this booking using your wallet balance.',

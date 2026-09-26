@@ -217,6 +217,68 @@ class LudoMatchService {
     });
   }
 
+  /// A player quits mid-match. Their seat is removed and the match resolves:
+  /// - only one player left (active game) → that player WINS, match finishes;
+  /// - two or more left → match continues, turn advances if it was the
+  ///   leaver's turn;
+  /// - nobody left → match ends (finished/cancelled) instead of hanging.
+  /// Runs in a transaction so simultaneous leaves resolve consistently.
+  Future<void> leaveMatch(String matchId, LudoPlayerType seat) async {
+    final ref = _col.doc(matchId);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      final data = snap.data();
+      if (!snap.exists || data == null) return;
+      final match = LudoMatch.fromMap(snap.id, data);
+      if (!match.seats.containsKey(seat)) return; // already gone
+
+      final remaining = match.occupiedSeats.where((s) => s != seat).toList();
+
+      final updates = <String, dynamic>{
+        'seats.${seat.name}': FieldValue.delete(),
+        'pawns.${seat.name}': FieldValue.delete(),
+        'last_writer_uid': _uid,
+        'updated_at': FieldValue.serverTimestamp(),
+      };
+
+      if (match.status == LudoMatchStatus.active) {
+        if (remaining.length <= 1) {
+          // Last player standing wins by forfeit (or nobody left → just end).
+          final winners = match.winners.map((e) => e.name).toList();
+          if (remaining.length == 1 &&
+              !winners.contains(remaining.first.name)) {
+            winners.add(remaining.first.name);
+          }
+          updates['winners'] = winners;
+          updates['status'] = statusToString(LudoMatchStatus.finished);
+        } else if (match.turn == seat) {
+          // It was the leaver's turn — hand it to the next remaining player.
+          updates['turn'] = _nextSeatAmong(seat, remaining).name;
+          updates['turn_started_at_ms'] =
+              DateTime.now().millisecondsSinceEpoch;
+        }
+      } else if (match.status == LudoMatchStatus.waiting &&
+          remaining.isEmpty) {
+        updates['status'] = statusToString(LudoMatchStatus.cancelled);
+      }
+
+      tx.update(ref, updates);
+    });
+  }
+
+  /// Next seat after [from] in turn order that is still in [remaining].
+  LudoPlayerType _nextSeatAmong(
+    LudoPlayerType from,
+    List<LudoPlayerType> remaining,
+  ) {
+    final start = kLudoSeatOrder.indexOf(from);
+    for (int i = 1; i <= kLudoSeatOrder.length; i++) {
+      final candidate = kLudoSeatOrder[(start + i) % kLudoSeatOrder.length];
+      if (remaining.contains(candidate)) return candidate;
+    }
+    return remaining.first;
+  }
+
   /// Broadcast an emoji reaction to everyone in the match. [key] is a stable
   /// reaction id (see `kLudoReactions`). This only touches the `reaction_*`
   /// fields (never turn/dice/pawns), so it can be sent on any turn without
@@ -224,13 +286,16 @@ class LudoMatchService {
   /// (e.g. security rules) is swallowed so it never interrupts play.
   Future<void> sendReaction(
     String matchId, {
-    required LudoPlayerType seat,
+    LudoPlayerType? seat,
     required String key,
+    String name = '',
   }) async {
     try {
       await _col.doc(matchId).update({
         'reaction_emoji': key,
-        'reaction_seat': seat.name,
+        // Seated players carry their seat; spectators carry a name instead.
+        'reaction_seat': seat?.name ?? FieldValue.delete(),
+        'reaction_name': name,
         'reaction_id': DateTime.now().millisecondsSinceEpoch,
         'updated_at': FieldValue.serverTimestamp(),
       });

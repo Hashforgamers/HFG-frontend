@@ -8,6 +8,7 @@ import '../../../routes/app_routes.dart';
 import '../controllers/tournaments_controller.dart';
 import '../models/tournament.dart';
 import 'community_theme.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 /// Community tournament discovery — GET /tournaments.
 class TournamentsView extends GetView<TournamentsController> {
@@ -182,7 +183,7 @@ class TournamentsView extends GetView<TournamentsController> {
 String ctCurrency(String code) {
   switch (code.toUpperCase()) {
     case 'INR':
-      return '₹';
+      return '${Money.symbol}';
     case 'USD':
       return '\$';
     case 'EUR':

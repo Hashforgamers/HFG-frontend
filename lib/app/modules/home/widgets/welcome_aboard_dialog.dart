@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class WelcomeAboardDialog extends StatefulWidget {
   /// Performs the claim. Returns `true` only when the bonus was actually
@@ -267,7 +268,7 @@ class _WelcomeAboardDialogState extends State<WelcomeAboardDialog> {
                               ),
                             ),
                             Text(
-                              ' ₹${widget.amountRupees} bonus crate! 🎁',
+                              ' ${Money.symbol}${widget.amountRupees} bonus crate! 🎁',
                               style: const TextStyle(
                                 fontSize: 16,
                                 color: Color(0xff00DC00),

@@ -9,6 +9,7 @@ import '../models/tournament.dart';
 import '../models/host_verification.dart';
 import 'community_theme.dart';
 import 'tournaments_view.dart' show ctAmount, ctCurrency, ctStatus;
+import 'package:hash/core/localization/app_region.dart';
 
 class HostDashboardView extends GetView<HostDashboardController> {
   const HostDashboardView({super.key});
@@ -123,7 +124,7 @@ class HostDashboardView extends GetView<HostDashboardController> {
       Text('TOTAL HOST EARNINGS', style: CT.mono(10)),
       const SizedBox(height: 6),
       Text(
-        '₹${ctAmount(controller.totalCommission)}',
+        '${Money.symbol}${ctAmount(controller.totalCommission)}',
         style: CT.display(38, color: CT.successBright),
       ),
       const SizedBox(height: 8),
@@ -136,7 +137,7 @@ class HostDashboardView extends GetView<HostDashboardController> {
           ),
           const SizedBox(width: 6),
           Text(
-            'From ₹${ctAmount(controller.totalCollection)} collected',
+            'From ${Money.symbol}${ctAmount(controller.totalCollection)} collected',
             style: CT.body(12),
           ),
         ],

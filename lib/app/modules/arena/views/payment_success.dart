@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'booking_design.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class PaymentSuccessScreen extends StatelessWidget {
   const PaymentSuccessScreen({
@@ -44,13 +45,13 @@ class PaymentSuccessScreen extends StatelessWidget {
     if (value.isEmpty) return 'Paid';
     if (value.startsWith('Rs') ||
         value.startsWith('INR') ||
-        value.contains('₹')) {
+        value.contains('${Money.symbol}')) {
       return value;
     }
     final parsed = double.tryParse(value);
     if (parsed == null) return value;
-    if (parsed % 1 == 0) return '₹ ${parsed.toInt()}';
-    return '₹ ${parsed.toStringAsFixed(2)}';
+    if (parsed % 1 == 0) return '${Money.symbol} ${parsed.toInt()}';
+    return '${Money.symbol} ${parsed.toStringAsFixed(2)}';
   }
 
   @override

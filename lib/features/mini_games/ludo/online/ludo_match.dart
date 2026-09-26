@@ -69,6 +69,7 @@ class LudoMatch {
     this.reactionEmoji = '',
     this.reactionSeat,
     this.reactionId = 0,
+    this.reactionName = '',
   });
 
   final String id;
@@ -97,6 +98,9 @@ class LudoMatch {
   final String reactionEmoji;
   final LudoPlayerType? reactionSeat;
   final int reactionId;
+
+  /// Display name of the sender when they have no seat (a spectator).
+  final String reactionName;
 
   bool get isFull => seats.length >= 4;
   int get seatCount => seats.length;
@@ -136,6 +140,7 @@ class LudoMatch {
     'reaction_emoji': reactionEmoji,
     if (reactionSeat != null) 'reaction_seat': reactionSeat!.name,
     'reaction_id': reactionId,
+    'reaction_name': reactionName,
   };
 
   factory LudoMatch.fromMap(String id, Map<String, dynamic> m) {
@@ -174,6 +179,7 @@ class LudoMatch {
           ? null
           : seatFromString(m['reaction_seat'].toString()),
       reactionId: (m['reaction_id'] as num?)?.toInt() ?? 0,
+      reactionName: (m['reaction_name'] ?? '').toString(),
     );
   }
 }

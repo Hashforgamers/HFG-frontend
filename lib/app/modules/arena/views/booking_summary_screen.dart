@@ -37,6 +37,7 @@ import '../../../../core/repositories/model/extra_services_model.dart';
 import '../../../data/services/user_controller.dart';
 import '../../../../core/repositories/model/booking_model.dart';
 import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class BookingSummaryScreen extends StatefulWidget {
   final String selectedCafeName;
@@ -785,7 +786,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
 
     _stage.value = PaymentStage.initiatingGateway;
-    _paymentStatus.value = 'Adding ₹$topUpAmount to wallet...';
+    _paymentStatus.value = 'Adding ${Money.symbol}$topUpAmount to wallet...';
 
     final toppedUp = await walletTopUpController.pay(topUpAmount);
     if (!toppedUp) {

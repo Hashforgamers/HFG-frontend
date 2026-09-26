@@ -14,6 +14,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/core/localization/app_region.dart';
 
 class WalletPage extends StatelessWidget {
   const WalletPage({super.key});
@@ -634,7 +635,7 @@ class _WalletScreenState extends State<WalletScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                "${_isCreditTransaction(transaction) ? '+' : '-'}₹${transaction.amount.toStringAsFixed(2)}",
+                "${_isCreditTransaction(transaction) ? '+' : '-'}${Money.symbol}${transaction.amount.toStringAsFixed(2)}",
                 style: GoogleFonts.inter(
                   color: _isCreditTransaction(transaction)
                       ? const Color(0xff00DC00)
@@ -804,7 +805,7 @@ class _WalletScreenState extends State<WalletScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                "${transaction.type == TransactionType.credit ? '+' : '-'}₹${transaction.amount.toStringAsFixed(2)}",
+                "${transaction.type == TransactionType.credit ? '+' : '-'}${Money.symbol}${transaction.amount.toStringAsFixed(2)}",
                 style: GoogleFonts.inter(
                   color: transaction.type == TransactionType.credit
                       ? const Color(0xff00DC00)
@@ -934,7 +935,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 keyboardType: TextInputType.number,
                 style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
                 decoration: InputDecoration(
-                  hintText: "Enter amount (Min ₹50)",
+                  hintText: "Enter amount (Min ${Money.symbol}50)",
                   hintStyle: GoogleFonts.inter(
                     color: Colors.grey[500],
                     fontSize: 16,
@@ -996,7 +997,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           if (amt == null || amt < 50) {
                             Get.snackbar(
                               "Invalid",
-                              "Minimum top-up is ₹50",
+                              "Minimum top-up is ${Money.symbol}50",
                               backgroundColor: Colors.red,
                               colorText: Colors.white,
                             );

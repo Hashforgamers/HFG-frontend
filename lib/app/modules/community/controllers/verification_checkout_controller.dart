@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../routes/app_routes.dart';
 import '../models/host_program.dart';
 import '../services/community_api.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 /// Backs the "Official Host Verification" checkout screen.
 /// The program (fee) is passed via Get.arguments from onboarding, or fetched.
@@ -59,7 +60,7 @@ class VerificationCheckoutController extends GetxController {
     final s = a == a.roundToDouble()
         ? a.toStringAsFixed(0)
         : a.toStringAsFixed(2);
-    return '₹$s';
+    return '${Money.symbol}$s';
   }
 
   Future<void> pay() async {

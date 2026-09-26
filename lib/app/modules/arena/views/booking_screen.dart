@@ -13,6 +13,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'booking_design.dart';
 import 'booking_summary_screen.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class BookingScreen extends StatefulWidget {
   final String email;
@@ -914,7 +915,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '₹${totalPrice.toInt()}',
+                        '${Money.symbol}${totalPrice.toInt()}',
                         style: GoogleFonts.inter(
                           color: BookingColors.textPrimary,
                           fontSize: 24,
@@ -939,7 +940,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     estimatedDiscountPerSlot > 0)
                   BookingStatusPill(
                     label:
-                        'Save ₹${estimatedDiscountPerSlot.toStringAsFixed(estimatedDiscountPerSlot % 1 == 0 ? 0 : 1)}/slot',
+                        'Save ${Money.symbol}${estimatedDiscountPerSlot.toStringAsFixed(estimatedDiscountPerSlot % 1 == 0 ? 0 : 1)}/slot',
                     tone: BookingPillTone.success,
                     icon: Icons.savings_rounded,
                     dense: true,

@@ -8,6 +8,7 @@ import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:hive/hive.dart';
 import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class HashStoreCartView extends StatefulWidget {
   const HashStoreCartView({super.key});
@@ -241,7 +242,7 @@ class _HashStoreCartViewState extends State<HashStoreCartView> {
                     Row(
                       children: [
                         Text(
-                          "₹$price",
+                          "${Money.symbol}$price",
                           style: GoogleFonts.inter(
                             color: const Color(0xff00DC00),
                             fontSize: 16,

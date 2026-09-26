@@ -8,6 +8,7 @@ import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:hash/app/modules/hash_coin/widgets/hash_coin_icon.dart';
 import '../wallet/controllers/wallet_controller.dart';
 import '../wallet/views/wallet_view.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class RewardsSection extends StatelessWidget {
   final int hashCoin;
@@ -45,7 +46,7 @@ class RewardsSection extends StatelessWidget {
                     errorWidget: (_, _, _) =>
                         const Icon(Icons.error, color: Colors.red),
                   ),
-                  amount: isLoading ? "..." : "₹$walletBalance",
+                  amount: isLoading ? "..." : "${Money.symbol}$walletBalance",
                 ),
                 Positioned(
                   bottom: 0,

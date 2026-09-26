@@ -6,6 +6,7 @@ import 'package:hash/app/modules/hash_store/widgets/hash_store_app_bar.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class HashStoreHomePage extends StatefulWidget {
   const HashStoreHomePage({super.key});
@@ -183,7 +184,7 @@ class _HashStoreHomePageState extends State<HashStoreHomePage> {
                         if (price != null) ...[
                           const SizedBox(height: 8),
                           Text(
-                            "₹$price",
+                            "${Money.symbol}$price",
                             style: GoogleFonts.inter(
                               color: Colors.white,
                               fontSize: 14,

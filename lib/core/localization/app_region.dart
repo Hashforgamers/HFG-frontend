@@ -34,10 +34,6 @@ class AppRegion {
 
   static bool get isUS => current == AppCountry.unitedStates;
 
-  // ---- Currency ----
-  static String get currencyCode => isUS ? 'USD' : 'INR';
-  static String get currencySymbol => isUS ? r'$' : '₹';
-
   /// Locale tag used for number/date formatting (grouping, decimals).
   static String get localeTag => isUS ? 'en_US' : 'en_IN';
 
@@ -55,25 +51,55 @@ class AppRegion {
   static int get nearbyRadiusMeters => isUS ? 40000 : 10000;
 }
 
-/// Locale-aware currency formatting. Replaces scattered `'₹$amount'` strings.
+/// Currency formatting driven by the **money's own currency**, not the device
+/// locale.
 ///
-/// Note: this formats the *display* only — it does not convert values between
-/// currencies. Actual pricing/FX is a backend/business concern.
+/// Important: a symbol swap alone is misleading — ₹30 is not $30. The symbol
+/// therefore follows the currency the amount is actually denominated in. Today
+/// the app settles entirely in INR (backend + Razorpay), so [settlementCurrency]
+/// is `INR` and amounts render as ₹ everywhere, regardless of the phone's
+/// locale. When the backend can hold/charge USD (the Stripe workstream), pass
+/// `currency: 'USD'` for those amounts (or flip [settlementCurrency]) and they
+/// render as $ — the value itself must already be in that currency; this class
+/// never does FX conversion.
 class Money {
   Money._();
 
-  /// Format [amount] with the current region's symbol and grouping.
-  /// By default whole numbers show no decimals and fractional values show two.
-  static String format(num amount, {int? decimals}) {
-    final digits = decimals ?? (amount % 1 == 0 ? 0 : 2);
-    final formatter = NumberFormat.currency(
-      locale: AppRegion.localeTag,
-      symbol: AppRegion.currencySymbol,
-      decimalDigits: digits,
-    );
-    return formatter.format(amount);
+  /// The currency the app actually holds/charges in today.
+  static const String settlementCurrency = 'INR';
+
+  static String _symbolFor(String code) {
+    switch (code.toUpperCase()) {
+      case 'USD':
+        return r'$';
+      case 'INR':
+      default:
+        return '₹';
+    }
   }
 
-  /// Just the current region's currency symbol (₹ / $).
-  static String get symbol => AppRegion.currencySymbol;
+  static String _localeFor(String code) {
+    switch (code.toUpperCase()) {
+      case 'USD':
+        return 'en_US';
+      case 'INR':
+      default:
+        return 'en_IN';
+    }
+  }
+
+  /// The symbol of the app's settlement currency (₹ today).
+  static String get symbol => _symbolFor(settlementCurrency);
+
+  /// Format [amount], which is assumed to already be in [currency] (defaults to
+  /// the settlement currency). Whole numbers show no decimals by default.
+  static String format(num amount, {int? decimals, String? currency}) {
+    final code = (currency ?? settlementCurrency);
+    final digits = decimals ?? (amount % 1 == 0 ? 0 : 2);
+    return NumberFormat.currency(
+      locale: _localeFor(code),
+      symbol: _symbolFor(code),
+      decimalDigits: digits,
+    ).format(amount);
+  }
 }

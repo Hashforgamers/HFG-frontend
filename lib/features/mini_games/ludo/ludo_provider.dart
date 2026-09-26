@@ -523,6 +523,25 @@ class LudoProvider extends ChangeNotifier {
     _pushOnline();
   }
 
+  /// Offline (AI/local) countdown timeout: pass the current human turn along.
+  /// Never fires online (that path has its own skip), during an AI turn, or
+  /// mid-roll/move.
+  void skipLocalTurn() {
+    if (_online ||
+        isAiTurn ||
+        _isMoving ||
+        _diceStarted ||
+        _gameState == LudoGameState.finish ||
+        winners.length >= 3) {
+      return;
+    }
+    for (final p in players) {
+      p.highlightAllPawns(false);
+    }
+    nextTurn();
+    notifyListeners();
+  }
+
   ///Next turn will be called when the player finish the turn
   void nextTurn() {
     if (winners.length >= 3) {

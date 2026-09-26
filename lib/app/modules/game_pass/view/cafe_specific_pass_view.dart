@@ -18,6 +18,7 @@ import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 import '../../../../utils/widgets/bounce_tap_widget.dart';
 import '../../../../utils/widgets/loader.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class CafeSpecificPassView extends StatefulWidget {
   final TabController tabController;
@@ -304,7 +305,7 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
                                   ),
                                 ),
                                 Text(
-                                  '₹${pass.price.toStringAsFixed(0)}',
+                                  '${Money.symbol}${pass.price.toStringAsFixed(0)}',
                                   style: GoogleFonts.inter(
                                     color: Colors.white,
                                     fontSize: 18,

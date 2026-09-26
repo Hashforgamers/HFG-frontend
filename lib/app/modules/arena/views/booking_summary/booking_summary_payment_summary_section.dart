@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/views/booking_design.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class BookingSummaryPaymentSummarySection extends StatelessWidget {
   final double totalPrice;
@@ -140,7 +141,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '₹${dueNow.toStringAsFixed(2)}',
+                  '${Money.symbol}${dueNow.toStringAsFixed(2)}',
                   style: GoogleFonts.inter(
                     fontSize: 30,
                     fontWeight: FontWeight.w800,
@@ -188,7 +189,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
                 Expanded(
                   child: _miniMetric(
                     'Grand Total',
-                    '₹${totalPrice.toStringAsFixed(2)}',
+                    '${Money.symbol}${totalPrice.toStringAsFixed(2)}',
                     BookingColors.textPrimary,
                   ),
                 ),
@@ -196,7 +197,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
                 Expanded(
                   child: _miniMetric(
                     'You Save',
-                    '₹${savings.toStringAsFixed(2)}',
+                    '${Money.symbol}${savings.toStringAsFixed(2)}',
                     BookingColors.success,
                   ),
                 ),
@@ -205,7 +206,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
                   Expanded(
                     child: _miniMetric(
                       'Wallet',
-                      '₹${walletAppliedAmount.toStringAsFixed(2)}',
+                      '${Money.symbol}${walletAppliedAmount.toStringAsFixed(2)}',
                       _wallet,
                     ),
                   ),
@@ -231,7 +232,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
   }
 
   Widget _buildSummaryLine(_SummaryLine line) {
-    final prefix = line.isDeduction ? '-₹' : '₹';
+    final prefix = line.isDeduction ? '-${Money.symbol}' : '${Money.symbol}';
     return _paymentRow(
       line.label,
       '$prefix${line.amount.toStringAsFixed(2)}',

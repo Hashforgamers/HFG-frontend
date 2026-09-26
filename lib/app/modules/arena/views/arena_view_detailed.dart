@@ -30,6 +30,7 @@ import 'package:hash/utils/widgets/loader.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:hash/app/modules/home/widgets/home_design.dart';
 import '../controllers/games_controller.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class ArenaDetailView extends StatefulWidget {
   final String title;
@@ -2616,7 +2617,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                           if (startPrice > 0) ...[
                                             const SizedBox(height: 4),
                                             Text(
-                                              'Starts at ₹${startPrice.toStringAsFixed(startPrice % 1 == 0 ? 0 : 1)}/hr',
+                                              'Starts at ${Money.symbol}${startPrice.toStringAsFixed(startPrice % 1 == 0 ? 0 : 1)}/hr',
                                               style: GoogleFonts.inter(
                                                 color: Colors.white70,
                                                 fontSize: 11,
@@ -3651,7 +3652,7 @@ class _PassCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '₹${price.toStringAsFixed(0)}',
+                              '${Money.symbol}${price.toStringAsFixed(0)}',
                               style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 16,

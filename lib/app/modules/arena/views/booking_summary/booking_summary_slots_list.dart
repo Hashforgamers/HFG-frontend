@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/views/booking_design.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class BookingSummarySlotsList extends StatefulWidget {
   final List<Map<String, dynamic>> selectedSlots;
@@ -85,7 +86,7 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                   borderRadius: BorderRadius.circular(BookingRadius.pill),
                 ),
                 child: Text(
-                  '₹${totalPrice.toStringAsFixed(0)}',
+                  '${Money.symbol}${totalPrice.toStringAsFixed(0)}',
                   style: GoogleFonts.inter(
                     color: BookingColors.success,
                     fontSize: 13,
@@ -180,7 +181,7 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '₹${slotPrice.toStringAsFixed(0)}',
+                        '${Money.symbol}${slotPrice.toStringAsFixed(0)}',
                         style: GoogleFonts.inter(
                           color: BookingColors.textPrimary,
                           fontSize: 13,

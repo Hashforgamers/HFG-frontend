@@ -21,6 +21,7 @@ import 'package:hash/core/utils/haptics.dart';
 
 import '../../../../utils/widgets/loader.dart';
 import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class GlobalPassView extends StatefulWidget {
   final TabController tabController;
@@ -349,7 +350,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
                               ),
                             ),
                             Text(
-                              '₹${pass.price.toStringAsFixed(0)}',
+                              '${Money.symbol}${pass.price.toStringAsFixed(0)}',
                               style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 18,

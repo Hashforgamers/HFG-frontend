@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/views/booking_design.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class BookingSummaryBottomBar extends StatelessWidget {
   final double totalPrice;
@@ -42,7 +43,7 @@ class BookingSummaryBottomBar extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '₹${totalPrice.toStringAsFixed(2)}',
+                  '${Money.symbol}${totalPrice.toStringAsFixed(2)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(

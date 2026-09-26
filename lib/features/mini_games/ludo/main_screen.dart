@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'ludo_score_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:hash/utils/widgets/home_section_title.dart';
 import 'package:hash/utils/widgets/hash_wordmark.dart';
@@ -10,6 +11,7 @@ import 'package:hash/features/mini_games/ludo/widgets/dice_widget.dart';
 import 'package:hash/features/mini_games/ludo/widgets/ludo_reactions.dart';
 import 'package:provider/provider.dart';
 
+import 'audio.dart';
 import 'constants.dart';
 import 'ludo_provider.dart';
 
@@ -20,13 +22,78 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen>
+    with SingleTickerProviderStateMixin {
   LudoProvider? _game;
   bool _resultRecorded = false;
 
   final ValueNotifier<LudoReactionEvent?> _reactionNotifier =
       ValueNotifier<LudoReactionEvent?>(null);
   int _reactionSeq = 0;
+
+  // Per-turn countdown (offline AI/local play), mirroring the online match.
+  static const int _turnSeconds = 30;
+  Timer? _ticker;
+  late final AnimationController _bounce;
+  LudoPlayerType? _lastSeat;
+  int _turnStartMs = 0;
+  int _remaining = _turnSeconds;
+
+  // The signed-in user's Google photo, shown on the "You" (green) card.
+  String? _myPhoto;
+
+  @override
+  void initState() {
+    super.initState();
+    _myPhoto = FirebaseAuth.instance.currentUser?.photoURL;
+    _bounce = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    )..repeat(reverse: true);
+    _turnStartMs = DateTime.now().millisecondsSinceEpoch;
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
+  }
+
+  void _onTick() {
+    final game = _game;
+    if (!mounted || game == null) return;
+    if (game.gameState == LudoGameState.finish || game.winners.length >= 3) {
+      return;
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    // Reset the clock whenever the active seat changes.
+    final seat = game.currentTurnSeat;
+    if (seat != _lastSeat) {
+      _lastSeat = seat;
+      _turnStartMs = now;
+      Audio.stopTicking();
+    }
+    _remaining = (_turnSeconds - ((now - _turnStartMs) / 1000).floor()).clamp(
+      0,
+      _turnSeconds,
+    );
+
+    final humanTurn =
+        !game.isAiTurn &&
+        !game.diceStarted &&
+        (game.gameState == LudoGameState.throwDice ||
+            game.gameState == LudoGameState.pickPawn);
+
+    // Clock-ticking sound through the final 15 seconds of a human's turn.
+    if (game.soundEnabled && humanTurn && _remaining <= 15 && _remaining > 0) {
+      Audio.startTicking();
+    } else {
+      Audio.stopTicking();
+    }
+
+    // Only a human turn times out; AI turns resolve on their own quickly.
+    if (_remaining <= 0 && humanTurn) {
+      _turnStartMs = now; // avoid repeated skips
+      Audio.stopTicking();
+      game.skipLocalTurn();
+    }
+    setState(() {});
+  }
 
   void _onReactionTap(LudoReactionOption option) {
     _reactionSeq++;
@@ -64,6 +131,9 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
+    _ticker?.cancel();
+    Audio.stopTicking();
+    _bounce.dispose();
     _game?.removeListener(_recordResult);
     _reactionNotifier.dispose();
     super.dispose();
@@ -119,100 +189,99 @@ class _MainScreenState extends State<MainScreen> {
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: 560),
-                child: LayoutBuilder(
-                  builder: (context, constraints) => SingleChildScrollView(
-                    padding: EdgeInsets.fromLTRB(18, 12, 18, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: [
-                            HomeIconAction(
-                              icon: Icons.arrow_back_ios_new_rounded,
-                              label: 'Game modes',
-                              onTap: () => Navigator.of(context).maybePop(),
-                              size: 42,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          HomeIconAction(
+                            icon: Icons.arrow_back_ios_new_rounded,
+                            label: 'Game modes',
+                            onTap: () => Navigator.of(context).maybePop(),
+                            size: 42,
+                          ),
+                          Spacer(),
+                          HashWordmark(
+                            fontSize: 20,
+                            letterSpacing: 5,
+                            accentColor: HomeTokens.green,
+                          ),
+                          Spacer(),
+                          HomeIconAction(
+                            icon: Icons.restart_alt_rounded,
+                            label: 'New game',
+                            onTap: _newGame,
+                            size: 42,
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: HomeSectionTitle(
+                              title: 'Ludo ',
+                              accent: 'Arena',
                             ),
-                            Spacer(),
-                            HashWordmark(
-                              fontSize: 20,
-                              letterSpacing: 5,
-                              accentColor: HomeTokens.green,
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 7,
                             ),
-                            Spacer(),
-                            HomeIconAction(
-                              icon: Icons.restart_alt_rounded,
-                              label: 'New game',
-                              onTap: _newGame,
-                              size: 42,
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: HomeSectionTitle(
-                                title: 'Ludo ',
-                                accent: 'Arena',
+                            decoration: BoxDecoration(
+                              color: HomeTokens.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: HomeTokens.green.withValues(alpha: 0.25),
                               ),
                             ),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 7,
-                              ),
-                              decoration: BoxDecoration(
-                                color: HomeTokens.green.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: HomeTokens.green.withValues(
-                                    alpha: 0.25,
-                                  ),
+                            child: Text(
+                              game.againstAi
+                                  ? 'SOLO · VS AI'
+                                  : 'LOCAL · 4 PLAYERS',
+                              style: HomeTokens.eyebrow(
+                                HomeTokens.green,
+                              ).copyWith(fontSize: 9, letterSpacing: 0.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      _playerRow(LudoPlayerType.green, LudoPlayerType.yellow),
+                      SizedBox(height: 8),
+                      // Board flexes to fill remaining space so the whole
+                      // screen fits without scrolling.
+                      Expanded(
+                        child: Center(
+                          child: LayoutBuilder(
+                            builder: (context, c) {
+                              final side = c.maxWidth < c.maxHeight
+                                  ? c.maxWidth
+                                  : c.maxHeight;
+                              return HomeCard(
+                                padding: EdgeInsets.all(8),
+                                child: BoardWidget(
+                                  size: side - 32,
+                                  showTurnIndicator: false,
                                 ),
-                              ),
-                              child: Text(
-                                game.againstAi
-                                    ? 'SOLO · VS AI'
-                                    : 'LOCAL · 4 PLAYERS',
-                                style: HomeTokens.eyebrow(
-                                  HomeTokens.green,
-                                ).copyWith(fontSize: 9, letterSpacing: 0.5),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          game.againstAi
-                              ? 'You play Green. Best placement counts.'
-                              : 'Pass & play · Unranked local game',
-                          style: HomeTokens.body(
-                            HomeTokens.textSecondary,
-                            size: 12,
+                              );
+                            },
                           ),
                         ),
-                        SizedBox(height: 20),
-                        _playerRow(LudoPlayerType.green, LudoPlayerType.yellow),
-                        SizedBox(height: 12),
-                        HomeCard(
-                          padding: EdgeInsets.all(8),
-                          child: BoardWidget(
-                            size: constraints.maxWidth - 52,
-                            showTurnIndicator: false,
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        _playerRow(LudoPlayerType.red, LudoPlayerType.blue),
-                        SizedBox(height: 18),
-                        _turnControl(),
-                        SizedBox(height: 14),
-                        LudoReactionBar(
-                          onSelected: _onReactionTap,
-                          padding: EdgeInsets.zero,
-                        ),
-                      ],
-                    ),
+                      ),
+                      SizedBox(height: 8),
+                      _playerRow(LudoPlayerType.red, LudoPlayerType.blue),
+                      SizedBox(height: 10),
+                      _turnControl(),
+                      SizedBox(height: 10),
+                      LudoReactionBar(
+                        onSelected: _onReactionTap,
+                        padding: EdgeInsets.zero,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -258,18 +327,74 @@ class _MainScreenState extends State<MainScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: player.color.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                active ? Icons.person_rounded : Icons.person_outline_rounded,
-                color: player.color,
-                size: 21,
-              ),
+            Builder(
+              builder: (_) {
+                final showTimer = active && !game.isAiTurn;
+                final urgent = showTimer && _remaining <= 15;
+                final ringColor = urgent
+                    ? const Color(0xFFFF4D4D)
+                    : player.color;
+                Widget box = SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (showTimer)
+                        SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: CircularProgressIndicator(
+                            value: (_remaining / _turnSeconds).clamp(0.0, 1.0),
+                            strokeWidth: 3,
+                            valueColor: AlwaysStoppedAnimation(ringColor),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.10,
+                            ),
+                          ),
+                        ),
+                      Container(
+                        width: 32,
+                        height: 32,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: player.color.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child:
+                            (type == LudoPlayerType.green &&
+                                game.againstAi &&
+                                (_myPhoto?.isNotEmpty ?? false))
+                            ? Image.network(
+                                _myPhoto!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Icon(
+                                  Icons.person_rounded,
+                                  color: player.color,
+                                  size: 21,
+                                ),
+                              )
+                            : Icon(
+                                active
+                                    ? Icons.person_rounded
+                                    : Icons.person_outline_rounded,
+                                color: player.color,
+                                size: 21,
+                              ),
+                      ),
+                    ],
+                  ),
+                );
+                if (urgent) {
+                  box = ScaleTransition(
+                    scale: Tween<double>(begin: 1.0, end: 1.12).animate(
+                      CurvedAnimation(parent: _bounce, curve: Curves.easeInOut),
+                    ),
+                    child: box,
+                  );
+                }
+                return box;
+              },
             ),
             SizedBox(width: 9),
             Expanded(
@@ -291,10 +416,16 @@ class _MainScreenState extends State<MainScreen> {
                   SizedBox(height: 3),
                   Text(
                     active
-                        ? (game.isAiTurn ? 'THINKING…' : 'YOUR TURN')
+                        ? (game.isAiTurn
+                              ? 'THINKING…'
+                              : 'YOUR TURN · ${_remaining}s')
                         : '$finished / 4 finished',
                     style: GoogleFonts.inter(
-                      color: active ? player.color : HomeTokens.textSecondary,
+                      color: (active && !game.isAiTurn && _remaining <= 15)
+                          ? const Color(0xFFFF4D4D)
+                          : (active
+                                ? player.color
+                                : HomeTokens.textSecondary),
                       fontSize: 9,
                       fontWeight: FontWeight.w600,
                     ),

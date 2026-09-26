@@ -10,6 +10,7 @@ import '../../../data/models/wallet_model.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 /// WalletController manages wallet operations including balance fetching,
 /// top-up, and withdrawal functionality with proper error handling and analytics.
@@ -350,7 +351,7 @@ class WalletController extends GetxController {
 
     debugPrint('claimDropCrate exhausted retries: $lastError');
     _showErrorMessage(
-      "Couldn't claim your ₹$welcomeBonusAmount bonus. Please try again.",
+      "Couldn't claim your ${Money.symbol}$welcomeBonusAmount bonus. Please try again.",
     );
     return false;
   }
@@ -451,7 +452,7 @@ class WalletController extends GetxController {
 
   /// Format balance for display
   String get formattedBalance {
-    return '₹${balance.toStringAsFixed(2)}';
+    return '${Money.symbol}${balance.toStringAsFixed(2)}';
   }
 
   // Private helper methods

@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import '../controllers/create_tournament_controller.dart';
 import '../services/tournament_banner_service.dart';
 import 'community_theme.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class CreateTournamentView extends GetView<CreateTournamentController> {
   const CreateTournamentView({super.key});
@@ -72,7 +73,7 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                       _numberPresets(
                         controller.entryFee,
                         const [0, 50, 100, 200],
-                        prefix: '₹',
+                        prefix: '${Money.symbol}',
                         onSelected: controller.setEntryFee,
                       ),
                       const SizedBox(height: 12),
@@ -89,7 +90,7 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                         children: [
                           Expanded(
                             child: _field(
-                              'Entry fee (₹)',
+                              'Entry fee (${Money.symbol})',
                               controller.entryFee,
                               keyboard: const TextInputType.numberWithOptions(
                                 decimal: true,

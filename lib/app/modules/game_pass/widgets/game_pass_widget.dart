@@ -13,6 +13,7 @@ import 'package:hash/core/utils/haptics.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'dart:convert';
+import 'package:hash/core/localization/app_region.dart';
 
 class VendorPassesWidget extends StatefulWidget {
   final List<GetVendorPassesModel> vendorPasses;
@@ -230,7 +231,7 @@ class _VendorPassesWidgetState extends State<VendorPassesWidget> {
               ),
               const SizedBox(height: 6),
               Text(
-                '₹${(pass.price ?? 0).toStringAsFixed(0)} • ${pass.daysValid ?? 0} days',
+                '${Money.symbol}${(pass.price ?? 0).toStringAsFixed(0)} • ${pass.daysValid ?? 0} days',
                 style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
               ),
               if ((pass.description ?? '').trim().isNotEmpty) ...[

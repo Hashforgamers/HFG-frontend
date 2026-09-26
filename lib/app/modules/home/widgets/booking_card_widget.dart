@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../utils/widgets/vertical_dotted_line.dart';
 import '../../arena/views/past_booking_screen_detail.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class BookingCard extends StatelessWidget {
   final String gameName;
@@ -58,7 +59,7 @@ class BookingCard extends StatelessWidget {
                 height: 200, // Set height for QR code
                 child: QrImageView(
                   data:
-                      'Booking ID: $bookingId\nGame: $gameName\nLocation: $location\nTime: $startTime - $endTime\nPrice: ₹${price.toStringAsFixed(2)}\nStatus: $status',
+                      'Booking ID: $bookingId\nGame: $gameName\nLocation: $location\nTime: $startTime - $endTime\nPrice: ${Money.symbol}${price.toStringAsFixed(2)}\nStatus: $status',
                   version: QrVersions.auto,
                   foregroundColor: Colors.white,
                 ),

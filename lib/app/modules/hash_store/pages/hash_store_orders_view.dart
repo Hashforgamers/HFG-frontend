@@ -9,6 +9,7 @@ import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 import '../../../data/services/user_controller.dart';
 import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class HashStoreOrdersView extends StatefulWidget {
   const HashStoreOrdersView({super.key});
@@ -172,7 +173,7 @@ class _HashStoreOrdersViewState extends State<HashStoreOrdersView> {
                       ),
                     ),
                     Text(
-                      "₹$price",
+                      "${Money.symbol}$price",
                       style: GoogleFonts.inter(
                         color: const Color(0xff00DC00),
                         fontSize: 16,

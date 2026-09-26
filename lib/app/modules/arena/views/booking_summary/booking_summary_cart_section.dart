@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/views/booking_design.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class BookingSummaryCartSection extends StatelessWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -81,7 +82,7 @@ class BookingSummaryCartSection extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    '₹${total.toStringAsFixed(2)}',
+                    '${Money.symbol}${total.toStringAsFixed(2)}',
                     style: GoogleFonts.inter(
                       color: BookingColors.textPrimary,
                       fontWeight: FontWeight.w700,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class TournamentDetailView extends StatelessWidget {
   const TournamentDetailView({super.key});
@@ -106,7 +107,7 @@ class TournamentDetailView extends StatelessWidget {
               style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
             Text(
-              '₹ $amount',
+              '${Money.symbol} $amount',
               style: GoogleFonts.inter(color: Colors.yellow, fontSize: 14),
             ),
           ],
@@ -301,7 +302,7 @@ class OverviewTab extends StatelessWidget {
               style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
             ),
             Text(
-              '₹ $amount',
+              '${Money.symbol} $amount',
               style: GoogleFonts.inter(color: Colors.yellow, fontSize: 14),
             ),
           ],

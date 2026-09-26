@@ -8,6 +8,7 @@ import '../controllers/host_onboarding_controller.dart';
 import '../models/host_program.dart';
 import '../models/host_verification.dart';
 import 'community_theme.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 /// Host Onboarding — value proposition screen.
 /// Wired to GET /hosts/program (fee + tiers) and GET /hosts/me/verification
@@ -539,7 +540,7 @@ class _FeatureGrid extends StatelessWidget {
 String _currencySymbol(String code) {
   switch (code.toUpperCase()) {
     case 'INR':
-      return '₹';
+      return '${Money.symbol}';
     case 'USD':
       return '\$';
     case 'EUR':

@@ -10,6 +10,7 @@ import '../controllers/cart_controller.dart';
 import '../controllers/fetch_products_by_id_controller.dart';
 import '../products_model.dart';
 import 'cart_view.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class ProductDetailView extends StatefulWidget {
   final String productId;
@@ -136,7 +137,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     Text(
-                                      '₹${(product.price + 122).toStringAsFixed(2)}',
+                                      '${Money.symbol}${(product.price + 122).toStringAsFixed(2)}',
                                       style: GoogleFonts.inter(
                                         color: Colors.grey,
                                         fontSize: 13,
@@ -146,7 +147,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                     ),
                                     const SizedBox(width: 10),
                                     Text(
-                                      '₹${product.price.toStringAsFixed(2)}',
+                                      '${Money.symbol}${product.price.toStringAsFixed(2)}',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xff00DC00),
                                         fontSize: 18,

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:provider/provider.dart';
 
+import '../audio.dart';
 import '../constants.dart';
 import '../ludo_provider.dart';
 import '../ludo_score_service.dart';
@@ -116,6 +117,19 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         _lastSkippedTurnMs = match.turnStartedAtMs;
         _provider.forceAdvanceExpiredTurn();
       }
+
+      // Clock-ticking sound through the final 15s of my own turn.
+      final remaining = _remainingSeconds(match);
+      if (_provider.soundEnabled &&
+          _provider.isMyTurn &&
+          remaining <= 15 &&
+          remaining > 0) {
+        Audio.startTicking();
+      } else {
+        Audio.stopTicking();
+      }
+    } else {
+      Audio.stopTicking();
     }
     setState(() {}); // refresh the countdown display
   }
@@ -196,13 +210,21 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         if (option != null) {
           Haptics.light();
           final seatOf = match.reactionSeat;
-          final name = seatOf != null
-              ? (match.seats[seatOf]?.name.split(' ').first ?? _seatName(seatOf))
-              : '';
+          final String label;
+          if (seatOf != null) {
+            label =
+                match.seats[seatOf]?.name.split(' ').first ??
+                _seatName(seatOf);
+          } else if (match.reactionName.trim().isNotEmpty) {
+            // Spectator reaction — tag it so players know it's from the crowd.
+            label = '${match.reactionName.split(' ').first} 👀';
+          } else {
+            label = '';
+          }
           _reactionNotifier.value = LudoReactionEvent(
             option: option,
             id: match.reactionId,
-            label: name,
+            label: label,
           );
         }
       }
@@ -217,15 +239,24 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
 
   void _sendReaction(LudoReactionOption option) {
     final seat = _mySeat;
-    if (seat == null) return;
+    // Seated players react from their seat; spectators react with their name.
+    final name = seat == null
+        ? (FirebaseAuth.instance.currentUser?.displayName ?? 'Spectator')
+        : '';
     unawaited(
-      _service.sendReaction(widget.matchId, seat: seat, key: option.key),
+      _service.sendReaction(
+        widget.matchId,
+        seat: seat,
+        key: option.key,
+        name: name,
+      ),
     );
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    Audio.stopTicking();
     _bounce.dispose();
     _reactionNotifier.dispose();
     _sub?.cancel();
@@ -282,17 +313,79 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: _provider,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0B0D12),
-        body: Stack(
-          children: [
-            const _Backdrop(),
-            SafeArea(child: _body()),
-            LudoReactionLayer(listenable: _reactionNotifier),
-          ],
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _leaveAndExit();
+        },
+        child: Scaffold(
+          backgroundColor: const Color(0xFF0B0D12),
+          body: Stack(
+            children: [
+              const _Backdrop(),
+              SafeArea(child: _body()),
+              LudoReactionLayer(listenable: _reactionNotifier),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  /// Leaving a live match forfeits: a seated player quits (the service resolves
+  /// win/continue/end), spectators and finished matches just close.
+  Future<void> _leaveAndExit() async {
+    final match = _match;
+    final seat = _mySeat;
+    final over =
+        match == null ||
+        match.status == LudoMatchStatus.finished ||
+        match.status == LudoMatchStatus.cancelled;
+
+    if (widget.spectate || seat == null || over) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
+    final onePlayerLeft = match.seatCount <= 2;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF14161C),
+        title: const Text(
+          'Leave match?',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+        ),
+        content: Text(
+          onePlayerLeft
+              ? 'If you leave now, your opponent wins the match.'
+              : 'You’ll forfeit and the others will keep playing without you.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(foregroundColor: Colors.white70),
+            child: const Text('Keep playing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFFF4D4D)),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await _service.leaveMatch(widget.matchId, seat);
+    } catch (_) {
+      // Best-effort; never trap the user in the screen.
+    }
+    // Forfeiting shouldn't offer a rejoin afterwards.
+    unawaited(_service.clearActiveMatch(widget.matchId));
+    if (mounted) Navigator.of(context).pop();
   }
 
   Widget _body() {
@@ -326,7 +419,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       child: Row(
         children: [
           IconButton(
-            onPressed: () => Navigator.of(context).maybePop(),
+            onPressed: _leaveAndExit,
             icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
           ),
           const Text(
@@ -571,10 +664,10 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         ),
         _diceTray(),
         const SizedBox(height: 12),
-        if (match.status == LudoMatchStatus.active && _mySeat != null)
-          LudoReactionBar(onSelected: _sendReaction)
-        else if (widget.spectate && match.status == LudoMatchStatus.active)
-          _spectatorHint(),
+        // Both seated players and spectators can react.
+        if (match.status == LudoMatchStatus.active &&
+            (_mySeat != null || widget.spectate))
+          LudoReactionBar(onSelected: _sendReaction),
         const SizedBox(height: 10),
         if (match.status == LudoMatchStatus.finished) _finishedOverlay(match),
       ],
@@ -755,29 +848,6 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         ],
       ),
       child: const SizedBox(width: 56, height: 56, child: DiceWidget()),
-    );
-  }
-
-  Widget _spectatorHint() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.visibility_rounded, size: 16, color: Colors.white54),
-          SizedBox(width: 8),
-          Text(
-            'You’re watching — live spectator mode',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-        ],
-      ),
     );
   }
 

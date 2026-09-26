@@ -1,4 +1,5 @@
 import 'package:hash/app/modules/tournaments_section/models/tournament_team_model.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 enum TournamentStatus { upcoming, live, completed, unknown }
 
@@ -275,7 +276,7 @@ class TournamentModel {
   static String _formatEntryFee(dynamic fee, String currency) {
     final amount = num.tryParse(fee.toString()) ?? 0;
     if (amount == 0) return 'Free';
-    final symbol = currency.toUpperCase() == 'INR' ? '₹' : '$currency ';
+    final symbol = currency.toUpperCase() == 'INR' ? '${Money.symbol}' : '$currency ';
     if (amount % 1 == 0) {
       return '$symbol${amount.toInt()}';
     }
