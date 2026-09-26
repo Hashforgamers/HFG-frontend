@@ -140,18 +140,18 @@ class _HomeLobbyCardState extends State<HomeLobbyCard>
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _header(accent),
-                const SizedBox(height: 14),
+                const SizedBox(height: 6),
                 locked ? _session() : _prompt(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 _primaryButton(accent),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 Container(height: 0.5, color: _Sys.separator),
-                const SizedBox(height: 14),
+                const SizedBox(height: 7),
                 Row(
                   children: [
                     Expanded(
@@ -194,7 +194,7 @@ class _HomeLobbyCardState extends State<HomeLobbyCard>
         Text(
           'YOUR LOBBY',
           style: _text(
-            12,
+            11,
             _Sys.secondary,
             weight: FontWeight.w600,
           ).copyWith(letterSpacing: 0.6),
@@ -211,7 +211,7 @@ class _HomeLobbyCardState extends State<HomeLobbyCard>
         const SizedBox(width: 6),
         Text(
           widget.locked ? 'Booked' : 'Open',
-          style: _text(13, accent, weight: FontWeight.w600),
+          style: _text(12, accent, weight: FontWeight.w600),
         ),
       ],
     );
@@ -220,20 +220,20 @@ class _HomeLobbyCardState extends State<HomeLobbyCard>
   Widget _prompt() {
     return Row(
       children: [
-        _glyph(Icons.sports_esports_rounded, _Sys.green, size: 52),
-        const SizedBox(width: 14),
+        _glyph(Icons.sports_esports_rounded, _Sys.green, size: 38),
+        const SizedBox(width: 9),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Ready to lock in?',
-                style: _text(22, _Sys.label, weight: FontWeight.w700),
+                style: _text(17, _Sys.label, weight: FontWeight.w700),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               Text(
                 'Book a café setup, squad up, or jump into ranked.',
-                style: _text(14, _Sys.secondary),
+                style: _text(11, _Sys.secondary),
               ),
             ],
           ),
@@ -245,8 +245,8 @@ class _HomeLobbyCardState extends State<HomeLobbyCard>
   Widget _session() {
     return Row(
       children: [
-        _glyph(Icons.storefront_rounded, _Sys.yellow, size: 52),
-        const SizedBox(width: 14),
+        _glyph(Icons.storefront_rounded, _Sys.yellow, size: 38),
+        const SizedBox(width: 9),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,14 +255,14 @@ class _HomeLobbyCardState extends State<HomeLobbyCard>
                 widget.cafeName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: _text(22, _Sys.label, weight: FontWeight.w700),
+                style: _text(17, _Sys.label, weight: FontWeight.w700),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               Text(
                 '${widget.gameName} · Pull up with the squad',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: _text(14, _Sys.secondary),
+                style: _text(11, _Sys.secondary),
               ),
             ],
           ),
@@ -301,7 +301,7 @@ class _HomeLobbyCardState extends State<HomeLobbyCard>
         widget.onPrimary();
       },
       child: Container(
-        height: 50,
+        height: 38,
         decoration: ShapeDecoration(
           shape: const StadiumBorder(),
           color: accent,
@@ -312,12 +312,12 @@ class _HomeLobbyCardState extends State<HomeLobbyCard>
             Icon(
               locked ? Icons.play_arrow_rounded : Icons.search_rounded,
               color: Colors.black,
-              size: 20,
+              size: 18,
             ),
             const SizedBox(width: 6),
             Text(
               locked ? 'Open Session' : 'Find a Setup',
-              style: _text(16, Colors.black, weight: FontWeight.w600),
+              style: _text(13, Colors.black, weight: FontWeight.w600),
             ),
           ],
         ),
@@ -331,22 +331,29 @@ class _HomeLobbyCardState extends State<HomeLobbyCard>
         Haptics.selection();
         onTap();
       },
-      child: Column(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: const ShapeDecoration(
-              shape: ContinuousRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(24)),
+      child: Container(
+        height: 28,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 7),
+        decoration: ShapeDecoration(
+          shape: const StadiumBorder(),
+          color: _Sys.fill,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 15),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _text(10, _Sys.label, weight: FontWeight.w600),
               ),
-              color: _Sys.fill,
             ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(height: 6),
-          Text(label, style: _text(12, _Sys.label, weight: FontWeight.w500)),
-        ],
+          ],
+        ),
       ),
     );
   }
