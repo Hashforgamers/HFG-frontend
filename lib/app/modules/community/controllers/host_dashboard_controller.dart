@@ -62,12 +62,22 @@ class HostDashboardController extends GetxController {
     (sum, item) => sum + item.tournament.organizerCommissionAmount,
   );
 
-  int get activeTournaments => hosted.where((item) {
-    final status = item.tournament.status;
-    return status == 'published' ||
-        status == 'registration_open' ||
-        status == 'ongoing';
-  }).length;
+  static const _activeStatuses = {
+    'published',
+    'registration_open',
+    'registration_closed',
+    'check_in_open',
+    'live',
+    'in_progress',
+    'ongoing',
+    'result_pending',
+    'results_pending',
+    'disputed',
+  };
+
+  int get activeTournaments => hosted
+      .where((item) => _activeStatuses.contains(item.tournament.status))
+      .length;
 
   void openTournament(Tournament tournament) => Get.toNamed(
     AppRoutes.TOURNAMENT_DETAIL,

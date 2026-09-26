@@ -153,9 +153,47 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView>
                       return SizedBox(
                         height: MediaQuery.of(context).size.height * 0.72,
                         child: Center(
-                          child: Text(
-                            'Error: ${state.message}',
-                            style: const TextStyle(color: Colors.white70),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.wifi_off_rounded,
+                                  color: Colors.white38,
+                                  size: 40,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  "Couldn't load tournaments",
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Check your connection and try again.',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white60,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                OutlinedButton(
+                                  onPressed: () => _cubit.fetchTournaments(),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFF8A241),
+                                    side: const BorderSide(
+                                      color: Color(0xFFC06701),
+                                    ),
+                                  ),
+                                  child: const Text('Try again'),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );

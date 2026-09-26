@@ -2,7 +2,6 @@ import 'package:get/get.dart';
 import 'package:hash/app/modules/chat/views/chat_inbox_view.dart';
 import 'package:hash/app/modules/notifications/views/notifications_view.dart';
 import 'package:hash/app/modules/shop/views/shop_view.dart';
-import 'package:hash/app/modules/tournaments/views/tournament_view.dart';
 import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
 import '../modules/login/bindings/login_binding.dart';
@@ -63,7 +62,6 @@ class AppPages {
       binding: LoginBinding(),
     ),
     GetPage(name: AppRoutes.PAGE1, page: () => ShopView()),
-    GetPage(name: AppRoutes.PAGE2, page: () => TournamentView()),
     GetPage(name: AppRoutes.SIGNUP, page: () => SignUpView()),
     GetPage(name: AppRoutes.WALLET, page: () => const WalletPage()),
     GetPage(name: AppRoutes.NEED_HELP, page: () => const NeedHelpPage()),

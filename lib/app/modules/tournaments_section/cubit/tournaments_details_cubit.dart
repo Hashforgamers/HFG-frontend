@@ -17,7 +17,8 @@ class TournamentsDetailsCubit extends Cubit<TournamentsDetailsState> {
   final remoteRepo = locator<RemoteRepoInterface>();
 
   Future<void> fetchTournamentDetails() async {
-    emit(TournamentsDetailsLoading());
+    // Keep showing the current data while refreshing so the screen never
+    // goes blank; the view only renders the Loaded state.
     try {
       final details = await remoteRepo.fetchEventById(
         eventId: _initialTournament.id,
@@ -33,7 +34,9 @@ class TournamentsDetailsCubit extends Cubit<TournamentsDetailsState> {
       );
     } catch (e) {
       AppLogger.e('Tournament details fetch failed: $e');
-      emit(TournamentsDetailsLoaded(tournament: _initialTournament));
+      if (state is! TournamentsDetailsLoaded) {
+        emit(TournamentsDetailsLoaded(tournament: _initialTournament));
+      }
     }
   }
 

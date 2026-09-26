@@ -468,7 +468,18 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
       ('live', 'LIVE'),
       ('completed', 'DONE'),
     ];
-    final aliases = {'published': 1, 'cancelled': 4};
+    final aliases = {
+      'validation_failed': 0,
+      'ready': 0,
+      'published': 1,
+      'check_in_open': 2,
+      'in_progress': 3,
+      'ongoing': 3,
+      'result_pending': 3,
+      'results_pending': 3,
+      'disputed': 3,
+      'cancelled': 4,
+    };
     final active =
         aliases[status] ??
         stages.indexWhere((stage) => stage.$1 == status).clamp(0, 4);
@@ -787,11 +798,11 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                 itemCount: teams.length,
                 separatorBuilder: (_, _) =>
                     const Divider(height: 1, color: CT.hairline),
-                itemBuilder: (_, index) => _teamRow(teams[index]),
+                itemBuilder: (_, index) => _teamRow(context, teams[index]),
               ),
       );
 
-  Widget _teamRow(CommunityTeam team) {
+  Widget _teamRow(BuildContext context, CommunityTeam team) {
     final approved = {'approved', 'confirmed'}.contains(team.status);
     final initial = team.name.trim().isEmpty
         ? '?'
@@ -854,7 +865,20 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
           tooltip: 'Team actions',
           color: CT.surfaceHigh,
           iconColor: CT.onSurfaceVariant,
-          onSelected: (action) => controller.teamAction(team, action),
+          onSelected: (action) {
+            if (action != 'reject') {
+              controller.teamAction(team, action);
+              return;
+            }
+            _confirmLifecycle(
+              context,
+              title: 'Reject ${team.name}?',
+              message:
+                  'The team will be removed from this tournament and notified.',
+              confirmLabel: 'Reject team',
+              action: () => controller.teamAction(team, action),
+            );
+          },
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'approve', child: Text('Approve')),
             PopupMenuItem(

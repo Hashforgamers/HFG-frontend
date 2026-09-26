@@ -93,6 +93,39 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
     );
   }
 
+  bool _isFull(TournamentModel t) {
+    final parts = t.players.split('/');
+    if (parts.length != 2) return false;
+    final current = int.tryParse(parts[0].trim());
+    final max = int.tryParse(parts[1].trim());
+    return current != null && max != null && max > 0 && current >= max;
+  }
+
+  bool _isRegistrationClosed(TournamentModel t) {
+    final deadline = t.registrationEndDate;
+    return deadline != null && DateTime.now().isAfter(deadline);
+  }
+
+  bool _canRegister(TournamentModel t) =>
+      !t.isJoined &&
+      t.status == TournamentStatus.upcoming &&
+      !_isRegistrationClosed(t) &&
+      !_isFull(t);
+
+  String _closedLabel(TournamentModel t) {
+    if (t.isJoined) return 'Already Joined';
+    switch (t.status) {
+      case TournamentStatus.live:
+        return 'Tournament is live';
+      case TournamentStatus.completed:
+        return 'Tournament ended';
+      default:
+        if (_isFull(t)) return 'Tournament full';
+        if (_isRegistrationClosed(t)) return 'Registration closed';
+        return 'Registration unavailable';
+    }
+  }
+
   Widget _buildBodyContent(TournamentModel t) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,7 +162,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      "Rs. ${t.entryFee}",
+                      t.entryFee,
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 13,
@@ -218,7 +251,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
 
               const SizedBox(height: 25),
 
-              if (!t.isJoined && t.status == TournamentStatus.upcoming)
+              if (_canRegister(t))
                 Column(
                   children: [
                     Container(
@@ -280,9 +313,11 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: Text(
-                    'Already Joined',
+                    _closedLabel(t),
                     style: GoogleFonts.inter(
-                      color: const Color(0xff00DC00),
+                      color: t.isJoined
+                          ? const Color(0xff00DC00)
+                          : Colors.white54,
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
