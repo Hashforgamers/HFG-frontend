@@ -8,8 +8,7 @@ import '../controllers/host_dashboard_controller.dart';
 import '../models/tournament.dart';
 import '../models/host_verification.dart';
 import 'community_theme.dart';
-import 'tournaments_view.dart' show ctAmount, ctCurrency, ctStatus;
-import 'package:hash/core/localization/app_region.dart';
+import 'tournaments_view.dart' show ctStatus;
 
 class HostDashboardView extends GetView<HostDashboardController> {
   const HostDashboardView({super.key});
@@ -44,7 +43,7 @@ class HostDashboardView extends GetView<HostDashboardController> {
             children: [
               _hostIdentity(),
               const SizedBox(height: 28),
-              _earningsHero(),
+              _communityHero(),
               const SizedBox(height: 20),
               _createButton(),
               const SizedBox(height: 28),
@@ -118,26 +117,22 @@ class HostDashboardView extends GetView<HostDashboardController> {
     );
   }
 
-  Widget _earningsHero() => Column(
+  Widget _communityHero() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('TOTAL HOST EARNINGS', style: CT.mono(10)),
+      Text('HOST COMMUNITY', style: CT.mono(10)),
       const SizedBox(height: 6),
       Text(
-        '${Money.symbol}${ctAmount(controller.totalCommission)}',
+        '${controller.totalPlayers}',
         style: CT.display(38, color: CT.successBright),
       ),
       const SizedBox(height: 8),
       Row(
         children: [
-          const Icon(
-            Icons.account_balance_wallet_outlined,
-            size: 15,
-            color: CT.muted,
-          ),
+          const Icon(Icons.groups_rounded, size: 15, color: CT.muted),
           const SizedBox(width: 6),
           Text(
-            'From ${Money.symbol}${ctAmount(controller.totalCollection)} collected',
+            'Players across ${controller.hosted.length} hosted tournaments',
             style: CT.body(12),
           ),
         ],
@@ -214,7 +209,6 @@ class HostDashboardView extends GetView<HostDashboardController> {
 
   Widget _tournamentRow(Tournament tournament) {
     final status = ctStatus(tournament.status);
-    final currency = ctCurrency(tournament.currency);
     final capacity = tournament.maxPlayers <= 0
         ? 0.0
         : (tournament.registeredPlayersCount / tournament.maxPlayers).clamp(
@@ -284,12 +278,12 @@ class HostDashboardView extends GetView<HostDashboardController> {
             Row(
               children: [
                 Text(
-                  '$currency${ctAmount(tournament.totalCollection)} collected',
+                  'Community event',
                   style: CT.body(11.5, color: CT.onSurface),
                 ),
                 const Spacer(),
                 Text(
-                  '$currency${ctAmount(tournament.organizerCommissionAmount)} earned',
+                  ctStatus(tournament.status).label,
                   style: CT.body(11.5, color: CT.successBright),
                 ),
                 const SizedBox(width: 4),
@@ -358,7 +352,7 @@ class HostDashboardView extends GetView<HostDashboardController> {
           progress: _ratio(host.completionRate),
         ),
         _performanceMetric(
-          label: 'On-time payouts',
+          label: 'Result speed',
           value: _percent(host.onTimePayoutRate),
           progress: _ratio(host.onTimePayoutRate),
         ),

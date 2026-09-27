@@ -46,7 +46,7 @@ class OptimizedAppBar extends StatelessWidget {
       elevation: 0,
       pinned: true,
       toolbarHeight: 66,
-      expandedHeight: showModeToggle ? 118 : 66,
+      expandedHeight: showModeToggle ? 128 : 66,
       flexibleSpace: ClipRRect(
         borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
@@ -191,9 +191,9 @@ class OptimizedAppBar extends StatelessWidget {
       ],
       bottom: showModeToggle
           ? const PreferredSize(
-              preferredSize: Size.fromHeight(52),
+              preferredSize: Size.fromHeight(62),
               child: Padding(
-                padding: EdgeInsets.fromLTRB(10, 0, 10, 8),
+                padding: EdgeInsets.fromLTRB(10, 0, 10, 10),
                 child: AppModeSegmentedToggle(compact: true),
               ),
             )

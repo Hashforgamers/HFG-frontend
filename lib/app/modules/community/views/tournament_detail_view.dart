@@ -16,7 +16,7 @@ import '../../tournaments_section/pages/tournaments_register_view.dart';
 import 'community_theme.dart';
 import 'community_team_invite_view.dart';
 import 'tournament_share_poster_view.dart';
-import 'tournaments_view.dart' show ctCurrency, ctAmount, ctStatus;
+import 'tournaments_view.dart' show ctStatus;
 
 /// Tournament detail, including registration and live match operations.
 class TournamentDetailView extends GetView<TournamentDetailController> {
@@ -73,7 +73,6 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
   }
 
   Widget _body(BuildContext context, Tournament t) {
-    final sym = ctCurrency(t.currency);
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 600;
@@ -103,10 +102,8 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _summaryStats(
-                              entry: t.isFree
-                                  ? 'FREE'
-                                  : '$sym${ctAmount(t.entryFee)}',
-                              prize: '$sym${ctAmount(t.prizePool)}',
+                              entry: 'FREE',
+                              prize: 'Ranks',
                               players:
                                   '${t.registeredPlayersCount}/${t.maxPlayers}',
                             ),
@@ -181,12 +178,9 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                               Text(t.rules!, style: CT.body(14)),
                               const SizedBox(height: 16),
                             ],
-                            if (t.prizeDistribution.isNotEmpty) ...[
-                              _section('Prize split'),
-                              for (final p in t.prizeDistribution)
-                                _row('Rank ${p.rank}', '${p.percent}%'),
-                              const SizedBox(height: 16),
-                            ],
+                            _section('Recognition'),
+                            _row('Leaderboard', 'Ranks only'),
+                            const SizedBox(height: 16),
                             if ((t.roomDetails?.isNotEmpty ?? false) ||
                                 t.roomDetailsData != null) ...[
                               _section('Room details'),
@@ -331,9 +325,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
                                   : !controller.membershipResolved.value
                                   ? 'Checking registration…'
                                   : canRegister
-                                  ? (t.isFree
-                                        ? 'Register — Free'
-                                        : 'Register — ${ctCurrency(t.currency)}${ctAmount(t.entryFee)}')
+                                  ? 'Register — Free'
                                   : st.label,
                               overflow: TextOverflow.ellipsis,
                               style: CT.headline(
@@ -1450,7 +1442,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
         children: [
           Expanded(child: _stat('ENTRY', entry)),
           const SizedBox(height: 36, child: VerticalDivider(color: CT.outline)),
-          Expanded(child: _stat('PRIZE', prize)),
+          Expanded(child: _stat('RANKING', prize)),
           const SizedBox(height: 36, child: VerticalDivider(color: CT.outline)),
           Expanded(child: _stat('PLAYERS', players)),
         ],

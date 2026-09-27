@@ -195,7 +195,7 @@ class _StatsRow extends StatelessWidget {
           Container(width: 1, height: 34, color: CT.outline),
           stat('65,000+', 'PLAYERS', CT.secondary),
           Container(width: 1, height: 34, color: CT.outline),
-          stat('₹18L+', 'PRIZES', CT.successBright),
+          stat('500+', 'EVENTS', CT.successBright),
         ],
       ),
     );
@@ -218,10 +218,10 @@ class _EarningsCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('ESTIMATED HOST EARNING', style: CT.mono(10)),
+                    Text('HOST IMPACT', style: CT.mono(10)),
                     const SizedBox(height: 5),
                     Text(
-                      '₹1,000',
+                      '100 players',
                       style: CT.headline(30, color: CT.successBright),
                     ),
                   ],
@@ -230,7 +230,7 @@ class _EarningsCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  '10% host share',
+                  'community growth',
                   style: CT.body(12, color: CT.primaryBright),
                 ),
               ),
@@ -254,8 +254,8 @@ class _EarningsCard extends StatelessWidget {
                 ),
               ),
               _EarningMetric(
-                value: '₹100',
-                label: 'ENTRY FEE',
+                value: '1',
+                label: 'EVENT',
                 alignment: CrossAxisAlignment.center,
               ),
               const Padding(
@@ -266,8 +266,8 @@ class _EarningsCard extends StatelessWidget {
                 ),
               ),
               _EarningMetric(
-                value: '₹10,000',
-                label: 'TOTAL COLLECTED',
+                value: '100',
+                label: 'REGISTRATIONS',
                 alignment: CrossAxisAlignment.end,
                 valueColor: CT.onSurface,
               ),
@@ -287,8 +287,8 @@ class _EarningsCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('₹1,000 · HOST', style: CT.mono(9, color: CT.successBright)),
-              Text('₹9,000 · PRIZE POOL', style: CT.mono(9)),
+              Text('HOST', style: CT.mono(9, color: CT.successBright)),
+              Text('COMMUNITY EVENT', style: CT.mono(9)),
             ],
           ),
         ],
@@ -341,7 +341,7 @@ class _HowItWorksState extends State<_HowItWorks> {
       (
         Icons.add_circle_outline_rounded,
         'Create your tournament',
-        'Set the game, format, schedule, entry fee, and prizes.',
+        'Set the game, format, schedule, and rules.',
       ),
       (
         Icons.share_rounded,
@@ -359,9 +359,9 @@ class _HowItWorksState extends State<_HowItWorks> {
         'Publish room details, manage matches, and verify results.',
       ),
       (
-        Icons.payments_rounded,
-        'Earn from hosting',
-        'Complete the tournament and receive your host commission.',
+        Icons.emoji_events_rounded,
+        'Celebrate results',
+        'Complete the tournament and publish final standings.',
       ),
     ];
     return Column(
@@ -479,7 +479,7 @@ class _FeatureGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     const features = [
       (Icons.verified_rounded, 'Official Host Badge', CT.verifiedBlue),
-      (Icons.savings_rounded, 'Earn from tournaments', CT.successBright),
+      (Icons.emoji_events_rounded, 'Community recognition', CT.successBright),
       (
         Icons.sports_esports_rounded,
         'Create Unlimited Tournaments',
@@ -487,11 +487,7 @@ class _FeatureGrid extends StatelessWidget {
       ),
       (Icons.trending_up_rounded, 'Track Registrations Live', CT.successBright),
       (Icons.groups_rounded, 'Player Management', CT.primaryBright),
-      (
-        Icons.account_balance_rounded,
-        'Withdraw Earnings Anytime',
-        CT.successBright,
-      ),
+      (Icons.insights_rounded, 'Track Event Momentum', CT.successBright),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -614,7 +610,7 @@ class _VerificationCard extends StatelessWidget {
           const SizedBox(height: 16),
           _check('Verified Badge'),
           _check('Unlimited Tournaments'),
-          _check('Earnings Enabled'),
+          _check('Host Tools Enabled'),
           if (fee.includedTournamentsPerWeek > 0)
             _check(
               '${fee.includedTournamentsPerWeek} tournaments/week included',
@@ -688,7 +684,7 @@ class _TierStrip extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${t.organizerCommissionRate.toStringAsFixed(0)}% commission',
+                            'Host tier',
                             style: CT.mono(10, color: CT.onSurfaceVariant),
                           ),
                         ],

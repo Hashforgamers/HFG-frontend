@@ -22,6 +22,12 @@ abstract final class AnalyticsEvent {
   static const paymentStarted = 'payment_started';
   static const paymentSuccess = 'payment_success';
   static const paymentFailed = 'payment_failed';
+  static const venueViewed = 'venue_viewed';
+  static const slotSelected = 'slot_selected';
+  static const bookingStarted = 'booking_started';
+  static const bookingConfirmed = 'booking_confirmed';
+  static const walletCreditUsed = 'wallet_credit_used';
+  static const notificationOpen = 'notification_open';
   static const tournamentJoined = 'tournament_joined';
   static const matchCheckedIn = 'match_checked_in';
   static const resultViewed = 'result_viewed';
@@ -51,6 +57,7 @@ class AnalyticsService {
   PackageInfo? _packageInfo;
   final AnalyticsSink? _segmentSink;
   final AnalyticsSink? _metaSink;
+
   /// Regenerated on every cold start: this identifies one app session, and is
   /// deliberately never persisted. Use [_installId] for a stable device key.
   static final String _launchSessionId =

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:flutter/services.dart';
@@ -8,7 +6,6 @@ import 'package:get/get.dart';
 import '../controllers/create_tournament_controller.dart';
 import '../services/tournament_banner_service.dart';
 import 'community_theme.dart';
-import 'package:hash/core/localization/app_region.dart';
 
 class CreateTournamentView extends GetView<CreateTournamentController> {
   const CreateTournamentView({super.key});
@@ -68,15 +65,6 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                     if (controller.formStep.value == 1) ...[
                       const SizedBox(height: 22),
                       _section('ENTRY & CAPACITY'),
-                      Text('Entry fee', style: CT.body(12)),
-                      const SizedBox(height: 8),
-                      _numberPresets(
-                        controller.entryFee,
-                        const [0, 50, 100, 200],
-                        prefix: '${Money.symbol}',
-                        onSelected: controller.setEntryFee,
-                      ),
-                      const SizedBox(height: 12),
                       Text('Player capacity', style: CT.body(12)),
                       const SizedBox(height: 8),
                       _numberPresets(
@@ -86,37 +74,14 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                             controller.setCapacity(value.toInt()),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _field(
-                              'Entry fee (${Money.symbol})',
-                              controller.entryFee,
-                              keyboard: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
-                              formatters: [
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'[0-9.]'),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _field(
-                              'Maximum players',
-                              controller.maxPlayers,
-                              keyboard: TextInputType.number,
-                              formatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                            ),
-                          ),
-                        ],
+                      _field(
+                        'Maximum players',
+                        controller.maxPlayers,
+                        keyboard: TextInputType.number,
+                        formatters: [FilteringTextInputFormatter.digitsOnly],
                       ),
                       Text(
-                        'Paid tournaments require verified host status.',
+                        'Tournaments are free to join in this app version.',
                         style: CT.body(11, color: CT.muted),
                       ),
                       const SizedBox(height: 22),
@@ -125,30 +90,9 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
                     ],
                     if (controller.formStep.value == 2) ...[
                       const SizedBox(height: 22),
-                      _section('PRIZE DISTRIBUTION'),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _textPreset(
-                            'Winner takes all',
-                            () => controller.setPrizePreset('winner'),
-                          ),
-                          _textPreset(
-                            'Top 3 · 60/30/10',
-                            () => controller.setPrizePreset('top_3'),
-                          ),
-                          _textPreset(
-                            'Top 3 · 50/30/20',
-                            () => controller.setPrizePreset('balanced'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _prizeDials(),
-                      const SizedBox(height: 10),
+                      _section('RECOGNITION'),
                       Text(
-                        'Drag any ring to adjust. The other prizes rebalance automatically to keep the total at 100%.',
+                        'Rankings and match results are used for community recognition only. Cash or real-world value prizes are not offered.',
                         style: CT.body(11, color: CT.muted),
                       ),
                       const SizedBox(height: 22),
@@ -537,14 +481,6 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
           textStyle: CT.body(11.5, w: FontWeight.w600),
         ),
       );
-
-  Widget _textPreset(String label, VoidCallback onTap) => ActionChip(
-    onPressed: onTap,
-    label: Text(label),
-    backgroundColor: CT.surface,
-    side: const BorderSide(color: CT.outline),
-    labelStyle: CT.body(11.5, color: CT.onSurface, w: FontWeight.w600),
-  );
 
   Widget _bannerPicker(BuildContext context) => Obx(() {
     controller.bannerInputVersion.value;
@@ -1265,32 +1201,6 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
     return '${date.day}/${date.month}/${date.year} • $hour:$minute $period';
   }
 
-  Widget _prizeDials() => Obx(
-    () => Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _PrizeDial(
-          rank: '1ST',
-          value: controller.prizePercents[0],
-          color: const Color(0xFFFFD24C),
-          onChanged: (value) => controller.setPrizePercent(0, value),
-        ),
-        _PrizeDial(
-          rank: '2ND',
-          value: controller.prizePercents[1],
-          color: const Color(0xFFC0C0C0),
-          onChanged: (value) => controller.setPrizePercent(1, value),
-        ),
-        _PrizeDial(
-          rank: '3RD',
-          value: controller.prizePercents[2],
-          color: const Color(0xFFCD7F32),
-          onChanged: (value) => controller.setPrizePercent(2, value),
-        ),
-      ],
-    ),
-  );
-
   Widget _actions() => Obx(
     () => Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -1375,96 +1285,4 @@ class CreateTournamentView extends GetView<CreateTournamentController> {
       ),
     ),
   );
-}
-
-class _PrizeDial extends StatelessWidget {
-  final String rank;
-  final double value;
-  final Color color;
-  final ValueChanged<double> onChanged;
-
-  const _PrizeDial({
-    required this.rank,
-    required this.value,
-    required this.color,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const size = 88.0;
-    void update(Offset position) {
-      final delta = position - const Offset(size / 2, size / 2);
-      var angle = math.atan2(delta.dy, delta.dx) + math.pi / 2;
-      if (angle < 0) angle += math.pi * 2;
-      onChanged(angle / (math.pi * 2) * 100);
-    }
-
-    return Semantics(
-      label: '$rank prize percentage',
-      value: '${value.round()} percent',
-      child: Column(
-        children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onPanStart: (details) => update(details.localPosition),
-            onPanUpdate: (details) => update(details.localPosition),
-            onTapDown: (details) => update(details.localPosition),
-            child: SizedBox(
-              width: size,
-              height: size,
-              child: CustomPaint(
-                painter: _PrizeDialPainter(value: value, color: color),
-                child: Center(
-                  child: Text(
-                    '${value.round()}%',
-                    style: CT.headline(16, color: color),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 7),
-          Text(rank, style: CT.mono(9, color: color)),
-        ],
-      ),
-    );
-  }
-}
-
-class _PrizeDialPainter extends CustomPainter {
-  final double value;
-  final Color color;
-
-  const _PrizeDialPainter({required this.value, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.shortestSide / 2 - 6;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-    final track = Paint()
-      ..color = CT.outline
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 7;
-    final progress = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 7
-      ..strokeCap = StrokeCap.round;
-    canvas.drawCircle(center, radius, track);
-    if (value > 0) {
-      canvas.drawArc(
-        rect,
-        -math.pi / 2,
-        math.pi * 2 * value / 100,
-        false,
-        progress,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _PrizeDialPainter oldDelegate) =>
-      oldDelegate.value != value || oldDelegate.color != color;
 }

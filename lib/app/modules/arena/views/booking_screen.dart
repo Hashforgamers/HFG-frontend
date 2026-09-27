@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -11,6 +12,7 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/analytics_service.dart';
 import 'booking_design.dart';
 import 'booking_summary_screen.dart';
 import 'package:hash/core/localization/app_region.dart';
@@ -47,6 +49,7 @@ class _BookingScreenState extends State<BookingScreen> {
   final BookingController controller = Get.put(BookingController());
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
+  final AnalyticsService _analytics = locator<AnalyticsService>();
   final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   String selectedDate = DateFormat('yyyyMMdd').format(DateTime.now());
   String selectedDateText = DateFormat('dd MMM, yyyy').format(DateTime.now());
@@ -806,6 +809,18 @@ class _BookingScreenState extends State<BookingScreen> {
               _fbEventsService.onCafeSlotSelected(
                 cafeId: widget.vendorId.toString(),
                 slotTime: selectedDateText,
+              );
+              unawaited(
+                _analytics.log(
+                  AnalyticsEvent.slotSelected,
+                  parameters: {
+                    'venue_id': widget.vendorId.toString(),
+                    'game_id': widget.gameId,
+                    'console_type': widget.consoleType,
+                    'slot_date': selectedDate,
+                    'selection_count': _getSelectedConsoleCount() + 1,
+                  },
+                ),
               );
             }
 

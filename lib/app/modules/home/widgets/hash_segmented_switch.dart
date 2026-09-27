@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -21,13 +22,16 @@ class HashSegmentedSwitch extends StatefulWidget {
 
 class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
     with SingleTickerProviderStateMixin {
-  static const containerStart = Color(0xFF1C1C1C);
-  static const containerEnd = Color(0xFF171717);
   static const darkShadow = Color(0x66000000);
   static const activeStart = Color(0xFF000000);
   static const activeEnd = Color(0xFF000000);
-  static const inactiveText = Color(0xFF8B8B8B);
-  static const activeText = Color(0xFFF5FFF8);
+  static const inactiveText = Color(0x99EBEBF5);
+  static const activeText = Colors.white;
+
+  // iOS segmented control (dark) with the Home cards' green hint.
+  static const _track = Color(0x3D767680);
+  static const _thumb = Color(0xFF3A3A3D);
+  static const _brand = Color(0xFF00DC00);
 
   late int selectedIndex;
   bool _isAnimating = false;
@@ -74,23 +78,13 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 48,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [containerStart, containerEnd],
+      height: 40,
+      padding: const EdgeInsets.all(3),
+      decoration: const ShapeDecoration(
+        shape: ContinuousRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(26)),
         ),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: const [
-          BoxShadow(
-            color: darkShadow,
-            offset: Offset(5, 6),
-            blurRadius: 14,
-            spreadRadius: -2,
-          ),
-        ],
+        color: _track,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -99,44 +93,34 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
           return Stack(
             children: [
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeInOut,
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
                 left: width * selectedIndex,
+                top: 0,
+                bottom: 0,
                 child: Container(
                   width: width,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [activeStart, activeEnd],
+                  decoration: ShapeDecoration(
+                    shape: ContinuousRectangleBorder(
+                      borderRadius: const BorderRadius.all(Radius.circular(22)),
+                      side: BorderSide(
+                        color: _brand.withValues(alpha: 0.45),
+                        width: 0.8,
+                      ),
                     ),
-                    boxShadow: const [
+                    color: _thumb,
+                    shadows: [
+                      const BoxShadow(
+                        color: Color(0x4D000000),
+                        offset: Offset(0, 3),
+                        blurRadius: 8,
+                      ),
                       BoxShadow(
-                        color: darkShadow,
-                        offset: Offset(2, 3),
-                        blurRadius: 6,
-                        spreadRadius: -3,
+                        color: _brand.withValues(alpha: 0.18),
+                        blurRadius: 10,
+                        spreadRadius: -2,
                       ),
                     ],
-                  ),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 1,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(22),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.05),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
                   ),
                 ),
               ),
@@ -145,6 +129,7 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
                   final isSelected = selectedIndex == index;
                   return Expanded(
                     child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: () {
                         if (_isAnimating) return;
                         if (selectedIndex == index) return;
@@ -156,13 +141,17 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
                         _playExpandAndNotify(index, width);
                       },
                       child: Center(
-                        child: Text(
-                          widget.options[index],
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 200),
+                          style: GoogleFonts.inter(
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.w500,
                             color: isSelected ? activeText : inactiveText,
-                            fontSize: 13,
+                            fontSize: 14,
+                            letterSpacing: -0.2,
                           ),
+                          child: Text(widget.options[index]),
                         ),
                       ),
                     ),
@@ -189,10 +178,10 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
 
     final topLeft = box.localToGlobal(Offset.zero);
     final sourceRect = Rect.fromLTWH(
-      topLeft.dx + 4 + (tabWidth * index),
-      topLeft.dy + 4,
+      topLeft.dx + 3 + (tabWidth * index),
+      topLeft.dy + 3,
       tabWidth,
-      40,
+      34,
     );
     final targetRect = Rect.fromLTWH(
       0,

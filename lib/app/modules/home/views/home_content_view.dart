@@ -23,7 +23,6 @@ import 'package:hash/app/modules/refferal/views/referral_view_with_controller.da
 import 'package:hash/app/modules/rewards/widgets/squad_missions_card.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
-import 'package:hash/app/modules/social/friends_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,12 +34,10 @@ import 'package:hash/app/modules/home/widgets/refer_friend_modal.dart';
 import 'package:hash/app/data/models/user_model.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/utils/encrypt_util.dart';
-import 'package:hash/utils/widgets/bounce_tap_widget.dart';
-import 'package:hash/utils/widgets/hash_wordmark.dart';
 import 'package:hash/utils/widgets/home_section_title.dart';
 
 import 'package:hash/core/utils/app_logger.dart';
-import 'package:hash/app/modules/home/widgets/home_lobby_card.dart';
+import 'package:hash/app/modules/home/widgets/home_host_card.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -630,7 +627,8 @@ class _HomeContentViewState extends State<HomeContentView>
             return _buildUpcomingTournaments(upcoming);
           }
         }
-        return _buildLobbyFallback();
+        // No upcoming tournaments: show nothing (the lobby card was removed).
+        return const SizedBox.shrink();
       },
     );
   }
@@ -771,50 +769,6 @@ class _HomeContentViewState extends State<HomeContentView>
         ),
       ),
     );
-  }
-
-  Widget _buildLobbyFallback() {
-    return Obx(() {
-      final bookings = bookingController.userBookings.where((booking) {
-        final status = (booking['status'] ?? '').toString().toLowerCase();
-        return status.contains('confirm') ||
-            status.contains('pending') ||
-            status.contains('success');
-      }).toList();
-      final nextBooking = bookings.isEmpty ? null : bookings.first;
-      final slot = nextBooking?['slot'];
-      final slotMap = slot is Map
-          ? Map<String, dynamic>.from(slot)
-          : const <String, dynamic>{};
-      final gamingType = slotMap['gaming_type_id'];
-      final gamingMap = gamingType is Map
-          ? Map<String, dynamic>.from(gamingType)
-          : const <String, dynamic>{};
-      final cafeValue = gamingMap['cafe_name'];
-      final cafeMap = cafeValue is Map
-          ? Map<String, dynamic>.from(cafeValue)
-          : const <String, dynamic>{};
-      final cafeName =
-          (cafeMap['cafe_name'] ??
-                  cafeMap['name'] ??
-                  gamingMap['cafe_name'] ??
-                  'Gaming café')
-              .toString();
-      final gameName = (gamingMap['game_name'] ?? 'Your setup').toString();
-
-      final locked = nextBooking != null;
-      final home = Get.find<HomeController>();
-
-      return HomeLobbyCard(
-        locked: locked,
-        cafeName: cafeName,
-        gameName: gameName,
-        onPrimary: () => home.onItemTapped(locked ? 2 : 1),
-        onSquadUp: () => Get.to(() => const FriendsView(initialTab: 2)),
-        onRanked: () => home.onItemTapped(2),
-        onSessions: () => home.onItemTapped(3),
-      );
-    });
   }
 
   Widget _buildGamePassContainer() {
@@ -975,99 +929,11 @@ class _HomeContentViewState extends State<HomeContentView>
           title: 'Earn with ',
           accent: 'HASH',
           actionLabel: 'Host program',
-          accentColor: const Color(0xFFA99AFF),
           onAction: () => Get.toNamed(AppRoutes.HOST_ONBOARDING),
         ),
         const SizedBox(height: 12),
-        BounceTap(
-          onTap: () => Get.toNamed(AppRoutes.HOST_ONBOARDING),
-          child: Container(
-            padding: const EdgeInsets.all(1.5),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF745CFF), width: 1.5),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x4D6D28FF),
-                  blurRadius: 14,
-                  spreadRadius: -4,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14.5),
-              clipBehavior: Clip.antiAlias,
-              child: AspectRatio(
-                aspectRatio: 1672 / 941,
-                child: Image.asset(
-                  'assets/community_host_banner.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _hostBannerFallback(),
-                ),
-              ),
-            ),
-          ),
-        ),
+        HomeHostCard(onTap: () => Get.toNamed(AppRoutes.HOST_ONBOARDING)),
       ],
-    );
-  }
-
-  Widget _hostBannerFallback() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF7A1FA2), Color(0xFFDE3A3A)],
-        ),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const HashWordmark(fontSize: 9, letterSpacing: 1.5),
-              const SizedBox(width: 7),
-              Text(
-                'HOST PROGRAM',
-                style: GoogleFonts.inter(
-                  color: Colors.white70,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Earn lakhs by hosting\ntournaments on HASH',
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              height: 1.15,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Text(
-              'Become a Host  ›',
-              style: GoogleFonts.inter(
-                color: Colors.black,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

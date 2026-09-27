@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/arena/views/payment_success.dart';
@@ -7,6 +9,7 @@ import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
@@ -24,6 +27,7 @@ class RazorpayController extends GetxController {
   final _remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final AnalyticsService _analytics = locator<AnalyticsService>();
   final userController = Get.find<UserController>();
 
   RxList<int> bookingIdList = <int>[].obs;
@@ -196,6 +200,19 @@ class RazorpayController extends GetxController {
         amount: amount,
         paymentMethodSelected: 'razorpay',
       );
+      unawaited(
+        _analytics.log(
+          AnalyticsEvent.paymentStarted,
+          parameters: {
+            'checkout_id': orderId,
+            'checkout_type': paymentType.name,
+            'payment_method': 'razorpay',
+            'value': amount,
+            'currency': 'INR',
+          },
+          deduplicationKey: orderId,
+        ),
+      );
 
       _razorpay?.open(options);
     } catch (e) {
@@ -285,6 +302,18 @@ class RazorpayController extends GetxController {
             paymentMode: 'gateway',
           ),
         );
+        unawaited(
+          _analytics.log(
+            AnalyticsEvent.paymentSuccess,
+            parameters: {
+              'payment_method': 'razorpay',
+              'checkout_type': PaymentType.passPurchase.name,
+              'transaction_id': r.paymentId,
+              'currency': 'INR',
+            },
+            deduplicationKey: r.paymentId,
+          ),
+        );
         paymentStatus.value =
             'Payment successful! Pass purchased successfully!';
         _reset();
@@ -372,6 +401,31 @@ class RazorpayController extends GetxController {
         voucherCode: voucherCode,
         extraServices: extraServices.isNotEmpty ? extraServices : null,
         userPassId: userPassId,
+      );
+      unawaited(
+        _analytics.log(
+          AnalyticsEvent.bookingConfirmed,
+          parameters: {
+            'booking_id': bookingIds.first.toString(),
+            'payment_method': paymentMode,
+            'value': successAmount,
+            'currency': 'INR',
+          },
+          deduplicationKey: bookingIds.first.toString(),
+        ),
+      );
+      unawaited(
+        _analytics.log(
+          AnalyticsEvent.paymentSuccess,
+          parameters: {
+            'booking_id': bookingIds.first.toString(),
+            'payment_method': paymentMode,
+            'transaction_id': paymentId,
+            'value': successAmount,
+            'currency': 'INR',
+          },
+          deduplicationKey: bookingIds.first.toString(),
+        ),
       );
 
       // Clear selected slots after successful payment

@@ -10,7 +10,6 @@ import 'package:hash/utils/widgets/hash_wordmark.dart';
 
 import '../models/tournament.dart';
 import 'community_theme.dart';
-import 'tournaments_view.dart' show ctAmount, ctCurrency;
 
 class TournamentSharePosterView extends StatefulWidget {
   final Tournament tournament;
@@ -158,7 +157,6 @@ class _TournamentPoster extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currency = ctCurrency(tournament.currency);
     final openSlots =
         (tournament.maxPlayers - tournament.registeredPlayersCount).clamp(
           0,
@@ -238,18 +236,14 @@ class _TournamentPoster extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _PosterStat(
-                        label: 'PRIZE POOL',
-                        value: '$currency${ctAmount(tournament.prizePool)}',
+                        label: 'PLAYERS',
+                        value:
+                            '${tournament.registeredPlayersCount}/${tournament.maxPlayers}',
                         color: CT.primaryBright,
                         large: true,
                       ),
                     ),
-                    _PosterStat(
-                      label: 'ENTRY',
-                      value: tournament.isFree
-                          ? 'FREE'
-                          : '$currency${ctAmount(tournament.entryFee)}',
-                    ),
+                    _PosterStat(label: 'ENTRY', value: 'FREE'),
                   ],
                 ),
                 const SizedBox(height: 13),

@@ -924,25 +924,7 @@ class CreateTournamentController extends GetxController {
     if (disputeMinutes == null || disputeMinutes < 1) {
       return 'Dispute window must be at least 1 minute.';
     }
-    final prizes = _prizeDistribution();
-    final total = prizes.fold<double>(
-      0,
-      (sum, item) => sum + (item['percent'] as num),
-    );
-    if (prizes.isEmpty || (total - 100).abs() > .01) {
-      return 'Prize percentages must total 100%.';
-    }
     return null;
-  }
-
-  List<Map<String, dynamic>> _prizeDistribution() {
-    final values = [firstPrizePercent, secondPrizePercent, thirdPrizePercent];
-    final result = <Map<String, dynamic>>[];
-    for (var index = 0; index < values.length; index++) {
-      final percent = double.tryParse(values[index].text.trim()) ?? 0;
-      if (percent > 0) result.add({'rank': index + 1, 'percent': percent});
-    }
-    return result;
   }
 
   Future<void> submit({required bool publish}) async {
@@ -984,7 +966,7 @@ class CreateTournamentController extends GetxController {
       error.value = data is Map && data['message'] != null
           ? data['message'].toString()
           : e.response?.statusCode == 403
-          ? 'Paid tournaments require a verified host account.'
+          ? 'Could not save the tournament. Please try again.'
           : 'Could not save the tournament. Please try again.';
     } catch (_) {
       error.value = 'Could not save the tournament. Please try again.';
@@ -1016,7 +998,7 @@ class CreateTournamentController extends GetxController {
       'game': game.text.trim(),
       'tournament_type': tournamentType.value,
       'team_mode': teamMode.value,
-      'entry_fee': double.parse(entryFee.text.trim()),
+      'entry_fee': 0,
       'currency': 'INR',
       'max_players': int.parse(maxPlayers.text.trim()),
       'registration_start_at': registrationStart.value!
@@ -1053,7 +1035,7 @@ class CreateTournamentController extends GetxController {
       'dispute_window_minutes': int.parse(disputeWindow.text.trim()),
       'rules_config': {'evidence_required': evidenceRequired.value},
       'rules': _nullableText(rules.text),
-      'prize_distribution': _prizeDistribution(),
+      'prize_distribution': const [],
       'discord_link': _nullableText(discordLink.text),
       'whatsapp_link': _nullableText(whatsappLink.text),
       'visibility': visibility.value,

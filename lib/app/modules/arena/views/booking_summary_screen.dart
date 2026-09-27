@@ -30,6 +30,7 @@ import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/funnel_notification_service.dart';
+import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import '../../../../core/repositories/model/get_voucher_model.dart';
@@ -85,6 +86,7 @@ enum PaymentStage {
 }
 
 class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
+  final AnalyticsService _analytics = locator<AnalyticsService>();
   final BookingController bookingController = Get.put(BookingController());
   final RazorpayController razorpayController = Get.put(RazorpayController());
   final RazorpayWalletController walletTopUpController =
@@ -2025,6 +2027,22 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         gameId: widget.gameId.toString(),
         slotTime: slotTime,
       );
+      unawaited(
+        _analytics.log(
+          AnalyticsEvent.bookingStarted,
+          parameters: {
+            'booking_id': bookingIds.first.toString(),
+            'venue_id': widget.vendorId.toString(),
+            'game_id': widget.gameId,
+            'console_type': widget.consoleType,
+            'slot_count': widget.selectedSlots.length,
+            'payment_method': isPayAtCafe
+                ? 'pay_at_cafe'
+                : _selectedPayment.value,
+          },
+          deduplicationKey: bookingIds.first.toString(),
+        ),
+      );
       funnelNotificationService.trackEvent(
         'booking_started',
         payload: {
@@ -2078,6 +2096,25 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           ),
         );
         return; // short-circuit
+      }
+      if (useWallet || isVoucherApplied || isGamePass) {
+        unawaited(
+          _analytics.log(
+            AnalyticsEvent.paymentStarted,
+            parameters: {
+              'booking_id': bookingIds.first.toString(),
+              'venue_id': widget.vendorId.toString(),
+              'payment_method': useWallet
+                  ? 'wallet'
+                  : isVoucherApplied
+                  ? 'voucher'
+                  : 'game_pass',
+              'value': totalPrice,
+              'currency': 'INR',
+            },
+            deduplicationKey: bookingIds.first.toString(),
+          ),
+        );
       }
       // a) WALLET route
       if (useWallet) {
@@ -2284,6 +2321,33 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         startTime: startTime,
         duration: duration,
       );
+      unawaited(
+        _analytics.log(
+          AnalyticsEvent.bookingConfirmed,
+          parameters: {
+            'booking_id': bookingIds.first.toString(),
+            'venue_id': widget.vendorId.toString(),
+            'slot_count': widget.selectedSlots.length,
+            'payment_method': paymentMode,
+            'value': totalPrice,
+            'currency': 'INR',
+          },
+          deduplicationKey: bookingIds.first.toString(),
+        ),
+      );
+      if (paymentMode == 'wallet') {
+        unawaited(
+          _analytics.log(
+            AnalyticsEvent.walletCreditUsed,
+            parameters: {
+              'booking_id': bookingIds.first.toString(),
+              'value': totalPrice,
+              'currency': 'INR',
+            },
+            deduplicationKey: bookingIds.first.toString(),
+          ),
+        );
+      }
       funnelNotificationService.trackEvent(
         'booking_confirmed',
         payload: {
@@ -2306,6 +2370,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         transactionId: "${paymentMode.toUpperCase()}_${bookingIds.first}",
         bookingId: bookingIds.first.toString(),
         paymentGateway: paymentMode,
+      );
+      unawaited(
+        _analytics.log(
+          AnalyticsEvent.paymentSuccess,
+          parameters: {
+            'booking_id': bookingIds.first.toString(),
+            'payment_method': paymentMode,
+            'value': totalPrice,
+            'currency': 'INR',
+          },
+          deduplicationKey: bookingIds.first.toString(),
+        ),
       );
       await _shareBookingWithSquadMembers(bookingIds);
 

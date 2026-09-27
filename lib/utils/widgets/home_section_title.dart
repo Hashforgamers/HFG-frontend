@@ -31,12 +31,14 @@ class HomeSectionTitle extends StatelessWidget {
   final Color accentColor;
   final int maxLines;
 
+  /// Apple-style section title (like the App Store's "Top Games"):
+  /// bold, tight tracking, matching the cards' type.
   static TextStyle style({Color color = Colors.white}) => GoogleFonts.inter(
     color: color,
-    fontSize: 21,
-    fontWeight: FontWeight.w800,
-    height: 1.15,
-    letterSpacing: -0.5,
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    letterSpacing: -0.6,
   );
 
   @override
@@ -115,20 +117,25 @@ class _Action extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                label.toUpperCase(),
+                _sentenceCase(label),
                 style: GoogleFonts.inter(
                   color: accentColor,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.1,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.2,
                 ),
               ),
-              const SizedBox(width: 3),
-              Icon(Icons.chevron_right_rounded, color: accentColor, size: 16),
+              Icon(Icons.chevron_right_rounded, color: accentColor, size: 20),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// "HOST PROGRAM" / "view all" -> "Host program" / "View all".
+String _sentenceCase(String s) {
+  final t = s.trim().toLowerCase();
+  return t.isEmpty ? t : t[0].toUpperCase() + t.substring(1);
 }

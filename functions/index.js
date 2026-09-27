@@ -10,6 +10,27 @@ const FUNNEL_STATE_COLLECTION = "notification_funnel_state";
 const FUNNEL_JOBS_COLLECTION = "notification_funnel_jobs";
 
 const MAX_FUNNEL_JOBS_PER_RUN = 30;
+const MINI_GAMES_TOPIC = "mira_road_users";
+const MINI_GAMES_DAILY_CAMPAIGNS = [
+  {
+    title: "Ludo table is open",
+    body: "Roll the dice, climb the board, or watch the lobby heat up.",
+    deepLink: "https://hashforgamers.co.in/game/ludo?utm_source=fcm&utm_medium=push&utm_campaign=daily_mini_games&utm_content=ludo",
+    content: "ludo",
+  },
+  {
+    title: "Arcade leaderboard is moving",
+    body: "Jump into Ludo, Snakes & Ladders, Pac Man and more today.",
+    deepLink: "https://hashforgamers.co.in/game/mini-games?utm_source=fcm&utm_medium=push&utm_campaign=daily_mini_games&utm_content=arcade",
+    content: "arcade",
+  },
+  {
+    title: "Spectator mode: game night",
+    body: "Open the mini-games lounge and see who is climbing the leaderboard.",
+    deepLink: "https://hashforgamers.co.in/game/mini-games?utm_source=fcm&utm_medium=push&utm_campaign=daily_mini_games&utm_content=spectator",
+    content: "spectator",
+  },
+];
 
 function minutes(value) {
   return value * 60 * 1000;
@@ -242,6 +263,13 @@ async function sendPushToUser(userId, options) {
     return null;
   }
   return sendPushToTopic(userTopic(safeUserId), options);
+}
+
+function miniGamesCampaignForToday(now = new Date()) {
+  const daysSinceEpoch = Math.floor(now.getTime() / (24 * 60 * 60 * 1000));
+  return MINI_GAMES_DAILY_CAMPAIGNS[
+      daysSinceEpoch % MINI_GAMES_DAILY_CAMPAIGNS.length
+  ];
 }
 
 async function sendTemplateNotification(topic, templateId, data) {
@@ -902,5 +930,33 @@ exports.processFunnelNotificationJobs = functions.pubsub
         }
       }
 
+      return null;
+    });
+
+exports.dailyMiniGamesPush = functions.pubsub
+    .schedule("0 19 * * *")
+    .timeZone("Asia/Kolkata")
+    .onRun(async () => {
+      const campaign = miniGamesCampaignForToday();
+      const campaignId = `daily_mini_games_${campaign.content}`;
+      const response = await sendPushToTopic(MINI_GAMES_TOPIC, {
+        title: campaign.title,
+        body: campaign.body,
+        channelId: "system_channel",
+        data: {
+          type: "game",
+          campaign_key: "daily_mini_games",
+          campaign_id: campaignId,
+          deep_link: campaign.deepLink,
+          content: campaign.content,
+        },
+      });
+
+      functions.logger.info("Daily mini-games notification sent", {
+        topic: MINI_GAMES_TOPIC,
+        campaignId,
+        deepLink: campaign.deepLink,
+        response,
+      });
       return null;
     });

@@ -221,7 +221,6 @@ class _TournamentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final st = ctStatus(t.status);
-    final sym = ctCurrency(t.currency);
     return BounceTap(
       onTap: onTap,
       child: Container(
@@ -268,17 +267,9 @@ class _TournamentCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      _stat(
-                        'ENTRY',
-                        t.isFree ? 'FREE' : '$sym${ctAmount(t.entryFee)}',
-                        t.isFree ? CT.successBright : CT.onSurface,
-                      ),
+                      _stat('ENTRY', 'FREE', CT.successBright),
                       const SizedBox(width: 20),
-                      _stat(
-                        'PRIZE POOL',
-                        '$sym${ctAmount(t.prizePool)}',
-                        CT.secondary,
-                      ),
+                      _stat('RANKING', 'Ranks', CT.secondary),
                       const Spacer(),
                       _stat(
                         'PLAYERS',

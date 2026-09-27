@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/home/controllers/app_mode_controller.dart';
 import 'package:hash/app/modules/home/views/hash_hub_splash_screen.dart';
-import 'package:hash/app/modules/home/widgets/hash_segmented_switch.dart';
+import 'package:hash/app/modules/home/widgets/hash_mode_switch.dart';
 import 'package:hash/app/modules/live/views/hash_live_splash_screen.dart';
 import 'package:hash/core/utils/haptics.dart';
 
@@ -22,10 +22,8 @@ class AppModeSegmentedToggle extends StatelessWidget {
 
     return Obx(() {
       final selected = controller.selectedMode.value;
-      return HashSegmentedSwitch(
-        key: ValueKey(selected),
-        options: const ['Hash Hub', 'Hash Live'],
-        initialIndex: selected == AppMode.hub ? 0 : 1,
+      return HashModeSwitch(
+        selectedIndex: selected == AppMode.hub ? 0 : 1,
         onChanged: (index) async {
           if (_isSwitchingRoute) return;
           final nextMode = index == 0 ? AppMode.hub : AppMode.live;

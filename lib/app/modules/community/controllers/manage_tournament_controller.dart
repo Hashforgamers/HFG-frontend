@@ -646,8 +646,7 @@ class ManageTournamentController extends GetxController {
       winners.add({
         'user_id': result.winnerUserId,
         'rank': result.rank,
-        // Per the pinned backend contract, zero delegates calculation to the
-        // authoritative prize distribution stored by the tournament service.
+        // The Play build records winners without triggering money movement.
         'amount': 0,
       });
     }
@@ -657,7 +656,7 @@ class ManageTournamentController extends GetxController {
     }
     await _mutate(
       () => _api.submitWinners(tournamentId, winners),
-      success: 'Winners submitted for payout approval',
+      success: 'Winners submitted',
     );
   }
 

@@ -14,6 +14,7 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/deeplink_service.dart';
+import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -166,6 +167,7 @@ class NotificationController extends GetxController {
   final SharedPreferences _prefs = locator<SharedPreferences>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final AnalyticsService _analytics = locator<AnalyticsService>();
 
   RxString fcmToken = ''.obs;
   final Set<String> _shownNotificationKeys = <String>{};
@@ -547,6 +549,11 @@ class NotificationController extends GetxController {
   Future<void> _onSelectNotification(String? payload) async {
     if (payload == null || payload.isEmpty) return;
     final actionId = payload.hashCode.toString();
+    _logNotificationOpen(
+      source: 'local_notification',
+      target: payload,
+      notificationId: actionId,
+    );
     segmentService.onCustomEvent('Notification Action Taken', {
       'notification_id': actionId,
       'action': 'tap',
@@ -601,6 +608,14 @@ class NotificationController extends GetxController {
   void _handleMessageNavigation(RemoteMessage message) {
     final route = message.data['route'];
     final type = message.data['type']?.toString() ?? '';
+    _logNotificationOpen(
+      source: 'push_notification',
+      target: (message.data['deep_link'] ?? route ?? type).toString(),
+      notificationId: (message.data['notification_id'] ?? message.messageId)
+          ?.toString(),
+      campaignId: message.data['campaign_id']?.toString(),
+      notificationType: type,
+    );
     final roomId =
         (message.data['room_id'] ?? message.data['chat_room_id'] ?? '')
             .toString()
@@ -667,6 +682,32 @@ class NotificationController extends GetxController {
     if (!Get.isRegistered<DeepLinkService>()) return false;
     await Get.find<DeepLinkService>().handleUri(uri);
     return true;
+  }
+
+  void _logNotificationOpen({
+    required String source,
+    required String target,
+    String? notificationId,
+    String? campaignId,
+    String? notificationType,
+  }) {
+    unawaited(
+      _analytics.log(
+        AnalyticsEvent.notificationOpen,
+        parameters: {
+          'source': source,
+          'target_type': target.startsWith('http')
+              ? 'deep_link'
+              : target.startsWith('/')
+              ? 'route'
+              : 'in_app',
+          'notification_id': notificationId,
+          'campaign_id': campaignId,
+          'notification_type': notificationType,
+        },
+        deduplicationKey: notificationId ?? '$source:$target',
+      ),
+    );
   }
 
   Future<void> showChatNotification({

@@ -9,7 +9,7 @@ import '../models/tournament_operations.dart';
 import '../widgets/tournament_bracket.dart';
 import '../widgets/tournament_chat_management_panel.dart';
 import 'community_theme.dart';
-import 'tournaments_view.dart' show ctAmount, ctCurrency, ctStatus;
+import 'tournaments_view.dart' show ctStatus;
 import '../../../routes/app_routes.dart';
 
 class ManageTournamentView extends GetView<ManageTournamentController> {
@@ -63,7 +63,6 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
               _matches(context),
               _results(context, tournament),
               TournamentChatManagementPanel(controller: controller),
-              _payouts(),
               _controlRoom(context),
             ],
           );
@@ -193,7 +192,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                   _action(
                     icon: Icons.cancel_outlined,
                     title: 'Cancel tournament',
-                    subtitle: 'Confirmed paid registrations will be refunded.',
+                    subtitle: 'Confirmed registrations will be cancelled.',
                     destructive: true,
                     onTap: () => _cancelDialog(context),
                   ),
@@ -410,14 +409,10 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
               'PLAYERS',
             ),
             _overviewMetric(
-              '${ctCurrency(t.currency)}${ctAmount(t.prizePool)}',
-              'PRIZE POOL',
+              '${t.registeredPlayersCount}/${t.maxPlayers}',
+              'PLAYERS',
             ),
-            _overviewMetric(
-              '${ctCurrency(t.currency)}${ctAmount(t.organizerCommissionAmount)}',
-              'EARNINGS',
-              last: true,
-            ),
+            _overviewMetric(ctStatus(t.status).label, 'EARNINGS', last: true),
           ],
         ),
         const SizedBox(height: 16),
@@ -602,7 +597,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                       confirmed ? CT.primary : CT.onSurfaceVariant,
                     ),
                     _rosterMeta(
-                      paid ? 'Paid' : item.paymentStatus.replaceAll('_', ' '),
+                      paid ? 'Confirmed' : item.status.replaceAll('_', ' '),
                       paid ? CT.successBright : CT.muted,
                     ),
                     if (checkedIn) _rosterMeta('Checked in', CT.successBright),
@@ -2386,213 +2381,6 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
               color: color,
               size: 19,
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _payouts() {
-    final all = controller.payouts.toList();
-    final paid = all.where((item) => item.status == 'paid').toList();
-    final pending = all.where((item) => item.status != 'paid').toList();
-    final totalAmount = all.fold<double>(0, (sum, item) => sum + item.amount);
-    final paidAmount = paid.fold<double>(0, (sum, item) => sum + item.amount);
-    final currency = all.isEmpty ? 'INR' : all.first.currency;
-    return DefaultTabController(
-      length: 3,
-      child: LayoutBuilder(
-        builder: (context, constraints) => Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 760,
-              minHeight: constraints.maxHeight,
-              maxHeight: constraints.maxHeight,
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Payouts', style: CT.headline(20)),
-                                const SizedBox(height: 3),
-                                Text(
-                                  'Track winner settlements',
-                                  style: CT.body(11),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: 'Refresh payouts',
-                            onPressed: controller.load,
-                            icon: const Icon(
-                              Icons.refresh_rounded,
-                              color: CT.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        children: [
-                          _rosterMetric(
-                            '${ctCurrency(currency)}${ctAmount(totalAmount)}',
-                            'TOTAL',
-                          ),
-                          _rosterMetric(
-                            '${ctCurrency(currency)}${ctAmount(paidAmount)}',
-                            'SETTLED',
-                            color: CT.successBright,
-                          ),
-                          _rosterMetric(
-                            '${paid.length}/${all.length}',
-                            'PAID',
-                            color: CT.primary,
-                          ),
-                          _rosterMetric(
-                            '${pending.length}',
-                            'PENDING',
-                            color: pending.isEmpty
-                                ? CT.muted
-                                : CT.onSurfaceVariant,
-                            last: true,
-                          ),
-                        ],
-                      ),
-                      if (all.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(3),
-                          child: LinearProgressIndicator(
-                            value: totalAmount <= 0
-                                ? 0
-                                : (paidAmount / totalAmount).clamp(0, 1),
-                            minHeight: 4,
-                            backgroundColor: CT.surfaceHigh,
-                            valueColor: const AlwaysStoppedAnimation(
-                              CT.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                TabBar(
-                  indicatorColor: CT.primary,
-                  indicatorSize: TabBarIndicatorSize.label,
-                  dividerColor: CT.hairline,
-                  labelColor: CT.onSurface,
-                  unselectedLabelColor: CT.muted,
-                  labelStyle: CT.mono(9),
-                  tabs: [
-                    Tab(text: 'ALL  ${all.length}'),
-                    Tab(text: 'PENDING  ${pending.length}'),
-                    Tab(text: 'PAID  ${paid.length}'),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _payoutList(context, all),
-                      _payoutList(context, pending),
-                      _payoutList(context, paid),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _payoutList(BuildContext context, List<Payout> payouts) =>
-      RefreshIndicator(
-        onRefresh: controller.load,
-        color: CT.primary,
-        child: payouts.isEmpty
-            ? ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  SizedBox(height: MediaQuery.sizeOf(context).height * .18),
-                  _emptyContent('No payouts in this view'),
-                ],
-              )
-            : ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                itemCount: payouts.length,
-                separatorBuilder: (_, _) =>
-                    const Divider(height: 1, color: CT.hairline),
-                itemBuilder: (_, index) => _payoutRow(payouts[index]),
-              ),
-      );
-
-  Widget _payoutRow(Payout item) {
-    final paid = item.status == 'paid';
-    final failed = {'failed', 'rejected'}.contains(item.status);
-    final statusColor = paid
-        ? CT.successBright
-        : failed
-        ? CT.error
-        : CT.onSurfaceVariant;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 42,
-            child: Text(
-              item.rank == null ? '—' : '#${item.rank}',
-              style: CT.headline(
-                15,
-                color: item.rank != null ? CT.primary : CT.muted,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.gamer?.displayName ?? 'Winner',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CT.headline(13.5),
-                ),
-                const SizedBox(height: 5),
-                _rosterMeta(item.status.replaceAll('_', ' '), statusColor),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${ctCurrency(item.currency)}${ctAmount(item.amount)}',
-                style: CT.headline(14),
-              ),
-              const SizedBox(height: 4),
-              Icon(
-                paid
-                    ? Icons.check_circle_rounded
-                    : failed
-                    ? Icons.error_outline_rounded
-                    : Icons.schedule_rounded,
-                color: statusColor,
-                size: 17,
-              ),
-            ],
-          ),
         ],
       ),
     );

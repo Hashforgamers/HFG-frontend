@@ -6,7 +6,7 @@ import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import '../controllers/my_tournaments_controller.dart';
 import '../models/tournament.dart';
 import 'community_theme.dart';
-import 'tournaments_view.dart' show ctCurrency, ctAmount, ctStatus;
+import 'tournaments_view.dart' show ctStatus;
 
 /// "My Tournaments" — Joined / Hosted, from GET /me/tournaments.
 class MyTournamentsView extends GetView<MyTournamentsController> {
@@ -113,7 +113,6 @@ class MyTournamentsView extends GetView<MyTournamentsController> {
   Widget _row(TournamentListItem item) {
     final t = item.tournament;
     final st = ctStatus(t.status);
-    final sym = ctCurrency(t.currency);
     final reg = item.registration;
     return BounceTap(
       onTap: () => controller.openDetail(t),
@@ -152,12 +151,9 @@ class MyTournamentsView extends GetView<MyTournamentsController> {
             const SizedBox(height: 12),
             Row(
               children: [
-                _stat(
-                  'ENTRY',
-                  t.isFree ? 'FREE' : '$sym${ctAmount(t.entryFee)}',
-                ),
+                _stat('ENTRY', 'FREE'),
                 const SizedBox(width: 20),
-                _stat('PRIZE POOL', '$sym${ctAmount(t.prizePool)}'),
+                _stat('RANKING', 'Ranks'),
                 const Spacer(),
                 _stat('PLAYERS', '${t.registeredPlayersCount}/${t.maxPlayers}'),
               ],

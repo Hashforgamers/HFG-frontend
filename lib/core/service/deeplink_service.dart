@@ -7,7 +7,11 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_invite_join_view.dart';
+import 'package:hash/features/mini_games/ludo/ludo_game_screen.dart';
 import 'package:hash/features/mini_games/ludo/online/ludo_match_screen.dart';
+import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
+import 'package:hash/features/mini_games/score/mini_game_leaderboard_service.dart';
+import 'package:hash/features/mini_games/score/mini_game_score_service.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -363,6 +367,24 @@ class DeepLinkService extends GetxController {
       final matchId = destination.id!.substring('snlmatch_'.length);
       if (matchId.isNotEmpty) {
         Widget page() => SnlMatchScreen(matchId: matchId);
+        replaceStack ? Get.offAll(page) : Get.to(page);
+        return;
+      }
+    }
+    if (destination.type == DeepLinkType.game) {
+      final gameId = (destination.id ?? '').toLowerCase();
+      if (gameId == 'ludo') {
+        Widget page() => const LudoGameScreen();
+        replaceStack ? Get.offAll(page) : Get.to(page);
+        return;
+      }
+      if (gameId == 'mini-games' ||
+          gameId == 'mini_games' ||
+          gameId == 'arcade') {
+        Widget page() => MiniGameLeaderboardPage(
+          scoreService: MiniGameScoreService(),
+          leaderboardService: MiniGameLeaderboardService(),
+        );
         replaceStack ? Get.offAll(page) : Get.to(page);
         return;
       }

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/utils/haptics.dart';
 
-/// "Earn with HASH" host-program card in the Apple card style used across
-/// Home: material surface, continuous corners and a green brand hint.
+/// Tournament host-program card: hero artwork (headline baked in), a native
+/// four-feature panel and a pink "Become a Tournament Host" capsule.
 class HomeHostCard extends StatefulWidget {
   const HomeHostCard({super.key, required this.onTap});
 
@@ -14,23 +14,14 @@ class HomeHostCard extends StatefulWidget {
 }
 
 class _HomeHostCardState extends State<HomeHostCard> {
+  static const _heroAsset = 'assets/host_program_hero.jpg';
+  static const _heroAspect = 1388 / 583;
+  static const _surface = Color(0xFF121216);
+  static const _separator = Color(0x26FFFFFF);
   static const _green = Color(0xFF30D158);
-  static const _brand = Color(0xFF00DC00);
-  static const _indigo = Color(0xFF7D7AFF);
-  static const _secondary = Color(0x99EBEBF5);
-  static const _fill = Color(0x29787880);
-  static const _separator = Color(0x33FFFFFF);
+  static const _greenDeep = Color(0xFF1E9E3E);
 
   bool _down = false;
-
-  TextStyle _text(double size, Color color, {FontWeight? weight}) =>
-      GoogleFonts.inter(
-        color: color,
-        fontSize: size,
-        fontWeight: weight ?? FontWeight.w400,
-        letterSpacing: size >= 20 ? -0.6 : (size >= 15 ? -0.3 : -0.1),
-        height: 1.2,
-      );
 
   void _set(bool v) {
     if (_down != v) setState(() => _down = v);
@@ -41,179 +32,252 @@ class _HomeHostCardState extends State<HomeHostCard> {
     widget.onTap();
   }
 
+  TextStyle _text(double size, Color color, {FontWeight? weight}) =>
+      GoogleFonts.inter(
+        color: color,
+        fontSize: size,
+        fontWeight: weight ?? FontWeight.w400,
+        letterSpacing: size >= 15 ? -0.3 : -0.1,
+        height: 1.2,
+      );
+
   @override
   Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: const ShapeDecoration(
+        shape: ContinuousRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(48)),
+          side: BorderSide(color: Color(0x5900DC00), width: 0.8),
+        ),
+        color: _surface,
+        shadows: [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 28,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GestureDetector(
+            onTap: _open,
+            child: AspectRatio(
+              aspectRatio: _heroAspect,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    _heroAsset,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.medium,
+                    errorBuilder: (_, _, _) => const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF3A1F5C), Color(0xFFB24A8F)],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Blend the art into the card surface below it.
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x00121216), Color(0xFF121216)],
+                        stops: [0.93, 1],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [_features(), const SizedBox(height: 8), _cta()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _features() {
+    const items = [
+      (
+        Icons.emoji_events_rounded,
+        Color(0xFF30D158),
+        'Set Your Rules',
+        'Game, format, prizes',
+      ),
+      (
+        Icons.groups_rounded,
+        Color(0xFF7D7AFF),
+        'Bring Your Players',
+        'Build your community',
+      ),
+      (
+        Icons.calendar_month_rounded,
+        Color(0xFFFF9F0A),
+        'Manage & Host',
+        'Registrations, brackets',
+      ),
+      (
+        Icons.bar_chart_rounded,
+        Color(0xFFFF375F),
+        'Grow & Earn',
+        'More visibility for your café',
+      ),
+    ];
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
+      decoration: const ShapeDecoration(
+        shape: ContinuousRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(34)),
+          side: BorderSide(color: _separator, width: 0.5),
+        ),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF1E1E23), Color(0xFF16161A)],
+        ),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final (i, item) in items.indexed) ...[
+              if (i > 0)
+                const VerticalDivider(
+                  width: 1,
+                  thickness: 0.5,
+                  color: _separator,
+                ),
+              Expanded(child: _feature(item.$1, item.$2, item.$3, item.$4)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _feature(IconData icon, Color color, String title, String detail) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            decoration: ShapeDecoration(
+              shape: ContinuousRectangleBorder(
+                borderRadius: const BorderRadius.all(Radius.circular(16)),
+                side: BorderSide(
+                  color: color.withValues(alpha: 0.45),
+                  width: 0.8,
+                ),
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  color.withValues(alpha: 0.42),
+                  color.withValues(alpha: 0.14),
+                ],
+              ),
+            ),
+            child: Icon(icon, color: Colors.white, size: 14),
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              title,
+              maxLines: 1,
+              style: _text(10, Colors.white, weight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cta() {
     return GestureDetector(
       onTapDown: (_) => _set(true),
       onTapUp: (_) => _set(false),
       onTapCancel: () => _set(false),
       onTap: _open,
       child: AnimatedScale(
-        scale: _down ? 0.98 : 1,
-        duration: const Duration(milliseconds: 140),
+        scale: _down ? 0.97 : 1,
+        duration: const Duration(milliseconds: 120),
         curve: Curves.easeOut,
         child: Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: const ShapeDecoration(
-            shape: ContinuousRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(48)),
-              side: BorderSide(color: Color(0x5900DC00), width: 0.8),
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: ShapeDecoration(
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: Colors.white.withValues(alpha: 0.35),
+                width: 1,
+              ),
             ),
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFF242427), Color(0xFF161618)],
+              colors: [Color(0xFF5CE07A), _green, _greenDeep],
+              stops: [0, 0.5, 1],
             ),
             shadows: [
               BoxShadow(
-                color: Color(0x66000000),
-                blurRadius: 28,
-                offset: Offset(0, 12),
+                color: _green.withValues(alpha: 0.45),
+                blurRadius: 18,
+                spreadRadius: -4,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: Stack(
+          child: Row(
             children: [
-              // Indigo wash top-right, green hint bottom-right.
-              Positioned(
-                top: -90,
-                right: -70,
-                child: _glow(_indigo.withValues(alpha: 0.22), 260),
-              ),
-              Positioned(
-                bottom: -110,
-                right: -80,
-                child: _glow(_brand.withValues(alpha: 0.15), 240),
-              ),
-              // Oversized faded controller as the card's art.
-              Positioned(
-                right: -18,
-                top: 18,
-                child: Icon(
-                  Icons.sports_esports_rounded,
-                  size: 130,
-                  color: Colors.white.withValues(alpha: 0.05),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0B0B10),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 18,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'HOST PROGRAM',
-                      style: _text(
-                        12,
-                        _secondary,
-                        weight: FontWeight.w600,
-                      ).copyWith(letterSpacing: 0.6),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Host. Hype. Earn.',
-                      style: _text(28, Colors.white, weight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Create tournaments on HASH and turn your matches into money.',
-                      style: _text(14, _secondary),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                      decoration: const ShapeDecoration(
-                        shape: ContinuousRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(30)),
-                        ),
-                        color: _fill,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: ShapeDecoration(
-                              shape: const ContinuousRectangleBorder(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(20),
-                                ),
-                              ),
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  _green.withValues(alpha: 0.36),
-                                  _green.withValues(alpha: 0.12),
-                                ],
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.currency_rupee_rounded,
-                              color: _green,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Earn up to',
-                                  style: _text(12, _secondary),
-                                ),
-                                Text(
-                                  '₹1,00,000',
-                                  style: _text(
-                                    24,
-                                    Colors.white,
-                                    weight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(width: 0.5, height: 36, color: _separator),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _fact(Icons.emoji_events_rounded, 'Your rules'),
-                              const SizedBox(height: 4),
-                              _fact(Icons.groups_rounded, 'Your players'),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      height: 50,
-                      decoration: const ShapeDecoration(
-                        shape: StadiumBorder(),
-                        color: _green,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.add_circle_rounded,
-                            color: Colors.black,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Become a Host',
-                            style: _text(
-                              16,
-                              Colors.black,
-                              weight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+              Expanded(
+                child: Text(
+                  'Become a Tournament Host',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white,
+                  size: 20,
                 ),
               ),
             ],
@@ -222,24 +286,4 @@ class _HomeHostCardState extends State<HomeHostCard> {
       ),
     );
   }
-
-  Widget _fact(IconData icon, String label) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(icon, size: 14, color: _indigo),
-      const SizedBox(width: 5),
-      Text(label, style: _text(12, Colors.white, weight: FontWeight.w500)),
-    ],
-  );
-
-  Widget _glow(Color color, double size) => IgnorePointer(
-    child: Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(colors: [color, color.withValues(alpha: 0)]),
-      ),
-    ),
-  );
 }
