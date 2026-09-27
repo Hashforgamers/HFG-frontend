@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 
 import 'audio.dart';
 import 'constants.dart';
+import 'power_ups.dart';
 import 'ludo_provider.dart';
 
 class MainScreen extends StatefulWidget {
@@ -123,7 +124,8 @@ class _MainScreenState extends State<MainScreen>
   void _recordResult() {
     final game = _game!;
     if (game.winners.isEmpty) _resultRecorded = false;
-    if (!game.againstAi || _resultRecorded) return;
+    // Power Ludo is unranked, so power-ups can't be farmed for points.
+    if (!game.againstAi || game.powerMode || _resultRecorded) return;
     final score = ludoPlacementScore(
       seat: LudoPlayerType.green,
       winners: game.winners,
@@ -203,7 +205,9 @@ class _MainScreenState extends State<MainScreen>
                           const GameText('LUDO', size: 26),
                           const SizedBox(width: 8),
                           GameBadge(
-                            label: game.againstAi ? 'VS AI' : 'PASS & PLAY',
+                            label: game.powerMode
+                                ? '⚡ POWER'
+                                : (game.againstAi ? 'VS AI' : 'PASS & PLAY'),
                           ),
                           const Spacer(),
                           GameIconButton(
@@ -234,6 +238,10 @@ class _MainScreenState extends State<MainScreen>
                       const SizedBox(height: 8),
                       _playerRow(LudoPlayerType.red, LudoPlayerType.blue),
                       const SizedBox(height: 8),
+                      if (game.powerMode) ...[
+                        _powerBar(),
+                        const SizedBox(height: 8),
+                      ],
                       _turnControl(),
                       const SizedBox(height: 8),
                       LudoReactionBar(
@@ -269,9 +277,142 @@ class _MainScreenState extends State<MainScreen>
     ),
     child: ClipRRect(
       borderRadius: BorderRadius.circular(14),
-      child: BoardWidget(size: side, showTurnIndicator: false),
+      child: Stack(
+        children: [
+          BoardWidget(size: side, showTurnIndicator: false),
+          if (context.read<LudoProvider>().powerMode) ...[
+            Positioned(
+              left: 0,
+              right: 0,
+              top: side * 0.42,
+              child: IgnorePointer(child: _powerBanner()),
+            ),
+          ],
+        ],
+      ),
     ),
   );
+
+  String _seatLabel(LudoProvider game, LudoPlayerType type) {
+    if (game.againstAi) {
+      return type == LudoPlayerType.green ? 'You' : '${_playerName(type)} Bot';
+    }
+    return _playerName(type);
+  }
+
+  /// Short-lived "You got Boost!" / "Yellow Bot used Shield" banner.
+  Widget _powerBanner() => Consumer<LudoProvider>(
+    builder: (context, game, _) {
+      final e = game.powerEvent;
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        transitionBuilder: (child, anim) => ScaleTransition(
+          scale: anim,
+          child: FadeTransition(opacity: anim, child: child),
+        ),
+        child: e == null
+            ? const SizedBox.shrink()
+            : _PowerBannerChip(
+                key: ValueKey(e.id),
+                power: e.power,
+                text: e.gained
+                    ? '${_seatLabel(game, e.seat as LudoPlayerType)} got ${e.power.title}!'
+                    : '${_seatLabel(game, e.seat as LudoPlayerType)} used ${e.power.title}',
+              ),
+      );
+    },
+  );
+
+  /// Inventory of the seat whose turn it is (the human in Vs AI).
+  Widget _powerBar() => Consumer<LudoProvider>(
+    builder: (context, game, _) {
+      final seat = game.againstAi ? LudoPlayerType.green : game.currentTurnSeat;
+      final bag = game.powers[seat]!;
+      return Row(
+        children: [
+          for (var i = 0; i < LudoProvider.maxPowers; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(
+              child: i < bag.length
+                  ? _powerChip(game, bag[i])
+                  : _emptyPowerSlot(),
+            ),
+          ],
+        ],
+      );
+    },
+  );
+
+  Widget _emptyPowerSlot() => Container(
+    height: 48,
+    decoration: BoxDecoration(
+      color: GameColors.socket,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: GameColors.trayEdge, width: 2),
+    ),
+    alignment: Alignment.center,
+    child: Text(
+      '⚡ empty',
+      style: gameFont(12, GameColors.soft.withValues(alpha: 0.4)),
+    ),
+  );
+
+  Widget _powerChip(LudoProvider game, PowerUp power) {
+    final usable = game.canUsePower(power);
+    final armed =
+        (power == PowerUp.boost && game.boostArmed) ||
+        (power == PowerUp.luckySix && game.luckyArmed);
+    return GestureDetector(
+      onTap: usable ? () => game.usePower(power) : null,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 180),
+        opacity: usable || armed ? 1 : 0.45,
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.fromLTRB(2.5, 2.5, 2.5, 5),
+          decoration: BoxDecoration(
+            color: GameColors.outline,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: armed
+                ? [
+                    BoxShadow(
+                      color: power.color.withValues(alpha: 0.7),
+                      blurRadius: 14,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(11.5),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color.lerp(power.color, Colors.white, 0.25)!,
+                  Color.lerp(power.color, Colors.black, 0.2)!,
+                ],
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GameIcon(icon: power.icon, size: 18),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: GameText(armed ? 'READY' : power.title, size: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _playerRow(LudoPlayerType left, LudoPlayerType right) => Row(
     children: [
@@ -365,7 +506,9 @@ class _MainScreenState extends State<MainScreen>
                           ? (game.isAiTurn
                                 ? 'Thinking…'
                                 : 'Your turn · ${_remaining}s')
-                          : '$finished/4 home',
+                          : (game.shieldTurns(type) > 0
+                                ? '🛡 Shielded · $finished/4 home'
+                                : '$finished/4 home'),
                       style: gameFont(
                         11.5,
                         urgent
@@ -530,6 +673,41 @@ class _MainScreenState extends State<MainScreen>
           ),
         );
       },
+    );
+  }
+}
+
+class _PowerBannerChip extends StatelessWidget {
+  const _PowerBannerChip({super.key, required this.power, required this.text});
+
+  final PowerUp power;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 6, 12, 7),
+        decoration: BoxDecoration(
+          color: GameColors.outline.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: power.color, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: power.color.withValues(alpha: 0.5),
+              blurRadius: 14,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(power.icon, color: power.color, size: 18),
+            const SizedBox(width: 6),
+            Text(text, style: gameFont(14, Colors.white)),
+          ],
+        ),
+      ),
     );
   }
 }

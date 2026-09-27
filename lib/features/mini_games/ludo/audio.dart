@@ -1,8 +1,6 @@
 import 'package:just_audio/just_audio.dart';
 
 class Audio {
-  static AudioPlayer audioPlayer = AudioPlayer();
-
   // Dedicated player for the countdown clock so it doesn't interrupt move/roll
   // sounds. It plays once when the turn enters its final 15 seconds.
   static final AudioPlayer _tickPlayer = AudioPlayer();
@@ -35,18 +33,29 @@ class Audio {
     } catch (_) {}
   }
 
-  /// Plays a bundled sound. Sounds are best-effort: any failure (missing asset,
-  /// no audio device, player busy) is swallowed so it can never block or freeze
-  /// gameplay. [pace] optionally caps how long the caller waits, keeping pawn
-  /// stepping snappy instead of tied to the full clip length.
-  static Future<void> _play(String asset, {Duration? pace}) async {
-    try {
-      final duration = await audioPlayer.setAsset(asset);
-      audioPlayer.play();
-      await Future.delayed(pace ?? duration ?? Duration.zero);
-    } catch (_) {
-      // Ignore: audio is non-essential to game logic.
-    }
+  /// One preloaded player per sound so a roll, a step and a capture (ours or
+  /// the opponent's, arriving together online) never interrupt each other.
+  static final Map<String, AudioPlayer> _players = {};
+  static final Set<String> _loaded = {};
+
+  /// Plays a bundled sound, fire-and-forget. Never blocks gameplay: loading is
+  /// capped at 2s and every failure is swallowed. The returned future only
+  /// waits for [pace] (default: nothing), never for the audio itself.
+  static Future<void> _play(String asset, {Duration? pace}) {
+    () async {
+      try {
+        final player = _players[asset] ??= AudioPlayer();
+        if (!_loaded.contains(asset)) {
+          await player.setAsset(asset).timeout(const Duration(seconds: 2));
+          _loaded.add(asset);
+        }
+        await player.seek(Duration.zero);
+        await player.play();
+      } catch (_) {
+        // Audio is non-essential to game logic.
+      }
+    }();
+    return Future.delayed(pace ?? Duration.zero);
   }
 
   static Future<void> playMove() => _play(

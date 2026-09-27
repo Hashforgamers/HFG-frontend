@@ -54,11 +54,13 @@ class _LudoGameScreenState extends State<LudoGameScreen>
     }
   }
 
-  void _openLocal({required bool againstAi}) {
+  void _openLocal({required bool againstAi, bool powerMode = false}) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ChangeNotifierProvider(
-          create: (_) => LudoProvider(againstAi: againstAi)..startGame(),
+          create: (_) =>
+              LudoProvider(againstAi: againstAi, powerMode: powerMode)
+                ..startGame(),
           child: const MainScreen(),
         ),
       ),
@@ -141,6 +143,18 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                     tone: GameButtonTone.purple,
                     action: 'Play',
                     onTap: () => _openLocal(againstAi: true),
+                  ),
+                  const SizedBox(height: 12),
+                  _modeCard(
+                    title: 'Power Ludo',
+                    subtitle:
+                        'Vs AI. Start with Reroll, Lucky Six, Boost & Shield.',
+                    tag: 'New · power-ups · unranked',
+                    icon: Icons.bolt_rounded,
+                    colors: GameColors.yellow,
+                    tone: GameButtonTone.yellow,
+                    action: 'Play',
+                    onTap: () => _openLocal(againstAi: true, powerMode: true),
                   ),
                   const SizedBox(height: 12),
                   _modeCard(

@@ -1,4 +1,6 @@
 import 'package:hash/features/mini_games/snakes_ladders/snl_match_screen.dart';
+import 'package:hash/features/mini_games/flappy_birds/Layouts/Pages/page_start_screen.dart';
+import 'package:hash/features/mini_games/wordly/wordly_screen.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -367,6 +369,26 @@ class DeepLinkService extends GetxController {
       final matchId = destination.id!.substring('snlmatch_'.length);
       if (matchId.isNotEmpty) {
         Widget page() => SnlMatchScreen(matchId: matchId);
+        replaceStack ? Get.offAll(page) : Get.to(page);
+        return;
+      }
+    }
+    // Wordly race invite: `.../game/wordlymatch_<matchId>`.
+    if (destination.type == DeepLinkType.game &&
+        (destination.id ?? '').startsWith('wordlymatch_')) {
+      final matchId = destination.id!.substring('wordlymatch_'.length);
+      if (matchId.isNotEmpty) {
+        Widget page() => WordlyGame(matchId: matchId);
+        replaceStack ? Get.offAll(page) : Get.to(page);
+        return;
+      }
+    }
+    // Laggy Bird race invite: `.../game/birdmatch_<matchId>`.
+    if (destination.type == DeepLinkType.game &&
+        (destination.id ?? '').startsWith('birdmatch_')) {
+      final matchId = destination.id!.substring('birdmatch_'.length);
+      if (matchId.isNotEmpty) {
+        Widget page() => FlappyBirds(matchId: matchId);
         replaceStack ? Get.offAll(page) : Get.to(page);
         return;
       }

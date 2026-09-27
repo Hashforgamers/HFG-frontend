@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/core/utils/haptics.dart';
 
+/// Capsule filter pills: tinted green when selected, iOS fill otherwise.
 class SearchResultFilters extends StatelessWidget {
   final List<String> filters;
   final String selected;
@@ -13,46 +15,71 @@ class SearchResultFilters extends StatelessWidget {
     required this.onSelected,
   });
 
+  static const _green = Color(0xFF30D158);
+
+  static const _icons = {
+    'All': Icons.apps_rounded,
+    'Gaming': Icons.sports_esports_rounded,
+    'Cafe': Icons.local_cafe_rounded,
+    'Nearby': Icons.near_me_rounded,
+    'Open Now': Icons.schedule_rounded,
+  };
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 50,
-      child: ListView.builder(
+      height: 52,
+      child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 7),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
         itemCount: filters.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final filter = filters[index];
           final isSelected = selected == filter;
-          return Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => onSelected(filter),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xff00DC00)
-                      : const Color(0xFF151515),
-                  borderRadius: BorderRadius.circular(11),
-                  border: Border.all(
+          final fg = isSelected ? _green : Colors.white;
+          return GestureDetector(
+            onTap: () {
+              if (isSelected) return;
+              Haptics.selection();
+              onSelected(filter);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              padding: const EdgeInsets.symmetric(horizontal: 13),
+              alignment: Alignment.center,
+              decoration: ShapeDecoration(
+                shape: StadiumBorder(
+                  side: BorderSide(
                     color: isSelected
-                        ? const Color(0xff00DC00)
-                        : Colors.white.withValues(alpha: 0.2),
+                        ? _green.withValues(alpha: 0.55)
+                        : Colors.transparent,
+                    width: 0.8,
                   ),
                 ),
-                child: Text(
-                  filter,
-                  style: GoogleFonts.inter(
-                    color: isSelected ? Colors.black : Colors.white60,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                color: isSelected
+                    ? _green.withValues(alpha: 0.16)
+                    : const Color(0x3D767680),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_icons[filter] != null) ...[
+                    Icon(_icons[filter], size: 15, color: fg),
+                    const SizedBox(width: 5),
+                  ],
+                  Text(
+                    filter,
+                    style: GoogleFonts.inter(
+                      color: fg,
+                      fontSize: 13,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      letterSpacing: -0.1,
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           );

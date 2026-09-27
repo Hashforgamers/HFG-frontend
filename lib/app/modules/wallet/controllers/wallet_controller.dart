@@ -481,31 +481,32 @@ class WalletController extends GetxController {
   }
 
   void _showSuccessMessage(String message) {
-    // Use Future.microtask to avoid calling during build
-    Future.microtask(() {
-      Haptics.success();
-      Get.snackbar(
-        'Success',
-        message,
-        backgroundColor: const Color(0xff00DC00),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-      );
-    });
+    Future.microtask(() => _showSnack(message, const Color(0xff00DC00)));
   }
 
   void _showErrorMessage(String message) {
-    // Use Future.microtask to avoid calling during build
     Future.microtask(() {
       Haptics.error();
-      Get.snackbar(
-        'Error',
-        message,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-      );
+      _showSnack(message, Colors.red);
     });
+  }
+
+  /// Get.snackbar looks up its overlay asynchronously and throws an
+  /// uncatchable "No Overlay widget found" when a dialog is closing (e.g. the
+  /// welcome-bonus popup). ScaffoldMessenger is synchronous and safe.
+  void _showSnack(String message, Color color) {
+    try {
+      final ctx = Get.context;
+      final messenger = ctx == null ? null : ScaffoldMessenger.maybeOf(ctx);
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (_) {}
   }
 
   // Analytics tracking methods

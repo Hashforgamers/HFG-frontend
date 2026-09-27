@@ -1044,6 +1044,32 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     emoji: '🐍',
   );
 
+  /// Laggy Bird race counterpart of [sendLudoInviteMessage] (`bird_invite`).
+  Future<void> sendBirdInviteMessage({
+    required ChatUserModel friend,
+    required String matchId,
+  }) => _sendGameInviteMessage(
+    friend: friend,
+    matchId: matchId,
+    type: 'bird_invite',
+    pathPrefix: 'birdmatch_',
+    gameName: 'Laggy Bird',
+    emoji: '🐦',
+  );
+
+  /// Wordly race counterpart of [sendLudoInviteMessage] (`wordly_invite`).
+  Future<void> sendWordlyInviteMessage({
+    required ChatUserModel friend,
+    required String matchId,
+  }) => _sendGameInviteMessage(
+    friend: friend,
+    matchId: matchId,
+    type: 'wordly_invite',
+    pathPrefix: 'wordlymatch_',
+    gameName: 'Wordly',
+    emoji: '🟩',
+  );
+
   Future<void> _sendGameInviteMessage({
     required ChatUserModel friend,
     required String matchId,

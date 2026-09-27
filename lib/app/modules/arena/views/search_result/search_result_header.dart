@@ -18,18 +18,18 @@ class SearchResultHeader extends StatelessWidget {
       child: Row(
         children: [
           Material(
-            color: Colors.white.withValues(alpha: .07),
-            borderRadius: BorderRadius.circular(13),
+            color: const Color(0x3D767680),
+            shape: const CircleBorder(),
             child: InkWell(
               onTap: onBack,
-              borderRadius: BorderRadius.circular(13),
+              customBorder: const CircleBorder(),
               child: const SizedBox(
-                width: 42,
-                height: 42,
+                width: 44,
+                height: 44,
                 child: Icon(
-                  Icons.arrow_back_rounded,
-                  color: Colors.white,
-                  size: 22,
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Color(0xFF30D158),
+                  size: 19,
                 ),
               ),
             ),
@@ -42,10 +42,10 @@ class SearchResultHeader extends StatelessWidget {
                 Text(
                   'Find a gaming cafe',
                   style: GoogleFonts.inter(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
-                    letterSpacing: -.35,
+                    letterSpacing: -.5,
                   ),
                 ),
                 if (location != null)
@@ -54,7 +54,7 @@ class SearchResultHeader extends StatelessWidget {
                       const Icon(
                         Icons.location_on_rounded,
                         size: 12,
-                        color: Color(0xFF00DC00),
+                        color: Color(0xFF30D158),
                       ),
                       const SizedBox(width: 3),
                       Expanded(
@@ -63,8 +63,8 @@ class SearchResultHeader extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: Colors.white54,
+                            fontSize: 12.5,
+                            color: const Color(0x99EBEBF5),
                           ),
                         ),
                       ),

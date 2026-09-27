@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:lottie/lottie.dart';
 import '../../Database/database.dart';
 import '../../Global/constant.dart';
@@ -18,8 +19,17 @@ class GamePage extends StatefulWidget {
   State<GamePage> createState() => _GamePageState();
 }
 
-class _GamePageState extends State<GamePage> {
-  Timer? _movementTimer;
+class _GamePageState extends State<GamePage>
+    with SingleTickerProviderStateMixin {
+  /// Length of the original fixed game tick; physics constants are tuned to it,
+  /// so each vsync frame advances by `dt / _tick` ticks.
+  static const _tick = 0.035;
+
+  late final Ticker _ticker = createTicker(_onFrame);
+  Duration _lastFrame = Duration.zero;
+
+  /// Bumped every frame so only the bird/barrier layer repaints.
+  final ValueNotifier<int> _frame = ValueNotifier(0);
   Timer? _scoreTimer;
 
   @override
@@ -30,8 +40,19 @@ class _GamePageState extends State<GamePage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    precacheImage(AssetImage(Str.bird), context);
+    precacheImage(
+      AssetImage("assets/flappy_birds/pics/${Str.image}.png"),
+      context,
+    );
+  }
+
+  @override
   void dispose() {
-    _movementTimer?.cancel();
+    _ticker.dispose();
+    _frame.dispose();
     _scoreTimer?.cancel();
     stopFlappyAudio();
     super.dispose();
@@ -46,74 +67,77 @@ class _GamePageState extends State<GamePage> {
           children: [
             Expanded(
               flex: 3,
-              child: Container(
-                decoration: background(Str.image),
-                child: Stack(
-                  children: [
-                    Bird(yAxis, birdWidth, birdHeight),
-                    // Tap to play text
-                    Container(
-                      alignment: Alignment(0, -0.3),
-                      child: myText(
-                        gameHasStarted ? '' : 'TAP TO START',
-                        Colors.white,
-                        25,
-                      ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: DecoratedBox(decoration: background(Str.image)),
                     ),
-                    Barrier(
-                      barrierHeight[0][0],
-                      barrierWidth,
-                      barrierX[0],
-                      true,
-                    ),
-                    Barrier(
-                      barrierHeight[0][1],
-                      barrierWidth,
-                      barrierX[0],
-                      false,
-                    ),
-                    Barrier(
-                      barrierHeight[1][0],
-                      barrierWidth,
-                      barrierX[1],
-                      true,
-                    ),
-                    Barrier(
-                      barrierHeight[1][1],
-                      barrierWidth,
-                      barrierX[1],
-                      false,
-                    ),
-                    Positioned(
-                      bottom: 1,
-                      right: 1,
-                      left: 1,
-                      child: Container(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  ),
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: _frame,
+                        builder: (context, _, _) => Stack(
                           children: [
-                            Text(
-                              "Score : $score",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 30,
-                                fontFamily: "Magic4",
+                            Bird(yAxis, birdWidth, birdHeight),
+                            for (int i = 0; i < barrierX.length; i++) ...[
+                              Barrier(
+                                barrierHeight[i][0],
+                                barrierWidth,
+                                barrierX[i],
+                                true,
                               ),
-                            ), // Best TEXT
-                            Text(
-                              "Best : $topScore",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 30,
-                                fontFamily: "Magic4",
+                              Barrier(
+                                barrierHeight[i][1],
+                                barrierWidth,
+                                barrierX[i],
+                                false,
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  // Tap to play text
+                  Container(
+                    alignment: Alignment(0, -0.3),
+                    child: myText(
+                      gameHasStarted ? '' : 'TAP TO START',
+                      Colors.white,
+                      25,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 1,
+                    right: 1,
+                    left: 1,
+                    child: Container(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Text(
+                            "Score : $score",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontFamily: "Magic4",
+                            ),
+                          ), // Best TEXT
+                          Text(
+                            "Best : $topScore",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontFamily: "Magic4",
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(flex: 1, child: Cover()),
@@ -125,43 +149,41 @@ class _GamePageState extends State<GamePage> {
 
   // Jump Function:
   void jump() {
-    setState(() {
-      time = 0;
-      initialHeight = yAxis;
-    });
+    time = 0;
+    initialHeight = yAxis;
+  }
+
+  /// One vsync frame of physics, scaled by real elapsed time so the game runs
+  /// at the display's refresh rate instead of a drifting 35 ms timer.
+  void _onFrame(Duration elapsed) {
+    final dt = ((elapsed - _lastFrame).inMicroseconds / 1e6).clamp(0.0, 1 / 30);
+    _lastFrame = elapsed;
+    final steps = dt / _tick;
+
+    height = gravity * time * time + velocity * time;
+    yAxis = initialHeight - height;
+    for (int i = 0; i < barrierX.length; i++) {
+      if (barrierX[i] < screenEnd) {
+        barrierX[i] += screenStart;
+      } else {
+        barrierX[i] -= barrierMovement * steps;
+      }
+    }
+    time += 0.032 * steps;
+    _frame.value++;
+
+    if (birdIsDead()) {
+      _ticker.stop();
+      _showDialog();
+    }
   }
 
   //Start Game Function:
   void startGame() {
-    gameHasStarted = true;
-    _movementTimer?.cancel();
-    _movementTimer = Timer.periodic(Duration(milliseconds: 35), (timer) {
-      height = gravity * time * time + velocity * time;
-      setState(() {
-        yAxis = initialHeight - height;
-      });
-      /* <  Barriers Movements  > */
-      setState(() {
-        if (barrierX[0] < screenEnd) {
-          barrierX[0] += screenStart;
-        } else {
-          barrierX[0] -= barrierMovement;
-        }
-      });
-      setState(() {
-        if (barrierX[1] < screenEnd) {
-          barrierX[1] += screenStart;
-        } else {
-          barrierX[1] -= barrierMovement;
-        }
-      });
-      if (birdIsDead()) {
-        timer.cancel();
-        _movementTimer = null;
-        _showDialog();
-      }
-      time += 0.032;
-    });
+    setState(() => gameHasStarted = true);
+    _lastFrame = Duration.zero;
+    if (_ticker.isActive) _ticker.stop();
+    _ticker.start();
     /* <  Calculate Score  > */
     _scoreTimer?.cancel();
     _scoreTimer = Timer.periodic(Duration(seconds: 2), (timer) {
@@ -203,9 +225,8 @@ class _GamePageState extends State<GamePage> {
   }
 
   void resetGame() {
-    _movementTimer?.cancel();
+    _ticker.stop();
     _scoreTimer?.cancel();
-    _movementTimer = null;
     _scoreTimer = null;
     Navigator.pop(context); // dismisses the alert dialog
     setState(() {

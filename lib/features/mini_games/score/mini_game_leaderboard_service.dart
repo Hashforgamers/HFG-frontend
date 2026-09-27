@@ -68,6 +68,7 @@ class MiniGameLeaderboardService {
     'plant_vs_zombie',
     'pac_man',
     'laggy_bird',
+    'wordly',
     ...HtmlMiniGameCatalogService.supportedGameIds,
   ];
 

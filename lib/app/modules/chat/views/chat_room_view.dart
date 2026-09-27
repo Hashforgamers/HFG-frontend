@@ -14,6 +14,14 @@ import 'package:hash/app/modules/chat/views/chat_group_details_view.dart';
 import 'package:hash/app/modules/chat/widgets/ludo_invite_card.dart';
 import 'package:hash/features/mini_games/snakes_ladders/snl_match_screen.dart';
 import 'package:hash/features/mini_games/snakes_ladders/snl_match_service.dart';
+import 'package:hash/features/mini_games/flappy_birds/Layouts/Pages/page_start_screen.dart';
+import 'package:hash/features/mini_games/flappy_birds/online/bird_match.dart';
+import 'package:hash/features/mini_games/wordly/online/wordly_match.dart';
+import 'package:hash/features/mini_games/wordly/online/wordly_match_service.dart';
+import 'package:hash/features/mini_games/wordly/wordly_screen.dart';
+import 'package:hash/features/mini_games/ludo/constants.dart';
+import 'package:hash/features/mini_games/ludo/online/ludo_match.dart';
+import 'package:hash/features/mini_games/flappy_birds/online/bird_match_service.dart';
 import 'package:hash/app/modules/community/services/community_api.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
 import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
@@ -279,6 +287,16 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     }
     if (message.type == 'snl_invite') {
       return _buildLudoInviteCard(message: message, isMine: isMine, snl: true);
+    }
+    if (message.type == 'bird_invite') {
+      return _buildLudoInviteCard(message: message, isMine: isMine, bird: true);
+    }
+    if (message.type == 'wordly_invite') {
+      return _buildLudoInviteCard(
+        message: message,
+        isMine: isMine,
+        wordly: true,
+      );
     }
 
     final alignment = isMine ? Alignment.centerRight : Alignment.centerLeft;
@@ -858,10 +876,70 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
   }
 
+  /// Maps a Wordly race onto the invite card's four seat colours.
+  static InviteLobby? _wordlyLobby(WordlyMatch? m) {
+    if (m == null) return null;
+    const seats = LudoPlayerType.values;
+    final ordered = m.ordered.take(seats.length).toList();
+    final seatOf = {for (final (i, p) in ordered.indexed) p.uid: seats[i]};
+    return InviteLobby(
+      status: switch (m.status) {
+        WordlyMatchStatus.waiting => LudoMatchStatus.waiting,
+        WordlyMatchStatus.active => LudoMatchStatus.active,
+        WordlyMatchStatus.finished => LudoMatchStatus.finished,
+      },
+      seats: {
+        for (final p in ordered)
+          seatOf[p.uid]!: LudoSeatInfo(
+            uid: p.uid,
+            name: p.name,
+            photo: p.photo,
+          ),
+      },
+      turn: seats.first,
+      winners: [
+        if (m.status == WordlyMatchStatus.finished)
+          for (final p in m.standings)
+            if (seatOf[p.uid] != null) seatOf[p.uid]!,
+      ],
+    );
+  }
+
+  /// Maps a Laggy Bird race onto the invite card's four seat colours.
+  static InviteLobby? _birdLobby(BirdMatch? m) {
+    if (m == null) return null;
+    const seats = LudoPlayerType.values;
+    final ordered = m.ordered.take(seats.length).toList();
+    final seatOf = {for (final (i, p) in ordered.indexed) p.uid: seats[i]};
+    return InviteLobby(
+      status: switch (m.status) {
+        BirdMatchStatus.waiting => LudoMatchStatus.waiting,
+        BirdMatchStatus.active => LudoMatchStatus.active,
+        BirdMatchStatus.finished => LudoMatchStatus.finished,
+      },
+      seats: {
+        for (final p in ordered)
+          seatOf[p.uid]!: LudoSeatInfo(
+            uid: p.uid,
+            name: p.name,
+            photo: p.photo,
+          ),
+      },
+      turn: seats.first,
+      winners: [
+        if (m.status == BirdMatchStatus.finished)
+          for (final p in m.standings)
+            if (seatOf[p.uid] != null) seatOf[p.uid]!,
+      ],
+    );
+  }
+
   Widget _buildLudoInviteCard({
     required ChatMessageModel message,
     required bool isMine,
     bool snl = false,
+    bool bird = false,
+    bool wordly = false,
   }) {
     final meta = _messageMeta(message);
     final matchId = (meta['match_id'] ?? '').toString().trim();
@@ -869,7 +947,11 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     void open() {
       if (matchId.isEmpty) return;
       Get.to(
-        () => snl
+        () => wordly
+            ? WordlyGame(matchId: matchId)
+            : bird
+            ? FlappyBirds(matchId: matchId)
+            : snl
             ? SnlMatchScreen(matchId: matchId)
             : LudoMatchScreen(matchId: matchId),
       );
@@ -889,11 +971,23 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             isMine: isMine,
             timeLabel: _formatTime(message.createdAt),
             onOpen: open,
-            title: snl ? 'SNAKES' : 'LUDO',
-            iconAsset: snl
+            title: wordly
+                ? 'WORDLY'
+                : bird
+                ? 'BIRD RACE'
+                : (snl ? 'SNAKES' : 'LUDO'),
+            iconAsset: wordly
+                ? 'assets/mini_game_icons/wordly.png'
+                : bird
+                ? 'assets/mini_game_icons/flappy_birds.png'
+                : snl
                 ? 'assets/mini_game_icons/snakes_ladders.png'
                 : 'assets/mini_game_icons/ludo_icon.png',
-            lobby: snl && matchId.isNotEmpty
+            lobby: wordly && matchId.isNotEmpty
+                ? WordlyMatchService().watch(matchId).map(_wordlyLobby)
+                : bird && matchId.isNotEmpty
+                ? BirdMatchService().watch(matchId).map(_birdLobby)
+                : snl && matchId.isNotEmpty
                 ? SnlMatchService()
                       .watch(matchId)
                       .map(

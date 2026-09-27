@@ -18,6 +18,7 @@ import 'package:hash/utils/widgets/home_section_title.dart';
 import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 import 'flappy_birds/Layouts/Pages/page_start_screen.dart';
+import 'wordly/wordly_screen.dart';
 import 'mini_game_card.dart';
 import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
 import 'models/minigame_model.dart';
@@ -92,6 +93,16 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
         icon: const AssetImage("assets/mini_game_icons/pacman.png"),
         onTap: () async {
           await Get.to(() => const PacManHome());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'wordly',
+        title: "Wordly",
+        subtitle: "Guess the word · race friends",
+        icon: const AssetImage("assets/mini_game_icons/wordly.png"),
+        onTap: () async {
+          await Get.to(() => const WordlyGame());
           await _loadScores();
         },
       ),

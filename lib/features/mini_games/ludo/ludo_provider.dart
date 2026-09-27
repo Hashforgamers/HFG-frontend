@@ -9,17 +9,23 @@ import 'package:provider/provider.dart';
 
 import 'audio.dart';
 import 'constants.dart';
+import 'power_ups.dart';
 import 'online/ludo_match.dart';
 import 'online/ludo_match_service.dart';
 
 class LudoProvider extends ChangeNotifier {
   LudoProvider({
     this.againstAi = false,
+    this.powerMode = false,
     Random? random,
     this.soundEnabled = true,
   }) : _random = random ?? Random();
 
   final bool againstAi;
+
+  /// Power Ludo: everyone starts with one of each power-up; a capture
+  /// refills a used one (local play only).
+  final bool powerMode;
   final bool soundEnabled;
   final Random _random;
   Timer? _aiTimer;
@@ -36,6 +42,7 @@ class LudoProvider extends ChangeNotifier {
         winners.length >= 3) {
       return;
     }
+    if (_aiUsePower()) return;
     if (_gameState == LudoGameState.throwDice) {
       throwDice(automated: true);
     } else if (_gameState == LudoGameState.pickPawn) {
@@ -52,6 +59,136 @@ class LudoProvider extends ChangeNotifier {
         pawn.step == -1 ? 1 : pawn.step + 1 + diceResult,
       );
     }
+  }
+
+  // ---------------------------------------------------------------- powers
+
+  static const int maxPowers = 4;
+
+  final Map<LudoPlayerType, List<PowerUp>> powers = {
+    for (final s in LudoPlayerType.values) s: <PowerUp>[],
+  };
+  final Map<LudoPlayerType, int> _shieldTurns = {};
+
+  /// Seat that armed Boost / Lucky Six (they only fire on that seat's turn).
+  LudoPlayerType? _boostFor;
+  LudoPlayerType? _luckyFor;
+  PowerEvent? _powerEvent;
+  int _powerEventId = 0;
+
+  bool get boostArmed => _boostFor == _currentTurn;
+  bool get luckyArmed => _luckyFor == _currentTurn;
+  PowerEvent? get powerEvent => _powerEvent;
+  int shieldTurns(LudoPlayerType type) => _shieldTurns[type] ?? 0;
+
+  bool _isShielded(LudoPlayerType type) =>
+      powerMode && (_shieldTurns[type] ?? 0) > 0;
+
+  void _emitPower(LudoPlayerType seat, PowerUp power, {required bool gained}) {
+    _powerEvent = PowerEvent(
+      id: ++_powerEventId,
+      seat: seat,
+      power: power,
+      gained: gained,
+    );
+    final id = _powerEventId;
+    Future.delayed(const Duration(milliseconds: 2200), () {
+      if (_stopMoving || _powerEvent?.id != id) return;
+      _powerEvent = null;
+      notifyListeners();
+    });
+  }
+
+  void _grantPower(LudoPlayerType type) {
+    if (!powerMode) return;
+    final bag = powers[type]!;
+    if (bag.length >= maxPowers) return;
+    final missing = PowerUp.values.where((p) => !bag.contains(p)).toList();
+    if (missing.isEmpty) return;
+    final power = missing[_random.nextInt(missing.length)];
+    bag.add(power);
+    _emitPower(type, power, gained: true);
+    Haptics.success();
+    notifyListeners();
+  }
+
+  /// Whether the current (human) player may use [power] right now.
+  bool canUsePower(PowerUp power) =>
+      powerMode && !isAiTurn && _canApply(_currentTurn, power);
+
+  bool _canApply(LudoPlayerType type, PowerUp power) {
+    if (_stopMoving || _isMoving || _diceStarted) return false;
+    if (_gameState == LudoGameState.finish) return false;
+    if (!(powers[type]?.contains(power) ?? false)) return false;
+    final p = player(type);
+    switch (power) {
+      case PowerUp.reroll:
+        return _gameState == LudoGameState.pickPawn;
+      case PowerUp.luckySix:
+        return _gameState == LudoGameState.throwDice && _luckyFor != type;
+      case PowerUp.boost:
+        return _boostFor != type && p.pawns.any((e) => e.step >= 0);
+      case PowerUp.shield:
+        return !_isShielded(type) && p.pawns.any((e) => e.step >= 0);
+    }
+  }
+
+  void usePower(PowerUp power) {
+    if (!canUsePower(power)) return;
+    _applyPower(_currentTurn, power);
+  }
+
+  void _applyPower(LudoPlayerType type, PowerUp power) {
+    powers[type]!.remove(power);
+    _emitPower(type, power, gained: false);
+    if (!isAiTurn) Haptics.medium();
+    switch (power) {
+      case PowerUp.reroll:
+        currentPlayer.highlightAllPawns(false);
+        _gameState = LudoGameState.throwDice;
+        notifyListeners();
+        throwDice(automated: isAiTurn);
+        return;
+      case PowerUp.luckySix:
+        _luckyFor = type;
+      case PowerUp.boost:
+        _boostFor = type;
+      case PowerUp.shield:
+        // Protects through the opponents' turns until two of the owner's own
+        // turns have started.
+        _shieldTurns[type] = 3;
+    }
+    notifyListeners();
+  }
+
+  /// Simple AI power usage, called before the AI acts.
+  bool _aiUsePower() {
+    if (!powerMode) return false;
+    final type = _currentTurn;
+    final bag = powers[type]!;
+    if (bag.isEmpty) return false;
+    final p = currentPlayer;
+    if (_gameState == LudoGameState.throwDice) {
+      if (p.pawnInsideCount == 4 && _canApply(type, PowerUp.luckySix)) {
+        _applyPower(type, PowerUp.luckySix);
+        return true;
+      }
+      if (p.pawns.where((e) => e.step >= 0).length >= 2 &&
+          _canApply(type, PowerUp.shield)) {
+        _applyPower(type, PowerUp.shield);
+        return true;
+      }
+    } else if (_gameState == LudoGameState.pickPawn) {
+      if (_diceResult <= 2 && _canApply(type, PowerUp.reroll)) {
+        _applyPower(type, PowerUp.reroll);
+        return true;
+      }
+      if (_canApply(type, PowerUp.boost)) {
+        _applyPower(type, PowerUp.boost);
+        // Fall through: the AI still moves this tick.
+      }
+    }
+    return false;
   }
 
   ///Flags to check if pawn is moving
@@ -72,6 +209,21 @@ class LudoProvider extends ChangeNotifier {
   // snapshot actually changed and play sound/haptics for the acting opponent.
   int _lastRemoteDice = 0;
   Map<LudoPlayerType, List<int>> _lastRemotePawns = {};
+  String _lastRemoteKey = '';
+
+  /// A snapshot that arrived while a local move was animating; applied as
+  /// soon as the move finishes instead of being dropped.
+  LudoMatch? _pendingRemote;
+
+  /// Identity of the game state in a snapshot (not reactions/seat metadata).
+  static String _stateKey(LudoMatch m) {
+    final pawns = [
+      for (final s in kLudoSeatOrder)
+        if (m.pawns.containsKey(s)) '${s.name}:${m.pawns[s]!.join(',')}',
+    ].join('|');
+    return '${m.turn.name}/${m.dice}/${m.winners.map((e) => e.name).join(',')}/'
+        '${m.status.name}/$pawns';
+  }
 
   bool get isOnline => _online;
   LudoPlayerType? get mySeat => _mySeat;
@@ -111,9 +263,23 @@ class LudoProvider extends ChangeNotifier {
     _version = m.version;
     _finished = m.status == LudoMatchStatus.finished;
 
+    final key = _stateKey(m);
     final fromMe = m.lastWriterUid == _uid;
-    if (fromMe && !force) return; // our own echo — nothing new to apply
-    if (_isMoving && !force) return; // don't clobber a local animation
+    if (fromMe && !force) {
+      _lastRemoteKey = key;
+      return; // our own echo — nothing new to apply
+    }
+    // Reactions, seat joins and timer nudges don't change the game; applying
+    // them would reset a player who is mid-way through picking a pawn.
+    if (!force && key == _lastRemoteKey) {
+      notifyListeners();
+      return;
+    }
+    if (_isMoving && !force) {
+      _pendingRemote = m; // apply once the local animation completes
+      return;
+    }
+    _lastRemoteKey = key;
 
     final wasMyTurn = _currentTurn == _mySeat;
 
@@ -272,7 +438,8 @@ class LudoProvider extends ChangeNotifier {
                       LudoPlayerType.green,
                     ).path[greenElement.step].toString(),
                   )) &&
-          type != LudoPlayerType.green) {
+          type != LudoPlayerType.green &&
+          !_isShielded(LudoPlayerType.green)) {
         if (player(LudoPlayerType.green).path[greenElement.step].toString() ==
             path[step - 1].toString()) {
           killSomeone = true;
@@ -288,7 +455,8 @@ class LudoProvider extends ChangeNotifier {
                       LudoPlayerType.yellow,
                     ).path[yellowElement.step].toString(),
                   )) &&
-          type != LudoPlayerType.yellow) {
+          type != LudoPlayerType.yellow &&
+          !_isShielded(LudoPlayerType.yellow)) {
         if (player(LudoPlayerType.yellow).path[yellowElement.step].toString() ==
             path[step - 1].toString()) {
           killSomeone = true;
@@ -304,7 +472,8 @@ class LudoProvider extends ChangeNotifier {
                       LudoPlayerType.blue,
                     ).path[blueElement.step].toString(),
                   )) &&
-          type != LudoPlayerType.blue) {
+          type != LudoPlayerType.blue &&
+          !_isShielded(LudoPlayerType.blue)) {
         if (player(LudoPlayerType.blue).path[blueElement.step].toString() ==
             path[step - 1].toString()) {
           killSomeone = true;
@@ -318,7 +487,8 @@ class LudoProvider extends ChangeNotifier {
                   .contains(
                     player(LudoPlayerType.red).path[redElement.step].toString(),
                   )) &&
-          type != LudoPlayerType.red) {
+          type != LudoPlayerType.red &&
+          !_isShielded(LudoPlayerType.red)) {
         if (player(LudoPlayerType.red).path[redElement.step].toString() ==
             path[step - 1].toString()) {
           killSomeone = true;
@@ -358,6 +528,10 @@ class LudoProvider extends ChangeNotifier {
       // Fair, uniform 1–6 roll. (The template was rigged with nextBool() to
       // force a 6 ~58% of the time.)
       _diceResult = _random.nextInt(6) + 1;
+      if (powerMode && _luckyFor == _currentTurn) {
+        _diceResult = 6;
+        _luckyFor = null;
+      }
       notifyListeners();
       if (!isAiTurn) Haptics.light();
 
@@ -450,17 +624,27 @@ class LudoProvider extends ChangeNotifier {
 
     try {
       var selectedPlayer = player(type);
+      if (powerMode &&
+          _boostFor == type &&
+          selectedPlayer.pawns[index].step >= 0) {
+        _boostFor = null;
+        step = min(step + 3, selectedPlayer.path.length);
+      }
       for (int i = selectedPlayer.pawns[index].step; i < step; i++) {
         if (_stopMoving || generation != _generation) return;
         if (selectedPlayer.pawns[index].step == i) continue;
         selectedPlayer.movePawn(index, i);
-        if (soundEnabled) await Audio.playMove();
+        // Fixed step pace; the sound is fire-and-forget so a stalled audio
+        // load can never freeze the move (and the move lock) mid-way.
+        if (soundEnabled) unawaited(Audio.playMove());
+        await Future.delayed(const Duration(milliseconds: 220));
         if (!isAiTurn) Haptics.selection();
         if (_stopMoving || generation != _generation) return;
         notifyListeners();
         if (_stopMoving || generation != _generation) return;
       }
       if (checkToKill(type, index, step, selectedPlayer.path)) {
+        _grantPower(type);
         _gameState = LudoGameState.throwDice;
         if (soundEnabled) Audio.playKill();
         Haptics.heavy();
@@ -494,6 +678,9 @@ class LudoProvider extends ChangeNotifier {
     } finally {
       // Always release the movement lock, whatever happened above.
       if (generation == _generation) _isMoving = false;
+      final pending = _pendingRemote;
+      _pendingRemote = null;
+      if (pending != null && _online && !_stopMoving) _applyRemote(pending);
     }
   }
 
@@ -570,6 +757,14 @@ class LudoProvider extends ChangeNotifier {
         winners.contains(_currentTurn) ||
         (_online && !_activeSeats.contains(_currentTurn));
     if (skip) return nextTurn();
+    final shield = _shieldTurns[_currentTurn];
+    if (shield != null) {
+      if (shield <= 1) {
+        _shieldTurns.remove(_currentTurn);
+      } else {
+        _shieldTurns[_currentTurn] = shield - 1;
+      }
+    }
     _gameState = LudoGameState.throwDice;
     notifyListeners();
   }
@@ -598,6 +793,16 @@ class LudoProvider extends ChangeNotifier {
       );
     }
     winners.clear();
+    // Power Ludo: everyone starts with one of each power-up.
+    for (final bag in powers.values) {
+      bag
+        ..clear()
+        ..addAll(powerMode ? PowerUp.values : const <PowerUp>[]);
+    }
+    _shieldTurns.clear();
+    _boostFor = null;
+    _luckyFor = null;
+    _powerEvent = null;
     players.clear();
     players.addAll([
       LudoPlayer(LudoPlayerType.green),

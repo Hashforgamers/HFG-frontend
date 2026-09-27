@@ -276,11 +276,25 @@ class _PacManHomeState extends State<PacManHome>
               if (_phase == _Phase.menu) _menu(),
               if (_phase == _Phase.paused) _pausePanel(),
               if (_phase == _Phase.over) _resultPanel(),
+              // Keep Back tappable above the panels' dim overlay.
+              if (_inPanel) SafeArea(child: RepaintBoundary(child: _hud())),
             ],
           ),
         ),
       ),
     );
+  }
+
+  bool get _inPanel =>
+      _phase == _Phase.menu || _phase == _Phase.paused || _phase == _Phase.over;
+
+  /// Back from a panel: exit from the menu, otherwise return to the menu.
+  void _panelBack() {
+    if (_phase == _Phase.menu) {
+      Navigator.of(context).maybePop();
+    } else {
+      _toMenu();
+    }
   }
 
   Widget _hud() {
@@ -292,13 +306,11 @@ class _PacManHomeState extends State<PacManHome>
         builder: (context, _, _) => Row(
           children: [
             GameIconButton(
-              icon: showControls
-                  ? Icons.pause_rounded
-                  : Icons.arrow_back_rounded,
-              tooltip: showControls ? 'Pause' : 'Exit',
-              onPressed: showControls
-                  ? _pause
-                  : () => Navigator.of(context).maybePop(),
+              icon: _inPanel ? Icons.arrow_back_rounded : Icons.pause_rounded,
+              tooltip: _inPanel
+                  ? (_phase == _Phase.menu ? 'Exit' : 'Menu')
+                  : 'Pause',
+              onPressed: _inPanel ? _panelBack : _pause,
             ),
             const SizedBox(width: 10),
             if (showControls)

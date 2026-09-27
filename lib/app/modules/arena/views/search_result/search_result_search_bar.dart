@@ -26,36 +26,46 @@ class SearchResultSearchBar extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        height: 48,
-        padding: const EdgeInsets.only(left: 14, right: 5),
-        decoration: BoxDecoration(
-          color: const Color(0xFF151515),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: const Color(
-              0xff00DC00,
-            ).withValues(alpha: isFocused ? .45 : .22),
+        height: 44,
+        padding: const EdgeInsets.only(left: 12, right: 4),
+        decoration: ShapeDecoration(
+          shape: ContinuousRectangleBorder(
+            borderRadius: const BorderRadius.all(Radius.circular(26)),
+            side: BorderSide(
+              color: const Color(
+                0xFF30D158,
+              ).withValues(alpha: isFocused ? .6 : 0),
+              width: 1,
+            ),
           ),
+          color: const Color(0x3D767680),
         ),
         child: Row(
           children: [
-            const Icon(Icons.search_rounded, color: Color(0xff00DC00)),
-            const SizedBox(width: 9),
+            Icon(
+              Icons.search_rounded,
+              size: 20,
+              color: isFocused
+                  ? const Color(0xFF30D158)
+                  : const Color(0x99EBEBF5),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: controller,
                 focusNode: focusNode,
-                style: GoogleFonts.inter(color: Colors.white),
-                cursorColor: const Color(0xff00DC00),
+                style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+                cursorColor: const Color(0xFF30D158),
                 textInputAction: TextInputAction.search,
                 autocorrect: false,
                 enableSuggestions: false,
                 decoration: InputDecoration(
-                  hintText: 'Cafe, area or city',
+                  hintText: 'Search cafe, area or city',
                   hintStyle: GoogleFonts.inter(
-                    color: Colors.white38,
-                    fontSize: 13,
+                    color: const Color(0x99EBEBF5),
+                    fontSize: 16,
                   ),
+                  isDense: true,
                   border: InputBorder.none,
                 ),
                 onTapOutside: (_) =>
@@ -66,7 +76,11 @@ class SearchResultSearchBar extends StatelessWidget {
             ),
             if (showClear)
               IconButton(
-                icon: const Icon(Icons.clear, color: Colors.white70, size: 20),
+                icon: const Icon(
+                  Icons.cancel_rounded,
+                  color: Color(0x99EBEBF5),
+                  size: 19,
+                ),
                 onPressed: onClear,
               ),
           ],

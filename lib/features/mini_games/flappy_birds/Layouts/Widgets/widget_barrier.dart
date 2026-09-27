@@ -13,19 +13,19 @@ class Barrier extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
-    return AnimatedContainer(
+    return Align(
       alignment: Alignment(
         (2 * direction + barrierWidth) / (2 - barrierWidth),
         isTop ? 1.1 : -1.1,
       ),
-      duration: Duration(milliseconds: 0),
-      child: Container(
+      child: SizedBox(
         height: (size.height) / (4 * barrierHeight) / 2,
         width: size.width * barrierWidth / 2,
-        decoration: BoxDecoration(
-          color: const Color(0xff00DC00),
-          border: Border.all(width: 10, color: const Color(0xff00DC00)),
-          borderRadius: BorderRadius.circular(16),
+        child: const DecoratedBox(
+          decoration: BoxDecoration(
+            color: Color(0xff00DC00),
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+          ),
         ),
       ),
     );

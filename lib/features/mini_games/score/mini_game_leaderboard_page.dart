@@ -15,6 +15,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/features/mini_games/flappy_birds/Layouts/Pages/page_start_screen.dart';
+import 'package:hash/features/mini_games/wordly/wordly_screen.dart';
 import 'package:hash/features/mini_games/html_games/services/html_mini_game_catalog_service.dart';
 import 'package:hash/features/mini_games/pacman/HomePage.dart';
 import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart';
@@ -68,6 +69,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
     const MapEntry('plant_vs_zombie', 'Plant Vs Zombie'),
     const MapEntry('pac_man', 'Pac Man'),
     const MapEntry('laggy_bird', 'Laggy Bird'),
+    const MapEntry('wordly', 'Wordly'),
     ...HtmlMiniGameCatalogService.games.map(
       (game) => MapEntry(game.gameId, game.name),
     ),
@@ -672,6 +674,9 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
         break;
       case 'laggy_bird':
         target = const FlappyBirds();
+        break;
+      case 'wordly':
+        target = const WordlyGame();
         break;
     }
 

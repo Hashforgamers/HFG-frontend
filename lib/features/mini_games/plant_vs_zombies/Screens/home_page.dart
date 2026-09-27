@@ -313,6 +313,20 @@ class _PlantVsZombieState extends State<PlantVsZombie>
               if (_phase == _Phase.paused)
                 RepaintBoundary(child: _pausePanel()),
               if (_phase == _Phase.over) RepaintBoundary(child: _resultPanel()),
+              if (_phase == _Phase.paused || _phase == _Phase.over)
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: GameIconButton(
+                        icon: Icons.arrow_back_rounded,
+                        tooltip: 'Menu',
+                        onPressed: _toMenu,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

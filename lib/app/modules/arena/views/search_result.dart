@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:location/location.dart' as loc;
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'package:hash/app/modules/arena/utils/arena_games_extractor.dart';
@@ -558,10 +559,7 @@ class _SearchResultState extends State<SearchResult> {
       body: SafeArea(
         child: Column(
           children: [
-            SearchResultHeader(
-              location: widget.location,
-              onBack: () => Get.back(),
-            ),
+            SearchResultHeader(location: widget.location, onBack: _goBack),
             SearchResultSearchBar(
               controller: _searchController,
               focusNode: _searchFocusNode,
@@ -659,6 +657,32 @@ class _SearchResultState extends State<SearchResult> {
     });
   }
 
+  /// Pops this screen's own route. `Get.back()` can target the wrong
+  /// navigator (or just close a snackbar), which left Back unresponsive.
+  void _goBack() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+    } else {
+      Get.back();
+    }
+  }
+
+  Future<void> _suggestCafe() async {
+    final opened = await launchUrl(
+      Uri.parse('https://onboard.hashforgamers.com/'),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text('Visit onboard.hashforgamers.com to suggest a cafe.'),
+        ),
+      );
+    }
+  }
+
   void _clearSearch() {
     _searchController.clear();
     setState(() {
@@ -676,7 +700,12 @@ class _SearchResultState extends State<SearchResult> {
 
       final items = _visibleResults;
       if (items.isEmpty) {
-        return const SearchResultEmptyState();
+        return CafeSearchEmptyState(
+          query: _currentQuery,
+          filter: _selectedFilter,
+          onClear: _clearSearch,
+          onInvite: _suggestCafe,
+        );
       }
 
       return LayoutBuilder(

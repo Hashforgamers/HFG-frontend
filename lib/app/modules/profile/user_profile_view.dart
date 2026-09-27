@@ -22,9 +22,11 @@ import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/utils/haptics.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../utils/widgets/glow_neon_loader.dart';
+import '../../data/models/user_model.dart' as model;
 import '../../data/services/user_controller.dart';
 import '../../routes/app_routes.dart';
 
@@ -56,31 +58,39 @@ class _UserProfileViewState extends State<UserProfileView> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        centerTitle: false,
+        backgroundColor: Colors.black,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+                onPressed: Get.back,
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                color: _green,
+              )
+            : null,
         title: Obx(
           () => Text(
             _profileHandle(),
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _text(17, Colors.white, weight: FontWeight.w600),
           ),
         ),
-        backgroundColor: Colors.black,
-        elevation: 0,
         actions: [
           IconButton(
             tooltip: 'Share profile',
             onPressed: _shareProfile,
-            icon: const Icon(CupertinoIcons.paperplane, color: Colors.white),
+            icon: const Icon(CupertinoIcons.paperplane, size: 22),
           ),
           IconButton(
             tooltip: 'Settings',
             onPressed: () => _showSettingsSheet(email),
-            icon: const Icon(CupertinoIcons.line_horizontal_3),
+            icon: const Icon(CupertinoIcons.line_horizontal_3, size: 24),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
         ],
       ),
       body: RefreshIndicator(
@@ -99,9 +109,9 @@ class _UserProfileViewState extends State<UserProfileView> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 32),
           children: [
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             _buildProfileHeader(userController),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -109,13 +119,16 @@ class _UserProfileViewState extends State<UserProfileView> {
                   Expanded(
                     child: _profileAction(
                       label: 'Edit profile',
-                      onTap: () => Get.to(() => ProfileView()),
+                      icon: CupertinoIcons.pencil,
+                      primary: true,
+                      onTap: () => Get.to(() => const ProfileView()),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _profileAction(
                       label: 'Share profile',
+                      icon: CupertinoIcons.share,
                       onTap: _shareProfile,
                     ),
                   ),
@@ -128,21 +141,70 @@ class _UserProfileViewState extends State<UserProfileView> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            _buildGamingHighlights(),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
             _buildGamePassport(),
             const SizedBox(height: 22),
             _buildProfileTabs(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
-              child: _buildProfileTabContent(email),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: KeyedSubtree(
+                  key: ValueKey(_profileTab),
+                  child: _buildProfileTabContent(email),
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  static const _green = Color(0xFF30D158);
+  static const _card = Color(0xFF1C1C1E);
+  static const _hint = Color(0x5900DC00);
+  static const _secondary = Color(0x99EBEBF5); // 60%
+  static const _fill = Color(0x3D767680);
+
+  TextStyle _text(double size, Color color, {FontWeight? weight}) =>
+      GoogleFonts.inter(
+        color: color,
+        fontSize: size,
+        fontWeight: weight ?? FontWeight.w400,
+        letterSpacing: size >= 16 ? -0.35 : -0.1,
+        height: 1.25,
+      );
+
+  ShapeDecoration _appleCard({
+    double radius = 40,
+    Color color = _card,
+    Color border = _hint,
+    Gradient? gradient,
+  }) => ShapeDecoration(
+    shape: ContinuousRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(radius)),
+      side: BorderSide(color: border, width: 0.8),
+    ),
+    color: gradient == null ? color : null,
+    gradient: gradient,
+  );
+
+  Widget _iconTile(IconData icon, Color tint, {double size = 34}) => Container(
+    width: size,
+    height: size,
+    decoration: ShapeDecoration(
+      shape: ContinuousRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(size * 0.6)),
+      ),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color.lerp(tint, Colors.white, 0.18)!, tint],
+      ),
+    ),
+    child: Icon(icon, color: Colors.white, size: size * 0.55),
+  );
 
   Widget _buildSectionLabel(String title) {
     return Padding(
@@ -172,7 +234,13 @@ class _UserProfileViewState extends State<UserProfileView> {
       final hasPhoto = photoUrl.isNotEmpty;
       final name = (user.name ?? '').trim();
       final displayName = name.isEmpty ? 'Hash Player' : name;
-      final gameTag = user.gameUserName?.trim() ?? '';
+      final initials = name
+          .split(RegExp(r'\s+'))
+          .where((w) => w.isNotEmpty)
+          .take(2)
+          .map((w) => w[0].toUpperCase())
+          .join();
+      final referrals = user.referralCount ?? 0;
 
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -182,20 +250,23 @@ class _UserProfileViewState extends State<UserProfileView> {
             Row(
               children: [
                 Container(
-                  width: 94,
-                  height: 94,
+                  width: 88,
+                  height: 88,
                   padding: const EdgeInsets.all(3),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: SweepGradient(
-                      colors: [
-                        Color(0xff00DC00),
-                        Color(0xff7CFF6B),
-                        Color(0xff00DC00),
-                        Color(0xff087F23),
-                        Color(0xff00DC00),
-                      ],
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF5CE07A), Color(0xFF1E9E3E)],
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _green.withValues(alpha: 0.35),
+                        blurRadius: 22,
+                        spreadRadius: -6,
+                      ),
+                    ],
                   ),
                   child: Container(
                     padding: const EdgeInsets.all(3),
@@ -204,21 +275,30 @@ class _UserProfileViewState extends State<UserProfileView> {
                       shape: BoxShape.circle,
                     ),
                     child: CircleAvatar(
-                      backgroundColor: const Color(0xFF151515),
+                      backgroundColor: const Color(0xFF2C2C2E),
                       backgroundImage: hasPhoto
                           ? CachedNetworkImageProvider(photoUrl)
                           : null,
                       child: hasPhoto
                           ? null
-                          : const Icon(
+                          : initials.isEmpty
+                          ? const Icon(
                               CupertinoIcons.person_fill,
-                              color: Color(0xff00DC00),
-                              size: 38,
+                              color: _secondary,
+                              size: 34,
+                            )
+                          : Text(
+                              initials,
+                              style: _text(
+                                28,
+                                Colors.white,
+                                weight: FontWeight.w700,
+                              ),
                             ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 14),
                 Expanded(
                   child: StreamBuilder<List<FriendRelationship>>(
                     stream: _friendService.watchRelationships(),
@@ -234,27 +314,54 @@ class _UserProfileViewState extends State<UserProfileView> {
                             ),
                           )
                           .length;
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _profileStat(
-                            '$friends',
-                            'Friends',
-                            () =>
-                                Get.to(() => const FriendsView(initialTab: 0)),
+                      return Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: _appleCard(radius: 36),
+                        child: IntrinsicHeight(
+                          child: Row(
+                            children: [
+                              _profileStat(
+                                '$friends',
+                                'Friends',
+                                () => Get.to(
+                                  () => const FriendsView(initialTab: 0),
+                                ),
+                              ),
+                              const VerticalDivider(
+                                width: 1,
+                                thickness: 0.5,
+                                indent: 6,
+                                endIndent: 6,
+                                color: Color(0x1FFFFFFF),
+                              ),
+                              _profileStat(
+                                '$requests',
+                                'Requests',
+                                () => Get.to(
+                                  () => const FriendsView(initialTab: 1),
+                                ),
+                                highlight: requests > 0,
+                              ),
+                              const VerticalDivider(
+                                width: 1,
+                                thickness: 0.5,
+                                indent: 6,
+                                endIndent: 6,
+                                color: Color(0x1FFFFFFF),
+                              ),
+                              _profileStat('$referrals', 'Referrals', () {
+                                final email =
+                                    user.contact?.electronicAddress?.emailId ??
+                                    '';
+                                segmentService.onReferralViewed(email: email);
+                                Get.to(
+                                  () =>
+                                      ReferralViewWithController(email: email),
+                                );
+                              }),
+                            ],
                           ),
-                          _profileStat(
-                            '$requests',
-                            'Requests',
-                            () =>
-                                Get.to(() => const FriendsView(initialTab: 1)),
-                          ),
-                          _profileStat(
-                            gameTag.isEmpty ? '—' : '1',
-                            'Game ID',
-                            () => Get.to(() => ProfileView()),
-                          ),
-                        ],
+                        ),
                       );
                     },
                   ),
@@ -269,11 +376,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                     displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: _text(20, Colors.white, weight: FontWeight.w700),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -288,79 +391,95 @@ class _UserProfileViewState extends State<UserProfileView> {
                       message: 'Verified HASH host',
                       child: Icon(
                         Icons.verified_rounded,
-                        color: Color(0xFF3897F0),
-                        size: 18,
+                        color: Color(0xFF0A84FF),
+                        size: 19,
                       ),
                     );
                   },
                 ),
               ],
             ),
-            const SizedBox(height: 3),
-            Text(
-              gameTag.isEmpty ? 'HASH gamer' : '@$gameTag',
-              style: GoogleFonts.inter(
-                color: gameTag.isEmpty
-                    ? Colors.white54
-                    : const Color(0xff00DC00),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 7),
-            Text(
-              'Play. Compete. Connect. 🎮',
-              style: GoogleFonts.inter(color: Colors.white, height: 1.35),
-            ),
+            const SizedBox(height: 4),
+            Text('Play. Compete. Connect. 🎮', style: _text(14, _secondary)),
           ],
         ),
       );
     });
   }
 
-  Widget _profileStat(String value, String label, VoidCallback onTap) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
+  Widget _profileStat(
+    String value,
+    String label,
+    VoidCallback onTap, {
+    bool highlight = false,
+  }) {
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Haptics.selection();
+          onTap();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value,
+                style: _text(
+                  20,
+                  highlight ? _green : Colors.white,
+                  weight: FontWeight.w700,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
-            ),
-          ],
+              const SizedBox(height: 1),
+              Text(label, style: _text(11.5, _secondary)),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _profileAction({required String label, required VoidCallback onTap}) {
-    return SizedBox(
-      height: 36,
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.white,
-          backgroundColor: const Color(0xFF171717),
-          side: const BorderSide(color: Colors.white12),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+  Widget _profileAction({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+    bool primary = false,
+  }) {
+    final fg = primary ? _green : Colors.white;
+    return Material(
+      color: primary ? _green.withValues(alpha: 0.14) : _fill,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: primary ? _green.withValues(alpha: 0.45) : Colors.transparent,
+          width: 0.8,
         ),
-        child: Text(
-          label,
-          maxLines: 1,
-          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: () {
+          Haptics.selection();
+          onTap();
+        },
+        child: SizedBox(
+          height: 38,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: fg, size: 15),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _text(14, fg, weight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -374,17 +493,17 @@ class _UserProfileViewState extends State<UserProfileView> {
     return Tooltip(
       message: tooltip,
       child: SizedBox(
-        width: 40,
-        height: 36,
+        width: 38,
+        height: 38,
         child: Material(
-          color: const Color(0xFF171717),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(9),
-            side: const BorderSide(color: Colors.white12),
-          ),
+          color: _fill,
+          shape: const CircleBorder(),
           child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(9),
+            customBorder: const CircleBorder(),
+            onTap: () {
+              Haptics.selection();
+              onTap();
+            },
             child: Icon(icon, color: Colors.white, size: 18),
           ),
         ),
@@ -392,214 +511,206 @@ class _UserProfileViewState extends State<UserProfileView> {
     );
   }
 
-  Widget _buildGamingHighlights() {
-    final highlights = [
-      (
-        CupertinoIcons.game_controller,
-        'Game ID',
-        () => Get.to(() => ProfileView()),
-      ),
-      (
-        Icons.emoji_events_outlined,
-        'Tournaments',
-        () => Get.toNamed(AppRoutes.MY_TOURNAMENTS),
-      ),
-      (
-        CupertinoIcons.person_2,
-        'Squad',
-        () => Get.to(() => const FriendsView()),
-      ),
-      (CupertinoIcons.gift, 'Rewards', () => Get.toNamed(AppRoutes.WALLET)),
-    ];
-    return SizedBox(
-      height: 89,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        scrollDirection: Axis.horizontal,
-        itemCount: highlights.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 20),
-        itemBuilder: (context, index) {
-          final item = highlights[index];
-          return GestureDetector(
-            onTap: item.$3,
-            child: SizedBox(
-              width: 67,
-              child: Column(
-                children: [
-                  Container(
-                    width: 61,
-                    height: 61,
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: DecoratedBox(
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF151A15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        item.$1,
-                        color: const Color(0xff00DC00),
-                        size: 25,
+  Widget _buildProfileTabs() {
+    const tabs = ['Loadout', 'Badges', 'Squad'];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.all(3),
+        decoration: const ShapeDecoration(
+          shape: ContinuousRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(26)),
+          ),
+          color: _fill,
+        ),
+        child: Stack(
+          children: [
+            AnimatedAlign(
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment(-1 + _profileTab * 1.0, 0),
+              child: FractionallySizedBox(
+                widthFactor: 1 / tabs.length,
+                heightFactor: 1,
+                child: Container(
+                  decoration: ShapeDecoration(
+                    shape: ContinuousRectangleBorder(
+                      borderRadius: const BorderRadius.all(Radius.circular(22)),
+                      side: BorderSide(
+                        color: _green.withValues(alpha: 0.45),
+                        width: 0.8,
                       ),
                     ),
+                    color: const Color(0xFF3A3A3D),
+                    shadows: const [
+                      BoxShadow(
+                        color: Color(0x4D000000),
+                        offset: Offset(0, 3),
+                        blurRadius: 8,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    item.$2,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(color: Colors.white, fontSize: 11),
-                  ),
-                ],
+                ),
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildProfileTabs() {
-    return Container(
-      height: 50,
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: Colors.white12),
-          bottom: BorderSide(color: Colors.white12),
-        ),
-      ),
-      child: Row(
-        children: [
-          _profileTabButton(0, Icons.grid_on_rounded, 'LOADOUT'),
-          _profileTabButton(1, Icons.emoji_events_outlined, 'BADGES'),
-          _profileTabButton(2, CupertinoIcons.person_2, 'SQUAD'),
-        ],
-      ),
-    );
-  }
-
-  Widget _profileTabButton(int index, IconData icon, String label) {
-    final selected = _profileTab == index;
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _profileTab = index),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icon,
-                  color: selected ? Colors.white : Colors.white38,
-                  size: 18,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    color: selected ? Colors.white : Colors.white38,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: .4,
+                for (final (i, label) in tabs.indexed)
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        if (_profileTab == i) return;
+                        Haptics.selection();
+                        setState(() => _profileTab = i);
+                      },
+                      child: Center(
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 200),
+                          style: _text(
+                            14,
+                            _profileTab == i ? Colors.white : _secondary,
+                            weight: _profileTab == i
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                          ),
+                          child: Text(label),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
               ],
-            ),
-            const SizedBox(height: 10),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              height: 2,
-              width: selected ? 58 : 0,
-              color: const Color(0xff00DC00),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// What's still missing from the profile, in the order we nudge for it.
+  List<String> _missingProfileFields(model.User user) {
+    final e = user.contact?.electronicAddress;
+    final p = user.contact?.physicalAddress;
+    bool empty(String? v) => (v ?? '').trim().isEmpty;
+    return [
+      if (empty(user.gameUserName)) 'game username',
+      if (empty(user.name)) 'name',
+      if (empty(user.gender)) 'gender',
+      if (empty(user.dob)) 'date of birth',
+      if (empty(e?.emailId)) 'email',
+      if (empty(e?.mobileNo)) 'mobile number',
+      if (empty(p?.addressLine1)) 'address',
+      if (empty(p?.state)) 'state',
+      if (empty(p?.country)) 'country',
+    ];
   }
 
   Widget _buildGamePassport() {
     return Obx(() {
       final user = userController.user.value;
-      final gameId = user.gameUserName?.trim() ?? '';
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF18251A), Color(0xFF12131A)],
-          ),
-          border: Border.all(color: const Color(0x4400DC00)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0x2200DC00),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(
-                Icons.badge_rounded,
-                color: Color(0xFF00DC00),
-                size: 25,
+      const total = 9;
+      final missing = _missingProfileFields(user);
+      final progress = (total - missing.length) / total;
+      final pct = (progress * 100).round();
+      final complete = missing.isEmpty;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: GestureDetector(
+          onTap: () {
+            Haptics.selection();
+            Get.to(() => const ProfileView());
+          },
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            decoration: _appleCard(
+              radius: 44,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF17261B), _card],
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'HASH GAME PASSPORT',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF00DC00),
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: .7,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    _iconTile(Icons.badge_rounded, _green, size: 40),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Game passport',
+                            style: _text(
+                              16,
+                              Colors.white,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            complete
+                                ? 'Ready for LFG, squads and ranked'
+                                : 'Add your ${missing.first} to finish',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: _text(12.5, _secondary),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    gameId.isEmpty ? 'LOADOUT NOT SET' : '@$gameId',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+                    const SizedBox(width: 8),
+                    complete
+                        ? const Icon(
+                            Icons.check_circle_rounded,
+                            color: _green,
+                            size: 24,
+                          )
+                        : Text(
+                            '$pct%',
+                            style: _text(17, _green, weight: FontWeight.w700),
+                          ),
+                    const SizedBox(width: 2),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: _secondary,
+                      size: 22,
                     ),
-                  ),
-                  Text(
-                    gameId.isEmpty
-                        ? 'Add your gamer ID to get discovered.'
-                        : 'Ready for LFG, squads and ranked.',
-                    style: GoogleFonts.inter(
-                      color: Colors.white54,
-                      fontSize: 10.5,
+                  ],
+                ),
+                if (!complete) ...[
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: SizedBox(
+                      height: 6,
+                      width: double.infinity,
+                      child: Stack(
+                        children: [
+                          const Positioned.fill(
+                            child: ColoredBox(color: _fill),
+                          ),
+                          FractionallySizedBox(
+                            widthFactor: progress.clamp(0.04, 1.0),
+                            child: const DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Color(0xFF1E9E3E), _green],
+                                ),
+                              ),
+                              child: SizedBox.expand(),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-            IconButton(
-              tooltip: 'Edit loadout',
-              onPressed: () => Get.to(() => ProfileView()),
-              icon: const Icon(
-                Icons.tune_rounded,
-                color: Colors.white70,
-                size: 20,
-              ),
-            ),
-          ],
+          ),
         ),
       );
     });
@@ -625,77 +736,133 @@ class _UserProfileViewState extends State<UserProfileView> {
             snapshot.data?.status == HostVerificationStatus.verified;
         final badges = [
           (
-            'OG PLAYER',
+            'OG Player',
             'HASH account ready',
             Icons.sports_esports_rounded,
+            _green,
             true,
           ),
           (
-            'SQUAD BUILDER',
-            'Refer 3 players',
+            'Squad Builder',
+            'Refer 3 players · $referrals/3',
             Icons.groups_rounded,
+            const Color(0xFF0A84FF),
             referrals >= 3,
           ),
           (
-            'TOURNEY HOST',
-            'Verified HASH host',
+            'Tourney Host',
+            'Become a verified host',
             Icons.workspace_premium_rounded,
+            const Color(0xFFFF9F0A),
             verifiedHost,
           ),
-          ('CLUTCH MODE', 'Tournament win', Icons.bolt_rounded, false),
-        ];
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: badges.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.25,
+          (
+            'Clutch Mode',
+            'Win a tournament',
+            Icons.bolt_rounded,
+            const Color(0xFFFF375F),
+            false,
           ),
-          itemBuilder: (context, index) {
-            final badge = badges[index];
-            return Container(
-              padding: const EdgeInsets.all(13),
-              decoration: BoxDecoration(
-                color: badge.$4
-                    ? const Color(0xFF172219)
-                    : const Color(0xFF131313),
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(
-                  color: badge.$4 ? const Color(0x4400DC00) : Colors.white10,
-                ),
+        ];
+        final unlocked = badges.where((b) => b.$5).length;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 10),
+              child: Text(
+                '$unlocked of ${badges.length} unlocked',
+                style: _text(13, _secondary, weight: FontWeight.w500),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    badge.$3,
-                    color: badge.$4 ? const Color(0xFF00DC00) : Colors.white24,
-                  ),
-                  const Spacer(),
-                  Text(
-                    badge.$1,
-                    style: GoogleFonts.inter(
-                      color: badge.$4 ? Colors.white : Colors.white38,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
+            ),
+            GridView.builder(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: badges.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.3,
+              ),
+              itemBuilder: (context, index) {
+                final (title, hint, icon, tint, isOn) = badges[index];
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: _appleCard(
+                    radius: 44,
+                    border: isOn ? _hint : const Color(0x14FFFFFF),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: isOn
+                          ? [tint.withValues(alpha: 0.22), _card]
+                          : const [Color(0xFF161618), Color(0xFF121214)],
                     ),
                   ),
-                  Text(
-                    badge.$4 ? 'UNLOCKED' : badge.$2,
-                    style: GoogleFonts.inter(
-                      color: badge.$4
-                          ? const Color(0xFF00DC00)
-                          : Colors.white30,
-                      fontSize: 9,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          isOn
+                              ? _iconTile(icon, tint)
+                              : Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: const ShapeDecoration(
+                                    shape: ContinuousRectangleBorder(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(20),
+                                      ),
+                                    ),
+                                    color: _fill,
+                                  ),
+                                  child: Icon(
+                                    icon,
+                                    color: Colors.white30,
+                                    size: 19,
+                                  ),
+                                ),
+                          const Spacer(),
+                          Icon(
+                            isOn
+                                ? Icons.check_circle_rounded
+                                : Icons.lock_rounded,
+                            size: 18,
+                            color: isOn ? _green : Colors.white24,
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _text(
+                          15,
+                          isOn ? Colors.white : Colors.white54,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isOn ? 'Unlocked' : hint,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _text(
+                          12,
+                          isOn ? _green : Colors.white38,
+                          weight: isOn ? FontWeight.w600 : null,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ],
         );
       },
     );
@@ -714,47 +881,59 @@ class _UserProfileViewState extends State<UserProfileView> {
             .where((item) => item.isIncoming(uid))
             .length;
         return Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141719),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white10),
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+          decoration: _appleCard(
+            radius: 48,
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF16233A), _card],
+            ),
           ),
           child: Column(
             children: [
-              const Icon(
+              _iconTile(
                 Icons.groups_2_rounded,
-                color: Color(0xFF5DA9FF),
-                size: 38,
+                const Color(0xFF0A84FF),
+                size: 52,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Text(
-                '$friends in your squad · $requests pending',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                ),
+                friends == 1
+                    ? '1 player in your squad'
+                    : '$friends players in your squad',
+                textAlign: TextAlign.center,
+                style: _text(17, Colors.white, weight: FontWeight.w700),
               ),
               const SizedBox(height: 4),
               Text(
-                'Stack up. Queue together. Run it back.',
-                style: GoogleFonts.inter(color: Colors.white54, fontSize: 11),
+                requests > 0
+                    ? '$requests request${requests == 1 ? '' : 's'} waiting for you'
+                    : 'Stack up. Queue together. Run it back.',
+                textAlign: TextAlign.center,
+                style: _text(13, requests > 0 ? _green : _secondary),
               ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Get.to(() => const FriendsView()),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5DA9FF),
-                    foregroundColor: Colors.black,
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _profileAction(
+                      label: 'Find players',
+                      icon: CupertinoIcons.person_add,
+                      onTap: () =>
+                          Get.to(() => const FriendsView(initialTab: 2)),
+                    ),
                   ),
-                  child: Text(
-                    'OPEN SQUAD',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w900),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _profileAction(
+                      label: 'Open squad',
+                      icon: CupertinoIcons.person_2_fill,
+                      primary: true,
+                      onTap: () => Get.to(() => const FriendsView()),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -769,28 +948,28 @@ class _UserProfileViewState extends State<UserProfileView> {
         'My tournaments',
         'Compete & manage',
         Icons.emoji_events_rounded,
-        const Color(0xFF1B321D),
+        _green,
         () => Get.toNamed(AppRoutes.MY_TOURNAMENTS),
       ),
       (
         'Friends',
         'Your gaming squad',
         CupertinoIcons.person_2_fill,
-        const Color(0xFF17243A),
+        const Color(0xFF0A84FF),
         () => Get.to(() => const FriendsView()),
       ),
       (
         'HASH Wallet',
         'Coins & rewards',
         CupertinoIcons.creditcard_fill,
-        const Color(0xFF332A17),
+        const Color(0xFFFF9F0A),
         () => Get.toNamed(AppRoutes.WALLET),
       ),
       (
         'Refer squad',
         'Invite & earn',
         CupertinoIcons.gift_fill,
-        const Color(0xFF301D36),
+        const Color(0xFFBF5AF2),
         () {
           segmentService.onReferralViewed(email: email);
           Get.to(() => ReferralViewWithController(email: email));
@@ -799,66 +978,69 @@ class _UserProfileViewState extends State<UserProfileView> {
     ];
     return GridView.builder(
       shrinkWrap: true,
+      padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: features.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 1.08,
+        childAspectRatio: 1.25,
       ),
       itemBuilder: (context, index) {
-        final item = features[index];
+        final (title, subtitle, icon, tint, onTap) = features[index];
         return Material(
-          color: item.$4,
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: item.$5,
-            borderRadius: BorderRadius.circular(16),
-            child: Ink(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white10),
+          color: Colors.transparent,
+          shape: const ContinuousRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(44)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Ink(
+            decoration: _appleCard(
+              radius: 44,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [tint.withValues(alpha: 0.2), _card],
               ),
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: Colors.black26,
-                      borderRadius: BorderRadius.circular(13),
+            ),
+            child: InkWell(
+              onTap: () {
+                Haptics.selection();
+                onTap();
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _iconTile(icon, tint, size: 38),
+                        const Spacer(),
+                        const Icon(
+                          Icons.arrow_outward_rounded,
+                          color: _secondary,
+                          size: 18,
+                        ),
+                      ],
                     ),
-                    child: Icon(
-                      item.$3,
-                      color: const Color(0xff00DC00),
-                      size: 23,
+                    const Spacer(),
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _text(16, Colors.white, weight: FontWeight.w700),
                     ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    item.$1,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _text(12.5, _secondary),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    item.$2,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: Colors.white60,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -940,7 +1122,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                   subtitle: 'Personal details and game identity',
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    Get.to(() => ProfileView());
+                    Get.to(() => const ProfileView());
                   },
                 ),
                 _buildProfileOption(

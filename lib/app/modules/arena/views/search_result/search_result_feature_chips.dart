@@ -51,7 +51,9 @@ class _FeaturePill extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xff00DC00).withValues(alpha: .35)),
+        border: Border.all(
+          color: const Color(0xff00DC00).withValues(alpha: .35),
+        ),
         boxShadow: [
           BoxShadow(
             color: const Color(0xff00DC00).withValues(alpha: .12),
