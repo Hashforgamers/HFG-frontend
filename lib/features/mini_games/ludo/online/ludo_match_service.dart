@@ -52,30 +52,31 @@ class LudoMatchService {
   }
 
   /// Every in-progress match anyone can drop in and spectate, most-recently
-  /// active first. Sorted client-side so no composite Firestore index is needed.
+  /// active first.
+  ///
+  /// Queries by recent activity rather than by status: abandoned matches keep
+  /// status `active` forever, and a `status == active` query capped at
+  /// [limit] could fill up with them and hide every genuinely live match. A
+  /// single-field range on the turn clock needs no composite index; status is
+  /// checked client-side.
   Stream<List<LudoMatch>> watchLiveMatches({int limit = 30}) {
+    const staleMs = 15 * 60 * 1000; // 15 min with no move => abandoned
+    final cutoff = DateTime.now().millisecondsSinceEpoch - staleMs;
     return _col
-        .where('status', isEqualTo: statusToString(LudoMatchStatus.active))
+        .where('turn_started_at_ms', isGreaterThan: cutoff)
+        .orderBy('turn_started_at_ms', descending: true)
         .limit(limit)
         .snapshots()
         .map((snap) {
           final now = DateTime.now().millisecondsSinceEpoch;
-          const staleMs = 15 * 60 * 1000; // 15 min with no move => abandoned
-          final list =
-              snap.docs
-                  .map((d) => LudoMatch.fromMap(d.id, d.data()))
-                  .where(
-                    // No turn timestamp means the match never advanced (or
-                    // predates the turn clock), so treat it as abandoned.
-                    (m) =>
-                        m.turnStartedAtMs > 0 &&
-                        now - m.turnStartedAtMs < staleMs,
-                  )
-                  .toList()
-                ..sort(
-                  (a, b) => b.turnStartedAtMs.compareTo(a.turnStartedAtMs),
-                );
-          return list;
+          return snap.docs
+              .map((d) => LudoMatch.fromMap(d.id, d.data()))
+              .where(
+                (m) =>
+                    m.status == LudoMatchStatus.active &&
+                    now - m.turnStartedAtMs < staleMs,
+              )
+              .toList();
         });
   }
 
