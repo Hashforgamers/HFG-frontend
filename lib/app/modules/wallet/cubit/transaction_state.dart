@@ -1,8 +1,7 @@
 part of 'transaction_cubit.dart';
 
-
 abstract class TransactionState extends Equatable {
-  const TransactionState(); 
+  const TransactionState();
 }
 
 class TransactionInitial extends TransactionState {
@@ -11,7 +10,7 @@ class TransactionInitial extends TransactionState {
 }
 
 class TransactionLoading extends TransactionState {
-  @override 
+  @override
   List<Object> get props => [];
 }
 

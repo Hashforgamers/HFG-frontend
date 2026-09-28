@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hash/config/feature_flags.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1403,6 +1404,14 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     required String eventId,
     required bool communityTeam,
   }) async {
+    if (!FeatureFlags.tournamentsEnabled) {
+      Get.snackbar(
+        'Tournaments',
+        'Tournaments aren\'t available right now.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
     if (communityTeam) {
       await Get.toNamed(
         AppRoutes.TOURNAMENT_DETAIL,

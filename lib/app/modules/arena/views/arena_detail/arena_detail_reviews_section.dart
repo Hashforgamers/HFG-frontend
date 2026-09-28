@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/modules/home/widgets/home_design.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 
 class ArenaDetailReviewsSection extends StatefulWidget {
   const ArenaDetailReviewsSection({
@@ -88,10 +89,7 @@ class _ArenaDetailReviewsSectionState extends State<ArenaDetailReviewsSection> {
           children: [
             Row(
               children: [
-                Text(
-                  'Reviews',
-                  style: HomeTokens.title(18),
-                ),
+                const HomeSectionTitle(title: 'Player ', accent: 'Reviews'),
                 const Spacer(),
                 if (snapshot.connectionState == ConnectionState.waiting)
                   const AppLinearLoader(width: 30, height: 3),
@@ -99,13 +97,9 @@ class _ArenaDetailReviewsSectionState extends State<ArenaDetailReviewsSection> {
             ),
             const SizedBox(height: 10),
             if (total > 0) ...[
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xff181818),
-                  border: Border.all(color: const Color(0xff2D2D2D)),
-                  borderRadius: BorderRadius.circular(18),
-                ),
+              HomeCard(
+                accent: HomeTokens.gold,
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
                     Column(
@@ -193,17 +187,25 @@ class _ArenaDetailReviewsSectionState extends State<ArenaDetailReviewsSection> {
               const SizedBox(height: 12),
             ],
             if (reviews.isEmpty)
-              Container(
+              SizedBox(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xff181818),
-                  border: Border.all(color: const Color(0xff2D2D2D)),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Text(
-                  'No reviews yet.',
-                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+                child: HomeCard(
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.rate_review_outlined,
+                        color: HomeTokens.textTertiary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'No reviews yet. Be the first to play here!',
+                          style: HomeTokens.body(HomeTokens.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               )
             else
@@ -221,18 +223,16 @@ class _ArenaDetailReviewsSectionState extends State<ArenaDetailReviewsSection> {
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFF181818),
-                        const Color(0xFF131313),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.07),
-                    ),
-                    borderRadius: BorderRadius.circular(18),
+                    color: HomeTokens.surface,
+                    border: Border.all(color: HomeTokens.hairline),
+                    borderRadius: BorderRadius.circular(HomeTokens.radius),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

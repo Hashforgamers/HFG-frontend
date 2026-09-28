@@ -7,11 +7,15 @@ class ArenaDetailInfoSection extends StatelessWidget {
   final String address;
   final String openingHours;
 
+  /// Off when the page hero already shows the name and open status.
+  final bool showHeader;
+
   const ArenaDetailInfoSection({
     super.key,
     required this.title,
     required this.address,
     required this.openingHours,
+    this.showHeader = true,
   });
 
   @override
@@ -26,33 +30,31 @@ class ArenaDetailInfoSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Name and status read together: whether the venue is open is the
-        // first thing anyone wants, and it used to sit in a separate card
-        // below the address.
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: Text(title, style: HomeTokens.title(22))),
-            const SizedBox(width: 12),
-            Padding(
-              padding: const EdgeInsets.only(top: 3),
-              child: _StatusPill(
-                color: accentColor,
-                label: closed ? 'Closed' : 'Open now',
+        if (showHeader) ...[
+          // Name and status read together: whether the venue is open is the
+          // first thing anyone wants, and it used to sit in a separate card
+          // below the address.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: Text(title, style: HomeTokens.title(22))),
+              const SizedBox(width: 12),
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: _StatusPill(
+                  color: accentColor,
+                  label: closed ? 'Closed' : 'Open now',
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
+            ],
+          ),
+          const SizedBox(height: 14),
+        ],
         // One card instead of two stacked ones: the address and the hours are
         // the same kind of information and were competing for attention.
-        Container(
+        HomeCard(
+          accent: HomeTokens.green,
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: HomeTokens.surface,
-            borderRadius: BorderRadius.circular(HomeTokens.radius),
-            border: Border.all(color: HomeTokens.hairline),
-          ),
           child: Column(
             children: [
               _InfoRow(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/config/feature_flags.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,7 +13,6 @@ import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/home/widgets/home_game_on_india_banner.dart';
 import 'package:hash/app/modules/home/widgets/home_game_pass_card.dart';
 import 'package:hash/app/modules/home/widgets/optimized_app_bar.dart';
-import 'package:hash/app/modules/home/widgets/welcome_aboard_dialog.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
 import 'package:hash/app/modules/tournaments_section/cubit/tournament_home_cubit.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
@@ -32,7 +32,6 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/modules/home/widgets/refer_friend_modal.dart';
 import 'package:hash/app/data/models/user_model.dart';
-import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/utils/encrypt_util.dart';
 import 'package:hash/utils/widgets/home_section_title.dart';
 
@@ -77,8 +76,10 @@ class _HomeContentViewState extends State<HomeContentView>
 
   List<Widget> _buildVisibleSections() {
     final sections = <Widget>[
-      _buildLazyLoadedSection('hostBanner', _buildHostBanner()),
-      _buildLazyLoadedSection('playerLobby', _buildPlayerLobby()),
+      if (FeatureFlags.tournamentsEnabled) ...[
+        _buildLazyLoadedSection('hostBanner', _buildHostBanner()),
+        _buildLazyLoadedSection('playerLobby', _buildPlayerLobby()),
+      ],
       _buildLazyLoadedSection('cafe', _cachedCafeSection),
       _buildLazyLoadedSection('squadMissions', const SquadMissionsCard()),
       _buildLazyLoadedSection('shorts', _cachedShortsSection),
@@ -99,7 +100,6 @@ class _HomeContentViewState extends State<HomeContentView>
   String? _refreshErrorMessage;
   bool showReferModal = false;
   bool _fcmRegistered = false;
-  bool _welcomeClaimGateHandled = false;
 
   // Cached widgets for better performance
   Widget? _cachedGamePassContainer;
@@ -231,69 +231,6 @@ class _HomeContentViewState extends State<HomeContentView>
     }
   }
 
-  void _showWelcomePopup(BuildContext context) {
-    showDialog(
-      useSafeArea: false,
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        return WelcomeAboardDialog(
-          amountRupees: WalletController.welcomeBonusAmount,
-          onClaim: () async {
-            await Haptics.success();
-            final claimed = await Get.find<WalletController>().claimDropCrate();
-            // Keep the pending flag set so the bonus is never lost on failure;
-            // the dialog stays open for a retry.
-            if (!claimed) return false;
-
-            final backendUserId = userController.userId.trim();
-            final firebaseUid =
-                firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
-            final userKey = backendUserId.isNotEmpty
-                ? backendUserId
-                : firebaseUid;
-            if (userKey.isNotEmpty) {
-              await prefs.setBool('drop_crate_claimed_$userKey', true);
-            }
-            await prefs.setBool('new_user_bonus_pending', false);
-            return true;
-          },
-        );
-      },
-    ).then((_) {
-      // If the popup was dismissed without a successful claim (e.g. "Maybe
-      // later"), re-arm the gate so it can appear again on the next refresh.
-      final stillPending = prefs.getBool('new_user_bonus_pending') ?? false;
-      if (stillPending) {
-        _welcomeClaimGateHandled = false;
-      }
-    });
-  }
-
-  Future<void> _maybeShowWelcomePopupForNewUser() async {
-    if (_welcomeClaimGateHandled || !mounted) return;
-    _welcomeClaimGateHandled = true;
-
-    final pending = prefs.getBool('new_user_bonus_pending') ?? false;
-    if (!pending) return;
-
-    final backendUserId = userController.userId.trim();
-    final firebaseUid =
-        firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
-    final userKey = backendUserId.isNotEmpty ? backendUserId : firebaseUid;
-    if (userKey.isEmpty) return;
-
-    final claimedKey = 'drop_crate_claimed_$userKey';
-    final alreadyClaimed = prefs.getBool(claimedKey) ?? false;
-    if (alreadyClaimed) {
-      await prefs.setBool('new_user_bonus_pending', false);
-      return;
-    }
-
-    if (!mounted) return;
-    _showWelcomePopup(context);
-  }
-
   Future<void> _refreshData({bool forceRefresh = true}) async {
     if (_isRefreshing) return;
 
@@ -308,11 +245,11 @@ class _HomeContentViewState extends State<HomeContentView>
     try {
       final hasUser = await _fetchUserDataIfNeeded(forceRefresh: forceRefresh);
       if (hasUser) {
-        await _maybeShowWelcomePopupForNewUser();
         final tasks = <Future<void>>[
           _refreshWalletIfReady(forceRefresh: forceRefresh),
           bookingController.fetchUserBookings(forceRefresh: forceRefresh),
-          tournamentHomeCubit.fetchTournaments(forceRefresh: forceRefresh),
+          if (FeatureFlags.tournamentsEnabled)
+            tournamentHomeCubit.fetchTournaments(forceRefresh: forceRefresh),
           hashCoinCubit.getHashCoin(forceRefresh: forceRefresh),
         ];
         if (!_fcmRegistered) {

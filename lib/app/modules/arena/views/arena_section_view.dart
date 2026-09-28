@@ -6,22 +6,22 @@ class ArenaSection extends StatelessWidget {
   final List<Map<String, String>> arenaItems = [
     {
       'text': 'Tournament is going on\nFree Entry',
-      'image': 'https://fortnite.gg/img/lore/bg-chapter-2.jpg?2'
+      'image': 'https://fortnite.gg/img/lore/bg-chapter-2.jpg?2',
     },
     {
       'text': 'Fan Meet in\nBangalore',
       'image':
-          'https://static.wixstatic.com/media/7ef39e_5e704881922a40f293a56f4602a9384c~mv2.jpeg/v1/fill/w_640,h_360,al_c,q_80,usm_0.66_1.00_0.01,enc_auto/7ef39e_5e704881922a40f293a56f4602a9384c~mv2.jpeg'
+          'https://static.wixstatic.com/media/7ef39e_5e704881922a40f293a56f4602a9384c~mv2.jpeg/v1/fill/w_640,h_360,al_c,q_80,usm_0.66_1.00_0.01,enc_auto/7ef39e_5e704881922a40f293a56f4602a9384c~mv2.jpeg',
     },
     {
       'text': 'Launching new\nGames',
       'image':
-          'https://images.hindustantimes.com/tech/img/2021/07/07/960x540/youtube-screenshot-thelaunchpartybattlegroundsmobileindia_1625651911539_1625651921244.jpeg'
+          'https://images.hindustantimes.com/tech/img/2021/07/07/960x540/youtube-screenshot-thelaunchpartybattlegroundsmobileindia_1625651911539_1625651921244.jpeg',
     },
     // Add more items as needed
   ];
 
-   ArenaSection({super.key});
+  ArenaSection({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +31,10 @@ class ArenaSection extends StatelessWidget {
         Text(
           'IN THE ARENA',
           style: GoogleFonts.inter(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 10),
         SizedBox(
@@ -58,7 +61,8 @@ class ArenaSection extends StatelessWidget {
       decoration: BoxDecoration(
         image: DecorationImage(
           image: CachedNetworkImageProvider(
-              imageUrl), // CachedNetworkImage for performance
+            imageUrl,
+          ), // CachedNetworkImage for performance
           fit: BoxFit.cover,
         ),
         borderRadius: BorderRadius.circular(10),

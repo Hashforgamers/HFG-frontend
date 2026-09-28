@@ -56,6 +56,39 @@ class LeaderboardEntry {
   }
 }
 
+class LeaderboardPage {
+  const LeaderboardPage({
+    required this.entries,
+    required this.lastDoc,
+    required this.hasMore,
+  });
+
+  final List<LeaderboardEntry> entries;
+
+  /// Cursor for the next page; null when the page is empty.
+  final DocumentSnapshot? lastDoc;
+  final bool hasMore;
+}
+
+class LeaderboardStanding {
+  const LeaderboardStanding({
+    required this.players,
+    this.me,
+    this.rank,
+    this.nextTarget,
+  });
+
+  /// Everyone ranked on the board.
+  final int players;
+
+  /// Null when the player has no score on this board.
+  final LeaderboardEntry? me;
+  final int? rank;
+
+  /// The player just above [me]; null when [me] leads.
+  final LeaderboardEntry? nextTarget;
+}
+
 class MiniGameLeaderboardService {
   final _db = FirebaseFirestore.instance;
   static const _collection = 'mini_game_leaderboard';
@@ -182,6 +215,88 @@ class MiniGameLeaderboardService {
         .map(
           (snap) => snap.docs.map((d) => LeaderboardEntry.fromDoc(d)).toList(),
         );
+  }
+
+  static const int boardPageSize = 30;
+
+  /// Field a board is ranked by. [FieldPath] keeps game ids with unusual
+  /// characters from being parsed as nested paths.
+  Object _boardField(String gameId) =>
+      gameId == overallGameId ? 'totalScore' : FieldPath(['scores', gameId]);
+
+  /// Players ranked on [gameId]'s board, best first. Per-game boards only
+  /// include players who have scored in that game.
+  Query<Map<String, dynamic>> _boardQuery(String gameId) {
+    final field = _boardField(gameId);
+    final base = _db.collection(_collection);
+    if (gameId == overallGameId) {
+      return base.orderBy(field, descending: true);
+    }
+    return base.where(field, isGreaterThan: 0).orderBy(field, descending: true);
+  }
+
+  LeaderboardPage _toPage(QuerySnapshot<Map<String, dynamic>> snap, int size) {
+    return LeaderboardPage(
+      entries: snap.docs.map(LeaderboardEntry.fromDoc).toList(),
+      lastDoc: snap.docs.isEmpty ? null : snap.docs.last,
+      hasMore: snap.docs.length >= size,
+    );
+  }
+
+  /// Live first page of a board, so the podium updates as scores land.
+  Stream<LeaderboardPage> boardFirstPageStream(
+    String gameId, {
+    int pageSize = boardPageSize,
+  }) {
+    return _boardQuery(
+      gameId,
+    ).limit(pageSize).snapshots().map((snap) => _toPage(snap, pageSize));
+  }
+
+  /// The page after [after]. One-time read: only the first page is live.
+  Future<LeaderboardPage> fetchBoardPage(
+    String gameId, {
+    required DocumentSnapshot after,
+    int pageSize = boardPageSize,
+  }) async {
+    final snap = await _boardQuery(
+      gameId,
+    ).startAfterDocument(after).limit(pageSize).get();
+    return _toPage(snap, pageSize);
+  }
+
+  /// The signed-in player's place on a board, without loading every player
+  /// above them: rank and board size come from count aggregations.
+  Future<LeaderboardStanding> fetchStanding(String gameId) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final field = _boardField(gameId);
+    final playersAgg = await _boardQuery(gameId).count().get();
+    final players = playersAgg.count ?? 0;
+    if (uid == null) return LeaderboardStanding(players: players);
+
+    final mySnap = await _db.collection(_collection).doc(uid).get();
+    if (!mySnap.exists) return LeaderboardStanding(players: players);
+    final me = LeaderboardEntry.fromDoc(mySnap);
+    final myScore = gameId == overallGameId
+        ? me.totalScore
+        : (me.scores[gameId] ?? 0);
+    if (gameId != overallGameId && myScore <= 0) {
+      return LeaderboardStanding(players: players);
+    }
+
+    final above = _db
+        .collection(_collection)
+        .where(field, isGreaterThan: myScore);
+    final aboveAgg = await above.count().get();
+    final nextSnap = await above.orderBy(field).limit(1).get();
+    return LeaderboardStanding(
+      players: players,
+      me: me,
+      rank: (aboveAgg.count ?? 0) + 1,
+      nextTarget: nextSnap.docs.isEmpty
+          ? null
+          : LeaderboardEntry.fromDoc(nextSnap.docs.first),
+    );
   }
 
   List<LeaderboardEntry> rankEntriesForGame(

@@ -167,9 +167,7 @@ class BookingSummaryVoucherSection extends StatelessWidget {
                   height: 48,
                   child: TextField(
                     controller: voucherController,
-                    style: GoogleFonts.inter(
-                      color: BookingColors.textPrimary,
-                    ),
+                    style: GoogleFonts.inter(color: BookingColors.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Enter voucher code',
                       hintStyle: GoogleFonts.inter(

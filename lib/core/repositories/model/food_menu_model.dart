@@ -9,10 +9,10 @@ class FoodMenuModel {
   factory FoodMenuModel.fromJson(Map<String, dynamic> json) => FoodMenuModel(
     description: json['description'],
     id: json['id'],
-    menus: json['menus'] != null 
+    menus: json['menus'] != null
         ? (json['menus'] as List<dynamic>)
-            .map((e) => FoodItem.fromJson(e as Map<String, dynamic>))
-            .toList()
+              .map((e) => FoodItem.fromJson(e as Map<String, dynamic>))
+              .toList()
         : null,
     name: json['name'],
   );

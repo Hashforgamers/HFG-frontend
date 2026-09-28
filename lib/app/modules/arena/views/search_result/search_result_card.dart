@@ -1,9 +1,13 @@
+import 'dart:ui';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/views/search_result/search_result_feature_chips.dart';
-import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/core/utils/haptics.dart';
 
+/// Search result in the Home cafe-card style: photo with frosted status
+/// pills, then name, rating, address, distance, features and one action.
 class SearchResultCard extends StatelessWidget {
   final String title;
   final String type;
@@ -30,134 +34,146 @@ class SearchResultCard extends StatelessWidget {
     required this.onViewDetails,
   });
 
+  static const _green = Color(0xFF30D158);
+  static const _red = Color(0xFFFF453A);
+  static const _card = Color(0xFF1C1C1E);
+  static const _secondary = Color(0x99EBEBF5);
+  static const _fill = Color(0x3D767680);
+
+  TextStyle _text(double size, Color color, {FontWeight? weight}) =>
+      GoogleFonts.inter(
+        color: color,
+        fontSize: size,
+        fontWeight: weight ?? FontWeight.w400,
+        letterSpacing: size >= 16 ? -0.35 : -0.1,
+        height: 1.25,
+      );
+
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width - 32;
-    final dpr = MediaQuery.of(context).devicePixelRatio;
-    final memW = (width * dpr).round();
-    const imgH = 148.0;
+    final width = MediaQuery.sizeOf(context).width - 32;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    const imgH = 156.0;
+    final distance = etaLabel == null
+        ? distanceLabel
+        : '$distanceLabel · $etaLabel';
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: isOpen ? onViewDetails : null,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Material(
+        color: Colors.transparent,
+        clipBehavior: Clip.antiAlias,
+        shape: const ContinuousRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(44)),
+        ),
+        child: Ink(
+          decoration: const ShapeDecoration(
+            shape: ContinuousRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(44)),
+              side: BorderSide(color: Color(0x5900DC00), width: 0.8),
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.32),
-                blurRadius: 12,
-                offset: const Offset(0, 7),
-              ),
-            ],
+            color: _card,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: isOpen
+                ? () {
+                    Haptics.selection();
+                    onViewDetails?.call();
+                  }
+                : null,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Stack(
-                  children: [
-                    SizedBox(
-                      height: imgH,
-                      width: double.infinity,
-                      child: imageUrl.isEmpty
-                          ? Container(color: const Color(0xFF1A1A1A))
+                SizedBox(
+                  height: imgH,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      imageUrl.isEmpty
+                          ? const ColoredBox(color: Color(0xFF2C2C2E))
                           : CachedNetworkImage(
                               imageUrl: imageUrl,
                               fit: BoxFit.cover,
-                              memCacheWidth: memW,
-                              memCacheHeight: (imgH * dpr).round(),
-                              placeholder: (_, _) => Container(
-                                color: Colors.grey[800],
-                                child: const Center(
-                                  child: RainbowGlowingLoader(size: 32),
-                                ),
-                              ),
-                              errorWidget: (_, _, _) => Container(
-                                color: Colors.grey[800],
-                                child: const Icon(
-                                  Icons.image_not_supported,
-                                  color: Colors.white54,
-                                  size: 50,
+                              memCacheWidth: (width * dpr).round(),
+                              placeholder: (_, _) =>
+                                  const ColoredBox(color: Color(0xFF2C2C2E)),
+                              errorWidget: (_, _, _) => const ColoredBox(
+                                color: Color(0xFF2C2C2E),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.storefront_rounded,
+                                    color: Colors.white38,
+                                    size: 44,
+                                  ),
                                 ),
                               ),
                             ),
-                    ),
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 4,
-                        ),
+                      if (!isOpen) const ColoredBox(color: Color(0x66000000)),
+                      const DecoratedBox(
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: .8),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          isOpen ? '●  OPEN NOW' : '●  CLOSED',
-                          style: GoogleFonts.inter(
-                            color: isOpen
-                                ? const Color(0xff00DC00)
-                                : const Color(0xFFFF5252),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          type,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        height: 80,
-                        decoration: const BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [Color(0x00000000), Color(0xCC000000)],
+                            colors: [
+                              Color(0x59000000),
+                              Color(0x00000000),
+                              Color(0x00000000),
+                              Color(0x8C1C1C1E),
+                            ],
+                            stops: [0, 0.35, 0.6, 1],
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        right: 10,
+                        child: Row(
+                          children: [
+                            _glassPill(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      color: isOpen ? _green : _red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    isOpen ? 'Open' : 'Closed',
+                                    style: _text(
+                                      12,
+                                      Colors.white,
+                                      weight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Spacer(),
+                            if (type.isNotEmpty)
+                              _glassPill(
+                                Text(
+                                  type,
+                                  style: _text(
+                                    12,
+                                    Colors.white,
+                                    weight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -167,129 +183,78 @@ class SearchResultCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               title,
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
+                              style: _text(
+                                18,
+                                Colors.white,
+                                weight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 15,
+                          if (rating > 0) ...[
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.fromLTRB(7, 3, 8, 3),
+                              decoration: const ShapeDecoration(
+                                shape: StadiumBorder(),
+                                color: _fill,
                               ),
-                              const SizedBox(width: 3),
-                              Text(
-                                '$rating',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.star_rounded,
+                                    color: Color(0xFFFFD60A),
+                                    size: 15,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    rating.toStringAsFixed(1),
+                                    style: _text(
+                                      13,
+                                      Colors.white,
+                                      weight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
+                      Text(
+                        address,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: _text(13, _secondary),
+                      ),
+                      const SizedBox(height: 6),
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Icon(
-                            Icons.location_on_outlined,
-                            color: Colors.white54,
-                            size: 16,
+                            Icons.near_me_rounded,
+                            size: 13,
+                            color: _green,
                           ),
-                          const SizedBox(width: 6),
-                          Expanded(
+                          const SizedBox(width: 5),
+                          Flexible(
                             child: Text(
-                              address,
-                              style: GoogleFonts.inter(
-                                color: Colors.white70,
-                                fontSize: 11.5,
-                                height: 1.3,
-                              ),
-                              maxLines: 2,
+                              distance,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            etaLabel == null
-                                ? distanceLabel
-                                : '$distanceLabel • $etaLabel',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xff00DC00),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
+                              style: _text(13, _green, weight: FontWeight.w600),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      SearchResultFeatureChips(features: features),
-                      const SizedBox(height: 11),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: isOpen ? onViewDetails : null,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: BorderSide(
-                                  color: isOpen
-                                      ? const Color(0xff00DC00)
-                                      : Colors.white24,
-                                  width: 1.2,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 11,
-                                ),
-                              ),
-                              child: Text(
-                                isOpen ? 'View Details' : 'Closed',
-                                style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: isOpen ? onViewDetails : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xff00DC00),
-                                foregroundColor: Colors.black,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 11,
-                                ),
-                              ),
-                              child: Text(
-                                isOpen ? 'Book Now' : 'Unavailable',
-                                style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      if (features.isNotEmpty) ...[
+                        const SizedBox(height: 11),
+                        SearchResultFeatureChips(features: features),
+                      ],
+                      const SizedBox(height: 13),
+                      _action(),
                     ],
                   ),
                 ),
@@ -300,4 +265,61 @@ class SearchResultCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _action() {
+    if (!isOpen) {
+      return Container(
+        height: 44,
+        alignment: Alignment.center,
+        decoration: const ShapeDecoration(shape: StadiumBorder(), color: _fill),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.schedule_rounded, size: 16, color: _secondary),
+            const SizedBox(width: 6),
+            Text(
+              'Closed right now',
+              style: _text(14.5, _secondary, weight: FontWeight.w600),
+            ),
+          ],
+        ),
+      );
+    }
+    return Material(
+      color: _green,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: () {
+          Haptics.selection();
+          onViewDetails?.call();
+        },
+        child: SizedBox(
+          height: 44,
+          child: Center(
+            child: Text(
+              'Book Now',
+              style: _text(15.5, Colors.black, weight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _glassPill(Widget child) => ClipRRect(
+    borderRadius: BorderRadius.circular(999),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0x33FFFFFF), width: 0.5),
+        ),
+        child: child,
+      ),
+    ),
+  );
 }

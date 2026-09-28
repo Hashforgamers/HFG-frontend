@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:hash/config/feature_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
 import 'package:hash/core/utils/haptics.dart';
@@ -11,7 +12,7 @@ import '../views/home_content_view.dart';
 class HomeController extends GetxController {
   // Keep feature implementations in code, route through flags until release.
   static const bool isHashShopReleased = true;
-  static const bool isTournamentReleased = true;
+  static const bool isTournamentReleased = FeatureFlags.tournamentsEnabled;
 
   // --- Reactive states ---
   final selectedIndex = 0.obs;
@@ -62,6 +63,10 @@ class HomeController extends GetxController {
     if (isShopOpen.value) {
       isShopOpen.value = false;
     }
+
+    // Tournaments tab is removed from the bar while the feature is off;
+    // stray callers (tab arguments, old links) land on home instead.
+    if (index == 2 && !FeatureFlags.tournamentsEnabled) index = 0;
 
     // --- Prevent double-tap on same tab ---
     if (selectedIndex.value == index) return;

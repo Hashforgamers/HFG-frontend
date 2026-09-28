@@ -7,13 +7,13 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:in_app_update/in_app_update.dart';
 
 class UpdateService {
-  static const _kMinAndroid   = 'min_supported_version_android';
-  static const _kLatestAndroid= 'latest_version_android';
+  static const _kMinAndroid = 'min_supported_version_android';
+  static const _kLatestAndroid = 'latest_version_android';
   static const _kStoreAndroid = 'store_url_android';
 
-  static const _kMinIOS       = 'min_supported_version_ios';
-  static const _kLatestIOS    = 'latest_version_ios';
-  static const _kStoreIOS     = 'store_url_ios';
+  static const _kMinIOS = 'min_supported_version_ios';
+  static const _kLatestIOS = 'latest_version_ios';
+  static const _kStoreIOS = 'store_url_ios';
 
   /// Returns true if a **hard block** was shown (app should stop normal flow).
   Future<bool> enforce(BuildContext context) async {
@@ -24,21 +24,25 @@ class UpdateService {
       final rc = FirebaseRemoteConfig.instance;
 
       // ↓↓↓ Debug-friendly fetch (so it doesn’t cache for an hour)
-      await rc.setConfigSettings(RemoteConfigSettings(
-        fetchTimeout: const Duration(seconds: 10),
-        minimumFetchInterval: const Duration(seconds: 1), // was minutes:5
-      ));
+      await rc.setConfigSettings(
+        RemoteConfigSettings(
+          fetchTimeout: const Duration(seconds: 10),
+          minimumFetchInterval: const Duration(seconds: 1), // was minutes:5
+        ),
+      );
       await rc.fetchAndActivate();
 
       final isAndroid = Platform.isAndroid;
-      final min     = rc.getString(isAndroid ? _kMinAndroid : _kMinIOS);
-      final latest  = rc.getString(isAndroid ? _kLatestAndroid : _kLatestIOS);
-      final store   = rc.getString(isAndroid ? _kStoreAndroid : _kStoreIOS);
+      final min = rc.getString(isAndroid ? _kMinAndroid : _kMinIOS);
+      final latest = rc.getString(isAndroid ? _kLatestAndroid : _kLatestIOS);
+      final store = rc.getString(isAndroid ? _kStoreAndroid : _kStoreIOS);
 
       // ↓↓↓ Loud diagnostics so you can see why it didn’t trigger
-      debugPrint('🔎 RC fetched → current=$current  min=$min  latest=$latest  store=$store');
+      debugPrint(
+        '🔎 RC fetched → current=$current  min=$min  latest=$latest  store=$store',
+      );
 
-      final belowMin    = _cmpSemver(current, min)    < 0;
+      final belowMin = _cmpSemver(current, min) < 0;
       final belowLatest = _cmpSemver(current, latest) < 0;
 
       if (belowMin) {
@@ -49,7 +53,9 @@ class UpdateService {
               await InAppUpdate.performImmediateUpdate();
               return true;
             }
-          } catch (_) {/* fall back to dialog */}
+          } catch (_) {
+            /* fall back to dialog */
+          }
         }
         await _showForceDialog(context, store, latest, current);
         return true;
@@ -64,11 +70,14 @@ class UpdateService {
     return false;
   }
 
-
   // ────────────────────── UI helpers ─────────────────────────
 
   Future<void> _showForceDialog(
-      BuildContext context, String storeUrl, String latest, String current) async {
+    BuildContext context,
+    String storeUrl,
+    String latest,
+    String current,
+  ) async {
     await showCupertinoDialog(
       context: context,
       barrierDismissible: false,
@@ -95,14 +104,19 @@ class UpdateService {
     );
   }
 
-
   void _showSoftSnack(
-      BuildContext context, String storeUrl, String latest, String current) {
+    BuildContext context,
+    String storeUrl,
+    String latest,
+    String current,
+  ) {
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
     messenger.showMaterialBanner(
       MaterialBanner(
-        content: Text('New version $latest is available (you are on $current).'),
+        content: Text(
+          'New version $latest is available (you are on $current).',
+        ),
         leading: const Icon(Icons.system_update),
         backgroundColor: Colors.amber.shade700,
         actions: [

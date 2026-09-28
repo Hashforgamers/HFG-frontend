@@ -65,6 +65,13 @@ class ApiEndpoints {
 
   // Dashboard Service
   static String get dashboardBaseUrl => FlavorConfig.getBaseUrl('dashboard');
+
+  // Cafe scan & play (PC QR checkout, cafe-specific wallet)
+  static String get cafeCheckoutToken =>
+      '$bookingBaseUrl/api/cafe-checkout/token';
+  static String get cafeCheckout => '$dashboardBaseUrl/api/cafe/checkout';
+  static String cafeSession(String sessionId) =>
+      '$dashboardBaseUrl/api/cafe/sessions/$sessionId';
   // Add dashboard endpoints as needed, e.g.:
   // static String get dashboardStats => '$dashboardBaseUrl/api/stats';
 
@@ -103,6 +110,7 @@ class ApiEndpoints {
 
   // Wallet related endpoints (userOnboard)
   static String wallet() => '$userOnboardBaseUrl/api/users/wallet';
+
   static String addFunds(String userId) =>
       '$userOnboardBaseUrl/api/users/$userId/wallet/add-funds';
   static String get validateFunds =>

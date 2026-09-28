@@ -1437,36 +1437,34 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<void> claimDropCrateBonus({
     required String userId,
     int amount = 10,
-    String? referenceId,
   }) async {
     final dio = await networkProvider.auth();
-    // A stable reference id makes the credit idempotent on the ledger: safe to
-    // retry after a timeout without double-crediting, and enforces the
-    // "one welcome crate per user" rule server-side.
-    final refId =
-        referenceId ?? "drop_crate_${DateTime.now().millisecondsSinceEpoch}";
     try {
       final response = await dio.post(
-        '${ApiEndpoints.baseUrl}/wallet',
+        ApiEndpoints.wallet(),
         data: {
           "amount": amount,
-          "reference_id": refId,
+          "reference_id": "drop_crate_${DateTime.now().millisecondsSinceEpoch}",
         },
       );
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         debugPrint("✅ Drop Crate bonus claimed successfully.");
-      } else {
-        final err = response.data;
-        throw Exception(
-          (err is Map && err.containsKey('error'))
-              ? err['error']
-              : 'Failed to claim drop crate bonus',
+        return;
+      }
+      throw Exception('Failed to claim drop crate bonus');
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final body = e.response?.data;
+      final message = body is Map
+          ? (body['message'] ?? body['error'])?.toString()
+          : null;
+      debugPrint("❌ Error claiming drop crate bonus: $status $message");
+      if (status == 401 || status == 403) {
+        throw WelcomeCrateRejected(
+          message ?? 'Couldn’t add the welcome bonus right now.',
         );
       }
-    } catch (e) {
-      debugPrint("❌ Error claiming drop crate bonus: $e");
-      rethrow;
+      rethrow; // timeouts / 5xx: caller may retry
     }
   }
 
@@ -2248,10 +2246,7 @@ class RemoteRepo implements RemoteRepoInterface {
         if (vendorId != null) 'vendor_id': vendorId,
         if (gameId != null) 'game_id': gameId,
       };
-      final response = await dio.post(
-        ApiEndpoints.capturePayment,
-        data: data,
-      );
+      final response = await dio.post(ApiEndpoints.capturePayment, data: data);
       if (response.statusCode == 200) {
         return;
       } else {

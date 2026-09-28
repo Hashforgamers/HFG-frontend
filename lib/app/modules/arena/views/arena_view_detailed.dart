@@ -16,10 +16,13 @@ import 'package:hash/app/modules/game_pass/widgets/game_pass_widget.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_consoles_section.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_header.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_info_section.dart';
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_quick_actions.dart';
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_reviews_section.dart';
 import 'package:hash/app/modules/arena/views/booking_design.dart';
 import 'package:hash/app/modules/arena/views/booking_screen.dart';
 import 'package:hash/app/modules/arena/views/menu_view.dart';
+import 'package:hash/app/modules/cafe_play/views/cafe_checkout_sheet.dart';
+import 'package:hash/app/modules/cafe_play/views/cafe_wallet_balance_banner.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
@@ -33,6 +36,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:hash/app/modules/home/widgets/home_design.dart';
 import '../controllers/games_controller.dart';
 import 'package:hash/core/localization/app_region.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 
 class ArenaDetailView extends StatefulWidget {
   final String title;
@@ -1630,14 +1634,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Arena Passes',
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          const HomeSectionTitle(title: 'Arena ', accent: 'Passes'),
           const SizedBox(height: 12),
           SizedBox(
             height: 40,
@@ -1802,42 +1799,66 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         .toList()
         .cast<String>();
 
+    void share() {
+      Share.share(
+        '${widget.title}\n${widget.address}\nCheck it out on Hash Hub.',
+      );
+      segmentService.onCustomEvent('Cafe Shared', {
+        'cafe_id': widget.vendorId.toString(),
+        'channel': 'system_share',
+      });
+      fbEventsService.onCafeShared(
+        cafeId: widget.vendorId.toString(),
+        channel: 'system_share',
+      );
+    }
+
+    const sectionGap = SizedBox(height: 28);
+
     return Scaffold(
-      backgroundColor: BookingColors.bg,
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
           ListView(
             padding: EdgeInsets.zero,
             children: [
-              ArenaDetailHeader(
-                imageUrls: imageUrls,
-                title: widget.title,
-                onBack: () => Navigator.of(context).pop(),
-                onShare: () {
-                  final shareText =
-                      '${widget.title}\n${widget.address}\nCheck it out on Hash Hub.';
-                  Share.share(shareText);
-                  segmentService.onCustomEvent('Cafe Shared', {
-                    'cafe_id': widget.vendorId.toString(),
-                    'channel': 'system_share',
-                  });
-                  fbEventsService.onCafeShared(
-                    cafeId: widget.vendorId.toString(),
-                    channel: 'system_share',
-                  );
-                },
+              Obx(
+                () => ArenaDetailHeader(
+                  imageUrls: imageUrls,
+                  title: widget.title,
+                  address: widget.address,
+                  isOpen: _gamesController.isLoading.value
+                      ? null
+                      : _gamesController.shopOpen.value,
+                  onBack: () => Navigator.of(context).pop(),
+                  onShare: share,
+                ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 132),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 132),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ArenaDetailInfoSection(
+                    ArenaDetailQuickActions(
                       title: widget.title,
                       address: widget.address,
-                      openingHours: widget.openingHours,
+                      phone: widget.phone,
+                      email: widget.email,
+                      onShare: share,
                     ),
-                    const SizedBox(height: 20),
+                    Obx(() {
+                      if (!_hasPcConsole(_gamesController.games)) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: CafeWalletBalanceBanner(
+                          balancePaise: kDummyCafeWalletBalancePaise,
+                          onScan: () => startCafeScanFlow(context),
+                        ),
+                      );
+                    }),
+                    sectionGap,
                     ArenaDetailConsolesSection(
                       isLoading: _gamesController.isLoading,
                       games: _gamesController.games,
@@ -1847,68 +1868,28 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                       ),
                     ),
                     _buildPassesSection(),
-                    const SizedBox(height: 20),
+                    sectionGap,
                     gameTitlesGrid(_gamesController),
-                    const SizedBox(height: 20),
+                    sectionGap,
+                    const HomeSectionTitle(title: 'Visit ', accent: 'Info'),
+                    const SizedBox(height: 14),
+                    ArenaDetailInfoSection(
+                      title: widget.title,
+                      address: widget.address,
+                      openingHours: widget.openingHours,
+                      showHeader: false,
+                    ),
+                    sectionGap,
                     amenitiesGrid(widget.amenities, excludeFood: hasFood),
                     if (hasFood) ...[
-                      const SizedBox(height: 24),
-                      foodAndBeverageGrid([
-                        {
-                          'name': 'Crispy Fries',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075186/menu1_ar0hbe.png',
-                        },
-                        {
-                          'name': 'Veggie Burger',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
-                        },
-                        {
-                          'name': 'Red Sauce Pasta',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075188/menu3_o2c0zy.png',
-                        },
-                        {
-                          'name': 'Protein Sandwich',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
-                        },
-                        {
-                          'name': 'Hot Coffee',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu5_f3t2l0.png',
-                        },
-                        {
-                          'name': 'Coca Cola with Ice',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu6_qhoalw.png',
-                        },
-                        {
-                          'name': 'Blue Lagoon',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075191/menu7_tj4lp1.png',
-                        },
-                        {
-                          'name': 'Choco Pastry',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075192/menu8_na7k6n.png',
-                        },
-                        {
-                          'name': 'Classic Donut',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
-                        },
-                      ]),
+                      sectionGap,
+                      foodAndBeverageGrid(_kSampleMenu),
                     ],
-
-                    const SizedBox(height: 20),
-
+                    sectionGap,
                     ArenaDetailReviewsSection(
                       vendorId: widget.vendorId,
                       initialReviews: widget.reviews,
                     ),
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -1924,18 +1905,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               builder: (controller) {
                 final open = controller.shopOpen.value;
                 return BookingBottomBar(
-                  child: BookingPrimaryButton(
-                    label: open ? 'Continue Booking' : 'Shop Closed',
-                    icon: open
-                        ? Icons.sports_esports_rounded
-                        : Icons.lock_clock,
-                    enabled: open,
-                    onPressed: open
-                        ? () async {
-                            await _startBookingFlow(context);
-                          }
-                        : null,
-                  ),
+                  child: open
+                      ? HomeCta(
+                          label: 'Continue Booking',
+                          icon: Icons.sports_esports_rounded,
+                          height: 54,
+                          onTap: () => _startBookingFlow(context),
+                        )
+                      : const _ClosedCta(),
                 );
               },
             ),
@@ -3067,56 +3044,35 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       return '';
     }
 
-    Widget _gameArtworkFallback(String name) {
-      return Container(
-        width: 90,
-        height: 100,
-        decoration: const BoxDecoration(
+    Widget artworkFallback() {
+      return const DecoratedBox(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xff252525), Color(0xff111111)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1B2130), Color(0xFF0B0D12)],
           ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.sports_esports_rounded,
-              color: Color(0xffB7F34A),
-              size: 30,
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  color: Colors.white70,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+        child: Center(
+          child: Icon(
+            Icons.sports_esports_rounded,
+            color: HomeTokens.green,
+            size: 34,
+          ),
         ),
       );
     }
 
+    const title = HomeSectionTitle(title: 'Games you can ', accent: 'Play');
+
     return Obx(() {
       if (controller.isLoading.value) {
-        return Column(
+        return const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Available games', style: HomeTokens.title(18)),
-            const SizedBox(height: 12),
-            const SizedBox(
-              height: 160,
-              child: Center(child: AppLinearLoader()),
-            ),
+            title,
+            SizedBox(height: 14),
+            SizedBox(height: 150, child: Center(child: AppLinearLoader())),
           ],
         );
       }
@@ -3147,67 +3103,63 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Available games', style: HomeTokens.title(18)),
-          const SizedBox(height: 12),
+          title,
+          const SizedBox(height: 14),
           SizedBox(
-            height: 160,
+            height: 172,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
               itemCount: displayGames.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 2),
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
                 final item = displayGames[index];
                 final name = item['name'] ?? 'Game';
                 final image = item['image'] ?? '';
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5.0,
-                    vertical: 4.0,
-                  ),
+                return SizedBox(
+                  width: 104,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
+                        width: 104,
+                        height: 132,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: HomeTokens.hairline),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(16),
                           child: image.isEmpty
-                              ? _gameArtworkFallback(name)
+                              ? artworkFallback()
                               : CachedNetworkImage(
                                   imageUrl: image,
-                                  width: 90,
-                                  height: 100,
                                   fit: BoxFit.cover,
-                                  placeholder: (_, __) => Container(
-                                    width: 90,
-                                    height: 100,
-                                    color: const Color(0xff1A1A1A),
-                                    child: const Center(
-                                      child: AppLinearLoader(),
-                                    ),
+                                  placeholder: (_, _) => const ColoredBox(
+                                    color: HomeTokens.surface,
+                                    child: Center(child: AppLinearLoader()),
                                   ),
-                                  errorWidget: (_, __, ___) =>
-                                      _gameArtworkFallback(name),
+                                  errorWidget: (_, _, _) => artworkFallback(),
                                 ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      SizedBox(
-                        width: 90,
-                        child: Text(
-                          name,
-                          maxLines: 2,
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            color: HomeTokens.textSecondary,
-                            fontSize: 11,
-                            height: 1.2,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      const SizedBox(height: 8),
+                      Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: HomeTokens.textSecondary,
+                          fontSize: 12,
+                          height: 1.25,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -3223,32 +3175,59 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
   Widget foodAndBeverageGrid(List<Map<String, String>> items) {
     // Hide the whole section when there is nothing to show, so cafes without a
-    // menu don't render an empty "Food & beverages" header.
+    // menu don't render an empty header.
     if (items.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Food & beverages', style: HomeTokens.title(18)),
-        const SizedBox(height: 8),
+        const HomeSectionTitle(title: 'Snacks & ', accent: 'Drinks'),
+        const SizedBox(height: 4),
+        Text(
+          'Add food when you book your slot',
+          style: HomeTokens.body(HomeTokens.textTertiary, size: 12.5),
+        ),
+        const SizedBox(height: 14),
         SizedBox(
-          height: 90,
+          height: 124,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
               final item = items[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                child: CachedNetworkImage(
-                  imageUrl: item['image']!,
-                  height: 60,
-                  width: 70,
-                  fit: BoxFit.contain,
-                  placeholder: (_, _) =>
-                      const Center(child: RainbowGlowingLoader(size: 10)),
-                  errorWidget: (_, _, _) =>
-                      const Icon(Icons.error, color: Colors.red),
+              return SizedBox(
+                width: 100,
+                child: HomeCard(
+                  padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: CachedNetworkImage(
+                          imageUrl: item['image'] ?? '',
+                          fit: BoxFit.contain,
+                          placeholder: (_, _) => const Center(
+                            child: RainbowGlowingLoader(size: 10),
+                          ),
+                          errorWidget: (_, _, _) => const Icon(
+                            Icons.fastfood_rounded,
+                            color: HomeTokens.textTertiary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        item['name'] ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: HomeTokens.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -3301,65 +3280,55 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                 (item) => (item['name'] ?? '').toString().trim().isNotEmpty,
               )
               .toList();
+    if (display.isEmpty) return const SizedBox.shrink();
+    String pretty(String name) => name
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map(
+          (w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '',
+        )
+        .join(' ');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Facilities', style: HomeTokens.title(18)),
+        const HomeSectionTitle(title: 'Cafe ', accent: 'Facilities'),
         const SizedBox(height: 14),
-        SizedBox(
-          height: 90,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: display.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 16),
-            itemBuilder: (context, index) {
-              final item = display[index];
-              final name = item['name']?.toString() ?? '';
-              final displayName = name
-                  .replaceAll('_', ' ')
-                  .split(' ')
-                  .map(
-                    (w) => w.isNotEmpty
-                        ? '${w[0].toUpperCase()}${w.substring(1)}'
-                        : '',
-                  )
-                  .join(' ');
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xff232323),
-                      borderRadius: BorderRadius.circular(22),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final item in display)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: HomeTokens.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: HomeTokens.hairline),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _getAmenityIcon(item['name']?.toString() ?? ''),
+                      color: HomeTokens.green,
+                      size: 16,
                     ),
-                    child: Icon(
-                      _getAmenityIcon(name),
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: 64,
-                    child: Text(
-                      displayName,
+                    const SizedBox(width: 7),
+                    Text(
+                      pretty(item['name']?.toString() ?? ''),
                       style: GoogleFonts.inter(
-                        color: HomeTokens.textSecondary,
-                        fontSize: 10,
-                        height: 1.2,
+                        color: HomeTokens.textPrimary,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
-              );
-            },
-          ),
+                  ],
+                ),
+              ),
+          ],
         ),
       ],
     );
@@ -3864,3 +3833,121 @@ class BookingPartySelection {
   final int requiredConsoleCount;
   final List<ChatUserModel> selectedMembers;
 }
+
+/// True when the cafe lists any PC console — scan & play is PC-only.
+bool _hasPcConsole(List<Map<String, dynamic>> games) {
+  bool isPc(dynamic entry) {
+    if (entry is! Map) return false;
+    for (final key in const [
+      'console_type',
+      'consoleType',
+      'console_slug',
+      'console_display_name',
+      'type',
+      'game_platform',
+    ]) {
+      final v = entry[key]?.toString().toLowerCase().trim() ?? '';
+      // Same rule the consoles section uses to label a console as PC.
+      if (v.contains('pc') || v.contains('computer')) return true;
+    }
+    return false;
+  }
+
+  for (final g in games) {
+    if (isPc(g)) return true;
+    final consoles = g['consoles'];
+    if (consoles is List && consoles.any(isPc)) return true;
+  }
+  return false;
+}
+
+/// Disabled state for the bottom CTA. Neutral rather than a faded green, so a
+/// closed shop never reads as a tappable primary action.
+class _ClosedCta extends StatelessWidget {
+  const _ClosedCta();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: false,
+      label: 'Shop closed',
+      child: Container(
+        height: 54,
+        decoration: BoxDecoration(
+          color: HomeTokens.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: HomeTokens.hairline),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.lock_clock,
+              color: HomeTokens.textTertiary,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Shop Closed',
+              style: GoogleFonts.inter(
+                color: HomeTokens.textSecondary,
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder menu art until the vendor menu API feeds this section.
+const List<Map<String, String>> _kSampleMenu = [
+  {
+    'name': 'Crispy Fries',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075186/menu1_ar0hbe.png',
+  },
+  {
+    'name': 'Veggie Burger',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
+  },
+  {
+    'name': 'Red Sauce Pasta',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075188/menu3_o2c0zy.png',
+  },
+  {
+    'name': 'Protein Sandwich',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
+  },
+  {
+    'name': 'Hot Coffee',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu5_f3t2l0.png',
+  },
+  {
+    'name': 'Coca Cola with Ice',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu6_qhoalw.png',
+  },
+  {
+    'name': 'Blue Lagoon',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075191/menu7_tj4lp1.png',
+  },
+  {
+    'name': 'Choco Pastry',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075192/menu8_na7k6n.png',
+  },
+  {
+    'name': 'Classic Donut',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
+  },
+];

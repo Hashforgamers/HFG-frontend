@@ -12,7 +12,10 @@ Future<String> loadMapStyle() async {
 }
 
 /// Loads a custom bitmap icon from assets.
-Future<BitmapDescriptor> loadCustomMarker(String assetPath, {double size = 48}) async {
+Future<BitmapDescriptor> loadCustomMarker(
+  String assetPath, {
+  double size = 48,
+}) async {
   return await BitmapDescriptor.fromAssetImage(
     ImageConfiguration(size: Size(size, size)),
     assetPath,

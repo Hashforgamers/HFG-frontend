@@ -76,6 +76,17 @@ class _CafeSectionState extends State<CafeSection> {
   final Set<String> _likingCafeIds = <String>{};
   bool _showCommunityCafes = false;
 
+  /// "850 m", "3.2 km · ~8 min", or "13517 km" (no drive time when it's
+  /// meaningless, e.g. the device location is in another country).
+  static String _distanceText(double km, int? etaMin) {
+    final dist = km < 1
+        ? '${(km * 1000).round()} m'
+        : km < 100
+        ? '${km.toStringAsFixed(1)} km'
+        : '${km.round()} km';
+    return etaMin != null && etaMin <= 120 ? '$dist · ~$etaMin min' : dist;
+  }
+
   Future<void> _openCafeOnboarding() async {
     final uri = Uri.parse(_sheetUrl);
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -994,7 +1005,7 @@ class _CafeSectionState extends State<CafeSection> {
                                         Text(
                                           distanceKm == null
                                               ? '-- km'
-                                              : '${distanceKm.toStringAsFixed(1)} km',
+                                              : _distanceText(distanceKm, null),
                                           style: GoogleFonts.inter(
                                             color: Colors.white70,
                                             fontSize: 11,
@@ -1856,7 +1867,7 @@ class _CafeSectionState extends State<CafeSection> {
                           isOpen: isOpen,
                           distanceLabel: km == null
                               ? '-- km'
-                              : '${km.toStringAsFixed(1)} km${etaMin != null ? ' · ~$etaMin min' : ''}',
+                              : _distanceText(km, etaMin),
                           fillingFast: index == 0,
                           onTap: openCafeDetails,
                         );

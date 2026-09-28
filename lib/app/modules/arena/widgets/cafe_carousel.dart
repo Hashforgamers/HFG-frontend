@@ -59,7 +59,8 @@ class CafeCarousel extends StatelessWidget {
                   placeholder: (_, __) =>
                       const Center(child: RainbowGlowingLoader(size: 40)),
                   errorWidget: (_, __, ___) => const Center(
-                      child: Icon(Icons.error, color: Colors.white)),
+                    child: Icon(Icons.error, color: Colors.white),
+                  ),
                 ),
                 Positioned(
                   bottom: 0,
@@ -70,7 +71,8 @@ class CafeCarousel extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.6),
                       borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(16)),
+                        bottom: Radius.circular(16),
+                      ),
                     ),
                     child: Text(
                       cafe['cafe_name'] ?? 'Unnamed',

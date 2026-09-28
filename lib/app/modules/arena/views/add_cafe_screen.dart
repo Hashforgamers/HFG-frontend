@@ -38,8 +38,9 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
 
     try {
       // First, get location from pincode
-      List<Location> locations =
-          await locationFromAddress(_pincodeController.text);
+      List<Location> locations = await locationFromAddress(
+        _pincodeController.text,
+      );
       if (locations.isNotEmpty) {
         Location location = locations.first;
 
@@ -237,8 +238,9 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: Color(0xffDE3A3A)),
+                            borderSide: const BorderSide(
+                              color: Color(0xffDE3A3A),
+                            ),
                           ),
                           errorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -263,9 +265,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                           child: SizedBox(
                             width: 20,
                             height: 20,
-                            child: AppLinearLoader(
-
-                            ),
+                            child: AppLinearLoader(),
                           ),
                         ),
                     ],
@@ -286,9 +286,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: AppLinearLoader(
-
-                              ),
+                              child: AppLinearLoader(),
                             )
                           : Text(
                               'Submit',
@@ -307,9 +305,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
           if (_isLoading)
             Container(
               color: Colors.black.withValues(alpha: 0.5),
-              child: const Center(
-                child: AppLinearLoader()
-              ),
+              child: const Center(child: AppLinearLoader()),
             ),
         ],
       ),

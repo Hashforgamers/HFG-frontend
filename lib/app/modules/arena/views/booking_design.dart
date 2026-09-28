@@ -260,8 +260,7 @@ class BookingScaffold extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          if (glow)
-            BookingAmbientGlow(color: glowColor.withValues(alpha: 1)),
+          if (glow) BookingAmbientGlow(color: glowColor.withValues(alpha: 1)),
           body,
         ],
       ),
@@ -470,99 +469,99 @@ class BookingPrimaryButton extends StatelessWidget {
       enabled: isActive,
       label: loading ? '$label, please wait' : label,
       child: Opacity(
-      opacity: isActive ? 1 : 0.55,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(BookingRadius.button),
-          onTap: isActive
-              ? () {
-                  HapticFeedback.mediumImpact();
-                  onPressed!.call();
-                }
-              : null,
-          child: Ink(
-            height: height,
-            decoration: BoxDecoration(
-              gradient: isActive
-                  ? (gradient ?? BookingColors.accentGradient)
-                  : null,
-              color: isActive ? null : BookingColors.surfaceHigh,
-              borderRadius: BorderRadius.circular(BookingRadius.button),
-              boxShadow: isActive
-                  ? [
-                      BoxShadow(
-                        color: BookingColors.accent.withValues(alpha: 0.22),
-                        blurRadius: 24,
-                        spreadRadius: -8,
-                        offset: const Offset(0, 8),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Center(
-              child: loading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        color: BookingColors.textOnAccent,
-                      ),
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (icon != null) ...[
-                          Icon(
-                            icon,
-                            size: 19,
-                            color: isActive
-                                ? BookingColors.textOnAccent
-                                : BookingColors.textMuted,
-                          ),
-                          const SizedBox(width: BookingSpacing.sm),
-                        ],
-                        Text(
-                          label,
-                          style: GoogleFonts.inter(
-                            color: isActive
-                                ? BookingColors.textOnAccent
-                                : BookingColors.textMuted,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.1,
-                          ),
+        opacity: isActive ? 1 : 0.55,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(BookingRadius.button),
+            onTap: isActive
+                ? () {
+                    HapticFeedback.mediumImpact();
+                    onPressed!.call();
+                  }
+                : null,
+            child: Ink(
+              height: height,
+              decoration: BoxDecoration(
+                gradient: isActive
+                    ? (gradient ?? BookingColors.accentGradient)
+                    : null,
+                color: isActive ? null : BookingColors.surfaceHigh,
+                borderRadius: BorderRadius.circular(BookingRadius.button),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: BookingColors.accent.withValues(alpha: 0.22),
+                          blurRadius: 24,
+                          spreadRadius: -8,
+                          offset: const Offset(0, 8),
                         ),
-                        if (trailingLabel != null) ...[
-                          const SizedBox(width: BookingSpacing.sm),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
+                      ]
+                    : null,
+              ),
+              child: Center(
+                child: loading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: BookingColors.textOnAccent,
+                        ),
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (icon != null) ...[
+                            Icon(
+                              icon,
+                              size: 19,
+                              color: isActive
+                                  ? BookingColors.textOnAccent
+                                  : BookingColors.textMuted,
                             ),
-                            decoration: BoxDecoration(
-                              color: BookingColors.textOnAccent.withValues(
-                                alpha: 0.16,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              trailingLabel!,
-                              style: GoogleFonts.inter(
-                                color: BookingColors.textOnAccent,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                              ),
+                            const SizedBox(width: BookingSpacing.sm),
+                          ],
+                          Text(
+                            label,
+                            style: GoogleFonts.inter(
+                              color: isActive
+                                  ? BookingColors.textOnAccent
+                                  : BookingColors.textMuted,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.1,
                             ),
                           ),
+                          if (trailingLabel != null) ...[
+                            const SizedBox(width: BookingSpacing.sm),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: BookingColors.textOnAccent.withValues(
+                                  alpha: 0.16,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                trailingLabel!,
+                                style: GoogleFonts.inter(
+                                  color: BookingColors.textOnAccent,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
+                      ),
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/config/feature_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/rendering.dart';
@@ -584,39 +585,23 @@ class _HomeViewState extends State<HomeView> {
                 fontWeight: FontWeight.w700,
                 height: 1.4,
               ),
-              currentIndex: controller.selectedIndex.value,
-              onTap: _onMainNavigationTap,
+              currentIndex: _navTabs
+                  .indexWhere((t) => t.screen == controller.selectedIndex.value)
+                  .clamp(0, _navTabs.length - 1),
+              onTap: (position) =>
+                  _onMainNavigationTap(_navTabs[position].screen),
               backgroundColor: Colors.black,
               selectedItemColor: const Color(0xff00DC00),
               unselectedItemColor: Colors.grey[800],
               items: <BottomNavigationBarItem>[
-                _buildNavigationItem(
-                  'assets/navbar_icons/Vector (1).png',
-                  label: 'Home',
-                  isSelected: controller.selectedIndex.value == 0,
-                ),
-                _buildNavigationItem(
-                  'assets/navbar_icons/maki_gaming.png',
-                  label: 'Squad Up',
-                  isSelected: controller.selectedIndex.value == 1,
-                ),
-                _buildNavigationItem(
-                  'assets/navbar_icons/trophy.png',
-                  label: 'Compete',
-                  isSelected: controller.selectedIndex.value == 2,
-                  isSpecial: true,
-                ),
-                _buildNavigationItem(
-                  'assets/navbar_icons/Group.png',
-                  label: 'Sessions',
-                  isSelected: controller.selectedIndex.value == 3,
-                  iconHeight: 17,
-                ),
-                _buildNavigationItem(
-                  'assets/navbar_icons/Vector (3).png',
-                  label: 'Me',
-                  isSelected: controller.selectedIndex.value == 4,
-                ),
+                for (final tab in _navTabs)
+                  _buildNavigationItem(
+                    tab.icon,
+                    label: tab.label,
+                    isSelected: controller.selectedIndex.value == tab.screen,
+                    isSpecial: tab.isSpecial,
+                    iconHeight: tab.iconHeight,
+                  ),
               ],
             ),
 
@@ -846,6 +831,28 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  /// Bottom bar tabs in display order. [_NavTab.screen] is the screen index
+  /// [HomeController] uses (0 home, 1 squad up, 2 tournaments, 3 sessions,
+  /// 4 profile); positions shift when a tab is hidden, screen ids don't.
+  static final List<_NavTab> _navTabs = [
+    const _NavTab(0, 'assets/navbar_icons/Vector (1).png', 'Home'),
+    const _NavTab(1, 'assets/navbar_icons/maki_gaming.png', 'Squad Up'),
+    if (FeatureFlags.tournamentsEnabled)
+      const _NavTab(
+        2,
+        'assets/navbar_icons/trophy.png',
+        'Compete',
+        isSpecial: true,
+      ),
+    const _NavTab(
+      3,
+      'assets/navbar_icons/Group.png',
+      'Sessions',
+      iconHeight: 17,
+    ),
+    const _NavTab(4, 'assets/navbar_icons/Vector (3).png', 'Me'),
+  ];
+
   // --- BottomNavigationBar Item Builder ---
   BottomNavigationBarItem _buildNavigationItem(
     String iconPath, {
@@ -1012,4 +1019,20 @@ class _ShopLightSweep extends CustomPainter {
   @override
   bool shouldRepaint(_ShopLightSweep oldDelegate) =>
       progress != oldDelegate.progress || enabled != oldDelegate.enabled;
+}
+
+class _NavTab {
+  const _NavTab(
+    this.screen,
+    this.icon,
+    this.label, {
+    this.isSpecial = false,
+    this.iconHeight = 22,
+  });
+
+  final int screen;
+  final String icon;
+  final String label;
+  final bool isSpecial;
+  final double iconHeight;
 }

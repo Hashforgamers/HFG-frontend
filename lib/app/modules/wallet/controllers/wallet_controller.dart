@@ -316,18 +316,13 @@ class WalletController extends GetxController {
   /// The claim payload and the popup copy both read this, so they can't drift.
   static const int welcomeBonusAmount = 10;
 
+  /// Credits the one-time welcome crate straight to the wallet.
   Future<bool> claimDropCrate() async {
-    String userId = _userController.userId.trim();
-
+    final userId = _userController.userId.trim();
     if (userId.isEmpty) {
       _handleError('User ID missing');
       return false;
     }
-
-    // Deterministic reference so the credit is idempotent: retries (e.g. after a
-    // cold-start timeout) reuse the same reference and can never double-credit,
-    // and each user can only ever receive one welcome crate.
-    final referenceId = 'drop_crate_welcome_$userId';
 
     Object? lastError;
     for (var attempt = 1; attempt <= 3; attempt++) {
@@ -335,10 +330,13 @@ class WalletController extends GetxController {
         await _remoteRepo.claimDropCrateBonus(
           userId: userId,
           amount: welcomeBonusAmount,
-          referenceId: referenceId,
         );
-        await _forceRefreshWallet(); // Guarantee the new balance is loaded
+        await _forceRefreshWallet();
         return true;
+      } on WelcomeCrateRejected catch (e) {
+        // A definite "no" from the server; retrying won't change it.
+        _showErrorMessage(e.message);
+        return false;
       } catch (e) {
         lastError = e;
         debugPrint('claimDropCrate attempt $attempt/3 failed: $e');

@@ -284,7 +284,7 @@ class _WelcomeAboardDialogState extends State<WelcomeAboardDialog> {
                   if (_failed) ...[
                     const SizedBox(height: 16),
                     const Text(
-                      "Couldn't claim right now.\nCheck your connection and try again.",
+                      "Couldn't claim right now.\nYour bonus is saved. Try again later.",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,

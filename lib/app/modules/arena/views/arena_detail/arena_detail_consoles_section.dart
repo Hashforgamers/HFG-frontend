@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/home/widgets/home_design.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 import 'package:hash/utils/widgets/loader.dart';
 
 class ArenaDetailConsolesSection extends StatelessWidget {
@@ -21,118 +22,187 @@ class ArenaDetailConsolesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Available consoles', style: HomeTokens.title(18)),
+        const HomeSectionTitle(title: 'Choose your ', accent: 'Setup'),
+        const SizedBox(height: 4),
+        Text(
+          'Tap a console to start booking',
+          style: HomeTokens.body(HomeTokens.textTertiary, size: 12.5),
+        ),
         const SizedBox(height: 14),
-        SizedBox(
-          // Two-line labels need the extra height; see _consoleIcon.
-          height: 104,
-          child: Obx(() {
-            if (isLoading.value) {
-              return const Center(child: AppLinearLoader());
-            }
-
-            final seen = <String>{};
-            final types = <Map<String, String>>[];
-            for (final g in games) {
-              if (g is! Map) continue;
-              final consoles = g['consoles'];
-              if (consoles is List && consoles.isNotEmpty) {
-                for (final c in consoles) {
-                  if (c is! Map) continue;
-                  final availableValue =
-                      c['available'] ??
-                      c['is_available'] ??
-                      c['isAvailable'] ??
-                      c['bookable'];
-                  final countValue =
-                      c['inventory_count'] ??
-                      c['available_slot'] ??
-                      c['available_slots'] ??
-                      c['count'] ??
-                      c['total_slots'];
-                  final isAvailable = availableValue == null
-                      ? true
-                      : _truthy(availableValue);
-                  final availableCount = countValue == null
-                      ? 1
-                      : _asInt(countValue);
-                  if (!isAvailable || availableCount <= 0) continue;
-                  final rawLabel =
-                      (c['console_display_name'] ??
-                              c['console_slug'] ??
-                              c['console_type'] ??
-                              c['consoleType'] ??
-                              c['type'] ??
-                              '')
-                          .toString()
-                          .trim();
-                  final key = _normalizeConsoleType(rawLabel);
-                  final label = _consoleDisplayLabel(rawLabel);
-                  if (key.isEmpty || label.isEmpty) continue;
-                  if (seen.add(key)) {
-                    types.add({'key': key, 'label': label});
-                  }
-                }
-              } else {
-                final availableValue =
-                    g['available'] ??
-                    g['is_available'] ??
-                    g['isAvailable'] ??
-                    g['bookable'];
-                final countValue =
-                    g['count'] ??
-                    g['available_slot'] ??
-                    g['available_slots'] ??
-                    g['total_slots'];
-                final isAvailable = _truthy(availableValue);
-                final availableCount = countValue == null
-                    ? (isAvailable ? 1 : 0)
-                    : _asInt(countValue);
-                if (!isAvailable || availableCount <= 0) continue;
-                final rawLabel =
-                    (g['console_display_name'] ??
-                            g['console_slug'] ??
-                            g['console_type'] ??
-                            g['consoleType'] ??
-                            g['type'] ??
-                            g['game_platform'] ??
-                            '')
-                        .toString()
-                        .trim();
-                final key = _normalizeConsoleType(rawLabel);
-                final label = _consoleDisplayLabel(rawLabel);
-                if (key.isEmpty || label.isEmpty) continue;
-                if (seen.add(key)) {
-                  types.add({'key': key, 'label': label});
-                }
-              }
-            }
-
-            if (types.isEmpty) {
-              return ListView(
-                scrollDirection: Axis.horizontal,
+        Obx(() {
+          if (isLoading.value) {
+            return const SizedBox(
+              height: 72,
+              child: Center(child: AppLinearLoader()),
+            );
+          }
+          var types = _consoleTypes();
+          if (types.isEmpty) {
+            types = const [
+              {'key': 'pc', 'label': 'PC'},
+              {'key': 'ps5', 'label': 'PS5'},
+              {'key': 'xbox', 'label': 'XBOX'},
+              {'key': 'vr_headset', 'label': 'VR'},
+            ];
+          }
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 12.0;
+              final width = (constraints.maxWidth - gap) / 2;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
                 children: [
-                  _consoleIcon('PC', consoleType: 'pc'),
-                  _consoleIcon('XBOX', consoleType: 'xbox'),
-                  _consoleIcon('PS5', consoleType: 'ps5'),
-                  _consoleIcon('VR', consoleType: 'vr_headset'),
+                  for (final t in types)
+                    SizedBox(
+                      width: width,
+                      child: _consoleTile(
+                        t['label'] ?? '',
+                        consoleType: t['key'] ?? '',
+                      ),
+                    ),
                 ],
               );
-            }
-
-            return ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: types.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 0),
-              itemBuilder: (context, index) {
-                final name = types[index]['label'] ?? '';
-                final consoleType = types[index]['key'] ?? '';
-                return _consoleIcon(name, consoleType: consoleType);
-              },
-            );
-          }),
-        ),
+            },
+          );
+        }),
       ],
+    );
+  }
+
+  List<Map<String, String>> _consoleTypes() {
+    final seen = <String>{};
+    final types = <Map<String, String>>[];
+    for (final g in games) {
+      if (g is! Map) continue;
+      final consoles = g['consoles'];
+      if (consoles is List && consoles.isNotEmpty) {
+        for (final c in consoles) {
+          if (c is! Map) continue;
+          final availableValue =
+              c['available'] ??
+              c['is_available'] ??
+              c['isAvailable'] ??
+              c['bookable'];
+          final countValue =
+              c['inventory_count'] ??
+              c['available_slot'] ??
+              c['available_slots'] ??
+              c['count'] ??
+              c['total_slots'];
+          final isAvailable = availableValue == null
+              ? true
+              : _truthy(availableValue);
+          final availableCount = countValue == null ? 1 : _asInt(countValue);
+          if (!isAvailable || availableCount <= 0) continue;
+          final rawLabel =
+              (c['console_display_name'] ??
+                      c['console_slug'] ??
+                      c['console_type'] ??
+                      c['consoleType'] ??
+                      c['type'] ??
+                      '')
+                  .toString()
+                  .trim();
+          final key = _normalizeConsoleType(rawLabel);
+          final label = _consoleDisplayLabel(rawLabel);
+          if (key.isEmpty || label.isEmpty) continue;
+          if (seen.add(key)) {
+            types.add({'key': key, 'label': label});
+          }
+        }
+      } else {
+        final availableValue =
+            g['available'] ??
+            g['is_available'] ??
+            g['isAvailable'] ??
+            g['bookable'];
+        final countValue =
+            g['count'] ??
+            g['available_slot'] ??
+            g['available_slots'] ??
+            g['total_slots'];
+        final isAvailable = _truthy(availableValue);
+        final availableCount = countValue == null
+            ? (isAvailable ? 1 : 0)
+            : _asInt(countValue);
+        if (!isAvailable || availableCount <= 0) continue;
+        final rawLabel =
+            (g['console_display_name'] ??
+                    g['console_slug'] ??
+                    g['console_type'] ??
+                    g['consoleType'] ??
+                    g['type'] ??
+                    g['game_platform'] ??
+                    '')
+                .toString()
+                .trim();
+        final key = _normalizeConsoleType(rawLabel);
+        final label = _consoleDisplayLabel(rawLabel);
+        if (key.isEmpty || label.isEmpty) continue;
+        if (seen.add(key)) {
+          types.add({'key': key, 'label': label});
+        }
+      }
+    }
+    return types;
+  }
+
+  Widget _consoleTile(String label, {required String consoleType}) {
+    final fallbackIcon = _getConsoleFallbackIcon(label);
+    final imageUrl = _getConsoleImage(label);
+    return HomeCard(
+      padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+      onTap: onConsoleTap == null ? null : () => onConsoleTap!(consoleType),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: HomeTokens.green.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(
+                color: HomeTokens.green.withValues(alpha: 0.22),
+              ),
+            ),
+            child: imageUrl.isEmpty
+                ? Icon(fallbackIcon, color: HomeTokens.green, size: 22)
+                : Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) =>
+                        Icon(fallbackIcon, color: HomeTokens.green, size: 22),
+                  ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: HomeTokens.textPrimary,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text('Book now', style: HomeTokens.eyebrow(HomeTokens.green)),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: HomeTokens.textTertiary,
+            size: 20,
+          ),
+        ],
+      ),
     );
   }
 
@@ -232,69 +302,6 @@ class ArenaDetailConsolesSection extends StatelessWidget {
     }
   }
 
-  Widget _consoleIcon(String label, {required String consoleType}) {
-    final fallbackIcon = _getConsoleFallbackIcon(label);
-    final accent = _getConsoleAccentColor(label);
-    final imageUrl = _getConsoleImage(label);
-    return Padding(
-      padding: const EdgeInsets.only(right: 10),
-      child: InkWell(
-        onTap: onConsoleTap == null ? null : () => onConsoleTap!(consoleType),
-        borderRadius: BorderRadius.circular(16),
-        child: SizedBox(
-          width: 82,
-          child: Column(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      accent.withValues(alpha: 0.28),
-                      accent.withValues(alpha: 0.12),
-                    ],
-                  ),
-                  border: Border.all(color: accent.withValues(alpha: 0.38)),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: imageUrl.isEmpty
-                      ? Icon(fallbackIcon, color: accent, size: 24)
-                      : Image.network(
-                          imageUrl,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, _, _) =>
-                              Icon(fallbackIcon, color: accent, size: 24),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Long names such as "ARCADE CABINET" used to scroll past on a
-              // permanent marquee, which never sat still long enough to read.
-              Text(
-                label,
-                maxLines: 2,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  color: HomeTokens.textSecondary,
-                  fontSize: 10.5,
-                  height: 1.2,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   String _getConsoleImage(String consoleName) {
     final lower = consoleName.toLowerCase();
     if (lower.contains('xbox')) {
@@ -354,9 +361,5 @@ class ArenaDetailConsolesSection extends StatelessWidget {
       return Icons.groups_2_outlined;
     }
     return Icons.desktop_windows_rounded;
-  }
-
-  Color _getConsoleAccentColor(String consoleName) {
-    return const Color(0xFF00DC00);
   }
 }

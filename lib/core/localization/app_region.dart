@@ -23,11 +23,7 @@ class AppRegion {
   static AppCountry get current => _override ?? _fromDeviceLocale();
 
   static AppCountry _fromDeviceLocale() {
-    final code = WidgetsBinding
-        .instance
-        .platformDispatcher
-        .locale
-        .countryCode
+    final code = WidgetsBinding.instance.platformDispatcher.locale.countryCode
         ?.toUpperCase();
     return code == 'US' ? AppCountry.unitedStates : AppCountry.india;
   }

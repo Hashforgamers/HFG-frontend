@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'package:hash/app/modules/arena/utils/arena_games_extractor.dart';
 import 'package:hash/app/modules/arena/views/arena_view_detailed.dart';
+import 'package:hash/app/modules/arena/views/search_result/cafe_search_skeleton.dart';
 import 'package:hash/app/modules/arena/views/search_result/search_result_card.dart';
 import 'package:hash/app/modules/arena/views/search_result/search_result_empty_state.dart';
 import 'package:hash/app/modules/arena/views/search_result/search_result_filters.dart';
@@ -20,7 +21,6 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/location_permission_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
-import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 class SearchResult extends StatefulWidget {
   final String? searchQuery;
@@ -340,6 +340,7 @@ class _SearchResultState extends State<SearchResult> {
         .replaceAll(']', '')
         .replaceAll('"', '')
         .replaceAll("'", '')
+        .replaceAll('_', ' ')
         .trim();
     if (raw.isEmpty) return '';
     return raw
@@ -356,7 +357,7 @@ class _SearchResultState extends State<SearchResult> {
     if (source == null) return values;
 
     if (source is String) {
-      final parts = source.split(RegExp(r'[,|/]'));
+      final parts = source.split(RegExp(r'[,|]|/(?!\d)'));
       for (final part in parts) {
         final label = _normalizeFeatureLabel(part);
         if (label.isNotEmpty) values.add(label);
@@ -466,10 +467,13 @@ class _SearchResultState extends State<SearchResult> {
     final etaMin = (_avgCitySpeedKmph > 0)
         ? (km / _avgCitySpeedKmph * 60).round()
         : null;
-    return (
-      '${km.toStringAsFixed(1)} km',
-      etaMin != null ? '~$etaMin min' : null,
-    );
+    final dist = km < 1
+        ? '${(km * 1000).round()} m'
+        : km < 100
+        ? '${km.toStringAsFixed(1)} km'
+        : '${km.round()} km';
+    // A drive time only means something for cafes across town.
+    return (dist, etaMin != null && etaMin <= 120 ? '~$etaMin min' : null);
   }
 
   void _onScroll() {
@@ -620,6 +624,22 @@ class _SearchResultState extends State<SearchResult> {
                 _recomputeResults();
               },
             ),
+            // Quiet refresh indicator while a cached list is on screen.
+            Obx(
+              () => AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity:
+                    _cafeController.isLoading.value &&
+                        _cafeController.cybercafes.isNotEmpty
+                    ? 1
+                    : 0,
+                child: const LinearProgressIndicator(
+                  minHeight: 2,
+                  color: Color(0xFF30D158),
+                  backgroundColor: Colors.transparent,
+                ),
+              ),
+            ),
             Expanded(
               child: RefreshIndicator(
                 backgroundColor: Colors.black,
@@ -694,11 +714,12 @@ class _SearchResultState extends State<SearchResult> {
 
   Widget _buildResults() {
     return Obx(() {
-      if (_cafeController.isLoading.value || _isSearching) {
-        return const Center(child: RainbowGlowingLoader(size: 50));
-      }
-
+      final loading = _cafeController.isLoading.value || _isSearching;
       final items = _visibleResults;
+      // Only block on a first load; with data on screen, refresh quietly.
+      if (loading && _cafeController.cybercafes.isEmpty) {
+        return const CafeSearchSkeleton();
+      }
       if (items.isEmpty) {
         return CafeSearchEmptyState(
           query: _currentQuery,

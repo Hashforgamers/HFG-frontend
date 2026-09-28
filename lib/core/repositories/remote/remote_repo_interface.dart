@@ -101,11 +101,8 @@ abstract class RemoteRepoInterface {
     required num amount,
     required String paymentId,
   });
-  Future<void> claimDropCrateBonus({
-    required String userId,
-    int amount,
-    String? referenceId,
-  });
+
+  Future<void> claimDropCrateBonus({required String userId, int amount});
 
   Future<Map<String, dynamic>> validateFunds(String paymentLinkId);
   Future<void> saveReferralCodeToPreferences(String referralCode);
@@ -283,4 +280,12 @@ abstract class RemoteRepoInterface {
   Future<Map<String, dynamic>> markNotificationAsRead({
     required String notificationId,
   });
+}
+
+/// A credit the server refused for a reason retrying won't fix (401/403).
+class WelcomeCrateRejected implements Exception {
+  const WelcomeCrateRejected(this.message);
+  final String message;
+  @override
+  String toString() => message;
 }

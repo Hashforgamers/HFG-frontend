@@ -1,4 +1,5 @@
 import 'package:hash/features/mini_games/snakes_ladders/snl_match_screen.dart';
+import 'package:hash/config/feature_flags.dart';
 import 'package:hash/features/mini_games/flappy_birds/Layouts/Pages/page_start_screen.dart';
 import 'package:hash/features/mini_games/wordly/wordly_screen.dart';
 import 'dart:async';
@@ -441,7 +442,9 @@ class DeepLinkService extends GetxController {
       case DeepLinkType.tournament:
       case DeepLinkType.tournamentLeaderboard:
       case DeepLinkType.tournamentMatch:
-        return AppRoutes.TOURNAMENT_DETAIL;
+        return FeatureFlags.tournamentsEnabled
+            ? AppRoutes.TOURNAMENT_DETAIL
+            : AppRoutes.HOME;
       case DeepLinkType.wallet:
       // Rewards are presented inside the wallet today.
       case DeepLinkType.rewards:

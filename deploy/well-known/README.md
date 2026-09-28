@@ -63,3 +63,34 @@ Identifiers used in these files: Android package `com.hfg.hash`; iOS app ID
 
 The path lists here mirror the intent filters in `AndroidManifest.xml` and the
 destinations `DeepLinkService.parse` resolves. Keep all three in step.
+
+## Deploying on Vercel (the website host)
+
+Checked 2026-09-28: all four hosts are Vercel. `hashforgamers.com` 307s to
+`www.hashforgamers.com` (404) and `www.hashforgamers.co.in` 307s to
+`hashforgamers.co.in` (404). Apple does **not** follow redirects for the AASA,
+so each host must answer with the file directly.
+
+1. Copy `apple-app-site-association` and `assetlinks.json` into the website
+   repo's `public/.well-known/` (Next.js) or `.well-known/` at the static root.
+2. Merge `deploy/vercel/vercel.json` into the website's `vercel.json`. It sets
+   `Content-Type: application/json` and moves the apex/www canonical redirects
+   into `vercel.json` with `/.well-known/` excluded.
+3. In Vercel → Project → Domains, remove the dashboard-level redirects for
+   `hashforgamers.com` and `www.hashforgamers.co.in` (dashboard redirects apply
+   to every path, including `/.well-known/`) and attach all four domains to the
+   project. The `vercel.json` redirects replace them.
+4. Verify every host returns `200` + `application/json`, no redirect:
+
+       for d in hashforgamers.com www.hashforgamers.com hashforgamers.co.in www.hashforgamers.co.in; do
+         curl -sI https://$d/.well-known/apple-app-site-association | head -1
+         curl -sI https://$d/.well-known/assetlinks.json | head -1
+       done
+
+   Apple caches the AASA through its CDN; check what iOS will see with
+   `https://app-site-association.cdn-apple.com/a/v1/hashforgamers.com`.
+
+`assetlinks.json` includes the local debug-keystore fingerprint so dev builds
+verify. Replace `REPLACE_WITH_PLAY_APP_SIGNING_SHA256` with the SHA-256 from
+Play Console → Test and release → App integrity → App signing key certificate
+before relying on it for Play installs.

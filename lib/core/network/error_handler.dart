@@ -13,10 +13,7 @@ class ErrorHandler {
     final endpoint = error.requestOptions.uri.toString();
 
     // Track API error event
-    segmentService.onApiError(
-      endpoint: endpoint,
-      errorMessage: errorMessage,
-    );
+    segmentService.onApiError(endpoint: endpoint, errorMessage: errorMessage);
 
     Get.snackbar(
       'Error',
@@ -37,10 +34,7 @@ class ErrorHandler {
     }
 
     // Track API error event for generic errors
-    segmentService.onApiError(
-      endpoint: 'unknown',
-      errorMessage: errorMessage,
-    );
+    segmentService.onApiError(endpoint: 'unknown', errorMessage: errorMessage);
 
     Get.snackbar(
       'Error',
@@ -50,4 +44,4 @@ class ErrorHandler {
       colorText: Colors.white,
     );
   }
-} 
+}

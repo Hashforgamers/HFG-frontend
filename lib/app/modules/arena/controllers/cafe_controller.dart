@@ -31,6 +31,11 @@ class CybercafesController extends GetxController {
       return Future.value();
     }
 
+    // Stale-while-revalidate: show the last list right away (the API can take
+    // a while to wake up) and refresh it behind the scenes.
+    final stale = _cachedCybercafes;
+    if (stale != null && cybercafes.isEmpty) cybercafes.assignAll(stale);
+
     final inFlight = _fetchRequest;
     if (inFlight != null) return inFlight;
 

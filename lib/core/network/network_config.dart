@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/network/api_endpoints.dart';
@@ -10,7 +11,8 @@ import 'package:hash/core/service_locator.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:hash/utils/encrypt_util.dart';
 
-const bool _enableVerboseNetworkLog = true;
+// Request logs include auth headers, so never enable them in release builds.
+const bool _enableVerboseNetworkLog = kDebugMode;
 
 bool _shouldSkipVerboseNetworkLog(RequestOptions options) {
   if (!_enableVerboseNetworkLog) return true;

@@ -69,12 +69,15 @@ class BookingSummaryGamePassDialog extends StatelessWidget {
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CupertinoActivityIndicator(color: BookingColors.accentBright),
+                            child: CupertinoActivityIndicator(
+                              color: BookingColors.accentBright,
+                            ),
                           )
                         : IconButton(
                             onPressed: onRefresh,
                             icon: const Icon(
-                              Icons.refresh_rounded, color: BookingColors.accentBright,
+                              Icons.refresh_rounded,
+                              color: BookingColors.accentBright,
                             ),
                           ),
                   ),

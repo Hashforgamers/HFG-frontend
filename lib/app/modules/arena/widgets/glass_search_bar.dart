@@ -44,7 +44,9 @@ class _GlassSearchBarState extends State<GlassSearchBar> {
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: .15),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: const Color(0xff00DC00).withValues(alpha: .2)),
+            border: Border.all(
+              color: const Color(0xff00DC00).withValues(alpha: .2),
+            ),
           ),
           child: Row(
             children: [

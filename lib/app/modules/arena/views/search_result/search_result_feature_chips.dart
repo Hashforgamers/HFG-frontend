@@ -8,7 +8,7 @@ class SearchResultFeatureChips extends StatelessWidget {
   const SearchResultFeatureChips({
     super.key,
     required this.features,
-    this.maxToShow = 5,
+    this.maxToShow = 4,
   });
 
   @override
@@ -40,41 +40,24 @@ class _FeaturePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xff00DC00).withValues(alpha: .22),
-            const Color(0xFF1A1A1A).withValues(alpha: .22),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: const Color(0xff00DC00).withValues(alpha: .35),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xff00DC00).withValues(alpha: .12),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+      padding: const EdgeInsets.fromLTRB(8, 5, 10, 5),
+      decoration: const ShapeDecoration(
+        shape: StadiumBorder(),
+        color: Color(0x3D767680),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(_iconFor(label), size: 14, color: const Color(0xff00DC00)),
-          const SizedBox(width: 6),
+          Icon(_iconFor(label), size: 14, color: const Color(0xFF30D158)),
+          const SizedBox(width: 5),
           Text(
             label,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xff00DC00),
-              letterSpacing: .1,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
+              letterSpacing: -.1,
             ),
           ),
         ],
@@ -84,6 +67,11 @@ class _FeaturePill extends StatelessWidget {
 
   IconData _iconFor(String s) {
     final t = s.toLowerCase();
+    if (t.contains('24/7') || t.contains('24x7')) return Icons.schedule_rounded;
+    if (t.contains('park')) return Icons.local_parking_rounded;
+    if (t.contains('wash') || t.contains('toilet')) return Icons.wc_rounded;
+    if (t.contains('sound') || t.contains('audio'))
+      return Icons.speaker_rounded;
     if (t.contains('pc')) return Icons.computer_rounded;
     if (t.contains('ps') || t.contains('playstation')) {
       return Icons.sports_esports_rounded;
@@ -111,18 +99,17 @@ class _MorePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .06),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: .15)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: const ShapeDecoration(
+        shape: StadiumBorder(),
+        color: Color(0x1F767680),
       ),
       child: Text(
         '+$count more',
         style: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Colors.white70,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: const Color(0x99EBEBF5),
         ),
       ),
     );

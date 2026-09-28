@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hash/config/feature_flags.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
@@ -749,20 +750,22 @@ class _UserProfileViewState extends State<UserProfileView> {
             const Color(0xFF0A84FF),
             referrals >= 3,
           ),
-          (
-            'Tourney Host',
-            'Become a verified host',
-            Icons.workspace_premium_rounded,
-            const Color(0xFFFF9F0A),
-            verifiedHost,
-          ),
-          (
-            'Clutch Mode',
-            'Win a tournament',
-            Icons.bolt_rounded,
-            const Color(0xFFFF375F),
-            false,
-          ),
+          if (FeatureFlags.tournamentsEnabled) ...[
+            (
+              'Tourney Host',
+              'Become a verified host',
+              Icons.workspace_premium_rounded,
+              const Color(0xFFFF9F0A),
+              verifiedHost,
+            ),
+            (
+              'Clutch Mode',
+              'Win a tournament',
+              Icons.bolt_rounded,
+              const Color(0xFFFF375F),
+              false,
+            ),
+          ],
         ];
         final unlocked = badges.where((b) => b.$5).length;
         return Column(
@@ -944,13 +947,14 @@ class _UserProfileViewState extends State<UserProfileView> {
 
   Widget _buildFeatureGrid(String email) {
     final features = [
-      (
-        'My tournaments',
-        'Compete & manage',
-        Icons.emoji_events_rounded,
-        _green,
-        () => Get.toNamed(AppRoutes.MY_TOURNAMENTS),
-      ),
+      if (FeatureFlags.tournamentsEnabled)
+        (
+          'My tournaments',
+          'Compete & manage',
+          Icons.emoji_events_rounded,
+          _green,
+          () => Get.toNamed(AppRoutes.MY_TOURNAMENTS),
+        ),
       (
         'Friends',
         'Your gaming squad',

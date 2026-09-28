@@ -18,10 +18,6 @@ class BookingModel {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'slot_id': slotId,
-      'booking_id': bookingId,
-      'book_date': bookDate,
-    };
+    return {'slot_id': slotId, 'booking_id': bookingId, 'book_date': bookDate};
   }
 }
