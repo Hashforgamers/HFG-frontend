@@ -1,3 +1,4 @@
+import 'package:hash/core/service/crash_reporting.dart';
 import 'package:hash/core/navigation/blur_popup_observer.dart';
 import 'dart:async';
 
@@ -61,6 +62,7 @@ void main() async {
     await Hive.openBox('user');
   }
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await CrashReporting.init(flavor: 'default');
 
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
