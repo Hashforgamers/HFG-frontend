@@ -17,6 +17,7 @@ import 'package:hash/app/modules/home/controllers/session_progress_controller.da
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
 import 'package:hash/app/modules/shop_new/view/shop_view.dart';
+import 'package:hash/app/modules/cafe_play/data/cafe_live_session_sync.dart';
 import 'package:hash/app/modules/home/widgets/live_session_glass_card.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/fb_events_service.dart';
@@ -65,6 +66,7 @@ class _HomeViewState extends State<HomeView> {
   Timer? _fabExpandTimer;
   Timer? _shopBarCollapseTimer;
   Worker? _bookingsWorker;
+  final _cafeSessionSync = CafeLiveSessionSync.instance;
 
   @override
   void initState() {
@@ -82,6 +84,8 @@ class _HomeViewState extends State<HomeView> {
       bookingController.userBookings,
       _scheduleSessionProgressSync,
     );
+    _cafeSessionSync.sessions.addListener(_onCafeSessionsChanged);
+    _cafeSessionSync.start();
     _syncChatProfile();
     unawaited(
       _squadMissionsService.trackAction(action: SquadMissionAction.dailyLogin),
@@ -91,6 +95,12 @@ class _HomeViewState extends State<HomeView> {
       _locationAnalyticsService.trackCurrentLocation(source: 'home_init'),
     );
     unawaited(_fiamService.triggerHomeOpen());
+  }
+
+  void _onCafeSessionsChanged() {
+    _sessionProgressController.syncCafeSessions(
+      _cafeSessionSync.sessions.value,
+    );
   }
 
   void _scheduleSessionProgressSync(List<Map<String, dynamic>> bookings) {
@@ -338,6 +348,8 @@ class _HomeViewState extends State<HomeView> {
     _fabExpandTimer?.cancel();
     _shopBarCollapseTimer?.cancel();
     _bookingsWorker?.dispose();
+    _cafeSessionSync.sessions.removeListener(_onCafeSessionsChanged);
+    _cafeSessionSync.stop();
     super.dispose();
   }
 

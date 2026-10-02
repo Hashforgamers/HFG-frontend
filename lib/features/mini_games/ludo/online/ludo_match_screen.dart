@@ -7,9 +7,12 @@ import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../audio.dart';
 import '../constants.dart';
+import '../ludo_analytics.dart';
 import '../ludo_provider.dart';
 import '../ludo_score_service.dart';
 import '../widgets/board_widget.dart';
@@ -28,6 +31,7 @@ class LudoMatchScreen extends StatefulWidget {
     super.key,
     required this.matchId,
     this.spectate = false,
+    this.source,
   });
 
   final String matchId;
@@ -35,6 +39,10 @@ class LudoMatchScreen extends StatefulWidget {
   /// When true, open as a read-only spectator: never take a seat, never roll,
   /// just mirror the live board.
   final bool spectate;
+
+  /// How this screen was reached when that matters for analytics (e.g.
+  /// 'deeplink'). A seated player arriving this way counts as `ludo_resume`.
+  final String? source;
 
   @override
   State<LudoMatchScreen> createState() => _LudoMatchScreenState();
@@ -50,6 +58,10 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   // reconnecting). The active player skips themselves the instant it hits 0.
   static const int _abandonGraceMs = 6000;
 
+  // Quick Match: once a second player is seated, give others a moment to land
+  // before starting so a near-simultaneous third joiner isn't left out.
+  static const int _quickStartWithPlayersMs = 3000;
+
   final LudoMatchService _service = LudoMatchService();
   final LudoProvider _provider = LudoProvider()..startGame();
 
@@ -59,6 +71,30 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   bool _attached = false;
   bool _joinAttempted = false;
   bool _starting = false;
+  bool _addingBot = false;
+  bool _rematching = false;
+
+  /// Starts as [LudoMatchScreen.spectate], but a player who opens their own
+  /// match from Watch Live is put back in their seat instead of watching —
+  /// otherwise nobody could play that seat (or its bots) and the match would
+  /// freeze on their turn.
+  late bool _spectating = widget.spectate;
+
+  // Analytics bookkeeping (players only; spectators never send match events).
+  bool _firstSnapshot = true;
+  bool _sawWaiting = false;
+  bool _startTracked = false;
+  bool _endTracked = false;
+  int _startedAtMs = 0;
+  int _turns = 0;
+  LudoPlayerType? _lastTurn;
+  int _humansAtStart = 0;
+  int _botsAtStart = 0;
+
+  // Quick Match auto-start bookkeeping.
+  bool _autoStartInFlight = false;
+  int _lastAutoStartAttemptMs = 0;
+  int _secondPlayerSeenAtMs = 0;
   bool _resultRecorded = false;
   String? _error;
 
@@ -86,6 +122,8 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         .listen(
           _onMatch,
           onError: (e) {
+            LudoAnalytics.disconnect(turnNumber: _turns, reconnected: false);
+            LudoAnalytics.syncFailed(stage: 'watch', error: e);
             if (mounted) setState(() => _error = e.toString());
           },
         );
@@ -108,8 +146,8 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       final elapsedMs =
           DateTime.now().millisecondsSinceEpoch - match.turnStartedAtMs;
       final expiredMs = elapsedMs - _turnSeconds * 1000;
-      if (expiredMs >= 0 && _provider.isMyTurn) {
-        // It's my turn and my clock ran out — skip myself.
+      if (expiredMs >= 0 && (_provider.isMyTurn || _provider.isBotTurn)) {
+        // It's my turn (or a bot I play for) and the clock ran out — skip it.
         _lastSkippedTurnMs = match.turnStartedAtMs;
         _provider.skipTurn();
       } else if (expiredMs >= _abandonGraceMs &&
@@ -134,7 +172,71 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     } else {
       Audio.stopTicking();
     }
+    _maybeAutoStartQuick(match);
     setState(() {}); // refresh the countdown display
+  }
+
+  /// Seconds left before a waiting Quick Match room starts with a bot.
+  int _quickSecondsLeft(LudoMatch match) {
+    if (match.createdAtMs <= 0) return 0;
+    final waited = DateTime.now().millisecondsSinceEpoch - match.createdAtMs;
+    final left = (LudoMatchService.quickFillSeconds * 1000 - waited) / 1000;
+    return left <= 0 ? 0 : left.ceil();
+  }
+
+  /// Quick Match rooms never wait on the host: they start as soon as a second
+  /// player is in (after a short grace), or with a bot once the fill timer
+  /// runs out. The host's device does this; any seated player steps in if the
+  /// host's device hasn't after [LudoMatchService.quickStartFallbackMs].
+  void _maybeAutoStartQuick(LudoMatch match) {
+    if (!match.quick ||
+        match.status != LudoMatchStatus.waiting ||
+        _spectating ||
+        _mySeat == null ||
+        _autoStartInFlight) {
+      return;
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastAutoStartAttemptMs < 3000) return; // retry spacing
+    final waited = now - match.createdAtMs;
+    final isHost = match.hostUid == _uid;
+
+    if (match.seatCount >= 2) {
+      if (_secondPlayerSeenAtMs == 0) _secondPlayerSeenAtMs = now;
+    } else {
+      _secondPlayerSeenAtMs = 0;
+    }
+    final bool due;
+    if (isHost) {
+      due =
+          match.isFull ||
+          waited >= LudoMatchService.quickFillSeconds * 1000 ||
+          (_secondPlayerSeenAtMs > 0 &&
+              now - _secondPlayerSeenAtMs >= _quickStartWithPlayersMs);
+    } else {
+      due = waited >= LudoMatchService.quickStartFallbackMs;
+    }
+    if (!due) return;
+
+    _autoStartInFlight = true;
+    _lastAutoStartAttemptMs = now;
+    _service
+        .fillWithBotAndStart(widget.matchId)
+        .then((added) {
+          if (added > 0) {
+            LudoAnalytics.botFilled(
+              matchId: widget.matchId,
+              trigger: 'quick_timeout',
+              waitSec: (now - match.createdAtMs) ~/ 1000,
+              bots: match.botSeats.length + added,
+            );
+          }
+        })
+        .catchError((Object e) {
+          debugPrint('[LudoMatch] auto-start: $e');
+          LudoAnalytics.syncFailed(stage: 'auto_start', error: e);
+        })
+        .whenComplete(() => _autoStartInFlight = false);
   }
 
   Future<void> _onMatch(LudoMatch? match) async {
@@ -144,11 +246,26 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       return;
     }
 
-    var seat = widget.spectate ? null : match.seatOf(_uid);
+    if (_spectating &&
+        !_attached &&
+        match.seatOf(_uid) != null &&
+        (match.status == LudoMatchStatus.waiting ||
+            match.status == LudoMatchStatus.active)) {
+      _spectating = false;
+    }
+
+    var seat = _spectating ? null : match.seatOf(_uid);
+
+    if (_firstSnapshot) {
+      _firstSnapshot = false;
+      if (seat != null && widget.source != null) {
+        LudoAnalytics.resume(widget.source!);
+      }
+    }
 
     // Invited player opening a still-open match: grab a seat once. Spectators
     // never take a seat.
-    if (!widget.spectate &&
+    if (!_spectating &&
         seat == null &&
         match.status == LudoMatchStatus.waiting &&
         !match.isFull &&
@@ -157,13 +274,14 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       try {
         seat = await _service.joinMatch(widget.matchId);
       } catch (e) {
+        LudoAnalytics.syncFailed(stage: 'join', error: e);
         if (mounted) setState(() => _error = e.toString());
         return;
       }
     }
 
     // Attach the mirror once — as a player (seat) or, when spectating, seat-less.
-    if (!_attached && (seat != null || widget.spectate)) {
+    if (!_attached && (seat != null || _spectating)) {
       _attached = true;
       _provider.attachOnline(
         service: _service,
@@ -173,8 +291,10 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       );
     }
 
+    if (!_spectating && seat != null) _trackMatch(match, seat);
+
     // Spectators don't earn placement points or remember the room to rejoin.
-    if (!widget.spectate) {
+    if (!_spectating) {
       if (!_resultRecorded &&
           (match.status == LudoMatchStatus.active ||
               match.status == LudoMatchStatus.finished)) {
@@ -240,6 +360,75 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     });
   }
 
+  /// Sends `ludo_match_start` / `ludo_match_end` for a seated player.
+  void _trackMatch(LudoMatch match, LudoPlayerType seat) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (match.status == LudoMatchStatus.waiting) _sawWaiting = true;
+    if (match.status == LudoMatchStatus.active && match.turn != _lastTurn) {
+      _lastTurn = match.turn;
+      _turns++;
+    }
+
+    // Only a start this player actually witnessed counts — reopening a match
+    // already under way is a resume, not a new start. A rematch against bots
+    // is created already active, with no moves yet.
+    final freshlyActive =
+        _sawWaiting ||
+        (match.version == 0 && now - match.createdAtMs < 2 * 60 * 1000);
+    if (!_startTracked &&
+        match.status != LudoMatchStatus.waiting &&
+        match.status != LudoMatchStatus.cancelled) {
+      _startTracked = true;
+      _startedAtMs = now;
+      _humansAtStart = match.humanCount;
+      _botsAtStart = match.botSeats.length;
+      if (freshlyActive && match.status == LudoMatchStatus.active) {
+        LudoAnalytics.matchStart(
+          matchId: match.id,
+          mode: LudoAnalytics.onlineMode(match),
+          humans: _humansAtStart,
+          bots: _botsAtStart,
+          quick: match.quick,
+        );
+      }
+    }
+
+    if (match.status == LudoMatchStatus.finished && !_endTracked) {
+      _endTracked = true;
+      final points = ludoPlacementScore(
+        seat: seat,
+        winners: match.winners,
+        participants: match.seats.keys.toSet(),
+        finished: true,
+      );
+      final index = match.winners.indexOf(seat);
+      final position = index >= 0 ? index + 1 : match.seats.length;
+      final player = _provider.player(seat);
+      final allHome = player.pawns.every(
+        (p) => p.step == player.path.length - 1,
+      );
+      final String result;
+      if (position == 1) {
+        // First by everyone else leaving rather than by racing home.
+        result = allHome ? 'win' : 'forfeit_win';
+      } else {
+        result = 'lose';
+      }
+      final startedAt = _startedAtMs > 0 ? _startedAtMs : match.createdAtMs;
+      LudoAnalytics.matchEnd(
+        matchId: match.id,
+        mode: LudoAnalytics.onlineMode(match),
+        result: result,
+        position: position,
+        points: points,
+        humans: _humansAtStart > 0 ? _humansAtStart : match.humanCount,
+        bots: _humansAtStart > 0 ? _botsAtStart : match.botSeats.length,
+        durationSec: startedAt > 0 ? (now - startedAt) ~/ 1000 : 0,
+        turns: _turns,
+      );
+    }
+  }
+
   void _sendReaction(LudoReactionOption option) {
     final seat = _mySeat;
     // Seated players react from their seat; spectators react with their name.
@@ -290,6 +479,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     try {
       await _service.startMatch(widget.matchId);
     } catch (e) {
+      LudoAnalytics.syncFailed(stage: 'start', error: e);
       _snack(e.toString());
     } finally {
       if (mounted) setState(() => _starting = false);
@@ -345,7 +535,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         match.status == LudoMatchStatus.finished ||
         match.status == LudoMatchStatus.cancelled;
 
-    if (widget.spectate || seat == null || over) {
+    if (_spectating || seat == null || over) {
       if (mounted) Navigator.of(context).pop();
       return;
     }
@@ -363,6 +553,19 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       headerColors: GameColors.red,
     );
     if (confirmed != true) return;
+
+    if (match.status == LudoMatchStatus.active) {
+      final startedAt = _startedAtMs > 0 ? _startedAtMs : match.createdAtMs;
+      LudoAnalytics.matchQuit(
+        matchId: match.id,
+        mode: LudoAnalytics.onlineMode(match),
+        turnNumber: _turns,
+        durationSec: startedAt > 0
+            ? (DateTime.now().millisecondsSinceEpoch - startedAt) ~/ 1000
+            : 0,
+        reason: 'back',
+      );
+    }
 
     try {
       await _service.leaveMatch(widget.matchId, seat);
@@ -413,8 +616,8 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
           const GameText('LUDO', size: 26),
           const SizedBox(width: 8),
           GameBadge(
-            label: widget.spectate ? 'WATCHING' : 'ONLINE',
-            dot: widget.spectate ? const Color(0xFFFF3B30) : _accent,
+            label: _spectating ? 'WATCHING' : 'ONLINE',
+            dot: _spectating ? const Color(0xFFFF3B30) : _accent,
             pulse: _bounce,
           ),
           const Spacer(),
@@ -426,8 +629,136 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
 
   // ---------------- Lobby ----------------
 
+  /// Ask for (or accept) a rematch, then move everyone into the new room.
+  Future<void> _rematch() async {
+    if (_rematching) return;
+    setState(() => _rematching = true);
+    try {
+      final rematch = await _service.requestRematch(widget.matchId);
+      LudoAnalytics.rematch(
+        requested: rematch.created,
+        vsBot: rematch.vsBot,
+        humans: rematch.humans,
+      );
+      if (rematch.created) LudoAnalytics.roomCreated('rematch');
+      if (!mounted) return;
+      unawaited(_service.clearActiveMatch(widget.matchId));
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => LudoMatchScreen(matchId: rematch.id),
+        ),
+      );
+    } catch (e) {
+      LudoAnalytics.syncFailed(stage: 'rematch', error: e);
+      _snack(e.toString());
+      if (mounted) setState(() => _rematching = false);
+    }
+  }
+
+  Future<void> _addBot() async {
+    setState(() => _addingBot = true);
+    try {
+      await _service.addBot(widget.matchId);
+      final match = _match;
+      if (match != null) {
+        LudoAnalytics.botFilled(
+          matchId: match.id,
+          trigger: 'host_added',
+          waitSec: match.createdAtMs > 0
+              ? (DateTime.now().millisecondsSinceEpoch - match.createdAtMs) ~/
+                    1000
+              : 0,
+          bots: match.botSeats.length + 1,
+        );
+      }
+    } catch (e) {
+      LudoAnalytics.syncFailed(stage: 'add_bot', error: e);
+      _snack(e.toString());
+    } finally {
+      if (mounted) setState(() => _addingBot = false);
+    }
+  }
+
+  Future<void> _copyCode(LudoMatch match) async {
+    await Clipboard.setData(
+      ClipboardData(text: LudoMatchService.inviteMessage(match)),
+    );
+    Haptics.light();
+    LudoAnalytics.inviteSent('copy');
+    _snack('Room code and link copied');
+  }
+
+  /// Opens WhatsApp with the invite prefilled; falls back to the system share
+  /// sheet when WhatsApp isn't installed.
+  Future<void> _shareWhatsApp(LudoMatch match) async {
+    final text = LudoMatchService.inviteMessage(match);
+    final wa = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(text)}');
+    var opened = false;
+    try {
+      opened = await launchUrl(wa, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      opened = false;
+    }
+    if (opened) LudoAnalytics.inviteSent('whatsapp');
+    if (opened || !mounted) return;
+    LudoAnalytics.inviteSent('share_sheet');
+    final box = context.findRenderObject() as RenderBox?;
+    await SharePlus.instance.share(
+      ShareParams(
+        text: text,
+        sharePositionOrigin: box == null
+            ? const Rect.fromLTWH(0, 0, 1, 1)
+            : box.localToGlobal(Offset.zero) & box.size,
+      ),
+    );
+  }
+
+  Widget _roomCodeTile(LudoMatch match) {
+    return GestureDetector(
+      onTap: () => _copyCode(match),
+      child: GameTray(
+        padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('ROOM CODE', style: gameFont(11, GameColors.soft)),
+                  const SizedBox(height: 2),
+                  GameText(
+                    match.roomCode,
+                    size: 26,
+                    color: GameColors.yellow.$1,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.copy_rounded, color: GameColors.soft, size: 20),
+            const SizedBox(width: 4),
+            Text('Copy', style: gameFont(13, GameColors.soft)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _lobby(LudoMatch match) {
     final isHost = match.hostUid == _uid;
+    final quickLeft = _quickSecondsLeft(match);
+    final String lobbyHint;
+    if (match.quick) {
+      lobbyHint = match.seatCount >= 2
+          ? 'Opponent found! Starting…'
+          : (quickLeft > 0
+                ? 'Finding a player… starting in ${quickLeft}s'
+                : 'Starting…');
+    } else {
+      lobbyHint = isHost
+          ? 'Invite up to 3 friends, then start when everyone’s in.'
+          : 'Waiting for the host to start the match…';
+    }
+    final canShare = !match.isFull && match.roomCode.isNotEmpty;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       child: Column(
@@ -449,9 +780,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  isHost
-                      ? 'Invite up to 3 friends, then start when everyone’s in.'
-                      : 'Waiting for the host to start the match…',
+                  lobbyHint,
                   textAlign: TextAlign.center,
                   style: gameFont(14, GameColors.soft),
                 ),
@@ -467,41 +796,45 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
               ],
             ),
           ),
-          if (isHost) ...[
+          if (canShare) ...[
             const SizedBox(height: 18),
+            _roomCodeTile(match),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
                   child: GameButton(
-                    label: 'Invite',
-                    icon: Icons.person_add_alt_1_rounded,
-                    tone: GameButtonTone.purple,
+                    label: 'WhatsApp',
+                    icon: Icons.chat_rounded,
+                    tone: GameButtonTone.green,
                     height: 50,
-                    onPressed: match.isFull ? null : _invite,
+                    onPressed: () => _shareWhatsApp(match),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: GameButton(
-                    label: 'Copy Link',
-                    icon: Icons.link_rounded,
-                    tone: GameButtonTone.yellow,
-                    height: 50,
-                    onPressed: match.isFull
-                        ? null
-                        : () async {
-                            await Clipboard.setData(
-                              ClipboardData(
-                                text: LudoMatchService.inviteLink(
-                                  widget.matchId,
-                                ),
-                              ),
-                            );
-                            _snack('Invite link copied');
-                          },
+                if (isHost) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GameButton(
+                      label: 'Invite',
+                      icon: Icons.person_add_alt_1_rounded,
+                      tone: GameButtonTone.purple,
+                      height: 50,
+                      onPressed: _invite,
+                    ),
                   ),
-                ),
+                ],
               ],
+            ),
+          ],
+          // Quick Match rooms start themselves; friend rooms are host-started.
+          if (isHost && !match.quick) ...[
+            const SizedBox(height: 10),
+            GameButton(
+              label: _addingBot ? 'Adding…' : 'Add Bot',
+              icon: _addingBot ? null : Icons.smart_toy_rounded,
+              tone: GameButtonTone.yellow,
+              height: 50,
+              onPressed: (match.isFull || _addingBot) ? null : _addBot,
             ),
             const SizedBox(height: 10),
             GameButton(
@@ -602,7 +935,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         const SizedBox(height: 10),
         // Both seated players and spectators can react.
         if (match.status == LudoMatchStatus.active &&
-            (_mySeat != null || widget.spectate))
+            (_mySeat != null || _spectating))
           LudoReactionBar(onSelected: _sendReaction),
         const SizedBox(height: 10),
         if (match.status == LudoMatchStatus.finished) _finishedOverlay(match),
@@ -771,7 +1104,29 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
                 Flexible(child: GameText('$winnerName wins!', size: 18)),
               ],
             ),
-            const SizedBox(height: 12),
+            if (_mySeat != null && !_spectating) ...[
+              if (match.rematchId.isNotEmpty &&
+                  match.rematchBy.isNotEmpty &&
+                  match.seatOf(_uid) != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '${match.rematchBy.split(' ').first} wants a rematch!',
+                  textAlign: TextAlign.center,
+                  style: gameFont(14, GameColors.soft),
+                ),
+              ],
+              const SizedBox(height: 12),
+              GameButton(
+                label: _rematching
+                    ? 'Joining…'
+                    : (match.rematchId.isNotEmpty ? 'Join Rematch' : 'Rematch'),
+                icon: _rematching ? null : Icons.replay_rounded,
+                tone: GameButtonTone.green,
+                height: 48,
+                onPressed: _rematching ? null : _rematch,
+              ),
+            ],
+            const SizedBox(height: 10),
             GameButton(
               label: 'Exit to Games',
               tone: GameButtonTone.purple,

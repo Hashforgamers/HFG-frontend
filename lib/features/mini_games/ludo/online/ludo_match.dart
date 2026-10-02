@@ -33,22 +33,33 @@ LudoPlayerType seatFromString(String s) => kLudoSeatOrder.firstWhere(
 
 /// A player occupying a seat.
 class LudoSeatInfo {
-  const LudoSeatInfo({required this.uid, required this.name, this.photo});
+  const LudoSeatInfo({
+    required this.uid,
+    required this.name,
+    this.photo,
+    this.bot = false,
+  });
 
   final String uid;
   final String name;
   final String? photo;
 
+  /// A computer player that fills an empty seat. Its turns are played by one
+  /// seated human's device (see [LudoMatch.botDriverUid]).
+  final bool bot;
+
   Map<String, dynamic> toMap() => {
     'uid': uid,
     'name': name,
     if (photo != null && photo!.isNotEmpty) 'photo': photo,
+    if (bot) 'bot': true,
   };
 
   factory LudoSeatInfo.fromMap(Map<String, dynamic> m) => LudoSeatInfo(
     uid: (m['uid'] ?? '').toString(),
     name: (m['name'] ?? 'Player').toString(),
     photo: (m['photo'] as String?),
+    bot: m['bot'] == true,
   );
 }
 
@@ -72,6 +83,12 @@ class LudoMatch {
     this.reactionSeat,
     this.reactionId = 0,
     this.reactionName = '',
+    this.roomCode = '',
+    this.quick = false,
+    this.quickOpen = false,
+    this.createdAtMs = 0,
+    this.rematchId = '',
+    this.rematchBy = '',
   });
 
   final String id;
@@ -104,6 +121,25 @@ class LudoMatch {
   /// Display name of the sender when they have no seat (a spectator).
   final String reactionName;
 
+  /// Short code friends type in to join this room.
+  final String roomCode;
+
+  /// Created by Quick Match: auto-starts (with a bot if needed) after a short
+  /// wait instead of waiting for the host.
+  final bool quick;
+
+  /// Still listed for Quick Match to join (waiting and not full).
+  final bool quickOpen;
+
+  /// Client epoch millis when the room was created. 0 for older rooms.
+  final int createdAtMs;
+
+  /// Set once someone asks for a rematch: the new room everyone can hop into.
+  final String rematchId;
+
+  /// Display name of whoever asked for the rematch.
+  final String rematchBy;
+
   bool get isFull => seats.length >= 4;
   int get seatCount => seats.length;
   List<LudoPlayerType> get occupiedSeats =>
@@ -112,6 +148,23 @@ class LudoMatch {
   LudoPlayerType? seatOf(String uid) {
     for (final e in seats.entries) {
       if (e.value.uid == uid) return e.key;
+    }
+    return null;
+  }
+
+  Set<LudoPlayerType> get botSeats => {
+    for (final e in seats.entries)
+      if (e.value.bot) e.key,
+  };
+
+  int get humanCount => seats.values.where((s) => !s.bot).length;
+
+  /// The seated human whose device plays the bots' turns: the first human in
+  /// turn order. If they leave, the next human takes over automatically.
+  String? get botDriverUid {
+    for (final s in kLudoSeatOrder) {
+      final info = seats[s];
+      if (info != null && !info.bot) return info.uid;
     }
     return null;
   }
@@ -138,6 +191,12 @@ class LudoMatch {
     if (reactionSeat != null) 'reaction_seat': reactionSeat!.name,
     'reaction_id': reactionId,
     'reaction_name': reactionName,
+    'room_code': roomCode,
+    'quick': quick,
+    'quick_open': quickOpen,
+    'created_at_ms': createdAtMs,
+    if (rematchId.isNotEmpty) 'rematch_id': rematchId,
+    if (rematchBy.isNotEmpty) 'rematch_by': rematchBy,
   };
 
   factory LudoMatch.fromMap(String id, Map<String, dynamic> m) {
@@ -178,6 +237,12 @@ class LudoMatch {
           : seatFromString(m['reaction_seat'].toString()),
       reactionId: (m['reaction_id'] as num?)?.toInt() ?? 0,
       reactionName: (m['reaction_name'] ?? '').toString(),
+      roomCode: (m['room_code'] ?? '').toString(),
+      quick: m['quick'] == true,
+      quickOpen: m['quick_open'] == true,
+      createdAtMs: (m['created_at_ms'] as num?)?.toInt() ?? 0,
+      rematchId: (m['rematch_id'] ?? '').toString(),
+      rematchBy: (m['rematch_by'] ?? '').toString(),
     );
   }
 }

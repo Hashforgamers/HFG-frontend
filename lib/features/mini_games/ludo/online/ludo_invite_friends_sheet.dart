@@ -7,6 +7,7 @@ import 'package:hash/app/modules/social/friend_service.dart';
 import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 
+import '../ludo_analytics.dart';
 import '../widgets/ludo_seat_token.dart';
 
 /// Bottom sheet listing the player's accepted friends so the host can invite
@@ -113,6 +114,7 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
           friend: friend,
           matchId: widget.matchId,
         );
+        LudoAnalytics.inviteSent('in_app');
       }
       if (!mounted) return;
       setState(() {

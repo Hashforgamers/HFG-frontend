@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 
 import 'audio.dart';
 import 'constants.dart';
+import 'ludo_analytics.dart';
 import 'power_ups.dart';
 import 'ludo_provider.dart';
 
@@ -26,6 +27,12 @@ class _MainScreenState extends State<MainScreen>
     with SingleTickerProviderStateMixin {
   LudoProvider? _game;
   bool _resultRecorded = false;
+
+  // Analytics for this local game (a new id per "play again"/restart).
+  String _localMatchId = '';
+  int _localStartedAtMs = 0;
+  int _localTurns = 0;
+  bool _localEnded = true;
 
   final ValueNotifier<LudoReactionEvent?> _reactionNotifier =
       ValueNotifier<LudoReactionEvent?>(null);
@@ -69,6 +76,7 @@ class _MainScreenState extends State<MainScreen>
     final newDecision =
         stage != _lastStage &&
         (stage == LudoGameState.throwDice || stage == LudoGameState.pickPawn);
+    if (seat != _lastSeat) _localTurns++;
     if (seat != _lastSeat || newDecision) {
       _turnStartMs = now;
       Audio.stopTicking();
@@ -119,9 +127,77 @@ class _MainScreenState extends State<MainScreen>
     _game?.removeListener(_recordResult);
     _game = game;
     game.addListener(_recordResult);
+    _startLocalMatch();
+  }
+
+  String get _localMode {
+    final game = _game!;
+    if (!game.againstAi) return 'pass_and_play';
+    return game.powerMode ? 'power' : 'vs_ai';
+  }
+
+  int get _localHumans => _game!.againstAi ? 1 : 4;
+
+  void _startLocalMatch() {
+    _localMatchId = 'local_${DateTime.now().microsecondsSinceEpoch}';
+    _localStartedAtMs = DateTime.now().millisecondsSinceEpoch;
+    _localTurns = 0;
+    _localEnded = false;
+    LudoAnalytics.matchStart(
+      matchId: _localMatchId,
+      mode: _localMode,
+      humans: _localHumans,
+      bots: 4 - _localHumans,
+      quick: false,
+    );
+  }
+
+  int get _localDurationSec =>
+      (DateTime.now().millisecondsSinceEpoch - _localStartedAtMs) ~/ 1000;
+
+  void _trackLocalQuit(String reason) {
+    if (_localEnded || _localMatchId.isEmpty) return;
+    _localEnded = true;
+    LudoAnalytics.matchQuit(
+      matchId: _localMatchId,
+      mode: _localMode,
+      turnNumber: _localTurns,
+      durationSec: _localDurationSec,
+      reason: reason,
+    );
+  }
+
+  void _trackLocalEnd() {
+    final game = _game!;
+    if (_localEnded) {
+      // "Play again" reset the board: that's a fresh game.
+      if (game.winners.isEmpty && game.gameState != LudoGameState.finish) {
+        _startLocalMatch();
+      }
+      return;
+    }
+    if (game.gameState != LudoGameState.finish) return;
+    _localEnded = true;
+    // Pass & Play has no single "you", so it carries no result/placement.
+    final solo = game.againstAi;
+    final index = game.winners.indexOf(LudoPlayerType.green);
+    final position = index >= 0 ? index + 1 : 4;
+    LudoAnalytics.matchEnd(
+      matchId: _localMatchId,
+      mode: _localMode,
+      result: solo ? (position == 1 ? 'win' : 'lose') : null,
+      position: solo ? position : null,
+      // Power Ludo is unranked, so it awards no leaderboard points.
+      points: solo && !game.powerMode ? (5 - position) * 100 : null,
+      humans: _localHumans,
+      bots: 4 - _localHumans,
+      durationSec: _localDurationSec,
+      turns: _localTurns,
+    );
   }
 
   void _recordResult() {
+    _trackLocalEnd();
     final game = _game!;
     if (game.winners.isEmpty) _resultRecorded = false;
     // Power Ludo is unranked, so power-ups can't be farmed for points.
@@ -139,6 +215,7 @@ class _MainScreenState extends State<MainScreen>
 
   @override
   void dispose() {
+    _trackLocalQuit('back'); // no-op if the game already finished
     _ticker?.cancel();
     Audio.stopTicking();
     _bounce.dispose();
@@ -174,7 +251,10 @@ class _MainScreenState extends State<MainScreen>
       confirmLabel: 'Restart',
       confirmTone: GameButtonTone.red,
     );
-    if (restart == true && mounted) context.read<LudoProvider>().resetGame();
+    if (restart == true && mounted) {
+      _trackLocalQuit('restart');
+      context.read<LudoProvider>().resetGame();
+    }
   }
 
   @override

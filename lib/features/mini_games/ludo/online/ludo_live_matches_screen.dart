@@ -1,9 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 
 import '../constants.dart';
+import '../ludo_analytics.dart';
 import '../widgets/ludo_seat_token.dart';
 import 'ludo_match.dart';
 import 'ludo_match_screen.dart';
@@ -36,7 +38,14 @@ class _LudoLiveMatchesScreenState extends State<LudoLiveMatchesScreen> {
     }
   }
 
-  void _watch(String matchId) {
+  /// Opens a match from the list: my own resumes as a player, anyone else's
+  /// opens to watch.
+  void _watch(String matchId, {required bool mine}) {
+    if (mine) {
+      LudoAnalytics.resume('live_list');
+    } else {
+      LudoAnalytics.spectateOpened('live_list');
+    }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => LudoMatchScreen(matchId: matchId, spectate: true),
@@ -112,6 +121,8 @@ class _LudoLiveMatchesScreenState extends State<LudoLiveMatchesScreen> {
   }
 
   Widget _matchCard(LudoMatch match) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final mine = uid != null && match.seatOf(uid) != null;
     final hostName =
         match
             .seats[match.occupiedSeats.isNotEmpty
@@ -121,7 +132,7 @@ class _LudoLiveMatchesScreenState extends State<LudoLiveMatchesScreen> {
         'Host';
     final turnName = match.seats[match.turn]?.name.split(' ').first;
     return GamePanel(
-      onTap: () => _watch(match.id),
+      onTap: () => _watch(match.id, mine: mine),
       headerColors: GameColors.red,
       headerHeight: 52,
       header: Row(
@@ -162,12 +173,13 @@ class _LudoLiveMatchesScreenState extends State<LudoLiveMatchesScreen> {
             ),
           ),
           const SizedBox(height: 10),
+          // My own match reopens as a player (the match screen seats me).
           GameButton(
-            label: 'Watch',
-            icon: Icons.visibility_rounded,
-            tone: GameButtonTone.purple,
+            label: mine ? 'Resume' : 'Watch',
+            icon: mine ? Icons.play_arrow_rounded : Icons.visibility_rounded,
+            tone: mine ? GameButtonTone.green : GameButtonTone.purple,
             height: 46,
-            onPressed: () => _watch(match.id),
+            onPressed: () => _watch(match.id, mine: mine),
           ),
         ],
       ),

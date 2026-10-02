@@ -1,5 +1,10 @@
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/views/booking_design.dart';
+import 'package:hash/app/modules/cafe_play/data/cafe_live_session_sync.dart';
 import 'package:hash/app/modules/cafe_play/data/cafe_play_api.dart';
 import 'package:hash/app/modules/cafe_play/models/cafe_play_models.dart';
 import 'package:hash/app/modules/cafe_play/views/cafe_qr_scanner_view.dart';
@@ -42,6 +47,7 @@ Future<void> startCafeScanFlow(BuildContext context) async {
     builder: (_) => CafeCheckoutSheet(qr: qr),
   );
   if (session == null) return;
+  unawaited(CafeSessionStore.remember(session.id));
   navigator.push(
     MaterialPageRoute(builder: (_) => CafeSessionView(initial: session)),
   );
@@ -85,7 +91,13 @@ class _CafeCheckoutSheetState extends State<CafeCheckoutSheet> {
     try {
       final checkout = await _api.getCheckout(widget.qr);
       if (!mounted) return;
-      final durations = checkout.policy.durations;
+      // Only priced durations can be selected; keep the previous pick if it
+      // still exists after a reload.
+      final active = checkout.activeSessionId;
+      if (active != null) unawaited(CafeSessionStore.remember(active));
+      final durations = checkout.policy.durations
+          .where((d) => d.isAvailable)
+          .toList();
       setState(() {
         _checkout = checkout;
         _notice = notice;
@@ -168,10 +180,17 @@ class _CafeCheckoutSheetState extends State<CafeCheckoutSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.88,
       ),
-      decoration: const BoxDecoration(
-        color: BookingColors.bgElevated,
-        borderRadius: BorderRadius.vertical(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0B0C10), Color(0xFF050506)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: const BorderRadius.vertical(
           top: Radius.circular(BookingRadius.sheet),
+        ),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.10)),
         ),
       ),
       child: SafeArea(
@@ -240,26 +259,65 @@ class _CafeCheckoutSheetState extends State<CafeCheckoutSheet> {
 
     final policy = checkout.policy;
     final selected = _selected;
+    final selectedAmount = selected?.amount;
     final canAfford =
-        selected != null && checkout.availableBalance >= selected.amount;
+        selectedAmount != null && checkout.availableBalance >= selectedAmount;
+    final anyAvailable = policy.durations.any((d) => d.isAvailable);
+    final unavailableReason = policy.durations
+        .map((d) => d.unavailableReason)
+        .firstWhere((r) => r != null, orElse: () => null);
+
+    final hasActive = checkout.activeSessionId != null;
+    final showBuy = !hasActive && policy.durations.isNotEmpty;
+    final _CheckoutStatus status;
+    if (hasActive) {
+      status = const _CheckoutStatus('Session running', _CheckoutTone.live);
+    } else if (!policy.selfService) {
+      status = const _CheckoutStatus('Ask at the desk', _CheckoutTone.warning);
+    } else if (policy.durations.isNotEmpty && !anyAvailable) {
+      status = const _CheckoutStatus('Unavailable', _CheckoutTone.warning);
+    } else if (selectedAmount != null && !canAfford) {
+      status = const _CheckoutStatus('Top up needed', _CheckoutTone.warning);
+    } else {
+      status = const _CheckoutStatus('Ready to play', _CheckoutTone.live);
+    }
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(checkout.cafeName, style: BookingText.title(context)),
-          const SizedBox(height: BookingSpacing.xs),
-          Text(
-            'PC ${checkout.consoleNumber}',
-            style: BookingText.secondary(context),
+          _CheckoutGlassCard(
+            cafeName: checkout.cafeName,
+            consoleNumber: checkout.consoleNumber,
+            balance: checkout.availableBalance,
+            selected: showBuy ? selected : null,
+            status: status,
+            footer: showBuy
+                ? Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final d in policy.durations)
+                        _DurationChip(
+                          duration: d,
+                          selected: identical(d, selected),
+                          onTap: _submitting || !d.isAvailable
+                              ? null
+                              : () => setState(() => _selected = d),
+                        ),
+                    ],
+                  )
+                : null,
+            sessionRunning: hasActive,
+            footerLabel: checkout.bookings.isEmpty
+                ? 'BUY PLAY TIME'
+                : 'OR BUY A NEW SESSION',
           ),
-          const SizedBox(height: BookingSpacing.lg),
-          _WalletBalanceCard(balance: checkout.availableBalance),
           if (_notice != null) ...[
             const SizedBox(height: BookingSpacing.md),
             _Notice(text: _notice!),
           ],
-          if (checkout.activeSessionId != null) ...[
+          if (hasActive) ...[
             const SizedBox(height: BookingSpacing.xl),
             BookingPrimaryButton(
               label: 'View running session',
@@ -293,62 +351,48 @@ class _CafeCheckoutSheetState extends State<CafeCheckoutSheet> {
                   ),
                 ),
             ],
-            if (policy.durations.isNotEmpty) ...[
-              const SizedBox(height: BookingSpacing.xl),
-              Text(
-                checkout.bookings.isEmpty
-                    ? 'BUY PLAY TIME'
-                    : 'OR BUY A NEW SESSION',
-                style: BookingText.sectionLabel(context),
-              ),
-              const SizedBox(height: BookingSpacing.sm),
-              Wrap(
-                spacing: BookingSpacing.sm,
-                runSpacing: BookingSpacing.sm,
-                children: [
-                  for (final d in policy.durations)
-                    _DurationChip(
-                      duration: d,
-                      selected: identical(d, selected),
-                      onTap: _submitting
-                          ? null
-                          : () => setState(() => _selected = d),
-                    ),
-                ],
-              ),
+            if (showBuy) ...[
               const SizedBox(height: BookingSpacing.lg),
-              if (selected != null && !canAfford)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: BookingSpacing.md),
-                  child: _Notice(
-                    text:
-                        'Not enough cafe balance. Top up ${cafeMoney(selected.amount - checkout.availableBalance)} at the cafe desk.',
+              if (!anyAvailable)
+                _Notice(
+                  text:
+                      'Play time can\'t be bought on this PC right now. Please ask at the cafe desk.'
+                      '${unavailableReason == null ? '' : '\n\n$unavailableReason'}',
+                )
+              else ...[
+                if (selectedAmount != null && !canAfford)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: BookingSpacing.md),
+                    child: _Notice(
+                      text:
+                          'Not enough cafe balance. Top up ${cafeMoney(selectedAmount - checkout.availableBalance)} at the cafe desk.',
+                    ),
                   ),
-                ),
-              BookingPrimaryButton(
-                label: selected == null
-                    ? 'Select a duration'
-                    : 'Pay ${cafeMoney(selected.amount)} from cafe wallet',
-                icon: Icons.account_balance_wallet_rounded,
-                loading: _submitting,
-                enabled: policy.selfService && canAfford,
-                onPressed: selected == null
-                    ? null
-                    : () => _submit(
-                        (key) => _api.buyWalletTime(
-                          qr: widget.qr,
-                          duration: selected,
-                          idempotencyKey: key,
+                BookingPrimaryButton(
+                  label: selectedAmount == null
+                      ? 'Select a duration'
+                      : 'Pay ${cafeMoney(selectedAmount)} from cafe wallet',
+                  icon: Icons.account_balance_wallet_rounded,
+                  loading: _submitting,
+                  enabled: policy.selfService && canAfford,
+                  onPressed: selected == null || selectedAmount == null
+                      ? null
+                      : () => _submit(
+                          (key) => _api.buyWalletTime(
+                            qr: widget.qr,
+                            duration: selected,
+                            idempotencyKey: key,
+                          ),
+                          'wallet:${selected.minutes}:$selectedAmount',
                         ),
-                        'wallet:${selected.minutes}:${selected.amount}',
-                      ),
-              ),
-              const SizedBox(height: BookingSpacing.sm),
-              Text(
-                'Amount is held now and charged only when the PC unlocks.',
-                textAlign: TextAlign.center,
-                style: BookingText.muted(context),
-              ),
+                ),
+                const SizedBox(height: BookingSpacing.sm),
+                Text(
+                  'Amount is held now and charged only when the PC unlocks.',
+                  textAlign: TextAlign.center,
+                  style: BookingText.muted(context),
+                ),
+              ],
             ],
           ],
         ],
@@ -357,39 +401,394 @@ class _CafeCheckoutSheetState extends State<CafeCheckoutSheet> {
   }
 }
 
-class _WalletBalanceCard extends StatelessWidget {
-  const _WalletBalanceCard({required this.balance});
+// Same visual language as the home LiveSessionGlassCard: dark glass panel,
+// brand-green accents, START → END style figures and an inset status strip.
+const Color _brandGreen = Color(0xFF00DC00);
 
+enum _CheckoutTone { live, warning }
+
+class _CheckoutStatus {
+  const _CheckoutStatus(this.label, this.tone);
+
+  final String label;
+  final _CheckoutTone tone;
+
+  Color get color =>
+      tone == _CheckoutTone.live ? _brandGreen : BookingColors.warning;
+}
+
+class _CheckoutGlassCard extends StatefulWidget {
+  const _CheckoutGlassCard({
+    required this.cafeName,
+    required this.consoleNumber,
+    required this.balance,
+    required this.selected,
+    required this.status,
+    required this.footer,
+    required this.footerLabel,
+    required this.sessionRunning,
+  });
+
+  final String cafeName;
+  final int consoleNumber;
+
+  /// Paise.
   final int balance;
+  final CafeDuration? selected;
+  final _CheckoutStatus status;
+  final Widget? footer;
+  final String footerLabel;
+  final bool sessionRunning;
+
+  @override
+  State<_CheckoutGlassCard> createState() => _CheckoutGlassCardState();
+}
+
+class _CheckoutGlassCardState extends State<_CheckoutGlassCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+    lowerBound: 0.75,
+    upperBound: 1.25,
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return BookingCard(
-      highlight: true,
-      child: Row(
-        children: [
-          const Icon(
-            Icons.account_balance_wallet_rounded,
-            color: BookingColors.accent,
-          ),
-          const SizedBox(width: BookingSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Cafe wallet balance',
-                  style: BookingText.secondary(context),
-                ),
-                Text(
-                  'Only usable at this cafe',
-                  style: BookingText.muted(context),
-                ),
+    final amount = widget.selected?.amount;
+    final left = amount == null ? null : widget.balance - amount;
+    final usage = amount == null || widget.balance <= 0
+        ? 0.0
+        : (amount / widget.balance).clamp(0.0, 1.0);
+    final statusColor = widget.status.color;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF050506).withValues(alpha: 0.98),
+                const Color(0xFF0B0C10).withValues(alpha: 0.97),
               ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.42),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: -56,
+                right: -50,
+                child: _Glow(
+                  size: 140,
+                  color: _brandGreen.withValues(alpha: 0.18),
+                ),
+              ),
+              Positioned(
+                bottom: -90,
+                left: -60,
+                child: _Glow(
+                  size: 170,
+                  color: const Color(0xFF7D43FF).withValues(alpha: 0.24),
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _header(statusColor),
+                  const SizedBox(height: 12),
+                  _figures(amount),
+                  if (widget.footer != null) ...[
+                    const SizedBox(height: 10),
+                    _panel(statusColor, usage, left),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _header(Color statusColor) {
+    return Row(
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.07),
+            border: Border.all(color: _brandGreen.withValues(alpha: 0.85)),
+          ),
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.desktop_windows_rounded,
+            size: 12,
+            color: _brandGreen,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '${widget.cafeName.trim()} · PC ${widget.consoleNumber}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: Colors.white.withValues(alpha: 0.72),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          Text(cafeMoney(balance), style: BookingText.title(context)),
+        ),
+        Text(
+          widget.sessionRunning
+              ? 'LIVE'
+              : widget.status.tone == _CheckoutTone.live
+              ? 'READY'
+              : 'HOLD',
+          style: GoogleFonts.inter(
+            color: statusColor,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.7,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _figures(int? amount) {
+    final selected = widget.selected;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _Figure(
+            label: 'CAFE WALLET',
+            value: cafeMoney(widget.balance),
+            valueColor: Colors.white,
+            caption: 'Only usable here',
+            captionColor: _brandGreen,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Icon(
+            Icons.arrow_forward_rounded,
+            size: 16,
+            color: Colors.white.withValues(alpha: 0.40),
+          ),
+        ),
+        const SizedBox(width: 10),
+        _Figure(
+          label: widget.sessionRunning ? 'SESSION' : 'PLAY TIME',
+          value: widget.sessionRunning
+              ? 'Live'
+              : amount == null
+              ? '--'
+              : cafeMoney(amount),
+          valueColor: _brandGreen,
+          caption: widget.sessionRunning
+              ? 'Running on this PC'
+              : selected == null
+              ? 'Pick a duration'
+              : selected.label,
+          captionColor: Colors.white70,
+          alignEnd: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _panel(Color statusColor, double usage, int? left) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.footerLabel,
+            style: GoogleFonts.spaceGrotesk(
+              color: _brandGreen,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          widget.footer!,
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              height: 6,
+              width: double.infinity,
+              color: Colors.white.withValues(alpha: 0.10),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: AnimatedFractionallySizedBox(
+                  duration: const Duration(milliseconds: 850),
+                  curve: Curves.easeOutCubic,
+                  widthFactor: usage,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: statusColor.withValues(alpha: 0.45),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              ScaleTransition(
+                scale: _pulse,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  widget.status.label,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (left != null && left >= 0)
+                Text(
+                  '${cafeMoney(left)} left after',
+                  style: GoogleFonts.inter(
+                    color: Colors.white60,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _Figure extends StatelessWidget {
+  const _Figure({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+    required this.caption,
+    required this.captionColor,
+    this.alignEnd = false,
+  });
+
+  final String label;
+  final String value;
+  final Color valueColor;
+  final String caption;
+  final Color captionColor;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: Colors.white38,
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.7,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: GoogleFonts.spaceGrotesk(
+            color: valueColor,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            height: 1,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          caption,
+          textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+          style: GoogleFonts.inter(
+            color: captionColor,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Glow extends StatelessWidget {
+  const _Glow({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(colors: [color, Colors.transparent]),
       ),
     );
   }
@@ -463,27 +862,59 @@ class _DurationChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(BookingRadius.chip),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? BookingColors.accentDim : BookingColors.surface,
-          borderRadius: BorderRadius.circular(BookingRadius.chip),
-          border: Border.all(
-            color: selected ? BookingColors.accent : BookingColors.border,
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(duration.label, style: BookingText.body(context)),
-            Text(
-              cafeMoney(duration.amount),
-              style: BookingText.secondary(context),
+    final amount = duration.amount;
+    final available = duration.isAvailable && amount != null;
+    return Opacity(
+      opacity: available ? 1 : 0.45,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected
+                  ? const Color(0xFF132A22)
+                  : Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected
+                    ? _brandGreen.withValues(alpha: 0.72)
+                    : Colors.white.withValues(alpha: 0.08),
+              ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: _brandGreen.withValues(alpha: 0.18),
+                        blurRadius: 12,
+                      ),
+                    ]
+                  : null,
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  duration.label,
+                  style: GoogleFonts.spaceGrotesk(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  available ? cafeMoney(amount) : 'Unavailable',
+                  style: GoogleFonts.inter(
+                    color: selected ? _brandGreen : Colors.white60,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

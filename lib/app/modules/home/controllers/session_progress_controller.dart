@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:hash/app/modules/cafe_play/models/cafe_play_models.dart';
 import 'package:hash/app/modules/home/models/live_session_booking.dart';
 
 class SessionProgressController extends GetxController {
@@ -11,6 +12,7 @@ class SessionProgressController extends GetxController {
   final RxString timeRangeText = ''.obs;
 
   List<LiveSessionBooking> _bookings = <LiveSessionBooking>[];
+  List<LiveSessionBooking> _cafeSessions = <LiveSessionBooking>[];
   Timer? _ticker;
 
   @override
@@ -35,12 +37,23 @@ class SessionProgressController extends GetxController {
     _recompute();
   }
 
+  /// Running cafe scan-and-play sessions, shown with the same card.
+  void syncCafeSessions(List<CafeSession> sessions) {
+    _cafeSessions =
+        sessions
+            .map(LiveSessionBooking.fromCafeSession)
+            .whereType<LiveSessionBooking>()
+            .toList()
+          ..sort((a, b) => a.startAt.compareTo(b.startAt));
+    _recompute();
+  }
+
   void _recompute() {
     final now = DateTime.now();
 
-    final active = _bookings.where((booking) {
+    final active = [..._bookings, ..._cafeSessions].where((booking) {
       return !now.isBefore(booking.startAt) && !now.isAfter(booking.endAt);
-    }).toList();
+    }).toList()..sort((a, b) => a.startAt.compareTo(b.startAt));
 
     if (active.isEmpty) {
       currentBooking.value = null;

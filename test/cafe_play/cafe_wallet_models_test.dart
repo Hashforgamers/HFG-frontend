@@ -76,4 +76,26 @@ void main() {
     expect(reserve.isHold, isTrue);
     expect(reserve.reservedAfter, 10000);
   });
+
+  test('unpriced duration is unavailable, not free', () {
+    final policy = CafePolicy.fromJson({
+      'durations': [
+        {
+          'minutes': 60,
+          'amount': null,
+          'unavailable_reason': 'Console slots overlap',
+        },
+        {'minutes': 30, 'amount': 5000},
+      ],
+    });
+
+    final unpriced = policy.durations.first;
+    expect(unpriced.amount, isNull);
+    expect(unpriced.isAvailable, isFalse);
+    expect(unpriced.unavailableReason, 'Console slots overlap');
+
+    final priced = policy.durations.last;
+    expect(priced.amount, 5000);
+    expect(priced.isAvailable, isTrue);
+  });
 }

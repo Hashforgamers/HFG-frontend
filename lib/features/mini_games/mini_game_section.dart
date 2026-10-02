@@ -13,6 +13,7 @@ import 'package:hash/features/mini_games/html_games/views/html_game_player_scree
 import 'package:hash/features/mini_games/html_games/widgets/html_mini_game_card.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
 import 'package:hash/features/mini_games/ludo/ludo_game_screen.dart';
+import 'package:hash/features/mini_games/ludo/online/ludo_presence_widgets.dart';
 import 'package:hash/features/mini_games/snakes_ladders/snl_game_screen.dart';
 import 'package:hash/utils/widgets/home_section_title.dart';
 import 'package:hash/utils/widgets/game_button.dart';
@@ -52,7 +53,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
         subtitle: "Roll & race · 2–4 players",
         icon: const AssetImage("assets/mini_game_icons/ludo_icon.png"),
         onTap: () async {
-          await Get.to(() => const LudoGameScreen());
+          await Get.to(() => const LudoGameScreen(source: 'home'));
           await _loadScores();
         },
       ),
@@ -296,6 +297,7 @@ class _FeaturedGameTile extends StatelessWidget {
                   best == null || best == 0 ? 'No best yet' : 'Best $best',
                   style: gameFont(12, GameColors.yellow.$1),
                 ),
+                const LudoLiveCount(),
               ],
             ),
           ),

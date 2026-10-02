@@ -9,23 +9,42 @@ int _int(dynamic v, [int fallback = 0]) {
   return int.tryParse(v?.toString() ?? '') ?? fallback;
 }
 
+int? _intOrNull(dynamic v) {
+  if (v is num) return v.toInt();
+  return int.tryParse(v?.toString() ?? '');
+}
+
 DateTime? _date(dynamic v) {
   if (v == null) return null;
   return DateTime.tryParse(v.toString())?.toLocal();
 }
 
 class CafeDuration {
-  const CafeDuration({required this.minutes, required this.amount});
+  const CafeDuration({
+    required this.minutes,
+    required this.amount,
+    this.unavailableReason,
+  });
 
   final int minutes;
 
-  /// Paise.
-  final int amount;
+  /// Paise; null when the cafe can't price this duration (see
+  /// [unavailableReason]). Never treat a missing price as free.
+  final int? amount;
 
-  factory CafeDuration.fromJson(Map<String, dynamic> json) => CafeDuration(
-    minutes: _int(json['minutes']),
-    amount: _int(json['amount']),
-  );
+  /// Server's explanation when this duration can't be bought right now.
+  final String? unavailableReason;
+
+  bool get isAvailable => amount != null && unavailableReason == null;
+
+  factory CafeDuration.fromJson(Map<String, dynamic> json) {
+    final reason = json['unavailable_reason']?.toString().trim();
+    return CafeDuration(
+      minutes: _int(json['minutes']),
+      amount: _intOrNull(json['amount']),
+      unavailableReason: reason == null || reason.isEmpty ? null : reason,
+    );
+  }
 
   String get label {
     if (minutes < 60) return '$minutes min';

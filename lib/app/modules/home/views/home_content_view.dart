@@ -27,6 +27,7 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hash/features/mini_games/mini_game_section.dart';
+import 'package:hash/features/mini_games/ludo/online/ludo_presence_widgets.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -444,6 +445,8 @@ class _HomeContentViewState extends State<HomeContentView>
                                   _buildInitialLoadingState(),
                                   const SizedBox(height: 18),
                                 ],
+                                // Only takes space while someone is waiting.
+                                const LudoLookingBanner(bottomGap: _sectionGap),
                                 ..._intersperse(
                                   _buildVisibleSections(),
                                   const SizedBox(height: _sectionGap),

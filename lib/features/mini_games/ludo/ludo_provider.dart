@@ -31,7 +31,8 @@ class LudoProvider extends ChangeNotifier {
   Timer? _aiTimer;
   int _generation = 0;
   bool get isAiTurn =>
-      !_online && againstAi && _currentTurn != LudoPlayerType.green;
+      (!_online && againstAi && _currentTurn != LudoPlayerType.green) ||
+      isBotTurn;
 
   void _tickAi() {
     if (_stopMoving ||
@@ -42,6 +43,8 @@ class LudoProvider extends ChangeNotifier {
         winners.length >= 3) {
       return;
     }
+    // Online bots occasionally hesitate a beat so they don't feel instant.
+    if (isBotTurn && _random.nextInt(3) == 0) return;
     if (_aiUsePower()) return;
     if (_gameState == LudoGameState.throwDice) {
       throwDice(automated: true);
@@ -202,6 +205,10 @@ class LudoProvider extends ChangeNotifier {
   LudoPlayerType? _mySeat;
   Set<LudoPlayerType> _activeSeats = kLudoSeatOrder.toSet();
   StreamSubscription<LudoMatch?>? _matchSub;
+  Set<LudoPlayerType> _botSeats = {};
+
+  /// This device plays the bots' turns (it is the match's bot driver).
+  bool _drivesBots = false;
   int _version = 0;
   bool _finished = false;
 
@@ -234,6 +241,11 @@ class LudoProvider extends ChangeNotifier {
 
   /// Whether the local device may roll/move right now.
   bool get isMyTurn => _online ? _currentTurn == _mySeat : !isAiTurn;
+
+  /// Online: it's a bot seat's turn and this device is the one playing it.
+  bool get isBotTurn =>
+      _online && _drivesBots && !_finished && _botSeats.contains(_currentTurn);
+  Set<LudoPlayerType> get botSeats => _botSeats;
   bool get onlineFinished => _finished;
   Set<LudoPlayerType> get activeSeats => _activeSeats;
 
@@ -252,6 +264,12 @@ class LudoProvider extends ChangeNotifier {
     _matchSub = service.watch(matchId).listen((m) {
       if (m != null) _applyRemote(m);
     });
+    // Drives any bot seats whenever this device is the bot driver.
+    _aiTimer?.cancel();
+    _aiTimer = Timer.periodic(
+      const Duration(milliseconds: 900),
+      (_) => _tickAi(),
+    );
   }
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -260,6 +278,8 @@ class LudoProvider extends ChangeNotifier {
   /// we skip those (we already hold that state) unless [force] (initial load).
   void _applyRemote(LudoMatch m, {bool force = false}) {
     _activeSeats = m.seats.keys.toSet();
+    _botSeats = m.botSeats;
+    _drivesBots = _mySeat != null && m.botDriverUid == _uid;
     _version = m.version;
     _finished = m.status == LudoMatchStatus.finished;
 
@@ -507,7 +527,8 @@ class LudoProvider extends ChangeNotifier {
     }
     if (isAiTurn && !automated) return;
     final generation = _generation;
-    if (_online && !isMyTurn) return; // only the active seat may roll
+    // Only the active seat (or the bot driver, for a bot seat) may roll.
+    if (_online && !isMyTurn && !isBotTurn) return;
     _diceStarted = true;
     notifyListeners();
     if (soundEnabled) Audio.rollDice();
@@ -687,7 +708,7 @@ class LudoProvider extends ChangeNotifier {
   /// Force-advance the current turn — used when a player's countdown runs out
   /// in online play so an idle/disconnected seat can't stall the match.
   void skipTurn() {
-    if (!_online || !isMyTurn || _isMoving) return;
+    if (!_online || (!isMyTurn && !isBotTurn) || _isMoving) return;
     for (final p in players) {
       p.highlightAllPawns(false);
     }

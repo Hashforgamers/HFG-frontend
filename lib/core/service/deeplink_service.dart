@@ -359,7 +359,7 @@ class DeepLinkService extends GetxController {
         (destination.id ?? '').startsWith('ludomatch_')) {
       final matchId = destination.id!.substring('ludomatch_'.length);
       if (matchId.isNotEmpty) {
-        Widget page() => LudoMatchScreen(matchId: matchId);
+        Widget page() => LudoMatchScreen(matchId: matchId, source: 'deeplink');
         replaceStack ? Get.offAll(page) : Get.to(page);
         return;
       }
@@ -397,7 +397,7 @@ class DeepLinkService extends GetxController {
     if (destination.type == DeepLinkType.game) {
       final gameId = (destination.id ?? '').toLowerCase();
       if (gameId == 'ludo') {
-        Widget page() => const LudoGameScreen();
+        Widget page() => const LudoGameScreen(source: 'deeplink');
         replaceStack ? Get.offAll(page) : Get.to(page);
         return;
       }

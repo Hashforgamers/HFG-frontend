@@ -5,15 +5,21 @@ import 'package:hash/utils/widgets/game_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'ludo_analytics.dart';
 import 'ludo_provider.dart';
 import 'main_screen.dart';
 import 'online/ludo_live_matches_screen.dart';
 import 'online/ludo_match_screen.dart';
 import 'online/ludo_match_service.dart';
+import 'online/ludo_presence_widgets.dart';
 
 /// The entry point always offers a mode before creating a local board.
 class LudoGameScreen extends StatefulWidget {
-  const LudoGameScreen({super.key});
+  const LudoGameScreen({super.key, this.source = 'arcade'});
+
+  /// Where the player came from, for `ludo_opened` (home / arcade / push /
+  /// deeplink / banner).
+  final String source;
 
   @override
   State<LudoGameScreen> createState() => _LudoGameScreenState();
@@ -27,6 +33,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   @override
   void initState() {
     super.initState();
+    LudoAnalytics.opened(widget.source);
     _refreshMatch();
     WidgetsBinding.instance.addObserver(this);
     unawaited(LudoScoreService.instance.sync());
@@ -55,6 +62,9 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   }
 
   void _openLocal({required bool againstAi, bool powerMode = false}) {
+    LudoAnalytics.modeSelected(
+      !againstAi ? 'pass_and_play' : (powerMode ? 'power' : 'vs_ai'),
+    );
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ChangeNotifierProvider(
@@ -67,17 +77,38 @@ class _LudoGameScreenState extends State<LudoGameScreen>
     );
   }
 
-  Future<void> _openOnline({String? matchId}) async {
+  /// Opens an online room: [matchId] to resume/join a known room, [quick] to
+  /// Quick Match into someone's waiting room, otherwise a new friends room.
+  Future<void> _openOnline({String? matchId, bool quick = false}) async {
     if (_openingOnline) return;
     setState(() => _openingOnline = true);
+    final String stage;
+    if (matchId != null) {
+      stage = 'open_room';
+    } else {
+      LudoAnalytics.modeSelected(quick ? 'quick' : 'friends');
+      stage = quick ? 'quick_match' : 'create_room';
+    }
     try {
-      final id = matchId ?? (await LudoMatchService().createMatch()).id;
+      final service = LudoMatchService();
+      final String id;
+      if (matchId != null) {
+        id = matchId;
+      } else if (quick) {
+        final result = await service.quickMatch();
+        id = result.id;
+        if (result.created) LudoAnalytics.roomCreated('quick');
+      } else {
+        id = (await service.createMatch()).id;
+        LudoAnalytics.roomCreated('friends');
+      }
       if (!mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => LudoMatchScreen(matchId: id)),
       );
       await _refreshMatch();
-    } catch (_) {
+    } catch (e) {
+      LudoAnalytics.syncFailed(stage: stage, error: e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -90,6 +121,38 @@ class _LudoGameScreenState extends State<LudoGameScreen>
     } finally {
       if (mounted) setState(() => _openingOnline = false);
     }
+  }
+
+  Future<void> _joinWithCode() async {
+    final code = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => const _RoomCodeSheet(),
+    );
+    if (code == null || !mounted) return;
+    setState(() => _openingOnline = true);
+    String? id;
+    try {
+      id = await LudoMatchService().findByCode(code);
+    } catch (e) {
+      LudoAnalytics.syncFailed(stage: 'find_code', error: e);
+      id = null;
+    }
+    LudoAnalytics.roomCodeEntered(found: id != null);
+    if (!mounted) return;
+    setState(() => _openingOnline = false);
+    if (id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No open room with that code. Check it with your friend and try again.',
+          ),
+        ),
+      );
+      return;
+    }
+    await _openOnline(matchId: id);
   }
 
   @override
@@ -124,14 +187,45 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                   const GameText('CHOOSE YOUR MODE', size: 20),
                   const SizedBox(height: 12),
                   _modeCard(
-                    title: 'Online',
-                    subtitle: 'Create a room and invite friends.',
+                    title: 'Quick Match',
+                    subtitle: 'Play someone online. Starts in 15s or less.',
+                    tag: 'Online · ranked',
+                    icon: Icons.bolt_rounded,
+                    colors: GameColors.green,
+                    tone: GameButtonTone.green,
+                    action: _openingOnline ? 'Opening' : 'Play',
+                    onTap: _openingOnline
+                        ? null
+                        : () => _openOnline(quick: true),
+                    footer: const LudoLiveCount(
+                      emptyText: 'Be the first in — others see you waiting',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _modeCard(
+                    title: 'Play with Friends',
+                    subtitle: 'Private room. Share the code on WhatsApp.',
                     tag: '2–4 players',
                     icon: Icons.public_rounded,
                     colors: GameColors.green,
                     tone: GameButtonTone.green,
-                    action: _openingOnline ? 'Opening' : 'Play',
+                    action: _openingOnline ? 'Opening' : 'Create',
                     onTap: _openingOnline ? null : () => _openOnline(),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: _openingOnline ? null : _joinWithCode,
+                      icon: const Icon(
+                        Icons.vpn_key_rounded,
+                        size: 18,
+                        color: GameColors.soft,
+                      ),
+                      label: Text(
+                        'Have a room code? Join',
+                        style: gameFont(14, GameColors.soft),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _modeCard(
@@ -176,11 +270,14 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                     colors: GameColors.red,
                     tone: GameButtonTone.red,
                     action: 'Watch',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const LudoLiveMatchesScreen(),
-                      ),
-                    ),
+                    onTap: () {
+                      LudoAnalytics.modeSelected('spectate');
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const LudoLiveMatchesScreen(),
+                        ),
+                      );
+                    },
                   ),
                   if (_activeMatchId != null) ...[
                     const SizedBox(height: 20),
@@ -192,7 +289,10 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                       height: 60,
                       onPressed: _openingOnline
                           ? null
-                          : () => _openOnline(matchId: _activeMatchId),
+                          : () {
+                              LudoAnalytics.resume('resume_button');
+                              _openOnline(matchId: _activeMatchId);
+                            },
                     ),
                   ],
                   const SizedBox(height: 18),
@@ -290,6 +390,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
     required GameButtonTone tone,
     required String action,
     required VoidCallback? onTap,
+    Widget? footer,
   }) => GamePanel(
     onTap: onTap,
     padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
@@ -325,6 +426,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
               Text(subtitle, style: gameFont(13, GameColors.soft)),
               const SizedBox(height: 2),
               Text(tag.toUpperCase(), style: gameFont(11, colors.$1)),
+              if (footer != null) ...[const SizedBox(height: 3), footer],
             ],
           ),
         ),
@@ -339,6 +441,94 @@ class _LudoGameScreenState extends State<LudoGameScreen>
           ),
         ),
       ],
+    ),
+  );
+}
+
+/// Bottom sheet that asks for a friend's room code.
+class _RoomCodeSheet extends StatefulWidget {
+  const _RoomCodeSheet();
+
+  @override
+  State<_RoomCodeSheet> createState() => _RoomCodeSheetState();
+}
+
+class _RoomCodeSheetState extends State<_RoomCodeSheet> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool get _valid =>
+      LudoMatchService.normalizeRoomCode(_controller.text).length == 6;
+
+  void _submit() {
+    if (!_valid) return;
+    Navigator.of(
+      context,
+    ).pop(LudoMatchService.normalizeRoomCode(_controller.text));
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      16,
+      0,
+      16,
+      16 + MediaQuery.of(context).viewInsets.bottom,
+    ),
+    child: SafeArea(
+      top: false,
+      child: GamePanel(
+        headerColors: GameColors.green,
+        header: const GameText('JOIN A ROOM', size: 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Enter the 6-character code your friend shared.',
+              textAlign: TextAlign.center,
+              style: gameFont(14, GameColors.soft),
+            ),
+            const SizedBox(height: 12),
+            GameTray(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: TextField(
+                controller: _controller,
+                autofocus: true,
+                maxLength: 7,
+                textAlign: TextAlign.center,
+                textCapitalization: TextCapitalization.characters,
+                style: gameFont(26, Colors.white),
+                cursorColor: GameColors.yellow.$1,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  counterText: '',
+                  hintText: 'ABC123',
+                  hintStyle: gameFont(
+                    26,
+                    GameColors.soft.withValues(alpha: 0.35),
+                  ),
+                ),
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _submit(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            GameButton(
+              label: 'Join',
+              icon: Icons.login_rounded,
+              tone: GameButtonTone.green,
+              height: 50,
+              onPressed: _valid ? _submit : null,
+            ),
+          ],
+        ),
+      ),
     ),
   );
 }

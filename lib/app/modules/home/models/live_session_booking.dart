@@ -1,3 +1,5 @@
+import 'package:hash/app/modules/cafe_play/models/cafe_play_models.dart';
+
 class LiveSessionBooking {
   LiveSessionBooking({
     required this.bookingId,
@@ -6,6 +8,7 @@ class LiveSessionBooking {
     required this.rawBooking,
     required this.startAt,
     required this.endAt,
+    this.cafeSession,
   });
 
   final String bookingId;
@@ -14,6 +17,35 @@ class LiveSessionBooking {
   final Map<String, dynamic> rawBooking;
   final DateTime startAt;
   final DateTime endAt;
+
+  /// Set when this is a cafe scan-and-play session rather than a booking.
+  final CafeSession? cafeSession;
+
+  /// A running cafe session; null until the PC has started it (no times yet).
+  static LiveSessionBooking? fromCafeSession(CafeSession session) {
+    final start = session.startedAt;
+    final end = session.endsAt;
+    if (session.state != CafeSessionState.active ||
+        start == null ||
+        end == null) {
+      return null;
+    }
+    final checkout = session.checkout;
+    final cafe = (checkout?.cafeName ?? '').trim();
+    final pc = (checkout?.consoleNumber ?? 0) > 0
+        ? ' · PC ${checkout!.consoleNumber}'
+        : '';
+    return LiveSessionBooking(
+      bookingId: 'cafe:${session.id}',
+      arenaName: '${cafe.isEmpty ? 'Cafe session' : cafe}$pc',
+      // Empty vendor hides the booking food-order action for cafe sessions.
+      vendorId: '',
+      rawBooking: const {},
+      startAt: start,
+      endAt: end,
+      cafeSession: session,
+    );
+  }
 
   static LiveSessionBooking? fromPastBooking(Map<String, dynamic> booking) {
     if (!_isConfirmedBooking(booking)) return null;
