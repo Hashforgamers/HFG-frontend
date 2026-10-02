@@ -173,6 +173,29 @@ class CafePlayApi {
     return CafeSession.fromJson(Map<String, dynamic>.from(res.data as Map));
   }
 
+  /// Balance at one cafe; zeros (not 404) when the gamer has no wallet there.
+  Future<CafeWallet> getWallet(int vendorId) async {
+    final res = await _send('GET', ApiEndpoints.cafeWallet(vendorId));
+    return CafeWallet.fromJson(Map<String, dynamic>.from(res.data as Map));
+  }
+
+  /// Ledger entries at one cafe, newest first.
+  Future<CafePage<CafeWalletEntry>> getWalletHistory(
+    int vendorId, {
+    int limit = 20,
+    int? before,
+  }) async {
+    final res = await _send(
+      'GET',
+      ApiEndpoints.cafeWalletHistory(vendorId),
+      query: {'limit': limit, if (before != null) 'before': before},
+    );
+    return CafePage.fromJson(
+      Map<String, dynamic>.from(res.data as Map),
+      CafeWalletEntry.fromJson,
+    );
+  }
+
   void _throwIfError(Response res) {
     final status = res.statusCode ?? 0;
     if (status >= 200 && status < 300 && res.data is Map) return;
@@ -195,7 +218,7 @@ class CafePlayApi {
   }
 
   static String _fallback(int status) => switch (status) {
-    401 => 'Your cafe session expired. Please scan again.',
+    401 => 'Your cafe session expired. Please try again.',
     403 => 'This action isn\'t allowed at this cafe.',
     404 => 'Not found.',
     409 => 'Something changed. Please review and try again.',

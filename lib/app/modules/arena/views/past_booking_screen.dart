@@ -9,7 +9,7 @@ import 'package:in_app_review/in_app_review.dart';
 import 'package:intl/intl.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen_detail.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:hash/app/modules/cafe_play/views/cafe_qr_scanner_view.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1277,8 +1277,10 @@ class BookingTicketCard extends StatelessWidget {
                               onPressed: () async {
                                 if (!context.mounted) return;
                                 final messenger = ScaffoldMessenger.of(context);
+                                // Same scanner as the cafe wallet: framed
+                                // camera plus "Scan from gallery".
                                 final result = await Get.to(
-                                  () => const QrScannerView(),
+                                  () => const CafeQrScannerView(),
                                 );
                                 if (!context.mounted) return;
                                 if (result != null) {
@@ -1928,44 +1930,6 @@ class _WriteReviewDialogState extends State<_WriteReviewDialog> {
     );
   }
 }
-// qr_scanner_view.dart
-
-class QrScannerView extends StatelessWidget {
-  const QrScannerView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: MobileScannerController(
-              detectionSpeed: DetectionSpeed.noDuplicates,
-              facing: CameraFacing.back,
-              torchEnabled: false,
-            ),
-            onDetect: (capture) {
-              final barcode = capture.barcodes.first;
-              if (barcode.rawValue != null) {
-                Get.back(result: barcode.rawValue);
-              }
-            },
-          ),
-          Positioned(
-            top: 48,
-            left: 16,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: () => Get.back(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class ExtraService {
   final String name;
   final double price;

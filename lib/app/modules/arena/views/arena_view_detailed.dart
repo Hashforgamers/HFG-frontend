@@ -21,7 +21,6 @@ import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_reviews_s
 import 'package:hash/app/modules/arena/views/booking_design.dart';
 import 'package:hash/app/modules/arena/views/booking_screen.dart';
 import 'package:hash/app/modules/arena/views/menu_view.dart';
-import 'package:hash/app/modules/cafe_play/views/cafe_checkout_sheet.dart';
 import 'package:hash/app/modules/cafe_play/views/cafe_wallet_balance_banner.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -1853,8 +1852,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                       return Padding(
                         padding: const EdgeInsets.only(top: 16),
                         child: CafeWalletBalanceBanner(
-                          balancePaise: kDummyCafeWalletBalancePaise,
-                          onScan: () => startCafeScanFlow(context),
+                          vendorId: widget.vendorId,
+                          cafeName: widget.title,
                         ),
                       );
                     }),

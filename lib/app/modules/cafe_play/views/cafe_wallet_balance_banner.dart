@@ -1,31 +1,107 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/cafe_play/data/cafe_play_api.dart';
+import 'package:hash/app/modules/cafe_play/models/cafe_play_models.dart';
 import 'package:hash/app/modules/cafe_play/views/cafe_checkout_sheet.dart';
+import 'package:hash/app/modules/cafe_play/views/cafe_wallet_view.dart';
 import 'package:hash/app/modules/home/widgets/home_design.dart';
-
-/// TODO(cafe-wallet): replace with the gamer cafe-balance API once its
-/// contract is shared. Placeholder paise value for UI review only.
-const int kDummyCafeWalletBalancePaise = 25000;
 
 /// Balance at this cafe only (not Hash Wallet), shown near the top of the
 /// cafe detail screen for PC cafes. Gold marks it as money, matching home;
-/// the green action opens the PC QR scanner.
-class CafeWalletBalanceBanner extends StatelessWidget {
+/// the card opens the cafe wallet history, the green action the PC scanner.
+class CafeWalletBalanceBanner extends StatefulWidget {
   const CafeWalletBalanceBanner({
     super.key,
-    required this.balancePaise,
-    required this.onScan,
+    required this.vendorId,
+    required this.cafeName,
   });
 
-  final int balancePaise;
-  final VoidCallback onScan;
+  final int vendorId;
+  final String cafeName;
+
+  @override
+  State<CafeWalletBalanceBanner> createState() =>
+      _CafeWalletBalanceBannerState();
+}
+
+class _CafeWalletBalanceBannerState extends State<CafeWalletBalanceBanner>
+    with WidgetsBindingObserver {
+  CafeWallet? _wallet;
+  bool _failed = false;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _load();
+  }
+
+  Future<void> _load() async {
+    final gen = ++_generation;
+    try {
+      final wallet = await CafePlayApi.instance.getWallet(widget.vendorId);
+      if (!mounted || gen != _generation) return;
+      setState(() {
+        _wallet = wallet;
+        _failed = false;
+      });
+    } on CafePlayException {
+      if (!mounted || gen != _generation) return;
+      setState(() => _failed = true);
+    }
+  }
+
+  Future<void> _scan() async {
+    await startCafeScanFlow(context);
+    if (mounted) _load();
+  }
+
+  Future<void> _openWallet() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CafeWalletView(
+          vendorId: widget.vendorId,
+          cafeName: widget.cafeName,
+        ),
+      ),
+    );
+    if (mounted) _load();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final wallet = _wallet;
+    final String amount;
+    final String caption;
+    if (wallet != null) {
+      amount = cafeMoney(wallet.availableBalance);
+      caption = wallet.reserved != 0
+          ? 'Pending reservation ${cafeMoney(wallet.reserved)}'
+          : 'Top up at this cafe\'s reception';
+    } else if (_failed) {
+      amount = '—';
+      caption = 'Balance unavailable. Tap to retry';
+    } else {
+      amount = '…';
+      caption = 'Only usable at this cafe';
+    }
+
     return HomeCard(
       accent: HomeTokens.gold,
       padding: const EdgeInsets.fromLTRB(16, 16, 14, 16),
-      onTap: onScan,
+      onTap: wallet == null && _failed ? _load : _openWallet,
       child: Row(
         children: [
           Container(
@@ -50,21 +126,21 @@ class CafeWalletBalanceBanner extends StatelessWidget {
                 const HomeEyebrow('Cafe wallet', color: HomeTokens.gold),
                 const SizedBox(height: 4),
                 Text(
-                  cafeMoney(balancePaise),
+                  amount,
                   style: HomeTokens.title(
                     22,
                   ).copyWith(color: HomeTokens.goldLight),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Only usable at this cafe',
+                  caption,
                   style: HomeTokens.body(HomeTokens.textTertiary, size: 12),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 10),
-          _ScanPill(onTap: onScan),
+          _ScanPill(onTap: _scan),
         ],
       ),
     );

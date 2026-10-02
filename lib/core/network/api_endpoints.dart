@@ -72,6 +72,11 @@ class ApiEndpoints {
   static String get cafeCheckout => '$dashboardBaseUrl/api/cafe/checkout';
   static String cafeSession(String sessionId) =>
       '$dashboardBaseUrl/api/cafe/sessions/$sessionId';
+  // Read-only cafe wallets (balance per cafe; top-up happens at the desk).
+  static String cafeWallet(int vendorId) =>
+      '$dashboardBaseUrl/api/cafe/$vendorId/wallet';
+  static String cafeWalletHistory(int vendorId) =>
+      '$dashboardBaseUrl/api/cafe/$vendorId/wallet/history';
   // Add dashboard endpoints as needed, e.g.:
   // static String get dashboardStats => '$dashboardBaseUrl/api/stats';
 

@@ -207,6 +207,140 @@ class CafeSession {
   }
 }
 
+/// One gamer's balance at one cafe (`/api/cafe/wallets`, `/api/cafe/{id}/wallet`).
+class CafeWallet {
+  const CafeWallet({
+    required this.vendorId,
+    required this.cafeName,
+    required this.balance,
+    required this.reserved,
+    required this.availableBalance,
+  });
+
+  final int vendorId;
+  final String cafeName;
+
+  /// Paise.
+  final int balance;
+
+  /// Paise held for a session that hasn't been charged yet.
+  final int reserved;
+
+  /// Paise; `balance - reserved`.
+  final int availableBalance;
+
+  factory CafeWallet.fromJson(Map<String, dynamic> json) => CafeWallet(
+    vendorId: _int(json['vendor_id']),
+    cafeName: (json['cafe_name'] ?? 'Cafe').toString(),
+    balance: _int(json['balance']),
+    reserved: _int(json['reserved']),
+    availableBalance: _int(json['available_balance']),
+  );
+}
+
+enum CafeWalletEntryKind {
+  topup,
+  capture,
+  refund,
+  adjustment,
+  reserve,
+  release,
+  unknown,
+}
+
+/// A cafe wallet ledger entry (`/api/cafe/{id}/wallet/history`).
+class CafeWalletEntry {
+  const CafeWalletEntry({
+    required this.id,
+    required this.kind,
+    required this.amount,
+    required this.balanceAfter,
+    required this.reservedAfter,
+    required this.method,
+    required this.createdAt,
+  });
+
+  final int id;
+  final CafeWalletEntryKind kind;
+
+  /// Signed paise; the sign (not the kind) decides credit vs debit.
+  final int amount;
+  final int balanceAfter;
+  final int reservedAfter;
+
+  /// `cash` or `cafe_upi` for top-ups.
+  final String? method;
+  final DateTime? createdAt;
+
+  /// Reserve/release entries move held funds, not money.
+  bool get isHold =>
+      kind == CafeWalletEntryKind.reserve ||
+      kind == CafeWalletEntryKind.release;
+
+  String get label => switch (kind) {
+    CafeWalletEntryKind.topup => 'Added at cafe',
+    CafeWalletEntryKind.capture => 'Gaming charge',
+    CafeWalletEntryKind.refund => 'Transaction reversed',
+    CafeWalletEntryKind.adjustment => 'Cafe balance adjustment',
+    CafeWalletEntryKind.reserve => 'Session funds reserved',
+    CafeWalletEntryKind.release => 'Session reservation released',
+    CafeWalletEntryKind.unknown => 'Wallet activity',
+  };
+
+  String? get methodLabel => switch (method) {
+    'cash' => 'Cash',
+    'cafe_upi' => 'UPI at cafe',
+    _ => null,
+  };
+
+  factory CafeWalletEntry.fromJson(Map<String, dynamic> json) {
+    final kind = switch (json['kind']?.toString()) {
+      'topup' => CafeWalletEntryKind.topup,
+      'capture' => CafeWalletEntryKind.capture,
+      'refund' => CafeWalletEntryKind.refund,
+      'adjustment' => CafeWalletEntryKind.adjustment,
+      'reserve' => CafeWalletEntryKind.reserve,
+      'release' => CafeWalletEntryKind.release,
+      _ => CafeWalletEntryKind.unknown,
+    };
+    final method = json['method']?.toString();
+    return CafeWalletEntry(
+      id: _int(json['id']),
+      kind: kind,
+      amount: _int(json['amount']),
+      balanceAfter: _int(json['balance_after']),
+      reservedAfter: _int(json['reserved_after']),
+      method: (method == null || method.isEmpty) ? null : method,
+      createdAt: _date(json['created_at']),
+    );
+  }
+}
+
+/// A cursor page; [nextCursor] is null when there are no more rows.
+class CafePage<T> {
+  const CafePage({required this.items, required this.nextCursor});
+
+  final List<T> items;
+  final int? nextCursor;
+
+  static CafePage<T> fromJson<T>(
+    Map<String, dynamic> json,
+    T Function(Map<String, dynamic>) item,
+  ) {
+    final raw = json['items'];
+    final cursor = json['next_cursor'];
+    return CafePage(
+      items: raw is List
+          ? raw
+                .whereType<Map>()
+                .map((e) => item(Map<String, dynamic>.from(e)))
+                .toList()
+          : const [],
+      nextCursor: cursor == null ? null : _int(cursor, 0),
+    );
+  }
+}
+
 class CafePlayException implements Exception {
   const CafePlayException(this.message, {this.statusCode});
 
