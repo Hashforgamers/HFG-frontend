@@ -1,3 +1,4 @@
+import 'package:hash/core/app_orientation.dart';
 import 'package:hash/core/service/crash_reporting.dart';
 import 'package:hash/core/navigation/blur_popup_observer.dart';
 import 'dart:async';
@@ -37,6 +38,8 @@ import 'app/modules/shop_new/controllers/shop_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // portrait-only app; landscape games opt in while they're on screen
+  await AppOrientation.portrait();
   await ScreenUtil.ensureScreenSize(); // optional but prevents early access
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 

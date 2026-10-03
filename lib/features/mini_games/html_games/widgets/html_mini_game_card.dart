@@ -177,7 +177,7 @@ class _CompactHtmlMiniGameCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: SizedBox(
-          width: 92,
+          width: 90, // same footprint as MiniGameCard
           height: 130,
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -187,11 +187,12 @@ class _CompactHtmlMiniGameCard extends StatelessWidget {
                   DecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
+                      // same shadow as the native MiniGameCard icons
                       boxShadow: [
                         BoxShadow(
-                          color: palette.shadow.withValues(alpha: 0.34),
-                          blurRadius: 14,
-                          offset: const Offset(0, 8),
+                          color: Colors.black.withValues(alpha: 0.4),
+                          blurRadius: 6,
+                          offset: const Offset(2, 4),
                         ),
                       ],
                     ),
@@ -217,25 +218,27 @@ class _CompactHtmlMiniGameCard extends StatelessWidget {
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
+                          // text styles match MiniGameCard so the row reads as one set
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            height: 1.08,
+                            fontWeight: FontWeight.w500,
+                            height: 1.05,
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          bestScore == null ? 'HTML5 Game' : 'Best: $bestScore',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            color: palette.accent.withValues(alpha: 0.92),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            height: 1,
+                        if (bestScore != null)
+                          Text(
+                            'Best: $bestScore',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: Colors.white38,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              height: 1,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -262,28 +265,35 @@ class _GameThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (game.hasThumbnail && game.isRemoteThumbnail) {
+    if (game.hasThumbnail) {
       return Stack(
         fit: StackFit.expand,
         children: [
-          CachedNetworkImage(
-            imageUrl: game.thumbnail,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => _fallbackThumb(),
-            errorWidget: (context, url, error) => _fallbackThumb(),
-          ),
-          Positioned(
-            top: compact ? 8 : 10,
-            left: compact ? 8 : 10,
-            child: _htmlBadge(compact),
-          ),
-          Positioned.fill(
+          if (game.isRemoteThumbnail)
+            CachedNetworkImage(
+              imageUrl: game.thumbnail,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => _fallbackThumb(),
+              errorWidget: (context, url, error) => _fallbackThumb(),
+            )
+          else
+            Image.asset(
+              game.thumbnail,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => _fallbackThumb(),
+            ),
+          // in the arcade row the art is the whole tile, like the native game
+          // icons — no "HTML5" badge or darkening gradient over it
+          if (!compact)
+            Positioned(top: 10, left: 10, child: _htmlBadge(compact)),
+          if (!compact)
+            Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
                     Colors.transparent,
-                    Colors.black.withValues(alpha: compact ? 0.32 : 0.48),
+                    Colors.black.withValues(alpha: 0.48),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -395,6 +405,13 @@ _GamePalette _paletteForGame(String gameId) {
         secondary: Color(0xFF0F2A2C),
         accent: Color(0xFF7EF1D0),
         shadow: Color(0xFF0C5F58),
+      );
+    case 'super_over':
+      return const _GamePalette(
+        primary: Color(0xFFF97316),
+        secondary: Color(0xFF1C1206),
+        accent: Color(0xFFFFB454),
+        shadow: Color(0xFF9A3412),
       );
     case 'orbit_smash':
       return const _GamePalette(

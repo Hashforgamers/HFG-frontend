@@ -3,14 +3,21 @@ import '../models/html_mini_game.dart';
 class HtmlMiniGameCatalogService {
   const HtmlMiniGameCatalogService();
 
-  static const supportedGameIds = <String>[];
+  static const supportedGameIds = <String>['super_over'];
 
-  // No HTML games are shipped yet. The previous "Racing Limits" entry loaded a
-  // third-party CrazyGames landing page inside the WebView — it could never call
-  // the `gameScore` bridge, so it never scored or awarded coins and showed a
-  // permanently-empty tile/leaderboard. The WebView + score-bridge infra is kept
-  // intact; add a genuinely embeddable, scoreable game here to re-enable it.
-  static const games = <HtmlMiniGame>[];
+  // Every entry must call the `gameScore` bridge itself — a third-party page
+  // that can't (like the old "Racing Limits" CrazyGames embed) never scores or
+  // awards coins and leaves a permanently-empty tile/leaderboard.
+  static const games = <HtmlMiniGame>[
+    HtmlMiniGame(
+      gameId: 'super_over',
+      name: 'Super Over',
+      thumbnail: 'assets/mini_game_icons/super_over.png',
+      // 3D (three.js); loads its player models and sky from CDNs at runtime.
+      gameUrl: 'assets/html_games/super_over/index.html',
+      description: 'Chase the target · time your swing · clear the ropes',
+    ),
+  ];
 
   List<HtmlMiniGame> getGames() => List<HtmlMiniGame>.unmodifiable(games);
 }

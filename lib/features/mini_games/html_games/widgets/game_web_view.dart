@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/features/mini_games/html_games/models/html_mini_game.dart';
+import 'package:hash/features/mini_games/html_games/services/html_game_asset_server.dart';
 import 'package:hash/features/mini_games/html_games/services/html_game_score_bridge_service.dart';
 
 enum _WebViewStatusTone { info, success, error }
@@ -30,10 +31,12 @@ class _GameWebViewState extends State<GameWebView> {
   bool _isSubmitting = false;
   String? _loadError;
   String? _statusMessage;
+  Timer? _statusTimer;
   _WebViewStatusTone _statusTone = _WebViewStatusTone.info;
 
   @override
   void dispose() {
+    _statusTimer?.cancel();
     _controller?.removeJavaScriptHandler(handlerName: 'gameScore');
     super.dispose();
   }
@@ -58,6 +61,14 @@ class _GameWebViewState extends State<GameWebView> {
         );
         return;
       }
+
+      // Prefer the bundled-asset server: relative scripts/models resolve and the
+      // game works offline. Fall back to inlining the HTML if it can't start.
+      try {
+        final url = await HtmlGameAssetServer.instance.urlFor(widget.game.gameUrl);
+        await controller.loadUrl(urlRequest: URLRequest(url: WebUri(url.toString())));
+        return;
+      } catch (_) {}
 
       final html = await rootBundle.loadString(widget.game.gameUrl);
       await controller.loadData(
@@ -103,6 +114,11 @@ class _GameWebViewState extends State<GameWebView> {
         setState(() {
           _isSubmitting = false;
           _statusMessage = result.message;
+          // the banner sits over the game's own HUD — let it fade after a moment
+          _statusTimer?.cancel();
+          _statusTimer = Timer(const Duration(seconds: 3), () {
+            if (mounted) setState(() => _statusMessage = null);
+          });
           _statusTone = switch (result.status) {
             HtmlGameScoreSubmissionStatus.success => _WebViewStatusTone.success,
             HtmlGameScoreSubmissionStatus.duplicate => _WebViewStatusTone.info,

@@ -171,36 +171,54 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
           ),
           const SizedBox(height: 12),
         ],
-        SizedBox(
-          height: 132,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            itemCount: games.length + _htmlGames.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              if (index < games.length) {
-                final nativeGame = games[index];
-                return RepaintBoundary(
-                  child: MiniGameCard(
-                    game: nativeGame,
-                    scoresLoaded: _scoresLoaded,
-                    scoreService: _scoreService,
-                  ),
-                );
-              }
+        Builder(
+          builder: (context) {
+            // Row order: natives then HTML games, with Super Over swapped into
+            // Snakes & Ladders' slot (Snakes & Ladders takes Super Over's place).
+            final order = List<int>.generate(
+              games.length + _htmlGames.length,
+              (i) => i,
+            );
+            final snl = games.indexWhere((g) => g.id == 'snakes_ladders');
+            final so = _htmlGames.indexWhere((g) => g.gameId == 'super_over');
+            if (snl >= 0 && so >= 0) {
+              final a = snl, b = games.length + so;
+              order[a] = b;
+              order[b] = a;
+            }
+            return SizedBox(
+              height: 132,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                itemCount: order.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final slot = order[index];
+                  if (slot < games.length) {
+                    final nativeGame = games[slot];
+                    return RepaintBoundary(
+                      child: MiniGameCard(
+                        game: nativeGame,
+                        scoresLoaded: _scoresLoaded,
+                        scoreService: _scoreService,
+                      ),
+                    );
+                  }
 
-              final game = _htmlGames[index - games.length];
-              return HtmlMiniGameCard(
-                game: game,
-                compact: true,
-                bestScore: _scoresLoaded
-                    ? _scoreService.bestScore(game.gameId)
-                    : null,
-                onTap: () => _openHtmlGame(game),
-              );
-            },
-          ),
+                  final game = _htmlGames[slot - games.length];
+                  return HtmlMiniGameCard(
+                    game: game,
+                    compact: true,
+                    bestScore: _scoresLoaded
+                        ? _scoreService.bestScore(game.gameId)
+                        : null,
+                    onTap: () => _openHtmlGame(game),
+                  );
+                },
+              ),
+            );
+          },
         ),
       ],
     );

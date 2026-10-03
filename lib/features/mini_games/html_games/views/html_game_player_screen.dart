@@ -1,3 +1,4 @@
+import 'package:hash/core/app_orientation.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -14,10 +15,7 @@ class HtmlGamePlayerScreen extends StatefulWidget {
   final HtmlMiniGame game;
 
   static Future<void> open(HtmlMiniGame game) async {
-    await SystemChrome.setPreferredOrientations(const [
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    await AppOrientation.landscape();
     await SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.immersiveSticky,
       overlays: [],
@@ -37,10 +35,7 @@ class _HtmlGamePlayerScreenState extends State<HtmlGamePlayerScreen> {
   }
 
   Future<void> _enterGameMode() async {
-    await SystemChrome.setPreferredOrientations(const [
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    await AppOrientation.landscape();
     await SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.immersiveSticky,
       overlays: [],
@@ -49,12 +44,7 @@ class _HtmlGamePlayerScreenState extends State<HtmlGamePlayerScreen> {
 
   Future<void> _exitGameMode() async {
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    await SystemChrome.setPreferredOrientations(const [
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    await AppOrientation.portrait();
   }
 
   @override

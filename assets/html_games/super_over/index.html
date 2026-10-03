@@ -1,0 +1,3145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Super Over</title>
+    <!--
+      Super Over — 3D cricket batting chase for Hash Arcade.
+
+      Assets are bundled next to this file (see ASSETS.md) and served by the
+      app's loopback asset server; the same files on public CDNs are the fallback:
+        - three.js r170 (MIT) ............... lib/ (cdn.jsdelivr.net/npm/three@0.170.0)
+        - "Casual Character" by Quaternius (CC0) ... models/ (poly.pizza)
+        - "X Bot" rigged character (fallback) ...... three.js examples (Mixamo; free for use in games)
+        - Sky HDRI "kloofendal_48d_partly_cloudy_puresky" (CC0) ... sky/ (polyhaven.com)
+      Stadium, pitch, stumps, bat, crowd, grass and ad boards are generated in code.
+
+      Score bridge: window.flutter_inappwebview.callHandler('gameScore', { score })
+    -->
+    <script>
+      // Served by the app's bundled-asset server (or a local dev server)? Use the
+      // vendored three.js + models; otherwise fall back to the CDN copies.
+      (function () {
+        var local = /^https?:$/.test(location.protocol) && /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+        window.__localAssets = local;
+        var cdn = "https://cdn.jsdelivr.net/npm/three@0.170.0/";
+        var map = { imports: {
+          three: local ? "./lib/three.module.min.js" : cdn + "build/three.module.min.js",
+          "three/addons/": local ? "./lib/jsm/" : cdn + "examples/jsm/",
+        } };
+        var el = document.createElement("script");
+        el.type = "importmap";
+        el.textContent = JSON.stringify(map);
+        document.currentScript.after(el);
+      })();
+    </script>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #050a12;
+        --panel: rgba(8, 14, 26, 0.82);
+        --line: rgba(255, 255, 255, 0.1);
+        --text: #f4f7fb;
+        --muted: #93a4ba;
+        --accent: #ffb454;
+        --accent-2: #4de2c6;
+        --four: #3b82f6;
+        --six: #f43f5e;
+        --out: #ef4444;
+      }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body {
+        margin: 0; height: 100%; overflow: hidden; background: var(--bg);
+        font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--text);
+        user-select: none; -webkit-user-select: none; touch-action: none;
+      }
+      canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+      /* ---------- HUD ---------- */
+      #hud { position: fixed; inset: 0; pointer-events: none; display: none; }
+      #hud.on { display: block; }
+      .strip {
+        position: absolute; left: 10px; right: 10px;
+        top: calc(env(safe-area-inset-top, 0px) + 10px);
+        display: flex; align-items: stretch; border-radius: 14px; overflow: hidden;
+        background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(10px);
+        box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      }
+      .team {
+        background: linear-gradient(135deg, #f97316, #c2410c);
+        padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; min-width: 108px;
+      }
+      .team .nm { font-size: 10px; font-weight: 800; letter-spacing: .12em; opacity: .9; }
+      .team .sc { font-size: 24px; font-weight: 900; line-height: 1.05; }
+      .mid { flex: 1; padding: 7px 12px; display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; }
+      .need { font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .need b { color: var(--accent); }
+      .sub { font-size: 11px; color: var(--muted); white-space: nowrap; }
+      .chips { display: flex; gap: 4px; flex-wrap: nowrap; }
+      .chip {
+        width: 20px; height: 20px; border-radius: 50%; font-size: 10px; font-weight: 800;
+        display: grid; place-items: center; background: rgba(255,255,255,.08); color: var(--muted);
+        border: 1px solid rgba(255,255,255,.08);
+      }
+      .chip.r { background: #e2e8f0; color: #0f172a; }
+      .chip.f { background: var(--four); color: #fff; }
+      .chip.s { background: var(--six); color: #fff; }
+      .chip.w { background: var(--out); color: #fff; }
+      .chip.x { background: #a78bfa; color: #fff; font-size: 8px; }
+
+      #bowlerTag {
+        position: absolute; left: 10px; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+        background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+        padding: 7px 11px; font-size: 11px; color: var(--muted);
+      }
+      #bowlerTag b { color: var(--text); font-size: 13px; }
+      #speed { color: var(--accent-2); font-weight: 800; }
+
+      #hint {
+        position: absolute; right: 10px; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+        max-width: 56%; text-align: right; font-size: 11px; line-height: 1.45; color: var(--muted);
+        background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 7px 11px;
+        transition: opacity .4s;
+      }
+      #hint b { color: var(--text); }
+
+      #banner {
+        position: absolute; left: 0; right: 0; top: 30%; text-align: center;
+        opacity: 0; transform: scale(.7); transition: opacity .18s, transform .25s cubic-bezier(.2,1.6,.4,1);
+      }
+      #banner.on { opacity: 1; transform: scale(1); }
+      #banner .big {
+        font-size: 64px; font-weight: 900; letter-spacing: .02em; font-style: italic;
+        text-shadow: 0 6px 0 rgba(0,0,0,.35), 0 0 30px rgba(0,0,0,.35);
+      }
+      #banner .small {
+        display: inline-block; margin-top: 4px; font-size: 13px; font-weight: 700;
+        background: rgba(0,0,0,.55); padding: 5px 12px; border-radius: 999px;
+      }
+      #timing {
+        position: absolute; left: 0; right: 0; top: 58%; text-align: center;
+        font-size: 15px; font-weight: 900; letter-spacing: .14em; opacity: 0; transition: opacity .2s;
+        text-shadow: 0 2px 8px rgba(0,0,0,.6);
+      }
+      #timing.on { opacity: 1; }
+      .strip { left: calc(env(safe-area-inset-left, 0px) + 10px); right: calc(env(safe-area-inset-right, 0px) + 10px); }
+      #bowlerTag { left: calc(env(safe-area-inset-left, 0px) + 10px); }
+      #hint { right: calc(env(safe-area-inset-right, 0px) + 10px); }
+      .endCard { display: flex; flex-direction: column; }
+      .endCard #wagon { order: 2; }
+      @media (orientation: landscape) and (max-height: 560px) {
+        .overlay { padding: 10px; }
+        .card { padding: 16px 18px; }
+        #menu .card { width: min(680px, 100%); }
+        #menu .modes { grid-template-columns: 1fr 1fr; }
+        .logo { font-size: 30px; }
+        .tag { margin: 6px 0 12px; }
+        .how { margin-top: 10px; font-size: 11px; line-height: 1.5; }
+        .endCard { width: min(640px, 100%); flex-direction: row; align-items: center; gap: 18px; }
+        .endCard .endMain { flex: 1; min-width: 0; }
+        .endCard #wagon { order: 0; width: 42%; max-width: 240px; margin: 0; flex: none; }
+        .result { font-size: 26px; }
+        .stats { margin-top: 10px; }
+        .row { margin-top: 10px; }
+      }
+      @media (orientation: landscape) {
+        /* top-left is taken by the app's back button in landscape */
+        .strip { left: auto; width: min(400px, 46%); }
+        .team { min-width: 84px; padding: 6px 10px; }
+        .team .sc { font-size: 20px; }
+        #banner { top: 24%; }
+        #banner .big { font-size: 54px; }
+        #hint { max-width: 46%; }
+      }
+      #swipe { position: fixed; inset: 0; pointer-events: none; }
+      #runBtn {
+        position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); transform: translateX(-50%);
+        display: none; flex-direction: column; align-items: center; justify-content: center;
+        min-width: 150px; padding: 12px 22px; border-radius: 999px; border: 2px solid rgba(255,255,255,.35);
+        background: linear-gradient(135deg, #22c55e, #15803d); color: #fff; pointer-events: auto; cursor: pointer;
+        font-family: inherit; font-weight: 900; font-style: italic; font-size: 22px; letter-spacing: .08em;
+        box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 0 6px rgba(34,197,94,.18);
+      }
+      #runBtn.on { display: flex; animation: pop .18s ease-out; }
+      #runBtn.danger { background: linear-gradient(135deg, #f43f5e, #b91c1c); box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 0 6px rgba(244,63,94,.25); }
+      #runBtn small { font-size: 10px; font-style: normal; letter-spacing: .04em; opacity: .85; font-weight: 700; margin-top: 2px; }
+      #runBtn:active { transform: translateX(-50%) scale(.95); }
+      @keyframes pop { from { transform: translateX(-50%) scale(.7); } to { transform: translateX(-50%) scale(1); } }
+      #replayBadge {
+        /* under the app's back button, clear of the score strip */
+        position: absolute; left: calc(env(safe-area-inset-left, 0px) + 12px); top: calc(env(safe-area-inset-top, 0px) + 66px);
+        display: none; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
+        background: rgba(10, 14, 24, .8); border: 1px solid rgba(255,255,255,.15);
+        font-weight: 900; font-style: italic; letter-spacing: .14em; font-size: 14px;
+      }
+      #replayBadge.on { display: flex; }
+      #replayBadge .dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 10px #ef4444; animation: blink 1s infinite; }
+      #replayBadge small { font-size: 10px; font-style: normal; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+      @keyframes blink { 50% { opacity: .2; } }
+
+      /* ---------- Overlays ---------- */
+      .overlay {
+        position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+        padding: 18px; background: radial-gradient(circle at 50% 30%, rgba(5,10,18,.35), rgba(5,10,18,.86));
+      }
+      .overlay.on { display: flex; }
+      .card {
+        width: min(420px, 100%); background: var(--panel); border: 1px solid var(--line);
+        border-radius: 22px; padding: 22px; backdrop-filter: blur(14px);
+        box-shadow: 0 24px 60px rgba(0,0,0,.5); max-height: 100%; overflow: auto;
+      }
+      .logo { font-size: 38px; font-weight: 900; font-style: italic; letter-spacing: .01em; line-height: 1; }
+      .logo span { color: var(--accent); }
+      .tag { color: var(--muted); font-size: 13px; margin: 8px 0 18px; line-height: 1.5; }
+      .modes { display: grid; gap: 10px; }
+      .mode {
+        pointer-events: auto; text-align: left; border: 1px solid var(--line); border-radius: 16px;
+        padding: 14px 16px; background: rgba(255,255,255,.04); color: var(--text); cursor: pointer;
+        font: inherit;
+      }
+      .mode:active { transform: scale(.98); }
+      .mode .t { font-size: 17px; font-weight: 800; }
+      .mode .d { font-size: 12px; color: var(--muted); margin-top: 3px; }
+      .mode.primary { background: linear-gradient(135deg, rgba(255,180,84,.22), rgba(255,180,84,.06)); border-color: rgba(255,180,84,.4); }
+      .gfx {
+        margin-top: 10px; pointer-events: auto; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.06);
+        color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; padding: 7px 14px; cursor: pointer;
+      }
+      .how { margin-top: 16px; font-size: 12px; color: var(--muted); line-height: 1.6; }
+      .how b { color: var(--text); }
+      .btn {
+        pointer-events: auto; border: none; border-radius: 999px; padding: 13px 18px; font-weight: 800;
+        font-size: 14px; cursor: pointer; font-family: inherit;
+      }
+      .btn.main { background: linear-gradient(135deg, var(--accent), #ffd38a); color: #111827; }
+      .btn.ghost { background: rgba(255,255,255,.08); color: var(--text); }
+      .row { display: flex; gap: 10px; margin-top: 16px; }
+      .row .btn { flex: 1; }
+      .result { font-size: 30px; font-weight: 900; font-style: italic; }
+      .result.win { color: #4ade80; } .result.lose { color: #f87171; } .result.tie { color: var(--accent); }
+      .rsub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+      .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
+      .stat { background: rgba(255,255,255,.05); border-radius: 12px; padding: 9px 6px; text-align: center; }
+      .stat .v { font-size: 19px; font-weight: 900; }
+      .stat .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+      #wagon { width: 100%; aspect-ratio: 1; max-width: 230px; display: block; margin: 14px auto 0; }
+      .points { margin-top: 12px; text-align: center; font-size: 13px; color: var(--muted); }
+      .points b { color: var(--accent); font-size: 18px; }
+      #submitMsg { margin-top: 6px; text-align: center; font-size: 11px; color: var(--muted); min-height: 14px; }
+      #loading { background: radial-gradient(circle at 50% 40%, #11203a, #03060c 70%); }
+      .loadBox { width: min(300px, 80%); text-align: center; }
+      .hashLogo { width: 132px; height: 132px; object-fit: contain; filter: drop-shadow(0 0 22px rgba(74,222,128,.45)); animation: breathe 2.2s ease-in-out infinite; }
+      @keyframes breathe { 50% { transform: scale(1.05); filter: drop-shadow(0 0 34px rgba(74,222,128,.7)); } }
+      #intro {
+        position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+        pointer-events: auto; background: radial-gradient(circle at 50% 50%, rgba(3,6,12,.15), rgba(3,6,12,.75));
+      }
+      #intro.on { display: flex; }
+      #intro .introLogo { width: 120px; height: 120px; object-fit: contain; opacity: 0; filter: drop-shadow(0 0 30px rgba(74,222,128,.7)); }
+      #intro .presents { margin-top: 10px; font-size: 12px; letter-spacing: .38em; font-weight: 800; color: #cbd5e1; opacity: 0; }
+      #intro .introTitle { margin-top: 6px; font-size: 64px; font-weight: 900; font-style: italic; line-height: 1; opacity: 0; text-shadow: 0 8px 0 rgba(0,0,0,.35), 0 0 40px rgba(255,180,84,.35); }
+      #intro .introTitle .w2 { color: var(--accent); margin-left: 14px; }
+      #intro .skip { position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); font-size: 11px; color: rgba(255,255,255,.45); letter-spacing: .1em; }
+      #intro.play .introLogo { animation: logoIn 1.6s cubic-bezier(.2,1.2,.3,1) forwards; }
+      #intro.play .presents { animation: fadeUp .6s ease-out .9s forwards; }
+      #intro.play .introTitle { animation: slam .55s cubic-bezier(.2,1.6,.4,1) 1.6s forwards; }
+      #intro.out { animation: fadeOut .45s ease-in forwards; }
+      @keyframes logoIn { 0% { opacity: 0; transform: scale(.4) rotate(-8deg); } 60% { opacity: 1; transform: scale(1.12) rotate(0); } 100% { opacity: 1; transform: scale(1); } }
+      @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+      @keyframes slam { 0% { opacity: 0; transform: scale(2.4); filter: blur(6px); } 100% { opacity: 1; transform: scale(1); filter: none; } }
+      @keyframes fadeOut { to { opacity: 0; } }
+      @media (orientation: landscape) and (max-height: 560px) {
+        #intro .introLogo { width: 92px; height: 92px; }
+        #intro .introTitle { font-size: 48px; }
+      }
+      #loadBar { height: 6px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; margin-top: 14px; }
+      #loadFill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .2s; }
+      #loadTxt { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <canvas id="swipe"></canvas>
+
+    <div id="hud">
+      <div class="strip">
+        <div class="team"><div class="nm">HASH XI</div><div class="sc" id="score">0/0</div></div>
+        <div class="mid">
+          <div class="need" id="need">Target —</div>
+          <div class="sub" id="overs">0.0 ov</div>
+          <div class="chips" id="chips"></div>
+        </div>
+      </div>
+      <div id="banner"><div class="big" id="bannerBig"></div><div class="small" id="bannerSmall"></div></div>
+      <div id="timing"></div>
+      <button id="runBtn" type="button"><span id="runLbl">RUN</span><small id="runCount">tap to call</small></button>
+      <div id="replayBadge"><span class="dot"></span>REPLAY<small>tap to skip</small></div>
+      <div id="bowlerTag"><b id="bowlerName">—</b><br /><span id="bowlerType">—</span> · <span id="speed">— km/h</span></div>
+      <div id="hint"><b>Swipe</b> where you want to hit it · <b>Long swipe</b> = lofted · <b>Tap</b> = defend · <b>RUN</b> to call runs</div>
+    </div>
+
+    <div class="overlay on" id="loading">
+      <div class="loadBox">
+        <img class="hashLogo" src="./images/hash_logo.png" alt="Hash for Gamers" onerror="this.style.display='none'" />
+        <div id="loadBar"><div id="loadFill"></div></div>
+        <div id="loadTxt">Loading the stadium…</div>
+      </div>
+    </div>
+
+    <div id="intro">
+      <img class="introLogo" src="./images/hash_logo.png" alt="" onerror="this.style.display='none'" />
+      <div class="presents">HASH FOR GAMERS PRESENTS</div>
+      <div class="introTitle"><span class="w1">SUPER</span><span class="w2">OVER</span></div>
+      <div class="skip">tap to skip</div>
+    </div>
+
+    <div class="overlay" id="menu">
+      <div class="card">
+        <div class="logo">SUPER <span>OVER</span></div>
+        <div class="tag">Chase the target. Read the length, time your swing and clear the ropes.</div>
+        <div class="modes">
+          <button class="mode primary" data-mode="super"><div class="t">Super Over</div><div class="d">6 balls · 2 wickets · chase 14–21</div></button>
+          <button class="mode" data-mode="chase"><div class="t">Quick Chase</div><div class="d">3 overs · 3 wickets · chase 30–42 · pace &amp; spin</div></button>
+        </div>
+        <button class="gfx" id="gfxBtn" type="button">Graphics: Auto</button>
+        <div class="how">
+          <b>Swipe</b> in the direction you want the ball to go — down the screen is straight back past the bowler.<br />
+          <b>Short swipe</b> keeps it on the ground, <b>long swipe</b> goes aerial. <b>Tap</b> to defend.<br />
+          Release your swipe just before the ball reaches the bat. Early = pulled to leg, late = edged.<br />
+          Tap <b>RUN</b> to call a run — tap again mid-run for another. Get caught short and you're <b>run out</b>.
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="end">
+      <div class="card endCard">
+        <div class="endMain">
+        <div class="result" id="resTitle">—</div>
+        <div class="rsub" id="resSub">—</div>
+        <div class="stats">
+          <div class="stat"><div class="v" id="stRuns">0</div><div class="l">Runs</div></div>
+          <div class="stat"><div class="v" id="stBalls">0</div><div class="l">Balls</div></div>
+          <div class="stat"><div class="v" id="st4">0</div><div class="l">4s</div></div>
+          <div class="stat"><div class="v" id="st6">0</div><div class="l">6s</div></div>
+        </div>
+        <div class="points">Arcade points <b id="pts">0</b></div>
+        <div id="submitMsg"></div>
+        <div class="row">
+          <button class="btn ghost" id="toMenu">Modes</button>
+          <button class="btn main" id="again">Play again</button>
+        </div>
+        </div>
+        <canvas id="wagon" width="460" height="460"></canvas>
+      </div>
+    </div>
+
+    <script>
+      // Surface a friendly message if the CDN modules can't load (offline, blocked).
+      window.__boot = false;
+      setTimeout(function () {
+        if (window.__boot) return;
+        var t = document.getElementById("loadTxt");
+        if (t) t.textContent = "Couldn't reach the game servers. Check your internet connection and reopen.";
+      }, 25000);
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+      import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+      import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
+      import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
+      import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+      import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+      import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
+      import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+      import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+      import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+      import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
+      import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
+
+      window.__boot = true;
+
+      // bundled copies first (see ASSETS.md), CDN copies as fallback
+      const LOCAL = !!window.__localAssets;
+      const ASSETS = {
+        // Quaternius "Casual Character" (CC0) via poly.pizza/m/kZ3DmIoGip
+        cricketer: LOCAL ? "./models/cricketer.glb" : null,
+        locomotion: LOCAL ? "./models/locomotion.glb" : null,
+        player: [LOCAL && "./models/casual_character.glb", "https://static.poly.pizza/90a9e2d4-053f-42f1-99a2-8f5e1180ea7f.glb"].filter(Boolean),
+        playerFallback: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/Xbot.glb",
+        sky: [LOCAL && "./sky/kloofendal_puresky_1k.hdr", "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloofendal_48d_partly_cloudy_puresky_1k.hdr"].filter(Boolean),
+      };
+      const loadFirst = async (loader, urls, onProg) => {
+        let err;
+        for (const u of urls) { try { return await loader.loadAsync(u, onProg); } catch (e) { err = e; } }
+        throw err;
+      };
+
+      // ------------------------------------------------------------------
+      // World constants (metres). Origin = striker's middle stump on the
+      // ground. +z runs down the pitch to the bowler, +x is the batter's leg
+      // side (screen right in the bowler-end camera), +y is up.
+      // ------------------------------------------------------------------
+      const PITCH = 20.12;
+      const CREASE = 1.22;
+      const CENTER = new THREE.Vector3(0, 0, PITCH / 2);
+      const BOUNDARY = 68;
+      const STAND_R = 73;
+      const BALL_R = 0.036;
+      const Z_HIT = 1.35; // where bat meets ball
+      const STUMP_H = 0.71;
+      const STUMP_HALF = 0.115;
+
+      const $ = (id) => document.getElementById(id);
+      const rand = (a, b) => a + Math.random() * (b - a);
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const ease = (t) => t * t * (3 - 2 * t);
+      const pick = (arr) => arr[(Math.random() * arr.length) | 0];
+      const weighted = (list) => {
+        const total = list.reduce((s, [w]) => s + w, 0);
+        let r = Math.random() * total;
+        for (const [w, v] of list) { if ((r -= w) <= 0) return v; }
+        return list[list.length - 1][1];
+      };
+      const deg = (d) => (d * Math.PI) / 180;
+      const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+      const UP0 = new THREE.Vector3(0, 1, 0);
+
+      // ------------------------------------------------------------------
+      // Renderer / scene
+      // ------------------------------------------------------------------
+      const canvas = $("c");
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 0.95;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x9cc8ec);
+      scene.fog = new THREE.Fog(0xb9d6ee, 180, 420);
+      const camera = new THREE.PerspectiveCamera(20, 1, 0.1, 900);
+
+      const hemi = new THREE.HemisphereLight(0xe6f2ff, 0x4b6b35, 0.55);
+      scene.add(hemi);
+      const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+      sun.position.set(-28, 55, 30);
+      sun.target.position.set(0, 0, 8);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, near: 10, far: 140 });
+      sun.shadow.bias = -0.0004;
+      sun.shadow.normalBias = 0.02;
+      scene.add(sun, sun.target);
+      // cool fill from the opposite side so players read against the grass
+      const fill = new THREE.DirectionalLight(0xc7dcff, 0.7);
+      fill.position.set(35, 18, -25);
+      scene.add(fill);
+
+      // ------------------------------------------------------------------
+      // Post-processing: GTAO (contact shadows) → bloom (floodlights, LED
+      // boards) → tone map → broadcast grade → SMAA/FXAA. Tiered by device.
+      // ------------------------------------------------------------------
+      const composer = new EffectComposer(renderer);
+      const renderPass = new RenderPass(scene, camera);
+      const gtaoPass = new GTAOPass(scene, camera, 2, 2);
+      try { gtaoPass.updateGtaoMaterial({ radius: 0.55, distanceExponent: 1.6, thickness: 1.5, scale: 1.15, samples: 12 }); } catch (_) {}
+      gtaoPass.blendIntensity = 0.9;
+      const bloomPass = new UnrealBloomPass(new THREE.Vector2(2, 2), 0.32, 0.45, 0.88);
+      const outputPass = new OutputPass();
+      const gradePass = new ShaderPass({
+        uniforms: { tDiffuse: { value: null }, saturation: { value: 1.12 }, contrast: { value: 1.05 }, vignette: { value: 0.32 }, warmth: { value: 0.025 } },
+        vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+        fragmentShader: `uniform sampler2D tDiffuse; uniform float saturation, contrast, vignette, warmth; varying vec2 vUv;
+          void main(){
+            vec4 c = texture2D(tDiffuse, vUv);
+            float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+            c.rgb = mix(vec3(l), c.rgb, saturation);
+            c.rgb = (c.rgb - 0.5) * contrast + 0.5;
+            c.rgb += vec3(warmth, warmth * 0.4, -warmth);
+            vec2 d = vUv - 0.5; c.rgb *= 1.0 - vignette * dot(d, d) * 1.6;
+            gl_FragColor = vec4(clamp(c.rgb, 0.0, 1.0), c.a);
+          }`,
+      });
+      const smaaPass = new SMAAPass(2, 2);
+      const fxaaPass = new ShaderPass(FXAAShader);
+      for (const pass of [renderPass, gtaoPass, bloomPass, outputPass, gradePass, smaaPass, fxaaPass]) composer.addPass(pass);
+
+      const TIERS = {
+        high: { pr: 2, shadow: 2048, gtao: true, bloom: true, aa: "smaa", grass: 1, post: true },
+        medium: { pr: 1.5, shadow: 1024, gtao: false, bloom: true, aa: "fxaa", grass: 0.45, post: true },
+        low: { pr: 1, shadow: 512, gtao: false, bloom: false, aa: "none", grass: 0, post: false },
+      };
+      const store = { get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} } };
+      let gfxMode = store.get("so_gfx") || "auto"; // auto | high | medium | low
+      let tierName = gfxMode === "auto" ? store.get("so_gfx_auto") || "high" : gfxMode;
+      let tier = TIERS[tierName];
+      function applyQuality(name) {
+        tierName = name; tier = TIERS[name];
+        const pr = Math.min(window.devicePixelRatio || 1, tier.pr);
+        renderer.setPixelRatio(pr);
+        composer.setPixelRatio(pr);
+        gtaoPass.enabled = tier.gtao;
+        bloomPass.enabled = tier.bloom;
+        smaaPass.enabled = tier.aa === "smaa";
+        fxaaPass.enabled = tier.aa === "fxaa";
+        if (sun.shadow.mapSize.x !== tier.shadow) {
+          sun.shadow.mapSize.set(tier.shadow, tier.shadow);
+          if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+        }
+        if (typeof grass !== "undefined" && grass) { grass.count = Math.floor(GRASS_MAX * tier.grass); grass.visible = grass.count > 0; }
+        resize();
+        updateGfxLabel();
+      }
+      function renderFrame() {
+        if (tier.post) composer.render(); else renderer.render(scene, camera);
+      }
+      // auto mode: watch the frame rate and step down if the device struggles
+      // measured only once the 3D scene is actually rendering (not the loading
+      // card), continuously; only ever steps down, so it can't oscillate
+      const perf = { n: 0, t: 0, settled: false };
+      function watchPerf(dt) {
+        if (gfxMode !== "auto" || window.__paused || G.state === "loading" || tierName === "low") return;
+        perf.n++; perf.t += dt;
+        if (perf.n < 120) return;
+        const fps = perf.n / perf.t;
+        perf.n = 0; perf.t = 0;
+        if (fps < 42) { applyQuality(tierName === "high" ? "medium" : "low"); store.set("so_gfx_auto", tierName); }
+      }
+      function updateGfxLabel() {
+        const el = document.getElementById("gfxBtn");
+        if (el) el.textContent = `Graphics: ${gfxMode === "auto" ? `Auto (${tierName})` : tierName}`;
+      }
+
+      let W = 1, H = 1;
+      function resize() {
+        W = window.innerWidth; H = window.innerHeight;
+        renderer.setSize(W, H, false);
+        composer.setSize(W, H);
+        const pr = renderer.getPixelRatio();
+        fxaaPass.material.uniforms.resolution.value.set(1 / (W * pr), 1 / (H * pr));
+        camera.aspect = W / H;
+        const sw = $("swipe");
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        sw.width = W * dpr; sw.height = H * dpr;
+        sw.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      // ------------------------------------------------------------------
+      // Procedural textures
+      // ------------------------------------------------------------------
+      function canvasTex(w, h, paint, { repeat = null } = {}) {
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        paint(c.getContext("2d"), w, h);
+        const t = new THREE.CanvasTexture(c);
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
+        return t;
+      }
+
+      function speckle(g, w, h, n, colors, size) {
+        for (let i = 0; i < n; i++) {
+          g.fillStyle = pick(colors);
+          g.fillRect(Math.random() * w, Math.random() * h, size, size);
+        }
+      }
+
+      const FIELD_R = STAND_R + 2;
+      const groundTex = canvasTex(2048, 2048, (g, w, h) => {
+        const ppm = w / (FIELD_R * 2);
+        const cx = w / 2, cy = h / 2;
+        const X = (x) => cx + x * ppm;
+        const Y = (z) => cy + (z - CENTER.z) * ppm;
+        g.fillStyle = "#3d8a37"; g.fillRect(0, 0, w, h);
+        const band = 6.5 * ppm;
+        for (let i = 0, x = 0; x < w; i++, x += band) {
+          g.fillStyle = i % 2 ? "#47973f" : "#3b8535";
+          g.fillRect(x, 0, band + 1, h);
+        }
+        speckle(g, w, h, 90000, ["rgba(20,60,15,.22)", "rgba(120,180,90,.16)", "rgba(30,80,25,.18)"], 2);
+        // worn square around the pitch
+        g.fillStyle = "rgba(130,150,80,.18)";
+        g.fillRect(X(-9), Y(-3), 18 * ppm, (PITCH + 6) * ppm);
+        // 30-yard (27.43m) fielding circle: two semicircles joined by lines
+        g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 0.14 * ppm;
+        g.setLineDash([0.9 * ppm, 0.9 * ppm]);
+        const r30 = 27.43 * ppm;
+        g.beginPath(); g.arc(X(0), Y(0), r30, Math.PI, 0, false); g.stroke();
+        g.beginPath(); g.arc(X(0), Y(PITCH), r30, 0, Math.PI, false); g.stroke();
+        g.beginPath(); g.moveTo(X(-27.43), Y(0)); g.lineTo(X(-27.43), Y(PITCH)); g.stroke();
+        g.beginPath(); g.moveTo(X(27.43), Y(0)); g.lineTo(X(27.43), Y(PITCH)); g.stroke();
+        g.setLineDash([]);
+        // run-off area beyond the rope
+        g.fillStyle = "rgba(25,70,25,.35)";
+        g.beginPath(); g.arc(X(0), Y(CENTER.z), FIELD_R * ppm, 0, Math.PI * 2);
+        g.arc(X(0), Y(CENTER.z), BOUNDARY * ppm, 0, Math.PI * 2, true); g.fill();
+      });
+
+      const PITCH_W = 3.05, PITCH_Z0 = -1.6, PITCH_Z1 = PITCH + 1.6;
+      const pitchTex = canvasTex(256, Math.round(256 * ((PITCH_Z1 - PITCH_Z0) / PITCH_W)), (g, w, h) => {
+        const ppm = w / PITCH_W;
+        const X = (x) => w / 2 + x * ppm;
+        const Y = (z) => (z - PITCH_Z0) * ppm;
+        const grd = g.createLinearGradient(0, 0, w, 0);
+        grd.addColorStop(0, "#b39a63"); grd.addColorStop(0.5, "#cdb57e"); grd.addColorStop(1, "#b39a63");
+        g.fillStyle = grd; g.fillRect(0, 0, w, h);
+        speckle(g, w, h, 26000, ["rgba(90,70,40,.25)", "rgba(240,225,180,.18)", "rgba(120,100,60,.2)"], 1.5);
+        // cracks
+        g.strokeStyle = "rgba(90,70,40,.35)"; g.lineWidth = 1;
+        for (let i = 0; i < 70; i++) {
+          let x = Math.random() * w, y = Math.random() * h;
+          g.beginPath(); g.moveTo(x, y);
+          for (let k = 0; k < 4; k++) { x += rand(-14, 14); y += rand(-14, 14); g.lineTo(x, y); }
+          g.stroke();
+        }
+        // footmarks / rough at both ends
+        for (const z of [0, PITCH]) {
+          g.fillStyle = "rgba(110,85,50,.35)";
+          for (let i = 0; i < 90; i++) g.fillRect(X(rand(-1.2, 1.2)), Y(z + rand(-1.6, 1.6) * (z ? 1 : -1) * -1), rand(2, 7), rand(2, 7));
+        }
+        // creases
+        g.fillStyle = "#ffffff";
+        const lw = 0.05 * ppm;
+        for (const [stumps, dir] of [[0, 1], [PITCH, -1]]) {
+          const pop = stumps + dir * CREASE;
+          g.fillRect(0, Y(pop) - lw / 2, w, lw); // popping crease (full width)
+          g.fillRect(X(-1.32), Y(stumps) - lw / 2, 2.64 * ppm, lw); // bowling crease
+          for (const sx of [-1.32, 1.32]) {
+            const za = Math.min(stumps - dir * 1.2, pop), zb = Math.max(stumps - dir * 1.2, pop);
+            g.fillRect(X(sx) - lw / 2, Y(za), lw, (zb - za) * ppm); // return creases
+          }
+        }
+      });
+
+      const crowdTex = canvasTex(1024, 256, (g, w, h) => {
+        g.fillStyle = "#3b4256"; g.fillRect(0, 0, w, h);
+        for (let y = 0; y < h; y += 8) { g.fillStyle = y % 16 ? "#454d63" : "#343a4c"; g.fillRect(0, y, w, 4); }
+        const shirts = ["#f97316", "#facc15", "#3b82f6", "#ef4444", "#f8fafc", "#22c55e", "#a855f7", "#0ea5e9", "#fb7185", "#1e293b"];
+        for (let i = 0; i < 9000; i++) {
+          const x = Math.random() * w, y = ((Math.random() * h) / 8 | 0) * 8 + 1;
+          g.fillStyle = pick(shirts); g.fillRect(x, y + 2, 3, 4);
+          g.fillStyle = pick(["#5b3a29", "#8d5524", "#c68642", "#3f2a1d"]); g.fillRect(x + 0.5, y, 2, 2);
+        }
+      }, { repeat: [-14, 1] });
+
+      // LED advertising: each panel carries the Hash badge + a line of copy.
+      // `stretch` = how much wider a texel is than tall on that surface, so the
+      // badge is drawn narrower there and still looks square in the stadium.
+      let hashLogo = null;
+      function drawAds(g, w, h, stretch) {
+        const ads = [
+          ["#0f172a", "#ffb454", "HASH ARCADE"], ["#f97316", "#111827", "HASH FOR GAMERS"],
+          ["#0ea5e9", "#ffffff", "SUPER OVER"], ["#16a34a", "#ffffff", "PLAY · WIN · REPEAT"],
+        ];
+        const seg = w / ads.length;
+        ads.forEach(([bg, fg, text], i) => {
+          const x0 = i * seg;
+          g.fillStyle = bg; g.fillRect(x0, 0, seg, h);
+          let tx = x0 + seg / 2;
+          if (hashLogo) {
+            const lh = h * 0.9, lw = lh / stretch;
+            g.drawImage(hashLogo, x0 + seg * 0.08, (h - lh) / 2, lw, lh);
+            g.drawImage(hashLogo, x0 + seg * 0.92 - lw, (h - lh) / 2, lw, lh);
+          }
+          g.fillStyle = fg; g.font = `900 italic ${Math.round(h * 0.6)}px Arial`; g.textAlign = "center"; g.textBaseline = "middle";
+          g.fillText(text, tx, h / 2 + 2);
+        });
+      }
+      const AD_BOARD_STRETCH = 2.16, AD_FASCIA_STRETCH = 1.09;
+      const adTex = canvasTex(2048, 64, (g, w, h) => drawAds(g, w, h, AD_BOARD_STRETCH), { repeat: [-6, 1] });
+
+      // ------------------------------------------------------------------
+      // Stadium
+      // ------------------------------------------------------------------
+      const stadium = new THREE.Group();
+      scene.add(stadium);
+
+      // fine detail tiled over the big stripe texture, so the turf reads up close
+      const detailTex = canvasTex(256, 256, (g, w, h) => {
+        g.fillStyle = "#808080"; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 9000; i++) {
+          const v = 90 + Math.random() * 90 | 0;
+          g.fillStyle = `rgb(${v},${v},${v})`;
+          g.fillRect(Math.random() * w, Math.random() * h, 1, 2 + Math.random() * 3);
+        }
+      }, { repeat: [1, 1] });
+      detailTex.colorSpace = THREE.NoColorSpace;
+      function withDetail(mat, scale, amount) {
+        mat.onBeforeCompile = (sh) => {
+          sh.uniforms.detailMap = { value: detailTex };
+          sh.fragmentShader = "uniform sampler2D detailMap;\n" + sh.fragmentShader.replace(
+            "#include <map_fragment>",
+            `#include <map_fragment>
+             float dt = texture2D(detailMap, vMapUv * ${scale.toFixed(1)}).r;
+             float dt2 = texture2D(detailMap, vMapUv * ${(scale * 0.21).toFixed(1)} + 0.37).r;
+             diffuseColor.rgb *= mix(1.0 - ${amount.toFixed(2)}, 1.0 + ${amount.toFixed(2)}, (dt * 0.65 + dt2 * 0.35));`,
+          );
+        };
+        return mat;
+      }
+      const ground = new THREE.Mesh(
+        new THREE.CircleGeometry(FIELD_R, 128),
+        withDetail(new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.95 }), 160, 0.16),
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.copy(CENTER);
+      ground.receiveShadow = true;
+      stadium.add(ground);
+
+      const pitch = new THREE.Mesh(
+        new THREE.PlaneGeometry(PITCH_W, PITCH_Z1 - PITCH_Z0),
+        withDetail(new THREE.MeshStandardMaterial({ map: pitchTex, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 }), 9, 0.12),
+      );
+      pitch.rotation.x = -Math.PI / 2;
+      pitch.position.set(0, 0.005, (PITCH_Z0 + PITCH_Z1) / 2);
+      pitch.receiveShadow = true;
+      stadium.add(pitch);
+
+      // instanced grass blades around the square, swaying in the wind
+      const GRASS_MAX = 42000;
+      const grassTime = { value: 0 };
+      const grass = (() => {
+        // a mown outfield: short (≈4.5cm) blades, thick near the square, thinning out
+        const BH = 0.045;
+        const geo = new THREE.PlaneGeometry(0.02, BH, 1, 2);
+        geo.translate(0, BH / 2, 0);
+        const pos = geo.attributes.position;
+        for (let i = 0; i < pos.count; i++) pos.setX(i, pos.getX(i) * (1 - (pos.getY(i) / BH) * 0.8));
+        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, side: THREE.DoubleSide });
+        mat.onBeforeCompile = (sh) => {
+          sh.uniforms.uTime = grassTime;
+          sh.vertexShader = "uniform float uTime;\n" + sh.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>
+            float gh = position.y / 0.045;
+            vec4 gw = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+            transformed.x += sin(uTime * 1.7 + gw.x * 0.8 + gw.z * 0.6) * 0.006 * gh * gh;
+            transformed.z += cos(uTime * 1.3 + gw.x * 0.5) * 0.004 * gh * gh;`);
+        };
+        const mesh = new THREE.InstancedMesh(geo, mat, GRASS_MAX);
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color(), sc = V3();
+        // a touch brighter than the turf texture: blades self-shadow and get AO
+        const light = new THREE.Color("#6cbd5d"), dark = new THREE.Color("#5aab50");
+        for (let i = 0; i < GRASS_MAX; i++) {
+          let x, z;
+          // density falls off smoothly away from the pitch, so there's no visible edge
+          do {
+            x = (Math.random() < 0.5 ? -1 : 1) * (PITCH_W / 2 + Math.pow(Math.random(), 2.2) * 16);
+            z = CENTER.z + (Math.random() < 0.5 ? -1 : 1) * Math.pow(Math.random(), 1.9) * 26;
+          } while (Math.abs(x) < PITCH_W / 2 + 0.05 && z > PITCH_Z0 && z < PITCH_Z1);
+          q.setFromAxisAngle(UP0, Math.random() * Math.PI);
+          const hgt = 0.6 + Math.random() * 0.7;
+          sc.set(1, hgt, 1);
+          m.compose(V3(x, 0, z), q, sc);
+          mesh.setMatrixAt(i, m);
+          const band = Math.floor((x + FIELD_R) / 6.5) % 2;
+          c.copy(band ? light : dark).multiplyScalar(0.93 + Math.random() * 0.14);
+          mesh.setColorAt(i, c);
+        }
+        mesh.receiveShadow = true;
+        mesh.frustumCulled = false;
+        return mesh;
+      })();
+      stadium.add(grass);
+
+      const rope = new THREE.Mesh(
+        new THREE.TorusGeometry(BOUNDARY, 0.09, 6, 220),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x222222 }),
+      );
+      rope.rotation.x = Math.PI / 2;
+      rope.position.set(CENTER.x, 0.09, CENTER.z);
+      stadium.add(rope);
+
+      // boundary cushion ad boards just inside the stands
+      const boards = new THREE.Mesh(
+        new THREE.CylinderGeometry(STAND_R - 0.6, STAND_R - 0.6, 1.1, 160, 1, true),
+        new THREE.MeshStandardMaterial({ map: adTex, side: THREE.BackSide, emissive: 0xffffff, emissiveMap: adTex, emissiveIntensity: 0.35 }),
+      );
+      boards.position.set(CENTER.x, 0.55, CENTER.z);
+      stadium.add(boards);
+
+      // raked stands (frustum) with crowd texture, plus roof
+      const stands = new THREE.Mesh(
+        new THREE.CylinderGeometry(STAND_R + 16, STAND_R, 15, 160, 1, true),
+        new THREE.MeshStandardMaterial({ map: crowdTex, side: THREE.BackSide, roughness: 1 }),
+      );
+      stands.position.set(CENTER.x, 1.1 + 7.5, CENTER.z);
+      stadium.add(stands);
+      const roof = new THREE.Mesh(
+        new THREE.CylinderGeometry(STAND_R + 6, STAND_R + 17, 2.5, 160, 1, true),
+        new THREE.MeshStandardMaterial({ color: 0xdbe3ee, side: THREE.DoubleSide, metalness: 0.3, roughness: 0.5 }),
+      );
+      roof.position.set(CENTER.x, 18.5, CENTER.z);
+      stadium.add(roof);
+
+      // sight screens behind both ends
+      for (const end of [-1, 1]) {
+        const ss = new THREE.Mesh(new THREE.BoxGeometry(22, 9, 0.5), new THREE.MeshStandardMaterial({ color: end < 0 ? 0xf8fafc : 0x111827 }));
+        const r = STAND_R - 1.2;
+        ss.position.set(0, 4.5, CENTER.z + end * r);
+        stadium.add(ss);
+      }
+
+      // floodlight towers
+      for (const a of [45, 135, 225, 315]) {
+        const r = STAND_R + 20;
+        const x = Math.sin(deg(a)) * r, z = CENTER.z + Math.cos(deg(a)) * r;
+        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 1.1, 46, 8), new THREE.MeshStandardMaterial({ color: 0x9aa4b2, metalness: 0.6, roughness: 0.4 }));
+        mast.position.set(x, 23, z);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(9, 5, 1), new THREE.MeshStandardMaterial({ color: 0x1f2937, emissive: 0xfff6d5, emissiveIntensity: 0.6 }));
+        head.position.set(x, 47, z);
+        head.lookAt(CENTER.x, 0, CENTER.z);
+        stadium.add(mast, head);
+      }
+
+      // second LED ribbon (tier fascia), upper tier, roof canopy + light strip
+      const adTex2 = canvasTex(2048, 64, (g, w, h) => drawAds(g, w, h, AD_FASCIA_STRETCH), { repeat: [-9, 1] });
+      const fascia = new THREE.Mesh(
+        new THREE.CylinderGeometry(STAND_R + 16.4, STAND_R + 16.4, 1.8, 160, 1, true),
+        new THREE.MeshStandardMaterial({ map: adTex2, side: THREE.BackSide, emissive: 0xffffff, emissiveMap: adTex2, emissiveIntensity: 0.55 }),
+      );
+      fascia.position.set(CENTER.x, 17.6, CENTER.z);
+      stadium.add(fascia);
+      const crowdTex2 = crowdTex.clone(); crowdTex2.needsUpdate = true; crowdTex2.repeat.set(-18, 1);
+      const upperMat = new THREE.MeshStandardMaterial({ map: crowdTex2, side: THREE.BackSide, roughness: 1, emissive: 0xffffff, emissiveMap: crowdTex2, emissiveIntensity: 0 });
+      const upper = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R + 30, STAND_R + 17, 12, 160, 1, true), upperMat);
+      upper.position.set(CENTER.x, 24.6, CENTER.z);
+      stadium.add(upper);
+      const canopy = new THREE.Mesh(
+        new THREE.CylinderGeometry(STAND_R + 9, STAND_R + 33, 4, 160, 1, true),
+        new THREE.MeshStandardMaterial({ color: 0xe8edf3, side: THREE.DoubleSide, metalness: 0.4, roughness: 0.45 }),
+      );
+      canopy.position.set(CENTER.x, 33, CENTER.z);
+      stadium.add(canopy);
+      const lightRing = new THREE.Mesh(
+        new THREE.TorusGeometry(STAND_R + 9.3, 0.25, 6, 200),
+        new THREE.MeshBasicMaterial({ color: 0xfff6dc }),
+      );
+      lightRing.rotation.x = Math.PI / 2;
+      lightRing.position.set(CENTER.x, 30.9, CENTER.z);
+      stadium.add(lightRing);
+      // canopy columns
+      for (let i = 0; i < 24; i++) {
+        const a = (i / 24) * Math.PI * 2, r = STAND_R + 31;
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 34, 6), new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.5, roughness: 0.5 }));
+        col.position.set(CENTER.x + Math.sin(a) * r, 17, CENTER.z + Math.cos(a) * r);
+        stadium.add(col);
+      }
+
+      // two giant screens showing the live scorecard
+      const screenCanvas = document.createElement("canvas");
+      screenCanvas.width = 640; screenCanvas.height = 360;
+      const screenTex = new THREE.CanvasTexture(screenCanvas);
+      screenTex.colorSpace = THREE.SRGBColorSpace;
+      const screens = [];
+      for (const a of [212, 32]) {
+        const r = STAND_R + 24, x = Math.sin(deg(a)) * r, z = CENTER.z + Math.cos(deg(a)) * r;
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(24, 13.8, 0.8), new THREE.MeshStandardMaterial({ color: 0x0b1220, metalness: 0.4, roughness: 0.4 }));
+        const panel = new THREE.Mesh(new THREE.PlaneGeometry(22.6, 12.7), new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false }));
+        panel.position.z = 0.42;
+        const g = new THREE.Group();
+        g.add(frame, panel);
+        g.position.set(x, 27, z);
+        g.lookAt(CENTER.x, 12, CENTER.z);
+        stadium.add(g);
+        screens.push(g);
+      }
+      let screenFlash = { text: "", color: "#fff", until: 0 };
+      function drawScreen() {
+        const g = screenCanvas.getContext("2d"), w = 640, h = 360;
+        const grd = g.createLinearGradient(0, 0, w, h);
+        grd.addColorStop(0, "#0b1220"); grd.addColorStop(1, "#111c33");
+        g.fillStyle = grd; g.fillRect(0, 0, w, h);
+        g.fillStyle = "#f97316"; g.fillRect(0, 0, w, 54);
+        g.fillStyle = "#111827"; g.font = "900 italic 30px Arial"; g.textBaseline = "middle";
+        if (hashLogo) g.drawImage(hashLogo, 10, 3, 48, 48);
+        g.fillText("HASH ARCADE · SUPER OVER", hashLogo ? 66 : 22, 28);
+        const now = performance.now();
+        if (screenFlash.text && now < screenFlash.until) {
+          g.fillStyle = screenFlash.color; g.textAlign = "center";
+          g.font = "900 italic 150px Arial";
+          g.fillText(screenFlash.text, w / 2, 210);
+          g.textAlign = "left";
+        } else if (G.cfg) {
+          g.fillStyle = "#94a3b8"; g.font = "800 28px Arial"; g.fillText("HASH XI", 30, 100);
+          g.fillStyle = "#ffffff"; g.font = "900 120px Arial"; g.fillText(`${G.runs}/${G.wkts}`, 26, 190);
+          g.fillStyle = "#94a3b8"; g.font = "800 28px Arial";
+          g.fillText(`${Math.floor(G.balls / 6)}.${G.balls % 6} OVERS`, 30, 270);
+          const need = G.target - G.runs, left = G.cfg.balls - G.balls;
+          g.fillStyle = "#ffb454"; g.font = "900 34px Arial";
+          g.fillText(need > 0 ? `NEED ${need} OFF ${left}` : "TARGET REACHED", 30, 320);
+          g.fillStyle = "#1e293b"; g.fillRect(380, 80, 236, 250);
+          g.fillStyle = "#94a3b8"; g.font = "800 22px Arial"; g.fillText("THIS OVER", 400, 110);
+          (G.chips || []).slice(-6).forEach((c, i) => {
+            const cx = 412 + (i % 3) * 72, cy = 165 + Math.floor(i / 3) * 80;
+            g.fillStyle = c === "W" ? "#ef4444" : c === "6" ? "#f43f5e" : c === "4" ? "#3b82f6" : "#334155";
+            g.beginPath(); g.arc(cx + 20, cy, 28, 0, Math.PI * 2); g.fill();
+            g.fillStyle = "#fff"; g.font = "900 26px Arial"; g.textAlign = "center"; g.fillText(c, cx + 20, cy + 1); g.textAlign = "left";
+          });
+        } else {
+          g.fillStyle = "#ffffff"; g.font = "900 italic 92px Arial"; g.textAlign = "center";
+          g.fillText("SUPER OVER", w / 2, 200); g.textAlign = "left";
+        }
+        screenTex.needsUpdate = true;
+      }
+      function flashScreen(text, color, dur = 2.2) { screenFlash = { text, color, until: performance.now() + dur * 1000 }; drawScreen(); setTimeout(drawScreen, dur * 1000 + 30); }
+      // painted Hash badges on the outfield, either side of the square
+      const fieldLogoMat = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.6, roughness: 0.95, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+      for (const x of [-17, 17]) {
+        const decal = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), fieldLogoMat);
+        decal.rotation.x = -Math.PI / 2;
+        decal.position.set(x, 0.012, CENTER.z);
+        decal.receiveShadow = true;
+        decal.visible = false;
+        decal.userData.fieldLogo = true;
+        stadium.add(decal);
+      }
+      if (LOCAL) {
+        const img = new Image();
+        img.onload = () => {
+          hashLogo = img;
+          for (const [tex, stretch] of [[adTex, AD_BOARD_STRETCH], [adTex2, AD_FASCIA_STRETCH]]) {
+            const c = tex.image; drawAds(c.getContext("2d"), c.width, c.height, stretch); tex.needsUpdate = true;
+          }
+          const lt = new THREE.Texture(img); lt.colorSpace = THREE.SRGBColorSpace; lt.anisotropy = renderer.capabilities.getMaxAnisotropy(); lt.needsUpdate = true;
+          fieldLogoMat.map = lt; fieldLogoMat.needsUpdate = true;
+          stadium.traverse((o) => { if (o.userData.fieldLogo) o.visible = true; });
+          drawScreen();
+        };
+        img.src = "./images/hash_logo.png";
+      }
+
+      // confetti for big moments
+      const CONF_N = 900;
+      const confGeo = new THREE.BufferGeometry();
+      const confPos = new Float32Array(CONF_N * 3), confCol = new Float32Array(CONF_N * 3), confVel = new Float32Array(CONF_N * 3);
+      confGeo.setAttribute("position", new THREE.BufferAttribute(confPos, 3));
+      confGeo.setAttribute("color", new THREE.BufferAttribute(confCol, 3));
+      const confetti = new THREE.Points(confGeo, new THREE.PointsMaterial({ size: 0.7, vertexColors: true, transparent: true, opacity: 1, depthWrite: false }));
+      confetti.frustumCulled = false; confetti.visible = false;
+      scene.add(confetti);
+      let confLife = 0;
+      const CONF_COLORS = ["#f97316", "#facc15", "#22d3ee", "#f43f5e", "#a3e635", "#ffffff"].map((c) => new THREE.Color(c));
+      function burstConfetti(center) {
+        for (let i = 0; i < CONF_N; i++) {
+          const a = Math.random() * Math.PI * 2, r = rand(0, 10);
+          confPos[i * 3] = center.x + Math.cos(a) * r; confPos[i * 3 + 1] = rand(8, 24); confPos[i * 3 + 2] = center.z + Math.sin(a) * r;
+          confVel[i * 3] = rand(-6, 6); confVel[i * 3 + 1] = rand(6, 16); confVel[i * 3 + 2] = rand(-6, 6);
+          const c = pick(CONF_COLORS); confCol[i * 3] = c.r; confCol[i * 3 + 1] = c.g; confCol[i * 3 + 2] = c.b;
+        }
+        confGeo.attributes.color.needsUpdate = true;
+        confLife = 3.2; confetti.visible = true;
+      }
+      let crowdFlash = 0;
+      // fit the sun's shadow box to where the action is: crisp player shadows
+      // around the pitch, a wider box when the ball is out in the field
+      const shadowFocus = V3(0, 0, CENTER.z);
+      let shadowHalf = 18;
+      function updateShadowFrustum(dt) {
+        const wide = (G.state === "play" || (G.state === "result" && playS)) && ballMesh.visible;
+        const tgtFocus = wide ? V3(ballMesh.position.x * 0.6, 0, lerp(CENTER.z, ballMesh.position.z, 0.6)) : V3(0, 0, CENTER.z);
+        const tgtHalf = wide ? 38 : 17;
+        const k = 1 - Math.exp(-dt * 3);
+        shadowFocus.lerp(tgtFocus, k);
+        shadowHalf = lerp(shadowHalf, tgtHalf, k);
+        const c = sun.shadow.camera;
+        c.left = -shadowHalf; c.right = shadowHalf; c.top = shadowHalf; c.bottom = -shadowHalf;
+        c.updateProjectionMatrix();
+        sun.position.set(shadowFocus.x - 28, 55, shadowFocus.z + 22);
+        sun.target.position.copy(shadowFocus);
+        sun.target.updateMatrixWorld();
+      }
+      function updateStadiumFx(dt) {
+        grassTime.value += dt;
+        updateShadowFrustum(dt);
+        adTex.offset.x = (adTex.offset.x + dt * 0.012) % 1;
+        adTex2.offset.x = (adTex2.offset.x - dt * 0.009) % 1;
+        crowdFlash = Math.max(0, crowdFlash - dt * 0.6);
+        if (crowdGain) crowdGain.gain.value = 0.05 + crowdFlash * 0.12;
+        const pulse = crowdFlash > 0 ? (0.5 + 0.5 * Math.sin(performance.now() / 70)) * crowdFlash : 0;
+        boards.material.emissiveIntensity = 0.35 + pulse * 1.4;
+        fascia.material.emissiveIntensity = 0.55 + pulse * 1.2;
+        stands.material.emissiveIntensity = pulse * 0.35;
+        upperMat.emissiveIntensity = pulse * 0.35;
+        if (confLife > 0) {
+          confLife -= dt;
+          for (let i = 0; i < CONF_N; i++) {
+            confVel[i * 3 + 1] -= 9.8 * dt * 0.35;
+            confVel[i * 3] *= 0.99; confVel[i * 3 + 2] *= 0.99;
+            confPos[i * 3] += confVel[i * 3] * dt + Math.sin(performance.now() / 300 + i) * 0.02;
+            confPos[i * 3 + 1] = Math.max(0.05, confPos[i * 3 + 1] + confVel[i * 3 + 1] * dt);
+            confPos[i * 3 + 2] += confVel[i * 3 + 2] * dt;
+          }
+          confGeo.attributes.position.needsUpdate = true;
+          confetti.material.opacity = Math.min(1, confLife);
+          if (confLife <= 0) confetti.visible = false;
+        }
+        // LED stumps flash after a bowled
+        if (stumpFlash > 0) {
+          stumpFlash -= dt;
+          const on = Math.floor(stumpFlash * 8) % 2 === 0;
+          stumpMat.emissive.setHex(on ? 0xff2d55 : 0xffd60a);
+          stumpMat.emissiveIntensity = stumpFlash > 0 ? 1.6 : 0;
+        }
+      }
+
+      // stumps + bails at both ends (striker's end are LED stumps that flash)
+      const woodMat = new THREE.MeshStandardMaterial({ color: 0xf1e3c2, roughness: 0.6 });
+      const stumpMat = new THREE.MeshStandardMaterial({ color: 0xf1e3c2, roughness: 0.4, emissive: 0x000000, emissiveIntensity: 0 });
+      let stumpFlash = 0;
+      function makeStumps(z, mat = woodMat) {
+        const set = { stumps: [], bails: [], z };
+        for (const x of [-0.11, 0, 0.11]) {
+          const s = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, STUMP_H, 10), mat);
+          s.position.set(x, STUMP_H / 2, z); s.castShadow = true;
+          set.stumps.push(s); stadium.add(s);
+        }
+        for (const x of [-0.055, 0.055]) {
+          const b = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.11, 6), mat);
+          b.rotation.z = Math.PI / 2; b.position.set(x, STUMP_H + 0.01, z);
+          set.bails.push(b); stadium.add(b);
+        }
+        return set;
+      }
+      const strikerStumps = makeStumps(0, stumpMat);
+      const bowlerStumps = makeStumps(PITCH);
+      const stumpSets = [strikerStumps, bowlerStumps];
+      for (const set of stumpSets) for (const p of [...set.stumps, ...set.bails]) p.userData.home = { pos: p.position.clone(), rot: p.rotation.clone() };
+      const stumpParts = () => stumpSets.flatMap((set) => [...set.stumps, ...set.bails]);
+      function resetStumps() {
+        stumpFlash = 0; stumpMat.emissiveIntensity = 0;
+        for (const p of stumpParts()) { p.position.copy(p.userData.home.pos); p.rotation.copy(p.userData.home.rot); p.userData.v = null; }
+      }
+      function shatterStumps(ballVel, set = strikerStumps) {
+        if (set === strikerStumps) stumpFlash = 1.8;
+        for (const p of [...set.stumps, ...set.bails]) {
+          const isBail = !p.geometry.parameters || p.geometry.parameters.height < 0.2;
+          p.userData.v = V3(ballVel.x * 0.05 + rand(-1, 1), isBail ? rand(3, 5) : rand(0.5, 1.5), -rand(2, 4));
+          p.userData.w = V3(rand(-8, 8), rand(-8, 8), rand(-8, 8));
+        }
+      }
+      function updateStumps(dt) {
+        for (const p of stumpParts()) {
+          const v = p.userData.v; if (!v) continue;
+          v.y -= 9.8 * dt;
+          p.position.addScaledVector(v, dt);
+          const floor = 0.02;
+          if (p.position.y < floor) { p.position.y = floor; v.multiplyScalar(0.4); v.y = Math.abs(v.y) * 0.3; p.userData.w.multiplyScalar(0.5); }
+          p.rotation.x += p.userData.w.x * dt; p.rotation.y += p.userData.w.y * dt; p.rotation.z += p.userData.w.z * dt;
+        }
+      }
+
+      // ball + trail + pitch marker
+      const ballMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(BALL_R * 1.7, 20, 14),
+        new THREE.MeshStandardMaterial({
+          map: canvasTex(128, 64, (g, w, h) => {
+            g.fillStyle = "#fbfbf7"; g.fillRect(0, 0, w, h);
+            g.strokeStyle = "#9ca3af"; g.lineWidth = 2;
+            for (const off of [-3, 3]) { g.beginPath(); for (let x = 0; x <= w; x += 2) { const y = h / 2 + off + Math.sin((x / w) * Math.PI * 4) * 8; x ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+          }),
+          emissive: 0x555555, roughness: 0.35,
+        }),
+      );
+      ballMesh.castShadow = true;
+      ballMesh.visible = false;
+      scene.add(ballMesh);
+      const ballShadow = new THREE.Mesh(
+        new THREE.CircleGeometry(BALL_R * 1.8, 16),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4, depthWrite: false }),
+      );
+      ballShadow.rotation.x = -Math.PI / 2;
+      ballShadow.visible = false;
+      scene.add(ballShadow);
+      const TRAIL_N = 18;
+      const trailGeo = new THREE.BufferGeometry();
+      trailGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(TRAIL_N * 3), 3));
+      const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 }));
+      trail.frustumCulled = false; trail.visible = false;
+      scene.add(trail);
+      const trailPts = [];
+      const marker = new THREE.Mesh(
+        new THREE.RingGeometry(0.1, 0.17, 24),
+        new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.0, depthWrite: false }),
+      );
+      marker.rotation.x = -Math.PI / 2;
+      scene.add(marker);
+
+      // ------------------------------------------------------------------
+      // Players. Primary model: Quaternius "Casual Character" (CC0, human,
+      // ~6k tris, flat named materials → easy kit recolouring). Fallback:
+      // the Mixamo X Bot. RIGS maps logical bone/clip names onto each.
+      // ------------------------------------------------------------------
+      let playerTemplate = null, playerClips = [], playerScale = 1, rig = null;
+      const players = [];
+
+      const RIGS = {
+        // Textured cricketer from the "Cricket Bowling Animations Pack" (Hamza
+        // Khan, Unity Asset Store), converted with Blender. Mixamo bone names,
+        // so the free Mixamo idle/run/walk clips (locomotion.glb) drive it too.
+        cricketer: {
+          yaw: 0, // measured at load from the feet
+          bones: {
+            hips: "Hips", spine: "Spine", spine2: "Spine2", head: "Head", headEnd: "HeadTop_End",
+            rArm: "RightArm", rFore: "RightForeArm", rHand: "RightHand",
+            lArm: "LeftArm", lFore: "LeftForeArm", lHand: "LeftHand",
+            rUpLeg: "RightUpLeg", rLeg: "RightLeg", rFoot: "RightFoot",
+            lUpLeg: "LeftUpLeg", lLeg: "LeftLeg", lFoot: "LeftFoot",
+          },
+          clips: { idle: "idle", run: "run", walk: "walk", agree: "agree", sneak_pose: "sneak_pose" },
+          // motion-captured deliveries: clip, release frame (60fps), seconds of run-up shown before release
+          bowling: {
+            fast: { clip: "RightArmFastBowler", release: 380, pre: 2.4 },
+            medium: { clip: "RightArmMediumFastBowler", release: 245, pre: 2.3 },
+            spin: { clip: "RightArmOffSpinner", release: 58, pre: 0.95 },
+          },
+        },
+        quaternius: {
+          yaw: -Math.PI / 2, // model faces +x; rotate so heading 0 = +z
+          bones: {
+            hips: "Hips", spine: "Torso", spine2: "Chest", head: "Head", headEnd: "Head_end",
+            rArm: "UpperArmR", rFore: "LowerArmR", rHand: "WristR",
+            lArm: "UpperArmL", lFore: "LowerArmL", lHand: "WristL",
+            rUpLeg: "UpperLegR", rLeg: "LowerLegR", rFoot: "FootR",
+            lUpLeg: "UpperLegL", lLeg: "LowerLegL", lFoot: "FootL",
+          },
+          clips: { idle: "CharacterArmature|Idle", run: "CharacterArmature|Run", walk: "CharacterArmature|Walk", agree: "CharacterArmature|Wave", sneak_pose: "CharacterArmature|Idle_Neutral", throw: "CharacterArmature|Punch_Right" },
+        },
+        mixamo: {
+          yaw: 0,
+          bones: {
+            hips: "mixamorigHips", spine: "mixamorigSpine", spine2: "mixamorigSpine2", head: "mixamorigHead", headEnd: "mixamorigHeadTop_End",
+            rArm: "mixamorigRightArm", rFore: "mixamorigRightForeArm", rHand: "mixamorigRightHand",
+            lArm: "mixamorigLeftArm", lFore: "mixamorigLeftForeArm", lHand: "mixamorigLeftHand",
+            rUpLeg: "mixamorigRightUpLeg", rLeg: "mixamorigRightLeg", rFoot: "mixamorigRightFoot",
+            lUpLeg: "mixamorigLeftUpLeg", lLeg: "mixamorigLeftLeg", lFoot: "mixamorigLeftFoot",
+          },
+          clips: { idle: "idle", run: "run", walk: "walk", agree: "agree", sneak_pose: "sneak_pose" },
+        },
+      };
+
+      // shirt / trousers / shoe-accent per team; skin + hair vary per player
+      const KITS = {
+        bat: { shirt: "#f97316", pants: "#1f2937", accent: "#111827", shoes: "#f8fafc" },
+        field: { shirt: "#2563eb", pants: "#1e3a8a", accent: "#facc15", shoes: "#f8fafc" },
+        keeper: { shirt: "#1d4ed8", pants: "#172554", accent: "#facc15", shoes: "#f8fafc" },
+        umpire: { shirt: "#e0f2fe", pants: "#111827", accent: "#111827", shoes: "#111827" },
+      };
+      const SKIN = ["#c68642", "#8d5524", "#e0ac69", "#a0663c", "#7a4a2a", "#d4a373"];
+      const HAIR = ["#1a1410", "#2b1d14", "#0d0d0d", "#3b2a1a"];
+      const matCache = new Map();
+      const stdMat = (color, extra = {}) => {
+        const key = color + JSON.stringify(extra);
+        if (!matCache.has(key)) matCache.set(key, new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...extra }));
+        return matCache.get(key);
+      };
+
+      // Broadcast-style rim light on every character material, plus a printed
+      // jersey (top-to-bottom gradient, diagonal sublimation stripes, shoulder
+      // band) on shirts. The pattern uses bind-pose mesh coordinates, so it
+      // sticks to the body as it animates.
+      function patchCharacter(mat, jersey = null) {
+        mat.onBeforeCompile = (sh) => {
+          if (jersey) {
+            sh.uniforms.uAccent = { value: new THREE.Color(jersey.accent) };
+            sh.uniforms.uBoxMin = { value: jersey.min };
+            sh.uniforms.uBoxSize = { value: jersey.size };
+            sh.vertexShader = "varying vec3 vObjP;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vObjP = position;");
+            sh.fragmentShader = "uniform vec3 uAccent; uniform vec3 uBoxMin; uniform vec3 uBoxSize; varying vec3 vObjP;\n" + sh.fragmentShader.replace(
+              "#include <color_fragment>",
+              `#include <color_fragment>
+               vec3 jn = (vObjP - uBoxMin) / max(uBoxSize, vec3(1e-4));
+               diffuseColor.rgb *= mix(0.74, 1.1, smoothstep(0.0, 1.0, jn.y));
+               float stripe = fract((jn.x * 1.4 + jn.y + jn.z * 0.6) * 5.0);
+               diffuseColor.rgb = mix(diffuseColor.rgb, uAccent, smoothstep(0.82, 0.86, stripe) * (1.0 - smoothstep(0.96, 1.0, stripe)) * 0.45);
+               diffuseColor.rgb = mix(diffuseColor.rgb, uAccent, smoothstep(0.86, 0.9, jn.y) * 0.85);`,
+            );
+          }
+          sh.fragmentShader = sh.fragmentShader.replace(
+            "#include <dithering_fragment>",
+            `float rimF = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);
+             gl_FragColor.rgb += vec3(1.0, 0.96, 0.88) * rimF * 0.3;
+             #include <dithering_fragment>`,
+          );
+        };
+        mat.customProgramCacheKey = () => (jersey ? "char-jersey" : "char-rim");
+        return mat;
+      }
+
+      function recolor(obj, kit) {
+        const skin = new THREE.Color(pick(SKIN)), hair = new THREE.Color(pick(HAIR));
+        obj.traverse((c) => {
+          if (!c.isMesh) return;
+          c.castShadow = true;
+          c.frustumCulled = false;
+          c.material = c.material.clone();
+          const n = c.material.name || "";
+          const m = c.material;
+          m.metalness = 0.05;
+          if (rig === RIGS.mixamo) { m.color.set(/joint/i.test(n) ? kit.pants : kit.shirt); return; }
+          if (rig === RIGS.cricketer) {
+            if (n === "OutfitTopMaterial" || n === "OutfitBottomMaterial") {
+              // team kit: solid colour + printed jersey pattern, keeping the fabric normal map
+              const top = n === "OutfitTopMaterial";
+              const fab = new THREE.MeshPhysicalMaterial({ color: top ? kit.shirt : kit.pants, normalMap: m.normalMap, roughness: 0.8, sheen: 0.55, sheenRoughness: 0.5, sheenColor: new THREE.Color(0xffffff) });
+              fab.name = n; c.material = fab;
+              let jersey = null;
+              if (top) { c.geometry.computeBoundingBox(); const bb = c.geometry.boundingBox; jersey = { accent: kit.accent, min: bb.min.clone(), size: bb.getSize(V3()) }; }
+              patchCharacter(fab, jersey);
+              return;
+            }
+            if (n === "SkinMaterial" || n === "BodyMaterial") m.color.copy(skin).lerp(new THREE.Color(0xffffff), 0.45);
+            else if (n === "HairMaterial") m.color.copy(hair).multiplyScalar(2.2);
+            else if (n === "BeardMaterial") { m.color.copy(hair).multiplyScalar(2.2); if (Math.random() < 0.5 || kit === KITS.umpire) c.visible = false; }
+            else if (n === "FootWearMaterial") m.color.set(0xffffff);
+            m.roughness = Math.max(m.roughness ?? 0.7, 0.55);
+            patchCharacter(m);
+            return;
+          }
+          if (n === "LightBrown" || n === "LightBlue") {
+            // swap to a fabric material with sheen for shirts/trousers
+            const fab = new THREE.MeshPhysicalMaterial({ color: n === "LightBrown" ? kit.shirt : kit.pants, roughness: 0.82, sheen: 0.6, sheenRoughness: 0.5, sheenColor: new THREE.Color(0xffffff) });
+            fab.name = n; c.material = fab;
+            let jersey = null;
+            if (n === "LightBrown") {
+              c.geometry.computeBoundingBox();
+              const bb = c.geometry.boundingBox;
+              jersey = { accent: kit.accent, min: bb.min.clone(), size: bb.getSize(V3()) };
+            }
+            patchCharacter(fab, jersey);
+            return;
+          }
+          else if (n === "White") m.color.set(kit.shoes);
+          else if (n === "Red_Dark") m.color.set(kit.accent);
+          else if (n === "Skin") m.color.copy(skin);
+          else if (n === "Skin_Darker") m.color.copy(skin).multiplyScalar(0.82);
+          else if (n === "Hair") m.color.copy(hair);
+          patchCharacter(m);
+        });
+      }
+
+      // Gear is placed in world space while the character stands in a known
+      // pose, then re-parented onto the bone with attach() so it follows the
+      // animation — no need to know each rig's bone axes.
+      const wp = (o) => o.getWorldPosition(V3());
+      function alignY(mesh, from, to) {
+        mesh.position.copy(from).add(to).multiplyScalar(0.5);
+        mesh.quaternion.setFromUnitVectors(V3(0, 1, 0), to.clone().sub(from).normalize());
+      }
+      function addGear(p, kind) {
+        const b = p.b;
+        p.obj.position.set(0, 0, 0); p.obj.rotation.set(0, rig.yaw, 0);
+        p.mixer.update(0); p.obj.updateMatrixWorld(true);
+        const fwd = V3(0, 0, 1); // characters face +z at heading 0
+        const headC = wp(b.head).lerp(wp(b.headEnd), 0.55);
+        const headR = Math.max(0.1, wp(b.head).distanceTo(wp(b.headEnd)) * 0.62);
+        const gear = [];
+        const put = (bone, mesh) => { scene.add(mesh); mesh.updateMatrixWorld(true); bone.attach(mesh); mesh.castShadow = true; gear.push(mesh); };
+
+        if (kind === "batter" || kind === "keeperHelmet") {
+          const shell = new THREE.Mesh(new THREE.SphereGeometry(headR * 1.12, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.58), stdMat("#0f1e46", { metalness: 0.35, roughness: 0.3 }));
+          shell.position.copy(headC).add(V3(0, headR * 0.12, -headR * 0.05));
+          put(b.head, shell);
+          const peak = new THREE.Mesh(new THREE.BoxGeometry(headR * 1.6, headR * 0.08, headR * 0.5), stdMat("#0f1e46"));
+          peak.position.copy(headC).add(V3(0, headR * 0.35, headR * 1.05));
+          put(b.head, peak);
+          const grille = new THREE.Mesh(new THREE.TorusGeometry(headR * 0.72, headR * 0.035, 6, 18, Math.PI), stdMat("#cbd5e1", { metalness: 0.8, roughness: 0.25 }));
+          grille.position.copy(headC).add(V3(0, -headR * 0.3, headR * 0.62));
+          grille.rotation.set(-0.35, 0, Math.PI);
+          put(b.head, grille);
+        }
+        if (kind === "batter") {
+          for (const [leg, foot] of [[b.lLeg, b.lFoot], [b.rLeg, b.rFoot]]) {
+            const knee = wp(leg), ankle = wp(foot);
+            const len = knee.distanceTo(ankle) + 0.12;
+            const pad = new THREE.Mesh(new THREE.BoxGeometry(0.15, len, 0.09), stdMat("#f8fafc", { roughness: 0.85 }));
+            alignY(pad, ankle.clone().add(V3(0, -0.02, 0)), knee.clone().add(V3(0, 0.1, 0)));
+            pad.position.addScaledVector(fwd, 0.06);
+            put(leg, pad);
+          }
+        }
+        if (kind === "batter" || kind === "keeper") {
+          const big = kind === "keeper";
+          for (const hand of [b.lHand, b.rHand]) {
+            const g = new THREE.Mesh(new THREE.BoxGeometry(big ? 0.15 : 0.1, big ? 0.17 : 0.12, big ? 0.1 : 0.08), stdMat(big ? "#f5f5f4" : "#f8fafc", { roughness: 0.8 }));
+            g.position.copy(wp(hand));
+            put(hand, g);
+          }
+        }
+        if (kind === "cap") {
+          const cap = new THREE.Mesh(new THREE.SphereGeometry(headR * 1.04, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), stdMat(p.kit.shirt));
+          cap.position.copy(headC).add(V3(0, headR * 0.18, 0));
+          put(b.head, cap);
+          const brim = new THREE.Mesh(new THREE.BoxGeometry(headR * 1.3, headR * 0.06, headR * 0.9), stdMat(p.kit.shirt));
+          brim.position.copy(headC).add(V3(0, headR * 0.2, headR * 1.15));
+          put(b.head, brim);
+        }
+        if (kind === "umpire") {
+          const crown = new THREE.Mesh(new THREE.CylinderGeometry(headR * 0.95, headR * 1.05, headR * 0.7, 18), stdMat("#f5f5dc"));
+          crown.position.copy(headC).add(V3(0, headR * 1.05, -headR * 0.05));
+          put(b.head, crown);
+          const brim = new THREE.Mesh(new THREE.CylinderGeometry(headR * 2.1, headR * 2.1, headR * 0.06, 24), stdMat("#f5f5dc"));
+          brim.position.copy(headC).add(V3(0, headR * 0.72, -headR * 0.05));
+          put(b.head, brim);
+          brim.castShadow = false; crown.castShadow = false; // keep his face out of shadow for the signal shot
+        }
+        return gear;
+      }
+
+      // name + number printed on the back of the shirt. Placed by ray-casting
+      // the skinned body from behind, then parented to the chest bone.
+      function addBackPlate(p, name, num) {
+        const b = p.b;
+        if (!b.spine2) return;
+        p.obj.position.set(0, 0, 0); p.obj.rotation.set(0, rig.yaw, 0);
+        p.mixer.update(0); p.obj.updateMatrixWorld(true);
+        const chest = wp(b.spine2);
+        const meshes = []; p.obj.traverse((c) => c.isMesh && meshes.push(c));
+        const rc = new THREE.Raycaster(V3(chest.x, chest.y - 0.06, chest.z - 1.5), V3(0, 0, 1), 0, 3);
+        const hit = rc.intersectObjects(meshes, false)[0];
+        const c = document.createElement("canvas"); c.width = 256; c.height = 256;
+        const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+        const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false }));
+        plate.position.set(chest.x, chest.y - 0.07, (hit ? hit.point.z : chest.z - 0.13) - 0.012);
+        plate.rotation.y = Math.PI;
+        scene.add(plate); plate.updateMatrixWorld(true); b.spine2.attach(plate);
+        p.plate = { c, tex };
+        setPlate(p, name, num);
+      }
+      function setPlate(p, name, num) {
+        if (!p.plate) return;
+        const g = p.plate.c.getContext("2d");
+        g.clearRect(0, 0, 256, 256);
+        g.fillStyle = "rgba(255,255,255,.95)"; g.textAlign = "center"; g.textBaseline = "middle";
+        g.font = "900 40px Arial"; g.fillText(name.toUpperCase(), 128, 48);
+        g.font = "900 150px Arial"; g.fillText(String(num), 128, 160);
+        p.plate.tex.needsUpdate = true;
+      }
+
+      function makePlayer(kit, gear = null) {
+        const obj = SkeletonUtils.clone(playerTemplate);
+        obj.scale.setScalar(playerScale);
+        recolor(obj, kit);
+        const bone = (n) => obj.getObjectByName(n) || obj.getObjectByName(n.replace(/([LR])$/, ".$1"));
+        const b = {};
+        for (const [k, n] of Object.entries(rig.bones)) b[k] = bone(n);
+        const p = { obj, kit, mixer: new THREE.AnimationMixer(obj), actions: {}, cur: null, b, pos: V3(), heading: 0, speed: 0, crouch: 0 };
+        // rest pose for every bone: restored each frame so procedural tweaks on
+        // bones the clips don't animate (e.g. Torso/Chest) can't accumulate
+        p.rest = [];
+        obj.traverse((o) => { if (o.isBone) p.rest.push([o, o.quaternion.clone(), o.position.clone()]); });
+        for (const [logical, clipName] of Object.entries(rig.clips)) {
+          const clip = playerClips.find((c) => c.name === clipName);
+          if (clip) p.actions[logical] = p.mixer.clipAction(clip);
+        }
+        // motion-captured deliveries, addressed by their own clip names
+        for (const spec of Object.values(rig.bowling || {})) {
+          const clip = playerClips.find((c) => c.name === spec.clip);
+          if (clip) p.actions[spec.clip] = p.mixer.clipAction(clip);
+        }
+        scene.add(obj);
+        play(p, "idle", 0);
+        if (gear && b.head && b.headEnd && b.lLeg) addGear(p, gear);
+        players.push(p);
+        return p;
+      }
+
+      function play(p, name, fade = 0.25, timeScale = 1) {
+        p.crouch = name === "sneak_pose" ? 1 : 0;
+        const a = p.actions[name] || (name === "sneak_pose" ? p.actions.idle : null);
+        if (!a) return;
+        a.timeScale = timeScale;
+        if (p.cur === a) return;
+        if (name === "throw") { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
+        a.reset().setEffectiveWeight(1).play();
+        if (p.cur) p.cur.crossFadeTo(a, fade, false);
+        p.cur = a;
+      }
+
+      // wicketkeeper's ready stance: gloves out in front, waiting for the take
+      function applyCrouch(p) {
+        const b = p.b;
+        if (!b.spine2 || !b.lHand) return;
+        const fwd = V3(Math.sin(p.heading), 0, Math.cos(p.heading));
+        const side = V3(fwd.z, 0, -fwd.x);
+        const chest = wp(b.spine2);
+        const ct = p.catchTarget && p.catchTarget.distanceTo(chest) < 2.2 ? p.catchTarget : null;
+        for (const [arm, fore, hand, sgn] of [[b.lArm, b.lFore, b.lHand, 1], [b.rArm, b.rFore, b.rHand, -1]]) {
+          const t = ct
+            ? ct.clone().addScaledVector(side, 0.07 * sgn)
+            : chest.clone().addScaledVector(fwd, 0.42).addScaledVector(side, 0.11 * sgn).add(V3(0, -0.32, 0));
+          ik2(arm, fore, hand, t, wp(fore).add(V3(0, -1, 0)).addScaledVector(side, sgn));
+        }
+      }
+
+      // walk/run a player toward a point at a given speed; animation pace
+      // follows ground speed so feet don't skate. Returns true on arrival.
+      function moveToward(p, tx, tz, speed, dt, stop = 0.4, faceX, faceZ) {
+        const dx = tx - p.pos.x, dz = tz - p.pos.z, d = Math.hypot(dx, dz);
+        if (d <= stop) {
+          if (faceX !== undefined) faceTo(p, faceX, faceZ);
+          return true;
+        }
+        const step = Math.min(d - stop * 0.5, speed * dt);
+        p.pos.x += (dx / d) * step; p.pos.z += (dz / d) * step;
+        p.heading = Math.atan2(dx, dz);
+        if (speed > 3.2) play(p, "run", 0.15, clamp(speed / 6, 0.7, 1.4));
+        else play(p, "walk", 0.2, clamp(speed / 1.6, 0.7, 1.6));
+        return false;
+      }
+
+      function place(p, x, z, heading) {
+        p.pos.set(x, 0, z);
+        if (heading !== undefined) p.heading = heading;
+      }
+      const faceTo = (p, x, z) => { p.heading = Math.atan2(x - p.pos.x, z - p.pos.z); };
+
+      // ---- bone helpers (axis-agnostic, work in world space) ----
+      const _a = V3(), _b = V3(), _c = V3(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+      // rotate `bone` so the world point `cur` (rigidly attached to it) points at `target`
+      function aimBoneAt(bone, cur, target) {
+        bone.getWorldPosition(_a);
+        const c = _b.copy(cur).sub(_a).normalize();
+        const want = _c.copy(target).sub(_a).normalize();
+        _q1.setFromUnitVectors(c, want);
+        bone.getWorldQuaternion(_q2);
+        _q1.multiply(_q2); // desired world rotation
+        bone.parent.getWorldQuaternion(_q2).invert();
+        bone.quaternion.copy(_q2.multiply(_q1));
+        bone.updateMatrixWorld(true);
+      }
+      function aimBone(bone, child, target) { aimBoneAt(bone, child.getWorldPosition(V3()), target); }
+      // Two-bone IK. `end` may be a real child of `lower` (arms) or a separate
+      // control bone (the Quaternius feet hang off Root): its point is tracked
+      // in `lower`'s local space, and a detached end bone is moved onto the target.
+      function ik2(upper, lower, end, target, pole) {
+        const S = upper.getWorldPosition(V3());
+        const E0 = lower.getWorldPosition(V3());
+        const H0 = end.getWorldPosition(V3());
+        const endLocal = lower.worldToLocal(H0.clone());
+        const la = S.distanceTo(E0), lb = E0.distanceTo(H0);
+        const toT = target.clone().sub(S);
+        const d = clamp(toT.length(), Math.abs(la - lb) + 1e-3, (la + lb) * 0.999);
+        const dir = toT.normalize();
+        const x = (la * la - lb * lb + d * d) / (2 * d);
+        const h = Math.sqrt(Math.max(0, la * la - x * x));
+        const pd = pole.clone().sub(S);
+        pd.addScaledVector(dir, -pd.dot(dir)).normalize();
+        const elbow = S.clone().addScaledVector(dir, x).addScaledVector(pd, h);
+        aimBone(upper, lower, elbow);
+        const reach = S.clone().addScaledVector(dir, d);
+        aimBoneAt(lower, lower.localToWorld(endLocal.clone()), reach);
+        if (end.parent !== lower) {
+          const q = end.getWorldQuaternion(new THREE.Quaternion());
+          end.position.copy(end.parent.worldToLocal(lower.localToWorld(endLocal.clone())));
+          end.updateMatrixWorld(true);
+          end.quaternion.copy(end.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q));
+          end.updateMatrixWorld(true);
+        }
+      }
+      function twistBone(bone, axis, angle) {
+        bone.parent.getWorldQuaternion(_q2);
+        _q1.setFromAxisAngle(axis, angle);
+        // local' = P^-1 * R * P * local
+        const pInv = _q2.clone().invert();
+        bone.quaternion.premultiply(_q2).premultiply(_q1).premultiply(pInv);
+        bone.updateMatrixWorld(true);
+      }
+
+      // ---- bat ----
+      const bat = new THREE.Group();
+      {
+        const willow = new THREE.MeshStandardMaterial({ color: 0xe9d39c, roughness: 0.55 });
+        const face = new THREE.MeshStandardMaterial({ roughness: 0.5, map: canvasTex(64, 352, (g, w, h) => {
+          g.fillStyle = "#ead7a3"; g.fillRect(0, 0, w, h);
+          for (let i = 0; i < 26; i++) { g.fillStyle = "rgba(160,120,60,.12)"; g.fillRect(0, Math.random() * h, w, 1); }
+          g.fillStyle = "#111827"; g.fillRect(0, 40, w, 16); g.fillRect(0, h - 70, w, 10);
+          g.fillStyle = "#f97316"; g.fillRect(0, 56, w, 6);
+          g.save(); g.translate(w / 2, h / 2 + 10); g.rotate(-Math.PI / 2);
+          g.fillStyle = "#111827"; g.font = "900 italic 34px Arial"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("HASH", 0, 0);
+          g.restore();
+        }) });
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.108, 0.6, 0.05), [willow, willow, willow, willow, face, face]);
+        blade.position.y = -0.33 - 0.3; // toe at -0.93
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.33, 8), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+        handle.position.y = -0.165;
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.22, 8), new THREE.MeshStandardMaterial({ color: 0xf97316 }));
+        grip.position.y = -0.12;
+        blade.castShadow = true;
+        bat.add(blade, handle, grip);
+      }
+      scene.add(bat);
+      const BAT_LEN = 0.93;
+
+      // ------------------------------------------------------------------
+      // Game state
+      // ------------------------------------------------------------------
+      const MODES = {
+        super: { name: "Super Over", balls: 6, wkts: 2, target: () => (14 + Math.random() * 8) | 0 },
+        chase: { name: "Quick Chase", balls: 18, wkts: 3, target: () => (30 + Math.random() * 13) | 0 },
+      };
+      const BOWLERS = {
+        pace: [
+          { name: "R. Vance", type: "Right-arm fast", kind: "pace", kmh: [132, 148], num: 9 },
+          { name: "J. Okafor", type: "Right-arm fast-medium", kind: "pace", kmh: [124, 138], num: 25 },
+        ],
+        spin: [{ name: "S. Iyer", type: "Right-arm off-break", kind: "spin", kmh: [78, 92], num: 27 }],
+      };
+
+      const G = {
+        state: "loading", mode: null, cfg: null, runs: 0, wkts: 0, balls: 0, target: 0,
+        fours: 0, sixes: 0, chips: [], shots: [], stateT: 0, submitted: false, points: 0,
+      };
+      let bowlerCfg = null, del = null, ballT = 0, shot = null, playS = null, menuAngle = 0;
+      let striker, nonStriker, bowlerP, keeper, umpire;
+      const fielders = []; // {p, base:V3, role, speed, delay, reach}
+
+      // ------------------------------------------------------------------
+      // Fielding layouts. Angle 0 = straight down the ground, + = leg side.
+      // ------------------------------------------------------------------
+      const FIELDS = {
+        // new-ball field: catchers behind, two out
+        pace: [["slip", -170, 15], ["gully", -128, 19], ["point", -95, 24], ["cover", -58, 26], ["mid-off", -18, 26], ["mid-on", 18, 26], ["midwicket", 60, 26], ["square leg", 100, 24], ["fine leg", 158, 58]],
+        // spinner: slip in close, protect the big leg-side and straight hits
+        spin: [["slip", -165, 3.4], ["point", -95, 23], ["cover", -58, 25], ["mid-off", -18, 25], ["mid-on", 18, 25], ["midwicket", 60, 25], ["square leg", 100, 23], ["deep midwicket", 62, 62], ["long-off", -20, 66]],
+        // death overs: five on the rope, ring saves the single
+        death: [["third man", -150, 56], ["point", -95, 25], ["deep cover", -55, 64], ["long-off", -14, 68], ["long-on", 14, 68], ["deep midwicket", 58, 64], ["square leg", 100, 26], ["short fine", 150, 22], ["mid-off", -28, 25]],
+      };
+      function polarToWorld(aDeg, d) {
+        const v = V3(Math.sin(deg(aDeg)) * d, 0, Math.cos(deg(aDeg)) * d);
+        const off = V3(v.x, 0, v.z - CENTER.z);
+        if (off.length() > BOUNDARY - 4) { off.setLength(BOUNDARY - 4); v.set(off.x, 0, off.z + CENTER.z); }
+        return v;
+      }
+      function setField(kind, bowlerKind = kind) {
+        FIELDS[kind].forEach(([role, a, d], i) => {
+          const f = fielders[i];
+          f.role = role; f.base = polarToWorld(a, d);
+          f.speed = 7.2; f.delay = 0.28; f.reach = 1.2;
+        });
+        const kf = fielders[9];
+        kf.role = "keeper"; kf.base = V3(0, 0, bowlerKind === "spin" ? -1.6 : -13);
+        kf.speed = 5; kf.delay = 0.1; kf.reach = 1.5;
+      }
+
+      // ------------------------------------------------------------------
+      // Delivery planning (analytic two-phase flight so line is exact)
+      // ------------------------------------------------------------------
+      const RELEASE = V3(-0.42, 2.15, PITCH - 0.6);
+      function planDelivery() {
+        const spin = bowlerCfg.kind === "spin";
+        // pace bowlers mix in a slower ball (~1 in 6)
+        const slower = !(bowlerCfg.kind === "spin") && Math.random() < 0.17;
+        const kmh = rand(...bowlerCfg.kmh) * (slower ? 0.76 : 1);
+        const slow = spin ? 0.6 : 0.5; // game-speed scale so humans can time it
+        const v = (kmh / 3.6) * slow;
+        const g = 9.81 * slow * slow;
+        const lengthName = weighted(spin
+          ? [[0.25, "full"], [0.55, "good"], [0.2, "short"]]
+          : [[0.12, "yorker"], [0.26, "full"], [0.34, "good"], [0.2, "short"], [0.08, "bouncer"]]);
+        const bz = { yorker: rand(0.9, 1.7), full: rand(2.0, 3.6), good: rand(3.8, 6.6), short: rand(6.8, 8.8), bouncer: rand(9, 10.8) }[lengthName];
+        const wide = Math.random() < 0.035;
+        const line = wide ? rand(-1.2, -1.0) : weighted([[0.38, rand(-0.6, -0.22)], [0.42, rand(-0.12, 0.12)], [0.2, rand(0.14, 0.38)]]);
+        // where it pitches vs where it ends up = swing / seam / turn
+        const dev = spin ? rand(0.12, 0.42) * (Math.random() < 0.8 ? -1 : 1) : rand(-0.12, 0.12);
+        const bx = clamp(line + dev * Math.min(1, bz / 6), -1.3, 1.0);
+        const ax = spin ? 0 : rand(-0.9, 0.9); // in-air swing (m/s²)
+        const t1 = (RELEASE.z - bz) / v;
+        const vx1 = (bx - RELEASE.x - 0.5 * ax * t1 * t1) / t1;
+        const vy1 = (0 - RELEASE.y + 0.5 * g * t1 * t1) / t1;
+        const vyB = vy1 - g * t1;
+        const e = spin ? 0.5 : clamp(0.48 + (bz - 4) * 0.035, 0.42, 0.72);
+        const vz2 = -v * (spin ? 0.86 : 0.9);
+        const t2s = bz / -vz2; // bounce → stumps
+        const vx2 = (line - bx) / t2s;
+        const vy2 = -vyB * e;
+        const d = { kmh, v, g, bz, bx, line, wide, ax, t1, vx1, vy1, vx2, vy2, vz2, lengthName, spin };
+        d.tStumps = t1 + t2s;
+        d.tHit = bz >= Z_HIT ? t1 + (bz - Z_HIT) / -vz2 : (RELEASE.z - Z_HIT) / v;
+        return d;
+      }
+      function delPos(d, t, out = V3()) {
+        if (t <= d.t1) {
+          out.set(RELEASE.x + d.vx1 * t + 0.5 * d.ax * t * t, RELEASE.y + d.vy1 * t - 0.5 * d.g * t * t, RELEASE.z - d.v * t);
+        } else {
+          const u = t - d.t1;
+          let y = d.vy2 * u - 0.5 * d.g * u * u;
+          if (y < 0) y = Math.abs(y) * 0.25; // tiny second skid
+          out.set(d.bx + d.vx2 * u, y + BALL_R, d.bz + d.vz2 * u);
+        }
+        return out;
+      }
+
+      // ------------------------------------------------------------------
+      // Post-hit ball flight (real physics) + fielding resolution
+      // ------------------------------------------------------------------
+      const DRAG = 0.0032, ROLL = 3.4;
+      function simulate(p0, v0) {
+        const out = [];
+        const p = p0.clone(), v = v0.clone();
+        const dt = 1 / 120;
+        let bounced = false, t = 0;
+        for (let i = 0; i < 1440; i++) {
+          const sp = v.length();
+          const onGround = p.y <= BALL_R + 0.002 && Math.abs(v.y) < 0.6;
+          if (onGround) {
+            const hs = Math.hypot(v.x, v.z);
+            if (hs < 0.25) { v.set(0, 0, 0); } else { const k = Math.max(0, hs - ROLL * dt) / hs; v.x *= k; v.z *= k; }
+            v.y = 0; p.y = BALL_R;
+          } else {
+            v.x -= DRAG * sp * v.x * dt;
+            v.z -= DRAG * sp * v.z * dt;
+            v.y -= (9.81 + DRAG * sp * v.y) * dt;
+          }
+          p.addScaledVector(v, dt);
+          if (p.y < BALL_R && v.y < 0) {
+            p.y = BALL_R;
+            if (-v.y > 1.0) { v.y = -v.y * 0.38; v.x *= 0.8; v.z *= 0.8; } else v.y = 0;
+            bounced = true;
+          }
+          t += dt;
+          const r = Math.hypot(p.x - CENTER.x, p.z - CENTER.z);
+          out.push({ x: p.x, y: p.y, z: p.z, t, air: !bounced, r, sp });
+          if (r > STAND_R - 0.8) break; // into the boards / crowd
+          if (v.lengthSq() === 0) { for (let k = 0; k < 60; k++) out.push({ ...out[out.length - 1], t: t + k * dt }); break; }
+        }
+        return out;
+      }
+
+      function resolveFielding(samples) {
+        const ropeIdx = samples.findIndex((s) => s.r > BOUNDARY);
+        let best = null;
+        for (const f of fielders) {
+          const fp = f.p.pos;
+          const maxH = f.role === "keeper" ? 2.2 : 2.5;
+          for (let i = 3; i < samples.length; i += 2) {
+            if (ropeIdx >= 0 && i >= ropeIdx) break;
+            const s = samples[i];
+            if (s.y > maxH) continue;
+            const reachable = Math.max(0, s.t - f.delay) * f.speed + f.reach;
+            const d = Math.hypot(s.x - fp.x, s.z - fp.z);
+            if (d <= reachable) {
+              if (!best || s.t < best.t) best = { f, i, t: s.t, s, d, reachable };
+              break;
+            }
+          }
+        }
+        if (ropeIdx >= 0 && (!best || best.i >= ropeIdx)) {
+          const s = samples[ropeIdx];
+          return { kind: s.air ? "six" : "four", i: ropeIdx, t: s.t };
+        }
+        if (!best) {
+          const last = samples.length - 1;
+          return { kind: "field", f: fielders[0], i: last, t: samples[last].t, s: samples[last] };
+        }
+        const peak = samples.slice(0, best.i + 1).reduce((m, x) => Math.max(m, x.y), 0);
+        if (best.s.air && best.s.y > 0.35 && peak > 1.4) {
+          const stretch = best.d / best.reachable;
+          const pCatch = clamp(0.97 - 0.32 * stretch - (best.s.sp > 26 ? 0.18 : 0), 0.35, 0.97);
+          return { ...best, kind: Math.random() < pCatch ? "catch" : "drop" };
+        }
+        return { ...best, kind: "field" };
+      }
+
+      // ------------------------------------------------------------------
+      // Innings flow
+      // ------------------------------------------------------------------
+      function startInnings(modeKey) {
+        G.mode = modeKey; G.cfg = MODES[modeKey];
+        Object.assign(G, { runs: 0, wkts: 0, balls: 0, fours: 0, sixes: 0, chips: [], shots: [], submitted: false });
+        G.target = G.cfg.target();
+        $("menu").classList.remove("on"); $("end").classList.remove("on");
+        $("hud").classList.add("on");
+        $("hint").style.opacity = 1;
+        audioInit();
+        nextBall(true);
+      }
+
+      function inningsOver() {
+        if (G.runs >= G.target) return "win";
+        if (G.wkts >= G.cfg.wkts || G.balls >= G.cfg.balls) return G.runs === G.target - 1 ? "tie" : "lose";
+        return null;
+      }
+
+      function nextBall(first = false) {
+        const res = inningsOver();
+        if (res) return finish(res);
+        const newOver = first || G.chips.filter((c) => c !== "Wd").length >= 6;
+        if (newOver) {
+          const overNo = Math.floor(G.balls / 6);
+          const kind = G.mode === "chase" && overNo === 1 ? "spin" : "pace";
+          const fieldKind = G.mode === "super" || overNo >= 2 ? "death" : kind;
+          bowlerCfg = pick(BOWLERS[kind]);
+          setPlate(bowlerP, bowlerCfg.name.split(" ").pop(), bowlerCfg.num);
+          setField(fieldKind, kind);
+          G.chips = [];
+          if (!first) banner(`OVER ${overNo + 1}`, `${bowlerCfg.name} · ${bowlerCfg.type}`, "#ffffff", 1.1);
+        }
+        $("bowlerName").textContent = bowlerCfg.name;
+        $("bowlerType").textContent = bowlerCfg.type;
+        $("speed").textContent = "— km/h";
+
+        if (!newOver) $("banner").classList.remove("on");
+        $("runBtn").classList.remove("on", "danger");
+        $("timing").classList.remove("on");
+        del = planDelivery();
+        shot = null; playS = null; ballT = 0;
+        fielders[9].p.catchTarget = null;
+        resetStumps();
+        ballMesh.visible = false; trail.visible = false; trailPts.length = 0;
+        marker.material.opacity = 0;
+
+        // reset everyone
+        G.signal = null; umpire.signal = null; G.replayable = false;
+        for (const f of fielders) { f.p.roll = 0; f.p.yOff = 0; place(f.p, f.base.x, f.base.z); faceTo(f.p, 0, 1); play(f.p, f.role === "keeper" ? "sneak_pose" : "idle", 0); f.p.speed = 0; }
+        place(striker, 0.5, CREASE + 0.05, -Math.PI / 2); play(striker, "idle", 0);
+        place(nonStriker, 1.25, PITCH - CREASE - 0.3); faceTo(nonStriker, 0, 0); play(nonStriker, "idle", 0);
+        place(umpire, 0.15, PITCH + 1.9); faceTo(umpire, 0, 0); play(umpire, "idle", 0);
+        const runLen = bowlerCfg.kind === "spin" ? 4.5 : 9.5;
+        if (bowlerP.clip) { bowlerP.clip = null; bowlerP.mixer.stopAllAction(); bowlerP.cur = null; }
+        place(bowlerP, -0.85, PITCH + runLen); faceTo(bowlerP, -0.6, 0); play(bowlerP, "idle", 0);
+        G.batPose = { phase: "stance", t: 0 };
+        setState("ready");
+        updateHud();
+      }
+
+      function setState(s) { G.state = s; G.stateT = 0; }
+
+      function region(dx, dz) {
+        const a = (Math.atan2(dx, dz) * 180) / Math.PI;
+        const ad = Math.abs(a), leg = a > 0;
+        if (ad < 12) return "straight down the ground";
+        if (ad < 40) return leg ? "past mid-on" : "past mid-off";
+        if (ad < 75) return leg ? "through midwicket" : "through the covers";
+        if (ad < 105) return leg ? "square on the leg side" : "square past point";
+        if (ad < 145) return leg ? "fine past square leg" : "past backward point";
+        return leg ? "down to fine leg" : "down to third man";
+      }
+
+      function endBall({ runs = 0, out = null, chip, legal = true, extras = 0, bigText, smallText, color, hold = 1.9, signal = null }) {
+        G.signal = signal ? { type: signal } : null;
+        recMark("event");
+        G.replayable = signal === "six" || signal === "four" || signal === "out";
+        if (signal) hold += 1.5;
+        G.runs += runs + extras;
+        if (legal) G.balls += 1;
+        if (out) G.wkts += 1;
+        if (runs === 4) G.fours++;
+        if (runs === 6) G.sixes++;
+        G.chips.push(chip);
+        if (bigText) banner(bigText, smallText, color, hold);
+        updateHud();
+        G.endHold = hold;
+        setState("result");
+        if (G.balls >= 2) $("hint").style.opacity = 0;
+      }
+
+      // ------------------------------------------------------------------
+      // Batting input
+      // ------------------------------------------------------------------
+      let ptr = null;
+      const swipeTrail = [];
+      canvas.addEventListener("pointerdown", (e) => {
+        audioInit();
+        if (G.state === "replay") { endReplay(); return; }
+        ptr = { x: e.clientX, y: e.clientY, t: performance.now() };
+        swipeTrail.length = 0; swipeTrail.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+      });
+      window.addEventListener("pointermove", (e) => { if (ptr) swipeTrail.push({ x: e.clientX, y: e.clientY, t: performance.now() }); });
+      window.addEventListener("pointerup", (e) => {
+        if (!ptr) return;
+        const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
+        ptr = null;
+        onShot(dx, dy, Math.hypot(dx, dy));
+      });
+      window.addEventListener("keydown", (e) => {
+        const map = { ArrowDown: [0, 60], ArrowLeft: [-60, 30], ArrowRight: [60, 30], ArrowUp: [0, 160], " ": [0, 0] };
+        if (map[e.key]) onShot(...map[e.key], Math.hypot(...map[e.key]));
+      });
+
+      let lastFrame = performance.now();
+      function onShot(dx, dy, dist) {
+        if (G.state !== "delivery" || shot) return;
+        const t = ballT + (performance.now() - lastFrame) / 1000 * (1);
+        if (t + LEAD > del.tStumps + 0.06) return;
+        const defend = dist < 22;
+        const loft = dist > Math.min(150, Math.min(W, H) * 0.28);
+        // swipe down the screen = straight back past the bowler (+z)
+        const a = defend ? 0 : Math.atan2(dx, Math.max(dy, -Math.abs(dy)) || 0.0001);
+        shot = { defend, loft, a, tInput: t, tContact: t + LEAD, resolved: false };
+        const ballAt = delPos(del, Math.max(del.tHit, shot.tContact));
+        shot.type = classifyShot(shot, del, ballAt);
+        G.batPose = { phase: "shot", t: 0, plan: planShot(shot.type, shot, ballAt) };
+      }
+
+      function resolveContact() {
+        shot.resolved = true;
+        recMark("contact");
+        const e = shot.tContact - del.tHit; // <0 early, >0 late
+        const ae = Math.abs(e);
+        const bp = delPos(del, ballT);
+        let q;
+        if (shot.defend) q = ae < 0.17 ? "block" : "miss";
+        else q = ae < 0.03 ? "perfect" : ae < 0.07 ? "good" : ae < 0.12 ? "edge" : "miss";
+
+        if (!shot.defend && q !== "miss") {
+          let risk = 0;
+          if (shot.loft && del.bz < 2.0) risk += 0.35; // trying to loft a yorker
+          if (!shot.loft && bp.y > 1.25) risk += 0.35; // driving a bouncer
+          if (bp.x < -0.45 && shot.a > 0.7) risk += 0.3; // across the line outside off
+          if (del.wide) risk += 0.2;
+          if (shot.loft && del.bz > 3.8 && del.bz < 6.6) risk += 0.18; // lofting a good-length ball
+          if (Math.random() < risk) { q = q === "perfect" ? "good" : "edge"; shot.miscued = true; }
+        }
+        shot.q = q;
+        // timing was fine but the shot choice wasn't: say so rather than blaming timing
+        const label = shot.miscued && q !== "miss" ? ["MISCUED", "#fbbf24"] : { perfect: ["PERFECT", "#4ade80"], good: [e < 0 ? "GOOD · EARLY" : "GOOD · LATE", "#a3e635"], edge: [e < 0 ? "MISTIMED" : "EDGED!", "#fbbf24"], block: ["SOLID DEFENCE", "#93c5fd"], miss: [e < 0 ? "TOO EARLY" : "TOO LATE", "#f87171"] }[q];
+        timing(label[0], label[1]);
+        if (q === "miss") { shot.missed = true; return; }
+
+        // outgoing velocity
+        let a = shot.a - e * 3.2, speed, elev;
+        if (q === "block") { a = rand(-0.5, 0.5); speed = rand(3, 6); elev = deg(rand(2, 6)); }
+        else if (q === "edge") {
+          if (e > 0) { a = -(Math.PI - rand(0.12, 0.8)); speed = rand(15, 25); elev = deg(rand(3, 20)); }
+          else { a = shot.a + rand(-0.9, 0.9); speed = rand(12, 19); elev = deg(rand(38, 68)); }
+        } else {
+          let pw = q === "perfect" ? 1 : 0.8;
+          if (Math.abs(a) > 1.8) pw *= 0.8;
+          // even a clean loft can hang up for the man in the deep
+          if (shot.loft) { speed = 34.5 * pw * rand(0.84, 1.04); elev = deg(rand(26, 42)); }
+          else { speed = 36 * pw * rand(0.94, 1.03); elev = deg(rand(1, 5)); }
+        }
+        const v0 = V3(Math.sin(a) * Math.cos(elev), Math.sin(elev), Math.cos(a) * Math.cos(elev)).multiplyScalar(speed);
+        const p0 = V3(bp.x, Math.max(bp.y, 0.35), Z_HIT);
+        sfx(q === "block" ? "block" : "bat");
+        startPlay(p0, v0, q);
+      }
+
+      function startPlay(p0, v0, q) {
+        settleBowler();
+        const samples = simulate(p0, v0);
+        const ev = resolveFielding(samples);
+        playS = { samples, ev, t: 0, q, p0, thrown: null, runsDone: 0, runs: 0, finished: false };
+        // runs are called by the player (RUN button) while the ball is live
+        playS.run = { legs: 0, active: false, legT: 0, queued: false };
+        playS.live = ev.kind === "field" || ev.kind === "drop";
+        for (const f of fielders) { f.start = f.p.pos.clone(); f.p.roll = 0; f.p.yOff = 0; }
+        // full-stretch takes and stops end in a dive, toward the side the ball passes
+        if (ev.f && ev.reachable && ev.d / ev.reachable > 0.8 && ev.kind !== "six" && ev.kind !== "four") {
+          const a = samples[Math.max(0, ev.i - 8)], b2 = samples[ev.i];
+          const fp = ev.f.p.pos, fx = b2.x - fp.x, fz = b2.z - fp.z;
+          const vx = b2.x - a.x, vz = b2.z - a.z;
+          playS.dive = (fx * vz - fz * vx) > 0 ? 1 : -1;
+        }
+        const E = samples[ev.i];
+        // nearest ring/deep fielder (not the chaser, keeper or bowler) backs up the shot
+        let backup = null, bd = Infinity;
+        for (const f of fielders) {
+          if (f === ev.f || f.role === "keeper" || f.role === "bowler") continue;
+          const d = Math.hypot(f.p.pos.x - E.x, f.p.pos.z - E.z);
+          if (d < bd) { bd = d; backup = f; }
+        }
+        playS.backup = bd < 45 ? backup : null;
+        playS.throwEnd = Math.hypot(E.x, E.z) < Math.hypot(E.x, E.z - PITCH) ? 0 : 1;
+        fielders[9].p.catchTarget = null;
+        ballMesh.visible = true;
+        setState("play");
+      }
+
+      // ------------------------------------------------------------------
+      // Per-state update
+      // ------------------------------------------------------------------
+      const tmp = V3();
+      function update(dt) {
+        G.stateT += dt;
+        switch (G.state) {
+          case "menu": {
+            menuAngle += dt * 0.07;
+            break;
+          }
+          case "ready": {
+            if (G.stateT > 1.0) setState("runup");
+            break;
+          }
+          case "runup": {
+            const spin = bowlerCfg.kind === "spin";
+            if (clipBowling() && !bowlerP.clip) G.runupDur = startBowlingClip();
+            const dur = bowlerP.clip ? G.runupDur : spin ? 1.15 : 1.75;
+            const k = Math.min(1, G.stateT / dur);
+            if (!bowlerP.clip) applyBowlerRoot(G.stateT - dur);
+            // fielders walk in
+            for (const f of fielders) {
+              if (f.role === "keeper" || f.role === "bowler") continue;
+              const dir = tmp.set(-f.base.x, 0, -f.base.z).normalize();
+              const w = Math.min(1, G.stateT / dur) * 1.6;
+              place(f.p, f.base.x + dir.x * w, f.base.z + dir.z * w);
+              play(f.p, k < 0.95 ? "walk" : "idle", 0.3);
+            }
+            // non-striker backs up as the bowler approaches
+            if (k > 0.45) moveToward(nonStriker, 1.25, PITCH - CREASE - 1.6, 1.4, dt, 0.05, 1.25, 0);
+            if (k > 0.82 && G.batPose.phase === "stance") G.batPose = { phase: "backlift", t: 0 };
+            if (k >= 1) {
+              setState("delivery");
+              recStart();
+              ballT = 0;
+              ballMesh.visible = true; trail.visible = true;
+              $("speed").textContent = `${del.kmh.toFixed(0)} km/h`;
+              marker.position.set(del.bx, 0.02, del.bz);
+              sfx("whoosh");
+            }
+            break;
+          }
+          case "delivery": {
+            const prev = ballT;
+            ballT += dt;
+            // bowler follow-through (the mocap clip plays itself out)
+            if (!bowlerP.clip) applyBowlerRoot(G.stateT);
+            else if (!bowlerP.clip.action.isRunning()) settleBowler();
+            for (const f of fielders) if (f.role !== "keeper" && f.role !== "bowler") play(f.p, "idle", 0.3);
+
+            if (prev < del.t1 && ballT >= del.t1) sfx("pitch");
+            marker.material.opacity = ballT < del.t1 + 0.25 ? 0.85 : Math.max(0, marker.material.opacity - dt * 3);
+
+            if (shot && !shot.resolved && ballT >= Math.max(del.tHit, shot.tContact)) { resolveContact(); if (G.state === "play") break; }
+            // no shot offered by the time it arrives: shoulder arms
+            if (!shot && G.batPose.phase === "backlift" && ballT > del.tHit - 0.16 && (Math.abs(del.line) > 0.2 || del.wide)) G.batPose = { phase: "leave", t: G.batPose.t, l: 0 };
+
+            delPos(del, ballT, ballMesh.position);
+            // bowled?
+            if (prev < del.tStumps && ballT >= del.tStumps && !(shot && shot.q === "block")) {
+              const p = delPos(del, del.tStumps);
+              if (Math.abs(p.x) < STUMP_HALF + BALL_R && p.y < STUMP_H + BALL_R) {
+                recMark("stumps");
+                shatterStumps(V3(del.vx2, 0, del.vz2));
+                sfx("stumps");
+                sfx("roar");
+                G.shots.push(null);
+                flashScreen("BOWLED", "#f87171"); crowdFlash = 0.8;
+                endBall({ signal: "out", out: "bowled", chip: "W", bigText: "BOWLED!", smallText: `${bowlerCfg.name} knocks it over`, color: "#f87171", hold: 2.4 });
+                break;
+              }
+            }
+            const kp = fielders[9].p;
+            const keeperZ = kp.pos.z;
+            if (!shot || shot.missed) {
+              // keeper shuffles into the line of the ball and takes it
+              const tK = del.t1 + (del.bz - keeperZ) / -del.vz2;
+              const atK = delPos(del, Math.max(tK, del.t1));
+              kp.pos.x += clamp(atK.x - kp.pos.x, -3 * dt, 3 * dt);
+              if (ballMesh.position.z < 6) kp.catchTarget = ballMesh.position.clone();
+              if (ballMesh.position.z <= keeperZ + 0.35) {
+                del.gathered = true;
+                const h = kp.b.lHand ? wp(kp.b.lHand).lerp(wp(kp.b.rHand), 0.5) : ballMesh.position;
+                ballMesh.position.copy(h);
+              }
+            }
+            if (ballT > del.tStumps && (ballMesh.position.z <= keeperZ + 0.6 || ballT > del.tStumps + 1.2)) {
+              if (del.wide && !shot) {
+                endBall({ signal: "wide", legal: false, extras: 1, chip: "Wd", bigText: "WIDE", smallText: "+1 extra, ball to be re-bowled", color: "#c4b5fd", hold: 1.3 });
+              } else {
+                const msg = shot && shot.missed ? "Beaten! Swing and a miss" : shot && shot.q === "block" ? "Defended" : "Left alone";
+                endBall({ chip: "•", bigText: "", hold: 1.1 });
+                timing(msg.toUpperCase(), "#cbd5e1");
+              }
+            }
+            break;
+          }
+          case "play": updatePlay(dt); break;
+          case "result": {
+            if (playS) updatePlay(dt);
+            else if (del && del.gathered) {
+              const kp = fielders[9].p;
+              if (kp.b.lHand) ballMesh.position.copy(wp(kp.b.lHand).lerp(wp(kp.b.rHand), 0.5));
+            } else if (G.stateT > 0.3 && G.chips[G.chips.length - 1] === "W") play(bowlerP, "agree", 0.25);
+            if (G.stateT > (G.endHold || 1.8)) { if (G.replayable && REC.frames.length > 10) startReplay(); else nextBall(); }
+            break;
+          }
+        }
+        updateStumps(dt);
+      }
+
+      function sampleAt(samples, t, out) {
+        const i = clamp(Math.floor(t * 120), 0, samples.length - 1);
+        const s = samples[i];
+        return out.set(s.x, s.y, s.z);
+      }
+
+      function updatePlay(dt) {
+        const S = playS;
+        S.t += dt;
+        const { samples, ev } = S;
+        const evT = samples[ev.i].t;
+
+        // ball
+        if (S.t < evT || ev.kind === "four" || ev.kind === "six") {
+          sampleAt(samples, Math.min(S.t, samples[samples.length - 1].t), ballMesh.position);
+        } else if (ev.kind === "catch") {
+          ev.f.p.b.rHand.getWorldPosition(ballMesh.position);
+        } else {
+          // pick up and throw: at the end the batters are running to (nearest), else keeper's end
+          if (!S.thrown) {
+            const from = V3(samples[ev.i].x, 1.6, samples[ev.i].z);
+            const dA = Math.hypot(from.x, from.z), dB = Math.hypot(from.x, from.z - PITCH);
+            S.throwEnd = S.run.active || S.run.queued ? (dB < dA ? 1 : 0) : 0;
+            const to = S.throwEnd ? V3(-0.05, 0.62, PITCH) : V3(0.05, 0.62, 0);
+            // release partway through the throwing action
+            // not every throw hits: otherwise the keeper/bowler gathers and breaks the stumps
+            const direct = Math.random() < (from.distanceTo(to) < 22 ? 0.4 : 0.22);
+            S.thrown = { from, to, t0: S.t + 0.25, dur: Math.max(0.35, from.distanceTo(to) / 30), direct, gather: direct ? 0 : rand(0.3, 0.55) };
+          }
+          const th = S.thrown;
+          const k = clamp((S.t - th.t0) / th.dur, 0, 1);
+          ballMesh.position.lerpVectors(th.from, th.to, k);
+          ballMesh.position.y += Math.sin(k * Math.PI) * th.dur * 2.2;
+        }
+
+        // ---- fielders: one chases, one backs up, keeper + bowler cover the stumps, rest watch ----
+        const E = samples[ev.i];
+        const bx = ballMesh.position.x, bz = ballMesh.position.z;
+        const catcher = ev.kind === "catch" ? ev.f.p : null;
+        for (const f of fielders) {
+          const p = f.p;
+          if (f === ev.f) {
+            if (S.t < evT) {
+              // run to the intercept point, arriving with the ball
+              const go = Math.max(0, S.t - f.delay);
+              const dx = E.x - f.start.x, dz = E.z - f.start.z, dist = Math.hypot(dx, dz);
+              const need = Math.max(0, dist - f.reach * 0.6);
+              const moved = Math.min(need, go * f.speed);
+              if (dist > 0.01) place(p, f.start.x + (dx / dist) * moved, f.start.z + (dz / dist) * moved);
+              if (S.dive) {
+                const k = clamp((S.t - (evT - 0.3)) / 0.3, 0, 1);
+                p.roll = S.dive * k * 1.3; p.yOff = 0.12 * Math.sin(k * Math.PI) + 0.05 * k; // roll pivots at the feet
+                if (dist > 0.01) { p.pos.x += (dx / dist) * 0.7 * k; p.pos.z += (dz / dist) * 0.7 * k; }
+              }
+              if (S.t < f.delay) { faceTo(p, bx, bz); play(p, f.role === "keeper" ? "sneak_pose" : "idle", 0.2); }
+              else if (moved < need) { faceTo(p, E.x, E.z); play(p, "run", 0.15, clamp(f.speed / 6, 0.8, 1.3)); }
+              else { faceTo(p, bx, bz); play(p, "idle", 0.15); }
+            } else if (S.dive && S.t < evT + 0.9) {
+              // stay down after the dive, then get up
+              const k = 1 - clamp((S.t - evT - 0.5) / 0.4, 0, 1);
+              p.roll = S.dive * k * 1.3; p.yOff = 0.05 * k;
+            } else if (ev.kind === "catch") {
+              p.roll = 0; p.yOff = 0;
+              play(p, "agree", 0.2); faceTo(p, 0, CENTER.z);
+            } else if (ev.kind === "field" || ev.kind === "drop") {
+              const end = S.throwEnd ? V3(0, 0, PITCH) : V3(0, 0, 0);
+              faceTo(p, end.x, end.z);
+              play(p, S.t < evT + 0.45 ? "throw" : "idle", 0.1, 1.35);
+            } else {
+              faceTo(p, bx, bz); play(p, "idle", 0.3);
+            }
+          } else if (f.role === "keeper") {
+            // keeper comes up to the stumps for the return
+            if (S.t > 0.25 && (ev.kind === "field" || ev.kind === "drop")) {
+              if (moveToward(p, 0.15, -0.7, 5, dt, 0.3, bx, bz)) play(p, "sneak_pose", 0.2);
+              p.catchTarget = S.thrown ? ballMesh.position : null;
+            } else { faceTo(p, bx, bz); }
+          } else if (f.role === "bowler") {
+            // bowler covers the non-striker's stumps
+            if (S.t > 0.3 && ev.kind !== "six" && ev.kind !== "four") {
+              if (moveToward(p, -0.6, PITCH + 0.8, 4.5, dt, 0.3, bx, bz)) play(p, "idle", 0.2);
+            } else { faceTo(p, bx, bz); if (S.t > 0.3) play(p, "idle", 0.3); }
+          } else if (f === S.backup && ev.kind !== "catch") {
+            // back up the chaser, a few metres behind the line of the ball
+            const dir = V3(E.x, 0, E.z - Z_HIT).normalize();
+            const tx = E.x + dir.x * 7, tz = E.z + dir.z * 7;
+            if (S.t > f.delay + 0.1 && S.t < evT + 1.2) moveToward(p, tx, tz, 6.2, dt, 1.5, bx, bz);
+            else { faceTo(p, bx, bz); play(p, "idle", 0.3); }
+          } else if (catcher && S.t > evT + 0.2 && Math.hypot(p.pos.x - catcher.pos.x, p.pos.z - catcher.pos.z) < 30) {
+            // team-mates run in to celebrate the catch
+            if (moveToward(p, catcher.pos.x, catcher.pos.z, 5.5, dt, 2.2, catcher.pos.x, catcher.pos.z)) play(p, "agree", 0.2);
+          } else {
+            // everyone else holds position and watches the ball
+            faceTo(p, bx, bz);
+            play(p, "idle", 0.3);
+          }
+        }
+
+        // ---- batters: run when called; they cross mid-pitch ----
+        const R = S.run;
+        if (R.active) {
+          R.legT += dt;
+          if (R.legT >= LEG_DUR) {
+            R.legs++; R.active = false; R.legT = 0;
+            if (R.queued && !S.dead) { R.queued = false; R.active = true; sfx("call"); }
+          }
+        }
+        if (R.legs > 0 || R.active) {
+          const zA = CREASE + 0.05, zB = PITCH - CREASE - 0.3;
+          const frac = R.active ? ease(R.legT / LEG_DUR) : 0;
+          const fromA = R.legs % 2 === 0; // striker starts each even run at his own end
+          const along = fromA ? lerp(zA, zB, frac) : lerp(zB, zA, frac);
+          const other = fromA ? lerp(zB, zA, frac) : lerp(zA, zB, frac);
+          place(striker, 0.75, along); faceTo(striker, 0.75, R.active ? (fromA ? PITCH : 0) : CENTER.z);
+          place(nonStriker, -0.75, other); faceTo(nonStriker, -0.75, R.active ? (fromA ? 0 : PITCH) : CENTER.z);
+          play(striker, R.active ? "run" : "idle", 0.15, 1.25);
+          play(nonStriker, R.active ? "run" : "idle", 0.15, 1.25);
+          if (G.batPose.phase !== "carry") { G.batPose = { phase: "carry", t: 0 }; striker.yOff = 0; }
+        }
+        updateRunButton();
+
+        // ---- the throw arrives: ball dead, or a run-out ----
+        if (S.live && !S.dead && S.thrown && S.t >= S.thrown.t0 + S.thrown.dur + S.thrown.gather) {
+          S.dead = true; S.finished = true;
+          const land = samples[ev.i];
+          const where = region(land.x, land.z - Z_HIT);
+          const dropped = ev.kind === "drop";
+          const left = R.active ? (1 - R.legT / LEG_DUR) * (PITCH - 2 * CREASE) : 0;
+          if (R.active && left > 0.25) {
+            // short of the crease when the bails come off
+            shatterStumps(V3(0, 0, S.throwEnd ? 1 : -1), S.throwEnd ? bowlerStumps : strikerStumps);
+            sfx("stumps"); sfx("roar"); crowdFlash = 0.8;
+            flashScreen("RUN OUT", "#f87171");
+            G.shots.push(R.legs ? { x: land.x, z: land.z, runs: R.legs } : null);
+            endBall({ signal: "out", out: "run out", runs: R.legs, chip: "W", bigText: "RUN OUT!", smallText: `Short by ${left.toFixed(1)}m · ${S.thrown.direct ? "direct hit" : S.throwEnd ? "bowler breaks the stumps" : "keeper whips the bails off"}`, color: "#f87171", hold: 2.4 });
+          } else {
+            const r = R.legs + (R.active ? 1 : 0); // a run that just makes it counts
+            G.shots.push(r ? { x: land.x, z: land.z, runs: r } : null);
+            const big = r ? `${r} RUN${r > 1 ? "S" : ""}` : dropped ? "DROPPED!" : "";
+            const small = dropped ? `Let off at ${ev.f.role}${r ? ` · ${r} run${r > 1 ? "s" : ""}` : ""}` : r ? `${R.active ? "Just made it! " : ""}Worked ${where}` : `Fielded at ${ev.f.role}`;
+            endBall({ runs: r, chip: r ? String(r) : "•", bigText: big, smallText: small, color: R.active ? "#facc15" : dropped ? "#fbbf24" : "#ffffff", hold: 1.5 });
+          }
+          updateRunButton();
+        }
+
+        if (G.state === "play" && !S.finished && !S.droppedShown && S.t >= evT && !(ev.kind === "field")) {
+          S.finished = true;
+          if (ev.kind === "drop") S.droppedShown = true;
+          const land = samples[ev.i];
+          const dirX = land.x, dirZ = land.z - Z_HIT;
+          const where = region(dirX, dirZ);
+          if (ev.kind === "six") {
+            const m = Math.round(Math.hypot(land.x, land.z - CREASE));
+            G.shots.push({ x: land.x, z: land.z, runs: 6 });
+            sfx("roar");
+            flashScreen("SIX!", "#fb7185"); burstConfetti(V3(land.x, 0, land.z)); crowdFlash = 1;
+            endBall({ signal: "six", runs: 6, chip: "6", bigText: "SIX!", smallText: `${m}m ${where}`, color: "#fb7185", hold: 2.6 });
+          } else if (ev.kind === "four") {
+            G.shots.push({ x: land.x, z: land.z, runs: 4 });
+            sfx("cheer");
+            flashScreen("FOUR!", "#60a5fa"); crowdFlash = 0.7;
+            endBall({ signal: "four", runs: 4, chip: "4", bigText: "FOUR!", smallText: `Raced away ${where}`, color: "#60a5fa", hold: 2.2 });
+          } else if (ev.kind === "catch") {
+            G.shots.push(null);
+            sfx("roar");
+            const how = ev.f.role === "keeper" ? "Caught behind!" : `Caught at ${ev.f.role}`;
+            flashScreen("OUT!", "#f87171"); crowdFlash = 0.8;
+            endBall({ signal: "out", out: "caught", chip: "W", bigText: "OUT!", smallText: how, color: "#f87171", hold: 2.4 });
+          } else if (ev.kind === "drop") {
+            banner("DROPPED!", `Let off at ${ev.f.role}`, "#fbbf24", 1.4);
+            S.finished = false; // ball is still live: wait for the throw
+          }
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // Run calling
+      // ------------------------------------------------------------------
+      const LEG_DUR = 1.4; // seconds for one run between the creases
+      function callRun() {
+        const S = playS;
+        if (!S || !S.live || S.dead || G.state !== "play" || S.t < 0.25) return;
+        const R = S.run;
+        if (!R.active) { R.active = true; R.legT = 0; sfx("call"); }
+        else R.queued = true;
+        updateRunButton();
+      }
+      function updateRunButton() {
+        const btn = $("runBtn");
+        const S = playS;
+        const show = !!(S && S.live && !S.dead && G.state === "play" && S.t > 0.2);
+        btn.classList.toggle("on", show);
+        if (!show) return;
+        const R = S.run;
+        const danger = !!S.thrown && S.t > S.thrown.t0 - 0.1;
+        btn.classList.toggle("danger", danger);
+        $("runLbl").textContent = R.active ? (R.queued ? "RUNNING · +1 CALLED" : "RUN AGAIN") : R.legs ? "RUN AGAIN" : "RUN";
+        $("runCount").textContent = R.legs ? `${R.legs} run${R.legs > 1 ? "s" : ""} completed` : danger ? "throw's coming!" : "tap to call";
+      }
+
+      // ------------------------------------------------------------------
+      // Camera director
+      // ------------------------------------------------------------------
+      const camPos = V3(0, 30, 80), camTgt = V3(0, 0, 10);
+      let camF = 900;
+      function directCamera(dt) {
+        let pos, tgt, f;
+        const minWH = Math.min(W, H);
+        if (G.state === "intro") {
+          const k = ease(Math.min(1, G.stateT / 3.4));
+          const a = lerp(-1.1, 0.25, k);
+          const r = lerp(64, 46, k);
+          pos = V3(Math.sin(a) * r, lerp(42, 20, k), CENTER.z + Math.cos(a) * r);
+          tgt = V3(0, lerp(6, 0, k), CENTER.z);
+          f = Math.min(H * 0.95, W * 1.6);
+          menuAngle = a;
+          camPos.copy(pos); camTgt.copy(tgt); camF = f;
+        } else if (G.state === "menu" || G.state === "loading") {
+          pos = V3(Math.sin(menuAngle) * 46, 20, CENTER.z + Math.cos(menuAngle) * 46);
+          tgt = V3(0, 0, CENTER.z);
+          f = Math.min(H * 0.95, W * 1.6);
+        } else if (G.state === "ready" || G.state === "runup" || G.state === "delivery" || (G.state === "result" && !playS)) {
+          // broadcast end-on camera, high behind the bowler
+          pos = V3(0.7, 8.2, PITCH + 26);
+          // framed so the bowler's whole delivery stride sits in the lower third
+          tgt = V3(0.1, -1.0, -0.6);
+          f = Math.min(H * (W > H ? 4.2 : 3.6), W * 8.2);
+          camPos.copy(pos); camTgt.copy(tgt); camF = f;
+        } else if (playS) {
+          const b = ballMesh.position;
+          const E = playS.samples[playS.ev.i];
+          let dx = E.x, dz = E.z - Z_HIT;
+          const L = Math.hypot(dx, dz) || 1;
+          const reach = clamp(L, 12, 75);
+          dx /= L; dz /= L;
+          // high broadcast angle from behind the batter, framing ball + where it's going
+          pos = V3(-dx * (8 + reach * 0.25), 14 + reach * 0.3, Z_HIT - dz * (8 + reach * 0.25));
+          // keep an aerial ball in frame: aim higher the higher it goes
+          tgt = V3(lerp(b.x, E.x, 0.35), b.y * 0.62, lerp(b.z, E.z, 0.35));
+          f = minWH * (L < 12 ? 1.6 : 1.12);
+          const k = 1 - Math.exp(-dt * 3.2);
+          // hard cut from the bowler-end view to the follow camera (TV style)
+          if (!playS.camCut) { playS.camCut = true; camPos.copy(pos); camTgt.copy(tgt); camF = f; }
+          camPos.lerp(pos, k);
+          camTgt.lerp(tgt, 1 - Math.exp(-dt * 5));
+          camF = lerp(camF, f, k);
+          pos = camPos; tgt = camTgt; f = camF;
+        }
+        if (G.state === "menu" || G.state === "loading") { camPos.copy(pos); camTgt.copy(tgt); camF = f; }
+        // cut to the umpire for his signal
+        if (G.state === "result" && G.signal && G.stateT > 0.7 && umpire) {
+          if (!G.signal.cut) { G.signal.cut = true; $("banner").classList.remove("on"); }
+          const u = umpire.pos;
+          camPos.set(u.x + 0.9, 1.65, u.z + 5); camTgt.set(u.x, 1.4, u.z); camF = Math.min(W, H) * 2.1;
+        }
+        if (window.__camOverride) { const o = window.__camOverride; camPos.set(...o.pos); camTgt.set(...o.tgt); camF = o.f * Math.min(W, H); }
+        camera.position.copy(camPos);
+        camera.lookAt(camTgt);
+        camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(H / (2 * camF)));
+        camera.updateProjectionMatrix();
+      }
+
+      // ------------------------------------------------------------------
+      // Posing: batter's bat + arms, bowler's action
+      // ------------------------------------------------------------------
+      const UP = V3(0, 1, 0);
+      // ---- batting: stance → trigger → shot-specific footwork + swing ----
+      const LEAD = 0.08; // the swing reaches the ball this long after the swipe
+      const ROOT0 = V3(0.5, 0, CREASE + 0.05), H0 = -Math.PI / 2;
+      const FOOT_F0 = V3(0.5, 0.07, CREASE + 0.3), FOOT_B0 = V3(0.52, 0.07, CREASE - 0.18);
+      const FOOT_BT = V3(0.44, 0.07, CREASE - 0.26); // trigger: back and across
+      const SWEET = 0.62; // grip → middle of the blade
+      const BAT_STANCE = { grip: V3(0.33, 0.92, CREASE + 0.1), dir: V3(-0.12, -1, 0.06), face: V3(-0.3, 0, 1) };
+      const BAT_BACKLIFT = { grip: V3(0.44, 1.3, CREASE - 0.08), dir: V3(0.3, 0.72, -0.62), face: V3(-1, 0, 0.3) };
+      const BAT_LEAVE = { grip: V3(0.46, 1.78, CREASE - 0.04), dir: V3(0.15, 0.95, -0.25), face: V3(-0.2, 0, 1) };
+      const n3 = (x, y, z) => V3(x, y, z).normalize();
+
+      function classifyShot(sh, d, ballAt) {
+        if (sh.defend) return d.bz > 6.5 ? "backDefence" : "forwardDefence";
+        const a = sh.a, short = d.bz > 6.5 || ballAt.y > 1.15;
+        if (Math.abs(a) > 1.9) return a > 0 ? "glance" : "lateCut";
+        if (a < -0.35) return short ? "cut" : "drive";
+        if (a > 0.35) return short ? "pull" : "flick";
+        return short ? "punch" : "drive";
+      }
+
+      function planShot(type, sh, ballAt) {
+        const sd = V3(Math.sin(sh.a), 0, Math.cos(sh.a));
+        const F = FOOT_F0.clone(), B = FOOT_BT.clone();
+        let P;
+        switch (type) {
+          case "drive":
+            P = { F: V3(clamp(ballAt.x + 0.34, 0.15, 0.78), 0.07, CREASE + 0.88), B: FOOT_B0.clone().add(V3(0, 0, 0.12)), dRoot: V3(-0.08, 0, 0.34), drop: 0.11,
+              hC: H0 + 0.1, hF: H0 + 0.5, flexC: 0.4, flexF: 0.12, dir: n3(-0.15 + sd.x * 0.25, -0.95, 0.25),
+              follow: sh.loft ? { grip: V3(0.12, 1.62, CREASE + 0.55), dir: n3(0.45, 0.55, -0.7), face: V3(0, 0, -1) } : { grip: V3(0.05, 1.45, CREASE + 0.62), dir: n3(0.25, 0.9, 0.12), face: sd } };
+            break;
+          case "punch":
+            P = { F: V3(0.42, 0.07, CREASE + 0.1), B: V3(0.4, 0.07, CREASE - 0.32), dRoot: V3(-0.05, 0, -0.12), drop: 0.04,
+              hC: H0 + 0.05, hF: H0 + 0.25, flexC: 0.15, flexF: 0.05, dir: n3(-0.05, -0.95, 0.22),
+              follow: { grip: V3(0.12, 1.32, CREASE + 0.32), dir: n3(0.1, 0.95, 0.2), face: sd } };
+            break;
+          case "cut": case "lateCut":
+            P = { F: V3(0.45, 0.07, CREASE + 0.12), B: V3(0.24, 0.07, CREASE - 0.3), dRoot: V3(-0.12, 0, -0.1), drop: 0.08,
+              hC: H0 - 0.15, hF: H0 - (type === "cut" ? 0.35 : 0.1), flexC: 0.25, flexF: 0.1, dir: type === "cut" ? n3(-0.6, -0.25, 0.75) : n3(-0.25, -0.45, -0.85),
+              follow: { grip: V3(0.0, 1.48, CREASE + 0.05), dir: n3(-0.3, 0.5, -0.8), face: V3(-1, 0, 0) } };
+            break;
+          case "pull":
+            P = { F: V3(0.66, 0.07, CREASE + 0.22), B: V3(0.36, 0.07, CREASE - 0.3), dRoot: V3(-0.05, 0, -0.1), drop: 0.06,
+              hC: H0 + 1.0, hF: H0 + 1.9, flexC: 0.05, flexF: 0.0, dir: n3(-0.8, -0.15, -0.4),
+              follow: { grip: V3(0.62, 1.48, CREASE + 0.08), dir: n3(0.5, 0.3, -0.8), face: V3(1, 0, 0) } };
+            break;
+          case "flick": case "glance":
+            P = { F: V3(0.6, 0.07, CREASE + (type === "flick" ? 0.72 : 0.45)), B: FOOT_B0.clone(), dRoot: V3(0, 0, type === "flick" ? 0.25 : 0.1), drop: 0.08,
+              hC: H0 + 0.25, hF: H0 + (type === "flick" ? 0.75 : 0.95), flexC: 0.3, flexF: 0.15, dir: type === "flick" ? n3(0.1, -0.95, 0.25) : n3(0.25, -0.95, 0.0),
+              follow: { grip: V3(0.36, 1.3, CREASE + 0.55), dir: n3(0.7, 0.55, 0.2), face: sd } };
+            break;
+          case "forwardDefence":
+            P = { F: V3(0.38, 0.07, CREASE + 0.76), B: FOOT_B0.clone().add(V3(0, 0, 0.08)), dRoot: V3(-0.05, 0, 0.26), drop: 0.1,
+              hC: H0 + 0.05, hF: H0 + 0.05, flexC: 0.42, flexF: 0.42, dir: n3(-0.05, -1, 0.3), hold: true };
+            break;
+          default: // backDefence
+            P = { F: FOOT_F0.clone().add(V3(-0.05, 0, -0.15)), B: V3(0.4, 0.07, CREASE - 0.3), dRoot: V3(-0.04, 0, -0.12), drop: 0.03,
+              hC: H0, hF: H0, flexC: 0.12, flexF: 0.12, dir: n3(-0.05, -1, 0.12), hold: true };
+        }
+        // contact: put the middle of the blade on the ball, within reach of the body
+        const chest = ROOT0.clone().add(P.dRoot).add(V3(0, 1.22 - P.drop, 0));
+        let grip = ballAt.clone().addScaledVector(P.dir, -SWEET);
+        const off = grip.clone().sub(chest);
+        if (off.length() > 0.72) grip = chest.clone().addScaledVector(off.normalize(), 0.72);
+        grip.y = Math.max(0.62, grip.y);
+        P.contact = { grip, dir: P.dir, face: sh.defend ? V3(0, 0, 1) : sd };
+        if (P.hold) P.follow = P.contact;
+        P.Fstart = F; P.Bstart = B;
+        return P;
+      }
+
+      const _m4 = new THREE.Matrix4();
+      function setBat(grip, dir, face) {
+        bat.position.copy(grip);
+        const y = dir.clone().negate().normalize();
+        let z = face.clone().addScaledVector(y, -face.dot(y));
+        if (z.lengthSq() < 1e-4) z = V3(0, 0, 1).addScaledVector(y, -y.z);
+        z.normalize();
+        const x = V3().crossVectors(y, z).normalize();
+        _m4.makeBasis(x, y, z);
+        bat.quaternion.setFromRotationMatrix(_m4);
+      }
+      function lerpBat(A, B, k) {
+        return {
+          grip: A.grip.clone().lerp(B.grip, k),
+          dir: A.dir.clone().normalize().lerp(B.dir.clone().normalize(), k).normalize(),
+          face: A.face.clone().normalize().lerp(B.face.clone().normalize(), k).normalize(),
+        };
+      }
+
+      function placeBatter(root, h, yOff) {
+        striker.pos.copy(root); striker.heading = h; striker.yOff = yOff;
+        striker.obj.position.copy(root); striker.obj.position.y += yOff;
+        striker.obj.rotation.y = h + rig.yaw;
+        striker.obj.updateMatrixWorld(true);
+      }
+      function batterLegs(F, B, h) {
+        const b = striker.b;
+        if (!b.lUpLeg) return;
+        const facing = V3(Math.sin(h), 0, Math.cos(h));
+        ik2(b.lUpLeg, b.lLeg, b.lFoot, F, wp(b.lUpLeg).addScaledVector(facing, 1).add(V3(0, 0.2, 0.4)));
+        ik2(b.rUpLeg, b.rLeg, b.rFoot, B, wp(b.rUpLeg).addScaledVector(facing, 1).add(V3(0, 0.2, 0)));
+      }
+      function batterArms(pose, h) {
+        const b = striker.b;
+        const lT = pose.grip.clone();
+        const rT = pose.grip.clone().addScaledVector(pose.dir, 0.13);
+        const facing = V3(Math.sin(h), 0, Math.cos(h));
+        const chest = wp(b.spine2);
+        ik2(b.lArm, b.lFore, b.lHand, lT, chest.clone().addScaledVector(facing, 0.4).add(V3(0, -0.3, 0.5)));
+        ik2(b.rArm, b.rFore, b.rHand, rT, chest.clone().addScaledVector(facing, 0.1).add(V3(0, -0.6, -0.4)));
+      }
+      function batterFlex(angle, h) {
+        const b = striker.b;
+        if (!angle || !b.spine) return;
+        const axis = V3().crossVectors(UP, V3(Math.sin(h), 0, Math.cos(h))).normalize();
+        twistBone(b.spine, axis, angle * 0.55);
+        if (b.spine2) twistBone(b.spine2, axis, angle * 0.45);
+      }
+
+      function poseBatter(dt) {
+        const bp = G.batPose || { phase: "stance", t: 0 };
+        bp.t += dt;
+        if (bp.phase === "carry") {
+          const h = striker.b.rHand.getWorldPosition(V3());
+          bat.position.copy(h);
+          bat.quaternion.setFromUnitVectors(V3(0, -1, 0), V3(0, -0.5, striker.heading > 0 ? 0.8 : -0.8).normalize());
+          return;
+        }
+        if (G.state === "menu") return;
+        let root = ROOT0.clone(), h = H0, yOff = -0.05, F = FOOT_F0, Bf = FOOT_B0, flex = 0.12, pose;
+        if (bp.phase === "stance") {
+          pose = lerpBat(BAT_STANCE, BAT_STANCE, 0);
+          pose.dir.x += Math.sin(performance.now() / 260) * 0.05; // bat tap
+        } else if (bp.phase === "backlift" || bp.phase === "leave") {
+          const k = ease(Math.min(1, bp.t / 0.3));
+          Bf = FOOT_B0.clone().lerp(FOOT_BT, k);
+          pose = lerpBat(BAT_STANCE, BAT_BACKLIFT, k);
+          if (bp.phase === "leave") {
+            const kl = ease(Math.min(1, bp.l / 0.18));
+            bp.l += dt;
+            pose = lerpBat(BAT_BACKLIFT, BAT_LEAVE, kl);
+            F = FOOT_F0.clone().lerp(V3(0.4, 0.07, CREASE + 0.5), kl);
+            root.z += 0.08 * kl;
+          }
+        } else if (bp.phase === "shot") {
+          const P = bp.plan, u = bp.t;
+          const kFoot = ease(clamp(u / 0.11, 0, 1)), kDown = ease(clamp(u / LEAD, 0, 1)), kFol = ease(clamp((u - LEAD) / 0.32, 0, 1));
+          root = ROOT0.clone().addScaledVector(P.dRoot, kFoot);
+          yOff = -(0.05 + (P.drop - 0.05) * kFoot);
+          h = u < LEAD ? lerp(H0, P.hC, kDown) : lerp(P.hC, P.hF, kFol);
+          const lift = Math.sin(kFoot * Math.PI) * 0.14;
+          F = P.Fstart.clone().lerp(P.F, kFoot); F.y += lift;
+          Bf = P.Bstart.clone().lerp(P.B, kFoot);
+          flex = u < LEAD ? lerp(0.12, P.flexC, kDown) : lerp(P.flexC, P.flexF, kFol);
+          pose = u < LEAD ? lerpBat(BAT_BACKLIFT, P.contact, kDown) : lerpBat(P.contact, P.follow, kFol);
+        }
+        placeBatter(root, h, yOff);
+        batterLegs(F, Bf, h);
+        batterFlex(flex, h);
+        setBat(pose.grip, pose.dir, pose.face);
+        batterArms(pose, h);
+      }
+
+      // ------------------------------------------------------------------
+      // Bowling action. tr = seconds relative to release.
+      //   run-up → bound (gather, hop) → back-foot landing side-on →
+      //   front foot plants & braces → arm comes over, front arm pulls
+      //   down, trunk flexes → follow-through veering off the pitch.
+      // ------------------------------------------------------------------
+      const BOWL = {
+        pace: { hop: 0.34, bound: 1.7, sideOn: Math.PI * 0.55, stride: 1.3 },
+        spin: { hop: 0.12, bound: 0.8, sideOn: Math.PI * 0.62, stride: 0.9 },
+      };
+      const T_BOUND = -0.72, T_LAND = -0.42, T_FRONT = -0.16;
+      const X_REL = -0.62;
+      function bowlerKeys() {
+        const spin = bowlerCfg.kind === "spin";
+        const B = spin ? BOWL.spin : BOWL.pace;
+        const zBF = RELEASE.z + 1.0; // hips over the back foot at landing
+        return { spin, B, zBF, zB: zBF + B.bound, zR: RELEASE.z + 0.4, dur: spin ? 1.15 : 1.75, start: PITCH + (spin ? 4.5 : 9.5) };
+      }
+      // ---- motion-captured bowling (cricketer rig) ----
+      const clipBowling = () => rig && rig.bowling && bowlerP && bowlerP.actions[rig.bowling.fast.clip];
+      function bowlingSpec() { return rig.bowling[bowlerCfg.kind === "spin" ? "spin" : bowlerCfg.kmh[1] >= 145 ? "fast" : "medium"]; }
+      function startBowlingClip() {
+        const spec = bowlingSpec();
+        const p = bowlerP, a = p.actions[spec.clip];
+        const relT = (spec.release - 1) / 60;
+        p.mixer.stopAllAction();
+        a.reset(); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; a.timeScale = 1; a.play();
+        const ht = a.getClip().userData && a.getClip().userData.hipsTrack;
+        p.cur = a; p.clip = { action: a, relT, t0: Math.max(0, relT - spec.pre), ht, interp: ht ? ht.createInterpolant() : null };
+        // anchor the model so the bowling hand is exactly at the release point at release
+        a.time = relT; p.mixer.update(0);
+        p.heading = Math.PI; p.yOff = 0;
+        p.clip.anchor = V3(0, 0, 0);
+        placeClipRoot(p, relT);
+        const hand = wp(p.b.rHand);
+        p.clip.anchor.set(RELEASE.x - hand.x, 0, RELEASE.z - hand.z);
+        a.time = p.clip.t0; p.mixer.update(0);
+        placeClipRoot(p, p.clip.t0);
+        return relT - p.clip.t0; // run-up seconds before release
+      }
+      // the clip's original hip travel, re-applied as model translation (world space)
+      const _rootQ = new THREE.Quaternion();
+      function placeClipRoot(p, t) {
+        const C = p.clip;
+        const off = V3();
+        if (C.interp) {
+          const v = C.interp.evaluate(Math.min(t, C.ht.times[C.ht.times.length - 1]));
+          const v0 = C.ht.values;
+          off.set(v[0] - v0[0], 0, v[2] - v0[2]);
+          // track is in the armature's local frame: rotate/scale into the world like the model
+          const hips = p.b.hips;
+          hips.parent.getWorldQuaternion(_rootQ);
+          off.applyQuaternion(_rootQ).multiplyScalar(hips.parent.getWorldScale(V3()).x);
+          off.y = 0;
+        }
+        p.pos.copy(C.anchor).add(off);
+        p.obj.position.copy(p.pos);
+        p.obj.rotation.set(0, p.heading + rig.yaw, 0);
+        p.obj.updateMatrixWorld(true);
+      }
+      function settleBowler() {
+        // hand the bowler back to the fielding logic where the clip left him
+        const p = bowlerP;
+        if (!p || !p.clip) return;
+        const h = wp(p.b.hips);
+        p.clip = null;
+        p.mixer.stopAllAction(); p.cur = null;
+        p.pos.set(h.x, 0, h.z); p.heading = Math.PI;
+        play(p, "idle", 0);
+      }
+
+      function applyBowlerRoot(tr) {
+        const K = bowlerKeys(), B = K.B;
+        let x = X_REL, z, y = 0, h = Math.PI;
+        if (tr < T_BOUND) {
+          const k = (tr + K.dur) / (K.dur + T_BOUND);
+          z = lerp(K.start, K.zB, k); x = lerp(-0.85, X_REL, k);
+          play(bowlerP, "run", 0.15, K.spin ? 0.95 : 1.3);
+        } else if (tr < T_LAND) {
+          const k = (tr - T_BOUND) / (T_LAND - T_BOUND);
+          z = lerp(K.zB, K.zBF, k);
+          y = Math.sin(k * Math.PI) * B.hop;
+          h = lerp(Math.PI, B.sideOn, ease(k));
+          play(bowlerP, "run", 0.1, 0.45);
+        } else if (tr < 0) {
+          const k = (tr - T_LAND) / -T_LAND;
+          z = lerp(K.zBF, K.zR, ease(k));
+          y = -0.1 * Math.sin(k * Math.PI);
+          h = lerp(B.sideOn, Math.PI, ease(k));
+          play(bowlerP, "run", 0.1, 0.12);
+        } else {
+          const k = Math.min(1, tr / 0.95);
+          z = lerp(K.zR, RELEASE.z - 2.9, 1 - (1 - k) * (1 - k));
+          x = lerp(X_REL, -1.75, ease(k));
+          // body keeps rotating through to face the off side, then straightens up
+          h = Math.PI + 0.6 * Math.sin(Math.min(1, tr / 0.45) * Math.PI * 0.5) * (1 - clamp((tr - 0.45) / 0.5, 0, 1));
+          if (k < 1) play(bowlerP, "run", 0.2, lerp(0.9, 0.5, k)); else play(bowlerP, "idle", 0.35);
+        }
+        bowlerP.pos.set(x, 0, z);
+        bowlerP.yOff = y;
+        bowlerP.heading = h;
+      }
+
+      function poseBowler() {
+        const st = G.state;
+        if (st === "ready") { bowlerP.yOff = 0; bowlerP.b.rHand.getWorldPosition(ballMesh.position); return; }
+        if (st !== "runup" && st !== "delivery") { bowlerP.yOff = 0; return; }
+        if (bowlerP.clip) {
+          if (st === "runup") { bowlerP.b.rHand.getWorldPosition(ballMesh.position); ballMesh.visible = true; }
+          return;
+        }
+        const K = bowlerKeys(), B = K.B;
+        const tr = st === "runup" ? G.stateT - K.dur : G.stateT;
+        if (tr > 0.95) { bowlerP.yOff = 0; return; }
+        const b = bowlerP.b;
+        const fwd = V3(0, 0, -1);           // down the pitch
+        const right = V3(1, 0, 0);          // bowler's right when running in
+        const blend = (a, c, t0, t1) => clamp((tr - t0) / (t1 - t0), 0, 1);
+
+        // ---- legs: plant back foot, stride and brace the front leg ----
+        if (tr > T_LAND - 0.04 && tr < 0.28 && b.lUpLeg && b.rUpLeg) {
+          const back = V3(X_REL + 0.16, 0.08, K.zBF + 0.12);
+          const front = V3(X_REL - 0.1, 0.08, K.zBF - B.stride);
+          const wIn = blend(0, 0, T_LAND - 0.04, T_LAND + 0.04);
+          // back (right) foot: planted, then drags through after release
+          let bt = back.clone();
+          if (tr > 0.02) { const k = clamp((tr - 0.02) / 0.26, 0, 1); bt = back.clone().lerp(front.clone().add(V3(0.2, 0, 0.3)), ease(k)); bt.y += Math.sin(k * Math.PI) * 0.25; }
+          const wBack = wIn * (1 - blend(0, 0, 0.18, 0.28));
+          const rNow = wp(b.rFoot);
+          ik2(b.rUpLeg, b.rLeg, b.rFoot, rNow.lerp(bt, wBack), wp(b.rUpLeg).addScaledVector(fwd, 1.2).add(V3(0, 0.2, 0)));
+          // front (left) foot: swings through from behind and lands at T_FRONT
+          let ft;
+          if (tr < T_FRONT) {
+            const k = clamp((tr - T_LAND) / (T_FRONT - T_LAND), 0, 1);
+            ft = back.clone().add(V3(-0.2, 0, 0.35)).lerp(front, ease(k));
+            ft.y += Math.sin(k * Math.PI) * 0.32;
+          } else ft = front.clone();
+          const wFront = wIn * (1 - blend(0, 0, 0.16, 0.28));
+          const lNow = wp(b.lFoot);
+          ik2(b.lUpLeg, b.lLeg, b.lFoot, lNow.lerp(ft, wFront), wp(b.lUpLeg).addScaledVector(fwd, 1.2).add(V3(0, 0.3, 0)));
+        }
+
+        // ---- trunk: arch back at the coil, flex forward through release ----
+        let flex = 0;
+        if (tr > T_BOUND) {
+          if (tr < T_LAND) flex = lerp(0, 0.18, blend(0, 0, T_BOUND, T_LAND));
+          else if (tr < -0.08) flex = lerp(0.18, 0.32, blend(0, 0, T_LAND, -0.08));
+          else if (tr < 0.22) flex = lerp(0.32, -0.75, ease(blend(0, 0, -0.08, 0.22)));
+          else flex = lerp(-0.75, 0, ease(blend(0, 0, 0.22, 0.95)));
+        }
+        if (flex && b.spine) { twistBone(b.spine, right, flex * 0.5); if (b.spine2) twistBone(b.spine2, right, flex * 0.5); }
+
+        // ---- front (left) arm: reach high toward the batter, then pull down hard ----
+        if (tr > T_BOUND) {
+          const L = wp(b.lArm);
+          const high = L.clone().addScaledVector(UP, 0.5).addScaledVector(fwd, 0.35).addScaledVector(right, -0.08);
+          const tuck = L.clone().addScaledVector(UP, -0.45).addScaledVector(fwd, -0.15).addScaledVector(right, -0.22);
+          let lt;
+          if (tr < T_LAND) lt = wp(b.lHand).lerp(high, ease(blend(0, 0, T_BOUND, T_LAND)));
+          else if (tr < -0.12) lt = high;
+          else lt = high.clone().lerp(tuck, ease(blend(0, 0, -0.12, 0.12)));
+          if (tr > 0.5) lt = lt.lerp(wp(b.lHand), blend(0, 0, 0.5, 0.95));
+          ik2(b.lArm, b.lFore, b.lHand, lt, L.clone().addScaledVector(right, -0.6).add(V3(0, -0.4, 0)));
+        }
+
+        // ---- bowling (right) arm ----
+        const S = wp(b.rArm);
+        let hand = null;
+        if (tr > T_BOUND && tr < T_LAND) {
+          // gather: ball tucked under the chin
+          const chin = wp(b.spine2).addScaledVector(UP, 0.12).addScaledVector(fwd, 0.22);
+          hand = wp(b.rHand).lerp(chin, ease(blend(0, 0, T_BOUND, T_LAND)));
+        } else if (tr >= T_LAND && tr < 0.6) {
+          // windmill in the plane of the pitch: down-back → straight over the top → across the body
+          const phi = tr < 0
+            ? lerp(0.15, Math.PI + 0.2, ease((tr - T_LAND) / -T_LAND))
+            : lerp(Math.PI + 0.2, Math.PI * 2 + 0.5, Math.min(1, tr / 0.32));
+          const across = tr > 0.08 ? -0.38 * clamp((tr - 0.08) / 0.25, 0, 1) : 0;
+          hand = S.clone().addScaledVector(UP, -Math.cos(phi) * 0.64).addScaledVector(fwd, -Math.sin(phi) * 0.64).addScaledVector(right, 0.06 + across);
+          if (tr > 0.4) hand.lerp(wp(b.rHand), blend(0, 0, 0.4, 0.6));
+        }
+        if (hand) ik2(b.rArm, b.rFore, b.rHand, hand, S.clone().addScaledVector(right, 0.7));
+
+        if (st === "runup") { b.rHand.getWorldPosition(ballMesh.position); ballMesh.visible = true; }
+      }
+
+      // umpire signals: four (wave across the chest), six (both arms up),
+      // out (finger raised), wide (arms out to the side)
+      function poseUmpire() {
+        const sig = G.state === "result" && G.signal && G.stateT > 0.7 ? G.signal.type : null;
+        if (!sig) return;
+        umpire.heading = 0; // turn to face the scorers / camera
+        umpire.obj.rotation.y = rig.yaw; umpire.obj.updateMatrixWorld(true);
+        const b = umpire.b, f = V3(0, 0, 1), side = V3(-1, 0, 0); // umpire's right when facing +z
+        const t = G.stateT;
+        const R = wp(b.rArm), L = wp(b.lArm), chest = wp(b.spine2);
+        let rt = null, lt = null;
+        if (sig === "six") { rt = R.clone().add(V3(0, 0.62, 0.05)); lt = L.clone().add(V3(0, 0.62, 0.05)); }
+        else if (sig === "out") rt = R.clone().add(V3(-0.1, 0.58, 0.22));
+        else if (sig === "wide") { rt = R.clone().addScaledVector(side, 0.62); lt = L.clone().addScaledVector(side, -0.62); }
+        else if (sig === "four") rt = chest.clone().addScaledVector(f, 0.45).addScaledVector(side, Math.sin(t * 9) * 0.45).add(V3(0, 0.12, 0));
+        if (rt) ik2(b.rArm, b.rFore, b.rHand, rt, R.clone().addScaledVector(f, -0.5).add(V3(0, -0.4, 0)));
+        if (lt) ik2(b.lArm, b.lFore, b.lHand, lt, L.clone().addScaledVector(f, -0.5).add(V3(0, -0.4, 0)));
+      }
+
+      // turn a player's head toward a point (yaw only, limited like a real neck)
+      function lookAt(p, target, max = 1.25) {
+        if (!p.b.head || p.roll) return;
+        const h = wp(p.b.head);
+        const want = Math.atan2(target.x - h.x, target.z - h.z);
+        let d = want - p.heading;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        twistBone(p.b.head, UP, clamp(d, -max, max) * 0.8);
+      }
+      function poseCast() {
+        const st = G.state;
+        const ball = ballMesh.visible ? ballMesh.position : bowlerP.b.rHand ? wp(bowlerP.b.rHand) : V3(0, 1.5, PITCH);
+        // ring fielders walk in and crouch ready as the bowler delivers
+        const ready = (st === "runup" && G.stateT > (bowlerCfg.kind === "spin" ? 0.7 : 1.2)) || (st === "delivery" && !shot);
+        for (const f of fielders) {
+          if (f.role === "keeper" || f.role === "bowler") continue;
+          const p = f.p;
+          if (ready && Math.hypot(p.pos.x, p.pos.z) < 36 && p.b.spine2) {
+            const fwd = V3(Math.sin(p.heading), 0, Math.cos(p.heading));
+            const side = V3(fwd.z, 0, -fwd.x);
+            const flexAxis = V3().crossVectors(UP, fwd).normalize();
+            twistBone(p.b.spine, flexAxis, 0.38);
+            if (p.b.spine2) twistBone(p.b.spine2, flexAxis, 0.22);
+            const chest = wp(p.b.spine2);
+            for (const [arm, fore, hand, sgn] of [[p.b.lArm, p.b.lFore, p.b.lHand, 1], [p.b.rArm, p.b.rFore, p.b.rHand, -1]]) {
+              ik2(arm, fore, hand, chest.clone().addScaledVector(fwd, 0.5).addScaledVector(side, 0.17 * sgn).add(V3(0, -0.55, 0)), wp(fore).add(V3(0, -1, 0)).addScaledVector(side, sgn));
+            }
+          }
+          if (st !== "replay") lookAt(p, ball);
+        }
+        lookAt(fielders[9].p, ball, 0.9);
+        if (G.batPose && G.batPose.phase !== "carry") lookAt(striker, st === "runup" || st === "ready" ? wp(bowlerP.b.head) : ball, 1.65);
+        lookAt(nonStriker, ball);
+        if (!(st === "result" && G.signal && G.stateT > 0.7)) lookAt(umpire, ball, 1.0);
+        // bowler: both arms up after taking a wicket
+        if (st === "result" && G.chips[G.chips.length - 1] === "W" && G.stateT > 0.25 && bowlerP.b.lArm) {
+          const k = Math.min(1, (G.stateT - 0.25) / 0.3);
+          for (const [arm, fore, hand, sgn] of [[bowlerP.b.lArm, bowlerP.b.lFore, bowlerP.b.lHand, 1], [bowlerP.b.rArm, bowlerP.b.rFore, bowlerP.b.rHand, -1]]) {
+            const sh = wp(arm);
+            ik2(arm, fore, hand, sh.clone().add(V3(0.12 * sgn * -1, 0.62 * k - 0.5 * (1 - k), 0.05)), sh.clone().add(V3(sgn * -0.6, 0, 0)));
+          }
+        }
+      }
+
+      function syncPlayers(dt) {
+        for (const p of players) {
+          for (const [bone, q, pos] of p.rest) { bone.quaternion.copy(q); bone.position.copy(pos); }
+          p.mixer.update(dt);
+          if (p.clip) placeClipRoot(p, p.clip.action.time);
+          p.obj.position.copy(p.pos);
+          p.obj.position.y += p.yOff || 0;
+          p.obj.rotation.y = p.heading + rig.yaw;
+          p.obj.updateMatrixWorld(true);
+          if (p.roll) { p.obj.rotateOnWorldAxis(V3(Math.sin(p.heading), 0, Math.cos(p.heading)), p.roll); p.obj.updateMatrixWorld(true); }
+          if (p.crouch && !p.roll) applyCrouch(p);
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // HUD
+      // ------------------------------------------------------------------
+      function updateHud() {
+        if (!(screenFlash.text && performance.now() < screenFlash.until)) drawScreen();
+        $("score").textContent = `${G.runs}/${G.wkts}`;
+        const ov = `${Math.floor(G.balls / 6)}.${G.balls % 6}`;
+        $("overs").textContent = `${ov} / ${G.cfg.balls / 6} ov · ${G.cfg.wkts - G.wkts} wkt${G.cfg.wkts - G.wkts === 1 ? "" : "s"} left`;
+        const need = G.target - G.runs, left = G.cfg.balls - G.balls;
+        $("need").innerHTML = need > 0 ? `Need <b>${need}</b> off <b>${left}</b> · Target ${G.target}` : `<b>Target reached!</b>`;
+        const chips = [...G.chips];
+        const legal = chips.filter((c) => c !== "Wd").length;
+        for (let i = legal; i < 6; i++) chips.push("");
+        $("chips").innerHTML = chips.map((c) => {
+          const cls = c === "W" ? "w" : c === "6" ? "s" : c === "4" ? "f" : c === "Wd" ? "x" : c && c !== "•" ? "r" : "";
+          return `<div class="chip ${cls}">${c}</div>`;
+        }).join("");
+      }
+
+      let bannerTimer = 0;
+      function banner(big, small, color, dur = 1.8) {
+        if (!big) return;
+        $("bannerBig").textContent = big;
+        $("bannerBig").style.color = color || "#fff";
+        $("bannerSmall").textContent = small || "";
+        $("bannerSmall").style.display = small ? "inline-block" : "none";
+        $("banner").classList.add("on");
+        clearTimeout(bannerTimer);
+        bannerTimer = setTimeout(() => $("banner").classList.remove("on"), dur * 1000);
+      }
+      let timingTimer = 0;
+      function timing(text, color) {
+        const el = $("timing");
+        el.textContent = text; el.style.color = color;
+        el.classList.add("on");
+        clearTimeout(timingTimer);
+        timingTimer = setTimeout(() => el.classList.remove("on"), 1100);
+      }
+
+      function drawSwipe() {
+        const g = $("swipe").getContext("2d");
+        g.clearRect(0, 0, W, H);
+        const now = performance.now();
+        while (swipeTrail.length && now - swipeTrail[0].t > 260) swipeTrail.shift();
+        if (swipeTrail.length < 2) return;
+        g.lineCap = "round";
+        for (let i = 1; i < swipeTrail.length; i++) {
+          const a = swipeTrail[i - 1], b = swipeTrail[i];
+          const life = 1 - (now - b.t) / 260;
+          g.strokeStyle = `rgba(255,214,140,${0.75 * life})`;
+          g.lineWidth = 3 + 7 * life;
+          g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+        }
+      }
+
+      function updateTrail() {
+        ballShadow.visible = ballMesh.visible && G.state !== "menu";
+        if (!ballMesh.visible) { trail.visible = false; return; }
+        // keep the ball readable at broadcast distances (~5px minimum)
+        const dist = camera.position.distanceTo(ballMesh.position);
+        const pxPerM = camF / Math.max(1, dist);
+        ballMesh.scale.setScalar(Math.max(1, 6 / (2 * BALL_R * 1.7 * pxPerM)));
+        ballShadow.position.set(ballMesh.position.x, 0.03, ballMesh.position.z);
+        const hgt = ballMesh.position.y;
+        ballShadow.scale.setScalar(ballMesh.scale.x * (1 + hgt * 0.04));
+        ballShadow.material.opacity = clamp(0.5 - hgt * 0.012, 0.15, 0.5);
+        trailPts.push(ballMesh.position.clone());
+        while (trailPts.length > TRAIL_N) trailPts.shift();
+        const arr = trailGeo.attributes.position.array;
+        for (let i = 0; i < TRAIL_N; i++) {
+          const p = trailPts[Math.max(0, trailPts.length - TRAIL_N + i)] || trailPts[0];
+          arr[i * 3] = p.x; arr[i * 3 + 1] = p.y; arr[i * 3 + 2] = p.z;
+        }
+        trailGeo.attributes.position.needsUpdate = true;
+        trail.visible = G.state === "delivery" || G.state === "play" || G.state === "result";
+      }
+
+      // ------------------------------------------------------------------
+      // End of innings
+      // ------------------------------------------------------------------
+      function finish(res) {
+        setState("over");
+        $("hud").classList.remove("on");
+        const wl = G.cfg.wkts - G.wkts, bl = G.cfg.balls - G.balls;
+        const title = { win: "YOU WON!", lose: "DEFEATED", tie: "MATCH TIED" }[res];
+        const sub = res === "win"
+          ? `Won by ${wl} wicket${wl === 1 ? "" : "s"} with ${bl} ball${bl === 1 ? "" : "s"} to spare`
+          : res === "tie" ? `Scores level on ${G.runs}` : `Lost by ${G.target - 1 - G.runs} run${G.target - 1 - G.runs === 1 ? "" : "s"}`;
+        $("resTitle").textContent = title;
+        $("resTitle").className = "result " + res;
+        $("resSub").textContent = `${sub} · ${G.cfg.name}`;
+        $("stRuns").textContent = G.runs; $("stBalls").textContent = G.balls;
+        $("st4").textContent = G.fours; $("st6").textContent = G.sixes;
+        // points: runs + win bonus + wickets/balls in hand
+        if (res === "win") { flashScreen("WIN!", "#4ade80", 4); burstConfetti(V3(0, 0, CENTER.z)); crowdFlash = 1; }
+        G.points = G.runs + (res === "win" ? 20 + wl * 5 + bl * 2 : res === "tie" ? 10 : 0);
+        $("pts").textContent = G.points;
+        drawWagon();
+        $("end").classList.add("on");
+        submitScore(G.points);
+      }
+
+      function drawWagon() {
+        const c = $("wagon"), g = c.getContext("2d");
+        const w = c.width, s = w / (BOUNDARY * 2 + 6), cx = w / 2, cy = w / 2;
+        const X = (x) => cx + x * s, Y = (z) => cy - (z - CENTER.z) * s; // bowler end at top
+        g.clearRect(0, 0, w, w);
+        g.fillStyle = "#1f5f2a"; g.beginPath(); g.arc(cx, cy, BOUNDARY * s, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = "rgba(255,255,255,.7)"; g.lineWidth = 3; g.stroke();
+        g.setLineDash([6, 6]); g.strokeStyle = "rgba(255,255,255,.25)"; g.lineWidth = 2;
+        g.beginPath(); g.arc(cx, cy, 30 * s, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+        g.fillStyle = "#c8b07a"; g.fillRect(X(-1.5), Y(PITCH), 3 * s, PITCH * s);
+        for (const sh of G.shots) {
+          if (!sh) continue;
+          g.strokeStyle = sh.runs === 6 ? "#fb7185" : sh.runs === 4 ? "#60a5fa" : "#f8fafc";
+          g.lineWidth = sh.runs >= 4 ? 4 : 2.5;
+          g.beginPath(); g.moveTo(X(0), Y(CREASE)); g.lineTo(X(sh.x), Y(sh.z)); g.stroke();
+        }
+      }
+
+      async function submitScore(points) {
+        const msg = $("submitMsg");
+        const bridge = window.flutter_inappwebview;
+        if (bridge && typeof bridge.callHandler === "function") {
+          msg.textContent = "Submitting score…";
+          try {
+            const r = await bridge.callHandler("gameScore", { score: points, mode: G.mode, runs: G.runs, target: G.target });
+            msg.textContent = (r && r.message) || "Score submitted.";
+          } catch (_) { msg.textContent = "Couldn't submit score."; }
+        } else {
+          msg.textContent = "Practice mode — open from Hash Arcade to post scores.";
+        }
+      }
+
+      $("gfxBtn").addEventListener("click", () => {
+        const order = ["auto", "high", "medium", "low"];
+        gfxMode = order[(order.indexOf(gfxMode) + 1) % order.length];
+        store.set("so_gfx", gfxMode);
+        perf.settled = false; perf.n = 0; perf.t = 0;
+        applyQuality(gfxMode === "auto" ? store.get("so_gfx_auto") || "high" : gfxMode);
+      });
+      $("runBtn").addEventListener("pointerdown", (e) => { e.stopPropagation(); audioInit(); callRun(); });
+      window.addEventListener("keydown", (e) => { if (e.key === "r" || e.key === "R") callRun(); });
+      document.querySelectorAll(".mode").forEach((b) => b.addEventListener("click", () => startInnings(b.dataset.mode)));
+      $("again").addEventListener("click", () => startInnings(G.mode));
+      $("toMenu").addEventListener("click", () => { $("end").classList.remove("on"); $("menu").classList.add("on"); setState("menu"); });
+
+      // ------------------------------------------------------------------
+      // Audio (synthesised — no extra downloads)
+      // ------------------------------------------------------------------
+      let AC = null, noiseBuf = null, crowdGain = null;
+      function audioInit() {
+        if (AC) { if (AC.state === "suspended") AC.resume(); return; }
+        try {
+          AC = new (window.AudioContext || window.webkitAudioContext)();
+          noiseBuf = AC.createBuffer(1, AC.sampleRate * 2.5, AC.sampleRate);
+          const d = noiseBuf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+          // constant crowd murmur under everything
+          const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+          const lp = AC.createBiquadFilter(); lp.type = "bandpass"; lp.frequency.value = 520; lp.Q.value = 0.6;
+          crowdGain = AC.createGain(); crowdGain.gain.value = 0.05;
+          src.connect(lp).connect(crowdGain).connect(AC.destination); src.start();
+        } catch (_) { AC = null; }
+      }
+      function noise(dur, filterType, freq, q, gain, attack = 0.002) {
+        const t = AC.currentTime;
+        const src = AC.createBufferSource(); src.buffer = noiseBuf;
+        const f = AC.createBiquadFilter(); f.type = filterType; f.frequency.value = freq; f.Q.value = q;
+        const g = AC.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(gain, t + attack);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        src.connect(f).connect(g).connect(AC.destination);
+        src.start(t); src.stop(t + dur + 0.05);
+      }
+      function tone(freq, freq2, dur, type, gain) {
+        const t = AC.currentTime;
+        const o = AC.createOscillator(); o.type = type;
+        o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(freq2, t + dur);
+        const g = AC.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g).connect(AC.destination); o.start(t); o.stop(t + dur + 0.02);
+      }
+      function sfx(kind) {
+        if (!AC) return;
+        try {
+          if (kind === "bat") { noise(0.09, "bandpass", 1900, 1.4, 0.9); tone(1100, 380, 0.06, "triangle", 0.35); }
+          else if (kind === "block") { noise(0.06, "bandpass", 1200, 1.2, 0.45); }
+          else if (kind === "pitch") { tone(170, 90, 0.08, "sine", 0.3); noise(0.05, "lowpass", 600, 0.7, 0.2); }
+          else if (kind === "stumps") { for (let i = 0; i < 3; i++) setTimeout(() => noise(0.05, "bandpass", 3200 - i * 500, 3, 0.5), i * 45); }
+          else if (kind === "whoosh") { noise(0.35, "bandpass", 700, 0.8, 0.12, 0.15); }
+          else if (kind === "call") { tone(520, 700, 0.12, "square", 0.08); }
+          else if (kind === "roar") { noise(2.4, "lowpass", 950, 0.5, 0.5, 0.35); }
+          else if (kind === "cheer") { noise(1.6, "lowpass", 1100, 0.5, 0.35, 0.25); }
+        } catch (_) {}
+      }
+
+      // ------------------------------------------------------------------
+      // Boot
+      // ------------------------------------------------------------------
+      function setProgress(p, text) {
+        $("loadFill").style.width = `${Math.round(p * 100)}%`;
+        if (text) $("loadTxt").textContent = text;
+      }
+
+      async function boot() {
+        const manager = new THREE.LoadingManager();
+        manager.onProgress = (_url, loaded, total) => setProgress(loaded / total);
+        const onProg = (e) => { if (e.total) setProgress(0.15 + 0.6 * (e.loaded / e.total), "Fetching 3D players…"); };
+        const loader = new GLTFLoader(manager);
+        const lowPoly = () => loadFirst(loader, ASSETS.player, onProg)
+          .then((g) => { rig = RIGS.quaternius; return g; })
+          .catch(() => loader.loadAsync(ASSETS.playerFallback, onProg).then((g) => { rig = RIGS.mixamo; return g; }));
+        const gltfP = ASSETS.cricketer
+          ? Promise.all([loader.loadAsync(ASSETS.cricketer, onProg), loader.loadAsync(ASSETS.locomotion)])
+              .then(([g, loco]) => {
+                // Mixamo clips name bones "mixamorig:Hips" → sanitised "mixamorigHips"; strip the
+                // prefix and drop root translation/scale so they play in place on this skeleton
+                // Mixamo clips don't transfer cleanly to this skeleton (different rest pose),
+                // so idle + run cycles are cut from the pack's own motion capture instead:
+                // a standing loop from the spinner's start and one stride of the fast run-up.
+                const byName = (n) => g.animations.find((c) => c.name === n);
+                const cut = (src, name, f0, f1) => {
+                  const c = THREE.AnimationUtils.subclip(src, name, f0, f1, 60);
+                  c.tracks = c.tracks.filter((t) => !/\.(position|scale)$/.test(t.name));
+                  return c;
+                };
+                const extra = [];
+                const fast = byName("RightArmFastBowler"), spin = byName("RightArmOffSpinner");
+                if (fast && spin) {
+                  const idle = cut(spin, "idle", 0, 14);
+                  const run = cut(fast, "run", 211, 251);
+                  extra.push(idle, run, Object.assign(run.clone(), { name: "walk" }), Object.assign(idle.clone(), { name: "agree" }), Object.assign(idle.clone(), { name: "sneak_pose" }));
+                }
+                // bowling clips: keep bone rotations + hip travel only. Per-bone position/scale
+                // tracks and the root "Armature" node fight the in-game rescale and tear the mesh.
+                // and only the standard Mixamo skeleton (the pack's IK/control helper bones tear the skin)
+                const std = new Set(extra.flatMap((c) => c.tracks.map((t) => t.name.split(".")[0])));
+                // Hip travel is lifted out of the clip (some skin is bound to helper bones that
+                // don't travel, so root motion tears it); the run-up path is replayed in code instead.
+                // (copy every hip track first: the glTF can share one buffer between clips)
+                for (const c of g.animations) {
+                  const hp = c.tracks.find((t) => t.name === "Hips.position");
+                  if (hp) c.userData = { hipsTrack: new THREE.VectorKeyframeTrack("hips", Float32Array.from(hp.times), Float32Array.from(hp.values)) };
+                }
+                g.animations = [...g.animations.map((c) => {
+                  const hp = c.tracks.find((t) => t.name === "Hips.position");
+                  if (hp) {
+                    hp.values = Float32Array.from(hp.values);
+                    // keep only the hips' vertical bob/crouch, at the start's horizontal position
+                    const v = hp.values;
+                    const x0 = v[0], z0 = v[2];
+                    for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i + 2] = z0; }
+                  }
+                  c.tracks = c.tracks.filter((t) => std.has(t.name.split(".")[0]) && !/\.scale$/.test(t.name) && (!/\.position$/.test(t.name) || /^Hips\./.test(t.name)));
+                  return c;
+                }), ...extra];
+                rig = RIGS.cricketer;
+                return g;
+              })
+              .catch(() => lowPoly())
+          : lowPoly();
+        const skyP = loadFirst(new RGBELoader(manager), ASSETS.sky).catch(() => null); // sky is optional
+
+        const gltf = await gltfP;
+        playerTemplate = gltf.scene;
+        if (rig === RIGS.cricketer) {
+          // which way does this model face? toes point forward from the feet
+          playerTemplate.updateMatrixWorld(true);
+          const foot = playerTemplate.getObjectByName("LeftFoot"), toe = playerTemplate.getObjectByName("LeftToeBase");
+          if (foot && toe) {
+            const d = wp(toe).sub(wp(foot));
+            rig.yaw = -Math.atan2(d.x, d.z);
+          }
+        }
+        // The low-poly model ships faceted (per-face) normals. Rebuild them as
+        // smooth normals, keeping only genuinely square edges (>85°) creased —
+        // the mesh is coarse enough that neighbouring faces often meet at 40-70°:
+        // same triangles, much rounder-looking bodies and faces.
+        if (rig !== RIGS.cricketer) playerTemplate.traverse((c) => {
+          if (c.isMesh) { try { c.geometry = toCreasedNormals(c.geometry, deg(85)); } catch (_) {} }
+        });
+        playerClips = gltf.animations;
+        const box = new THREE.Box3().setFromObject(playerTemplate);
+        playerScale = 1.78 / Math.max(0.01, box.max.y - box.min.y);
+
+        const sky = await skyP;
+        if (sky) {
+          sky.mapping = THREE.EquirectangularReflectionMapping;
+          scene.background = sky;
+          scene.backgroundIntensity = 0.95;
+          const pmrem = new THREE.PMREMGenerator(renderer);
+          scene.environment = pmrem.fromEquirectangular(sky).texture;
+          scene.environmentIntensity = 0.55;
+          pmrem.dispose();
+        }
+
+        // cast
+        for (let i = 0; i < 10; i++) {
+          const keeperI = i === 9;
+          const p = makePlayer(keeperI ? KITS.keeper : KITS.field, keeperI ? "keeper" : i % 3 === 0 ? null : "cap");
+          if (keeperI && p.b.head) addGear(p, "keeperHelmet");
+          fielders.push({ p, base: V3(), role: "", speed: 7, delay: 0.3, reach: 1.2 });
+        }
+        striker = makePlayer(KITS.bat, "batter");
+        nonStriker = makePlayer(KITS.bat, "batter");
+        bowlerP = makePlayer(KITS.field);
+        umpire = makePlayer(KITS.umpire, "umpire");
+        const NAMES = ["Rao", "Khan", "Patel", "Das", "Lee", "Singh", "Brown", "Nair", "Mehta", "Cole"];
+        fielders.slice(0, 10).forEach((f, i) => addBackPlate(f.p, NAMES[i], [7, 18, 45, 33, 10, 23, 63, 99, 1, 12][i]));
+        addBackPlate(striker, "Hash", 7);
+        addBackPlate(nonStriker, "Hash", 18);
+        addBackPlate(bowlerP, "Vance", 9);
+        // the bowler fields too, after the follow-through
+        fielders.push({ p: bowlerP, base: V3(-1.6, 0, RELEASE.z - 3.2), role: "bowler", speed: 6.5, delay: 0.35, reach: 1.3 });
+
+        bowlerCfg = BOWLERS.pace[0];
+        setField("pace");
+        for (const f of fielders) { if (f.role === "bowler") continue; place(f.p, f.base.x, f.base.z); faceTo(f.p, 0, 1); }
+        place(striker, 0.5, CREASE + 0.05, -Math.PI / 2);
+        place(nonStriker, 1.25, PITCH - CREASE - 0.3); faceTo(nonStriker, 0, 0);
+        place(bowlerP, -0.85, PITCH + 9); faceTo(bowlerP, 0, 0);
+        place(umpire, 0.15, PITCH + 1.9); faceTo(umpire, 0, 0);
+        G.batPose = { phase: "stance", t: 0 };
+
+        $("loading").classList.remove("on");
+        drawScreen();
+        applyQuality(tierName);
+        playIntro();
+      }
+
+      // branded intro over a stadium fly-in; tap anywhere to skip
+      let introDone = false;
+      function playIntro() {
+        const el = $("intro");
+        setState("intro");
+        el.classList.add("on", "play");
+        const finish = () => {
+          if (introDone) return;
+          introDone = true;
+          el.classList.add("out");
+          setTimeout(() => el.classList.remove("on", "play", "out"), 460);
+          $("menu").classList.add("on");
+          setState("menu");
+        };
+        el.addEventListener("pointerdown", () => { audioInit(); finish(); }, { once: true });
+        setTimeout(() => sfx("whoosh"), 1550);
+        setTimeout(finish, 3600);
+      }
+
+      // keep the bowler-as-fielder's base in sync with where he ends up
+      function syncBowlerFielder() {
+        const bf = fielders[10];
+        if (bf && G.state !== "play" && G.state !== "result") bf.base.copy(bowlerP.pos);
+      }
+
+      // ------------------------------------------------------------------
+      // Action replay: every frame of a delivery is recorded (player roots +
+      // every bone, ball, bat, stumps); boundaries and wickets are replayed
+      // at half speed from a low side-on camera.
+      // ------------------------------------------------------------------
+      const REC = { on: false, t: 0, frames: [], marks: {} };
+      const recParts = () => [ballMesh, bat, ...stumpParts()];
+      function recStart() { REC.on = true; REC.t = 0; REC.frames.length = 0; REC.marks = {}; }
+      function recMark(name) { if (REC.on && REC.marks[name] === undefined) REC.marks[name] = REC.t; }
+      function recFrame(dt) {
+        if (!REC.on) return;
+        REC.t += dt;
+        if (REC.t > 9) { REC.on = false; return; }
+        const data = [];
+        for (const p of players) {
+          const o = p.obj;
+          data.push(o.position.x, o.position.y, o.position.z, o.quaternion.x, o.quaternion.y, o.quaternion.z, o.quaternion.w);
+          for (const [bone] of p.rest) data.push(bone.quaternion.x, bone.quaternion.y, bone.quaternion.z, bone.quaternion.w, bone.position.x, bone.position.y, bone.position.z);
+        }
+        for (const o of recParts()) data.push(o.position.x, o.position.y, o.position.z, o.quaternion.x, o.quaternion.y, o.quaternion.z, o.quaternion.w);
+        REC.frames.push({ t: REC.t, d: new Float32Array(data), ball: ballMesh.visible });
+      }
+      function recApply(t) {
+        const F = REC.frames;
+        if (!F.length) return;
+        let i = 0;
+        while (i < F.length - 1 && F[i + 1].t <= t) i++;
+        const d = F[i].d;
+        let k = 0;
+        for (const p of players) {
+          const o = p.obj;
+          o.position.set(d[k], d[k + 1], d[k + 2]); o.quaternion.set(d[k + 3], d[k + 4], d[k + 5], d[k + 6]); k += 7;
+          for (const [bone] of p.rest) { bone.quaternion.set(d[k], d[k + 1], d[k + 2], d[k + 3]); bone.position.set(d[k + 4], d[k + 5], d[k + 6]); k += 7; }
+          o.updateMatrixWorld(true);
+        }
+        for (const o of recParts()) { o.position.set(d[k], d[k + 1], d[k + 2]); o.quaternion.set(d[k + 3], d[k + 4], d[k + 5], d[k + 6]); k += 7; }
+        ballMesh.visible = F[i].ball;
+      }
+      let replay = null;
+      function startReplay() {
+        const m = REC.marks;
+        const pivot = m.contact ?? m.stumps ?? m.event ?? 0;
+        const from = Math.max(0, pivot - 0.75);
+        const to = Math.min(REC.t, (m.event ?? pivot) + (G.signal && G.signal.type === "six" ? 1.0 : 0.7));
+        replay = { from, to, t: 0, speed: 0.5 };
+        REC.on = false;
+        $("banner").classList.remove("on"); $("timing").classList.remove("on");
+        $("replayBadge").classList.add("on");
+        trailPts.length = 0;
+        setState("replay");
+      }
+      function endReplay() {
+        replay = null;
+        $("replayBadge").classList.remove("on");
+        nextBall();
+      }
+      function replayCamera() {
+        const b = ballMesh.position;
+        const fromBat = Math.hypot(b.x - 0.4, b.z - 1.3);
+        if (fromBat < 14 || !playS) {
+          // low, side-on from the off side: the classic replay angle
+          camPos.set(-6.5, 1.3, 3.2); camTgt.set(0.2, 0.9, 1.6); camF = Math.min(W, H) * 1.7;
+        } else {
+          camPos.lerp(V3(-9, 4, 6), 0.08);
+          camTgt.lerp(V3(b.x, Math.max(0.5, b.y * 0.8), b.z), 0.25);
+          camF = Math.min(W, H) * clamp(30 / Math.max(10, camPos.distanceTo(b)), 0.9, 2.2) * 1.2;
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // Main loop
+      // ------------------------------------------------------------------
+      let last = performance.now();
+      function tick(dt, render = true) {
+        if (G.state === "replay" && replay) {
+          replay.t += dt;
+          const rt = replay.from + replay.t * replay.speed;
+          recApply(rt);
+          updateTrail();
+          replayCamera();
+          camera.position.copy(camPos); camera.lookAt(camTgt);
+          camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(H / (2 * camF))); camera.updateProjectionMatrix();
+          updateStadiumFx(dt);
+          if (rt >= replay.to) endReplay();
+          if (!render || window.__noRender) return;
+          renderFrame();
+          return;
+        }
+        if (G.state !== "loading") {
+          update(dt);
+          syncBowlerFielder();
+          syncPlayers(dt);
+          if (striker) poseBatter(dt);
+          if (bowlerP) poseBowler();
+          if (umpire) poseUmpire();
+          if (umpire && G.state !== "menu") poseCast();
+          updateTrail();
+          if (G.state === "delivery" || G.state === "play" || (G.state === "result" && G.stateT < 0.8)) recFrame(dt);
+        }
+        updateStadiumFx(dt);
+        directCamera(dt);
+        if (!render || window.__noRender) return;
+        renderFrame();
+        drawSwipe();
+      }
+      function frame(now) {
+        const dt = Math.min(0.05, (now - last) / 1000);
+        last = now; lastFrame = now;
+        if (!window.__paused) { tick(dt); watchPerf(dt); }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+
+      boot().catch((err) => {
+        console.error(err);
+        setProgress(0, "Couldn't load the 3D assets. Check your internet connection and reopen the game.");
+      });
+
+      // test hooks for development
+      window.__so = { G, get del() { return del; }, get playS() { return playS; }, onShot, startInnings, simulate, V3, callRun, players, bat, get striker() { return striker; },
+        step(sec, dt = 1 / 60, headless = false) { for (let t = 0; t < sec; t += dt) { lastFrame = performance.now(); tick(dt, !headless || t + dt >= sec); } },
+        get ballT() { return ballT; },
+        snapshot(type = "image/jpeg") { directCamera(0); renderFrame(); return canvas.toDataURL(type, 0.88); } };
+    </script>
+  </body>
+</html>
