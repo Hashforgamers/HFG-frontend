@@ -1,0 +1,11 @@
+{
+  "six": ["six_1.mp3", "six_2.mp3"],
+  "four": ["four_1.mp3", "four_2.mp3"],
+  "win": ["win_1.mp3", "win_2.mp3", "win_3.mp3"],
+  "flawless": ["flawless_1.mp3"],
+  "lose": ["lose_1.mp3", "lose_2.mp3", "lose_3.mp3"],
+  "tie": ["tie_1.mp3", "tie_2.mp3"],
+  "lastball": ["lastball_1.mp3"],
+  "lastover": ["lastover_1.mp3"],
+  "newbest": ["newbest_1.mp3"]
+}

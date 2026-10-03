@@ -28,6 +28,9 @@ class HtmlGamePlayerScreen extends StatefulWidget {
 }
 
 class _HtmlGamePlayerScreenState extends State<HtmlGamePlayerScreen> {
+  // one bridge per screen, so its per-innings dedupe survives rebuilds
+  final _scoreBridge = HtmlGameScoreBridgeService();
+
   @override
   void initState() {
     super.initState();
@@ -67,7 +70,7 @@ class _HtmlGamePlayerScreenState extends State<HtmlGamePlayerScreen> {
             Positioned.fill(
               child: GameWebView(
                 game: widget.game,
-                scoreBridgeService: HtmlGameScoreBridgeService(),
+                scoreBridgeService: _scoreBridge,
               ),
             ),
             SafeArea(

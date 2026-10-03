@@ -31,23 +31,30 @@ class HtmlGameScoreBridgeService {
     : _scoreService = scoreService ?? MiniGameScoreService();
 
   final MiniGameScoreService _scoreService;
-  bool _hasSubmittedScore = false;
+  // one submission per innings: games send a `runId` with each result
+  final Set<String> _submittedRuns = {};
+  bool _submitting = false;
 
-  bool get hasSubmittedScore => _hasSubmittedScore;
+  bool get hasSubmittedScore => _submittedRuns.isNotEmpty;
 
   Future<HtmlGameScoreSubmissionResult> submitScoreFromPayload({
     required HtmlMiniGame game,
     required dynamic payload,
   }) async {
-    if (_hasSubmittedScore) {
+    final runId = switch (payload) {
+      {'runId': final Object value} => '$value',
+      _ => 'session',
+    };
+    if (_submitting || _submittedRuns.contains(runId)) {
       return const HtmlGameScoreSubmissionResult(
         status: HtmlGameScoreSubmissionStatus.duplicate,
-        message: 'Score already submitted for this session.',
+        message: 'Score already submitted for this game.',
       );
     }
 
     final score = _extractScore(payload);
-    if (score == null) {
+    final max = game.maxScore;
+    if (score == null || (max != null && score > max)) {
       return const HtmlGameScoreSubmissionResult(
         status: HtmlGameScoreSubmissionStatus.invalidScore,
         message: 'Game returned an invalid score payload.',
@@ -62,13 +69,19 @@ class HtmlGameScoreBridgeService {
       );
     }
 
-    _hasSubmittedScore = true;
-    final didSubmit = await submitScore(
-      userId: userId,
-      gameId: game.gameId,
-      score: score,
-    );
+    _submitting = true;
+    final bool didSubmit;
+    try {
+      didSubmit = await submitScore(
+        userId: userId,
+        gameId: game.gameId,
+        score: score,
+      );
+    } finally {
+      _submitting = false;
+    }
     if (didSubmit) {
+      _submittedRuns.add(runId);
       return HtmlGameScoreSubmissionResult(
         status: HtmlGameScoreSubmissionStatus.success,
         score: score,
@@ -76,7 +89,6 @@ class HtmlGameScoreBridgeService {
       );
     }
 
-    _hasSubmittedScore = false;
     return const HtmlGameScoreSubmissionResult(
       status: HtmlGameScoreSubmissionStatus.failed,
       message: 'Score submission failed. Please try again.',

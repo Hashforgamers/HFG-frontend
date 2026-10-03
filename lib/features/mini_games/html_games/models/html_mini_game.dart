@@ -5,12 +5,17 @@ class HtmlMiniGame {
   final String gameUrl;
   final String description;
 
+  /// Highest score the game can legitimately produce; anything above it is
+  /// rejected before it reaches the leaderboard. `null` = no ceiling.
+  final int? maxScore;
+
   const HtmlMiniGame({
     required this.gameId,
     required this.name,
     required this.thumbnail,
     required this.gameUrl,
     required this.description,
+    this.maxScore,
   });
 
   bool get isRemoteUrl {

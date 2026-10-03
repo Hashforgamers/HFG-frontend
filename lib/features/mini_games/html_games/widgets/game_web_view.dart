@@ -38,6 +38,7 @@ class _GameWebViewState extends State<GameWebView> {
   void dispose() {
     _statusTimer?.cancel();
     _controller?.removeJavaScriptHandler(handlerName: 'gameScore');
+    _controller?.removeJavaScriptHandler(handlerName: 'haptic');
     super.dispose();
   }
 
@@ -137,6 +138,26 @@ class _GameWebViewState extends State<GameWebView> {
     );
   }
 
+  /// Games ask for a tap of feedback on big moments (a wicket, a six) with
+  /// `callHandler('haptic', 'light' | 'medium' | 'heavy')`.
+  void _registerHapticHandler(InAppWebViewController controller) {
+    controller.addJavaScriptHandler(
+      handlerName: 'haptic',
+      callback: (arguments) {
+        final kind = arguments.isNotEmpty ? arguments.first : null;
+        switch (kind) {
+          case 'heavy':
+            HapticFeedback.heavyImpact();
+          case 'medium':
+            HapticFeedback.mediumImpact();
+          default:
+            HapticFeedback.lightImpact();
+        }
+        return null;
+      },
+    );
+  }
+
   void _handleMainFrameError(String message) {
     if (!mounted) return;
     setState(() {
@@ -172,6 +193,7 @@ class _GameWebViewState extends State<GameWebView> {
             onWebViewCreated: (controller) {
               _controller = controller;
               _registerScoreHandler(controller);
+              _registerHapticHandler(controller);
               unawaited(_loadGameContent(controller));
             },
             onLoadStart: (controller, url) {
