@@ -323,6 +323,53 @@
       .m-chase { --c1: #3b82f6; --c2: #1e3a8a; }
       .m-daily { --c1: #14b8a6; --c2: #134e4a; }
       .m-nets { --c1: #8b5cf6; --c2: #3b0764; }
+      .m-match { --c1: #e11d48; --c2: #4c0519; }
+      /* five modes: Full Match + Super Over + Quick Chase on top, Daily + Nets below */
+      .modes { grid-template-columns: repeat(6, 1fr); }
+      .modes .mode { grid-column: span 2; }
+      .modes .m-daily, .modes .m-nets { grid-column: span 3; }
+      /* the three narrow cards drop the PLAY pill (the whole card is the button) */
+      .modes .m-match .mgo, .modes .m-super .mgo, .modes .m-chase .mgo { display: none; }
+      .modes .m-match .md, .modes .m-super .md, .modes .m-chase .md { padding-right: 0; }
+      .modes .m-match .mt, .modes .m-super .mt, .modes .m-chase .mt { font-size: 19px; }
+      #skipBtn {
+        display: none; position: absolute; right: calc(var(--sar) + 12px); bottom: calc(var(--sab) + 12px); pointer-events: auto; cursor: pointer;
+        padding: 9px 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: rgba(6,11,22,.85); color: #fff;
+        font-family: var(--display); font-weight: 900; font-size: 15px; letter-spacing: .1em;
+      }
+      #hud.ai #skipBtn { display: block; }
+      /* bowling: pick line & length, then time the release */
+      #bowlUI {
+        display: none; position: absolute; left: calc(var(--sal) + 12px); top: calc(var(--sat) + 66px); width: 128px; padding: 8px;
+        border-radius: 12px; background: rgba(6,11,22,.88); border: 1px solid rgba(255,255,255,.12); pointer-events: auto; box-shadow: 0 10px 24px rgba(0,0,0,.35);
+      }
+      #hud.aim #bowlUI { display: block; animation: fadeIn .2s; }
+      #hud.aim #bowlerTag { opacity: 0; } /* the panel already names the bowler */
+      #bowlUI .bh b { display: block; font-family: var(--display); font-size: 14px; font-weight: 900; letter-spacing: .06em; }
+      #bowlUI .bh span { font-size: 9.5px; color: var(--muted); }
+      .bvar { display: flex; gap: 4px; margin: 6px 0; }
+      .bvar button { flex: 1; font: inherit; font-size: 10px; font-weight: 800; padding: 5px 0; border-radius: 8px; border: 1px solid rgba(255,255,255,.14); background: transparent; color: var(--muted); cursor: pointer; }
+      .bvar button.on { background: #fff; color: #111827; }
+      #bowlPitch { display: block; width: 112px; height: 168px; border-radius: 6px; cursor: crosshair; touch-action: none; }
+      #bowlMeter {
+        display: none; position: absolute; left: 50%; bottom: calc(var(--sab) + 64px); transform: translateX(-50%); width: min(320px, 42%);
+        background: rgba(6,11,22,.82); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 9px 12px 5px; pointer-events: none;
+      }
+      #hud.release #bowlMeter { display: block; }
+      #bowlMeter .bt { position: relative; }
+      #bowlMeter .bz { height: 10px; border-radius: 999px; background: linear-gradient(90deg, #f87171 0 22%, #fbbf24 22% 39%, #22c55e 39% 61%, #fbbf24 61% 78%, #f87171 78% 100%); }
+      #bowlMeter .bn { position: absolute; top: -5px; left: 50%; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: #fff; box-shadow: 0 0 8px #fff; }
+      #bowlMeter .bl { text-align: center; font-size: 8.5px; font-weight: 900; letter-spacing: .14em; color: rgba(255,255,255,.65); margin-top: 5px; }
+      #hud.ai #hint, #hud.ai #meter { display: none; }
+      .breakCard { text-align: center; width: min(400px, 100%); }
+      .breakCard .bk { font-family: var(--display); font-size: 13px; font-weight: 900; letter-spacing: .3em; color: var(--muted); }
+      .breakCard .bteam { margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: var(--display); font-size: 22px; font-weight: 900; }
+      .breakCard .bteam b { font-size: 34px; }
+      .breakCard .ic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-style: italic; background: linear-gradient(135deg, #2563eb, #1e3a8a); }
+      .breakCard .bsub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+      .breakCard .btarget { margin-top: 14px; padding: 12px; border-radius: 12px; background: rgba(255,180,84,.1); border: 1px solid rgba(255,180,84,.3); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; color: var(--accent); }
+      .breakCard .btarget b { display: block; font-family: var(--display); font-size: 44px; color: #fff; line-height: 1.05; }
+      .breakCard .btarget span { color: var(--muted); }
 
       .menuBar { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .seg { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
@@ -333,6 +380,7 @@
 
       /* how to play sheet */
       .howCard { width: min(560px, 100%); }
+      .howCard .credits { margin-top: 10px; font-size: 9.5px; color: var(--muted); text-align: center; letter-spacing: .02em; }
       .howCard h3 { margin: 0 0 12px; font-family: var(--display); font-size: 24px; font-style: italic; letter-spacing: .03em; text-transform: uppercase; }
       .howGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
       .howItem { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); font-size: 11.5px; line-height: 1.45; color: var(--muted); }
@@ -381,6 +429,10 @@
         .wagonBox { width: 38%; max-width: 230px; flex: none; padding: 14px 14px 12px 0; display: flex; flex-direction: column; justify-content: center; }
         .row { margin-top: 10px; }
         .howGrid { gap: 8px; }
+        .howCard h3 { margin-bottom: 8px; font-size: 20px; }
+        .howItem { padding: 7px 9px; font-size: 10.5px; line-height: 1.35; }
+        .howItem b { font-size: 12px; }
+        .howCard .credits { margin-top: 6px; }
       }
       @media (orientation: landscape) and (max-height: 360px) {
         .logo { font-size: 38px; }
@@ -489,6 +541,7 @@
       <symbol id="i-bat" viewBox="0 0 24 24"><g transform="rotate(38 12 12)"><rect x="10.9" y="0.2" width="2.2" height="8.3" rx="1.1" /><path d="M9 8.1h6c.6 0 1 .4 1 1v11.3c0 1.5-1.2 2.7-2.7 2.7h-2.6C9.2 23.1 8 21.9 8 20.4V9.1c0-.6.4-1 1-1z" /></g><circle cx="19.2" cy="19" r="2.9" /></symbol>
       <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 1.5L3.8 13.6h6.4l-1.4 8.9 9.9-12.6h-6.5z"/></symbol>
       <symbol id="i-cal" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M7 1.5h2v2.2h6V1.5h2v2.2h2.2A2.3 2.3 0 0121.5 6v13.2a2.3 2.3 0 01-2.3 2.3H4.8a2.3 2.3 0 01-2.3-2.3V6a2.3 2.3 0 012.3-2.3H7zM4.6 9.2v10.1h14.8V9.2zm2.4 2.3h4.5V16H7z"/></symbol>
+      <symbol id="i-vs" viewBox="0 0 24 24"><path d="M3 4h4.2l2.3 9.2L11.8 4H16l-4.6 16H7.6zM18.7 9.6c-1.1 0-1.8.5-1.8 1.2 0 .8.8 1.1 2.1 1.6 1.9.7 3.4 1.5 3.4 3.7 0 2.3-1.9 3.9-4.6 3.9-1.5 0-3-.4-4-1.1l.8-2.4c.9.6 2 1 3 1 1.1 0 1.8-.5 1.8-1.3s-.7-1.1-2-1.6c-1.8-.7-3.4-1.6-3.4-3.6 0-2.2 1.9-3.8 4.4-3.8 1.3 0 2.5.3 3.4.8l-.8 2.3c-.7-.4-1.5-.7-2.3-.7z" /></symbol>
       <symbol id="i-target" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 1.5a10.5 10.5 0 110 21 10.5 10.5 0 010-21zm0 3a7.5 7.5 0 100 15 7.5 7.5 0 000-15zm0 3a4.5 4.5 0 110 9 4.5 4.5 0 010-9zm0 2.7a1.8 1.8 0 100 3.6 1.8 1.8 0 000-3.6z"/></symbol>
     </svg>
 
@@ -510,6 +563,13 @@
       <button id="runBtn" type="button"><span id="runLbl">RUN</span><small id="runCount">tap to call</small></button>
       <div id="replayBadge"><span class="dot"></span>REPLAY<small>tap to skip</small></div>
       <div id="freeHit">FREE HIT</div>
+      <button id="skipBtn" type="button">Skip ▸▸</button>
+      <div id="bowlUI">
+        <div class="bh"><b id="bowlWho">YOUR BALL</b><span>Tap where to pitch it</span></div>
+        <div class="bvar" id="bowlVar"><button type="button" data-v="stock" class="on">Stock</button><button type="button" data-v="var" id="bowlVarAlt">Slower</button></div>
+        <canvas id="bowlPitch" width="224" height="336"></canvas>
+      </div>
+      <div id="bowlMeter"><div class="bt"><div class="bz"></div><div class="bn" id="bowlNeedle"></div></div><div class="bl">TAP IN THE GREEN TO RELEASE</div></div>
       <div id="meter"><div class="zones"></div><div class="mark"></div><div class="lbl"><span>EARLY</span><b>PERFECT</b><span>LATE</span></div></div>
       <div id="pitchMap"><div class="pl">PITCH MAP</div><canvas id="pitchCanvas" width="120" height="260"></canvas></div>
       <div id="ticker"><span class="lbl">LIVE</span><span class="txt" id="tickerTxt"></span></div>
@@ -560,6 +620,11 @@
           <div id="records"></div>
         </div>
         <div class="modes">
+          <button class="mode m-match" data-mode="match" type="button">
+            <svg class="bgi"><use href="#i-vs" /></svg><div class="mi"><svg><use href="#i-vs" /></svg></div>
+            <div class="mtag">NEW</div>
+            <div class="mt">Full Match</div><div class="md">vs Blue Hawks · 2 overs each</div><div class="mgo">PLAY ▸</div>
+          </button>
           <button class="mode m-super" data-mode="super" type="button">
             <svg class="bgi"><use href="#i-bat" /></svg><div class="mi"><svg><use href="#i-bat" /></svg></div>
             <div class="mtag">FEATURED</div>
@@ -601,7 +666,18 @@
           <div class="howItem"><div class="hi">◷</div><div><b>Timing is everything</b>Release just before the ball reaches the bat. Early drags it to leg, late finds the edge.</div></div>
           <div class="howItem"><div class="hi">⇄</div><div><b>Tap to defend · RUN to run</b>Tap to block. Hit RUN to call a run, again for another. Caught short? Run out.</div></div>
         </div>
+        <div class="credits">Crowd recordings: Gregor Quendel (CC-BY 4.0) · Announcer: Kenney (CC0) · 3D: three.js</div>
         <div class="row"><button class="btn ghost" id="introBtn" type="button">▶ Watch intro</button><button class="btn main" id="howClose" type="button">Got it</button></div>
+      </div>
+    </div>
+
+    <div class="overlay" id="break">
+      <div class="card breakCard">
+        <div class="bk">INNINGS BREAK</div>
+        <div class="bteam"><span class="ic hawks">B</span>BLUE HAWKS <b id="aiScore">0/0</b></div>
+        <div class="bsub" id="aiOvers">—</div>
+        <div class="btarget">Target <b id="aiTarget">0</b><span id="aiNeed">off 12 balls</span></div>
+        <div class="row"><button class="btn main" id="chaseBtn" type="button">Start the chase</button></div>
       </div>
     </div>
 
@@ -791,6 +867,12 @@
         low: { pr: 1, shadow: 512, gtao: false, bloom: false, aa: "none", grass: 0, post: false },
       };
       const store = { get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} } };
+      // promo capture (only with ?promo): timestamped event log for editing a trailer
+      const PROMO = /[?&]promo\b/.test(location.search);
+      window.__promoEvents = [];
+      const promoLog = (type, x = {}) => { if (PROMO) window.__promoEvents.push({ type, t: Date.now(), ...x }); };
+      // promo: scale the HUD and menus up (?promo&pz=1.5) so they read on a phone-sized video
+      if (PROMO) { const pz = +(new URLSearchParams(location.search).get("pz") || 1); if (pz > 1) { const st = document.createElement("style"); st.textContent = `#hud,.overlay,#intro{zoom:${pz}}`; document.head.appendChild(st); } }
       // player settings, persisted per device
       const SET = {
         team: store.get("so_team") || "hash",
@@ -940,13 +1022,15 @@
       // `stretch` = how much wider a texel is than tall on that surface, so the
       // badge is drawn narrower there and still looks square in the stadium.
       let hashLogo = null;
+      // Hash badge decals on kit (chest, helmet): one shared material, shown once the logo loads
+      const hashDecalMat = new THREE.MeshStandardMaterial({ transparent: true, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false, visible: false });
       // LED ad boards. `stretch` = how much wider each texel is on the board than it is
       // tall, so logos and lettering are drawn pre-squeezed and land in proportion.
       const AD_FONT = '"Avenir Next Condensed", "HelveticaNeue-CondensedBold", "Roboto Condensed", "sans-serif-condensed", "Arial Narrow", Arial, sans-serif';
       function drawAds(g, w, h, stretch) {
         const ads = [
-          ["#0b1324", "#1e293b", "#ffb454", "HASH ARCADE"], ["#f97316", "#c2410c", "#ffffff", "HASH FOR GAMERS"],
-          ["#0284c7", "#075985", "#ffffff", "HASH SUPER OVER"], ["#16a34a", "#166534", "#ffffff", "PLAY · WIN · REPEAT"],
+          ["#0b1324", "#111827", "#ffb454", "HASH ARCADE"], ["#fb923c", "#f97316", "#0b1220", "HASH FOR GAMERS"],
+          ["#0b1324", "#111827", "#38bdf8", "HASH SUPER OVER"], ["#22c55e", "#16a34a", "#0b1220", "PLAY · WIN · REPEAT"],
         ];
         const seg = w / ads.length;
         g.clearRect(0, 0, w, h);
@@ -971,7 +1055,7 @@
           }
           // lettering in true proportion, as big as the panel allows
           const maxW = (textR - textL) * stretch;
-          let fs = h * 0.7;
+          let fs = h * 0.84;
           g.font = `900 italic ${fs}px ${AD_FONT}`;
           const mw = g.measureText(text).width * 1.06;
           if (mw > maxW) { fs *= maxW / mw; g.font = `900 italic ${fs}px ${AD_FONT}`; }
@@ -979,14 +1063,14 @@
           g.translate((textL + textR) / 2, h / 2 + fs * 0.04);
           g.scale(1 / stretch, 1);
           g.fillStyle = fg; g.textAlign = "center"; g.textBaseline = "middle";
-          g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = h * 0.04; g.shadowOffsetY = h * 0.02;
+          g.shadowColor = "rgba(0,0,0,.25)"; g.shadowBlur = h * 0.02; g.shadowOffsetY = h * 0.01;
           g.fillText(text, 0, 0);
           g.restore();
         });
       }
       // texture aspect vs board aspect (circumference / repeats : height)
       const AD_W = 8192, AD_H = 160;
-      const BOARD_H = 1.4, BOARD_REP = 6, FASCIA_H = 1.8, FASCIA_REP = 9;
+      const BOARD_H = 1.75, BOARD_REP = 6, FASCIA_H = 2.2, FASCIA_REP = 9;
       const adStretch = (r, rep, hgt) => ((2 * Math.PI * r) / rep / hgt) / (AD_W / AD_H);
       const AD_BOARD_STRETCH = adStretch(STAND_R - 0.6, BOARD_REP, BOARD_H), AD_FASCIA_STRETCH = adStretch(STAND_R + 16.4, FASCIA_REP, FASCIA_H);
       const adTex = canvasTex(AD_W, AD_H, (g, w, h) => drawAds(g, w, h, AD_BOARD_STRETCH), { repeat: [-BOARD_REP, 1] });
@@ -1188,7 +1272,7 @@
       // boundary cushion ad boards just inside the stands
       const boards = new THREE.Mesh(
         new THREE.CylinderGeometry(STAND_R - 0.6, STAND_R - 0.6, BOARD_H, 160, 1, true),
-        new THREE.MeshStandardMaterial({ map: adTex, side: THREE.BackSide, emissive: 0xffffff, emissiveMap: adTex, emissiveIntensity: 0.5, roughness: 0.55 }),
+        new THREE.MeshStandardMaterial({ map: adTex, side: THREE.BackSide, emissive: 0xffffff, emissiveMap: adTex, emissiveIntensity: 0.72, roughness: 0.5 }),
       );
       boards.position.set(CENTER.x, BOARD_H / 2, CENTER.z);
       stadium.add(boards);
@@ -1207,12 +1291,51 @@
       roof.position.set(CENTER.x, 18.5, CENTER.z);
       stadium.add(roof);
 
+      // Hash board on the sightscreen behind the striker (the one the batter faces stays plain)
+      const sightCanvas = document.createElement("canvas"); sightCanvas.width = 1024; sightCanvas.height = 384;
+      const sightTex = new THREE.CanvasTexture(sightCanvas); sightTex.colorSpace = THREE.SRGBColorSpace; sightTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      function drawSightscreen() {
+        const g = sightCanvas.getContext("2d"), w = 1024, h = 384;
+        const grd = g.createLinearGradient(0, 0, 0, h); grd.addColorStop(0, "#1e293b"); grd.addColorStop(1, "#0f172a");
+        g.fillStyle = grd; g.fillRect(0, 0, w, h);
+        const lx = hashLogo ? 300 : 0;
+        if (hashLogo) g.drawImage(hashLogo, 70, 52, 280, 280);
+        g.textAlign = "left"; g.textBaseline = "middle";
+        g.fillStyle = "#ffffff"; g.font = `900 italic 112px ${AD_FONT}`; g.fillText("HASH", 90 + lx, 150);
+        g.fillStyle = "#22c55e"; g.font = `900 italic 64px ${AD_FONT}`; g.fillText("FOR GAMERS", 94 + lx, 240);
+        g.fillStyle = "rgba(255,255,255,.55)"; g.font = `800 34px ${AD_FONT}`; g.fillText("PLAY · WIN · REPEAT", 96 + lx, 305);
+        sightTex.needsUpdate = true;
+        // the screen the batter faces: still a dark backdrop for the ball, but branded in low-contrast tones
+        const f = faceCanvas.getContext("2d");
+        const fg = f.createLinearGradient(0, 0, 0, h); fg.addColorStop(0, "#1a2742"); fg.addColorStop(1, "#111a2e");
+        f.fillStyle = fg; f.fillRect(0, 0, w, h);
+        f.textAlign = "center"; f.textBaseline = "middle";
+        f.globalAlpha = 0.8;
+        if (hashLogo) f.drawImage(hashLogo, 70, 92, 200, 200), f.drawImage(hashLogo, w - 270, 92, 200, 200);
+        f.globalAlpha = 1;
+        f.fillStyle = "#4a6290"; f.font = `900 italic 80px ${AD_FONT}`; f.fillText("HASH SUPER OVER", w / 2, 170);
+        f.fillStyle = "#9a5a22"; f.font = `800 38px ${AD_FONT}`; f.fillText("PLAY · WIN · REPEAT", w / 2, 270);
+        faceTex.needsUpdate = true;
+      }
+      const faceCanvas = document.createElement("canvas"); faceCanvas.width = 1024; faceCanvas.height = 384;
+      const faceTex = new THREE.CanvasTexture(faceCanvas); faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      drawSightscreen();
       // sight screens behind both ends
       for (const end of [-1, 1]) {
         const ss = new THREE.Mesh(new THREE.BoxGeometry(22, 9, 0.5), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.85 }));
         const r = STAND_R - 1.2;
         ss.position.set(0, 4.5, CENTER.z + end * r);
         stadium.add(ss);
+        if (end < 0) {
+          const board = new THREE.Mesh(new THREE.PlaneGeometry(21.2, 8.2), new THREE.MeshStandardMaterial({ map: sightTex, roughness: 0.85, emissive: 0xffffff, emissiveMap: sightTex, emissiveIntensity: 0.25 }));
+          board.position.set(0, 4.5, CENTER.z + end * r + 0.27);
+          stadium.add(board);
+        } else {
+          const board = new THREE.Mesh(new THREE.PlaneGeometry(21.2, 8.2), new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.9, emissive: 0xffffff, emissiveMap: faceTex, emissiveIntensity: 0.4 }));
+          board.rotation.y = Math.PI;
+          board.position.set(0, 4.5, CENTER.z + end * r - 0.27);
+          stadium.add(board);
+        }
       }
 
       // floodlight towers (heads + glow sprites switch on for night matches)
@@ -1311,13 +1434,13 @@
           g.fillText(screenFlash.text, w / 2, 210);
           g.textAlign = "left";
         } else if (G.cfg) {
-          g.fillStyle = "#94a3b8"; g.font = "800 28px Arial"; g.fillText(team().name.toUpperCase(), 30, 100);
+          g.fillStyle = "#94a3b8"; g.font = "800 28px Arial"; g.fillText(G.aiBatting ? "BLUE HAWKS" : team().name.toUpperCase(), 30, 100);
           g.fillStyle = "#ffffff"; g.font = "900 120px Arial"; g.fillText(`${G.runs}/${G.wkts}`, 26, 190);
           g.fillStyle = "#94a3b8"; g.font = "800 28px Arial";
           g.fillText(`${Math.floor(G.balls / 6)}.${G.balls % 6} OVERS`, 30, 270);
           const need = G.target - G.runs, left = G.cfg.balls - G.balls;
           g.fillStyle = "#ffb454"; g.font = "900 34px Arial";
-          g.fillText(G.cfg.nets ? "NETS SESSION" : need > 0 ? `NEED ${need} OFF ${left}` : "TARGET REACHED", 30, 320);
+          g.fillText(G.cfg.nets ? "NETS SESSION" : G.aiBatting ? "1ST INNINGS" : need > 0 ? `NEED ${need} OFF ${left}` : "TARGET REACHED", 30, 320);
           g.fillStyle = "#1e293b"; g.fillRect(380, 80, 236, 250);
           g.fillStyle = "#94a3b8"; g.font = "800 22px Arial"; g.fillText("THIS OVER", 400, 110);
           (G.chips || []).slice(-6).forEach((c, i) => {
@@ -1354,6 +1477,8 @@
           }
           const lt = new THREE.Texture(img); lt.colorSpace = THREE.SRGBColorSpace; lt.anisotropy = renderer.capabilities.getMaxAnisotropy(); lt.needsUpdate = true;
           fieldLogoMat.map = lt; fieldLogoMat.needsUpdate = true;
+          hashDecalMat.map = lt; hashDecalMat.visible = true; hashDecalMat.needsUpdate = true;
+          drawSightscreen();
           stadium.traverse((o) => { if (o.userData.fieldLogo) o.visible = true; });
           drawScreen();
         };
@@ -1407,9 +1532,9 @@
         adTex.offset.x = (adTex.offset.x + dt * 0.012) % 1;
         adTex2.offset.x = (adTex2.offset.x - dt * 0.009) % 1;
         crowdFlash = Math.max(0, crowdFlash - dt * 0.6);
-        if (crowdGain) crowdGain.gain.value = (G.state === "menu" || G.state === "intro" ? 0.006 : 0.012) + crowdFlash * 0.16;
+        if (crowdGain) crowdGain.gain.value = G.state === "loading" ? 0 : (G.state === "menu" || G.state === "intro" ? 0.008 : 0.02) + crowdFlash * 0.16;
         const pulse = crowdFlash > 0 && !SET.calm ? (0.5 + 0.5 * Math.sin(performance.now() / 70)) * crowdFlash : 0;
-        boards.material.emissiveIntensity = 0.5 + nightBase * 2 + pulse * 1.4;
+        boards.material.emissiveIntensity = 0.72 + nightBase * 2 + pulse * 1.4;
         fascia.material.emissiveIntensity = 0.6 + nightBase * 2 + pulse * 1.2;
         stands.material.emissiveIntensity = nightBase + pulse * 0.35;
         upperMat.emissiveIntensity = nightBase + pulse * 0.35;
@@ -1439,11 +1564,22 @@
       const woodMat = new THREE.MeshStandardMaterial({ color: 0xf1e3c2, roughness: 0.6 });
       const stumpMat = new THREE.MeshStandardMaterial({ color: 0xf1e3c2, roughness: 0.4, emissive: 0x000000, emissiveIntensity: 0 });
       let stumpFlash = 0;
+      const stumpBrandTex = canvasTex(64, 400, (g, w, h) => {
+        g.fillStyle = "#16a34a"; g.fillRect(0, 0, w, h);
+        g.fillStyle = "#ffffff"; g.textAlign = "center"; g.textBaseline = "middle";
+        g.font = `900 italic 60px ${AD_FONT}`;
+        "HASH".split("").forEach((ch, i) => g.fillText(ch, w / 2, 58 + i * 92));
+      });
+      const stumpBrandMat = new THREE.MeshStandardMaterial({ map: stumpBrandTex, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 });
       function makeStumps(z, mat = woodMat) {
         const set = { stumps: [], bails: [], z };
         for (const x of [-0.11, 0, 0.11]) {
           const s = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, STUMP_H, 10), mat);
           s.position.set(x, STUMP_H / 2, z); s.castShadow = true;
+          // front-facing strip, wrapped a little around the stump
+          const brand = new THREE.Mesh(new THREE.CylinderGeometry(0.0185, 0.0185, 0.24, 10, 1, true, -0.85, 1.7), stumpBrandMat);
+          brand.position.y = 0.06;
+          s.add(brand);
           set.stumps.push(s); stadium.add(s);
         }
         for (const x of [-0.055, 0.055]) {
@@ -1483,14 +1619,19 @@
 
       // ball + trail + pitch marker
       const ballMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(BALL_R * 1.7, 20, 14),
+        new THREE.SphereGeometry(BALL_R * 1.25, 28, 18),
+        // red leather with a raised, white-stitched seam round the middle
         new THREE.MeshStandardMaterial({
-          map: canvasTex(128, 64, (g, w, h) => {
-            g.fillStyle = "#fbfbf7"; g.fillRect(0, 0, w, h);
-            g.strokeStyle = "#9ca3af"; g.lineWidth = 2;
-            for (const off of [-3, 3]) { g.beginPath(); for (let x = 0; x <= w; x += 2) { const y = h / 2 + off + Math.sin((x / w) * Math.PI * 4) * 8; x ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+          map: canvasTex(256, 128, (g, w, h) => {
+            const grd = g.createLinearGradient(0, 0, 0, h);
+            grd.addColorStop(0, "#7a0d12"); grd.addColorStop(0.5, "#a3141c"); grd.addColorStop(1, "#7a0d12");
+            g.fillStyle = grd; g.fillRect(0, 0, w, h);
+            for (let i = 0; i < 1400; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? "0,0,0" : "255,180,170"},${0.05 + Math.random() * 0.06})`; g.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); }
+            g.fillStyle = "#5c0a0e"; g.fillRect(0, h / 2 - 4, w, 8); // the seam ridge
+            g.strokeStyle = "#f5f0e6"; g.lineWidth = 1.6;
+            for (const off of [-6, 6]) for (let x = 0; x < w; x += 6) { g.beginPath(); g.moveTo(x, h / 2 + off - 2); g.lineTo(x + 3, h / 2 + off + 2); g.stroke(); }
           }),
-          emissive: 0x555555, roughness: 0.35,
+          roughness: 0.42, metalness: 0.02, emissive: 0x2a0306,
         }),
       );
       ballMesh.castShadow = true;
@@ -1761,6 +1902,12 @@
           shell.rotation.x = -0.42;
           const peak = mk(new THREE.BoxGeometry(R * 1.45, 0.007, 0.06), navy, 0, eyeY + 0.04, eyeZ + 0.03);
           peak.rotation.x = 0.25;
+          if (kind === "batter") {
+            // Hash badge on the front of the shell, above the peak
+            const th = 0.62, badge = mk(new THREE.PlaneGeometry(0.058, 0.058), hashDecalMat, 0, eyeY + 0.035 + Math.sin(th) * (R + 0.003), -0.012 + Math.cos(th) * (R + 0.003));
+            badge.rotation.x = -th; badge.castShadow = false;
+            (p.hashDecals ||= []).push(badge);
+          }
           const steel = stdMat("#cbd5e1", { metalness: 0.85, roughness: 0.25 });
           const gr = eyeZ + 0.05;
           for (const y of [eyeY - 0.02, eyeY - 0.055]) {
@@ -1908,6 +2055,22 @@
 
       // name + number printed on the back of the shirt. Placed by ray-casting
       // the skinned body from behind, then parented to the chest bone.
+      // Hash badge on the left chest of the batting team's shirts
+      function addChestLogo(p) {
+        const b = p.b;
+        if (!b.spine2) return;
+        p.obj.position.set(0, 0, 0); p.obj.rotation.set(0, rig.yaw, 0);
+        p.mixer.update(0); p.obj.updateMatrixWorld(true);
+        const chest = wp(b.spine2);
+        const meshes = []; p.obj.traverse((c) => c.isMesh && meshes.push(c));
+        const at = V3(chest.x + 0.075, chest.y + 0.02, chest.z);
+        const rc = new THREE.Raycaster(V3(at.x, at.y, at.z + 1.5), V3(0, 0, -1), 0, 3);
+        const hit = rc.intersectObjects(meshes, false)[0];
+        const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.11, 0.11), hashDecalMat);
+        badge.position.set(at.x, at.y, (hit ? hit.point.z : chest.z + 0.12) + 0.008);
+        scene.add(badge); badge.updateMatrixWorld(true); b.spine2.attach(badge);
+        (p.hashDecals ||= []).push(badge);
+      }
       function addBackPlate(p, name, num) {
         const b = p.b;
         if (!b.spine2) return;
@@ -1955,6 +2118,7 @@
         // bones the clips don't animate (e.g. Torso/Chest) can't accumulate
         p.rest = [];
         obj.traverse((o) => { if (o.isBone) p.rest.push([o, o.quaternion.clone(), o.position.clone()]); });
+        p.restQ = new Map(p.rest.map(([o, q]) => [o, q]));
         for (const [logical, clipName] of Object.entries(rig.clips)) {
           const clip = playerClips.find((c) => c.name === clipName);
           if (clip) p.actions[logical] = p.mixer.clipAction(clip);
@@ -2090,6 +2254,7 @@
       // (axis + direction come from the clip, so this is rig-agnostic)
       const FINGERS = ["Thumb", "Index", "Middle", "Ring", "Pinky"];
       let fingerCurl = null;
+      const PALM_SIGN = {}; // per hand: which side of (knuckles × fingers) the palm is on
       function buildFingerCurl(template, idleClip) {
         fingerCurl = {};
         // rest pose first — sampling the clip below doesn't touch the template
@@ -2105,7 +2270,25 @@
           const ang = 2 * Math.acos(clamp(d.w, -1, 1));
           if (ang < 0.03) continue;
           const sn = Math.sin(ang / 2);
-          fingerCurl[bn] = { axis: V3(d.x / sn, d.y / sn, d.z / sn).normalize(), bind: q0 };
+          fingerCurl[bn] = { axis: V3(d.x / sn, d.y / sn, d.z / sn).normalize(), bind: q0, idle: q1 };
+        }
+        // palm side per hand: relaxed (idle) fingers curl toward the palm, so whichever side of the
+        // knuckle × finger normal the fingertip moves to is the palm
+        const byName = (n) => template.getObjectByName(n);
+        for (const [side, H] of [["L", "LeftHand"], ["R", "RightHand"]]) {
+          const hand = byName(H), m1 = byName(H + "Middle1"), i1 = byName(H + "Index1"), p1 = byName(H + "Pinky1");
+          const segs = [1, 2, 3].map((j) => byName(H + "Middle" + j)), tipB = byName(H + "Middle4") || segs[2];
+          if (!hand || !m1 || !i1 || !p1 || segs.some((x) => !x || !fingerCurl[x.name])) continue;
+          template.updateMatrixWorld(true);
+          const w = wp(hand), f = wp(m1).sub(w).normalize();
+          const k = wp(p1).sub(wp(i1)); k.addScaledVector(f, -k.dot(f)).normalize();
+          const n0 = V3().crossVectors(k, f), tip0 = wp(tipB);
+          for (const sb of segs) sb.quaternion.copy(fingerCurl[sb.name].idle);
+          template.updateMatrixWorld(true);
+          const moved = wp(tipB).sub(tip0);
+          for (const sb of segs) sb.quaternion.copy(fingerCurl[sb.name].bind);
+          template.updateMatrixWorld(true);
+          PALM_SIGN[side] = moved.dot(n0) >= 0 ? 1 : -1;
         }
       }
       // grip ∈ [0,1]: 0 = leave the animation alone, 1 = closed around a bat handle
@@ -2249,24 +2432,45 @@
       // ---- bat ----
       const bat = new THREE.Group();
       {
-        const willow = new THREE.MeshStandardMaterial({ color: 0xe9d39c, roughness: 0.55 });
-        const face = new THREE.MeshStandardMaterial({ roughness: 0.5, map: canvasTex(64, 352, (g, w, h) => {
-          g.fillStyle = "#ead7a3"; g.fillRect(0, 0, w, h);
-          for (let i = 0; i < 26; i++) { g.fillStyle = "rgba(160,120,60,.12)"; g.fillRect(0, Math.random() * h, w, 1); }
-          g.fillStyle = "#111827"; g.fillRect(0, 40, w, 16); g.fillRect(0, h - 70, w, 10);
-          g.fillStyle = "#f97316"; g.fillRect(0, 56, w, 6);
-          g.save(); g.translate(w / 2, h / 2 + 10); g.rotate(-Math.PI / 2);
-          g.fillStyle = "#111827"; g.font = "900 italic 34px Arial"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("HASH", 0, 0);
-          g.restore();
-        }) });
-        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.108, 0.6, 0.05), [willow, willow, willow, willow, face, face]);
-        blade.position.y = -0.33 - 0.3; // toe at -0.93
-        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.33, 8), new THREE.MeshStandardMaterial({ color: 0x111827 }));
-        handle.position.y = -0.165;
-        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.22, 8), new THREE.MeshStandardMaterial({ color: 0xf97316 }));
-        grip.position.y = -0.12;
+        const willow = new THREE.MeshStandardMaterial({ color: 0xe6cf98, roughness: 0.5 });
+        // blade: flat face, curved back rising to a spine, rounded edges and toe
+        const sec = new THREE.Shape();
+        sec.moveTo(-0.054, 0); sec.lineTo(0.054, 0); sec.lineTo(0.054, -0.03);
+        sec.quadraticCurveTo(0.03, -0.07, 0, -0.072); sec.quadraticCurveTo(-0.03, -0.07, -0.054, -0.03); sec.closePath();
+        const bladeGeo = new THREE.ExtrudeGeometry(sec, { depth: 0.56, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.004, bevelSegments: 3, curveSegments: 10 });
+        bladeGeo.rotateX(Math.PI / 2); // extrude axis → down the bat
+        bladeGeo.translate(0, -0.355, 0.03); // face toward +z, spine behind the handle line
+        const blade = new THREE.Mesh(bladeGeo, willow);
         blade.castShadow = true;
-        bat.add(blade, handle, grip);
+        // shoulders tapering into the handle
+        const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.05, 0.05, 16), willow);
+        sh.scale.z = 0.75; sh.position.set(0, -0.335, 0.0);
+        // handle: cane under a ribbed rubber grip, with an end cap
+        const gripTex = canvasTex(32, 128, (g, w, h) => {
+          g.fillStyle = "#ea580c"; g.fillRect(0, 0, w, h);
+          for (let y = 0; y < h; y += 6) { g.fillStyle = "rgba(0,0,0,.22)"; g.fillRect(0, y, w, 2); }
+        }, { repeat: [1, 1] });
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.33, 12), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.6 }));
+        handle.position.y = -0.165;
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.0195, 0.0195, 0.25, 16), new THREE.MeshStandardMaterial({ map: gripTex, roughness: 0.85 }));
+        grip.position.y = -0.13;
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.5 }));
+        cap.position.y = -0.006;
+        // stickers: brand on the face, big HASH down the back
+        const stickerTex = canvasTex(64, 352, (g, w, h) => {
+          g.fillStyle = "#f8fafc"; g.fillRect(0, 0, w, h);
+          g.fillStyle = "#111827"; g.fillRect(0, 0, w, 18); g.fillRect(0, h - 18, w, 18);
+          g.fillStyle = "#f97316"; g.fillRect(0, 18, w, 6); g.fillRect(0, h - 24, w, 6);
+          g.save(); g.translate(w / 2, h / 2); g.rotate(-Math.PI / 2);
+          g.fillStyle = "#111827"; g.font = "900 italic 44px Arial"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("HASH", 0, 0);
+          g.restore();
+        });
+        const stickerMat = new THREE.MeshStandardMaterial({ map: stickerTex, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2 });
+        const back = new THREE.Mesh(new THREE.PlaneGeometry(0.046, 0.3), stickerMat);
+        back.position.set(0, -0.62, -0.0435); back.rotation.y = Math.PI;
+        const front = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.1), stickerMat);
+        front.position.set(0, -0.42, 0.0315);
+        bat.add(blade, sh, handle, grip, cap, back, front);
       }
       scene.add(bat);
       const BAT_LEN = 0.93;
@@ -2280,17 +2484,29 @@
         const speed = A ? Math.hypot(A.vx, A.vz) : 0;
         const fwd = V3(Math.sin(p.heading), 0, Math.cos(p.heading));
         const dir = fwd.multiplyScalar(speed > 1 ? 0.55 : 0.28).add(V3(0, -1, 0)).normalize();
-        const h = wp(p.b.rHand);
-        b.position.copy(h).addScaledVector(dir, -0.05);
+        // carried by the handle, blade down: the knuckle line runs down the handle and the
+        // handle passes through the palm
+        const F = seatHand(p, "R", dir);
+        const palm = F ? F.w.clone().addScaledVector(F.f, F.len * 0.55).addScaledVector(F.n, HANDLE_R + 0.022) : wp(p.b.rHand);
+        b.position.copy(palm).addScaledVector(dir, -0.06);
         b.quaternion.setFromUnitVectors(V3(0, -1, 0), dir);
       }
       function applyHands() {
         if (!rig.loco || !striker) return;
         const ph = G.batPose ? G.batPose.phase : "stance";
-        applyGrip(striker, "R", 1);
-        if (ph !== "carry") applyGrip(striker, "L", 1);
-        applyGrip(nonStriker, "R", 1);
+        gripFingers(striker, "R");
+        if (ph !== "carry") gripFingers(striker, "L");
         carryBat(nonStriker, bat2);
+        gripFingers(nonStriker, "R");
+        // the ball sits in the bowler's palm through the run-up, fingers round it
+        if (G.ballInHand && G.state === "runup" && bowlerP) {
+          gripFingers(bowlerP, "R", 0.5);
+          const F = handFrame(bowlerP, "R");
+          if (F) {
+            ballMesh.visible = true;
+            ballMesh.position.copy(F.w).addScaledVector(F.f, F.len * 0.75).addScaledVector(F.n, BALL_R * 1.25 + 0.012);
+          }
+        }
         const kp = fielders[9] && fielders[9].p;
         if (kp) { applyGrip(kp, "L", 0.55); applyGrip(kp, "R", 0.55); }
       }
@@ -2303,6 +2519,7 @@
         chase: { name: "Quick Chase", balls: 18, wkts: 3, target: () => (30 + Math.random() * 13) | 0 },
         daily: { name: "Daily Challenge", balls: 6, wkts: 2, target: () => 15, daily: true },
         nets: { name: "Nets", balls: Infinity, wkts: Infinity, target: () => Infinity, nets: true },
+        match: { name: "Full Match", balls: 12, wkts: 3, target: () => Infinity, pitch: "mixed", match: true },
       };
       // timing windows, shot-selection punishment, bowling pace/movement, fielding
       const DIFFS = {
@@ -2409,23 +2626,36 @@
       // Delivery planning (analytic two-phase flight so line is exact)
       // ------------------------------------------------------------------
       const RELEASE = V3(-0.42, 2.15, PITCH - 0.6);
-      function planDelivery() {
+      // pick (bowling mode): { bz, line, variation: "stock" | "var", acc 0 = perfect … 1 = wayward }
+      const g3 = () => (Math.random() + Math.random() + Math.random() - 1.5) * 2; // ~N(0,1)
+      function planDelivery(pick = null) {
         const spin = bowlerCfg.kind === "spin";
         // pace bowlers mix in a slower ball (~1 in 6)
-        const slower = !(bowlerCfg.kind === "spin") && Math.random() < 0.17;
+        const slower = pick ? !spin && pick.variation === "var" : !(bowlerCfg.kind === "spin") && Math.random() < 0.17;
         const kmh = rand(...bowlerCfg.kmh) * (slower ? 0.76 : 1) * D().pace;
         const slow = spin ? 0.6 : 0.5; // game-speed scale so humans can time it
         const v = (kmh / 3.6) * slow;
         const g = 9.81 * slow * slow;
-        const lengthName = weighted(spin
-          ? [[0.25, "full"], [0.55, "good"], [0.2, "short"]]
-          : [[0.12, "yorker"], [0.26, "full"], [0.34, "good"], [0.2, "short"], [0.08, "bouncer"]]);
-        const bz = { yorker: rand(0.9, 1.7), full: rand(2.0, 3.6), good: rand(3.8, 6.6), short: rand(6.8, 8.8), bouncer: rand(9, 10.8) }[lengthName];
-        const wide = Math.random() < 0.035;
-        const noBall = !wide && Math.random() < (spin ? 0.015 : 0.035); // overstepped
-        const line = wide ? rand(-1.2, -1.0) : weighted([[0.38, rand(-0.6, -0.22)], [0.42, rand(-0.12, 0.12)], [0.2, rand(0.14, 0.38)]]);
-        // where it pitches vs where it ends up = swing / seam / turn
-        const dev = (spin ? rand(0.12, 0.42) * (Math.random() < 0.8 ? -1 : 1) : rand(-0.12, 0.12)) * D().dev;
+        let lengthName, bz, wide, noBall, line;
+        if (pick) {
+          // the player's target, scattered by how cleanly it was released
+          bz = clamp(pick.bz + g3() * (0.06 + pick.acc * 0.8), 0.4, 11.3);
+          line = clamp(pick.line + g3() * (0.03 + pick.acc * 0.34), -1.35, 0.75);
+          lengthName = bz < 1.8 ? "yorker" : bz < 3.8 ? "full" : bz < 6.6 ? "good" : bz < 9 ? "short" : "bouncer";
+          wide = line < -0.95 || line > 0.6;
+          noBall = !wide && Math.random() < (pick.acc > 0.8 ? 0.25 : 0.01); // a lunge at the crease oversteps
+        } else {
+          lengthName = weighted(spin
+            ? [[0.25, "full"], [0.55, "good"], [0.2, "short"]]
+            : [[0.12, "yorker"], [0.26, "full"], [0.34, "good"], [0.2, "short"], [0.08, "bouncer"]]);
+          bz = { yorker: rand(0.9, 1.7), full: rand(2.0, 3.6), good: rand(3.8, 6.6), short: rand(6.8, 8.8), bouncer: rand(9, 10.8) }[lengthName];
+          wide = Math.random() < 0.035;
+          noBall = !wide && Math.random() < (spin ? 0.015 : 0.035); // overstepped
+          line = wide ? rand(-1.2, -1.0) : weighted([[0.38, rand(-0.6, -0.22)], [0.42, rand(-0.12, 0.12)], [0.2, rand(0.14, 0.38)]]);
+        }
+        // where it pitches vs where it ends up = swing / seam / turn (the arm ball goes straight on)
+        const armBall = pick && spin && pick.variation === "var";
+        const dev = armBall ? 0 : (spin ? rand(0.12, 0.42) * (Math.random() < 0.8 ? -1 : 1) : rand(-0.12, 0.12)) * D().dev;
         const bx = clamp(line + dev * Math.min(1, bz / 6), -1.3, 1.0);
         const ax = spin ? 0 : rand(-0.9, 0.9) * D().dev; // in-air swing (m/s²)
         const t1 = (RELEASE.z - bz) / v;
@@ -2437,14 +2667,28 @@
         const t2s = bz / -vz2; // bounce → stumps
         const vx2 = (line - bx) / t2s;
         const vy2 = -vyB * e;
-        const d = { kmh, v, g, bz, bx, line, wide, noBall, ax, t1, vx1, vy1, vx2, vy2, vz2, lengthName, spin };
+        const d = { kmh, v, g, bz, bx, line, wide, noBall, ax, t1, vx1, vy1, vx2, vy2, vz2, lengthName, spin, e, rel: RELEASE.clone() };
         d.tStumps = t1 + t2s;
         d.tHit = bz >= Z_HIT ? t1 + (bz - Z_HIT) / -vz2 : (RELEASE.z - Z_HIT) / v;
         return d;
       }
+      // re-aim a planned delivery from where the bowler's hand actually lets go:
+      // same pitching point, line, pace and movement, just a different start
+      function rebaseDelivery(d, rel) {
+        d.rel = rel.clone();
+        const t1 = (rel.z - d.bz) / d.v;
+        d.t1 = t1;
+        d.vx1 = (d.bx - rel.x - 0.5 * d.ax * t1 * t1) / t1;
+        d.vy1 = (0 - rel.y + 0.5 * d.g * t1 * t1) / t1;
+        d.vy2 = -(d.vy1 - d.g * t1) * d.e;
+        d.tStumps = t1 + d.bz / -d.vz2;
+        d.tHit = d.bz >= Z_HIT ? t1 + (d.bz - Z_HIT) / -d.vz2 : (rel.z - Z_HIT) / d.v;
+        return d;
+      }
       function delPos(d, t, out = V3()) {
         if (t <= d.t1) {
-          out.set(RELEASE.x + d.vx1 * t + 0.5 * d.ax * t * t, RELEASE.y + d.vy1 * t - 0.5 * d.g * t * t, RELEASE.z - d.v * t);
+          const R = d.rel || RELEASE;
+          out.set(R.x + d.vx1 * t + 0.5 * d.ax * t * t, R.y + d.vy1 * t - 0.5 * d.g * t * t, R.z - d.v * t);
         } else {
           const u = t - d.t1;
           let y = d.vy2 * u - 0.5 * d.g * u * u;
@@ -2532,6 +2776,8 @@
       // ------------------------------------------------------------------
       function startInnings(modeKey) {
         G.mode = modeKey;
+        G.aiBatting = modeKey === "match"; // full match: the Blue Hawks bat first
+        G.innings = 1; G.ai = null;
         if (modeKey === "daily") {
           const sc = dailyScenario();
           G.cfg = { ...MODES.daily, balls: sc.balls, wkts: sc.wkts, pitch: sc.pitch, key: sc.key, target: () => sc.target };
@@ -2542,8 +2788,10 @@
         if (!SET.tutorialSeen) { SET.tutorialSeen = true; store.set("so_tutorial", "1"); }
         G.runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`; // one leaderboard entry per innings
         audioInit(); sfx("start"); musicStop(1.4);
-        G.target = G.cfg.target() + (G.cfg.daily || G.cfg.nets ? 0 : D().target);
+        G.target = G.cfg.match ? Infinity : G.cfg.target() + (G.cfg.daily || G.cfg.nets ? 0 : D().target);
         clearOverlays();
+        $("break").classList.remove("on");
+        setSides(G.aiBatting);
         $("menu").classList.remove("on"); $("end").classList.remove("on");
         $("hud").classList.add("on");
         $("hint").style.opacity = 1;
@@ -2551,11 +2799,13 @@
         nextBall(true);
         if (G.cfg.daily) commentary(`Daily Challenge: ${G.target} off ${G.cfg.balls} balls on a ${PITCHES[G.cfg.pitch].toLowerCase()}. Same target for everyone today!`, 4);
         else if (G.cfg.nets) commentary("Welcome to the nets. No target, no pressure — work on your timing.", 4);
+        else if (G.aiBatting) commentary(`Blue Hawks bat first, and you've got the ball. Tap the pitch to aim, then release in the green.`, 5);
         else commentary(`${team().name} need ${G.target} to win. ${G.cfg.wkts} wickets in hand.`, 3.5);
       }
 
       function inningsOver() {
         if (G.cfg.nets) return null;
+        if (G.aiBatting) return G.wkts >= G.cfg.wkts || G.balls >= G.cfg.balls ? "break" : null;
         if (G.runs >= G.target) return "win";
         if (G.wkts >= G.cfg.wkts || G.balls >= G.cfg.balls) return G.runs === G.target - 1 ? "tie" : "lose";
         return null;
@@ -2563,6 +2813,7 @@
 
       function nextBall(first = false) {
         const res = inningsOver();
+        if (res === "break") return inningsBreak();
         if (res) return finish(res);
         const newOver = first || G.overBalls >= 6;
         if (newOver && !first) G.swapStrike = !G.swapStrike; // batters change ends at the end of the over
@@ -2578,6 +2829,8 @@
           const fieldKind = G.cfg.nets ? kind : G.mode === "super" || overNo >= 2 || (G.cfg.daily && kind === "pace") ? "death" : kind;
           G.overBalls = 0;
           bowlerCfg = pick(BOWLERS[kind]);
+          // in the Hawks' innings it's our own attack bowling
+          if (G.aiBatting) bowlerCfg = { ...bowlerCfg, name: pick(kind === "spin" ? ["A. Nair", "R. Mehta"] : ["K. Khan", "D. Cole", "S. Brown"]) };
           setPlate(bowlerP, bowlerCfg.name.split(" ").pop(), bowlerCfg.num);
           setField(fieldKind, kind);
           G.chips = [];
@@ -2593,13 +2846,15 @@
         $("timing").classList.remove("on");
         del = planDelivery();
         del.freeHit = G.freeHitNext;
+        G.bowlPick = null; G.bowlAcc = null;
+        showBowlUI();
         setBadge(del.freeHit ? "FREE HIT" : "", "fh");
         setupMeter();
-        if (!first && !G.cfg.nets) {
+        if (!first && !G.cfg.nets && !G.aiBatting) {
           const need = G.target - G.runs, left = G.cfg.balls - G.balls;
           if (del.freeHit) { commentary("FREE HIT! Nothing to lose — swing for the hills.", 2.6); say("freehit"); }
           else if (need > 0 && left === 1) { commentary(need <= 6 ? `Last ball, ${need} to win. Everything comes down to this!` : "Last ball of the innings.", 2.8); if (need <= 6) { sfx("heart"); setTimeout(() => sfx("heart"), 900); say("lastball"); } }
-          else if (need > 0 && left <= 3 && need <= left * 6) { commentary(`${need} needed off ${left}. The tension is unbearable!`, 2.6); sfx("drums"); }
+          else if (need > 0 && left <= 3 && need <= left * 6) { commentary(`${need} needed off ${left}. The tension is unbearable!`, 2.6); sfx("drums"); sfx("chant"); }
         }
         shot = null; playS = null; ballT = 0;
         fielders[9].p.catchTarget = null;
@@ -2623,6 +2878,7 @@
 
       function setState(s) {
         G.state = s; G.stateT = 0;
+        promoLog("state", { s });
         const pm = document.getElementById("pitchMap");
         if (pm) pm.classList.toggle("on", (s === "result" || s === "ready") && G.pitchLog && G.pitchLog.length > 0);
       }
@@ -2668,7 +2924,9 @@
         setState("result");
         if (G.balls >= 2) $("hint").style.opacity = 0;
         if (say) { commentary(say, 3.4); window.__sayClip("notout"); } else commentate({ runs, out, chip, signal, extras });
+        promoLog("ball", { runs, out, signal, chip, ai: !!G.aiBatting });
         haptic(out ? "heavy" : runs >= 4 ? "medium" : null);
+        crowdReact({ runs, out, chip, signal });
         setBadge("");
       }
 
@@ -2679,6 +2937,7 @@
       const swipeTrail = [];
       canvas.addEventListener("pointerdown", (e) => {
         audioInit();
+        if (userBowling() && G.state === "runup" && G.bowlPick && G.bowlAcc == null) { releaseBall(); return; }
         if (G.state === "replay") { endReplay(); return; }
         ptr = { x: e.clientX, y: e.clientY, t: performance.now() };
         swipeTrail.length = 0; swipeTrail.push({ x: e.clientX, y: e.clientY, t: performance.now() });
@@ -2688,11 +2947,13 @@
         if (!ptr) return;
         const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
         ptr = null;
+        if (G.aiBatting) return;
         onShot(dx, dy, Math.hypot(dx, dy));
       });
       window.addEventListener("keydown", (e) => {
         const map = { ArrowDown: [0, 60], ArrowLeft: [-60, 30], ArrowRight: [60, 30], ArrowUp: [0, 160], " ": [0, 0] };
-        if (map[e.key]) onShot(...map[e.key], Math.hypot(...map[e.key]));
+        if (map[e.key] && !G.aiBatting) onShot(...map[e.key], Math.hypot(...map[e.key]));
+        if (e.key === " " && userBowling() && G.state === "runup" && G.bowlPick && G.bowlAcc == null) releaseBall();
       });
 
       let lastFrame = performance.now();
@@ -2812,7 +3073,7 @@
             break;
           }
           case "ready": {
-            if (G.stateT > 1.0) setState("runup");
+            if (G.stateT > 1.0 && !(userBowling() && !G.bowlPick)) setState("runup");
             break;
           }
           case "runup": {
@@ -2834,7 +3095,22 @@
             // non-striker backs up as the bowler approaches
             if (k > 0.45) moveToward(nonStriker, 1.25, PITCH - CREASE - 1.6, 1.4, dt, 0.05, 1.25, 0);
             if (k > 0.82 && G.batPose.phase === "stance") G.batPose = { phase: "backlift", t: 0 };
+            if (userBowling() && G.bowlPick) updateBowlMeter();
+            G.ballInHand = k < 1; // drawn in the bowler's palm by applyHands
             if (k >= 1) {
+              if (userBowling() && G.bowlPick) {
+                if (G.bowlAcc == null) { G.bowlAcc = 0.85; timing("LATE RELEASE", "#f87171"); }
+                const fh = del.freeHit;
+                del = planDelivery({ ...G.bowlPick, acc: G.bowlAcc });
+                del.freeHit = fh;
+              }
+              $("hud").classList.remove("release");
+              // let go from the bowling hand itself (the ball has been in it all run-up)
+              // let go from exactly where the ball was last seen in the palm
+              G.ballInHand = false;
+              const h = ballMesh.position.clone();
+              if (ballMesh.visible && h.y > 1.2 && h.z > RELEASE.z - 1.5) rebaseDelivery(del, h);
+              trailPts.length = 0; // no streak from the run-up
               setState("delivery");
               recStart();
               ballT = 0;
@@ -2847,6 +3123,7 @@
             break;
           }
           case "delivery": {
+            if (G.aiBatting) { aiBat(); aiTick(); }
             const prev = ballT;
             ballT += dt;
             // bowler follow-through (the mocap clip plays itself out)
@@ -2928,7 +3205,7 @@
             }
             // the bowler celebrates every wicket
             if (G.stateT > 0.3 && G.chips[G.chips.length - 1] === "W" && !bowlerP.clip) play(bowlerP, "agree", 0.25);
-            if (G.stateT > (G.endHold || 1.8)) { if (G.replayable && REC.frames.length > 10) startReplay(); else nextBall(); }
+            if (G.stateT > (G.endHold || 1.8)) { if (G.replayable && REC.frames.length > 10 && !G.skipping) startReplay(); else nextBall(); }
             break;
           }
         }
@@ -2944,6 +3221,7 @@
       function updatePlay(dt) {
         const S = playS;
         S.t += dt;
+        if (G.aiBatting) aiRun(S);
         const { samples, ev } = S;
         if (!S.thud && S.t >= S.bounceT) { S.thud = true; sfx("thud"); }
         const evT = samples[ev.i].t;
@@ -3121,7 +3399,7 @@
             endBall({ signal: "out", out: "caught", chip: "W", bigText: "OUT!", smallText: how, color: "#f87171", hold: 2.4 });
           } else if (ev.kind === "drop") {
             banner("DROPPED!", `Let off at ${ev.f.role}`, "#fbbf24", 1.4);
-            sfx("groan"); say("drop");
+            sfx(G.aiBatting ? "boo" : "yay"); say("drop");
             S.finished = false; // ball is still live: wait for the throw
           }
         }
@@ -3331,14 +3609,85 @@
         ik2(b.lUpLeg, b.lLeg, b.lFoot, F, wp(b.lUpLeg).addScaledVector(facing, 1).add(V3(0, 0.2, 0.4)));
         ik2(b.rUpLeg, b.rLeg, b.rFoot, B, wp(b.rUpLeg).addScaledVector(facing, 1).add(V3(0, 0.2, 0)));
       }
+      // ---- hands on the handle ----
+      // A hand's real frame from its bones: k = knuckle line (index → pinky), f = toward the
+      // fingers, n = palm side (the thumb sits in front of the palm), len = wrist → knuckles.
+      function handFrame(p, side) {
+        const H = side === "L" ? "LeftHand" : "RightHand", bm = p.boneMap;
+        const i1 = bm && bm[H + "Index1"], p1 = bm && bm[H + "Pinky1"], m1 = bm && bm[H + "Middle1"], t2 = bm && (bm[H + "Thumb2"] || bm[H + "Thumb1"]);
+        if (!i1 || !p1 || !m1 || !t2) return null;
+        const w = wp(side === "L" ? p.b.lHand : p.b.rHand);
+        const f = wp(m1).sub(w); const len = f.length(); f.normalize();
+        const k = wp(p1).sub(wp(i1));
+        k.addScaledVector(f, -k.dot(f)).normalize(); // knuckle line, square to the fingers
+        // palm normal: perpendicular to fingers and knuckles, on the palm side found at rest
+        const n = V3().crossVectors(k, f).normalize();
+        const sg = PALM_SIGN[side];
+        if (sg ? sg < 0 : n.dot(wp(t2).sub(w)) < 0) n.negate();
+        return { w, f, k, n, len };
+      }
+      const _hm = new THREE.Matrix4(), _hm2 = new THREE.Matrix4(), _hq = new THREE.Quaternion(), _hq2 = new THREE.Quaternion();
+      // turn the hand so its knuckle line runs along `a` (the handle) with the palm kept facing
+      // the way the arm put it; returns the new frame
+      function seatHand(p, side, a) {
+        const F = handFrame(p, side);
+        if (!F) return null;
+        const hand = side === "L" ? p.b.lHand : p.b.rHand;
+        const e1 = F.k, e3 = F.n.clone().addScaledVector(e1, -F.n.dot(e1)).normalize(), e2 = V3().crossVectors(e3, e1);
+        const t1 = a.clone().normalize(), t3 = F.n.clone().addScaledVector(t1, -F.n.dot(t1)).normalize(), t2 = V3().crossVectors(t3, t1);
+        _hm.makeBasis(t1, t2, t3).multiply(_hm2.makeBasis(e1, e2, e3).transpose());
+        _hq.setFromRotationMatrix(_hm);
+        hand.getWorldQuaternion(_hq2);
+        setWorldQuat(hand, _hq.multiply(_hq2));
+        return handFrame(p, side);
+      }
+      // where the wrist must be so the palm wraps the handle axis at T
+      const HANDLE_R = 0.019;
+      const wristFor = (T, F) => T.clone().addScaledVector(F.n, -(HANDLE_R + 0.022)).addScaledVector(F.f, -F.len * 0.55);
+      // arm IK with the palm (not the wrist) on the handle; a = index → pinky direction
+      function gripWith(p, side, T, a, pole) {
+        const b = p.b, arm = side === "L" ? b.lArm : b.rArm, fore = side === "L" ? b.lFore : b.rFore, hand = side === "L" ? b.lHand : b.rHand;
+        ik2(arm, fore, hand, T, pole);
+        for (let it = 0; it < 2; it++) {
+          const F = seatHand(p, side, a);
+          if (!F) return;
+          ik2(arm, fore, hand, wristFor(T, F), pole);
+        }
+        seatHand(p, side, a);
+      }
+      // close a hand around a bat handle: straighten each finger, then fold it about the
+      // knuckle line toward the palm (proximal → distal); the thumb wraps across the front
+      const FLEX = { 1: 1.2, 2: 1.45, 3: 0.95 }, THUMB_FLEX = { 1: 0.3, 2: 0.6, 3: 0.55 };
+      function gripFingers(p, side, amt = 1) {
+        if (!fingerCurl || !p.boneMap) return;
+        const H = side === "L" ? "LeftHand" : "RightHand", bm = p.boneMap, hand = side === "L" ? p.b.lHand : p.b.rHand;
+        for (const f of FINGERS) for (let j = 1; j <= 3; j++) { const c = fingerCurl[H + f + j], bone = bm[H + f + j]; if (c && bone) bone.quaternion.copy(c.bind); }
+        hand.updateMatrixWorld(true);
+        const F = handFrame(p, side);
+        if (!F) return;
+        const seg = (f, j) => { const bone = bm[H + f + j], child = bm[H + f + (j + 1)]; const pos = wp(bone); return (child ? wp(child) : pos.clone().addScaledVector(F.f, 0.02)).sub(pos).normalize(); };
+        for (const f of ["Index", "Middle", "Ring", "Pinky"]) for (let j = 1; j <= 3; j++) {
+          const bone = bm[H + f + j]; if (!bone) continue;
+          const d = seg(f, j), ax = F.k.clone();
+          if (V3().crossVectors(ax, d).dot(F.n) < 0) ax.negate(); // fold toward the palm
+          twistBone(bone, ax, FLEX[j] * amt * (f === "Pinky" ? 1.08 : 1));
+        }
+        for (let j = 1; j <= 3; j++) {
+          const bone = bm[H + "Thumb" + j]; if (!bone) continue;
+          const d = seg("Thumb", j), ax = V3().crossVectors(d, F.n).normalize();
+          if (V3().crossVectors(ax, d).dot(F.n) < 0) ax.negate();
+          twistBone(bone, ax, THUMB_FLEX[j] * amt);
+        }
+      }
       function batterArms(pose, h) {
         const b = striker.b;
-        const lT = pose.grip.clone();
-        const rT = pose.grip.clone().addScaledVector(pose.dir, 0.13);
+        const lT = pose.grip.clone().addScaledVector(pose.dir, 0.03);
+        const rT = pose.grip.clone().addScaledVector(pose.dir, 0.125); // hands together, touching
         const facing = V3(Math.sin(h), 0, Math.cos(h));
         const chest = wp(b.spine2);
-        ik2(b.lArm, b.lFore, b.lHand, lT, chest.clone().addScaledVector(facing, 0.4).add(V3(0, -0.3, 0.5)));
-        ik2(b.rArm, b.rFore, b.rHand, rT, chest.clone().addScaledVector(facing, 0.1).add(V3(0, -0.6, -0.4)));
+        const up = pose.dir.clone().negate(); // index → pinky runs up the handle on both hands
+        gripWith(striker, "L", lT, up, chest.clone().addScaledVector(facing, 0.4).add(V3(0, -0.3, 0.5)));
+        gripWith(striker, "R", rT, up, chest.clone().addScaledVector(facing, 0.1).add(V3(0, -0.6, -0.4)));
       }
       function batterFlex(angle, h) {
         const b = striker.b;
@@ -3608,22 +3957,49 @@
 
       // umpire signals: four (wave across the chest), six (both arms up),
       // out (finger raised), wide (arms out to the side)
+      // umpire's signals: arms sweep up into the signal and ease back down before the next ball,
+      // with proper hands — a raised finger for OUT, flat open palms for six / wide / no-ball
+      const smooth01 = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+      function umpireHand(side, mode) {
+        const H = side === "L" ? "LeftHand" : "RightHand", bm = umpire.boneMap, hand = side === "L" ? umpire.b.lHand : umpire.b.rHand;
+        if (!bm || !fingerCurl) return;
+        // straight wrist: the hand continues the line of the forearm
+        const rest = umpire.restQ && umpire.restQ.get(hand);
+        if (rest) { hand.quaternion.copy(rest); hand.updateMatrixWorld(true); }
+        if (mode === "point") {
+          gripFingers(umpire, side, 1.4); // a tight fist (tighter than round a bat handle)…
+          for (let j = 1; j <= 3; j++) { const c = fingerCurl[H + "Index" + j], bn = bm[H + "Index" + j]; if (c && bn) bn.quaternion.copy(c.bind); } // …index finger up
+          hand.updateMatrixWorld(true);
+        } else {
+          for (const f of FINGERS) for (let j = 1; j <= 3; j++) { const c = fingerCurl[H + f + j], bn = bm[H + f + j]; if (c && bn) bn.quaternion.copy(c.bind); }
+          hand.updateMatrixWorld(true);
+        }
+      }
       function poseUmpire() {
-        const sig = G.state === "result" && G.signal && G.stateT > 0.7 ? G.signal.type : null;
+        const sig = G.state === "result" && G.signal ? G.signal.type : null;
         if (!sig) return;
+        const t = G.stateT, hold = G.endHold || 1.8;
+        // in over ~0.3 s after a beat, out again just before the next ball
+        const k = smooth01((t - 0.55) / 0.3) * (1 - smooth01((t - (hold - 0.45)) / 0.35));
+        if (k <= 0) return;
         umpire.heading = 0; // turn to face the scorers / camera
         umpire.obj.rotation.y = rig.yaw; umpire.obj.updateMatrixWorld(true);
         const b = umpire.b, f = V3(0, 0, 1), side = V3(-1, 0, 0); // umpire's right when facing +z
-        const t = G.stateT;
         const R = wp(b.rArm), L = wp(b.lArm), chest = wp(b.spine2);
-        let rt = null, lt = null;
-        if (sig === "six") { rt = R.clone().add(V3(0, 0.62, 0.05)); lt = L.clone().add(V3(0, 0.62, 0.05)); }
-        else if (sig === "out") rt = R.clone().add(V3(-0.1, 0.58, 0.22));
-        else if (sig === "wide") { rt = R.clone().addScaledVector(side, 0.62); lt = L.clone().addScaledVector(side, -0.62); }
-        else if (sig === "noball") rt = R.clone().addScaledVector(side, 0.6).add(V3(0, 0.05, 0.1));
-        else if (sig === "four") rt = chest.clone().addScaledVector(f, 0.45).addScaledVector(side, Math.sin(t * 9) * 0.45).add(V3(0, 0.12, 0));
-        if (rt) ik2(b.rArm, b.rFore, b.rHand, rt, R.clone().addScaledVector(f, -0.5).add(V3(0, -0.4, 0)));
-        if (lt) ik2(b.lArm, b.lFore, b.lHand, lt, L.clone().addScaledVector(f, -0.5).add(V3(0, -0.4, 0)));
+        const rNow = wp(b.rHand), lNow = wp(b.lHand); // where the idle had the hands
+        let rt = null, lt = null, rMode = "flat", lMode = "flat";
+        if (sig === "six") { rt = R.clone().add(V3(0.04, 0.64, 0.06)); lt = L.clone().add(V3(-0.04, 0.64, 0.06)); }
+        else if (sig === "out") { rt = R.clone().add(V3(-0.08, 0.6, 0.2)); rMode = "point"; }
+        else if (sig === "wide") { rt = R.clone().addScaledVector(side, 0.64).add(V3(0, 0.02, 0.04)); lt = L.clone().addScaledVector(side, -0.64).add(V3(0, 0.02, 0.04)); }
+        else if (sig === "noball") rt = R.clone().addScaledVector(side, 0.63).add(V3(0, 0.04, 0.08));
+        else if (sig === "four") {
+          // a broad wave across the body, chest height
+          const w = Math.sin((t - 0.55) * 7.5);
+          rt = chest.clone().addScaledVector(f, 0.42).addScaledVector(side, -0.05 + w * 0.42).add(V3(0, 0.08 + Math.abs(w) * 0.06, 0));
+        }
+        const pole = (S) => S.clone().addScaledVector(f, -0.5).add(V3(0, -0.4, 0));
+        if (rt) { ik2(b.rArm, b.rFore, b.rHand, rNow.lerp(rt, k), pole(R)); if (k > 0.35) umpireHand("R", rMode); }
+        if (lt) { ik2(b.lArm, b.lFore, b.lHand, lNow.lerp(lt, k), pole(L)); if (k > 0.35) umpireHand("L", lMode); }
       }
 
       // turn a player's head toward a point (yaw only, limited like a real neck)
@@ -3742,7 +4118,14 @@
         if (!(screenFlash.text && performance.now() < screenFlash.until)) drawScreen();
         $("score").textContent = `${G.runs}/${G.wkts}`;
         const ov = `${Math.floor(G.balls / 6)}.${G.balls % 6}`;
-        if (G.cfg.nets) {
+        $("hud").classList.toggle("ai", !!G.aiBatting);
+        if (G.aiBatting) {
+          const rr = G.balls ? ((G.runs / G.balls) * 6).toFixed(1) : "0.0", wl = G.cfg.wkts - G.wkts;
+          $("overs").textContent = `${ov} / ${ovs(G.cfg.balls)} OV`;
+          $("need").innerHTML = `Hawks batting · RR <b>${rr}</b>`;
+          $("info").textContent = `1st innings · ${wl} wkt${wl === 1 ? "" : "s"} left · you chase next`;
+          $("progFill").style.width = `${((G.balls / G.cfg.balls) * 100).toFixed(1)}%`;
+        } else if (G.cfg.nets) {
           const sr = G.balls ? Math.round((G.runs / G.balls) * 100) : 0;
           $("overs").textContent = `${ov} OV`;
           $("need").innerHTML = `Nets · SR <b>${sr}</b>`;
@@ -3752,7 +4135,7 @@
           const need = G.target - G.runs, left = G.cfg.balls - G.balls, wl = G.cfg.wkts - G.wkts;
           $("overs").textContent = `${ov} / ${ovs(G.cfg.balls)} OV`;
           $("need").innerHTML = need > 0 ? `Need <b>${need}</b> off <b>${left}</b>` : `<b>Target reached!</b>`;
-          $("info").textContent = `Target ${G.target} · ${wl} wkt${wl === 1 ? "" : "s"} left${need > 0 && left > 0 ? ` · RRR ${((need / left) * 6).toFixed(1)}` : ""}`;
+          $("info").textContent = `${G.ai ? `Hawks ${G.ai.runs}/${G.ai.wkts} · ` : ""}Target ${G.target} · ${wl} wkt${wl === 1 ? "" : "s"} left${need > 0 && left > 0 ? ` · RRR ${((need / left) * 6).toFixed(1)}` : ""}`;
           $("progFill").style.width = `${clamp((G.runs / G.target) * 100, 0, 100).toFixed(1)}%`;
         }
         const chips = [...G.chips];
@@ -3809,7 +4192,7 @@
         // keep the ball readable at broadcast distances (~5px minimum)
         const dist = camera.position.distanceTo(ballMesh.position);
         const pxPerM = camF / Math.max(1, dist);
-        ballMesh.scale.setScalar(Math.max(1, 6 / (2 * BALL_R * 1.7 * pxPerM)));
+        ballMesh.scale.setScalar(Math.max(1, 4.5 / (2 * BALL_R * 1.25 * pxPerM)));
         ballShadow.position.set(ballMesh.position.x, 0.03, ballMesh.position.z);
         const hgt = ballMesh.position.y;
         ballShadow.scale.setScalar(ballMesh.scale.x * (1 + hgt * 0.04));
@@ -3840,12 +4223,13 @@
           : res === "tie" ? `Scores level on ${G.runs}` : `Lost by ${G.target - 1 - G.runs} run${G.target - 1 - G.runs === 1 ? "" : "s"}`;
         $("resTitle").textContent = title;
         $("endCard").className = "card endCard " + res;
-        $("resSub").textContent = `${sub} · ${G.cfg.name}${G.cfg.daily ? "" : ` · ${D().name}`}`;
+        $("resSub").textContent = `${sub} · ${G.cfg.name}${G.cfg.daily ? "" : ` · ${D().name}`}${G.ai ? ` · Hawks ${G.ai.runs}/${G.ai.wkts}` : ""}`;
         $("stRuns").textContent = G.runs; $("stBalls").textContent = G.balls;
         $("st4").textContent = G.fours; $("st6").textContent = G.sixes;
         // points: runs + win bonus + wickets/balls in hand
         if (res === "win") { flashScreen("WIN!", "#4ade80", 4); burstConfetti(V3(0, 0, CENTER.z)); crowdFlash = 1; sfx("fanfare"); sfx("applause"); }
-        else sfx("lose");
+        else { sfx("lose"); if (res === "lose") setTimeout(() => sfx("boo"), 500); }
+        if (res === "win") setTimeout(() => sfx("yay"), 300);
         // flawless: chased it down without losing a wicket
         setTimeout(() => say(res === "win" && G.wkts === 0 ? "flawless" : res), 700);
         setTimeout(() => { if (G.state === "over") musicPlay(4); }, 2200);
@@ -3951,6 +4335,168 @@
       // Team kits for the batting side
       // ------------------------------------------------------------------
       const batHelmetMat = new THREE.MeshStandardMaterial({ color: 0x0f1e46, metalness: 0.35, roughness: 0.3 });
+      // ------------------------------------------------------------------
+      // Full match vs AI: the Blue Hawks bat first (our team fields), then we chase
+      // ------------------------------------------------------------------
+      const HAWKS = { name: "Blue Hawks", short: "HAWKS", shirt: "#2563eb", dark: "#1e3a8a", pants: "#1e3a8a", accent: "#facc15", helmet: "#1e3a8a", ink: "#ffffff" };
+      function recolorPlayer(p, k) {
+        for (const m of p.obj.userData.kitMats || []) {
+          m.mat.color.set(m.top ? k.shirt : k.pants);
+          if (m.jersey) { m.jersey.accent = k.accent; if (m.jersey.accentU) m.jersey.accentU.value.set(k.accent); }
+        }
+      }
+      // aiBat: Hawks in the middle, our team in the field; otherwise the normal sides
+      function setSides(aiBat) {
+        if (!striker) return;
+        const t = team();
+        if (!aiBat) applyTeam(SET.team);
+        const batK = aiBat ? HAWKS : t;
+        for (const p of [striker, nonStriker]) { recolorPlayer(p, batK); for (const d of p.hashDecals || []) d.visible = !aiBat; }
+        batHelmetMat.color.set(batK.helmet);
+        for (const f of fielders) recolorPlayer(f.p, aiBat ? t : f.role === "keeper" ? KITS.keeper : KITS.field);
+        setPlate(striker, batK.short, 7, batK.ink); setPlate(nonStriker, batK.short, 18, batK.ink);
+        const box = document.querySelector(".team");
+        box.style.background = `linear-gradient(135deg, ${batK.shirt}, ${batK.dark})`;
+        box.style.color = batK.ink;
+        box.querySelector(".nm").textContent = batK.short;
+        drawScreen();
+      }
+      // AI batter skill follows the difficulty, so Legend sets a tougher chase
+      function aiBat() {
+        if (shot || !del || del.ai) return;
+        const sigma = { easy: 0.058, pro: 0.045, legend: 0.036 }[SET.diff] || 0.045;
+        // only shoulders arms to balls that would miss the stumps
+        // a batter shoulders arms outside off; anything on the pads gets clipped away
+        const wide = del.line < -0.3 || (del.wide && del.line < 0);
+        del.ai = { leave: wide && Math.random() < 0.55 };
+        if (del.ai.leave) return;
+        // the quality of the ball matters: yorkers and a tight off-stump line are hard to time,
+        // full tosses, half-volleys and leg-side freebies get put away
+        const lenQ = { yorker: 1.85, full: 0.72, good: 1.4, short: 0.95, bouncer: 1.3 }[del.lengthName] || 1;
+        const lineQ = del.line > 0.18 ? 0.62 : del.line > -0.32 && del.line < 0.08 ? 1.25 : 1;
+        const g = (Math.random() + Math.random() + Math.random() - 1.5) * 2 * sigma * lenQ * lineQ; // ~gaussian timing error
+        const loft = Math.random() < (G.balls >= G.cfg.balls - 4 ? 0.55 : 0.32); // swings harder at the death
+        const aim = (Math.random() - 0.5) * 2.4, d = loft ? 220 : 90;
+        del.ai.t = del.tHit - LEAD + g;
+        del.ai.shot = [Math.sin(aim) * d, Math.cos(aim) * d, d];
+      }
+      function aiTick() {
+        if (G.aiBatting && G.state === "delivery" && del && del.ai && del.ai.shot && !shot && ballT >= del.ai.t) onShot(...del.ai.shot);
+      }
+      // AI running: one if it's fielded a fair way off, two if it's in the deep
+      function aiRun(S) {
+        if (!S.live || S.dead || S.aiCalls === undefined && S.t < 0.3) return;
+        const E = S.samples[S.ev.i], far = Math.hypot(E.x, E.z - Z_HIT);
+        S.aiCalls = S.aiCalls || 0;
+        const want = far > 44 ? 2 : far > 17 ? 1 : 0;
+        if (S.aiCalls < want && S.t > 0.3 + S.aiCalls * 0.7) { callRun(); S.aiCalls++; }
+      }
+      // ---- the player bowls the Hawks' innings ----
+      const userBowling = () => G.aiBatting && !G.skipping;
+      let bowlVariation = "stock";
+      const BP = { len: 11.5, top: 18, bottom: 10, half: 1.45 }; // pitch panel: bz 0 at the top (batter), line ±1.45 m
+      function bowlPanelGeom(c) { const sy = (c.height - BP.top - BP.bottom) / BP.len, sx = c.width / 2 / BP.half; return { sx, sy, X: (x) => c.width / 2 + x * sx, Y: (z) => BP.top + z * sy }; }
+      function drawBowlPitch(pickAt = null) {
+        const c = $("bowlPitch"), g = c.getContext("2d"), { X, Y } = bowlPanelGeom(c);
+        g.clearRect(0, 0, c.width, c.height);
+        g.fillStyle = "#1f5f2a"; g.fillRect(0, 0, c.width, c.height);
+        g.fillStyle = "#c8b07a"; g.fillRect(X(-1.0), 0, X(1.0) - X(-1.0), c.height);
+        const zones = [[0, 1.8, "rgba(239,68,68,.28)", "YORKER"], [1.8, 3.8, "rgba(250,204,21,.22)", "FULL"], [3.8, 6.6, "rgba(34,197,94,.28)", "GOOD"], [6.6, 9, "rgba(59,130,246,.24)", "SHORT"], [9, 11.5, "rgba(168,85,247,.24)", "BOUNCER"]];
+        g.textAlign = "center"; g.textBaseline = "middle";
+        for (const [a, b, col, lbl] of zones) {
+          g.fillStyle = col; g.fillRect(X(-1.0), Y(a), X(1.0) - X(-1.0), Y(b) - Y(a));
+          g.fillStyle = "rgba(255,255,255,.8)"; g.font = "900 15px sans-serif"; g.fillText(lbl, c.width / 2, (Y(a) + Y(b)) / 2);
+        }
+        // stumps line + crease + where the batter stands
+        g.strokeStyle = "rgba(255,255,255,.35)"; g.setLineDash([5, 5]); g.beginPath(); g.moveTo(X(0), Y(0)); g.lineTo(X(0), c.height); g.stroke(); g.setLineDash([]);
+        g.fillStyle = "#fff"; g.fillRect(X(-1.0), Y(CREASE) - 1, X(1.0) - X(-1.0), 2);
+        for (const sx of [-0.11, 0, 0.11]) g.fillRect(X(sx) - 2, 2, 4, Y(0) - 2);
+        g.fillStyle = "#2563eb"; g.beginPath(); g.arc(X(0.47), Y(CREASE) - 4, 8, 0, Math.PI * 2); g.fill();
+        g.fillStyle = "#fff"; g.font = "900 9px sans-serif"; g.fillText("BAT", X(0.47), Y(CREASE) - 4);
+        if (pickAt) {
+          g.strokeStyle = "#fff"; g.lineWidth = 3;
+          g.beginPath(); g.arc(X(pickAt.line), Y(pickAt.bz), 10, 0, Math.PI * 2); g.stroke();
+          g.fillStyle = "#facc15"; g.beginPath(); g.arc(X(pickAt.line), Y(pickAt.bz), 5, 0, Math.PI * 2); g.fill();
+        }
+      }
+      function showBowlUI() {
+        const on = userBowling();
+        $("hud").classList.toggle("aim", on);
+        $("hud").classList.remove("release");
+        if (!on) return;
+        const spin = bowlerCfg.kind === "spin";
+        $("bowlWho").textContent = `${bowlerCfg.name.split(" ").pop().toUpperCase()} · ${spin ? "SPIN" : "PACE"}`;
+        $("bowlVarAlt").textContent = spin ? "Arm ball" : "Slower";
+        bowlVariation = "stock";
+        for (const b of $("bowlVar").querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === "stock");
+        drawBowlPitch();
+      }
+      $("bowlVar").addEventListener("click", (e) => {
+        const v = e.target.dataset && e.target.dataset.v;
+        if (!v) return;
+        bowlVariation = v;
+        for (const b of $("bowlVar").querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === v);
+      });
+      $("bowlPitch").addEventListener("pointerdown", (e) => {
+        e.stopPropagation(); e.preventDefault();
+        if (!userBowling() || G.state !== "ready" || G.bowlPick) return;
+        audioInit();
+        const c = $("bowlPitch"), r = c.getBoundingClientRect(), { sx, sy } = bowlPanelGeom(c);
+        const px = ((e.clientX - r.left) / r.width) * c.width, py = ((e.clientY - r.top) / r.height) * c.height;
+        G.bowlPick = { line: clamp((px - c.width / 2) / sx, -1.4, 0.75), bz: clamp((py - BP.top) / sy, 0.4, 11.3), variation: bowlVariation };
+        drawBowlPitch(G.bowlPick);
+        sfx("click");
+        setTimeout(() => { $("hud").classList.remove("aim"); $("hud").classList.add("release"); }, 250);
+        G.stateT = Math.max(G.stateT, 1.0); // run in straight away
+      });
+      const bowlNeedle = () => 0.5 + 0.5 * Math.sin(G.stateT * Math.PI * 2 / 1.05);
+      function updateBowlMeter() { if (G.bowlAcc == null) $("bowlNeedle").style.left = `${(bowlNeedle() * 100).toFixed(1)}%`; }
+      function releaseBall() {
+        const u = bowlNeedle();
+        G.bowlAcc = Math.abs(u - 0.5) * 2;
+        const a = G.bowlAcc;
+        timing(a < 0.22 ? "PERFECT RELEASE" : a < 0.56 ? "GOOD RELEASE" : "WAYWARD", a < 0.22 ? "#4ade80" : a < 0.56 ? "#facc15" : "#f87171");
+        $("hud").classList.remove("release");
+        haptic("light");
+      }
+
+      function inningsBreak() {
+        G.skipping = false;
+        if (master && SET.sound) master.gain.value = 1;
+        G.ai = { runs: G.runs, wkts: G.wkts, balls: G.balls };
+        G.aiBatting = false;
+        setState("over");
+        clearOverlays();
+        $("hud").classList.remove("on", "ai", "aim", "release");
+        $("aiScore").textContent = `${G.ai.runs}/${G.ai.wkts}`;
+        $("aiOvers").textContent = `${ovs(G.ai.balls)} overs · ${G.ai.wkts === G.cfg.wkts ? "all out" : "innings complete"}`;
+        $("aiTarget").textContent = G.ai.runs + 1;
+        $("aiNeed").textContent = `off ${G.cfg.balls} balls · ${G.cfg.wkts} wickets`;
+        $("break").classList.add("on");
+        sfx("cheer");
+        commentary(`Blue Hawks finish on ${G.ai.runs}/${G.ai.wkts}. ${team().name} need ${G.ai.runs + 1} to win.`, 4);
+      }
+      function startChase() {
+        $("break").classList.remove("on");
+        Object.assign(G, { runs: 0, wkts: 0, balls: 0, fours: 0, sixes: 0, chips: [], shots: [], overBalls: 0, pitchLog: [], freeHitNext: false, perfects: 0, swapStrike: false, innings: 2 });
+        G.target = G.ai.runs + 1;
+        setSides(false);
+        $("hud").classList.add("on");
+        $("hint").style.opacity = 1;
+        nextBall(true);
+        commentary(`${team().name} need ${G.target} off ${G.cfg.balls} balls. Here we go!`, 3.5);
+      }
+      $("chaseBtn").addEventListener("click", startChase);
+      $("skipBtn").addEventListener("pointerdown", (e) => {
+        e.stopPropagation(); e.preventDefault();
+        if (!G.aiBatting || G.skipping) return;
+        G.skipping = true;
+        $("hud").classList.remove("aim", "release");
+        clearTicker(); voiceStop();
+        if (master) master.gain.value = 0; // silent fast-forward
+        if (replay) endReplay();
+      });
+
       function applyTeam(id) {
         SET.team = id;
         const t = team();
@@ -4115,7 +4661,9 @@
       function openPause() {
         if (userPaused || !PAUSABLE.has(G.state)) return;
         userPaused = true;
-        $("pauseInfo").textContent = G.cfg.nets
+        $("pauseInfo").textContent = G.aiBatting
+          ? `Full Match · Blue Hawks ${G.runs}/${G.wkts} after ${ovs(G.balls)} ov`
+          : G.cfg.nets
           ? `Nets · ${G.runs} runs off ${G.balls} balls`
           : `${G.cfg.name} · ${G.runs}/${G.wkts} · need ${Math.max(0, G.target - G.runs)} off ${G.cfg.balls - G.balls}`;
         $("quitBtn").textContent = G.cfg.nets ? "End session" : "Main menu";
@@ -4144,6 +4692,9 @@
       }
       function quitToMenu() {
         closePause();
+        if (G.skipping) { G.skipping = false; if (master && SET.sound) master.gain.value = 1; }
+        if (G.aiBatting || G.ai) setSides(false);
+        G.aiBatting = false; $("break").classList.remove("on");
         if (G.cfg && G.cfg.nets && G.balls > 0) { finish("nets"); return; }
         clearOverlays();
         ballMesh.visible = false; trail.visible = false;
@@ -4266,12 +4817,55 @@
       // ------------------------------------------------------------------
       // Audio (synthesised — no extra downloads)
       // ------------------------------------------------------------------
-      let AC = null, noiseBuf = null, crowdGain = null, master = null;
+      let AC = null, noiseBuf = null, crowdGain = null, master = null, synthBed = null;
+      // Real stadium crowd (Gregor Quendel, CC-BY 4.0): ambience loop + cheers + chant.
+      // Fetched at boot, decoded on first use; the synthesized crowd is the fallback.
+      const CROWD = {};
+      for (const n of ["ambience_loop", "cheer_big_1", "cheer_big_2", "cheer_soft", "chant"]) {
+        CROWD[n] = { data: null, buf: null };
+        if (LOCAL) fetch(`./audio/crowd/${n}.mp3`).then((r) => (r.ok ? r.arrayBuffer() : null)).then((d) => { CROWD[n].data = d; if (n === "ambience_loop") startRealCrowd(); }).catch(() => {});
+      }
+      async function crowdBuf(n) {
+        const c = CROWD[n];
+        if (!AC || !c || (!c.buf && !c.data)) return null;
+        try { if (!c.buf) c.buf = await AC.decodeAudioData(c.data.slice(0)); } catch (_) { return null; }
+        return c.buf;
+      }
+      let realBed = null;
+      async function startRealCrowd() {
+        if (realBed || !AC || !crowdGain) return;
+        const buf = await crowdBuf("ambience_loop");
+        if (!buf || realBed) return;
+        realBed = AC.createBufferSource(); realBed.buffer = buf; realBed.loop = true;
+        const g = AC.createGain(); g.gain.value = 16; // crowdGain is tuned for the quiet synth bed
+        realBed.connect(g).connect(crowdGain); realBed.start();
+        if (synthBed) synthBed.gain.setTargetAtTime(0, AC.currentTime, 0.6);
+      }
+      // a recorded crowd clip; false if it isn't available (caller falls back to synthesis)
+      async function crowdClip(n, gain = 0.9) {
+        const buf = await crowdBuf(n);
+        if (!buf) return false;
+        const src = AC.createBufferSource(); src.buffer = buf;
+        const g = AC.createGain(); g.gain.value = gain;
+        src.connect(g).connect(master); src.start();
+        return true;
+      }
       function audioInit() {
         if (AC) { if (AC.state === "suspended") AC.resume(); return; }
         try {
           AC = new (window.AudioContext || window.webkitAudioContext)();
           master = AC.createGain(); master.gain.value = SET.sound ? 1 : 0; master.connect(AC.destination);
+          // promo: record exactly what the game plays
+          if (PROMO && window.MediaRecorder) {
+            try {
+              const dest = AC.createMediaStreamDestination(); master.connect(dest);
+              const rec = new MediaRecorder(dest.stream, { mimeType: "audio/webm;codecs=opus", audioBitsPerSecond: 192000 });
+              const chunks = []; rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+              rec.start(1000);
+              window.__promoAudio = { rec, chunks, startEpoch: Date.now() };
+            } catch (_) {}
+          }
+          setTimeout(() => { try { introSongDecode(); } catch (_) {} }, 0);
           noiseBuf = AC.createBuffer(1, AC.sampleRate * 2.5, AC.sampleRate);
           const d = noiseBuf.getChannelData(0);
           for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -4284,7 +4878,18 @@
           const lfo = AC.createOscillator(), lfoG = AC.createGain(); lfo.frequency.value = 0.11; lfoG.gain.value = 0.25;
           lfo.connect(lfoG).connect(breathe.gain); lfo.start();
           crowdGain = AC.createGain(); crowdGain.gain.value = 0.012;
-          src.connect(lp).connect(lp2).connect(breathe).connect(crowdGain).connect(master); src.start();
+          crowdGain.connect(master);
+          synthBed = AC.createGain(); synthBed.connect(crowdGain);
+          src.connect(lp).connect(lp2).connect(breathe).connect(synthBed); src.start();
+          // chatter: voice-band noise whose level wanders like thousands of conversations
+          const ch = AC.createBufferSource(); ch.buffer = noiseBuf; ch.loop = true; ch.playbackRate.value = 0.93;
+          const bp = AC.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 650; bp.Q.value = 0.9;
+          const chG = AC.createGain(); chG.gain.value = 0.38;
+          for (const [f, a] of [[0.23, 0.12], [0.61, 0.08], [1.7, 0.05]]) {
+            const o = AC.createOscillator(), og = AC.createGain(); o.frequency.value = f; og.gain.value = a; o.connect(og).connect(chG.gain); o.start();
+          }
+          ch.connect(bp).connect(chG).connect(synthBed); ch.start(0, 1.1);
+          startRealCrowd();
         } catch (_) { AC = null; }
       }
       function noise(dur, filterType, freq, q, gain, attack = 0.002, at = 0) {
@@ -4510,12 +5115,25 @@
       updateMusicLabels();
 
       // intro song: a bundled 10-second clip (fade baked into the file), fetched during boot
-      const INTRO_SONG = { data: null, src: null, gain: null };
-      if (LOCAL) fetch("./audio/intro.mp3").then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => { INTRO_SONG.data = b; }).catch(() => {});
+      const INTRO_SONG = { data: null, buf: null, decoding: null, src: null, gain: null };
+      // decode ahead of time so the song starts the instant the intro does
+      function introSongDecode() {
+        if (!AC || !INTRO_SONG.data || INTRO_SONG.buf || INTRO_SONG.decoding) return INTRO_SONG.decoding;
+        INTRO_SONG.decoding = AC.decodeAudioData(INTRO_SONG.data.slice(0)).then((b) => {
+          INTRO_SONG.buf = b;
+          // start straight away on the loading screen — no waiting for the stadium
+          if (G.state === "loading" || G.state === "intro") introSongPlay();
+          return b;
+        }).catch(() => null);
+        return INTRO_SONG.decoding;
+      }
+      if (LOCAL) fetch("./audio/intro.mp3").then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => { INTRO_SONG.data = b; introSongDecode(); }).catch(() => {});
       async function introSongPlay() {
+        if (INTRO_SONG.started) return true; // already playing (started during loading)
         if (!AC || !MUSIC.on || !INTRO_SONG.data) return false;
         try {
-          const buf = await AC.decodeAudioData(INTRO_SONG.data.slice(0));
+          const buf = INTRO_SONG.buf || (await introSongDecode());
+          if (!buf) return false;
           if (introDone) return true;
           const src = AC.createBufferSource(); src.buffer = buf;
           const g = AC.createGain(); g.gain.value = 0.9;
@@ -4523,7 +5141,7 @@
           const t = AC.currentTime + 0.02, end = t + Math.min(10, buf.duration);
           g.gain.setValueAtTime(0.9, end - 1.6); g.gain.linearRampToValueAtTime(0, end);
           src.start(t); src.stop(end + 0.05);
-          Object.assign(INTRO_SONG, { src, gain: g });
+          Object.assign(INTRO_SONG, { src, gain: g, started: true });
           return true;
         } catch (_) { return false; }
       }
@@ -4534,6 +5152,47 @@
         gain.gain.cancelScheduledValues(t); gain.gain.setValueAtTime(gain.gain.value, t); gain.gain.linearRampToValueAtTime(0, t + fade);
         try { src.stop(t + fade + 0.05); } catch (_) {}
         INTRO_SONG.src = null;
+      }
+      // home crowd booing: many low voices sliding down on an "ooo", through a muffled filter
+      function crowdBoo(dur = 2.2) {
+        const t0 = AC.currentTime;
+        const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 520; lp.Q.value = 0.7;
+        const out = AC.createGain();
+        out.gain.setValueAtTime(0.0001, t0); out.gain.exponentialRampToValueAtTime(0.32, t0 + 0.35); out.gain.setValueAtTime(0.32, t0 + dur * 0.6); out.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        lp.connect(out).connect(master);
+        for (let i = 0; i < 14; i++) {
+          const o = AC.createOscillator(); o.type = "sawtooth";
+          const f = 95 + Math.random() * 90, st = t0 + Math.random() * 0.25;
+          o.frequency.setValueAtTime(f * 1.06, st); o.frequency.exponentialRampToValueAtTime(f * 0.86, st + dur);
+          const vib = AC.createOscillator(), vg = AC.createGain(); vib.frequency.value = 4 + Math.random() * 3; vg.gain.value = f * 0.025;
+          vib.connect(vg).connect(o.frequency);
+          const g = AC.createGain(); g.gain.value = 0.05;
+          o.connect(g).connect(lp); o.start(st); o.stop(t0 + dur + 0.1); vib.start(st); vib.stop(t0 + dur + 0.1);
+        }
+        noise(dur, "bandpass", 300, 1.8, 0.18, 0.3);
+      }
+      // home crowd yaying: a bright cheer, whistles and applause
+      function crowdYay(big = true) {
+        crowdClip(big ? pick(["cheer_big_1", "cheer_big_2"]) : "cheer_soft", big ? 0.95 : 0.8).then((ok) => {
+          if (ok) { for (let i = 0; i < 3; i++) { const f = 1800 + Math.random() * 800; tone(f, f * 1.3, 0.25, "sine", 0.035, 0.2 + Math.random() * 0.8); } return; }
+          crowdYaySynth();
+        });
+      }
+      function crowdYaySynth() {
+        swell(2.0, 1100, 1900, 0.3, 0.8, 0.25);
+        noise(1.8, "lowpass", 1400, 0.5, 0.28, 0.12);
+        for (let i = 0; i < 5; i++) {
+          const at = 0.1 + Math.random() * 1.1, f = 1700 + Math.random() * 900;
+          tone(f, f * (1.25 + Math.random() * 0.3), 0.18 + Math.random() * 0.25, "sine", 0.05, at);
+        }
+        applause(2.4, 80, 0.18);
+      }
+      // the stands react depending on which side did what (the crowd supports your team)
+      function crowdReact({ runs, out, chip, signal }) {
+        const usBat = !G.aiBatting;
+        if (out) sfx(usBat ? "groan" : "yay");
+        else if (signal === "six" || signal === "four") sfx(usBat ? (signal === "six" ? "yay" : "yaySoft") : "boo");
+        else if (/^(Wd|Nb)/.test(chip || "")) sfx(usBat ? "yay" : "boo");
       }
       function sfx(kind) {
         if (!AC) return;
@@ -4567,6 +5226,10 @@
           else if (kind === "drums") drums(2);
           else if (kind === "heart") { tone(72, 45, 0.13, "sine", 0.55); tone(72, 45, 0.13, "sine", 0.4, 0.24); }
           else if (kind === "riser") swell(2.1, 180, 3400, 0.22, 0.9, 0.95);
+          else if (kind === "boo") crowdBoo();
+          else if (kind === "yay") crowdYay(true);
+          else if (kind === "yaySoft") crowdYay(false);
+          else if (kind === "chant") crowdClip("chant", 0.75).then((ok) => { if (!ok) drums(2); });
           else if (kind === "boom") { tone(72, 28, 1.5, "sine", 0.8); noise(1.3, "lowpass", 320, 0.6, 0.5, 0.005); }
         } catch (_) {}
       }
@@ -4580,6 +5243,9 @@
       }
 
       async function boot() {
+        // start the audio engine while loading (the app's web view allows it without a tap) so
+        // the intro song is decoded and ready the moment the intro starts; the crowd stays silent
+        try { audioInit(); } catch (_) {}
         const manager = new THREE.LoadingManager();
         manager.onProgress = (_url, loaded, total) => setProgress(loaded / total);
         const onProg = (e) => { if (e.total) setProgress(0.15 + 0.6 * (e.loaded / e.total), "Fetching 3D players…"); };
@@ -4684,6 +5350,8 @@
             if (g) {
               const eyes = new THREE.SkinnedMesh(g, eL.material);
               eyes.name = "EyesS";
+              // keep the original mesh transform: headgear fitting measures the eyes in world space
+              eyes.position.copy(eL.position); eyes.quaternion.copy(eL.quaternion); eyes.scale.copy(eL.scale);
               eL.parent.add(eyes);
               eyes.bind(eL.skeleton, eL.bindMatrix);
               eL.removeFromParent(); eR.removeFromParent();
@@ -4720,6 +5388,7 @@
         fielders.slice(0, 10).forEach((f, i) => addBackPlate(f.p, NAMES[i], [7, 18, 45, 33, 10, 23, 63, 99, 1, 12][i]));
         addBackPlate(striker, "Hash", 7);
         addBackPlate(nonStriker, "Hash", 18);
+        addChestLogo(striker); addChestLogo(nonStriker);
         applyTeam(SET.team);
         applyNight(SET.night);
         addBackPlate(bowlerP, "Vance", 9);
@@ -4791,7 +5460,7 @@
         const card = (n) => { el.classList.remove("c1", "c2", "c3"); if (n) el.classList.add("c" + n); sfx("whoosh"); };
         at(1950, () => { sfx("boom"); crowdFlash = 0.6; });
         at(4800, () => { el.classList.add("phase2"); card(1); });
-        at(6200, () => { sfx("cheer"); crowdFlash = 0.9; });
+        at(6200, () => { sfx("chant"); crowdFlash = 0.9; });
         at(7742, () => { card(2); crowdFlash = 1; });
         at(10200, () => { card(3); sfx("applause"); crowdFlash = 0.7; });
         at(12300, () => { el.classList.remove("c1", "c2", "c3"); sfx("start"); });
@@ -4844,6 +5513,7 @@
       }
       let replay = null;
       function startReplay() {
+        promoLog("replayStart");
         const m = REC.marks;
         const pivot = m.contact ?? m.stumps ?? m.event ?? 0;
         const from = Math.max(0, pivot - 0.75);
@@ -4856,6 +5526,7 @@
         setState("replay");
       }
       function endReplay() {
+        promoLog("replayEnd");
         replay = null;
         $("replayBadge").classList.remove("on");
         nextBall();
@@ -4893,6 +5564,11 @@
           return;
         }
         if (G.state !== "loading") {
+          // promo autopilot: play the queued shot on perfect timing
+          if (PROMO && window.__autoBat && G.state === "delivery" && !shot && !G.aiBatting && del && ballT + LEAD >= del.tHit - 0.006) {
+            const [dx, dy] = window.__autoBat.shift ? window.__autoBat.shift() || [0, 160] : window.__autoBat;
+            onShot(dx, dy, Math.hypot(dx, dy));
+          }
           update(dt);
           syncBowlerFielder();
           syncPlayers(dt);
@@ -4913,7 +5589,10 @@
       function frame(now) {
         const dt = Math.min(0.05, (now - last) / 1000);
         last = now; lastFrame = now;
-        if (!window.__paused && !userPaused) { tick(dt); watchPerf(dt); }
+        if (!window.__paused && !userPaused) {
+          if (G.skipping) { for (let i = 0; i < 45 && G.skipping; i++) { lastFrame = performance.now(); tick(1 / 30, false); } renderFrame(); }
+          else { tick(dt); watchPerf(dt); }
+        }
         requestAnimationFrame(frame);
       }
       requestAnimationFrame(frame);
@@ -4934,11 +5613,11 @@
       });
 
       // test hooks for development
-      if (/[?&]debug\b/.test(location.search)) window.__so = { G, SET, get del() { return del; }, get playS() { return playS; }, onShot, startInnings, simulate, V3, callRun, players, bat, get striker() { return striker; },
-        openPause, closePause, quitToMenu, say, applyNight, applyTeam, dailyScenario, finish, banner, timing, commentary, scene, camera, THREE, MUSIC, musicPlay, musicStop,
+      if (/[?&]debug\b/.test(location.search)) window.__so = { PALM_SIGN, get fingerCurl() { return fingerCurl; }, G, SET, get del() { return del; }, get playS() { return playS; }, onShot, startInnings, simulate, V3, callRun, players, bat, get striker() { return striker; },
+        openPause, closePause, quitToMenu, say, sfx, applyNight, applyTeam, dailyScenario, finish, banner, timing, commentary, scene, camera, THREE, MUSIC, musicPlay, musicStop,
         get audio() { return { ac: AC && AC.state, song: !!INTRO_SONG.data, songPlaying: !!INTRO_SONG.src, music: MUSIC.playing }; },
         step(sec, dt = 1 / 60, headless = false) { for (let t = 0; t < sec; t += dt) { lastFrame = performance.now(); tick(dt, !headless || t + dt >= sec); } },
-        get ballT() { return ballT; },
+        get ballT() { return ballT; }, applyHands, LEAD, get replay() { return replay; }, startReplay, endReplay,
         snapshot(type = "image/jpeg") { directCamera(0); renderFrame(); return canvas.toDataURL(type, 0.88); } };
     </script>
   </body>
