@@ -7,5 +7,5 @@ abstract final class FeatureFlags {
   /// allowed in the Play build. When off, every tournament entry point is
   /// hidden (home sections, the Tournaments tab, player invites, chat and
   /// deep links). The feature code stays in place for re-enabling.
-  static const bool tournamentsEnabled = true;
+  static const bool tournamentsEnabled = false;
 }

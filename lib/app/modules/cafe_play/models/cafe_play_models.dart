@@ -11,7 +11,8 @@ int _int(dynamic v, [int fallback = 0]) {
 
 int? _intOrNull(dynamic v) {
   if (v is num) return v.toInt();
-  return int.tryParse(v?.toString() ?? '');
+  final s = v?.toString() ?? '';
+  return int.tryParse(s) ?? double.tryParse(s)?.toInt();
 }
 
 DateTime? _date(dynamic v) {
@@ -35,7 +36,9 @@ class CafeDuration {
   /// Server's explanation when this duration can't be bought right now.
   final String? unavailableReason;
 
-  bool get isAvailable => amount != null && unavailableReason == null;
+  // Selectable whenever priced, as before v1.5.33; the server still validates
+  // on purchase (409 reloads the sheet with its message).
+  bool get isAvailable => amount != null;
 
   factory CafeDuration.fromJson(Map<String, dynamic> json) {
     final reason = json['unavailable_reason']?.toString().trim();
