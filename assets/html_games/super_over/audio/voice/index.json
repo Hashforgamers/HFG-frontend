@@ -1,11 +1,20 @@
 {
-  "six": ["six_1.mp3", "six_2.mp3"],
-  "four": ["four_1.mp3", "four_2.mp3"],
-  "win": ["win_1.mp3", "win_2.mp3", "win_3.mp3"],
-  "flawless": ["flawless_1.mp3"],
-  "lose": ["lose_1.mp3", "lose_2.mp3", "lose_3.mp3"],
+  "six": ["six_thats_huge_into_the_crowd.mp3", "six_gone_all_the_way_maximum.mp3", "six_out_of_the_stadium_what_a_hit.mp3", "six_clean_as_you_like.mp3"],
+  "four": ["four_cracking_shot.mp3", "four_timed_to_perfection_races_away.mp3", "four_no_stopping_that_one.mp3", "four_threaded_the_gap_beautifully.mp3"],
+  "win": ["win_theyve_done_it.mp3", "win_chased_it_down.mp3", "win_get_in_thats_the_match.mp3"],
+  "flawless": ["flawless_not_a_wicket_lost.mp3", "flawless_total_domination.mp3"],
+  "lose": ["lose_so_close_not_today.mp3", "lose_fell_just_short_heartbreak.mp3", "lose_the_bowlers_win_this_one.mp3"],
   "tie": ["tie_1.mp3", "tie_2.mp3"],
-  "lastball": ["lastball_1.mp3"],
-  "lastover": ["lastover_1.mp3"],
-  "newbest": ["newbest_1.mp3"]
+  "lastball": ["lastball_comes_down_to_this.mp3", "lastball_hold_your_breath.mp3"],
+  "lastover": ["lastover_this_is_it.mp3", "lastover_six_balls_left.mp3"],
+  "newbest": ["newbest_1.mp3"],
+  "bowled": ["bowled_timber_stumps_are_a_mess.mp3", "bowled_through_the_gate.mp3", "bowled_castled_what_a_delivery.mp3"],
+  "caught": ["caught_in_the_air_and_taken.mp3", "caught_straight_down_his_throat.mp3", "caught_safe_hands_he_has_to_go.mp3"],
+  "behind": ["behind_edged_and_taken_behind.mp3", "behind_just_a_feather.mp3", "behind_nicked_off_gone.mp3"],
+  "runout": ["runout_never_a_run_there.mp3", "runout_short_of_his_ground.mp3", "runout_mix_up_in_the_middle.mp3"],
+  "stumped": ["stumped_lightning_glovework.mp3", "stumped_down_the_track_beaten.mp3"],
+  "beaten": ["beaten_all_ends_up.mp3", "beaten_past_the_edge.mp3", "beaten_swing_and_a_miss.mp3"],
+  "drop": ["drop_hes_put_it_down.mp3", "drop_that_could_be_costly.mp3", "drop_a_life_for_the_batter.mp3"],
+  "notout": ["notout_knocked_him_over_he_survives.mp3", "notout_stumps_flying_not_out.mp3"],
+  "noball": ["noball_hes_overstepped.mp3", "noball_free_hit_coming.mp3"]
 }
