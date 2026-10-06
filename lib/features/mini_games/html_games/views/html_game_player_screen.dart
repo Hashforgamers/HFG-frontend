@@ -56,12 +56,66 @@ class _HtmlGamePlayerScreenState extends State<HtmlGamePlayerScreen> {
     super.dispose();
   }
 
+  bool _leaving = false;
+
+  /// Back (button or system gesture) asks first, so a stray swipe doesn't end a match.
+  Future<void> _confirmLeave() async {
+    if (_leaving) return;
+    final leave = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF111827),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(
+          'Leave the game?',
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: Text(
+          'Your current match will be lost.',
+          style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Keep playing',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'Leave',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFF87171),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (leave != true || !mounted) return;
+    _leaving = true;
+    unawaited(_exitGameMode());
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) return;
-        unawaited(_exitGameMode());
+        if (didPop) return;
+        unawaited(_confirmLeave());
       },
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -73,56 +127,31 @@ class _HtmlGamePlayerScreenState extends State<HtmlGamePlayerScreen> {
                 scoreBridgeService: _scoreBridge,
               ),
             ),
+            // compact back button: the game draws its own title, so just the arrow
             SafeArea(
               child: Align(
                 alignment: Alignment.topLeft,
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.48),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
+                  padding: const EdgeInsets.all(10),
+                  child: Material(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    shape: CircleBorder(
+                      side: BorderSide(
                         color: Colors.white.withValues(alpha: 0.14),
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _confirmLeave,
+                      child: const SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white,
+                          size: 16,
                         ),
-                        Padding(
-                          padding: const EdgeInsets.only(right: 14),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.game.name,
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              Text(
-                                'Landscape mode',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white60,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),

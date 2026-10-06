@@ -138,6 +138,93 @@
       #hint b { color: var(--text); }
       @media (min-width: 601px) { #hud.tick #hint { opacity: 0 !important; } } /* phones move the hint off the bottom row */
 
+      /* career: stats, badges, locker */
+      .careerCard { width: min(620px, 100%); display: flex; flex-direction: column; }
+      .cHead { display: flex; align-items: baseline; gap: 10px; }
+      .cHead h3 { margin: 0; font-family: var(--display); font-size: 26px; font-style: italic; letter-spacing: .03em; text-transform: uppercase; }
+      .cSub { font-size: 10px; font-weight: 800; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; }
+      .cTabs { display: flex; gap: 4px; margin: 12px 0; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+      .cTabs button { flex: 1; border: none; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 800; padding: 8px 10px; border-radius: 999px; cursor: pointer; letter-spacing: .04em; }
+      .cTabs button.on { background: #fff; color: #111827; }
+      .cTabs button b { font-size: 10px; padding: 1px 6px; border-radius: 999px; background: rgba(77,226,198,.18); color: var(--accent-2); margin-left: 2px; }
+      .cTabs button.on b { background: #111827; }
+      .cPane { display: none; min-height: 0; overflow: auto; }
+      .cPane.on { display: block; animation: fadeIn .2s ease-out; }
+      .stGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+      .stTile { padding: 10px 6px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); text-align: center; }
+      .stTile b { display: block; font-family: var(--display); font-size: 24px; font-weight: 900; line-height: 1; }
+      .stTile span { display: block; margin-top: 4px; font-size: 8.5px; font-weight: 800; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
+      .stTile.hl { background: rgba(255,180,84,.1); border-color: rgba(255,180,84,.3); }
+      .stTile.hl b { color: var(--accent); }
+      .stTile.six b { color: #e879f9; }
+      .stEmpty { padding: 18px 8px; text-align: center; font-size: 12px; color: var(--muted); }
+      .bdGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .bd { display: flex; gap: 10px; align-items: center; padding: 9px 10px; border-radius: 12px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.07); }
+      .bd .bi { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 11px; font-size: 20px; background: rgba(255,255,255,.06); filter: grayscale(1); opacity: .45; }
+      .bd.got { border-color: rgba(250,204,21,.35); background: linear-gradient(135deg, rgba(250,204,21,.1), rgba(255,255,255,.02)); }
+      .bd.got .bi { filter: none; opacity: 1; background: linear-gradient(135deg, #facc15, #f59e0b); box-shadow: 0 4px 14px rgba(245,158,11,.3); }
+      .bd .bt { min-width: 0; flex: 1; }
+      .bd .bt b { display: block; font-size: 12.5px; }
+      .bd .bt span { display: block; font-size: 10.5px; color: var(--muted); line-height: 1.3; }
+      .bd .bp { height: 4px; border-radius: 999px; background: rgba(255,255,255,.08); margin-top: 5px; overflow: hidden; }
+      .bd .bp i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+      .bd .bt em { font-style: normal; font-size: 9.5px; font-weight: 800; color: #facc15; letter-spacing: .06em; }
+      .lkH { margin: 4px 2px 8px; font-size: 10px; font-weight: 900; letter-spacing: .16em; color: var(--muted); text-transform: uppercase; }
+      .lkRow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+      .lk { position: relative; padding: 10px 4px 8px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1.5px solid rgba(255,255,255,.08); text-align: center; cursor: pointer; color: var(--text); font: inherit; }
+      .lk.on { border-color: var(--accent-2); background: rgba(77,226,198,.08); box-shadow: 0 0 0 3px rgba(77,226,198,.12); }
+      .lk.locked { cursor: default; }
+      .lk.locked .sw { filter: grayscale(.85) brightness(.55); }
+      .lk .nm { display: block; margin-top: 6px; font-size: 10.5px; font-weight: 800; }
+      .lk .un { display: block; font-size: 8.5px; color: var(--muted); line-height: 1.25; margin-top: 2px; }
+      .lk .lock { position: absolute; top: 6px; right: 6px; font-size: 11px; }
+      .batSw { width: 18px; height: 62px; margin: 0 auto; border-radius: 4px 4px 7px 7px; position: relative; }
+      .batSw::before { content: ""; position: absolute; left: 6px; top: -16px; width: 6px; height: 17px; border-radius: 3px; background: var(--g); }
+      .kitSw { width: 46px; height: 46px; margin: 8px auto 0; border-radius: 12px 12px 8px 8px; position: relative; overflow: hidden; }
+      .kitSw::after { content: ""; position: absolute; left: 0; right: 0; top: 44%; height: 5px; background: var(--a); }
+      .endBadges { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
+      .endBadges:empty { display: none; }
+      .endBadges .nb { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; background: linear-gradient(135deg, rgba(250,204,21,.18), rgba(245,158,11,.1)); border: 1px solid rgba(250,204,21,.4); color: #fde68a; animation: fadeUp .4s ease-out both; }
+      .endBadges .nb.ul { background: rgba(77,226,198,.12); border-color: rgba(77,226,198,.4); color: var(--accent-2); }
+      .opt.career { border-color: rgba(250,204,21,.4); background: rgba(250,204,21,.1); color: #fde68a; }
+      #records { cursor: pointer; }
+      .recMore { margin-top: 6px; font-size: 10px; font-weight: 800; letter-spacing: .12em; color: var(--accent-2); text-transform: uppercase; }
+      /* phones in landscape: the menu bar gained Day/Pitch/Career, so tighten it to stay on one row */
+      @media (max-height: 500px) {
+        .recMore { display: none; }
+        .menuBar { gap: 6px; }
+        .menuBar .opt, .menuBar .seg button { padding: 6px 10px; font-size: 11px; }
+        .menuBar .seg .segL { display: none; }
+        .careerCard .row { margin-top: 10px; }
+      }
+      @media (max-width: 600px) {
+        .stGrid { grid-template-columns: repeat(3, 1fr); }
+        .bdGrid { grid-template-columns: 1fr; }
+        .lkRow { grid-template-columns: repeat(3, 1fr); }
+        .endBtns .btn { padding: 12px 10px; }
+      }
+
+      /* six: big distance card while the camera rides the ball into the crowd */
+      #sixCard {
+        position: absolute; left: 50%; top: 21%; transform: translateX(-50%); display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center;
+        opacity: 0; pointer-events: none; filter: drop-shadow(0 18px 36px rgba(0,0,0,.5)); width: max-content; max-width: calc(100vw - 24px);
+      }
+      #sixCard.on { opacity: 1; }
+      #sixCard .sx, #sixCard .sm { font-family: var(--display); font-weight: 900; font-style: italic; line-height: 1; padding: 6px 26px 4px; }
+      #sixCard .sx { font-size: 76px; color: #fff; background: linear-gradient(135deg, #d946ef, #9333ea); transform: skewX(-12deg); border-radius: 8px 0 0 8px; letter-spacing: .03em; }
+      #sixCard .sm { font-size: 76px; color: #111827; background: #fff; transform: skewX(-12deg); border-radius: 0 8px 8px 0; display: flex; align-items: baseline; gap: 4px; min-width: 2.9em; justify-content: center; }
+      #sixCard .sm span { font-size: 34px; color: #9333ea; }
+      #sixCard .sw, #sixCard .sl { flex-basis: 100%; text-align: center; margin-top: 8px; }
+      #sixCard .sw span, #sixCard .sl span { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: rgba(6,11,22,.9); padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,.1); }
+      #sixCard .sl span { background: linear-gradient(135deg, #facc15, #f59e0b); color: #111827; border: none; }
+      #sixCard.on .sx { animation: sixIn .45s cubic-bezier(.2,1.3,.35,1) both; }
+      #sixCard.on .sm { animation: sixIn .45s cubic-bezier(.2,1.3,.35,1) .12s both; }
+      #sixCard.on .sw { animation: fadeUp .4s ease-out .35s both; }
+      #sixCard.on .sl { animation: fadeUp .4s ease-out .6s both; }
+      @keyframes sixIn { from { opacity: 0; transform: skewX(-12deg) translateY(30px) scale(.7); } }
+      @media (max-width: 600px) { #sixCard .sx, #sixCard .sm { font-size: min(64px, 14vw); padding: 5px 18px 3px; } #sixCard .sm span { font-size: 26px; } }
+      html.calm #sixCard.on > * { animation: none !important; }
+
       /* result banner: skewed broadcast slab */
       #banner {
         position: absolute; left: 0; right: 0; top: 25%; text-align: center; --bc: #fff; --bt: #111827;
@@ -692,6 +779,7 @@
       </div>
       <div id="banner"><div class="big" id="bannerBig"></div><div class="small" id="bannerSmall"></div></div>
       <div id="timing"></div>
+      <div id="sixCard"><div class="sx">SIX</div><div class="sm"><b id="sixM">0</b><span>M</span></div><div class="sw" id="sixWhere"></div><div class="sl" id="sixLong"></div></div>
       <button id="runBtn" type="button"><span id="runLbl">RUN</span><small id="runCount">tap to call</small></button>
       <div id="replayBadge"><span class="dot"></span>REPLAY<small>tap to skip</small></div>
       <div id="freeHit">FREE HIT</div>
@@ -706,7 +794,7 @@
       <div id="pitchMap"><div class="pl">PITCH MAP</div><canvas id="pitchCanvas" width="120" height="260"></canvas></div>
       <div id="ticker"><span class="lbl">LIVE</span><span class="txt" id="tickerTxt"></span></div>
       <div id="bowlerTag">
-        <div class="bw"><div class="bl">BOWLING</div><div class="bn" id="bowlerName">—</div><div class="bt" id="bowlerType">—</div></div>
+        <div class="bw"><div class="bl" id="bowlerStyle">BOWLING</div><div class="bn" id="bowlerName">—</div><div class="bt" id="bowlerType">—</div></div>
         <div class="spd"><b id="speed">—</b><small>KM/H</small></div>
       </div>
       <div id="hint"><b>Swipe</b> where you want to hit it · <b>Long swipe</b> = lofted · <b>Tap</b> = defend · <b>RUN</b> to call runs</div>
@@ -780,11 +868,13 @@
         </div>
         <div class="menuBar">
           <div class="seg" id="diffSeg"><span class="segL">Difficulty</span><button type="button" data-v="easy">Easy</button><button type="button" data-v="pro">Pro</button><button type="button" data-v="legend">Legend</button></div>
-          <div class="seg" id="timeSeg"><button type="button" data-v="day">☀ Day</button><button type="button" data-v="night">☾ Night</button></div>
+          <button class="opt" id="timeBtn" type="button">☀ Day</button>
+          <button class="opt" id="pitchBtn" type="button">Pitch: Auto</button>
           <span class="spacer"></span>
           <button class="opt" id="musicBtn" type="button">♫ Music: On</button>
           <button class="opt" id="gfxBtn" type="button">Graphics: Auto</button>
           <button class="opt" id="howBtn" type="button">How to play</button>
+          <button class="opt career" id="careerBtn" type="button">🏅 Career</button>
         </div>
       </div>
     </div>
@@ -800,6 +890,17 @@
         </div>
         <div class="credits">Crowd recordings: Gregor Quendel (CC-BY 4.0) · Announcer: Kenney (CC0) · 3D: three.js</div>
         <div class="row"><button class="btn ghost" id="introBtn" type="button">▶ Watch intro</button><button class="btn main" id="howClose" type="button">Got it</button></div>
+      </div>
+    </div>
+
+    <div class="overlay" id="career">
+      <div class="card careerCard">
+        <div class="cHead"><h3>Career</h3><span class="cSub">Saved on this phone</span></div>
+        <div class="cTabs" id="careerTabs"><button type="button" data-t="stats" class="on">Stats</button><button type="button" data-t="badges">Badges <b id="badgeCount">0</b></button><button type="button" data-t="locker">Locker</button></div>
+        <div class="cPane on" id="cp-stats"></div>
+        <div class="cPane" id="cp-badges"></div>
+        <div class="cPane" id="cp-locker"></div>
+        <div class="row"><button class="btn main" id="careerClose" type="button">Done</button></div>
       </div>
     </div>
 
@@ -864,9 +965,11 @@
             </div>
             <div class="points"><span>Arcade points <em class="newBest" id="ptsBest" hidden>NEW BEST</em></span><b id="pts">0</b></div>
             <div class="endRec" id="endRec"></div>
+            <div class="endBadges" id="endBadges"></div>
             <div id="submitMsg"></div>
             <div class="row endBtns">
               <button class="btn ghost" id="toMenu" type="button">Menu</button>
+              <button class="btn ghost share" id="shareBtn" type="button">Share</button>
               <button class="btn main" id="again" type="button">Play again</button>
             </div>
           </div>
@@ -887,7 +990,6 @@
     <script type="module">
       import * as THREE from "three";
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-      import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
       import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
       import { toCreasedNormals, mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
       import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
@@ -908,7 +1010,6 @@
         cricketer: LOCAL ? "./models/cricketer.glb" : null,
         player: ["https://static.poly.pizza/90a9e2d4-053f-42f1-99a2-8f5e1180ea7f.glb"],
         playerFallback: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/Xbot.glb",
-        sky: [LOCAL && "./sky/kloofendal_puresky_1k.hdr", "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloofendal_48d_partly_cloudy_puresky_1k.hdr"].filter(Boolean),
       };
       const loadFirst = async (loader, urls, onProg) => {
         let err;
@@ -990,14 +1091,21 @@
       const gtaoPass = new GTAOPass(scene, camera, 2, 2);
       try { gtaoPass.updateGtaoMaterial({ radius: 0.55, distanceExponent: 1.6, thickness: 1.5, scale: 1.15, samples: 12 }); } catch (_) {}
       gtaoPass.blendIntensity = 0.9;
+      // ambient occlusion is soft and denoised: rendering it at half resolution is near-invisible
+      // and cuts its cost (two-thirds of an Ultra frame) roughly 4×
+      { const fullSize = gtaoPass.setSize.bind(gtaoPass); gtaoPass.setSize = (w, h) => fullSize(Math.max(2, Math.round(w / 2)), Math.max(2, Math.round(h / 2))); }
       const bloomPass = new UnrealBloomPass(new THREE.Vector2(2, 2), 0.32, 0.45, 0.88);
       const outputPass = new OutputPass();
       const gradePass = new ShaderPass({
-        uniforms: { tDiffuse: { value: null }, saturation: { value: 1.12 }, contrast: { value: 1.05 }, vignette: { value: 0.32 }, warmth: { value: 0.025 } },
+        uniforms: { tDiffuse: { value: null }, saturation: { value: 1.12 }, contrast: { value: 1.05 }, vignette: { value: 0.32 }, warmth: { value: 0.025 }, texel: { value: new THREE.Vector2(1e-3, 1e-3) }, sharp: { value: 0.2 } },
         vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-        fragmentShader: `uniform sampler2D tDiffuse; uniform float saturation, contrast, vignette, warmth; varying vec2 vUv;
+        fragmentShader: `uniform sampler2D tDiffuse; uniform float saturation, contrast, vignette, warmth, sharp; uniform vec2 texel; varying vec2 vUv;
           void main(){
             vec4 c = texture2D(tDiffuse, vUv);
+            // light unsharp mask: undoes the softness of upscaling + AA (stronger when drawn below native)
+            vec3 nb = texture2D(tDiffuse, vUv + vec2(texel.x, 0.0)).rgb + texture2D(tDiffuse, vUv - vec2(texel.x, 0.0)).rgb
+                    + texture2D(tDiffuse, vUv + vec2(0.0, texel.y)).rgb + texture2D(tDiffuse, vUv - vec2(0.0, texel.y)).rgb;
+            c.rgb = max(c.rgb + (c.rgb - nb * 0.25) * sharp, 0.0);
             float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
             c.rgb = mix(vec3(l), c.rgb, saturation);
             c.rgb = (c.rgb - 0.5) * contrast + 0.5;
@@ -1011,8 +1119,10 @@
       for (const pass of [renderPass, gtaoPass, bloomPass, outputPass, gradePass, smaaPass, fxaaPass]) composer.addPass(pass);
 
       const TIERS = {
-        ultra: { pr: 3, shadow: 4096, gtao: true, bloom: true, aa: "smaa", grass: 1, post: true },
-        high: { pr: 2, shadow: 2048, gtao: false, bloom: true, aa: "smaa", grass: 0.35, post: true },
+        // ultra renders at the screen's native density (a 3× phone was being drawn at 2× and stretched,
+        // which read as blurry), half-res AO, 2k shadows on the tight frustum, 50% grass
+        ultra: { pr: 3, shadow: 2048, gtao: true, bloom: true, aa: "smaa", grass: 0.5, post: true, crowd3d: true },
+        high: { pr: 2, shadow: 2048, gtao: false, bloom: true, aa: "smaa", grass: 0.35, post: true, crowd3d: true },
         medium: { pr: 1.5, shadow: 1024, gtao: false, bloom: true, aa: "fxaa", grass: 0.12, post: true },
         low: { pr: 1, shadow: 512, gtao: false, bloom: false, aa: "none", grass: 0, post: false },
       };
@@ -1027,7 +1137,11 @@
       const SET = {
         team: store.get("so_team") || "hash",
         diff: store.get("so_diff") || "pro",
-        night: store.get("so_night") === "1",
+        // match conditions: day | sunset | cloudy | night (older saves only knew night on/off)
+        time: store.get("so_time") || (store.get("so_night") === "1" ? "night" : "day"),
+        pitch: store.get("so_pitch") || "auto", // auto | green | dry | flat
+        bat: store.get("so_bat") || "hash",
+        kit: store.get("so_kit") || "home",
         sound: store.get("so_sound") !== "0",
         haptics: store.get("so_haptics") !== "0",
         voice: store.get("so_voice") !== "0",
@@ -1042,13 +1156,14 @@
       const weakDevice = (navigator.deviceMemory && navigator.deviceMemory <= 4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
       let tierName = gfxMode === "auto" ? store.get("so_gfx_auto") || (weakDevice ? "medium" : "high") : gfxMode;
       let tier = TIERS[tierName];
+      let drs = 1; // dynamic-resolution scale (see watchPerf)
       function applyQuality(name) {
         tierName = name; tier = TIERS[name];
-        const pr = Math.min(window.devicePixelRatio || 1, tier.pr);
+        const pr = Math.max(1, Math.min(window.devicePixelRatio || 1, tier.pr) * drs);
         renderer.setPixelRatio(pr);
         composer.setPixelRatio(pr);
         gtaoPass.enabled = tier.gtao;
-        try { gtaoPass.updateGtaoMaterial({ samples: name === "ultra" ? 20 : 12 }); } catch (_) {}
+        try { gtaoPass.updateGtaoMaterial({ samples: 12 }); } catch (_) {}
         bloomPass.enabled = tier.bloom;
         smaaPass.enabled = tier.aa === "smaa";
         fxaaPass.enabled = tier.aa === "fxaa";
@@ -1056,12 +1171,14 @@
           sun.shadow.mapSize.set(tier.shadow, tier.shadow);
           if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
         }
+        if (typeof crowd3D !== "undefined") setCrowd3D(!!tier.crowd3d);
         if (typeof grass !== "undefined" && grass) { grass.count = Math.floor(GRASS_MAX * tier.grass); grass.visible = grass.count > 0; }
         resize();
         updateGfxLabel();
       }
       function renderFrame() {
         sizeBall();
+        updateFanLights(); // crowd LOD for the camera actually drawing this frame
         if (tier.post) composer.render(); else renderer.render(scene, camera);
       }
       // keep the ball trackable at broadcast distances (~2.2px minimum on a phone — any bigger reads as a blob from the drone shot), sized for
@@ -1077,13 +1194,34 @@
       // measured only once the 3D scene is actually rendering (not the loading
       // card), continuously; only ever steps down, so it can't oscillate
       const perf = { n: 0, t: 0, settled: false };
+      // dynamic resolution: on any tier, if the device can't hold ~50fps the render scale steps down
+      // (to 60% at most) and climbs back when there's headroom — so a chosen tier keeps its effects
+      // instead of stuttering. Auto mode additionally drops a whole tier if even that isn't enough.
+      const drsWin = { n: 0, t: 0 };
+      function setDrs(k) {
+        drs = k;
+        const pr = Math.max(1, Math.min(window.devicePixelRatio || 1, tier.pr) * drs);
+        if (Math.abs(pr - renderer.getPixelRatio()) < 0.01) return;
+        renderer.setPixelRatio(pr); composer.setPixelRatio(pr); resize();
+      }
       function watchPerf(dt) {
-        if (gfxMode !== "auto" || window.__paused || userPaused || G.state === "loading" || tierName === "low") return;
+        if (window.__paused || userPaused || G.state === "loading") return;
+        drsWin.n++; drsWin.t += dt;
+        if (drsWin.t >= 1.5) {
+          const fps = drsWin.n / drsWin.t;
+          drsWin.n = 0; drsWin.t = 0;
+          // resolution is the last thing to give: a tier the player picked only trims 10%, auto 25%
+          const floor = gfxMode === "auto" ? 0.75 : 0.9;
+          if (fps < 48 && drs > floor) setDrs(Math.max(floor, drs - 0.05));
+          else if (fps > 57 && drs < 1) setDrs(Math.min(1, drs + 0.05));
+        }
+        if (gfxMode !== "auto" || tierName === "low") return;
         perf.n++; perf.t += dt;
         if (perf.n < 120) return;
         const fps = perf.n / perf.t;
         perf.n = 0; perf.t = 0;
-        if (fps < 42) { applyQuality(tierName === "high" ? "medium" : "low"); store.set("so_gfx_auto", tierName); }
+        // auto: drop effects (a tier) before the picture goes soft
+        if (fps < 45 && drs <= 0.85) { applyQuality(tierName === "ultra" ? "high" : tierName === "high" ? "medium" : "low"); store.set("so_gfx_auto", tierName); }
       }
       function updateGfxLabel() {
         for (const id of ["gfxBtn", "gfxBtn2"]) {
@@ -1099,6 +1237,8 @@
         composer.setSize(W, H);
         const pr = renderer.getPixelRatio();
         fxaaPass.material.uniforms.resolution.value.set(1 / (W * pr), 1 / (H * pr));
+        gradePass.uniforms.texel.value.set(1 / (W * pr), 1 / (H * pr));
+        gradePass.uniforms.sharp.value = 0.22 + 0.6 * Math.max(0, 1 - pr / (window.devicePixelRatio || 1));
         camera.aspect = W / H;
         const sw = $("swipe");
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -1170,7 +1310,7 @@
       // Seated crowd at real scale: one tile is ~36 m of terrace × the full rake, 80 seats
       // across and 26 rows. Texels land ~2.4× wider than tall on the stand, so every shape
       // is drawn pre-squashed horizontally. Fans cluster in team blocks with aisles between.
-      const crowdTex = canvasTex(2048, 512, (g, w, h) => {
+      const paintCrowd = (people) => (g, w, h) => {
         const ROWS = 26, SEATS = 80, rh = h / ROWS, sw = w / SEATS, AISLE = 20;
         const skin = ["#f1c7a5", "#d9a17a", "#c68642", "#a8693f", "#8d5524", "#6b4226", "#4a2c1a"];
         const hair = ["#1c140f", "#2b1d14", "#3b2a1e", "#5a3b22", "#121212", "#8a6a45"];
@@ -1198,6 +1338,7 @@
             // seat back, visible on empty seats and between shoulders
             g.fillStyle = (r + (s / AISLE | 0)) % 2 ? "#1e3a8a" : "#1e40af";
             g.fillRect(x0 + sw * 0.1, y0 + rh * 0.42, sw * 0.8, rh * 0.34);
+            if (!people) { g.fillStyle = "rgba(255,255,255,.08)"; g.fillRect(x0 + sw * 0.1, y0 + rh * 0.42, sw * 0.8, rh * 0.05); continue; }
             if (Math.random() < 0.1) continue; // empty seat
             const blk = blocks[(((s / AISLE) | 0) + ((r / 9) | 0)) % blocks.length];
             const shirt = Math.random() < 0.78 ? blk[(Math.random() * blk.length) | 0] : pick(blocks[2]);
@@ -1232,16 +1373,20 @@
         const sh = g.createLinearGradient(0, 0, 0, h);
         sh.addColorStop(0, "rgba(8,12,22,.32)"); sh.addColorStop(0.35, "rgba(8,12,22,.08)"); sh.addColorStop(1, "rgba(8,12,22,0)");
         g.fillStyle = sh; g.fillRect(0, 0, w, h);
-      }, { repeat: [-14, 1] });
+      };
+      const crowdTex = canvasTex(2048, 512, paintCrowd(true), { repeat: [-14, 1] });
 
       // living crowd: each seat bobs on its own rhythm, jumps when the crowd erupts
       // (crowdFlash) and a Mexican wave travels round the bowl. Done in the texture lookup,
       // so it costs nothing extra on the geometry.
       const crowdU = { uTime: { value: 0 }, uExcite: { value: 0 }, uWave: { value: 0 } };
-      function livingCrowd(mat, tiles) {
+      // which of the 16 sectors round the lower tier currently show 3D fans (the painted fans
+      // there are swapped for empty seats)
+      const crowdMask = { uSec3D: { value: new Array(16).fill(0) }, uEmpty: { value: null } };
+      function livingCrowd(mat, tiles, mask = false) {
         mat.onBeforeCompile = (sh) => {
-          Object.assign(sh.uniforms, crowdU, { uTiles: { value: tiles } });
-          sh.fragmentShader = "uniform float uTime; uniform float uExcite; uniform float uWave; uniform float uTiles;\n" + sh.fragmentShader.replace(
+          Object.assign(sh.uniforms, crowdU, { uTiles: { value: tiles } }, mask ? crowdMask : {});
+          sh.fragmentShader = (mask ? "#define CROWD_MASK\nuniform float uSec3D[16]; uniform sampler2D uEmpty;\n" : "") + "uniform float uTime; uniform float uExcite; uniform float uWave; uniform float uTiles;\n" + sh.fragmentShader.replace(
             "#include <map_fragment>",
             `#ifdef USE_MAP
                vec2 cuv = vMapUv;
@@ -1254,12 +1399,15 @@
                float wave = uWave * (1.0 - smoothstep(0.004, 0.03, d));
                cuv.y -= bob + wave * 0.5 * ROW;
                vec4 sampledDiffuseColor = texture2D(map, cuv);
+               #ifdef CROWD_MASK
+                 if (uSec3D[int(floor(fract(-vMapUv.x / uTiles) * 16.0)) % 16] > 0.5) sampledDiffuseColor = texture2D(uEmpty, vMapUv);
+               #endif
                diffuseColor *= sampledDiffuseColor;
                diffuseColor.rgb *= 1.0 + wave * 0.3 + uExcite * 0.08;
              #endif`,
           );
         };
-        mat.customProgramCacheKey = () => "crowd" + tiles;
+        mat.customProgramCacheKey = () => "crowd" + tiles + (mask ? "m" : "");
       }
 
       // LED advertising: each panel carries the Hash badge + a line of copy.
@@ -1433,7 +1581,7 @@
         const blades = [];
         for (let k = 0; k < 4; k++) {
           const hh = BH * (0.75 + Math.random() * 0.5);
-          const g = new THREE.PlaneGeometry(0.012, hh, 1, 2);
+          const g = new THREE.PlaneGeometry(0.012, hh, 1, 1); // one segment: a 5cm blade shows no mid bend, and it halves the triangles
           g.translate(0, hh / 2, 0);
           const ps = g.attributes.position;
           for (let i = 0; i < ps.count; i++) ps.setX(i, ps.getX(i) * (1 - (ps.getY(i) / hh) * 0.85));
@@ -1454,14 +1602,26 @@
             vec4 gw0 = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
             vec2 gRel = mod(gw0.xz - cameraPosition.xz + uGrassR, 2.0 * uGrassR) - uGrassR;
             vec2 gShift = cameraPosition.xz + gRel - gw0.xz;`;
-          sh.vertexShader = `uniform float uTime, uGrassR, uRope; uniform vec3 uCenterG, uPitchBox; varying float vGh; varying vec2 vGrassW;\n` + sh.vertexShader
-            .replace("#include <beginnormal_vertex>", "vec3 objectNormal = vec3(0.0, 1.0, 0.0);\n#ifdef USE_TANGENT\nvec3 objectTangent = vec3(1.0, 0.0, 0.0);\n#endif")
+          sh.vertexShader = `uniform float uTime, uGrassR, uRope; uniform vec3 uCenterG, uPitchBox; varying float vGh; varying vec2 vGrassW; varying vec2 vTuft;\n` + sh.vertexShader
+            .replace("#include <beginnormal_vertex>", `vec2 gOut = normalize(position.xz + vec2(1e-4));
+              float gh0 = clamp(position.y / 0.06, 0.0, 1.0);
+              vec3 objectNormal = normalize(vec3(gOut.x * gh0 * 1.6, 1.0, gOut.y * gh0 * 1.6));
+              #ifdef USE_TANGENT
+              vec3 objectTangent = vec3(1.0, 0.0, 0.0);
+              #endif`)
             .replace("#include <begin_vertex>", `#include <begin_vertex>
               ${wrap}
               vec2 gWorld = gw0.xz + gShift;
               vGrassW = gWorld;
               float gh = clamp(position.y / 0.06, 0.0, 1.0);
               vGh = gh;
+              // per-tuft random pair: drives droop and colour variety
+              float tH = fract(sin(dot(floor(gWorld * 23.0), vec2(12.9898, 78.233))) * 43758.5453);
+              vTuft = vec2(tH, fract(tH * 7.31 + 0.17));
+              // each blade bows out from the tuft centre and droops at the tip (quadratic = curved)
+              float droop = (0.006 + 0.016 * tH) * gh * gh;
+              transformed.xz += normalize(position.xz + vec2(1e-4)) * droop;
+              transformed.y -= droop * 0.45;
               float vis = 1.0 - smoothstep(9.0, 19.0, length(gRel));
               vis *= 1.0 - step(abs(gWorld.x), uPitchBox.x) * step(uPitchBox.y, gWorld.y) * step(gWorld.y, uPitchBox.z);
               vis *= 1.0 - smoothstep(uRope - 1.2, uRope - 0.2, length(gWorld - uCenterG.xz));
@@ -1479,11 +1639,15 @@
               mvPosition.xz += gShift;
               mvPosition = modelViewMatrix * mvPosition;
               gl_Position = projectionMatrix * mvPosition;`);
-          sh.fragmentShader = "varying float vGh; varying vec2 vGrassW;\n" + sh.fragmentShader
+          sh.fragmentShader = "varying float vGh; varying vec2 vGrassW; varying vec2 vTuft;\n" + sh.fragmentShader
             .replace("#include <color_fragment>", `#include <color_fragment>
               float gBand = mod(floor((vGrassW.x + 201.5) / 6.5), 2.0);
               vec3 gCol = mix(vec3(0.04, 0.175, 0.028), vec3(0.058, 0.235, 0.039), gBand);
-              diffuseColor.rgb *= gCol * mix(0.62, 1.48, vGh);`)
+              diffuseColor.rgb *= gCol * mix(0.62, 1.48, vGh);
+              // variety: tufts tinted cooler or warmer, ~1 in 8 a lighter yellow-green, ~1 in 5 with dry tips
+              diffuseColor.rgb *= mix(vec3(0.9, 1.02, 0.92), vec3(1.1, 1.04, 0.86), vTuft.x);
+              diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.45, 1.38, 0.7), step(0.875, vTuft.y) * 0.75);
+              diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.37, 0.16) * 0.55, step(0.8, fract(vTuft.y * 3.7)) * smoothstep(0.62, 1.0, vGh) * 0.6);`)
             .replace("#include <normal_fragment_begin>", "#include <normal_fragment_begin>\n normal = normalize(vNormal);");
         };
         mat.customProgramCacheKey = () => "grass-wrap";
@@ -1526,9 +1690,225 @@
         new THREE.CylinderGeometry(STAND_R + 16, STAND_R, 15, 160, 1, true),
         new THREE.MeshStandardMaterial({ map: crowdTex, side: THREE.BackSide, roughness: 1 }),
       );
-      livingCrowd(stands.material, 14);
+      livingCrowd(stands.material, 14, true);
       stands.position.set(CENTER.x, 1.1 + 7.5, CENTER.z);
       stadium.add(stands);
+      // under the 3D fans the terrace texture is just steps and seats
+      crowdMask.uEmpty.value = canvasTex(2048, 512, paintCrowd(false), { repeat: [-14, 1] });
+
+      // ---- 3D crowd (High/Ultra): the lower tier is filled seat by seat with fans, so close
+      // camera work (the six camera) shows real people with depth instead of a painted texture.
+      // One instanced quad per fan, all facing the middle; an atlas holds 64 people, each drawn
+      // twice (sitting / on their feet cheering). The vertex shader picks the pose, bobs them,
+      // makes them jump when the crowd erupts and runs the Mexican wave.
+      const FAN_COLS = 16, FAN_ROWS = 8, FAN_W = 64, FAN_H = 128, FAN_PAIRS = (FAN_COLS * FAN_ROWS) / 2;
+      const FAN_BLOCKS = [
+        ["#f97316", "#ea580c", "#fb923c", "#111827"], // Hash orange & black
+        ["#2563eb", "#1d4ed8", "#3b82f6", "#e5e7eb"], // Blue Hawks
+        ["#f8fafc", "#cbd5e1", "#64748b", "#1f2937", "#991b1b", "#166534", "#7c3aed", "#ca8a04", "#0e7490", "#be185d"], // neutrals
+        ["#16a34a", "#22c55e", "#111827", "#f8fafc"], // Hash green
+      ];
+      const fanAtlas = (() => {
+        const c = document.createElement("canvas"); c.width = FAN_COLS * FAN_W; c.height = FAN_ROWS * FAN_H;
+        const g = c.getContext("2d");
+        const skins = ["#f3cfb0", "#e0ac84", "#c98c5e", "#a8693f", "#8d5524", "#6b4226", "#4f2f1c"];
+        const hairs = ["#15100c", "#2b1d14", "#3b2a1e", "#5a3b22", "#0e0e0e", "#8a6a45", "#b9b2a6"];
+        const sh = (hex, k) => { const n = parseInt(hex.slice(1), 16); const f = (q) => Math.min(255, Math.max(0, Math.round(((n >> q) & 255) * k))); return `rgb(${f(16)},${f(8)},${f(0)})`; };
+        const limb = (pts, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = "round"; g.lineJoin = "round"; g.beginPath(); g.moveTo(...pts[0]); for (const q of pts.slice(1)) g.lineTo(...q); g.stroke(); };
+        const blob = (x, y, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill(); };
+        for (let i = 0; i < FAN_PAIRS; i++) {
+          const block = FAN_BLOCKS[Math.floor(i / (FAN_PAIRS / 4))];
+          const shirt = pick(block), acc = pick(block.filter((x) => x !== shirt)) || "#ffffff";
+          const skin = pick(skins), hair = pick(hairs);
+          const hairStyle = weighted([[0.38, "short"], [0.16, "long"], [0.14, "cap"], [0.1, "bald"], [0.12, "curly"], [0.1, "band"]]);
+          const stripe = Math.random() < 0.5, shades = Math.random() < 0.14;
+          const prop = weighted([[0.62, null], [0.14, "clap"], [0.12, "phone"], [0.12, "flag"]]);
+          const wide = 0.9 + Math.random() * 0.2;
+          for (let pose = 0; pose < 2; pose++) {
+            const cell = i * 2 + pose, ox = (cell % FAN_COLS) * FAN_W, oy = Math.floor(cell / FAN_COLS) * FAN_H;
+            g.save(); g.translate(ox, oy); g.beginPath(); g.rect(0, 0, FAN_W, FAN_H); g.clip();
+            const cx = 32, cheer = pose === 1, hy = 60, sw2 = 21 * wide;
+            const armUp = (side) => { // shoulder → elbow out → hand above the head
+              limb([[cx + side * (sw2 - 3), 86], [cx + side * (sw2 + 6), 62]], 9, sh(shirt, 0.9));
+              limb([[cx + side * (sw2 + 6), 62], [cx + side * (sw2 + 1), 34]], 7, skin);
+              blob(cx + side * (sw2 + 1), 31, 4.2, 4.6, skin);
+            };
+            // flag held up behind the head
+            if (prop === "flag" && cheer) {
+              limb([[cx + 22, 96], [cx + 22, 6]], 2, "#d6d3d1");
+              g.fillStyle = acc; g.fillRect(cx - 18, 6, 40, 24); g.fillStyle = shirt; g.fillRect(cx - 18, 14, 40, 8);
+            }
+            if (cheer) { armUp(-1); if (prop !== "flag") armUp(1); }
+            // torso with rounded shoulders, lit from the front-left
+            const tg = g.createLinearGradient(cx - 26, 0, cx + 26, 0);
+            tg.addColorStop(0, sh(shirt, 0.72)); tg.addColorStop(0.42, sh(shirt, 1.06)); tg.addColorStop(1, sh(shirt, 0.66));
+            g.fillStyle = tg; g.beginPath();
+            g.moveTo(cx - sw2 - 3, 128); g.lineTo(cx - sw2 - 1, 92); g.quadraticCurveTo(cx - sw2, 80, cx - 8, 78); g.lineTo(cx + 8, 78);
+            g.quadraticCurveTo(cx + sw2, 80, cx + sw2 + 1, 92); g.lineTo(cx + sw2 + 3, 128); g.closePath(); g.fill();
+            if (stripe) { g.fillStyle = acc; g.fillRect(cx - sw2 - 2, 98, (sw2 + 2) * 2, 5); }
+            g.fillStyle = sh(shirt, 0.55); g.beginPath(); g.moveTo(cx - 7, 78); g.lineTo(cx, 87); g.lineTo(cx + 7, 78); g.closePath(); g.fill(); // collar
+            // neck + head
+            g.fillStyle = sh(skin, 0.82); g.fillRect(cx - 5, 68, 10, 12);
+            const hg = g.createRadialGradient(cx - 3, hy - 4, 2, cx, hy, 13);
+            hg.addColorStop(0, sh(skin, 1.12)); hg.addColorStop(1, sh(skin, 0.8));
+            blob(cx - 10.5, hy + 1, 2.2, 3.4, sh(skin, 0.85)); blob(cx + 10.5, hy + 1, 2.2, 3.4, sh(skin, 0.85)); // ears
+            g.fillStyle = hg; g.beginPath(); g.ellipse(cx, hy, 10, 12.5, 0, 0, Math.PI * 2); g.fill();
+            // hair / headwear
+            g.fillStyle = hair;
+            if (hairStyle === "short" || hairStyle === "band") { g.beginPath(); g.ellipse(cx, hy - 5, 10.6, 9, 0, Math.PI, Math.PI * 2); g.fill(); g.fillRect(cx - 10.6, hy - 6, 3, 6); g.fillRect(cx + 7.6, hy - 6, 3, 6); }
+            else if (hairStyle === "long") { g.beginPath(); g.ellipse(cx, hy - 4, 11.5, 10, 0, Math.PI, Math.PI * 2); g.fill(); g.fillRect(cx - 11.5, hy - 5, 4, 20); g.fillRect(cx + 7.5, hy - 5, 4, 20); }
+            else if (hairStyle === "curly") { for (let k = 0; k < 9; k++) blob(cx - 9 + k * 2.25, hy - 9 - Math.sin((k / 8) * Math.PI) * 3, 3.4, 3.4, hair); }
+            else if (hairStyle === "cap") { g.fillStyle = acc; g.beginPath(); g.ellipse(cx, hy - 5, 11, 9.5, 0, Math.PI, Math.PI * 2); g.fill(); g.fillStyle = sh(acc, 0.7); g.fillRect(cx - 11, hy - 6, 22, 3.5); }
+            if (hairStyle === "band") { g.fillStyle = acc; g.fillRect(cx - 10.5, hy - 7, 21, 3); }
+            // face
+            if (shades) { g.fillStyle = "#0b0b0b"; g.fillRect(cx - 8, hy - 1.5, 16, 4); }
+            else { blob(cx - 4, hy, 1.3, 1.5, "#1a1310"); blob(cx + 4, hy, 1.3, 1.5, "#1a1310"); g.fillStyle = sh(hair, 0.9); g.fillRect(cx - 6.5, hy - 4, 4.5, 1.2); g.fillRect(cx + 2, hy - 4, 4.5, 1.2); }
+            g.fillStyle = sh(skin, 0.7); g.fillRect(cx - 0.8, hy + 1, 1.6, 3.5); // nose
+            if (cheer) blob(cx, hy + 7, 3.2, 2.8, "#4a1414"); else { g.fillStyle = "#5b2a22"; g.fillRect(cx - 3, hy + 7, 6, 1.4); }
+            // arms when sitting (or the one not holding the flag)
+            if (!cheer) {
+              if (prop === "clap") { for (const sd of [-1, 1]) { limb([[cx + sd * (sw2 - 2), 88], [cx + sd * (sw2 + 1), 106]], 8, sh(shirt, 0.86)); limb([[cx + sd * (sw2 + 1), 106], [cx + sd * 3, 98]], 6.5, skin); } blob(cx, 97, 4.5, 5, skin); }
+              else if (prop === "phone") {
+                limb([[cx - sw2 + 2, 88], [cx - sw2 - 1, 112]], 8, sh(shirt, 0.86)); limb([[cx - sw2 - 1, 112], [cx - 8, 118]], 6.5, skin);
+                limb([[cx + sw2 - 2, 88], [cx + sw2 + 2, 98]], 8, sh(shirt, 0.86)); limb([[cx + sw2 + 2, 98], [cx + 13, 76]], 6.5, skin);
+                g.fillStyle = "#111"; g.fillRect(cx + 8, 64, 9, 15); g.fillStyle = "#bfe3ff"; g.fillRect(cx + 9, 65, 7, 12);
+              } else for (const sd of [-1, 1]) { limb([[cx + sd * (sw2 - 2), 88], [cx + sd * (sw2 + 1), 112]], 8, sh(shirt, 0.86)); limb([[cx + sd * (sw2 + 1), 112], [cx + sd * 9, 120]], 6.5, skin); }
+            } else if (prop === "flag") armUp(1);
+            g.restore();
+          }
+        }
+        const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+        return t;
+      })();
+      // Cheap fan shader: lighting is one value per fan (worked out in the vertex shader from the
+      // sun, fill and sky), so the pixel work is a texture lookup, the cut-out test and fog.
+      const fanU = {
+        map: { value: fanAtlas }, uSun: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3() },
+        uFill: { value: new THREE.Color() }, uFillDir: { value: new THREE.Vector3() }, uAmb: { value: new THREE.Color() }, uTint: { value: 1 },
+      };
+      const fanMat = new THREE.ShaderMaterial({
+        uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {}]),
+        fog: true, side: THREE.DoubleSide,
+        vertexShader: `#include <common>
+          #include <fog_pars_vertex>
+          uniform float uTime, uExcite, uWave; uniform vec3 uSun, uSunDir, uFill, uFillDir, uAmb;
+          attribute float aCell, aSeed, aAround;
+          varying vec2 vUv2; varying vec3 vLight;
+          void main() {
+            float d = abs(1.0 - aAround - fract(uTime * 0.035)); d = min(d, 1.0 - d);
+            float wave = uWave * (1.0 - smoothstep(0.004, 0.03, d));
+            float cheer = max(step(aSeed, uExcite * 0.95), step(0.5, wave));
+            float cell = aCell + cheer;
+            vec2 cr = vec2(mod(cell, ${FAN_COLS}.0), floor(cell / ${FAN_COLS}.0));
+            vUv2 = vec2((cr.x + uv.x) / ${FAN_COLS}.0, 1.0 - (cr.y + 1.0 - uv.y) / ${FAN_ROWS}.0);
+            vec3 transformed = position;
+            float bob = (0.5 + 0.5 * sin(uTime * (4.0 + aSeed * 4.0) + aSeed * 40.0)) * (0.02 + uExcite * 0.16);
+            transformed.y += bob + wave * 0.28 + cheer * 0.08;
+            // a card facing the field barely catches a high sun: use the normal of the rounded top of a seated body
+            vec3 n = normalize(mat3(instanceMatrix) * vec3(0.0, 0.62, 0.78));
+            vLight = uAmb + uSun * max(dot(n, uSunDir), 0.0) + uFill * max(dot(n, uFillDir), 0.0);
+            vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(transformed, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
+            #include <fog_vertex>
+          }`,
+        fragmentShader: `#include <common>
+          #include <fog_pars_fragment>
+          uniform sampler2D map; uniform float uTint;
+          varying vec2 vUv2; varying vec3 vLight;
+          void main() {
+            vec4 c = texture2D(map, vUv2);
+            // keep the cut-out edge solid at a distance (mip-mapped alpha would erode thin fans away)
+            if ((c.a - 0.5) / max(fwidth(c.a), 0.0001) + 0.5 < 0.5) discard;
+            gl_FragColor = vec4(c.rgb * vLight * uTint, 1.0);
+            #include <tonemapping_fragment>
+            #include <colorspace_fragment>
+            #include <fog_fragment>
+          }`,
+      });
+      Object.assign(fanMat.uniforms, crowdU, fanU);
+      // mirror the scene lights into the fan shader (three's Lambert: irradiance / π)
+      const _fanC = new THREE.Color();
+      // LOD: a sector goes 3D only when a fan there would stand taller than ~38 px on screen
+      // (six camera, close-ups); zoomed out, the painted crowd is drawn and the fans cost nothing
+      let crowd3DOn = false;
+      const _lodP = new THREE.Vector3(), _lodF = new THREE.Frustum(), _lodM = new THREE.Matrix4();
+      function updateCrowdLOD() {
+        const secs = crowd3D.children, mask = crowdMask.uSec3D.value;
+        const focal = H / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+        camera.updateMatrixWorld();
+        _lodF.setFromProjectionMatrix(_lodM.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+        let any = false;
+        for (let i = 0; i < secs.length; i++) {
+          if (!crowd3DOn || !_lodF.intersectsSphere(secs[i].boundingSphere)) { secs[i].visible = false; mask[i] = 0; continue; }
+          let dmin = Infinity;
+          for (const k of [0, 0.5, 1]) {
+            const a = ((i + k) / FAN_SECTORS) * Math.PI * 2, rad = STAND_R + 8;
+            dmin = Math.min(dmin, camera.position.distanceTo(_lodP.set(CENTER.x + Math.sin(a) * rad, 8, CENTER.z + Math.cos(a) * rad)));
+          }
+          const px = (1.04 * focal) / Math.max(1, dmin - 8);
+          const on = secs[i].visible ? px > 30 : px > 38; // hysteresis: no flicker at the threshold
+          secs[i].visible = on; mask[i] = on ? 1 : 0; any = any || on;
+        }
+        return any;
+      }
+      function updateFanLights() {
+        if (!updateCrowdLOD()) return;
+        fanU.uSun.value.copy(sun.color).multiplyScalar(sun.intensity / Math.PI);
+        fanU.uSunDir.value.copy(sun.position).sub(sun.target.position).normalize();
+        fanU.uFill.value.copy(fill.color).multiplyScalar(fill.intensity / Math.PI);
+        fanU.uFillDir.value.copy(fill.position).normalize();
+        // hemisphere (mostly sky for an upturned normal) + image-based sky light
+        fanU.uAmb.value.copy(hemi.groundColor).lerp(_fanC.copy(hemi.color), 0.81).multiplyScalar(hemi.intensity / Math.PI)
+          .add(_fanC.copy(scene.fog.color).multiplyScalar(scene.environmentIntensity * 0.75));
+      }
+      // split into sectors round the bowl so the ones behind the camera are culled
+      const FAN_SECTORS = 16;
+      const crowd3D = (() => {
+        const rise = 15 / 26, run = 16 / 26;
+        const sec = Array.from({ length: FAN_SECTORS }, () => ({ cells: [], seeds: [], arounds: [], mats: [] }));
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pos = new THREE.Vector3();
+        for (let r = 0; r < 26; r++) {
+          const yb = 1.1 + r * rise, rad = STAND_R + (r + 0.5) * run - 0.18;
+          const n = Math.floor((2 * Math.PI * rad) / 0.46);
+          for (let k = 0; k < n; k++) {
+            if (k % 22 === 21) continue; // stairway aisle
+            const a = (k / n) * Math.PI * 2 + r * 0.013;
+            const x = CENTER.x + Math.sin(a) * rad, z = CENTER.z + Math.cos(a) * rad;
+            const y = yb + 0.16 + (Math.random() - 0.5) * 0.04;
+            if (Math.abs(x) < 12 && y < 9.6) continue; // seats hidden behind the sight screens stay empty
+            if (Math.random() < 0.09) continue; // an empty seat
+            // team blocks round the bowl, like the painted crowd: Hash / Hawks / mixed / Hash green
+            const around = ((a / (Math.PI * 2)) % 1 + 1) % 1;
+            const blk = Math.floor((around * 14 * 4 + Math.floor(r / 9)) % 4);
+            const b = Math.random() < 0.78 ? blk : 2;
+            const pair = b * (FAN_PAIRS / 4) + Math.floor(Math.random() * (FAN_PAIRS / 4));
+            pos.set(x, y + 0.52, z);
+            q.setFromAxisAngle(UP0, a + Math.PI); // face the middle
+            m.compose(pos, q, sc.set(0.5 + Math.random() * 0.06, 1.04, 1));
+            const S = sec[Math.floor(around * FAN_SECTORS) % FAN_SECTORS];
+            S.mats.push(m.clone()); S.cells.push(pair * 2); S.seeds.push(Math.random()); S.arounds.push(around);
+          }
+        }
+        const group = new THREE.Group();
+        for (const S of sec) {
+          const geo = new THREE.PlaneGeometry(1, 1);
+          geo.setAttribute("aCell", new THREE.InstancedBufferAttribute(new Float32Array(S.cells), 1));
+          geo.setAttribute("aSeed", new THREE.InstancedBufferAttribute(new Float32Array(S.seeds), 1));
+          geo.setAttribute("aAround", new THREE.InstancedBufferAttribute(new Float32Array(S.arounds), 1));
+          const mesh = new THREE.InstancedMesh(geo, fanMat, S.mats.length);
+          S.mats.forEach((mm, i) => mesh.setMatrixAt(i, mm));
+          mesh.computeBoundingSphere(); mesh.boundingSphere.radius += 1; // room for the jumps
+          group.add(mesh);
+        }
+        for (const c of group.children) c.visible = false;
+        stadium.add(group);
+        return group;
+      })();
+      // ambient occlusion skips the fans: drawing 20k cut-out cards through GTAO's override material
+      // cost a 1 s shader compile the first time they showed and ~6 ms a frame after, for no visible gain
+      { const aoRender = gtaoPass.render.bind(gtaoPass);
+        gtaoPass.render = (...a) => { const v = crowd3D.visible; crowd3D.visible = false; skyDome.visible = false; try { aoRender(...a); } finally { crowd3D.visible = v; skyDome.visible = true; } }; }
+      function setCrowd3D(on) { crowd3DOn = on; if (!on) updateCrowdLOD(); }
       // roof soffits: ribbed metal decking with a row of recessed lights, so the undersides
       // read as structure rather than flat grey bands
       const soffit = (() => {
@@ -1825,6 +2205,7 @@
           hashDecalMat.map = lt; hashDecalMat.visible = true; hashDecalMat.needsUpdate = true;
           drawSightscreen();
           screenBack.userData.redraw();
+          batTex.userData.repaint();
           stadium.traverse((o) => { if (o.userData.fieldLogo) o.visible = true; });
           drawScreen();
           if (striker) brandKit(G.aiBatting ? HAWKS : team(), !G.aiBatting); // back plates carry the badge
@@ -1873,6 +2254,7 @@
       // around the pitch, a wider box when the ball is out in the field
       const shadowFocus = V3(0, 0, CENTER.z);
       let shadowHalf = 18;
+      const SUN_OFF = V3(-28, 55, 22); // sun direction (from the focus point); low at sunset
       function updateShadowFrustum(dt) {
         const wide = (G.state === "play" || (G.state === "result" && playS)) && ballMesh.visible;
         const tgtFocus = wide ? V3(ballMesh.position.x * 0.6, 0, lerp(CENTER.z, ballMesh.position.z, 0.6)) : V3(0, 0, CENTER.z);
@@ -1883,7 +2265,7 @@
         const c = sun.shadow.camera;
         c.left = -shadowHalf; c.right = shadowHalf; c.top = shadowHalf; c.bottom = -shadowHalf;
         c.updateProjectionMatrix();
-        sun.position.set(shadowFocus.x - 28, 55, shadowFocus.z + 22);
+        sun.position.set(shadowFocus.x + SUN_OFF.x, SUN_OFF.y, shadowFocus.z + SUN_OFF.z);
         sun.target.position.copy(shadowFocus);
         sun.target.updateMatrixWorld();
       }
@@ -1896,6 +2278,7 @@
         // crowd motion: excitement follows the flash; the wave runs in the intro/menu and
         // now and then during a match (about 14 s in every 50), never with calm effects on
         crowdU.uTime.value += dt;
+        skyU.uTime.value += dt;
         const calm = SET.calm ? 0 : 1;
         crowdU.uExcite.value = Math.min(1, crowdFlash * 1.2) * calm;
         const waveOn = G.state === "menu" || G.state === "intro" || crowdU.uTime.value % 50 < 14;
@@ -2875,48 +3258,163 @@
         bone.updateMatrixWorld(true);
       }
 
-      // ---- bat ----
+      // ---- bat: the Hash pro bat ----
+      // Lofted blade (not an extrusion): sloped shoulders into the splice, thin edges up top and a
+      // spine that peaks low at the sweet spot, slimming to a rounded toe; flat face, curved back.
+      // Grain, splice and the wrap-around Hash branding are painted into one texture. Same length
+      // and sweet spot as before (grip top at y=0, blade -0.355 → -0.915, face toward +z).
       const bat = new THREE.Group();
-      {
-        const willow = new THREE.MeshStandardMaterial({ color: 0xe6cf98, roughness: 0.5 });
-        // blade: flat face, curved back rising to a spine, rounded edges and toe
-        const sec = new THREE.Shape();
-        sec.moveTo(-0.054, 0); sec.lineTo(0.054, 0); sec.lineTo(0.054, -0.03);
-        sec.quadraticCurveTo(0.03, -0.07, 0, -0.072); sec.quadraticCurveTo(-0.03, -0.07, -0.054, -0.03); sec.closePath();
-        const bladeGeo = new THREE.ExtrudeGeometry(sec, { depth: 0.56, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.004, bevelSegments: 3, curveSegments: 10 });
-        bladeGeo.rotateX(Math.PI / 2); // extrude axis → down the bat
-        bladeGeo.translate(0, -0.355, 0.03); // face toward +z, spine behind the handle line
-        const blade = new THREE.Mesh(bladeGeo, willow);
-        blade.castShadow = true;
-        // shoulders tapering into the handle
-        const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.05, 0.05, 16), willow);
-        sh.scale.z = 0.75; sh.position.set(0, -0.335, 0.0);
-        // handle: cane under a ribbed rubber grip, with an end cap
-        const gripTex = canvasTex(32, 128, (g, w, h) => {
-          g.fillStyle = "#ea580c"; g.fillRect(0, 0, w, h);
-          for (let y = 0; y < h; y += 6) { g.fillStyle = "rgba(0,0,0,.22)"; g.fillRect(0, y, w, 2); }
-        }, { repeat: [1, 1] });
-        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.33, 12), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.6 }));
-        handle.position.y = -0.165;
-        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.0195, 0.0195, 0.25, 16), new THREE.MeshStandardMaterial({ map: gripTex, roughness: 0.85 }));
-        grip.position.y = -0.13;
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.5 }));
-        cap.position.y = -0.006;
-        // stickers: brand on the face, big HASH down the back
-        const stickerTex = canvasTex(64, 352, (g, w, h) => {
-          g.fillStyle = "#f8fafc"; g.fillRect(0, 0, w, h);
-          g.fillStyle = "#111827"; g.fillRect(0, 0, w, 18); g.fillRect(0, h - 18, w, 18);
-          g.fillStyle = "#f97316"; g.fillRect(0, 18, w, 6); g.fillRect(0, h - 24, w, 6);
-          g.save(); g.translate(w / 2, h / 2); g.rotate(-Math.PI / 2);
-          g.fillStyle = "#111827"; g.font = "900 italic 44px Arial"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("HASH", 0, 0);
+      // bat skins (cosmetic, unlocked with badges): wood, sticker panel, lettering and grip colours
+      const BAT_SKINS = {
+        hash: { name: "Hash Pro", wood: ["#ecd7a4", "#e2c48a"], panel: "#0d0f13", accent: "#22c55e", text: "#ffffff", sub: "FOR GAMERS", word: "HASH", ink: "#0d0f13", grip: "#16a34a", band: "#0d0f13", logo: true },
+        retro: { name: "Retro '07", wood: ["#dcc08a", "#c8a46a"], panel: "#f5efe0", accent: "#c81e1e", accent2: "#1e3a8a", text: "#1e3a8a", sub: "CLASSIC '07", word: "HASH", ink: "#c81e1e", grip: "#efe6cf", band: "#c81e1e", retro: true },
+        carbon: { name: "Carbon", carbon: true, panel: "#0a0a0a", accent: "#e5e7eb", text: "#ffffff", sub: "CARBON SERIES", word: "HASH", ink: "#e5e7eb", grip: "#1f2329", band: "#9ca3af", rough: 0.32, metal: 0.25 },
+        neon: { name: "Neon", wood: ["#ece7dc", "#dcd4c2"], panel: "#0b0b1a", accent: "#22d3ee", accent2: "#f472b6", text: "#f472b6", sub: "NEON EDITION", word: "HASH", ink: "#0b0b1a", grip: "#22d3ee", band: "#f472b6", logo: true },
+        gold: { name: "Gold", wood: ["#ecd7a4", "#e2c48a"], panel: "gold", accent: "#0d0f13", text: "#0d0f13", sub: "GOLD EDITION", word: "HASH", ink: "#a16207", grip: "#d4a017", band: "#0d0f13", logo: true, rough: 0.38, metal: 0.18 },
+      };
+      const batSkin = () => BAT_SKINS[SET.bat] || BAT_SKINS.hash;
+      const batTex = (() => {
+        const c = document.createElement("canvas"); c.width = 512; c.height = 1024;
+        const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        // canvas x = around the blade (0–256 face, 256–512 back), canvas y = shoulder → toe
+        const paint = (k = batSkin()) => {
+          const g = c.getContext("2d");
+          if (k.carbon) {
+            // carbon-fibre twill: offset dark tiles with a sheen
+            g.fillStyle = "#16181c"; g.fillRect(0, 0, 512, 1024);
+            for (let y = 0; y < 1024; y += 12) for (let x = 0; x < 512; x += 12) {
+              const on = ((x + y) / 12) % 2 === 0;
+              const grd = g.createLinearGradient(x, y, x + 12, y + 12);
+              grd.addColorStop(0, on ? "#2b2f36" : "#1b1e23"); grd.addColorStop(1, on ? "#1a1d22" : "#25292f");
+              g.fillStyle = grd; g.fillRect(x, y, 12, 12);
+            }
+          } else {
+            const wood = g.createLinearGradient(0, 0, 0, 1024); wood.addColorStop(0, k.wood[0]); wood.addColorStop(1, k.wood[1]);
+            g.fillStyle = wood; g.fillRect(0, 0, 512, 1024);
+            // willow grain: fine wavy lines along the length
+            for (let i = 0; i < 140; i++) {
+              const x0 = Math.random() * 512, a = 0.05 + Math.random() * 0.1, wv = 2 + Math.random() * 5;
+              g.strokeStyle = `rgba(${120 + Math.random() * 40},${80 + Math.random() * 30},40,${a})`; g.lineWidth = 0.6 + Math.random() * 1.6;
+              g.beginPath(); for (let y = 0; y <= 1024; y += 32) g.lineTo(x0 + Math.sin(y / 140 + i) * wv, y); g.stroke();
+            }
+            // splice: the cane's V showing on the back below the shoulder
+            g.fillStyle = "#b98d55"; g.beginPath(); g.moveTo(352, 0); g.lineTo(384, 92); g.lineTo(416, 0); g.closePath(); g.fill();
+          }
+          // back: sticker panel wrapping the spine, chevrons, the wordmark down the length
+          const bx = 278, bw = 212, by = 120, bh = 760;
+          if (k.panel === "gold") { const gg = g.createLinearGradient(bx, 0, bx + bw, 0); gg.addColorStop(0, "#a8740a"); gg.addColorStop(0.45, "#ffd75e"); gg.addColorStop(0.55, "#fff1b0"); gg.addColorStop(1, "#b8860b"); g.fillStyle = gg; }
+          else g.fillStyle = k.panel;
+          g.fillRect(bx, by, bw, bh);
+          g.fillStyle = k.accent; g.fillRect(bx, by, bw, 10); g.fillRect(bx, by + bh - 10, bw, 10);
+          if (k.retro) {
+            // old-school horizontal bands instead of chevrons
+            for (const [yy, col] of [[by + 120, k.accent], [by + 146, k.accent2], [by + bh - 170, k.accent2], [by + bh - 144, k.accent]]) { g.fillStyle = col; g.fillRect(bx, yy, bw, 16); }
+          } else {
+            for (const [yy, hgt, i] of [[by + 120, 18, 0], [by + 150, 8, 1], [by + bh - 170, 18, 2], [by + bh - 140, 8, 3]]) {
+              g.save(); g.beginPath(); g.rect(bx, by, bw, bh); g.clip();
+              g.fillStyle = k.accent2 && i % 2 ? k.accent2 : k.accent;
+              g.beginPath(); g.moveTo(bx, yy + 40); g.lineTo(bx + bw / 2, yy); g.lineTo(bx + bw, yy + 40); g.lineTo(bx + bw, yy + 40 + hgt); g.lineTo(bx + bw / 2, yy + hgt); g.lineTo(bx, yy + 40 + hgt); g.closePath(); g.fill();
+              g.restore();
+            }
+          }
+          g.save(); g.translate(bx + bw / 2, by + bh / 2 + 10); g.rotate(-Math.PI / 2);
+          if (k.accent2 && !k.retro) { g.shadowColor = k.text; g.shadowBlur = 18; }
+          g.fillStyle = k.text; g.font = `900 italic ${k.retro ? "136px Georgia" : "150px Arial"}`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(k.word, 0, -14);
+          g.shadowBlur = 0;
+          g.fillStyle = k.retro ? k.accent : k.accent2 || (k.panel === "gold" ? "#0d0f13" : k.accent === "#e5e7eb" ? "#9ca3af" : k.accent); g.font = "800 40px Arial"; g.fillText(k.sub, 0, 74);
           g.restore();
-        });
-        const stickerMat = new THREE.MeshStandardMaterial({ map: stickerTex, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2 });
-        const back = new THREE.Mesh(new THREE.PlaneGeometry(0.046, 0.3), stickerMat);
-        back.position.set(0, -0.62, -0.0435); back.rotation.y = Math.PI;
-        const front = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.1), stickerMat);
-        front.position.set(0, -0.42, 0.0315);
-        bat.add(blade, sh, handle, grip, cap, back, front);
+          if (hashLogo && k.logo) g.drawImage(hashLogo, bx + bw / 2 - 58, by + 24, 116, 116);
+          // face: small badge + wordmark under the shoulder, a stripe near the toe
+          if (hashLogo && k.logo) g.drawImage(hashLogo, 128 - 34, 70, 68, 68);
+          g.fillStyle = k.ink; g.font = `900 italic 34px ${k.retro ? "Georgia" : "Arial"}`; g.textAlign = "center"; g.fillText(k.word, 128, 172);
+          g.fillStyle = k.accent2 || (k.carbon ? "#e5e7eb" : k.panel === "gold" ? "#d4a017" : k.accent); g.fillRect(70, 186, 116, 6);
+          g.fillStyle = k.carbon ? "rgba(229,231,235,.7)" : "rgba(13,15,19,.85)"; g.fillRect(40, 930, 176, 10); g.fillStyle = k.accent2 || (k.panel === "gold" ? "#d4a017" : k.accent); g.fillRect(40, 944, 176, 5);
+          t.needsUpdate = true;
+        };
+        paint();
+        t.userData.repaint = paint;
+        return t;
+      })();
+      // ribbed rubber grip, recoloured with the skin
+      const gripCanvas = document.createElement("canvas"); gripCanvas.width = 64; gripCanvas.height = 256;
+      const gripTex = new THREE.CanvasTexture(gripCanvas); gripTex.colorSpace = THREE.SRGBColorSpace;
+      function paintGrip(k = batSkin()) {
+        const g = gripCanvas.getContext("2d"), w = 64, h = 256;
+        g.fillStyle = k.grip; g.fillRect(0, 0, w, h);
+        for (let y = 0; y < h; y += 10) { g.fillStyle = "rgba(0,0,0,.28)"; g.fillRect(0, y, w, 3); g.fillStyle = "rgba(255,255,255,.12)"; g.fillRect(0, y + 3, w, 1); }
+        g.fillStyle = k.band; g.fillRect(0, 0, w, 16); g.fillRect(0, h - 12, w, 12);
+        gripTex.needsUpdate = true;
+      }
+      paintGrip();
+      const bladeMat = new THREE.MeshStandardMaterial({ map: batTex, roughness: 0.48, side: THREE.DoubleSide });
+      function applyBatSkin(id = SET.bat) {
+        if (!BAT_SKINS[id]) id = "hash";
+        SET.bat = id;
+        const k = BAT_SKINS[id];
+        batTex.userData.repaint(k); paintGrip(k);
+        bladeMat.roughness = k.rough ?? 0.48; bladeMat.metalness = k.metal ?? 0; bladeMat.needsUpdate = true;
+      }
+      applyBatSkin();
+      {
+        const Y0 = -0.355, LEN = 0.56, RINGS = 30, SIDE = 9; // SIDE points across face and back each
+        const FACE_Z = 0.03;
+        // profile along the length (t: 0 shoulder → 1 toe)
+        const halfW = (t) => 0.054 * (t < 0.1 ? 0.42 + 0.58 * Math.sin((t / 0.1) * Math.PI / 2) : 1) - (t > 0.96 ? 0.01 * ((t - 0.96) / 0.04) ** 2 : 0);
+        const edge = (t) => 0.026 + 0.012 * t;                                   // edges thicken toward the toe
+        const spine = (t) => 0.045 + 0.03 * Math.exp(-(((t - 0.62) / 0.22) ** 2)) - (t > 0.9 ? 0.012 * ((t - 0.9) / 0.1) : 0);
+        const pos = [], uv = [], idx = [];
+        for (let r = 0; r <= RINGS; r++) {
+          const t = r / RINGS, y = Y0 - t * LEN, w = halfW(t), e = Math.min(edge(t), spine(t)), sp = spine(t);
+          const shoulder = t < 0.1 ? 0.55 + 0.45 * (t / 0.1) : 1; // thinner where it meets the handle
+          // face: x −w → w at FACE_Z (slightly rounded edges)
+          for (let i = 0; i <= SIDE; i++) {
+            const k = i / SIDE, x = -w + 2 * w * k, round = 1 - Math.pow(Math.abs(2 * k - 1), 8) * 0.25;
+            pos.push(x, y, FACE_Z - (1 - round) * 0.004); uv.push(k * 0.5, 1 - t);
+          }
+          // back: x w → −w, curving from the edge thickness to the spine
+          for (let i = 0; i <= SIDE; i++) {
+            const k = i / SIDE, x = w - 2 * w * k, u = Math.abs(x) / w;
+            const thick = (e + (sp - e) * Math.pow(1 - u * u, 0.8)) * shoulder;
+            pos.push(x, y, FACE_Z - thick); uv.push(0.5 + k * 0.5, 1 - t);
+          }
+        }
+        const per = (SIDE + 1) * 2;
+        for (let r = 0; r < RINGS; r++) for (let i = 0; i < per - 1; i++) {
+          if (i === SIDE) continue; // face and back strips are separate (sharp edge between them)
+          const a = r * per + i, b = a + 1, c2 = a + per, d = c2 + 1;
+          idx.push(a, c2, b, b, c2, d);
+        }
+        // close the two edges between face and back strips
+        for (let r = 0; r < RINGS; r++) {
+          const fR = r * per + SIDE, bL = r * per + SIDE + 1;           // right edge: face end ↔ back start
+          idx.push(fR, fR + per, bL, bL, fR + per, bL + per);
+          const fL = r * per, bR = r * per + per - 1;                   // left edge: back end ↔ face start
+          idx.push(bR, bR + per, fL, fL, bR + per, fL + per);
+        }
+        // toe and shoulder caps (fans from the ring centre)
+        for (const r of [0, RINGS]) {
+          const base = pos.length / 3, ring = r * per;
+          let cx = 0, cy = 0, cz = 0;
+          for (let i = 0; i < per; i++) { cx += pos[(ring + i) * 3]; cy += pos[(ring + i) * 3 + 1]; cz += pos[(ring + i) * 3 + 2]; }
+          pos.push(cx / per, cy / per, cz / per); uv.push(0.75, r ? 0 : 1);
+          const order = []; for (let i = 0; i <= SIDE; i++) order.push(ring + i); for (let i = 0; i <= SIDE; i++) order.push(ring + SIDE + 1 + i);
+          for (let i = 0; i < order.length; i++) { const a = order[i], b = order[(i + 1) % order.length]; if (r) idx.push(base, b, a); else idx.push(base, a, b); }
+        }
+        const bladeGeo = new THREE.BufferGeometry();
+        bladeGeo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        bladeGeo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+        bladeGeo.setIndex(idx);
+        bladeGeo.computeVertexNormals();
+        const blade = new THREE.Mesh(bladeGeo, bladeMat);
+        blade.castShadow = true;
+        // handle: cane under a ribbed Hash-green rubber grip, black cap
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.017, 0.36, 14), new THREE.MeshStandardMaterial({ color: 0x8a6a3e, roughness: 0.6 }));
+        handle.position.y = -0.18;
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.0198, 0.0198, 0.26, 18), new THREE.MeshStandardMaterial({ map: gripTex, roughness: 0.88 }));
+        grip.position.y = -0.135; grip.castShadow = true;
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.0205, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x0d0f13, roughness: 0.5 }));
+        cap.position.y = -0.006;
+        bat.add(blade, handle, grip, cap);
       }
       scene.add(bat);
       const BAT_LEN = 0.93;
@@ -2984,8 +3482,32 @@
         { id: "desert", name: "Desert Warriors", short: "WARRIORS", shirt: "#16a34a", dark: "#14532d", pants: "#052e16", accent: "#fde047", helmet: "#14532d", ink: "#ffffff" },
         { id: "crimson", name: "Crimson Knights", short: "KNIGHTS", shirt: "#dc2626", dark: "#7f1d1d", pants: "#111827", accent: "#fbbf24", helmet: "#111827", ink: "#ffffff" },
       ];
-      const team = () => TEAMS.find((t) => t.id === SET.team) || TEAMS[0];
+      // kit styles (cosmetic, unlocked with badges) restyle whichever team you pick
+      const KIT_STYLES = {
+        home: { name: "Home", kit: (t) => t },
+        away: { name: "Away", kit: (t) => ({ ...t, shirt: "#f4f6f8", dark: "#cbd5e1", pants: "#e9edf1", accent: t.id === "hash" ? "#22c55e" : t.shirt, ink: "#111827", stripe: 0.9 }) },
+        retro: { name: "Retro '07", kit: (t) => ({ ...t, shirt: "#f2b51c", dark: "#b7800c", pants: "#1e2a5a", accent: "#1e2a5a", helmet: "#1e2a5a", ink: "#1e2a5a", stripe: 0.9 }) },
+        neon: { name: "Neon", kit: (t) => ({ ...t, shirt: "#0a0f1f", dark: "#03060f", pants: "#0a0f1f", accent: "#22d3ee", helmet: "#0a0f1f", ink: "#22d3ee", stripe: 0.9 }) },
+        gold: { name: "Gold", kit: (t) => ({ ...t, shirt: "#0b0b0b", dark: "#000000", pants: "#0b0b0b", accent: "#f5c542", helmet: "#0b0b0b", ink: "#f5c542", stripe: 0.9 }) },
+      };
+      const baseTeam = () => TEAMS.find((t) => t.id === SET.team) || TEAMS[0];
+      const team = () => (KIT_STYLES[SET.kit] || KIT_STYLES.home).kit(baseTeam());
       const PITCHES = { pace: "Green top", spin: "Turning track", mixed: "Pace & spin" };
+      // playing surfaces: bounce off the deck, seam + swing for the quicks, turn for the spinners,
+      // and how quickly the outfield lets the ball run (lower roll = faster outfield)
+      const SURFACES = {
+        green: { name: "Green top", short: "Green", bounce: 1.08, seam: 1.6, swing: 1.3, turn: 0.75, roll: 3.8, tint: 0xc9dba4, line: "A green top — the quicks will love this." },
+        dry: { name: "Dry turner", short: "Dry", bounce: 0.92, seam: 0.8, swing: 0.9, turn: 1.45, roll: 3.1, tint: 0xf5dcb8, line: "Dry and dusty — expect it to turn square." },
+        flat: { name: "Flat deck", short: "Flat", bounce: 1.0, seam: 0.65, swing: 0.8, turn: 0.8, roll: 2.8, tint: 0xffffff, line: "A flat deck and a lightning outfield. Batting paradise." },
+      };
+      const SURF = () => SURFACES[G.surface] || SURFACES.flat;
+      const PITCH_SURF = { pace: "green", spin: "dry", mixed: "flat" };
+      function pickSurface() {
+        if (G.cfg.daily) return PITCH_SURF[G.cfg.pitch];
+        if (SET.pitch !== "auto" && SURFACES[SET.pitch]) return SET.pitch;
+        if (G.cfg.pitch && G.cfg.pitch !== "mixed") return PITCH_SURF[G.cfg.pitch];
+        return weighted([[0.38, "flat"], [0.34, "green"], [0.28, "dry"]]);
+      }
       const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       const todayKey = () => dayKey(new Date());
       const yesterdayKey = () => { const d = new Date(); d.setDate(d.getDate() - 1); return dayKey(d); };
@@ -3020,15 +3542,77 @@
         r.bestPts = Math.max(r.bestPts || 0, G.points);
         r.bestRuns = Math.max(r.bestRuns || 0, G.runs);
         r.runs = (r.runs || 0) + G.runs; r.fours = (r.fours || 0) + G.fours; r.sixes = (r.sixes || 0) + G.sixes;
+        r.balls = (r.balls || 0) + G.balls; r.perfects = (r.perfects || 0) + (G.perfects || 0);
+        r.longestSix = Math.max(r.longestSix || 0, G.longestSix || 0);
+        r.bestSixRun = Math.max(r.bestSixRun || 0, G.bestSixRun || 0);
+        if (G.ai) { r.wktsTaken = (r.wktsTaken || 0) + G.ai.wkts; r.bestBowl = Math.max(r.bestBowl || 0, G.ai.wkts); }
+        if (res === "win" && SET.diff === "legend" && !G.cfg.daily) r.legendWins = (r.legendWins || 0) + 1;
+        if (res === "win" && G.cfg.match) r.matchWins = (r.matchWins || 0) + 1;
         store.set("so_records", JSON.stringify(r));
         return { r, newBest };
       }
+
+      // ---- career: badges (stored on the phone) and the cosmetics they unlock ----
+      const ACH = [
+        { id: "first_win", icon: "🏆", name: "First Win", desc: "Win a match", p: (r) => [r.won, 1] },
+        { id: "maiden_max", icon: "💥", name: "Maiden Maximum", desc: "Hit your first six", p: (r) => [r.sixes, 1] },
+        { id: "regular", icon: "🎟️", name: "Regular", desc: "Play 10 matches", p: (r) => [r.played, 10] },
+        { id: "power_hitter", icon: "💪", name: "Power Hitter", desc: "Hit 10 sixes", p: (r) => [r.sixes, 10] },
+        { id: "boundary_king", icon: "👑", name: "Boundary King", desc: "Hit 25 fours", p: (r) => [r.fours, 25] },
+        { id: "perfect_timing", icon: "🎯", name: "Perfect Timing", desc: "Play 20 perfect shots", p: (r) => [r.perfects, 20] },
+        { id: "in_the_zone", icon: "🧘", name: "In the Zone", desc: "4 perfect shots in one innings", t: (r, i) => i.perfects >= 4 },
+        { id: "back_to_back", icon: "⚡", name: "Back to Back", desc: "Hit two sixes in a row", t: (r) => (r.bestSixRun || 0) >= 2 },
+        { id: "monster_six", icon: "🦖", name: "Monster Six", desc: "Hit a six of 90 m or more", p: (r) => [r.longestSix, 90] },
+        { id: "centurion", icon: "💯", name: "Centurion", desc: "Score 100 career runs", p: (r) => [r.runs, 100] },
+        { id: "flawless", icon: "🛡️", name: "Flawless", desc: "Win without losing a wicket", t: (r, i) => i.res === "win" && i.wkts === 0 },
+        { id: "last_ball", icon: "⏱️", name: "Last-Ball Hero", desc: "Win off the very last ball", t: (r, i) => i.res === "win" && i.ballsLeft === 0 },
+        { id: "on_fire", icon: "🔥", name: "On Fire", desc: "Win 3 matches in a row", p: (r) => [r.bestStreak, 3] },
+        { id: "all_rounder", icon: "🏏", name: "All-Rounder", desc: "Win a Full Match", p: (r) => [r.matchWins, 1] },
+        { id: "strike_bowler", icon: "🎳", name: "Strike Bowler", desc: "Bowl the Hawks out in a Full Match", p: (r) => [r.bestBowl, 3] },
+        { id: "legend_slayer", icon: "🐉", name: "Legend Slayer", desc: "Win on Legend difficulty", p: (r) => [r.legendWins, 1] },
+        { id: "week_warrior", icon: "📅", name: "Week Warrior", desc: "7-day Daily Challenge streak", p: (r, i, d) => [d.best, 7] },
+        { id: "six_machine", icon: "🚀", name: "Six Machine", desc: "Hit 50 sixes", p: (r) => [r.sixes, 50] },
+        { id: "run_machine", icon: "⚙️", name: "Run Machine", desc: "Score 500 career runs", p: (r) => [r.runs, 500] },
+        { id: "unstoppable", icon: "🌪️", name: "Unstoppable", desc: "Win 10 matches in a row", p: (r) => [r.bestStreak, 10] },
+      ];
+      // which badge unlocks each bat skin / kit style (null = free)
+      const BAT_UNLOCK = { hash: null, retro: "first_win", carbon: "power_hitter", neon: "perfect_timing", gold: "run_machine" };
+      const KIT_UNLOCK = { home: null, away: "maiden_max", retro: "regular", neon: "in_the_zone", gold: "legend_slayer" };
+      const achProgress = (a, r, i = {}, d = loadJSON("so_daily")) => {
+        if (a.p) { const [v, goal] = a.p(r, i, d); return [Math.min(v || 0, goal), goal]; }
+        return null;
+      };
+      const achDone = (a, r, i = {}, d) => (a.p ? (() => { const [v, goal] = achProgress(a, r, i, d); return v >= goal; })() : !!(a.t && a.t(r, i)));
+      // after a match: returns the badges unlocked just now
+      function checkAchievements(inn) {
+        const got = loadJSON("so_ach"), r = loadJSON("so_records"), d = loadJSON("so_daily"), fresh = [];
+        for (const a of ACH) if (!got[a.id] && achDone(a, r, inn, d)) { got[a.id] = Date.now(); fresh.push(a); }
+        if (fresh.length) store.set("so_ach", JSON.stringify(got));
+        return fresh;
+      }
+      const unlocked = (achId) => !achId || !!loadJSON("so_ach")[achId];
+      const achById = (id) => ACH.find((a) => a.id === id);
+      // every bowler has a personality: pace, the lengths they hit, how much they move it, their variations
       const BOWLERS = {
         pace: [
-          { name: "R. Vance", type: "Right-arm fast", kind: "pace", kmh: [132, 148], num: 9 },
-          { name: "J. Okafor", type: "Right-arm fast-medium", kind: "pace", kmh: [124, 138], num: 25 },
+          { name: "R. Vance", style: "Speedster", type: "Right-arm fast", kind: "pace", kmh: [140, 152], num: 9,
+            lengths: [[0.1, "yorker"], [0.2, "full"], [0.3, "good"], [0.28, "short"], [0.12, "bouncer"]], swing: 0.6, seam: 1, slower: 0.1,
+            intro: "{n} is the Speedster — 150 clicks and he loves the short ball." },
+          { name: "J. Okafor", style: "Swing King", type: "Right-arm fast-medium", kind: "pace", kmh: [124, 138], num: 25,
+            lengths: [[0.08, "yorker"], [0.42, "full"], [0.36, "good"], [0.1, "short"], [0.04, "bouncer"]], swing: 2.1, seam: 1.4, slower: 0.14,
+            intro: "Swing King {n} pitches it up and makes it talk." },
+          { name: "D. Malik", style: "Yorker Specialist", type: "Right-arm fast", kind: "pace", kmh: [134, 146], num: 33,
+            lengths: [[0.42, "yorker"], [0.22, "full"], [0.2, "good"], [0.1, "short"], [0.06, "bouncer"]], swing: 0.9, seam: 1, slower: 0.24,
+            intro: "{n}, the Yorker Specialist. Watch your toes!" },
         ],
-        spin: [{ name: "S. Iyer", type: "Right-arm off-break", kind: "spin", kmh: [78, 92], num: 27 }],
+        spin: [
+          { name: "S. Iyer", style: "Spin Master", type: "Right-arm off-break", kind: "spin", kmh: [78, 92], num: 27,
+            lengths: [[0.25, "full"], [0.55, "good"], [0.2, "short"]], turn: 1.3, turnDir: -1, armBall: 0.15,
+            intro: "Spin Master {n} — big turn, and the odd one that goes straight on." },
+          { name: "T. Silva", style: "Mystery Spinner", type: "Right-arm leg-break", kind: "spin", kmh: [80, 94], num: 11,
+            lengths: [[0.3, "full"], [0.5, "good"], [0.2, "short"]], turn: 1.1, turnDir: 1, googly: 0.28,
+            intro: "Mystery Spinner {n}. Can you pick the googly?" },
+        ],
       };
 
       const G = {
@@ -3077,7 +3661,8 @@
       function planDelivery(pick = null) {
         const spin = bowlerCfg.kind === "spin";
         // pace bowlers mix in a slower ball (~1 in 6)
-        const slower = pick ? !spin && pick.variation === "var" : !(bowlerCfg.kind === "spin") && Math.random() < 0.17;
+        const B = bowlerCfg, sf = SURF();
+        const slower = pick ? !spin && pick.variation === "var" : !(bowlerCfg.kind === "spin") && Math.random() < (B.slower ?? 0.17);
         const kmh = rand(...bowlerCfg.kmh) * (slower ? 0.76 : 1) * D().pace;
         const slow = spin ? 0.6 : 0.5; // game-speed scale so humans can time it
         const v = (kmh / 3.6) * slow;
@@ -3091,29 +3676,32 @@
           wide = line < -0.95 || line > 0.6;
           noBall = !wide && Math.random() < (pick.acc > 0.8 ? 0.25 : 0.01); // a lunge at the crease oversteps
         } else {
-          lengthName = weighted(spin
+          lengthName = weighted(B.lengths || (spin
             ? [[0.25, "full"], [0.55, "good"], [0.2, "short"]]
-            : [[0.12, "yorker"], [0.26, "full"], [0.34, "good"], [0.2, "short"], [0.08, "bouncer"]]);
+            : [[0.12, "yorker"], [0.26, "full"], [0.34, "good"], [0.2, "short"], [0.08, "bouncer"]]));
           bz = { yorker: rand(0.9, 1.7), full: rand(2.0, 3.6), good: rand(3.8, 6.6), short: rand(6.8, 8.8), bouncer: rand(9, 10.8) }[lengthName];
           wide = Math.random() < 0.035;
           noBall = !wide && Math.random() < (spin ? 0.015 : 0.035); // overstepped
           line = wide ? rand(-1.2, -1.0) : weighted([[0.38, rand(-0.6, -0.22)], [0.42, rand(-0.12, 0.12)], [0.2, rand(0.14, 0.38)]]);
         }
         // where it pitches vs where it ends up = swing / seam / turn (the arm ball goes straight on)
-        const armBall = pick && spin && pick.variation === "var";
-        const dev = armBall ? 0 : (spin ? rand(0.12, 0.42) * (Math.random() < 0.8 ? -1 : 1) : rand(-0.12, 0.12)) * D().dev;
+        // the variation: the arm ball goes straight on, the googly turns the other way
+        const armBall = spin && (pick ? pick.variation === "var" && !B.googly : Math.random() < (B.armBall || 0));
+        const googly = spin && !armBall && (pick ? pick.variation === "var" : Math.random() < (B.googly || 0));
+        const turnDir = (B.turnDir ?? -1) * (googly ? -1 : 1);
+        const dev = armBall ? 0 : (spin ? rand(0.12, 0.42) * (B.turn || 1) * sf.turn * (Math.random() < 0.8 ? turnDir : -turnDir) : rand(-0.12, 0.12) * (B.seam || 1) * sf.seam) * D().dev;
         const bx = clamp(line + dev * Math.min(1, bz / 6), -1.3, 1.0);
-        const ax = spin ? 0 : rand(-0.9, 0.9) * D().dev; // in-air swing (m/s²)
+        const ax = spin ? 0 : rand(-0.9, 0.9) * (B.swing || 1) * sf.swing * D().dev; // in-air swing (m/s²)
         const t1 = (RELEASE.z - bz) / v;
         const vx1 = (bx - RELEASE.x - 0.5 * ax * t1 * t1) / t1;
         const vy1 = (0 - RELEASE.y + 0.5 * g * t1 * t1) / t1;
         const vyB = vy1 - g * t1;
-        const e = spin ? 0.5 : clamp(0.48 + (bz - 4) * 0.035, 0.42, 0.72);
+        const e = (spin ? 0.5 : clamp(0.48 + (bz - 4) * 0.035, 0.42, 0.72)) * sf.bounce;
         const vz2 = -v * (spin ? 0.86 : 0.9);
         const t2s = bz / -vz2; // bounce → stumps
         const vx2 = (line - bx) / t2s;
         const vy2 = -vyB * e;
-        const d = { kmh, v, g, bz, bx, line, wide, noBall, ax, t1, vx1, vy1, vx2, vy2, vz2, lengthName, spin, e, rel: RELEASE.clone() };
+        const d = { kmh, v, g, bz, bx, line, wide, noBall, ax, t1, vx1, vy1, vx2, vy2, vz2, lengthName, spin, e, rel: RELEASE.clone(), slower, googly, armBall };
         d.tStumps = t1 + t2s;
         d.tHit = bz >= Z_HIT ? t1 + (bz - Z_HIT) / -vz2 : (RELEASE.z - Z_HIT) / v;
         return d;
@@ -3147,8 +3735,11 @@
       // ------------------------------------------------------------------
       // Post-hit ball flight (real physics) + fielding resolution
       // ------------------------------------------------------------------
-      const DRAG = 0.0032, ROLL = 3.4;
+      const DRAG = 0.0032;
+      // height of the seating at radius r from the centre (lower tier, then the upper tier)
+      const standY = (r) => (r < STAND_R ? BOARD_H : r < STAND_R + 16 ? 1.1 + (r - STAND_R) * (15 / 16) : r < STAND_R + 17 ? 16.1 : 18.6 + (r - STAND_R - 17) * (12 / 13));
       function simulate(p0, v0) {
+        const ROLL = SURF().roll;
         const out = [];
         const p = p0.clone(), v = v0.clone();
         const dt = 1 / 120;
@@ -3174,12 +3765,26 @@
           t += dt;
           const r = Math.hypot(p.x - CENTER.x, p.z - CENTER.z);
           out.push({ x: p.x, y: p.y, z: p.z, t, air: !bounced, r, sp });
-          if (r > STAND_R - 0.8) break; // into the boards / crowd
+          if (r > STAND_R - 0.8) {
+            // a ball still in the air above the seats carries on into the crowd and lands in the stand
+            if (!bounced && p.y > standY(r) && r < STAND_R + 29) continue;
+            if (!bounced && r >= STAND_R - 0.8 && p.y > BOARD_H) { out[out.length - 1].stand = true; for (let k = 1; k < 90; k++) out.push({ ...out[out.length - 1], t: t + k * dt }); }
+            break;
+          }
           if (v.lengthSq() === 0) { for (let k = 0; k < 60; k++) out.push({ ...out[out.length - 1], t: t + k * dt }); break; }
         }
         return out;
       }
 
+      function sixDistance(p0, v0) {
+        const p = p0.clone(), v = v0.clone(), dt = 1 / 120;
+        for (let i = 0; i < 2000 && !(p.y <= 0 && v.y < 0); i++) {
+          const sp = v.length();
+          v.x -= DRAG * sp * v.x * dt; v.z -= DRAG * sp * v.z * dt; v.y -= (9.81 + DRAG * sp * v.y) * dt;
+          p.addScaledVector(v, dt);
+        }
+        return Math.round(Math.hypot(p.x, p.z - Z_HIT));
+      }
       function resolveFielding(samples) {
         const ropeIdx = samples.findIndex((s) => s.r > BOUNDARY);
         let best = null;
@@ -3228,10 +3833,12 @@
           const sc = dailyScenario();
           G.cfg = { ...MODES.daily, balls: sc.balls, wkts: sc.wkts, pitch: sc.pitch, key: sc.key, target: () => sc.target };
         } else G.cfg = MODES[modeKey];
-        Object.assign(G, { runs: 0, wkts: 0, balls: 0, fours: 0, sixes: 0, chips: [], shots: [], submitted: false, overBalls: 0, pitchLog: [], freeHitNext: false, perfects: 0, swapStrike: false, walkIn: false, walkOff: null, party: null, batNo: 0 });
+        Object.assign(G, { runs: 0, wkts: 0, balls: 0, fours: 0, sixes: 0, chips: [], shots: [], submitted: false, overBalls: 0, pitchLog: [], freeHitNext: false, perfects: 0, swapStrike: false, walkIn: false, walkOff: null, party: null, batNo: 0, longestSix: 0, lastSixM: 0, sixRun: 0, bestSixRun: 0 });
         // the very first match shows the timing meter so new players learn the swing
         G.firstMatch = !SET.tutorialSeen;
         if (!SET.tutorialSeen) { SET.tutorialSeen = true; store.set("so_tutorial", "1"); }
+        G.surface = pickSurface();
+        pitch.material.color.setHex(SURF().tint);
         G.runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`; // one leaderboard entry per innings
         audioInit(); sfx("start"); musicStop(1.4); introSongStop(1.0);
         G.target = G.cfg.match ? Infinity : G.cfg.target() + (G.cfg.daily || G.cfg.nets ? 0 : D().target);
@@ -3247,6 +3854,8 @@
         else if (G.cfg.nets) commentary("Welcome to the nets. No target, no pressure — work on your timing.", 4);
         else if (G.aiBatting) commentary(`Blue Hawks bat first, and you've got the ball. Tap the pitch to aim, then release in the green.`, 5);
         else commentary(`${team().name} need ${G.target} to win. ${G.cfg.wkts} wickets in hand.`, 3.5);
+        if (!G.cfg.daily) commentary(SURF().line, 3.2);
+        else commentary(bowlerCfg.intro ? bowlerCfg.intro.replace("{n}", bowlerCfg.name) : SURF().line, 3.2);
       }
 
       function inningsOver() {
@@ -3270,7 +3879,7 @@
         }
         if (newOver) {
           const overNo = Math.floor(G.balls / 6);
-          const pitchK = G.cfg.pitch;
+          const pitchK = G.cfg.pitch || (G.surface === "dry" ? "spin" : undefined);
           const kind = pitchK === "spin" ? "spin" : pitchK === "mixed" || G.cfg.nets ? (overNo % 2 ? "spin" : "pace") : G.mode === "chase" && overNo === 1 ? "spin" : "pace";
           const fieldKind = G.cfg.nets ? kind : G.mode === "super" || overNo >= 2 || (G.cfg.daily && kind === "pace") ? "death" : kind;
           G.overBalls = 0;
@@ -3280,15 +3889,18 @@
           setPlate(bowlerP, bowlerCfg.name.split(" ").pop(), bowlerCfg.num);
           setField(fieldKind, kind);
           G.chips = [];
-          if (!first) banner(`OVER ${overNo + 1}`, `${bowlerCfg.name} · ${bowlerCfg.type}`, "#ffffff", 1.1);
+          if (!first) banner(`OVER ${overNo + 1}`, `${bowlerCfg.name} · ${bowlerCfg.style || bowlerCfg.type}`, "#ffffff", 1.1);
+          if (!first && !G.aiBatting && bowlerCfg.intro) commentary(bowlerCfg.intro.replace("{n}", bowlerCfg.name), 3);
           if (!first && !G.cfg.nets && Math.ceil(G.cfg.balls / 6) > 1 && G.cfg.balls - G.balls <= 6) say("lastover");
         }
         $("bowlerName").textContent = bowlerCfg.name;
+        $("bowlerStyle").textContent = (bowlerCfg.style || "Bowling").toUpperCase();
         $("bowlerType").textContent = bowlerCfg.type;
         $("speed").textContent = "—";
         replayAnim($("bowlerTag"), "in");
 
         if (!newOver) $("banner").classList.remove("on");
+        clearTimeout(sixT); $("sixCard").classList.remove("on");
         $("runBtn").classList.remove("on", "danger");
         $("timing").classList.remove("on");
         del = planDelivery();
@@ -3352,6 +3964,16 @@
         return leg ? "down to fine leg" : "down to third man";
       }
 
+      // where a six landed, in fielding positions
+      function sixRegion(dx, dz) {
+        const a = (Math.atan2(dx, dz) * 180) / Math.PI, ad = Math.abs(a), leg = a > 0;
+        if (ad < 10) return "straight back over the bowler";
+        if (ad < 38) return leg ? "over long-on" : "over long-off";
+        if (ad < 72) return leg ? "over deep midwicket" : "over extra cover";
+        if (ad < 108) return leg ? "over square leg" : "over point";
+        if (ad < 145) return leg ? "over backward square" : "over third man";
+        return leg ? "over fine leg" : "over the keeper";
+      }
       function endBall({ runs = 0, out = null, chip, legal = true, extras = 0, bigText, smallText, color, hold = 1.9, signal = null, say = null }) {
         // no ball: +1, not a legal delivery, and the next ball is a free hit
         if (del && del.noBall) {
@@ -3380,6 +4002,7 @@
         }
         if (runs === 4) G.fours++;
         if (runs === 6) G.sixes++;
+        if (legal || runs === 6) { G.sixRun = runs === 6 ? (G.sixRun || 0) + 1 : 0; G.bestSixRun = Math.max(G.bestSixRun || 0, G.sixRun); }
         G.chips.push(chip);
         if (bigText) banner(bigText, smallText, color, hold);
         updateHud();
@@ -3496,6 +4119,7 @@
         const samples = simulate(p0, v0);
         const ev = resolveFielding(samples);
         playS = { samples, ev, t: 0, q, p0, thrown: null, runsDone: 0, runs: 0, finished: false };
+        if (ev.kind === "six") { playS.sixM = sixDistance(p0, v0); playS.landT = samples[samples.length - 1].t; for (let i = samples.length - 1; i > 0 && samples[i - 1].stand; i--) playS.landT = samples[i - 1].t; }
         const bi = samples.findIndex((x) => !x.air);
         playS.bounceT = bi > 0 && bi <= ev.i ? samples[bi].t : Infinity;
         // runs are called by the player (RUN button) while the ball is live
@@ -3891,11 +4515,15 @@
           const dirX = land.x, dirZ = land.z - Z_HIT;
           const where = region(dirX, dirZ);
           if (ev.kind === "six") {
-            const m = Math.round(Math.hypot(land.x, land.z - CREASE));
+            const m = S.sixM || Math.round(Math.hypot(land.x, land.z - Z_HIT));
             G.shots.push({ x: land.x, z: land.z, runs: 6 });
+            G.longestSix = Math.max(G.longestSix || 0, m);
             sfx("roar"); sfx("sting6"); sfx("applause");
-            flashScreen("SIX!", "#e879f9"); burstConfetti(V3(land.x, 0, land.z)); crowdFlash = 1;
-            endBall({ signal: "six", runs: 6, chip: "6", bigText: "SIX!", smallText: `${m}m ${where}`, color: "#e879f9", hold: 2.6 });
+            flashScreen(`SIX! ${m}M`, "#e879f9"); burstConfetti(V3(land.x, 0, land.z)); crowdFlash = 1;
+            G.lastSixM = m;
+            // the ball is followed into the crowd first (six camera), so the umpire and the dance come later
+            endBall({ signal: "six", runs: 6, chip: "6", bigText: "", smallText: "", color: "#e879f9", hold: 3.6 });
+            sixCard(m, sixRegion(dirX, dirZ), Math.max(0.15, (S.landT || S.t) - S.t));
           } else if (ev.kind === "four") {
             G.shots.push({ x: land.x, z: land.z, runs: 4 });
             sfx("cheer"); sfx("board"); sfx("sting4"); sfx("applause");
@@ -3957,6 +4585,7 @@
       // Camera director
       // ------------------------------------------------------------------
       const camPos = V3(0, 30, 80), camTgt = V3(0, 0, 10);
+      const SIX_CAM = 2.3; // seconds after a six is signalled that the camera stays with the ball
       let camF = 900;
       function directCamera(dt) {
         let pos, tgt, f;
@@ -3994,28 +4623,48 @@
           // keep an aerial ball in frame: aim higher the higher it goes
           tgt = V3(lerp(b.x, E.x, 0.35), b.y * 0.62, lerp(b.z, E.z, 0.35));
           f = minWH * (L < 12 ? 1.6 : 1.12);
-          const k = 1 - Math.exp(-dt * 3.2);
+          let k = 1 - Math.exp(-dt * 3.2), kT = 1 - Math.exp(-dt * 5);
+          // six camera: once it's clearly going, swoop down behind the ball and ride it into the crowd
+          const S = playS;
+          if (S.ev.kind === "six" && (G.state === "play" ? S.t > S.samples[S.ev.i].t * 0.4 : G.stateT < SIX_CAM)) {
+            const Lp = S.samples[S.samples.length - 1];
+            let hx = Lp.x, hz = Lp.z - Z_HIT;
+            const hl = Math.hypot(hx, hz) || 1; hx /= hl; hz /= hl;
+            // trail it from behind and off to one side (so a straight hit doesn't stare into the sightscreen)
+            const side = S.sixSide || (S.sixSide = hx >= 0 ? -1 : 1);
+            pos = V3(b.x - hx * 22 - hz * 8 * side, Math.max(3, b.y * 0.55 + 5), b.z - hz * 22 + hx * 8 * side);
+            const r = Math.hypot(pos.x - CENTER.x, pos.z - CENTER.z), rMax = STAND_R - 22; // hang back inside the rope
+            if (r > rMax) { pos.x = CENTER.x + ((pos.x - CENTER.x) * rMax) / r; pos.z = CENTER.z + ((pos.z - CENTER.z) * rMax) / r; }
+            tgt = V3(b.x + hx * 3, Math.max(2.5, b.y), b.z + hz * 3);
+            // straight hits land behind a 9 m sight screen: rise and look over it into the crowd
+            if (Math.abs(Lp.x) < 16) { pos.y = Math.max(pos.y, 13); tgt.y = Math.max(tgt.y, 10); }
+            f = minWH * 1.7;
+            k = 1 - Math.exp(-dt * (S.sixCam ? 2.4 : 1.6)); kT = 1 - Math.exp(-dt * 7);
+            S.sixCam = true;
+          }
           // hard cut from the bowler-end view to the follow camera (TV style)
           if (!playS.camCut) { playS.camCut = true; camPos.copy(pos); camTgt.copy(tgt); camF = f; }
           camPos.lerp(pos, k);
-          camTgt.lerp(tgt, 1 - Math.exp(-dt * 5));
+          camTgt.lerp(tgt, kT);
           camF = lerp(camF, f, k);
           pos = camPos; tgt = camTgt; f = camF;
         }
         if (G.state === "menu" || G.state === "loading") { camPos.copy(pos); camTgt.copy(tgt); camF = f; }
         // cut to the umpire for his signal
-        const partyCam = G.state === "result" && G.party && G.stateT > 2.1 && striker && nonStriker;
+        const sixed = G.signal && G.signal.type === "six";
+        const umpT = sixed ? SIX_CAM : 0.7, partyT = sixed ? SIX_CAM + 1.3 : 2.1;
+        const partyCam = G.state === "result" && G.party && G.stateT > partyT && striker && nonStriker;
         if (partyCam) {
           // side-on, slowly orbiting the batting pair as they dance
           const mx = (striker.pos.x + nonStriker.pos.x) / 2, mz = (striker.pos.z + nonStriker.pos.z) / 2;
-          const a = -1.25 + (G.stateT - 2.1) * 0.16;
+          const a = -1.25 + (G.stateT - partyT) * 0.16;
           camPos.set(mx + Math.cos(a) * 6.2, 1.55, mz + Math.sin(a) * 6.2);
           camTgt.set(mx, 1.05, mz); camF = Math.min(W, H) * 1.55;
-        } else if (G.state === "result" && G.signal && G.stateT > 0.7 && umpire) {
+        } else if (G.state === "result" && G.signal && G.stateT > umpT && umpire) {
           if (!G.signal.cut) { G.signal.cut = true; $("banner").classList.remove("on"); }
           const u = umpire.pos;
           // slow broadcast push-in while the signal is held
-          const k = smooth01((G.stateT - 0.7) / 2.6);
+          const k = smooth01((G.stateT - umpT) / 2.6);
           camPos.set(u.x + 0.9 - 0.35 * k, 1.65 - 0.06 * k, u.z + 5 - 1.1 * k); camTgt.set(u.x, 1.4 + 0.05 * k, u.z);
           camF = Math.min(W, H) * 2.1 * (1 + 0.1 * k);
         }
@@ -4219,8 +4868,18 @@
       // one that brings the fingertip closest to the grip, so no finger folds sideways or back
       // (the palm-normal guess in gripFingers gets the index/ring direction wrong on this rig)
       const WRAP_K = [0.6, 1, 1.25];
+      // the solved curl is a pose of the fingers relative to the hand, and the hand-to-handle grip
+      // hardly changes frame to frame: re-solve every few frames and replay the cached joints between
+      const WRAP_EVERY = 8;
       function wrapFingers(p, side, amt, h) {
         const H = side === "L" ? "LeftHand" : "RightHand", bm = p.boneMap, hand = side === "L" ? p.b.lHand : p.b.rHand;
+        const cache = ((p.wrapCache ||= {})[side] ||= { n: 0, q: null, amt: -1 });
+        if (cache.q && cache.amt === amt && cache.n++ % WRAP_EVERY) {
+          for (const [bone, q] of cache.q) bone.quaternion.copy(q);
+          hand.updateMatrixWorld(true);
+          return;
+        }
+        cache.n = 1; cache.amt = amt;
         for (const f of FINGERS) for (let j = 1; j <= 3; j++) { const c = fingerCurl[H + f + j], bone = bm[H + f + j]; if (c && bone) bone.quaternion.copy(c.bind); }
         hand.updateMatrixWorld(true);
         const F = handFrame(p, side);
@@ -4245,6 +4904,8 @@
             if (best) twistBone(bone, ax, best); else bone.updateMatrixWorld(true);
           }
         }
+        cache.q = [];
+        for (const f of FINGERS) for (let j = 1; j <= 3; j++) { const bone = bm[H + f + j]; if (bone) cache.q.push([bone, bone.quaternion.clone()]); }
       }
       function batterArms(pose, h) {
         const b = striker.b;
@@ -4617,7 +5278,7 @@
 
       // turn a player's head toward a point (yaw only, limited like a real neck)
       function lookAt(p, target, max = 1.25) {
-        if (!p.b.head || p.roll) return;
+        if (!p.b.head || p.roll || p.lazySkip) return;
         const h = wp(p.b.head);
         const want = Math.atan2(target.x - h.x, target.z - h.z);
         let d = want - p.heading;
@@ -4690,7 +5351,7 @@
         const ready = (st === "runup" && G.stateT > (bowlerCfg.kind === "spin" ? 0.6 : 1.0)) || (st === "delivery" && !shot);
         const S = playS;
         for (const f of fielders) {
-          if (f.role === "keeper" || f.role === "bowler") continue;
+          if (f.role === "keeper" || f.role === "bowler" || f.p.lazySkip) continue;
           const p = f.p, A = p.anim;
           const still = !A || (A.base && A.base.startsWith("idle") && !A.special);
           if (ready && still && Math.hypot(p.pos.x, p.pos.z - CENTER.z * 0.3) < 40) poseReady(p);
@@ -4709,11 +5370,34 @@
         if (!(st === "result" && G.signal && G.stateT > 0.7)) lookAt(umpire, ball, 1.0);
       }
 
+      // off-screen bystanders (not batting, bowling, keeping or umpiring) animate at a third of the
+      // rate: they can't be seen, and skinning ~15 rigs every frame is the biggest CPU cost
+      const _frustum = new THREE.Frustum(), _pm = new THREE.Matrix4(), _sphere = new THREE.Sphere(V3(), 1.6);
+      let syncFrame = 0;
       function syncPlayers(dt) {
+        syncFrame++;
+        camera.updateMatrixWorld();
+        _frustum.setFromProjectionMatrix(_pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
         for (const p of players) {
+          let pdt = dt;
+          p.lazySkip = false;
+          const key = p === striker || p === nonStriker || p === bowlerP || p === umpire || (fielders[9] && p === fielders[9].p) || p.clip || p.roll; // keeper's gloves are posed every frame
+          if (!key) {
+            _sphere.center.set(p.pos.x, 1, p.pos.z);
+            if (!_frustum.intersectsSphere(_sphere)) {
+              p.lazyDt = (p.lazyDt || 0) + dt;
+              if ((syncFrame + p.obj.id) % 3) {
+                // pose untouched this frame (so per-frame bone tweaks must leave it alone: lazySkip)
+                p.lazySkip = true;
+                p.obj.position.set(p.pos.x, p.pos.y + (p.yOff || 0), p.pos.z); p.obj.rotation.set(0, p.heading + rig.yaw, 0);
+                continue;
+              }
+              pdt = p.lazyDt; p.lazyDt = 0;
+            } else if (p.lazyDt) { pdt += p.lazyDt; p.lazyDt = 0; }
+          }
           for (const [bone, q, pos] of p.rest) { bone.quaternion.copy(q); bone.position.copy(pos); }
-          if (p.anim) updateAnim(p, dt);
-          p.mixer.update(dt);
+          if (p.anim) updateAnim(p, pdt);
+          p.mixer.update(pdt);
           if (p.clip) placeClipRoot(p, p.clip.action.time);
           p.obj.position.copy(p.pos);
           p.obj.position.y += p.yOff || 0;
@@ -4721,7 +5405,7 @@
           p.obj.rotation.set(0, p.heading + rig.yaw, 0);
           p.obj.updateMatrixWorld(true);
           if (p.roll) { p.obj.rotateOnWorldAxis(V3(Math.sin(p.heading), 0, Math.cos(p.heading)), p.roll); p.obj.updateMatrixWorld(true); }
-          if (p.crouch && !p.roll) applyCrouch(p, dt);
+          if (p.crouch && !p.roll) applyCrouch(p, pdt);
         }
       }
 
@@ -4791,6 +5475,19 @@
         bannerTimer = setTimeout(() => $("banner").classList.remove("on"), dur * 1000);
       }
       let timingTimer = 0;
+      let sixT = 0;
+      function sixCard(m, where, delay) {
+        clearTimeout(sixT);
+        sixT = setTimeout(() => {
+          if (G.state !== "result") return;
+          $("sixWhere").innerHTML = `<span>${where}</span>`;
+          const best = loadJSON("so_records").longestSix || 0;
+          $("sixLong").innerHTML = G.aiBatting ? "" : m > best && best > 0 ? "<span>New longest six!</span>" : m >= 90 ? "<span>Monster hit!</span>" : "";
+          const el = $("sixCard"); el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
+          countUp($("sixM"), m, 650, 0);
+          sixT = setTimeout(() => el.classList.remove("on"), (SIX_CAM - 0.15) * 1000 - delay * 1000);
+        }, delay * 1000);
+      }
       function timing(text, color) {
         const el = $("timing");
         el.textContent = text; el.style.color = color;
@@ -4864,6 +5561,8 @@
         else if (rec.r.winStreak >= 2) note += ` · ${rec.r.winStreak} wins in a row`;
         $("endRec").textContent = note;
         if (rec.newBest) setTimeout(() => { if (G.state === "over") say("newbest"); }, 2600);
+        G.lastRes = res;
+        showNewBadges(checkAchievements({ res, wkts: G.wkts, ballsLeft: bl, perfects: G.perfects || 0 }));
         haptic(res === "win" ? "heavy" : null);
         drawWagon();
         $("end").classList.add("on");
@@ -4878,6 +5577,8 @@
         $("resTeam").textContent = t.name.toUpperCase();
         $("resMode").textContent = `${G.cfg.name}${G.cfg.daily || G.cfg.nets ? "" : " · " + D().name}`;
         $("resIcon").textContent = RES_ICON[res] || "";
+        $("endBadges").innerHTML = "";
+        $("shareBtn").hidden = res === "nets";
         $("resScore").textContent = `${G.runs}/${G.wkts}`;
         $("resOvers").textContent = `${ovs(G.balls)} OV · ${G.balls} BALL${G.balls === 1 ? "" : "S"}`;
         const chase = !G.cfg.nets && Number.isFinite(G.target);
@@ -4957,44 +5658,169 @@
       // ------------------------------------------------------------------
       // Night matches: dark sky, floodlights on, players lit from the towers
       // ------------------------------------------------------------------
-      let daySky = null, nightSky = null;
-      function makeNightSky() {
-        const c = document.createElement("canvas"); c.width = 1024; c.height = 512;
-        const g = c.getContext("2d");
-        const grd = g.createLinearGradient(0, 0, 0, 512);
-        grd.addColorStop(0, "#01030a"); grd.addColorStop(0.4, "#071027"); grd.addColorStop(0.5, "#1c2b4d"); grd.addColorStop(0.56, "#0a1222"); grd.addColorStop(1, "#04060c");
-        g.fillStyle = grd; g.fillRect(0, 0, 1024, 512);
-        for (let i = 0; i < 650; i++) {
-          const big = Math.random() < 0.08;
-          g.fillStyle = `rgba(255,255,255,${0.25 + Math.random() * 0.6})`;
-          g.fillRect(Math.random() * 1024, Math.pow(Math.random(), 1.5) * 225, big ? 2 : 1, big ? 2 : 1);
+      // ------------------------------------------------------------------
+      // Physically based sky: Preetham daylight scattering (after three.js' Sky, MIT) with a
+      // drifting cloud deck and stars, drawn on a dome. The same dome is baked into the
+      // environment map, so the stadium is lit by the sky you see.
+      // ------------------------------------------------------------------
+      const skyU = {
+        sunDir: { value: new THREE.Vector3(0, 1, 0) }, turbidity: { value: 3 }, rayleigh: { value: 1.2 }, mieCoefficient: { value: 0.004 }, mieG: { value: 0.8 },
+        uScale: { value: 1 }, uCover: { value: 0.4 }, uCloudLit: { value: new THREE.Color(1, 1, 1) }, uCloudDark: { value: new THREE.Color(0.55, 0.6, 0.68) },
+        uCloudAlpha: { value: 1 }, uStars: { value: 0 }, uNight: { value: 0 }, uTime: { value: 0 },
+      };
+      const skyMat = new THREE.ShaderMaterial({
+        uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
+        vertexShader: `uniform vec3 sunDir; uniform float rayleigh, turbidity, mieCoefficient;
+          varying vec3 vDir; varying vec3 vBetaR; varying vec3 vBetaM; varying float vSunE;
+          const float e = 2.718281828459045; const vec3 up = vec3(0.0, 1.0, 0.0);
+          const vec3 totalRayleigh = vec3(5.804542996261093E-6, 1.3562911419845635E-5, 3.0265902468824876E-5);
+          const vec3 MieConst = vec3(1.8399918514433978E14, 2.7798023919660528E14, 4.0790479543861094E14);
+          float sunIntensity(float c) { c = clamp(c, -1.0, 1.0); return 1000.0 * max(0.0, 1.0 - pow(e, -((1.6110731556870734 - acos(c)) / 1.5))); }
+          void main() {
+            vDir = normalize((modelMatrix * vec4(position, 1.0)).xyz - cameraPosition);
+            vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            gl_Position = p.xyww; // always on the far plane
+            vSunE = sunIntensity(dot(sunDir, up));
+            vBetaR = totalRayleigh * (rayleigh - 0.0);
+            vBetaM = 0.434 * (0.2 * turbidity) * 10E-18 * MieConst * mieCoefficient;
+          }`,
+        fragmentShader: `uniform vec3 sunDir; uniform float mieG, uScale, uCover, uCloudAlpha, uStars, uNight, uTime; uniform vec3 uCloudLit, uCloudDark;
+          varying vec3 vDir; varying vec3 vBetaR; varying vec3 vBetaM; varying float vSunE;
+          const float pi = 3.141592653589793; const vec3 up = vec3(0.0, 1.0, 0.0);
+          float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+            return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+          float fbm(vec2 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * noise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
+          void main() {
+            vec3 d = normalize(vDir);
+            // --- Preetham scattering ---
+            float zen = acos(max(0.0, dot(up, d)));
+            float inv = 1.0 / (cos(zen) + 0.15 * pow(93.885 - zen * 180.0 / pi, -1.253));
+            vec3 Fex = exp(-(vBetaR * 8.4E3 * inv + vBetaM * 1.25E3 * inv));
+            float cosT = dot(d, sunDir);
+            vec3 bR = vBetaR * (0.05968310365946075 * (1.0 + pow(cosT * 0.5 + 0.5, 2.0)));
+            float g2 = mieG * mieG;
+            vec3 bM = vBetaM * (0.07957747154594767 * (1.0 - g2) / pow(1.0 - 2.0 * mieG * cosT + g2, 1.5));
+            vec3 Lin = pow(vSunE * ((bR + bM) / (vBetaR + vBetaM)) * (1.0 - Fex), vec3(1.5));
+            Lin *= mix(vec3(1.0), pow(vSunE * ((bR + bM) / (vBetaR + vBetaM)) * Fex, vec3(0.5)), clamp(pow(1.0 - dot(up, sunDir), 5.0), 0.0, 1.0));
+            vec3 L0 = vec3(0.1) * Fex + vSunE * 19000.0 * Fex * smoothstep(0.99995, 0.99997, cosT);
+            vec3 col = pow((Lin + L0) * 0.04 + vec3(0.0, 0.0003, 0.00075), vec3(1.0 / 2.4)) * uScale;
+            // below the horizon: a soft haze rather than a black void (it's hidden by the stands anyway)
+            col = mix(col, col.bbb * vec3(0.55, 0.6, 0.7) + 0.03, smoothstep(0.0, -0.08, d.y));
+            // night: deep blue gradient + stars
+            vec3 nightCol = mix(vec3(0.03, 0.05, 0.11), vec3(0.004, 0.008, 0.025), clamp(d.y * 1.4, 0.0, 1.0));
+            col = mix(col, nightCol, uNight);
+            if (uStars > 0.0 && d.y > 0.0) {
+              vec2 sp = vec2(atan(d.z, d.x) * 180.0, d.y * 380.0);
+              float st = step(0.996, hash(floor(sp))) * hash(floor(sp) + 3.1);
+              col += vec3(st) * uStars * smoothstep(0.02, 0.25, d.y) * (0.6 + 0.4 * sin(uTime * 3.0 + hash(floor(sp)) * 40.0));
+            }
+            // --- clouds: a deck projected onto a plane overhead, lit from the sun ---
+            if (d.y > 0.0 && uCloudAlpha > 0.0) {
+              vec2 cp = d.xz / (d.y + 0.08) * 0.75 + vec2(uTime * 0.006, uTime * 0.0025);
+              float n = fbm(cp * 1.6);
+              float dens = smoothstep(1.0 - uCover, 1.0 - uCover + 0.32, n);
+              // self-shadow: denser cloud toward the sun is darker on this side
+              float n2 = fbm(cp * 1.6 + sunDir.xz * 0.22);
+              float lightAmt = clamp(0.62 + (n - n2) * 2.4, 0.0, 1.0);
+              vec3 cc = mix(uCloudDark, uCloudLit, lightAmt);
+              cc += uCloudLit * pow(max(cosT, 0.0), 10.0) * (1.0 - dens) * 0.9; // silver lining near the sun
+              float fade = smoothstep(0.0, 0.14, d.y);
+              col = mix(col, cc, dens * fade * uCloudAlpha);
+            }
+            gl_FragColor = vec4(col, 1.0);
+            #include <tonemapping_fragment>
+            #include <colorspace_fragment>
+          }`,
+      });
+      const skyDome = new THREE.Mesh(new THREE.SphereGeometry(850, 48, 24), skyMat);
+      skyDome.frustumCulled = false; skyDome.renderOrder = -10;
+      scene.add(skyDome);
+      // the environment map is baked from the sky (no clouds moving in it, so once per condition)
+      const envCache = {};
+      const envScene = new THREE.Scene();
+      envScene.add(new THREE.Mesh(skyDome.geometry, skyMat));
+      function bakeEnv(key) {
+        if (!envCache[key]) {
+          const pm = new THREE.PMREMGenerator(renderer);
+          envCache[key] = pm.fromScene(envScene, 0.02, 1, 1000).texture;
+          pm.dispose();
         }
-        const t = new THREE.CanvasTexture(c);
-        t.colorSpace = THREE.SRGBColorSpace; t.mapping = THREE.EquirectangularReflectionMapping;
-        return t;
+        scene.environment = envCache[key];
       }
-      function applyNight(on) {
-        SET.night = on;
-        if (on && !nightSky) nightSky = makeNightSky();
-        scene.background = on ? nightSky : daySky || new THREE.Color(0x9cc8ec);
-        scene.backgroundIntensity = on ? 1 : 0.95;
-        scene.environmentIntensity = on ? 0.32 : 0.55;
-        hemi.color.set(on ? 0x8fa6d8 : 0xe6f2ff); hemi.groundColor.set(on ? 0x1d2a18 : 0x4b6b35); hemi.intensity = on ? 0.35 : 0.55;
-        sun.color.set(on ? 0xeef2ff : 0xfff1dc); sun.intensity = on ? 1.85 : 2.6;
+      // sun position on the sky for each condition (same compass bearing as the light)
+      const SKY = {
+        day: { elev: 52, turbidity: 2.2, rayleigh: 1.6, mie: 0.004, g: 0.8, scale: 0.42, cover: 0.52, alpha: 1, lit: [0.98, 0.98, 1], dark: [0.52, 0.57, 0.66], stars: 0, night: 0 },
+        sunset: { elev: 2.5, turbidity: 8, rayleigh: 3, mie: 0.006, g: 0.85, scale: 0.5, cover: 0.38, alpha: 1, lit: [1, 0.6, 0.38], dark: [0.3, 0.22, 0.3], stars: 0, night: 0 },
+        cloudy: { elev: 45, turbidity: 9, rayleigh: 1.6, mie: 0.008, g: 0.75, scale: 0.4, cover: 0.86, alpha: 1, lit: [0.8, 0.82, 0.86], dark: [0.4, 0.43, 0.48], stars: 0, night: 0.12 },
+        night: { elev: -14, turbidity: 2, rayleigh: 1, mie: 0.003, g: 0.8, scale: 1, cover: 0.22, alpha: 0.35, lit: [0.16, 0.18, 0.24], dark: [0.05, 0.06, 0.09], stars: 1, night: 1 },
+      };
+      // sunlight after its path through the atmosphere (same Preetham coefficients as the sky):
+      // white and strong high up, orange and weaker as the sun drops and the air path lengthens
+      function sunTransmittance(elev, turbidity, rayleigh, mie) {
+        const zen = Math.max(0, Math.PI / 2 - elev), zd = (zen * 180) / Math.PI;
+        const inv = 1 / (Math.cos(zen) + 0.15 * Math.pow(Math.max(0.001, 93.885 - zd), -1.253));
+        const bR = [5.804542996261093e-6, 1.3562911419845635e-5, 3.0265902468824876e-5], bM = [1.8399918514433978e14, 2.7798023919660528e14, 4.0790479543861094e14];
+        const c = 0.434 * 0.2 * turbidity * 10e-18 * mie;
+        return bR.map((r, i) => Math.exp(-(r * rayleigh * 8.4e3 * inv + bM[i] * c * 1.25e3 * inv)));
+      }
+      function applySky(mode) {
+        const k = SKY[mode];
+        // the sun you see is where the light comes from (night: below the horizon)
+        if (mode === "night") { const az = Math.atan2(SUN_OFF.z, SUN_OFF.x), el = THREE.MathUtils.degToRad(k.elev); skyU.sunDir.value.set(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az)); }
+        else skyU.sunDir.value.copy(SUN_OFF).normalize();
+        skyU.turbidity.value = k.turbidity; skyU.rayleigh.value = k.rayleigh; skyU.mieCoefficient.value = k.mie; skyU.mieG.value = k.g;
+        skyU.uScale.value = k.scale; skyU.uCover.value = k.cover; skyU.uCloudAlpha.value = k.alpha;
+        skyU.uCloudLit.value.setRGB(...k.lit); skyU.uCloudDark.value.setRGB(...k.dark);
+        skyU.uStars.value = k.stars; skyU.uNight.value = k.night;
+        scene.background = null;
+        bakeEnv(mode);
+      }
+
+      const TIMES = {
+        day: { label: "☀ Day" }, sunset: { label: "🌇 Sunset" }, cloudy: { label: "☁ Cloudy" }, night: { label: "☾ Night" },
+      };
+      function applyTime(mode) {
+        if (!TIMES[mode]) mode = "day";
+        SET.time = mode;
+        const on = mode === "night", dusk = mode === "sunset", grey = mode === "cloudy";
+        SUN_OFF.set(...(dusk ? [-64, 8, 44] : [-28, 55, 22]));
+        applySky(mode);
+        // --- physically based light: sun through the atmosphere, sky light from the baked sky ---
+        const k = SKY[mode];
+        if (!on) {
+          const elev = Math.asin(SUN_OFF.clone().normalize().y);
+          const T = sunTransmittance(elev, k.turbidity, k.rayleigh, k.mie), T0 = sunTransmittance(Math.PI / 2, k.turbidity, k.rayleigh, k.mie);
+          const lum = (t) => 0.2126 * t[0] + 0.7152 * t[1] + 0.0722 * t[2], mx = Math.max(...T);
+          sun.color.setRGB(T[0] / mx, T[1] / mx, T[2] / mx, THREE.SRGBColorSpace);
+          // cloud cover blocks most of the direct beam on an overcast day
+          sun.intensity = 3.1 * (lum(T) / lum(T0)) * (grey ? 0.32 : 1);
+        } else { sun.color.set(0xeef2ff); sun.intensity = 1.85; } // floodlights stand in for the sun at night
+        // sky light now comes from the environment map baked from this sky; the hemisphere only adds
+        // the green bounce off the outfield, and the fill is a faint kicker so kits still read
+        scene.environmentIntensity = on ? 0.32 : dusk ? 1.0 : grey ? 1.5 : 0.95;
+        hemi.color.set(on ? 0x8fa6d8 : 0xffffff); hemi.groundColor.set(on ? 0x1d2a18 : 0x4b6b35);
+        hemi.intensity = on ? 0.35 : 0.18;
+        fill.color.set(on ? 0xe2eaff : 0xc7dcff); fill.intensity = on ? 1.15 : dusk ? 0.3 : grey ? 0.2 : 0.3;
         const gu = gradePass.uniforms;
-        gu.vignette.value = on ? 0.55 : 0.32; gu.warmth.value = on ? -0.012 : 0.025;
-        gu.contrast.value = on ? 1.1 : 1.05; gu.saturation.value = on ? 1.04 : 1.12;
-        fill.color.set(on ? 0xe2eaff : 0xc7dcff); fill.intensity = on ? 1.15 : 0.7;
-        scene.fog.color.set(on ? 0x070b16 : 0xb9d6ee);
-        scene.fog.near = on ? 95 : 180; scene.fog.far = on ? 330 : 420;
+        gu.vignette.value = on ? 0.55 : dusk ? 0.42 : 0.32;
+        gu.warmth.value = on ? -0.012 : 0.01; // colour now comes from the light itself, not a tint
+        gu.contrast.value = on ? 1.1 : grey ? 1.0 : 1.05;
+        gu.saturation.value = on ? 1.04 : grey ? 0.92 : 1.1;
+        scene.fog.color.set(on ? 0x070b16 : dusk ? 0xc7a08a : grey ? 0xa7b0b9 : 0xb9d6ee);
+        scene.fog.near = on ? 95 : grey ? 120 : dusk ? 150 : 180; scene.fog.far = on ? 330 : grey ? 360 : 420;
         // the crowd sits in the dark beyond the floodlit field
-        stands.material.color.setScalar(on ? 0.42 : 1); upperMat.color.setScalar(on ? 0.36 : 1);
-        renderer.toneMappingExposure = on ? 1.02 : 0.95;
-        bloomPass.strength = on ? 0.6 : 0.32;
-        floodLampMat.emissiveIntensity = on ? 4.5 : 0.15;
-        for (const s of floodGlows) s.visible = on;
-        nightBase = on ? 0.1 : 0;
+        for (const m of [stands.material]) m.color.setScalar(on ? 0.42 : dusk ? 0.78 : grey ? 0.86 : 1);
+        fanU.uTint.value = on ? 0.8 : 1;
+        upperMat.color.setScalar(on ? 0.36 : dusk ? 0.7 : grey ? 0.84 : 1);
+        renderer.toneMappingExposure = on ? 1.02 : dusk ? 1.22 : grey ? 1.0 : 0.95;
+        bloomPass.strength = on ? 0.6 : dusk ? 0.42 : grey ? 0.26 : 0.32;
+        // floodlights come on as the light fades
+        floodLampMat.emissiveIntensity = on ? 4.5 : dusk ? 2.2 : grey ? 0.9 : 0.15;
+        for (const s of floodGlows) s.visible = on || dusk;
+        nightBase = on ? 0.1 : dusk ? 0.04 : 0;
       }
+      const applyNight = (on) => applyTime(on ? "night" : "day");
 
       // ------------------------------------------------------------------
       // Team kits for the batting side
@@ -5092,7 +5918,7 @@
         if (!on) return;
         const spin = bowlerCfg.kind === "spin";
         $("bowlWho").textContent = `${bowlerCfg.name.split(" ").pop().toUpperCase()} · ${spin ? "SPIN" : "PACE"}`;
-        $("bowlVarAlt").textContent = spin ? "Arm ball" : "Slower";
+        $("bowlVarAlt").textContent = spin ? (bowlerCfg.googly ? "Googly" : "Arm ball") : "Slower";
         bowlVariation = "stock";
         for (const b of $("bowlVar").querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === "stock");
         drawBowlPitch();
@@ -5144,7 +5970,7 @@
       }
       function startChase() {
         $("break").classList.remove("on");
-        Object.assign(G, { runs: 0, wkts: 0, balls: 0, fours: 0, sixes: 0, chips: [], shots: [], overBalls: 0, pitchLog: [], freeHitNext: false, perfects: 0, swapStrike: false, innings: 2, walkIn: false, walkOff: null, party: null, batNo: 0 });
+        Object.assign(G, { runs: 0, wkts: 0, balls: 0, fours: 0, sixes: 0, chips: [], shots: [], overBalls: 0, pitchLog: [], freeHitNext: false, perfects: 0, swapStrike: false, innings: 2, walkIn: false, walkOff: null, party: null, batNo: 0, longestSix: 0, lastSixM: 0, sixRun: 0, bestSixRun: 0 });
         G.target = G.ai.runs + 1;
         setSides(false);
         $("hud").classList.add("on");
@@ -5188,7 +6014,7 @@
       // Commentary ticker, haptics, badges
       // ------------------------------------------------------------------
       const LINES = {
-        six: ["That's huge! Launched {w} into the crowd.", "Out of the screws — {m}m {w}!", "Gone all the way! Six {w}.", "Clean as you like. Six more {w}."],
+        six: ["That's huge! Launched {w} into the crowd.", "Out of the screws — {m} metres {w}!", "Gone all the way! Six {w}.", "Clean as you like. {m} metres, {w}."],
         four: ["Cracking shot, races away {w}.", "Timed to perfection — four {w}.", "No stopping that one, four {w}!", "Threaded the gap {w}. Four."],
         bowled: ["Timber! {b} knocks him over.", "Through the gate — bowled!", "Castled! The stumps are a mess.", "Plays all around it. Bowled!"],
         caught: ["Straight down the throat at {f}!", "Taken! Safe hands at {f}.", "In the air… and caught at {f}.", "Didn't get hold of that. Caught at {f}."],
@@ -5216,8 +6042,8 @@
       function commentate({ runs, out, chip, signal, extras }) {
         const last = G.shots[G.shots.length - 1];
         const fill = (s) => s
-          .replace("{w}", last ? region(last.x, last.z - Z_HIT) : "into the off side")
-          .replace("{m}", last ? Math.round(Math.hypot(last.x, last.z - CREASE)) : 80)
+          .replace("{w}", last ? (signal === "six" ? sixRegion : region)(last.x, last.z - Z_HIT) : "into the off side")
+          .replace("{m}", signal === "six" && G.lastSixM ? G.lastSixM : last ? Math.round(Math.hypot(last.x, last.z - CREASE)) : 80)
           .replace("{f}", playS && playS.ev && playS.ev.f ? playS.ev.f.role : "slip")
           .replace("{b}", bowlerCfg ? bowlerCfg.name : "the bowler")
           .replace("{r}", runs === 1 ? "a single" : `${runs}`);
@@ -5284,7 +6110,8 @@
         const b = window.flutter_inappwebview;
         try {
           if (b && typeof b.callHandler === "function") Promise.resolve(b.callHandler("haptic", kind)).catch(() => {});
-          else if (navigator.vibrate) navigator.vibrate(kind === "heavy" ? 55 : kind === "medium" ? 28 : 12);
+          // browsers reject vibrate() (and log an error each time) until the page has been tapped
+          else if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate(kind === "heavy" ? 55 : kind === "medium" ? 28 : 12);
         } catch (_) {}
       }
       function setBadge(text, kind = "fh") {
@@ -5371,6 +6198,7 @@
         clearTicker(); setBadge("");
         $("meter").classList.remove("on"); $("pitchMap").classList.remove("on");
         $("runBtn").classList.remove("on", "danger"); $("banner").classList.remove("on"); $("timing").classList.remove("on");
+        clearTimeout(sixT); $("sixCard").classList.remove("on");
         if (replay) { replay = null; $("replayBadge").classList.remove("on"); }
       }
       function quitToMenu() {
@@ -5438,6 +6266,7 @@
       // Menu: settings chips, records, daily challenge
       // ------------------------------------------------------------------
       function refreshMenu() {
+        checkAchievements({}); // career-total badges already earned (e.g. by saves from before badges existed)
         const sc = dailyScenario(), d = loadJSON("so_daily"), r = loadJSON("so_records");
         const done = d.last === sc.key, streak = dailyStreak(d);
         $("dailyDesc").textContent = `Chase ${sc.target} off ${sc.balls} balls · ${sc.wkts} wkt${sc.wkts > 1 ? "s" : ""} · ${PITCHES[sc.pitch]}`;
@@ -5445,11 +6274,14 @@
         $("records").innerHTML = r.played
           ? `<div class="recRow">${[[r.played, "Played"], [r.won || 0, "Won"], [r.bestPts || 0, "Best pts"], [r.sixes || 0, "Sixes"]].map(([v, l]) => `<div class="rt"><b>${v}</b><span>${l}</span></div>`).join("")}</div>`
           : `<div class="recNote">Pick a mode to start your career. Wins, best scores and your <b>daily streak</b> are tracked here.</div>`;
+        const got = Object.keys(loadJSON("so_ach")).length;
+        if (r.played) $("records").innerHTML += `<div class="recMore">🏅 ${got}/${ACH.length} badges · View career ▸</div>`;
         const t = team();
         $("teamName").textContent = t.name;
         setCrest($("crest"), t);
         for (const b of $("diffSeg").querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === SET.diff);
-        for (const b of $("timeSeg").querySelectorAll("button")) b.classList.toggle("on", (b.dataset.v === "night") === SET.night);
+        $("timeBtn").textContent = TIMES[SET.time].label;
+        $("pitchBtn").textContent = `Pitch: ${SET.pitch === "auto" ? "Auto" : SURFACES[SET.pitch].short}`;
         updateGfxLabel();
       }
       const stepTeam = (k) => {
@@ -5464,10 +6296,13 @@
         if (!v) return;
         SET.diff = v; store.set("so_diff", v); refreshMenu();
       });
-      $("timeSeg").addEventListener("click", (e) => {
-        const v = e.target.dataset && e.target.dataset.v;
-        if (!v) return;
-        applyNight(v === "night"); store.set("so_night", SET.night ? "1" : "0"); refreshMenu();
+      $("timeBtn").addEventListener("click", () => {
+        const order = Object.keys(TIMES);
+        applyTime(order[(order.indexOf(SET.time) + 1) % order.length]); store.set("so_time", SET.time); refreshMenu();
+      });
+      $("pitchBtn").addEventListener("click", () => {
+        const order = ["auto", ...Object.keys(SURFACES)];
+        SET.pitch = order[(order.indexOf(SET.pitch) + 1) % order.length]; store.set("so_pitch", SET.pitch); refreshMenu();
       });
       $("howBtn").addEventListener("click", () => $("howSheet").classList.add("on"));
       for (const id of ["musicBtn", "musicBtn2"]) $(id).addEventListener("click", () => {
@@ -5487,6 +6322,128 @@
         playIntro();
       });
       refreshMenu();
+
+      // ---- career sheet ----
+      const fmtPct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+      function renderCareer() {
+        const r = loadJSON("so_records"), got = loadJSON("so_ach"), d = loadJSON("so_daily");
+        const tiles = [
+          [r.played || 0, "Matches"], [`${fmtPct(r.won || 0, r.played || 0)}%`, "Win rate", "hl"], [r.runs || 0, "Runs"], [r.balls ? Math.round(((r.runs || 0) / r.balls) * 100) : "—", "Strike rate"],
+          [r.bestRuns || 0, "Best score", "hl"], [r.fours || 0, "Fours"], [r.sixes || 0, "Sixes", "six"], [r.longestSix ? `${r.longestSix}m` : "—", "Longest six", "six"],
+          [r.perfects || 0, "Perfect shots"], [r.bestPts || 0, "Best points"], [r.bestStreak || 0, "Best win streak"], [r.wktsTaken || 0, "Wickets taken"],
+        ];
+        $("cp-stats").innerHTML = (r.played ? "" : `<div class="stEmpty">Play a match and your numbers start counting here.</div>`)
+          + `<div class="stGrid">${tiles.map(([v, l, c]) => `<div class="stTile ${c || ""}"><b>${v}</b><span>${l}</span></div>`).join("")}</div>`;
+        const n = ACH.filter((a) => got[a.id]).length;
+        $("badgeCount").textContent = `${n}/${ACH.length}`;
+        $("cp-badges").innerHTML = `<div class="bdGrid">${ACH.map((a) => {
+          const has = !!got[a.id], pr = achProgress(a, r, {}, d);
+          const reward = [...Object.entries(BAT_UNLOCK).filter(([, v]) => v === a.id).map(([k]) => `${BAT_SKINS[k].name} bat`), ...Object.entries(KIT_UNLOCK).filter(([, v]) => v === a.id).map(([k]) => `${KIT_STYLES[k].name} kit`)];
+          const bar = !has && pr ? `<div class="bp"><i style="width:${Math.round((pr[0] / pr[1]) * 100)}%"></i></div>` : "";
+          return `<div class="bd ${has ? "got" : ""}"><div class="bi">${a.icon}</div><div class="bt"><b>${a.name}</b><span>${a.desc}${!has && pr && pr[1] > 1 ? ` · ${pr[0]}/${pr[1]}` : ""}</span>${reward.length ? `<em>${has ? "Unlocked" : "Unlocks"}: ${reward.join(", ")}</em>` : ""}${bar}</div></div>`;
+        }).join("")}</div>`;
+        const lk = (id, item, need, on, sw) => {
+          const open = unlocked(need);
+          return `<button type="button" class="lk ${on ? "on" : ""} ${open ? "" : "locked"}" data-id="${id}" ${open ? "" : "disabled"}>${open ? "" : `<span class="lock">🔒</span>`}${sw}<span class="nm">${item.name}</span>${open ? "" : `<span class="un">${achById(need).name}</span>`}</button>`;
+        };
+        const t0 = baseTeam();
+        $("cp-locker").innerHTML =
+          `<div class="lkH">Bat</div><div class="lkRow" id="lkBat">${Object.entries(BAT_SKINS).map(([id, k]) => {
+            const body = k.carbon ? "repeating-linear-gradient(45deg,#2b2f36 0 4px,#1a1d22 4px 8px)" : `linear-gradient(90deg, ${k.wood[1]}, ${k.wood[0]})`;
+            const panel = k.panel === "gold" ? "linear-gradient(90deg,#a8740a,#ffd75e,#b8860b)" : k.panel;
+            return lk(id, k, BAT_UNLOCK[id], SET.bat === id, `<div class="batSw" style="--g:${k.grip};background:linear-gradient(${panel},${panel}) center 28%/60% 46% no-repeat, ${body};box-shadow: inset 0 -3px 0 ${k.accent2 || k.accent}"></div>`);
+          }).join("")}</div>`
+          + `<div class="lkH">Kit · ${t0.name}</div><div class="lkRow" id="lkKit">${Object.entries(KIT_STYLES).map(([id, st]) => {
+            const k = st.kit(t0);
+            return lk(id, st, KIT_UNLOCK[id], SET.kit === id, `<div class="kitSw" style="--a:${k.accent};background:linear-gradient(${k.shirt}, ${k.shirt} 70%, ${k.pants} 70%)"></div>`);
+          }).join("")}</div>`;
+      }
+      function openCareer(tab = "stats") {
+        renderCareer();
+        for (const b of $("careerTabs").querySelectorAll("button")) b.classList.toggle("on", b.dataset.t === tab);
+        for (const p of document.querySelectorAll(".cPane")) p.classList.toggle("on", p.id === "cp-" + tab);
+        $("career").classList.add("on");
+      }
+      $("careerBtn").addEventListener("click", () => openCareer());
+      $("records").addEventListener("click", () => openCareer());
+      $("careerClose").addEventListener("click", () => { $("career").classList.remove("on"); refreshMenu(); });
+      $("careerTabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) openCareer(b.dataset.t); });
+      $("cp-locker").addEventListener("click", (e) => {
+        const b = e.target.closest(".lk:not(.locked)");
+        if (!b) return;
+        if (b.parentNode.id === "lkBat") { applyBatSkin(b.dataset.id); store.set("so_bat", SET.bat); }
+        else { SET.kit = b.dataset.id; store.set("so_kit", SET.kit); applyTeam(SET.team); }
+        sfx("click"); renderCareer();
+      });
+      // end screen: badges earned this match, and anything they unlocked
+      function showNewBadges(list) {
+        if (!list.length) return;
+        const ul = [];
+        for (const a of list) {
+          for (const [k, v] of Object.entries(BAT_UNLOCK)) if (v === a.id) ul.push(`${BAT_SKINS[k].name} bat`);
+          for (const [k, v] of Object.entries(KIT_UNLOCK)) if (v === a.id) ul.push(`${KIT_STYLES[k].name} kit`);
+        }
+        $("endBadges").innerHTML = list.map((a, i) => `<span class="nb" style="animation-delay:${0.6 + i * 0.15}s">${a.icon} New badge: ${a.name}</span>`).join("")
+          + ul.map((u, i) => `<span class="nb ul" style="animation-delay:${0.8 + (list.length + i) * 0.15}s">🔓 Unlocked: ${u}</span>`).join("");
+        setTimeout(() => { if (G.state === "over") sfx("perfect"); }, 900);
+      }
+
+      // ---- share card: "I scored 22 in Hash Super Over. Beat me." ----
+      function shareText() {
+        const mode = G.mode === "super" ? "" : ` (${G.cfg.name})`;
+        const won = G.lastRes === "win" && Number.isFinite(G.target) ? ` and chased down ${G.target}` : "";
+        return `I scored ${G.runs} in Hash Super Over${mode}${won}. Beat me! 🏏\nPlay it on the Hash app: https://play.google.com/store/apps/details?id=com.hfg.hash`;
+      }
+      function drawShareCard() {
+        const W2 = 1080, H2 = 1350, c = document.createElement("canvas"); c.width = W2; c.height = H2;
+        const g = c.getContext("2d"), res = G.lastRes, win = res === "win";
+        const bg = g.createLinearGradient(0, 0, 0, H2); bg.addColorStop(0, "#07101f"); bg.addColorStop(1, "#02050b"); g.fillStyle = bg; g.fillRect(0, 0, W2, H2);
+        const glow = g.createRadialGradient(W2 / 2, 420, 40, W2 / 2, 420, 700);
+        glow.addColorStop(0, win ? "rgba(34,197,94,.35)" : "rgba(217,70,239,.28)"); glow.addColorStop(1, "rgba(0,0,0,0)");
+        g.fillStyle = glow; g.fillRect(0, 0, W2, H2);
+        // diagonal broadcast stripes
+        g.save(); g.globalAlpha = 0.06; g.fillStyle = "#fff"; for (let x = -H2; x < W2; x += 90) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 40, 0); g.lineTo(x + 40 + H2 * 0.5, H2); g.lineTo(x + H2 * 0.5, H2); g.fill(); } g.restore();
+        g.textAlign = "left"; g.textBaseline = "alphabetic";
+        if (hashLogo) g.drawImage(hashLogo, 70, 64, 110, 110);
+        g.fillStyle = "#22c55e"; g.font = "900 italic 40px Arial"; g.fillText("HASH", hashLogo ? 200 : 70, 112);
+        g.fillStyle = "#fff"; g.font = "900 italic 64px Arial"; g.fillText("SUPER OVER", hashLogo ? 200 : 70, 170);
+        g.textAlign = "center";
+        g.fillStyle = win ? "#4ade80" : res === "tie" ? "#facc15" : "#f472b6"; g.font = "900 italic 92px Arial";
+        g.fillText({ win: "YOU WON!", lose: "SO CLOSE!", tie: "MATCH TIED" }[res] || "", W2 / 2, 330);
+        g.fillStyle = "#fff"; g.font = "900 italic 260px Arial"; g.fillText(`${G.runs}/${G.wkts}`, W2 / 2, 590);
+        g.fillStyle = "#93a4ba"; g.font = "800 40px Arial";
+        g.fillText(`${G.balls} ball${G.balls === 1 ? "" : "s"}${Number.isFinite(G.target) ? ` · target ${G.target}` : ""} · ${G.cfg.name}`, W2 / 2, 660);
+        const st = [[G.fours, "FOURS"], [G.sixes, "SIXES"], [G.balls ? Math.round((G.runs / G.balls) * 100) : 0, "STRIKE RATE"], [G.longestSix ? `${G.longestSix}m` : "—", "LONGEST SIX"]];
+        st.forEach(([v, l], i) => {
+          const x = 70 + i * 240, y = 720;
+          g.fillStyle = "rgba(255,255,255,.06)"; g.beginPath(); g.roundRect(x, y, 220, 170, 24); g.fill();
+          g.fillStyle = i === 1 || i === 3 ? "#e879f9" : "#fff"; g.font = "900 italic 78px Arial"; g.fillText(String(v), x + 110, y + 100);
+          g.fillStyle = "#93a4ba"; g.font = "800 24px Arial"; g.fillText(l, x + 110, y + 145);
+        });
+        // the wagon wheel from the result screen
+        const wg = $("wagon");
+        if (wg) g.drawImage(wg, W2 / 2 - 150, 920, 300, 300);
+        g.fillStyle = "#facc15"; g.font = "900 italic 50px Arial"; g.fillText("BEAT ME? 🏏", W2 / 2, 1285);
+        return c;
+      }
+      async function shareResult() {
+        const text = shareText(), url = drawShareCard().toDataURL("image/png"), msg = $("submitMsg");
+        const bridge = window.flutter_inappwebview;
+        if (bridge && typeof bridge.callHandler === "function") {
+          // older app builds have no share handler: don't wait on it forever
+          const ok = await Promise.race([bridge.callHandler("share", { text, image: url.split(",")[1] }).then((r) => !!(r && r.ok)).catch(() => false), new Promise((r) => setTimeout(() => r(false), 2500))]);
+          if (ok) return;
+        }
+        try {
+          const file = new File([await (await fetch(url)).blob()], "hash-super-over.png", { type: "image/png" });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text }); return; }
+          if (navigator.share) { await navigator.share({ text }); return; }
+        } catch (e) { if (e && e.name === "AbortError") return; }
+        // desktop browsers: save the card and copy the message
+        const a = document.createElement("a"); a.href = url; a.download = "hash-super-over.png"; a.click();
+        try { await navigator.clipboard.writeText(text); msg.textContent = "Card saved · message copied"; } catch (_) { msg.textContent = "Card saved"; }
+      }
+      $("shareBtn").addEventListener("click", () => { sfx("click"); shareResult(); });
 
       // the player can't call the AI batters' runs (aiRun calls callRun itself)
       $("runBtn").addEventListener("pointerdown", (e) => { e.stopPropagation(); audioInit(); if (!G.aiBatting) callRun(); });
@@ -5986,7 +6943,6 @@
               })
               .catch((e) => { console.error(e); return lowPoly(); })
           : lowPoly();
-        const skyP = loadFirst(new RGBELoader(manager), ASSETS.sky).catch(() => null); // sky is optional
 
         const gltf = await gltfP;
         playerTemplate = gltf.scene;
@@ -6044,16 +7000,7 @@
         const box = new THREE.Box3().setFromObject(playerTemplate);
         playerScale = 1.78 / Math.max(0.01, box.max.y - box.min.y);
 
-        const sky = await skyP;
-        if (sky) {
-          sky.mapping = THREE.EquirectangularReflectionMapping;
-          daySky = sky;
-          scene.background = sky;
-          scene.backgroundIntensity = 0.95;
-          const pmrem = new THREE.PMREMGenerator(renderer);
-          scene.environment = pmrem.fromEquirectangular(sky).texture;
-          scene.environmentIntensity = 0.55;
-          pmrem.dispose();
+        if (false) {
         }
 
         // cast
@@ -6073,7 +7020,7 @@
         addBackPlate(nonStriker, "Hash", 18);
         addChestLogo(striker); addChestLogo(nonStriker);
         applyTeam(SET.team);
-        applyNight(SET.night);
+        applyTime(SET.time);
         addBackPlate(bowlerP, "Vance", 9);
         // the bowler fields too, after the follow-through
         fielders.push({ p: bowlerP, base: V3(-1.6, 0, RELEASE.z - 3.2), role: "bowler", speed: 6.5, delay: 0.35, reach: 1.3 });
@@ -6097,6 +7044,8 @@
           scene.traverse((o) => { if (!o.visible && !o.userData.fieldLogo) { hidden.push(o); o.visible = true; } });
           await renderer.compileAsync(scene, camera);
           for (const o of hidden) o.visible = false;
+          // and upload the 3D-crowd textures, so the first close-up doesn't hitch on the upload
+          for (const t of [fanAtlas, crowdMask.uEmpty.value]) renderer.initTexture(t);
         } catch (_) {}
         playIntro();
         loadDances(); // boundary celebrations: fetched in the background, not on the loading card
@@ -6135,7 +7084,7 @@
           if (!SET.tutorialSeen && !store.get("so_howseen")) { store.set("so_howseen", "1"); setTimeout(() => $("howSheet").classList.add("on"), 500); }
         };
         el.addEventListener("pointerdown", () => { audioInit(); finish(); }, { once: true });
-        $("introSub").textContent = SET.night ? "Floodlights on. One over. No second chances." : "Six balls. One target. No second chances.";
+        $("introSub").textContent = SET.time === "night" ? "Floodlights on. One over. No second chances." : "Six balls. One target. No second chances.";
         audioInit(); // the app's web view allows audio without a tap; browsers start once tapped
         // the bundled song plays over the opening; without it, the synth anthem's build
         introSongPlay().then((ok) => { if (!ok && !introDone) musicPlay(0); });
@@ -6300,15 +7249,27 @@
         setProgress(0, "Couldn't load the 3D assets. Check your internet connection and reopen the game.");
       });
 
+      // debug-only CPU profiler: wraps the per-frame functions with timers (?debug, __so.prof())
+      if (/[?&]debug\b/.test(location.search)) {
+        const acc = {};
+        const wrap = (name, fn) => function (...a) { const t = performance.now(); try { return fn.apply(this, a); } finally { (acc[name] ||= [0, 0]); acc[name][0] += performance.now() - t; acc[name][1]++; } };
+        update = wrap("update", update); syncPlayers = wrap("syncPlayers", syncPlayers); poseBatter = wrap("poseBatter", poseBatter);
+        poseBowler = wrap("poseBowler", poseBowler); poseUmpire = wrap("poseUmpire", poseUmpire); poseCast = wrap("poseCast", poseCast);
+        applyHands = wrap("applyHands", applyHands); updateTrail = wrap("updateTrail", updateTrail); recFrame = wrap("recFrame", recFrame);
+        updateStadiumFx = wrap("updateStadiumFx", updateStadiumFx); directCamera = wrap("directCamera", directCamera);
+        window.__prof = { reset() { for (const k in acc) delete acc[k]; }, report() { return Object.fromEntries(Object.entries(acc).sort((a, b) => b[1][0] - a[1][0]).map(([k, [t, n]]) => [k, +(t / n).toFixed(3)])); } };
+      }
       // test hooks for development
       if (/[?&]debug\b/.test(location.search)) window.__so = { PALM_SIGN, get fingerCurl() { return fingerCurl; }, G, SET, get del() { return del; }, get playS() { return playS; }, onShot, startInnings, simulate, V3, callRun, players, bat, get striker() { return striker; },
-        openPause, closePause, quitToMenu, say, sfx, applyNight, applyTeam, dailyScenario, finish, banner, timing, commentary, scene, camera, THREE, MUSIC, musicPlay, musicStop,
+        openPause, closePause, quitToMenu, say, sfx, applyNight, applyTime, applyBatSkin, applyTeam, sixDistance, drawShareCard, checkAchievements, dailyScenario, finish, banner, timing, commentary, scene, camera, THREE, MUSIC, musicPlay, musicStop,
         get audio() { return { ac: AC && AC.state, song: !!INTRO_SONG.data, songPlaying: !!INTRO_SONG.src, music: MUSIC.playing }; },
         step(sec, dt = 1 / 60, headless = false) { for (let t = 0; t < sec; t += dt) { lastFrame = performance.now(); tick(dt, !headless || t + dt >= sec); } },
         get ballT() { return ballT; }, applyHands, LEAD, get replay() { return replay; }, startReplay, endReplay,
         snapshot(type = "image/jpeg") { directCamera(0); renderFrame(); return canvas.toDataURL(type, 0.88); },
         // render one frame from an arbitrary camera (pause first so the director doesn't move it)
-        view(p, t, fov = 30) { camera.position.set(...p); camera.fov = fov; camera.updateProjectionMatrix(); camera.lookAt(...t); renderFrame(); } };
+        view(p, t, fov = 30) { camera.position.set(...p); camera.fov = fov; camera.updateProjectionMatrix(); camera.lookAt(...t); renderFrame(); },
+        // perf probes: time N synchronous renders (gl.finish) under the current settings
+        perf: { renderer, composer, gtaoPass, bloomPass, smaaPass, fxaaPass, sun, get grass() { return grass; }, applyQuality, renderFrame, get tierName() { return tierName; } } };
     </script>
   </body>
 </html>

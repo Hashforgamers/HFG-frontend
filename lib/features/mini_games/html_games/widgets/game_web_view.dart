@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:hash/features/mini_games/html_games/models/html_mini_game.dart';
 import 'package:hash/features/mini_games/html_games/services/html_game_asset_server.dart';
 import 'package:hash/features/mini_games/html_games/services/html_game_score_bridge_service.dart';
@@ -39,6 +43,7 @@ class _GameWebViewState extends State<GameWebView> {
     _statusTimer?.cancel();
     _controller?.removeJavaScriptHandler(handlerName: 'gameScore');
     _controller?.removeJavaScriptHandler(handlerName: 'haptic');
+    _controller?.removeJavaScriptHandler(handlerName: 'share');
     super.dispose();
   }
 
@@ -158,6 +163,38 @@ class _GameWebViewState extends State<GameWebView> {
     );
   }
 
+  /// Games share a result with `callHandler('share', { text, image })`, where
+  /// `image` is an optional base64 PNG (a score card). Replies `{ ok: true }`
+  /// once the share sheet is opening.
+  void _registerShareHandler(InAppWebViewController controller) {
+    controller.addJavaScriptHandler(
+      handlerName: 'share',
+      callback: (arguments) async {
+        final payload = arguments.isNotEmpty ? arguments.first : null;
+        if (payload is! Map) return {'ok': false};
+        final text = payload['text']?.toString() ?? '';
+        final image = payload['image'];
+        final files = <XFile>[];
+        // a 1080×1350 card is well under this; anything bigger isn't a score card
+        if (image is String && image.isNotEmpty && image.length < 12 * 1024 * 1024) {
+          try {
+            final dir = await getTemporaryDirectory();
+            final file = File('${dir.path}/${widget.game.gameId}_share.png');
+            await file.writeAsBytes(base64Decode(image), flush: true);
+            files.add(XFile(file.path, mimeType: 'image/png'));
+          } catch (_) {}
+        }
+        if (text.isEmpty && files.isEmpty) return {'ok': false};
+        unawaited(
+          SharePlus.instance.share(
+            ShareParams(text: text, files: files.isEmpty ? null : files),
+          ),
+        );
+        return {'ok': true};
+      },
+    );
+  }
+
   void _handleMainFrameError(String message) {
     if (!mounted) return;
     setState(() {
@@ -194,6 +231,7 @@ class _GameWebViewState extends State<GameWebView> {
               _controller = controller;
               _registerScoreHandler(controller);
               _registerHapticHandler(controller);
+              _registerShareHandler(controller);
               unawaited(_loadGameContent(controller));
             },
             onLoadStart: (controller, url) {
