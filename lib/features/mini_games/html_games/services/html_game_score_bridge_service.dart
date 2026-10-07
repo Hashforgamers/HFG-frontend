@@ -17,10 +17,18 @@ class HtmlGameScoreSubmissionResult {
   final int? score;
   final String message;
 
+  /// Overall arcade rank, known only when this score was a new personal best.
+  final int? rank;
+  final int? previousBest;
+  final bool? isNewBest;
+
   const HtmlGameScoreSubmissionResult({
     required this.status,
     required this.message,
     this.score,
+    this.rank,
+    this.previousBest,
+    this.isNewBest,
   });
 
   bool get didSubmit => status == HtmlGameScoreSubmissionStatus.success;
@@ -82,10 +90,14 @@ class HtmlGameScoreBridgeService {
     }
     if (didSubmit) {
       _submittedRuns.add(runId);
+      final board = _scoreService.lastSubmissionFor(game.gameId);
       return HtmlGameScoreSubmissionResult(
         status: HtmlGameScoreSubmissionStatus.success,
         score: score,
         message: 'Score submitted successfully.',
+        rank: board?.currentRank,
+        previousBest: board?.previousBest,
+        isNewBest: board?.storedNewBest,
       );
     }
 

@@ -194,7 +194,7 @@
         .recMore { display: none; }
         .menuBar { gap: 6px; }
         .menuBar .opt, .menuBar .seg button { padding: 6px 10px; font-size: 11px; }
-        .menuBar .seg .segL { display: none; }
+        .menuBar .seg .segL, .brand .seg .segL { display: none; }
         .careerCard .row { margin-top: 10px; }
       }
       @media (max-width: 600px) {
@@ -322,6 +322,77 @@
       #replayBadge small { font-family: var(--ui); font-size: 10px; font-style: normal; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
       @keyframes blink { 50% { opacity: .2; } }
 
+      /* special shot: adrenaline ring fills with good timing; tap when full to arm */
+      #specialBtn {
+        position: absolute; right: calc(var(--sar) + 14px); bottom: calc(var(--sab) + 96px); width: 70px; height: 70px; padding: 0;
+        display: none; place-items: center; border-radius: 50%; border: none; background: rgba(6,11,22,.86); color: #fff;
+        pointer-events: auto; cursor: pointer; box-shadow: 0 10px 26px rgba(0,0,0,.45); transition: transform .12s, background .2s;
+      }
+      #specialBtn.show { display: grid; }
+      #specialBtn svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+      #specialBtn circle { fill: none; stroke-width: 3.2; }
+      #specialBtn .trk { stroke: rgba(255,255,255,.12); }
+      #specialBtn .fill { stroke: #facc15; stroke-linecap: round; stroke-dasharray: 0 100; transition: stroke-dasharray .45s cubic-bezier(.2,1.2,.4,1); }
+      #specialBtn .si { font-size: 22px; line-height: 1; margin-top: -8px; filter: grayscale(1) opacity(.55); transition: filter .2s; }
+      #specialBtn small { position: absolute; bottom: 13px; left: 0; right: 0; text-align: center; font-size: 8px; font-weight: 900; letter-spacing: .12em; color: var(--muted); }
+      #specialBtn.ready { background: radial-gradient(circle at 50% 40%, #3b2a05, #120c02); animation: spReady 1.1s ease-in-out infinite; }
+      #specialBtn.ready .si { filter: none; }
+      #specialBtn.ready small { color: #facc15; }
+      #specialBtn.armed { background: linear-gradient(135deg, #facc15, #f97316); animation: spArmed .7s ease-in-out infinite; }
+      #specialBtn.armed .si { filter: none; }
+      #specialBtn.armed .fill { stroke: #fff; }
+      #specialBtn.armed small { color: #1c1003; }
+      #specialBtn:active { transform: scale(.92); }
+      @keyframes spReady { 50% { box-shadow: 0 10px 26px rgba(0,0,0,.45), 0 0 0 8px rgba(250,204,21,.22), 0 0 26px rgba(250,204,21,.5); } }
+      @keyframes spArmed { 50% { box-shadow: 0 10px 26px rgba(0,0,0,.45), 0 0 0 10px rgba(249,115,22,.3), 0 0 34px rgba(250,204,21,.8); } }
+      html.calm #specialBtn { animation: none !important; }
+
+      /* swipe coach: a finger sliding up a track, and when to do it */
+      #coach {
+        position: absolute; left: 50%; top: 66%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px;
+        padding: 8px 16px 8px 10px; border-radius: 999px; background: rgba(6,11,22,.86); border: 1.5px solid rgba(255,255,255,.2);
+        opacity: 0; transition: opacity .15s, border-color .15s, background .15s; pointer-events: none; white-space: nowrap;
+      }
+      #coach.on { opacity: 1; }
+      #coach b { font-family: var(--display); font-size: 15px; font-weight: 900; font-style: italic; letter-spacing: .08em; color: #cbd5e1; }
+      #coach .cTrack { position: relative; width: 22px; height: 40px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; }
+      #coach .cFinger { position: absolute; left: 3px; bottom: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px rgba(255,255,255,.8); }
+      #coach.now { background: linear-gradient(135deg, #facc15, #f97316); border-color: #fff; animation: coachPop .5s ease-in-out infinite alternate; }
+      #coach.now b { color: #1c1003; font-size: 19px; }
+      #coach.now .cTrack { background: rgba(0,0,0,.2); }
+      #coach.now .cFinger { animation: coachSwipe .42s cubic-bezier(.3,0,.2,1) infinite; }
+      @keyframes coachSwipe { 0% { transform: translateY(0); opacity: 1; } 80% { transform: translateY(-21px); opacity: 1; } 100% { transform: translateY(-21px); opacity: 0; } }
+      @keyframes coachPop { to { transform: translateX(-50%) scale(1.08); } }
+      html.calm #coach.now { animation: none; }
+
+      /* slow motion: letterbox + vignette, with the special shot's name */
+      #slowVig { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .18s; }
+      #slowVig.on { opacity: 1; }
+      #slowVig::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, transparent 45%, rgba(0,0,0,.55) 100%); }
+      #slowVig::after { content: ""; position: absolute; inset: 0; border-top: 7vh solid #000; border-bottom: 7vh solid #000; transform: scaleY(1.25); transition: transform .3s; }
+      #slowVig.on::after { transform: none; }
+      #slowVig .sname {
+        position: absolute; left: 50%; top: 18%; transform: translateX(-50%) skewX(-12deg); width: max-content; max-width: calc(100vw - 32px);
+        padding: 4px 26px 2px; font-family: var(--display); font-weight: 900; font-style: italic; font-size: min(48px, 11vw); letter-spacing: .04em; line-height: 1.1;
+        color: #1c1003; background: linear-gradient(135deg, #fde047, #f59e0b); border-radius: 6px; box-shadow: 0 16px 40px rgba(0,0,0,.5);
+      }
+      #slowVig.on .sname { animation: sixIn .4s cubic-bezier(.2,1.3,.35,1) both; }
+      #slowVig .sname:empty { display: none; }
+
+
+      /* AI captain: a field change, with a mini field map */
+      #fieldToast {
+        position: absolute; left: calc(var(--sal) + 12px); top: calc(var(--sat) + 70px); display: flex; gap: 10px; align-items: center;
+        max-width: min(330px, calc(100vw - 24px)); padding: 8px 12px 8px 8px; border-radius: 12px;
+        background: rgba(6,11,22,.9); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 12px 30px rgba(0,0,0,.42);
+        opacity: 0; transform: translateX(-16px); transition: opacity .25s, transform .35s cubic-bezier(.2,1.3,.4,1);
+      }
+      #fieldToast.on { opacity: 1; transform: none; }
+      #fieldToast canvas { width: 76px; height: 76px; flex: none; }
+      #fieldToast .ft { font-size: 9px; font-weight: 900; letter-spacing: .14em; color: #facc15; }
+      #fieldToast .fm { font-family: var(--display); font-size: 16px; font-weight: 800; text-transform: uppercase; line-height: 1.1; margin-top: 2px; }
+      #fieldToast .fs { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
+
       /* ---------- HUD motion ---------- */
       #hud.on .topbar { animation: bugIn .55s cubic-bezier(.2,1.2,.35,1) backwards; } /* pause + scorebug slide in together */
       @keyframes bugIn { from { opacity: 0; transform: translateY(-24px); } }
@@ -435,36 +506,48 @@
       .recNote { font-size: 11px; color: var(--muted); line-height: 1.45; }
       .recNote b { color: var(--accent); }
 
-      .modes { grid-column: 2; grid-row: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; min-height: 0; }
-      .mode {
-        position: relative; overflow: hidden; text-align: left; border-radius: 16px; padding: 12px 14px;
-        border: 1px solid rgba(255,255,255,.14); background: linear-gradient(155deg, var(--c1), var(--c2)); color: #fff;
-        font: inherit; cursor: pointer; pointer-events: auto; display: flex; flex-direction: column; justify-content: flex-end;
-        box-shadow: 0 12px 28px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.18); transition: transform .15s, box-shadow .15s; min-height: 0;
+      /* Super Over leads as the hero card; the other four sit in a 2×2 grid of compact cards */
+      .modes {
+        grid-column: 2; grid-row: 1; display: grid; grid-template-columns: 1fr 1fr;
+        grid-template-rows: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; min-height: 0;
       }
-      .mode::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 88% 10%, rgba(255,255,255,.26), transparent 50%), linear-gradient(0deg, rgba(0,0,0,.35), transparent 60%); pointer-events: none; }
+      .mode {
+        position: relative; overflow: hidden; text-align: left; border-radius: 16px; padding: 12px;
+        border: 1px solid rgba(255,255,255,.14); background: linear-gradient(155deg, var(--c1), var(--c2)); color: #fff;
+        font: inherit; cursor: pointer; pointer-events: auto; display: flex; align-items: center; gap: 12px;
+        box-shadow: 0 12px 28px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.18); transition: transform .15s, box-shadow .15s, filter .15s; min-height: 0;
+      }
+      .mode::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 88% 10%, rgba(255,255,255,.22), transparent 50%), linear-gradient(0deg, rgba(0,0,0,.3), transparent 65%); pointer-events: none; }
+      .mode:hover { filter: brightness(1.08); }
       .mode:active { transform: scale(.97); }
-      .mode .bgi { position: absolute; right: -16px; bottom: -22px; width: 118px; height: 118px; opacity: .16; fill: #fff; pointer-events: none; }
-      .mode .mi { position: absolute; top: 12px; left: 12px; width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,.2); display: grid; place-items: center; }
-      .mode .mi svg { width: 19px; height: 19px; fill: #fff; }
-      .mode .mt { position: relative; font-family: var(--display); font-size: 22px; font-weight: 900; font-style: italic; text-transform: uppercase; letter-spacing: .02em; line-height: 1; }
-      .mode .md { position: relative; font-size: 11px; opacity: .88; margin-top: 4px; padding-right: 54px; line-height: 1.35; }
-      .mode .mgo { position: absolute; right: 10px; bottom: 11px; font-size: 9.5px; font-weight: 900; letter-spacing: .14em; background: rgba(0,0,0,.3); padding: 5px 9px; border-radius: 999px; }
-      .mode .mtag { position: absolute; top: 13px; right: 11px; font-size: 8.5px; font-weight: 900; letter-spacing: .12em; background: rgba(255,255,255,.94); color: #111827; padding: 4px 8px; border-radius: 999px; }
+      .mode .bgi { position: absolute; right: -18px; bottom: -26px; width: 104px; height: 104px; opacity: .13; fill: #fff; pointer-events: none; }
+      .mode .mi { position: relative; flex: none; width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,.2); display: grid; place-items: center; box-shadow: inset 0 1px 0 rgba(255,255,255,.25); }
+      .mode .mi svg { width: 21px; height: 21px; fill: #fff; }
+      .mode .mtxt { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+      .mode .mtag { font-size: 8px; font-weight: 900; letter-spacing: .12em; background: rgba(255,255,255,.94); color: #111827; padding: 3px 7px; border-radius: 999px; white-space: nowrap; }
       .mode .mtag:empty { display: none; }
+      .mode .mt { font-family: var(--display); font-size: 19px; font-weight: 900; font-style: italic; text-transform: uppercase; letter-spacing: .02em; line-height: 1; }
+      .mode .md { font-size: 11px; opacity: .88; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .mode .mgo, .mode .mbest { display: none; }
+      .mhero { grid-column: 1 / -1; align-items: flex-end; padding: 16px 18px; border-color: rgba(255,255,255,.22); }
+      .mhero .bgi { width: 200px; height: 200px; right: -20px; bottom: -48px; opacity: .17; }
+      .mhero .mtxt { gap: 5px; }
+      .mhero .mt { font-size: 38px; text-shadow: 0 3px 0 rgba(0,0,0,.2); }
+      .mhero .md { font-size: 12.5px; }
+      .mhero .mbest { display: block; font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.8); margin-top: 2px; }
+      .mhero .mbest:empty { display: none; }
+      .mhero .mgo {
+        display: block; position: relative; flex: none; padding: 12px 22px; border-radius: 999px; background: #fff; color: #9a3412;
+        font-family: var(--display); font-size: 18px; font-weight: 900; font-style: italic; letter-spacing: .08em;
+        box-shadow: 0 8px 22px rgba(0,0,0,.3); animation: goPulse 2.2s ease-in-out infinite;
+      }
+      @keyframes goPulse { 50% { box-shadow: 0 8px 22px rgba(0,0,0,.3), 0 0 0 7px rgba(255,255,255,.18); } }
+      html.calm .mhero .mgo { animation: none; }
       .m-super { --c1: #fb923c; --c2: #9a3412; }
       .m-chase { --c1: #3b82f6; --c2: #1e3a8a; }
       .m-daily { --c1: #14b8a6; --c2: #134e4a; }
       .m-nets { --c1: #8b5cf6; --c2: #3b0764; }
       .m-match { --c1: #e11d48; --c2: #4c0519; }
-      /* five modes: Full Match + Super Over + Quick Chase on top, Daily + Nets below */
-      .modes { grid-template-columns: repeat(6, 1fr); }
-      .modes .mode { grid-column: span 2; }
-      .modes .m-daily, .modes .m-nets { grid-column: span 3; }
-      /* the three narrow cards drop the PLAY pill (the whole card is the button) */
-      .modes .m-match .mgo, .modes .m-super .mgo, .modes .m-chase .mgo { display: none; }
-      .modes .m-match .md, .modes .m-super .md, .modes .m-chase .md { padding-right: 0; }
-      .modes .m-match .mt, .modes .m-super .mt, .modes .m-chase .mt { font-size: 19px; }
       #skipBtn {
         display: none; position: absolute; right: calc(var(--sar) + 12px); bottom: calc(var(--sab) + 12px); pointer-events: auto; cursor: pointer;
         padding: 9px 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: rgba(6,11,22,.85); color: #fff;
@@ -505,6 +588,23 @@
       .breakCard .btarget span { color: var(--muted); }
 
       .menuBar { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .menuBar .chips { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; justify-content: flex-end; }
+      .brand { grid-row: 1 / span 2; }
+      .menuBar { grid-column: 2; }
+      .brand .seg { align-self: stretch; }
+      .brand .seg button { flex: 1; }
+      #careerBtn {
+        display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: 14px; text-align: left;
+        border: 1px solid rgba(250,204,21,.35); background: linear-gradient(135deg, rgba(250,204,21,.14), rgba(250,204,21,.04)); color: #fde68a;
+        font: inherit; font-size: 12px; font-weight: 800; letter-spacing: .04em; cursor: pointer; pointer-events: auto;
+      }
+      #careerBtn .ci { font-size: 20px; line-height: 1; }
+      #careerBtn .cl { flex: 1; min-width: 0; }
+      #careerBtn .cl small { display: block; font-size: 10px; font-weight: 700; color: rgba(253,230,138,.7); margin-top: 1px; }
+      #careerBtn .cbar { display: block; height: 4px; border-radius: 99px; background: rgba(255,255,255,.1); margin-top: 6px; overflow: hidden; }
+      #careerBtn .cbar i { display: block; height: 100%; background: linear-gradient(90deg, #facc15, #f59e0b); border-radius: inherit; }
+      #careerBtn .cg { font-size: 16px; }
+      #careerBtn:active { transform: scale(.98); }
       .seg { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
       .seg .segL { font-size: 9px; font-weight: 900; letter-spacing: .14em; color: var(--muted); padding: 0 6px 0 8px; text-transform: uppercase; }
       .seg button { border: none; background: transparent; padding: 6px 12px; color: var(--muted); }
@@ -586,6 +686,20 @@
       .endRec { margin-top: 8px; font-size: 12px; font-weight: 800; color: var(--accent-2); min-height: 16px; text-align: center; }
       #submitMsg { margin-top: 4px; text-align: center; font-size: 11px; color: var(--muted); min-height: 14px; }
       .endBtns .btn.main { flex: 1.6; }
+      /* auto-made highlight clip: a looping vertical preview + share */
+      #hlBox {
+        display: none; align-items: center; gap: 12px; margin-top: 10px; padding: 8px; border-radius: 12px;
+        background: linear-gradient(135deg, rgba(217,70,239,.16), rgba(250,204,21,.1)); border: 1px solid rgba(232,121,249,.35);
+      }
+      #hlBox.on { display: flex; }
+      #hlVid { width: 54px; height: 96px; flex: none; border-radius: 8px; object-fit: cover; background: #000 center/cover; border: 1px solid rgba(255,255,255,.18); }
+      #hlBox .hlT { font-size: 9px; font-weight: 900; letter-spacing: .14em; color: #e879f9; }
+      #hlBox .hlM { font-family: var(--display); font-size: 17px; font-weight: 800; text-transform: uppercase; line-height: 1.1; margin-top: 2px; }
+      #hlBox .hlBar { height: 4px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; margin-top: 7px; }
+      #hlBox .hlBar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #d946ef, #facc15); transition: width .2s linear; }
+      #hlBox.done .hlBar { display: none; }
+      #hlShare { display: none; margin-top: 7px; padding: 8px 16px; font-size: 13px; }
+      #hlBox.done #hlShare { display: inline-block; }
       html.calm #end.on .endCard, html.calm .endMain > *, html.calm #end.on .result, html.calm #end.on .resIcon, html.calm .endCard.win .resHead::before { animation: none !important; }
 
       @media (orientation: landscape) and (max-height: 560px) {
@@ -615,10 +729,23 @@
         #banner .big { font-size: 52px; }
       }
       @media (orientation: portrait) {
-        .menuWrap { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr) auto; overflow: auto; }
-        .brand { grid-row: 1; padding-top: 64px; }
-        .modes { grid-column: 1; grid-row: 2; min-height: 260px; }
-        .menuBar { grid-row: 3; }
+        .menuWrap { grid-template-columns: 1fr; grid-template-rows: auto auto auto; align-content: start; overflow: auto; }
+        .brand { grid-row: 1; padding-top: 58px; gap: 10px; }
+        .logo { font-size: 42px; }
+        /* the page scrolls in portrait: let every block take its natural height */
+        .brand, .modes, .menuBar { min-height: auto; }
+        .modes { grid-column: 1; grid-row: 2; grid-template-rows: none; grid-auto-rows: auto; }
+        .mode { min-height: 78px; }
+        .mhero { min-height: 150px; }
+        .mode { padding: 11px; gap: 10px; }
+        .mode .mi { width: 36px; height: 36px; }
+        .mode:not(.mhero) .mt { font-size: 17px; }
+        .mhero .mt { font-size: 34px; }
+        .brand { grid-row: 1; }
+        .menuBar { grid-column: 1; grid-row: 3; display: grid; grid-template-columns: repeat(6, 1fr); }
+        .menuBar .chips { display: contents; }
+        .menuBar .chips .opt { grid-column: span 2; text-align: center; overflow: hidden; text-overflow: ellipsis; }
+        .menuBar .chips .opt { grid-column: span 3; }
         .bug { min-width: 0; }
         .topbar { left: calc(var(--sal) + 10px); top: calc(var(--sat) + 72px); justify-content: flex-end; }
       }
@@ -635,6 +762,7 @@
       #intro .presents { margin-top: 10px; font-size: 12px; letter-spacing: .38em; font-weight: 800; color: #cbd5e1; opacity: 0; }
       #intro .introTitle { margin-top: 6px; font-size: 64px; font-weight: 900; font-style: italic; line-height: 1; opacity: 0; text-shadow: 0 8px 0 rgba(0,0,0,.35), 0 0 40px rgba(255,180,84,.35); }
       #intro .introTitle .w2 { color: var(--accent); margin-left: 14px; }
+      #intro.noskip .skip { display: none; }
       #intro .skip { position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); font-size: 11px; color: rgba(255,255,255,.45); letter-spacing: .1em; }
       #intro.play .introLogo { animation: logoIn 1.6s cubic-bezier(.2,1.2,.3,1) forwards; }
       #intro.play .presents { animation: fadeUp .6s ease-out .9s forwards; }
@@ -748,7 +876,146 @@
         #hud.tick #ticker { transition-delay: .14s; }        /* …before the ticker slides in */
         #replayBadge { top: calc(var(--sat) + 164px); font-size: 13px; padding: 5px 11px; }
         #freeHit { left: calc(var(--sal) + 12px); top: calc(var(--sat) + 164px); transform: none; font-size: 13px; padding: 5px 14px; animation: pulseL 1s infinite; }
+        #fieldToast { top: calc(var(--sat) + 204px); }
+        #specialBtn { bottom: calc(var(--sab) + 84px); width: 64px; height: 64px; }
         @keyframes pulseL { 50% { transform: scale(1.07); } }
+      }
+      /* ---------- Broadcast sheets: pause, how to play, career, innings break ----------
+         Sharp corners, a team-colour strip, an angled tag beside the title, hairline rules
+         instead of glows: the look of a TV graphics package. */
+      :root { --tc: #22c55e; --tci: #06120a; }
+      .overlay:has(.bsheet) { background: linear-gradient(180deg, rgba(3,6,13,.72), rgba(3,6,13,.9)); }
+      .card.bsheet {
+        position: relative; display: flex; flex-direction: column; padding: 0; border-radius: 4px; overflow: hidden;
+        background: #0a0f1c; border: 1px solid rgba(255,255,255,.09); box-shadow: 0 30px 80px rgba(0,0,0,.65); backdrop-filter: none;
+      }
+      .overlay.on .bsheet { animation: sheetIn .38s cubic-bezier(.2,1,.3,1) both; }
+      @keyframes sheetIn { from { opacity: 0; transform: translateY(18px); } }
+      html.calm .overlay.on .bsheet { animation: none; }
+      .bsheet::before { content: ""; flex: none; height: 4px; background: linear-gradient(90deg, var(--tc) 0 72%, #fff 72% 74%, var(--tc) 74%); }
+      .bsHead { flex: none; display: flex; align-items: stretch; background: linear-gradient(90deg, #131c31, #0d1426 70%); border-bottom: 1px solid rgba(255,255,255,.08); }
+      .bsTag {
+        flex: none; display: flex; align-items: center; gap: 7px; padding: 0 22px 0 16px; background: var(--tc); color: var(--tci);
+        font-family: var(--display); font-size: 12px; font-weight: 900; font-style: italic; letter-spacing: .16em; white-space: nowrap;
+        clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+      }
+      .bsTitle {
+        flex: 1; min-width: 0; padding: 13px 16px 11px 8px; font-family: var(--display); font-size: 24px; font-weight: 900; font-style: italic;
+        text-transform: uppercase; letter-spacing: .03em; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .bsTitle small {
+        display: block; margin-top: 5px; font-family: var(--ui); font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .14em;
+        color: var(--muted); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .bsBody { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px 16px; }
+      .bsFoot { flex: none; display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,.07); background: #0c1222; }
+      .bsFoot .btn { flex: 1; white-space: nowrap; }
+      .bsLbl {
+        display: flex; align-items: center; gap: 10px; margin: 16px 0 8px; font-size: 10px; font-weight: 900; letter-spacing: .18em;
+        color: var(--muted); text-transform: uppercase;
+      }
+      .bsLbl:first-child { margin-top: 0; }
+      .bsLbl::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.08); }
+      .bsheet .btn { border-radius: 3px; box-shadow: none; padding: 13px 16px; font-style: italic; }
+      .bsheet .btn.main { background: var(--tc); color: var(--tci); }
+      .bsheet .btn.ghost { background: transparent; border: 1px solid rgba(255,255,255,.18); }
+      .bsheet .btn:hover { filter: brightness(1.1); }
+
+      /* how to play: one rule per row, icon tile on the left */
+      .bsheet.howCard { width: min(620px, 100%); }
+      .bsheet .howGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid rgba(255,255,255,.08); border-radius: 3px; }
+      .bsheet .howItem { border: 0; border-radius: 0; background: transparent; padding: 11px 12px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 11.5px; }
+      .bsheet .howItem:nth-child(odd) { border-right: 1px solid rgba(255,255,255,.06); }
+      .bsheet .howItem:nth-last-child(-n + 2) { border-bottom: 0; }
+      .bsheet .howItem .hi { border-radius: 3px; background: rgba(255,255,255,.07); color: #fff; font-size: 15px; }
+      .bsheet .howItem.hot .hi { background: #facc15; color: #1c1003; }
+      .bsheet .credits { margin-top: 12px; }
+
+      /* career: underline tabs, a stats table, badge and locker rows */
+      .bsheet.careerCard { width: min(620px, 100%); }
+      .bsheet .cTabs { flex: none; margin: 0; padding: 0 8px; gap: 0; border: 0; border-radius: 0; background: #0d1426; border-bottom: 1px solid rgba(255,255,255,.08); }
+      .bsheet .cTabs button { white-space: nowrap; border-radius: 0; padding: 12px 8px 11px; font-family: var(--display); font-size: 14px; font-weight: 900; font-style: italic; letter-spacing: .08em; text-transform: uppercase; }
+      .bsheet .cTabs button.on { background: transparent; color: #fff; box-shadow: inset 0 -3px 0 var(--tc); }
+      .bsheet .cTabs button b { font-family: var(--ui); font-style: normal; border-radius: 3px; background: rgba(255,255,255,.1); color: #fff; }
+      .bsheet .cTabs button.on b { background: var(--tc); color: var(--tci); }
+      .bsheet .cBody { padding-top: 14px; }
+      .bsheet .stGrid { gap: 1px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
+      .bsheet .stTile { border: 0; border-radius: 0; background: #0d1426; padding: 13px 6px 11px; }
+      .bsheet .stTile b { font-variant-numeric: tabular-nums; }
+      .bsheet .stTile.hl { background: #0d1426; box-shadow: inset 0 3px 0 var(--tc); }
+      .bsheet .stTile.hl b { color: #fff; }
+      .bsheet .stTile.six { box-shadow: inset 0 3px 0 #d946ef; }
+      .bsheet .stTile.six b { color: #f0abfc; }
+      .bsheet .bdGrid { gap: 0; border: 1px solid rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
+      .bsheet .bd { border: 0; border-radius: 0; background: transparent; border-bottom: 1px solid rgba(255,255,255,.06); box-shadow: inset 3px 0 0 transparent; }
+      .bsheet .bd.got { background: linear-gradient(90deg, rgba(250,204,21,.08), transparent 60%); box-shadow: inset 3px 0 0 #facc15; }
+      .bsheet .bd .bi { border-radius: 3px; }
+      .bsheet .bd.got .bi { box-shadow: none; }
+      .bsheet .bd .bp { border-radius: 0; }
+      .bsheet .lk { border-radius: 3px; }
+      .bsheet .lk.on { border-color: var(--tc); background: rgba(255,255,255,.05); box-shadow: inset 0 -3px 0 var(--tc); }
+
+      /* innings break: a first-innings scoreline, then the chase target in the team colour */
+      .bsheet.breakCard { width: min(420px, 100%); text-align: left; }
+      .bScore { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(255,255,255,.08); border-radius: 3px; background: #0d1426; }
+      .bScore .ic { width: 36px; height: 36px; border-radius: 3px; display: grid; place-items: center; flex: none; font-family: var(--display); font-weight: 900; font-style: italic; font-size: 18px; background: linear-gradient(135deg, #2563eb, #1e3a8a); }
+      .bWho { flex: 1; min-width: 0; }
+      .bWho b { display: block; font-family: var(--display); font-size: 18px; font-weight: 900; font-style: italic; letter-spacing: .04em; }
+      .bWho span { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+      .bRuns { font-family: var(--display); font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+      .bsheet .btarget {
+        display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px; margin-top: 10px; padding: 12px 16px;
+        border: 0; border-radius: 3px; background: var(--tc); color: var(--tci); text-align: left; letter-spacing: 0;
+      }
+      .bsheet .btarget .btL { font-family: var(--display); font-size: 15px; font-weight: 900; font-style: italic; letter-spacing: .08em; text-transform: uppercase; }
+      .bsheet .btarget b { grid-row: 1 / span 2; grid-column: 2; display: block; font-family: var(--display); font-size: 50px; font-weight: 900; line-height: .9; color: var(--tci); }
+      .bsheet .btarget span { color: inherit; }
+      .bsheet .btarget .btR { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .8; color: inherit; }
+
+      /* pause: resume first, then the settings as name / state rows */
+      .bsheet.pauseCard { width: min(400px, 100%); text-align: left; }
+      .pDot { width: 8px; height: 8px; border-radius: 50%; background: var(--tci); animation: blink 1.2s infinite; }
+      .bsheet .pauseBtns { margin-top: 0; gap: 8px; }
+      .bsheet .pauseBtns .btn.main { font-size: 18px; padding: 15px; }
+      .bsheet .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0; border: 1px solid rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
+      .bsheet .opts .opt {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 0; border-radius: 0; background: #0d1426;
+        border-bottom: 1px solid rgba(255,255,255,.06); padding: 12px; font-size: 12px; font-weight: 700; color: var(--text); text-align: left; min-width: 0;
+      }
+      .bsheet .opts .opt:nth-child(odd) { border-right: 1px solid rgba(255,255,255,.06); }
+      .bsheet .opts .opt:nth-last-child(-n + 2) { border-bottom: 0; }
+      .bsheet .opts .opt span { overflow: hidden; text-overflow: ellipsis; }
+      .bsheet .opts .opt b { flex: none; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+      .bsheet .opts .opt b.on { color: var(--tc); }
+      .bsheet .opts .opt:active { transform: none; background: #131c31; }
+
+      @media (max-width: 600px) {
+        .bsheet .howGrid, .bsheet .opts { grid-template-columns: 1fr; }
+        .bsheet .howItem:nth-child(odd), .bsheet .opts .opt:nth-child(odd) { border-right: 0; }
+        .bsheet .howItem:nth-last-child(2), .bsheet .opts .opt:nth-last-child(2) { border-bottom: 1px solid rgba(255,255,255,.06); }
+        .bsTitle { font-size: 21px; }
+      }
+      @media (max-height: 500px) {
+        .bsTitle { padding: 9px 14px 8px 8px; font-size: 19px; }
+        .bsBody { padding: 10px 14px 12px; }
+        .bsFoot { padding: 8px 14px; }
+        .bsheet .btn { padding: 10px 14px; }
+        .bsLbl { margin: 10px 0 6px; }
+        .bsheet .howItem { padding: 8px 10px; }
+      }
+
+      /* short landscape screens (phones on their side): a compact menu brand column */
+      @media (max-height: 500px) {
+        .brand { padding-top: 46px; gap: 8px; }
+        .logo { font-size: 34px; }
+        .logoKick { font-size: 12px; margin-bottom: 4px; }
+        .logoSub { display: none; }
+        .teamCard { padding: 6px 8px; }
+        .recRow .rt { padding: 5px 4px; }
+        #careerBtn { padding: 7px 10px; }
+        #careerBtn .ci { font-size: 16px; }
+        #careerBtn .cbar { display: none; }
+        .brand .seg button { padding: 5px 10px; font-size: 11px; }
       }
     </style>
   </head>
@@ -798,6 +1065,10 @@
         <div class="spd"><b id="speed">—</b><small>KM/H</small></div>
       </div>
       <div id="hint"><b>Swipe</b> where you want to hit it · <b>Long swipe</b> = lofted · <b>Tap</b> = defend · <b>RUN</b> to call runs</div>
+      <div id="coach"><div class="cTrack"><div class="cFinger"></div></div><b id="coachTxt">SWIPE NOW!</b></div>
+      <div id="slowVig"><div class="sname" id="slowName"></div></div>
+      <div id="fieldToast"><canvas id="fieldCanvas" width="152" height="152"></canvas><div><div class="ft">🧠 FIELD CHANGE</div><div class="fm" id="fieldMain">—</div><div class="fs" id="fieldSub">—</div></div></div>
+      <button id="specialBtn" type="button" aria-label="Special shot"><svg viewBox="0 0 36 36"><circle class="trk" cx="18" cy="18" r="16" /><circle class="fill" id="adrRing" cx="18" cy="18" r="16" pathLength="100" /></svg><span class="si">⚡</span><small id="specialLbl">SPECIAL</small></button>
     </div>
 
     <div class="overlay on" id="loading">
@@ -838,98 +1109,110 @@
             <button class="arrow" id="teamNext" type="button" aria-label="Next team">›</button>
           </div>
           <div id="records"></div>
+          <button id="careerBtn" type="button"><span class="ci">🏅</span><span class="cl">CAREER &amp; LOCKER<small id="careerSub">Badges, bats and kits</small><span class="cbar"><i id="careerFill"></i></span></span><span class="cg">›</span></button>
+          <div class="seg" id="diffSeg"><span class="segL">Difficulty</span><button type="button" data-v="easy">Easy</button><button type="button" data-v="pro">Pro</button><button type="button" data-v="legend">Legend</button></div>
         </div>
         <div class="modes">
+          <button class="mode mhero m-super" data-mode="super" type="button">
+            <svg class="bgi"><use href="#i-bat" /></svg>
+            <div class="mtxt"><div class="mtag">FEATURED</div><div class="mt">Super Over</div><div class="md">6 balls · 2 wickets · chase 14–21</div><div class="mbest" id="superBest"></div></div>
+            <div class="mgo">PLAY ▸</div>
+          </button>
           <button class="mode m-match" data-mode="match" type="button">
             <svg class="bgi"><use href="#i-vs" /></svg><div class="mi"><svg><use href="#i-vs" /></svg></div>
-            <div class="mtag">NEW</div>
-            <div class="mt">Full Match</div><div class="md">vs Blue Hawks · 2 overs each</div><div class="mgo">PLAY ▸</div>
-          </button>
-          <button class="mode m-super" data-mode="super" type="button">
-            <svg class="bgi"><use href="#i-bat" /></svg><div class="mi"><svg><use href="#i-bat" /></svg></div>
-            <div class="mtag">FEATURED</div>
-            <div class="mt">Super Over</div><div class="md">6 balls · 2 wickets · chase 14–21</div><div class="mgo">PLAY ▸</div>
-          </button>
-          <button class="mode m-chase" data-mode="chase" type="button">
-            <svg class="bgi"><use href="#i-bolt" /></svg><div class="mi"><svg><use href="#i-bolt" /></svg></div>
-            <div class="mtag"></div>
-            <div class="mt">Quick Chase</div><div class="md">3 overs · 3 wickets · pace &amp; spin</div><div class="mgo">PLAY ▸</div>
+            <div class="mtxt"><div class="mtag">NEW</div><div class="mt">Full Match</div><div class="md">vs Blue Hawks · 2 overs each</div></div>
           </button>
           <button class="mode m-daily" data-mode="daily" type="button">
             <svg class="bgi"><use href="#i-cal" /></svg><div class="mi"><svg><use href="#i-cal" /></svg></div>
-            <div class="mtag" id="dailyTag">NEW TODAY</div>
-            <div class="mt">Daily Challenge</div><div class="md" id="dailyDesc">—</div><div class="mgo">PLAY ▸</div>
+            <div class="mtxt"><div class="mtag" id="dailyTag">NEW TODAY</div><div class="mt">Daily Challenge</div><div class="md" id="dailyDesc">—</div></div>
+          </button>
+          <button class="mode m-chase" data-mode="chase" type="button">
+            <svg class="bgi"><use href="#i-bolt" /></svg><div class="mi"><svg><use href="#i-bolt" /></svg></div>
+            <div class="mtxt"><div class="mtag"></div><div class="mt">Quick Chase</div><div class="md">3 overs · 3 wickets · pace &amp; spin</div></div>
           </button>
           <button class="mode m-nets" data-mode="nets" type="button">
             <svg class="bgi"><use href="#i-target" /></svg><div class="mi"><svg><use href="#i-target" /></svg></div>
-            <div class="mtag">PRACTICE</div>
-            <div class="mt">Nets</div><div class="md">No target · timing meter on</div><div class="mgo">PLAY ▸</div>
+            <div class="mtxt"><div class="mtag">PRACTICE</div><div class="mt">Nets</div><div class="md">No target · timing meter on</div></div>
           </button>
         </div>
         <div class="menuBar">
-          <div class="seg" id="diffSeg"><span class="segL">Difficulty</span><button type="button" data-v="easy">Easy</button><button type="button" data-v="pro">Pro</button><button type="button" data-v="legend">Legend</button></div>
-          <button class="opt" id="timeBtn" type="button">☀ Day</button>
-          <button class="opt" id="pitchBtn" type="button">Pitch: Auto</button>
-          <span class="spacer"></span>
-          <button class="opt" id="musicBtn" type="button">♫ Music: On</button>
-          <button class="opt" id="gfxBtn" type="button">Graphics: Auto</button>
-          <button class="opt" id="howBtn" type="button">How to play</button>
-          <button class="opt career" id="careerBtn" type="button">🏅 Career</button>
+          <div class="chips">
+            <button class="opt" id="timeBtn" type="button">☀ Day</button>
+            <button class="opt" id="pitchBtn" type="button">Pitch: Auto</button>
+            <button class="opt" id="handBtn" type="button">Bat: Right</button>
+            <button class="opt" id="musicBtn" type="button">♫ Music: On</button>
+            <button class="opt" id="gfxBtn" type="button">Graphics: Auto</button>
+            <button class="opt" id="howBtn" type="button">How to play</button>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="overlay" id="howSheet">
-      <div class="card howCard">
-        <h3>How to play</h3>
-        <div class="howGrid">
+      <div class="card bsheet howCard">
+        <div class="bsHead"><div class="bsTag">GUIDE</div><div class="bsTitle">How to play<small>The basics, then the tricks</small></div></div>
+        <div class="bsBody">
+          <div class="bsLbl">Batting</div>
+          <div class="howGrid">
           <div class="howItem"><div class="hi">↗</div><div><b>Swipe to hit</b>Swipe the way you want the ball to go. Down the screen sends it straight back past the bowler.</div></div>
-          <div class="howItem"><div class="hi">⤴</div><div><b>Long swipe = lofted</b>Short swipes keep it on the ground. Long swipes go aerial, so watch the men in the deep.</div></div>
-          <div class="howItem"><div class="hi">◷</div><div><b>Timing is everything</b>Release just before the ball reaches the bat. Early drags it to leg, late finds the edge.</div></div>
+          <div class="howItem"><div class="hi">⤴</div><div><b>Long swipe = lofted</b>Short swipes stay on the ground. Long swipes go aerial: watch the men in the deep.</div></div>
+          <div class="howItem"><div class="hi">◷</div><div><b>Timing is everything</b>Swipe just before the ball reaches the bat. Early drags it to leg, late finds the edge.</div></div>
           <div class="howItem"><div class="hi">⇄</div><div><b>Tap to defend · RUN to run</b>Tap to block. Hit RUN to call a run, again for another. Caught short? Run out.</div></div>
+          </div>
+          <div class="bsLbl">Reading the game</div>
+          <div class="howGrid">
+          <div class="howItem hot"><div class="hi">⚡</div><div><b>Special shots</b>Good timing charges the ⚡ ring. When it's full, tap it, then swipe long: straight, leg side, off side or behind picks the shot.</div></div>
+          <div class="howItem"><div class="hi">◎</div><div><b>The captain reads you</b>Keep hitting the same area and a fielder moves there. Mix it up to find the gaps.</div></div>
+          <div class="howItem"><div class="hi">🎬</div><div><b>Your highlight</b>The best moment of every innings is cut into a vertical clip, ready to share.</div></div>
+          </div>
+          <div class="credits">Crowd recordings: Gregor Quendel (CC-BY 4.0) · Announcer: Kenney (CC0) · 3D: three.js</div>
         </div>
-        <div class="credits">Crowd recordings: Gregor Quendel (CC-BY 4.0) · Announcer: Kenney (CC0) · 3D: three.js</div>
-        <div class="row"><button class="btn ghost" id="introBtn" type="button">▶ Watch intro</button><button class="btn main" id="howClose" type="button">Got it</button></div>
+        <div class="bsFoot"><button class="btn ghost" id="introBtn" type="button">▶ Watch intro</button><button class="btn main" id="howClose" type="button">Got it</button></div>
       </div>
     </div>
 
     <div class="overlay" id="career">
-      <div class="card careerCard">
-        <div class="cHead"><h3>Career</h3><span class="cSub">Saved on this phone</span></div>
+      <div class="card bsheet careerCard">
+        <div class="bsHead"><div class="bsTag">CAREER</div><div class="bsTitle"><span id="careerName">Hash XI</span><small>Saved on this phone</small></div></div>
         <div class="cTabs" id="careerTabs"><button type="button" data-t="stats" class="on">Stats</button><button type="button" data-t="badges">Badges <b id="badgeCount">0</b></button><button type="button" data-t="locker">Locker</button></div>
-        <div class="cPane on" id="cp-stats"></div>
-        <div class="cPane" id="cp-badges"></div>
-        <div class="cPane" id="cp-locker"></div>
-        <div class="row"><button class="btn main" id="careerClose" type="button">Done</button></div>
+        <div class="bsBody cBody">
+          <div class="cPane on" id="cp-stats"></div>
+          <div class="cPane" id="cp-badges"></div>
+          <div class="cPane" id="cp-locker"></div>
+        </div>
+        <div class="bsFoot"><button class="btn main" id="careerClose" type="button">Done</button></div>
       </div>
     </div>
 
     <div class="overlay" id="break">
-      <div class="card breakCard">
-        <div class="bk">INNINGS BREAK</div>
-        <div class="bteam"><span class="ic hawks">B</span>BLUE HAWKS <b id="aiScore">0/0</b></div>
-        <div class="bsub" id="aiOvers">—</div>
-        <div class="btarget">Target <b id="aiTarget">0</b><span id="aiNeed">off 12 balls</span></div>
-        <div class="row"><button class="btn main" id="chaseBtn" type="button">Start the chase</button></div>
+      <div class="card bsheet breakCard">
+        <div class="bsHead"><div class="bsTag">INNINGS BREAK</div><div class="bsTitle">Full Match<small>First innings complete</small></div></div>
+        <div class="bsBody">
+          <div class="bScore"><span class="ic hawks">B</span><div class="bWho"><b>BLUE HAWKS</b><span id="aiOvers">—</span></div><b class="bRuns" id="aiScore">0/0</b></div>
+          <div class="btarget"><div class="btL"><span id="breakTeam">HASH XI</span> NEED</div><b id="aiTarget">0</b><div class="btR" id="aiNeed">off 12 balls</div></div>
+        </div>
+        <div class="bsFoot"><button class="btn main" id="chaseBtn" type="button">Start the chase</button></div>
       </div>
     </div>
 
     <div class="overlay" id="pause">
-      <div class="card pauseCard">
-        <div class="ptitle">PAUSED</div>
-        <div class="pinfo" id="pauseInfo">—</div>
-        <div class="pauseBtns">
-          <button class="btn main" id="resumeBtn" type="button">Resume</button>
-          <button class="btn ghost" id="restartBtn" type="button">Restart</button>
-          <button class="btn ghost" id="quitBtn" type="button">Main menu</button>
-        </div>
-        <div class="opts">
-          <button class="opt" id="soundBtn" type="button">Sound: On</button>
-          <button class="opt" id="musicBtn2" type="button">Music: On</button>
-          <button class="opt" id="voiceBtn" type="button">Commentary: On</button>
-          <button class="opt" id="hapticBtn" type="button">Haptics: On</button>
-          <button class="opt" id="calmBtn" type="button">Effects: Full</button>
-          <button class="opt" id="gfxBtn2" type="button">Graphics</button>
+      <div class="card bsheet pauseCard">
+        <div class="bsHead"><div class="bsTag"><span class="pDot"></span>PAUSED</div><div class="bsTitle"><span id="pauseTitle">Super Over</span><small id="pauseInfo">—</small></div></div>
+        <div class="bsBody">
+          <div class="pauseBtns">
+            <button class="btn main" id="resumeBtn" type="button">▶ Resume</button>
+            <button class="btn ghost" id="restartBtn" type="button">Restart</button>
+            <button class="btn ghost" id="quitBtn" type="button">Main menu</button>
+          </div>
+          <div class="bsLbl">Settings</div>
+          <div class="opts">
+            <button class="opt" id="soundBtn" type="button">Sound: On</button>
+            <button class="opt" id="musicBtn2" type="button">Music: On</button>
+            <button class="opt" id="voiceBtn" type="button">Commentary: On</button>
+            <button class="opt" id="hapticBtn" type="button">Haptics: On</button>
+            <button class="opt" id="calmBtn" type="button">Effects: Full</button>
+            <button class="opt" id="gfxBtn2" type="button">Graphics</button>
+          </div>
         </div>
       </div>
     </div>
@@ -966,6 +1249,7 @@
             <div class="points"><span>Arcade points <em class="newBest" id="ptsBest" hidden>NEW BEST</em></span><b id="pts">0</b></div>
             <div class="endRec" id="endRec"></div>
             <div class="endBadges" id="endBadges"></div>
+            <div id="hlBox"><video id="hlVid" muted loop playsinline autoplay></video><div style="flex:1;min-width:0"><div class="hlT">🎬 YOUR HIGHLIGHT</div><div class="hlM" id="hlMain">Cutting the clip…</div><div class="hlBar"><i id="hlFill"></i></div><button class="btn main" id="hlShare" type="button">Share clip</button></div></div>
             <div id="submitMsg"></div>
             <div class="row endBtns">
               <button class="btn ghost" id="toMenu" type="button">Menu</button>
@@ -1140,6 +1424,7 @@
         // match conditions: day | sunset | cloudy | night (older saves only knew night on/off)
         time: store.get("so_time") || (store.get("so_night") === "1" ? "night" : "day"),
         pitch: store.get("so_pitch") || "auto", // auto | green | dry | flat
+        hand: store.get("so_hand") || "R", // your batters: R | L | mix (a left-right pair)
         bat: store.get("so_bat") || "hash",
         kit: store.get("so_kit") || "home",
         sound: store.get("so_sound") !== "0",
@@ -1177,10 +1462,55 @@
         updateGfxLabel();
       }
       function renderFrame() {
+        const saved = mirrorBegin();
         sizeBall();
         updateFanLights(); // crowd LOD for the camera actually drawing this frame
         if (tier.post) composer.render(); else renderer.render(scene, camera);
+        if (saved) mirrorEnd(saved);
       }
+      // ------------------------------------------------------------------
+      // Left-handers: the game is simulated for a right-hander (every position, shot and field
+      // is batter-relative), and only the drawing is mirrored across the middle-stump line.
+      // A left-handed batter mirrors the camera and everything that moves; a left-arm bowler
+      // mirrors the bowler and umpire. Static scenery is never mirrored, so the stands and
+      // boards read the right way round. Everything is restored straight after the frame.
+      // ------------------------------------------------------------------
+      const MIRROR = { bat: false, bowl: false };
+      const _mq = new THREE.Quaternion();
+      function mirrorObj(o, saved) {
+        saved.push([o, o.position.x, o.quaternion.clone(), o.scale.x]);
+        o.position.x = -o.position.x;
+        _mq.copy(o.quaternion); o.quaternion.set(_mq.x, -_mq.y, -_mq.z, _mq.w);
+        o.scale.x = -o.scale.x;
+        o.updateMatrixWorld(true);
+      }
+      function mirrorBegin() {
+        if (!MIRROR.bat && !MIRROR.bowl) return null;
+        const saved = [];
+        const flip = (p) => {
+          mirrorObj(p.obj, saved);
+          // name plates and badges stay readable on a mirrored player
+          for (const d of [p.plate && p.plate.mesh, ...(p.hashDecals || [])]) if (d) { saved.push([d, d.position.x, d.quaternion.clone(), d.scale.x]); d.scale.x = -d.scale.x; d.updateMatrixWorld(true); }
+        };
+        for (const p of players) if (p === bowlerP || p === umpire ? MIRROR.bowl : MIRROR.bat) flip(p);
+        if (MIRROR.bat) {
+          for (const o of [bat, bat2, ballMesh, ballShadow, trail, marker, ...stumpParts()]) mirrorObj(o, saved);
+          saved.push([camera, camera.position.x, camera.quaternion.clone(), camera.scale.x]);
+          camera.position.x = -camera.position.x;
+          _mq.copy(camera.quaternion); camera.quaternion.set(_mq.x, -_mq.y, -_mq.z, _mq.w);
+          camera.updateMatrixWorld(true);
+        }
+        return saved;
+      }
+      function mirrorEnd(saved) {
+        for (let i = saved.length - 1; i >= 0; i--) {
+          const [o, x, q, sx] = saved[i];
+          o.position.x = x; o.quaternion.copy(q); o.scale.x = sx;
+          o.updateMatrixWorld(true);
+        }
+      }
+      // the ball in the bowler's hand, in simulation space, so that it is drawn in his hand
+      const handSign = () => (!!G.lhb !== !!G.lab ? -1 : 1);
       // keep the ball trackable at broadcast distances (~2.2px minimum on a phone — any bigger reads as a blob from the drone shot), sized for
       // the camera actually drawing this frame so a hard cut never shows a giant ball
       function sizeBall() {
@@ -1223,10 +1553,16 @@
         // auto: drop effects (a tier) before the picture goes soft
         if (fps < 45 && drs <= 0.85) { applyQuality(tierName === "ultra" ? "high" : tierName === "high" ? "medium" : "low"); store.set("so_gfx_auto", tierName); }
       }
+      // pause-sheet settings rows: the setting's name, and its state on the right
+      function setOpt(id, name, val) {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = `<span>${name}</span><b class="${/^(off|calm)$/i.test(val) ? "" : "on"}">${val}</b>`;
+      }
       function updateGfxLabel() {
         for (const id of ["gfxBtn", "gfxBtn2"]) {
           const el = document.getElementById(id);
-          if (el) el.textContent = `Graphics: ${gfxMode === "auto" ? `Auto (${tierName})` : tierName}`;
+          const v = gfxMode === "auto" ? `Auto (${tierName})` : tierName;
+          if (el && id === "gfxBtn2") setOpt(id, "Graphics", v); else if (el) el.textContent = `Graphics: ${v}`;
         }
       }
 
@@ -2270,6 +2606,7 @@
         sun.target.updateMatrixWorld();
       }
       function updateStadiumFx(dt) {
+        updateCheer(dt);
         grassTime.value += dt;
         updateShadowFrustum(dt);
         adTex.offset.x = (adTex.offset.x + dt * 0.012) % 1;
@@ -2847,7 +3184,7 @@
         plate.position.set(chest.x, chest.y - 0.07, (hit ? hit.point.z : chest.z - 0.13) - 0.012);
         plate.rotation.y = Math.PI;
         scene.add(plate); plate.updateMatrixWorld(true); b.spine2.attach(plate);
-        p.plate = { c, tex };
+        p.plate = { c, tex, mesh: plate };
         setPlate(p, name, num);
       }
       function setPlate(p, name, num, ink = "rgba(255,255,255,.95)", logo = false) {
@@ -2961,37 +3298,141 @@
       // spot or skates. play() just requests stances and one-shot moves.
       // ------------------------------------------------------------------
       const ONE_SHOTS = new Set(["celebrate", "thumbs_up", "shrug"]);
+      // reaction pools: "agree" celebrates, "upset" is frustration; each call picks one the
+      // player has loaded, and a reaction already playing runs to the end before the next
+      const CELEB = ["celebrate", "thumbs_up", "emote_013", "emote_015", "emote_016", "emote_017", "emote_011", "emote_008"];
+      const UPSET = ["shrug", "emote_002", "emote_006", "emote_007", "emote_009", "emote_004"];
       function play(p, name, fade = 0.25, timeScale = 1) {
-        if (!rig.loco) return playClip(p, name, fade, timeScale);
+        if (!rig.loco) return playClip(p, name === "upset" ? "shrug" : name, fade, timeScale);
         const A = p.anim;
+        if (name === "agree" || name === "upset") {
+          const pool = name === "agree" ? CELEB : UPSET;
+          if (pool.includes(A.special)) return;
+          const ok = pool.filter((n) => p.actions[n]);
+          return special(p, ok.length ? pick(ok) : pool[0]);
+        }
         if (name === "idle" || name === "walk" || name === "run" || name === "jog") {
           A.stance = null; p.crouch = 0;
           if (A.special === "throw" && A.specialT > 0.55) A.special = null;
           return;
         }
         if (name === "sneak_pose") { A.stance = "keeper"; p.crouch = 1; return; }
-        special(p, name === "agree" ? "celebrate" : name);
+        special(p, name);
       }
       // mocap dances (anims/dance_*.glb, Ready Player Me library) loaded after boot
-      const DANCES = [];
-      const DANCE_FILES = ["001", "002", "003", "004", "005", "006", "007", "008", "009", "011"];
+      const DANCES = [], EMOTES_LOADED = new Set();
+      const DANCE_FILES = ["001", "002", "003", "004", "005", "006", "007", "008", "009", "011", "f001", "f004", "f005", "f006", "f007"];
+      // standing expressions from the same library (anims/emote_*.glb): one-shot reactions
+      const EMOTE_FILES = ["002", "004", "006", "007", "008", "009", "011", "013", "015", "016", "017"];
       async function loadDances() {
         if (rig !== RIGS.cricketer || !playerTemplate) return;
         const bones = new Set();
         playerTemplate.traverse((o) => { if (o.isBone && !/(\.\d+$|IKHint|Control|_end$)/i.test(o.name)) bones.add(o.name); });
         const keep = (t) => bones.has(t.name.split(".")[0]) && !/\.scale$/.test(t.name) && (!/\.position$/.test(t.name) || /^Hips\./.test(t.name));
         const ld = new GLTFLoader();
-        const res = await Promise.allSettled(DANCE_FILES.map((n) => ld.loadAsync(`./anims/dance_${n}.glb`)));
+        const files = [...DANCE_FILES.map((n) => `dance_${n}`), ...EMOTE_FILES.map((n) => `emote_${n}`)];
+        const res = await Promise.allSettled(files.map((n) => ld.loadAsync(`./anims/${n}.glb`)));
         res.forEach((r, i) => {
           const c = r.status === "fulfilled" && r.value.animations[0];
           if (!c) return;
-          c.name = `dance_${DANCE_FILES[i]}`;
+          c.name = files[i];
           const hp = c.tracks.find((t) => t.name === "Hips.position");
           if (hp) { const v = (hp.values = Float32Array.from(hp.values)); for (let k = 0; k < v.length; k += 3) { v[k] = 0; v[k + 2] = 0; } } // dance on the spot
           c.tracks = c.tracks.filter(keep);
           for (const p of players) p.actions[c.name] = p.mixer.clipAction(c);
-          DANCES.push(c.name);
+          if (c.name.startsWith("emote_")) { ONE_SHOTS.add(c.name); EMOTES_LOADED.add(c.name); } else DANCES.push(c.name);
         });
+      }
+      // ------------------------------------------------------------------
+      // Cheer squad: Ready Player Me's feminine avatar (models/cheer_f.glb) with the library's
+      // feminine dances (anims/cheer_*.glb), two to a podium square of the wicket, pom-poms in
+      // hand. They dance all game and switch routine on every boundary and wicket. They are not
+      // in `players`: never recorded for replays, never mirrored, animated only when on screen.
+      // ------------------------------------------------------------------
+      const CHEER = [], CHEER_FILES = ["001", "004", "005", "006", "007", "m001", "m002", "m003", "m004", "m005", "m006", "m007", "m008", "m009", "m011"];
+      const CHEER_R = 70.3; // between the rope (68) and the boards
+      // podiums: square of the wicket both sides (behind the batters' dance shot) and long-on /
+      // long-off, where the straight sixes land. Angles from the centre, 0 = the bowler's end.
+      // Symmetric in x, so a left-hander's mirrored camera always finds one.
+      const CHEER_PODS = [90, -90, 35, -35].map((a) => {
+        const r = deg(a), out = V3(Math.sin(r), 0, Math.cos(r)), tan = V3(Math.cos(r), 0, -Math.sin(r));
+        return { a: r, out, tan, base: CENTER.clone().addScaledVector(out, CHEER_R) };
+      });
+      async function loadCheer() {
+        const ld = new GLTFLoader();
+        const [g, ...anims] = await Promise.all([ld.loadAsync("./models/cheer_f.glb"), ...CHEER_FILES.map((n) => ld.loadAsync(`./anims/cheer_${n}.glb`))]);
+        const bones = new Set();
+        g.scene.traverse((o) => { if (o.isBone) bones.add(o.name); });
+        const keep = (t) => bones.has(t.name.split(".")[0]) && !/\.scale$/.test(t.name) && (!/\.position$/.test(t.name) || /^Hips\./.test(t.name));
+        const clips = anims.map((a, i) => {
+          const c = a.animations[0];
+          c.name = `cheer_${CHEER_FILES[i]}`;
+          const hp = c.tracks.find((t) => t.name === "Hips.position");
+          if (hp) { const v = (hp.values = Float32Array.from(hp.values)); for (let k = 0; k < v.length; k += 3) { v[k] = 0; v[k + 2] = 0; } } // dance on the spot
+          c.tracks = c.tracks.filter(keep);
+          return c;
+        });
+        g.scene.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(g.scene), sc = 1.68 / Math.max(0.01, box.max.y - box.min.y);
+        const podMat = new THREE.MeshStandardMaterial({ color: 0x0b0f1a, roughness: 0.6, metalness: 0.2 });
+        const ledMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+        const pomMats = [new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.9, flatShading: true }), new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.9, flatShading: true })];
+        const pomGeo = new THREE.IcosahedronGeometry(0.11, 1);
+        for (const P of CHEER_PODS) {
+          const pod = new THREE.Group();
+          const top = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.9, 4.4), podMat); top.position.y = 0.45;
+          const led = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.12, 4.3), ledMat); led.position.set(-0.91, 0.72, 0);
+          pod.add(top, led); pod.position.copy(P.base); pod.rotation.y = P.a - Math.PI / 2; // long side along the boundary, lit face inward
+          scene.add(pod);
+          [-1.35, 0, 1.35].forEach((along, j) => {
+            const obj = SkeletonUtils.clone(g.scene);
+            obj.scale.setScalar(sc);
+            obj.position.copy(P.base).addScaledVector(P.tan, along); obj.position.y = 0.9;
+            obj.rotation.y = Math.atan2(-P.out.x, -P.out.z); // facing the middle
+            obj.traverse((c) => { if (c.isSkinnedMesh) { c.frustumCulled = false; c.castShadow = false; } });
+            scene.add(obj);
+            const mixer = new THREE.AnimationMixer(obj);
+            const actions = clips.map((c) => mixer.clipAction(c));
+            obj.updateMatrixWorld(true);
+            // pom-poms in both hands, green and gold alternating along the line
+            const hands = []; obj.traverse((o) => { if (o.isBone && /^(Left|Right)Hand$/.test(o.name)) hands.push(o); });
+            hands.forEach((h, i) => { const pom = new THREE.Mesh(pomGeo, pomMats[(i + j) % 2]); h.getWorldPosition(pom.position); scene.add(pom); pom.updateMatrixWorld(true); h.attach(pom); });
+            const d = { obj, mixer, actions, cur: null, lazy: 0, pod: P };
+            // the middle dancer leads; her two partners share a routine, so each podium reads as a troupe
+            cheerTo(d, actions[(CHEER.length + (j === 1 ? 0 : 3)) % actions.length], 0);
+            d.mixer.update(j === 1 ? 0.4 : 0);
+            CHEER.push(d);
+          });
+        }
+      }
+      function cheerTo(d, a, fade = 0.35) {
+        if (!a || d.cur === a) return;
+        a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.enabled = true; a.setEffectiveWeight(1); a.play();
+        if (d.cur) d.cur.crossFadeTo(a, fade, false);
+        d.cur = a;
+      }
+      // a boundary or a wicket: every dancer starts a new routine
+      function cheerHype() {
+        for (const P of CHEER_PODS) {
+          const troupe = CHEER.filter((d) => d.pod === P);
+          if (!troupe.length) continue;
+          const i = troupe[0].actions.indexOf(troupe[0].cur), n = troupe[0].actions.length;
+          const next = (i + 1 + Math.floor(Math.random() * (n - 1))) % n;
+          for (const d of troupe) cheerTo(d, d.actions[next]);
+        }
+      }
+      const _cheerSphere = new THREE.Sphere(V3(), 2.2);
+      function updateCheer(dt) {
+        if (!CHEER.length) return;
+        for (const d of CHEER) {
+          _cheerSphere.center.set(d.obj.position.x, 1.8, d.obj.position.z);
+          d.lazy += dt;
+          // off screen: not drawn, and posed only now and then
+          const seen = _frustum.intersectsSphere(_cheerSphere);
+          d.obj.visible = seen;
+          if (!seen && d.lazy < 0.5) continue;
+          d.mixer.update(d.lazy); d.lazy = 0;
+        }
       }
       function danceTo(p, clip) {
         const A = p.anim, a = clip && p.actions[clip];
@@ -3449,6 +3890,7 @@
           if (F) {
             ballMesh.visible = true;
             ballMesh.position.copy(F.w).addScaledVector(F.f, F.len * 0.75).addScaledVector(F.n, BALL_DRAW_R + 0.012);
+            ballMesh.position.x *= handSign();
           }
         }
         const kp = fielders[9] && fielders[9].p;
@@ -3544,6 +3986,7 @@
         r.runs = (r.runs || 0) + G.runs; r.fours = (r.fours || 0) + G.fours; r.sixes = (r.sixes || 0) + G.sixes;
         r.balls = (r.balls || 0) + G.balls; r.perfects = (r.perfects || 0) + (G.perfects || 0);
         r.longestSix = Math.max(r.longestSix || 0, G.longestSix || 0);
+        r.specials = (r.specials || 0) + (G.specials || 0); r.specialSixes = (r.specialSixes || 0) + (G.specialSixes || 0);
         r.bestSixRun = Math.max(r.bestSixRun || 0, G.bestSixRun || 0);
         if (G.ai) { r.wktsTaken = (r.wktsTaken || 0) + G.ai.wkts; r.bestBowl = Math.max(r.bestBowl || 0, G.ai.wkts); }
         if (res === "win" && SET.diff === "legend" && !G.cfg.daily) r.legendWins = (r.legendWins || 0) + 1;
@@ -3573,6 +4016,7 @@
         { id: "week_warrior", icon: "📅", name: "Week Warrior", desc: "7-day Daily Challenge streak", p: (r, i, d) => [d.best, 7] },
         { id: "six_machine", icon: "🚀", name: "Six Machine", desc: "Hit 50 sixes", p: (r) => [r.sixes, 50] },
         { id: "run_machine", icon: "⚙️", name: "Run Machine", desc: "Score 500 career runs", p: (r) => [r.runs, 500] },
+        { id: "showtime", icon: "🚁", name: "Showtime", desc: "Hit a six with a special shot", p: (r) => [r.specialSixes, 1] },
         { id: "unstoppable", icon: "🌪️", name: "Unstoppable", desc: "Win 10 matches in a row", p: (r) => [r.bestStreak, 10] },
       ];
       // which badge unlocks each bat skin / kit style (null = free)
@@ -3604,6 +4048,9 @@
           { name: "D. Malik", style: "Yorker Specialist", type: "Right-arm fast", kind: "pace", kmh: [134, 146], num: 33,
             lengths: [[0.42, "yorker"], [0.22, "full"], [0.2, "good"], [0.1, "short"], [0.06, "bouncer"]], swing: 0.9, seam: 1, slower: 0.24,
             intro: "{n}, the Yorker Specialist. Watch your toes!" },
+          { name: "Z. Rahman", style: "Left-arm Angle", type: "Left-arm fast-medium", kind: "pace", arm: "L", kmh: [128, 142], num: 90,
+            lengths: [[0.14, "yorker"], [0.3, "full"], [0.34, "good"], [0.16, "short"], [0.06, "bouncer"]], swing: 1.5, seam: 1.2, slower: 0.2,
+            intro: "Left-armer {n}, angling it across from wide of the crease." },
         ],
         spin: [
           { name: "S. Iyer", style: "Spin Master", type: "Right-arm off-break", kind: "spin", kmh: [78, 92], num: 27,
@@ -3612,6 +4059,9 @@
           { name: "T. Silva", style: "Mystery Spinner", type: "Right-arm leg-break", kind: "spin", kmh: [80, 94], num: 11,
             lengths: [[0.3, "full"], [0.5, "good"], [0.2, "short"]], turn: 1.1, turnDir: 1, googly: 0.28,
             intro: "Mystery Spinner {n}. Can you pick the googly?" },
+          { name: "K. Patel", style: "Left-arm Orthodox", type: "Left-arm orthodox", kind: "spin", arm: "L", kmh: [82, 94], num: 16,
+            lengths: [[0.25, "full"], [0.55, "good"], [0.2, "short"]], turn: 1.15, turnDir: 1, armBall: 0.2,
+            intro: "Left-arm spin from {n}: it'll turn away from the right-hander." },
         ],
       };
 
@@ -3789,6 +4239,7 @@
         const ropeIdx = samples.findIndex((s) => s.r > BOUNDARY);
         let best = null;
         for (const f of fielders) {
+          if (f.role === "bowler" && MIRROR.bat !== MIRROR.bowl) continue; // drawn on the other side of the pitch
           const fp = f.p.pos;
           const maxH = f.role === "keeper" ? 2.2 : 2.5;
           for (let i = 3; i < samples.length; i += 2) {
@@ -3837,14 +4288,20 @@
         // the very first match shows the timing meter so new players learn the swing
         G.firstMatch = !SET.tutorialSeen;
         if (!SET.tutorialSeen) { SET.tutorialSeen = true; store.set("so_tutorial", "1"); }
+        cancelClip(); decayZones();
+        Object.assign(G, { adr: 0, specialArmed: false, specials: 0, specialSixes: 0, zone: Array(ZONES).fill(0), zoneB: Array(ZONES).fill(0), lastScoring: false, hl: null, hlCand: null, hlClip: null });
+        $("hlBox").classList.remove("on");
         G.surface = pickSurface();
         pitch.material.color.setHex(SURF().tint);
         G.runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`; // one leaderboard entry per innings
+        G.isReplay = !!G.replayNext; G.replayNext = false;
+        track("started", { mode: modeKey, difficulty: G.cfg && G.cfg.daily ? "pro" : SET.diff, run_id: G.runId, is_replay: G.isReplay });
         audioInit(); sfx("start"); musicStop(1.4); introSongStop(1.0);
         G.target = G.cfg.match ? Infinity : G.cfg.target() + (G.cfg.daily || G.cfg.nets ? 0 : D().target);
         clearOverlays();
         $("break").classList.remove("on");
         setSides(G.aiBatting);
+        G.lhb = false; assignHands();
         $("menu").classList.remove("on"); $("end").classList.remove("on");
         $("hud").classList.add("on");
         $("hint").style.opacity = 1;
@@ -3888,11 +4345,17 @@
           if (G.aiBatting) bowlerCfg = { ...bowlerCfg, name: pick(kind === "spin" ? ["A. Nair", "R. Mehta"] : ["K. Khan", "D. Cole", "S. Brown"]) };
           setPlate(bowlerP, bowlerCfg.name.split(" ").pop(), bowlerCfg.num);
           setField(fieldKind, kind);
+          for (const f of fielders) f.jogFrom = null;
+          if (!G.aiBatting && !G.cfg.nets) captainNewOver();
           G.chips = [];
           if (!first) banner(`OVER ${overNo + 1}`, `${bowlerCfg.name} · ${bowlerCfg.style || bowlerCfg.type}`, "#ffffff", 1.1);
           if (!first && !G.aiBatting && bowlerCfg.intro) commentary(bowlerCfg.intro.replace("{n}", bowlerCfg.name), 3);
           if (!first && !G.cfg.nets && Math.ceil(G.cfg.balls / 6) > 1 && G.cfg.balls - G.balls <= 6) say("lastover");
         }
+        // left/right: the striker's hand mirrors the whole view, the bowler's arm mirrors him
+        const lhb = !G.aiBatting && !!striker && striker.hand === "L";
+        if (!first && lhb !== !!G.lhb && !G.cfg.nets) commentary(lhb ? "Left-hander on strike: the field swings round." : "Right-hander back on strike.", 2.4);
+        G.lhb = lhb; G.lab = bowlerCfg.arm === "L";
         $("bowlerName").textContent = bowlerCfg.name;
         $("bowlerStyle").textContent = (bowlerCfg.style || "Bowling").toUpperCase();
         $("bowlerType").textContent = bowlerCfg.type;
@@ -3900,6 +4363,8 @@
         replayAnim($("bowlerTag"), "in");
 
         if (!newOver) $("banner").classList.remove("on");
+        if (!newOver && !G.aiBatting && !G.cfg.nets) captainBetweenBalls();
+        G.lastScoring = false; G.nsReact = false; coach(null);
         clearTimeout(sixT); $("sixCard").classList.remove("on");
         $("runBtn").classList.remove("on", "danger");
         $("timing").classList.remove("on");
@@ -3926,12 +4391,14 @@
         if (G.party) { G.party = null; stopDance(striker); stopDance(nonStriker); }
         const newBatter = !!G.walkOff; G.walkOff = null; G.huddle = null;
         for (const f of fielders) { f.p.roll = 0; f.p.yOff = 0; place(f.p, f.base.x, f.base.z); faceTo(f.p, 0, 1); play(f.p, f.role === "keeper" ? "sneak_pose" : "idle", 0); f.p.speed = 0; }
+        for (const f of fielders) if (f.jogFrom) place(f.p, f.jogFrom.x, f.jogFrom.z); // a moved fielder jogs over from where he was
         place(striker, 0.5, CREASE + 0.05, -Math.PI / 2); play(striker, "idle", 0);
-        place(nonStriker, 1.25, PITCH - CREASE - 0.3); faceTo(nonStriker, 0, 0); play(nonStriker, "idle", 0);
+        place(nonStriker, 1.25 * handSign(), PITCH - CREASE - 0.3); faceTo(nonStriker, 0, 0); play(nonStriker, "idle", 0);
         place(umpire, 0.15, PITCH + 1.9); faceTo(umpire, 0, 0); play(umpire, "idle", 0);
         if (newBatter) {
           // the next batter jogs in from square leg, bat under his arm, before the bowler runs in
           const k = G.aiBatting ? HAWKS : team();
+          striker.hand = handFor((G.batNo || 0) + 2);
           G.batNo = (G.batNo || 0) + 1;
           setPlate(striker, k.short, BAT_NUMS[G.batNo % BAT_NUMS.length], k.ink, k.id === "hash");
           place(striker, -7.5, CREASE + 4.5); faceTo(striker, 0.5, CREASE);
@@ -3943,6 +4410,7 @@
         place(bowlerP, -0.85, PITCH + runLen); faceTo(bowlerP, -0.6, 0); play(bowlerP, "idle", 0);
         if (!G.walkIn) G.batPose = { phase: "stance", t: 0 }; // an incoming batter takes guard on arrival
         setState("ready");
+        updateSpecialUI();
         updateHud();
       }
 
@@ -3985,11 +4453,14 @@
           else smallText = `${smallText ? smallText + " · " : ""}no ball +1`;
         } else if (del && del.freeHit) G.freeHitNext = !legal; // a wide keeps the free hit on
         G.signal = signal ? { type: signal } : null;
+        coach(null); // the ball's done: no more "swipe now"
         recMark("event");
         G.replayable = signal === "six" || signal === "four" || signal === "out";
         if (signal) hold += signal === "noball" ? 0.6 : 1.5;
         // boundaries: the batters meet mid-pitch and dance; give it a little longer
         if (signal === "six" || signal === "four") { hold += 0.8; G.party = { t: 0, clip: DANCES.length ? pick(DANCES) : null }; }
+        const lastShot = G.shots[G.shots.length - 1];
+        if (lastShot && lastShot.m === undefined) lastShot.m = G.lhb ? -1 : 1;
         G.runs += runs + extras;
         if (legal) { G.balls += 1; G.overBalls += 1; }
         // odd runs taken between the wickets leave the other batter on strike
@@ -4007,15 +4478,28 @@
         if (bigText) banner(bigText, smallText, color, hold);
         updateHud();
         G.endHold = hold;
-        G.pitchLog.push({ x: del ? del.bx : 0, z: del ? del.bz : 4, c: out ? "#ef4444" : runs === 6 ? "#d946ef" : runs === 4 ? "#3b82f6" : !legal || extras ? "#a78bfa" : runs ? "#facc15" : "#e2e8f0" });
+        G.pitchLog.push({ x: del ? del.bx * (G.lhb ? -1 : 1) : 0, z: del ? del.bz : 4, c: out ? "#ef4444" : runs === 6 ? "#d946ef" : runs === 4 ? "#3b82f6" : !legal || extras ? "#a78bfa" : runs ? "#facc15" : "#e2e8f0" });
         drawPitchMap();
         setState("result");
         if (G.balls >= 2) $("hint").style.opacity = 0;
         if (say) { commentary(say, 3.4); window.__sayClip("notout"); } else commentate({ runs, out, chip, signal, extras });
         promoLog("ball", { runs, out, signal, chip, ai: !!G.aiBatting });
         haptic(out ? "heavy" : runs >= 4 ? "medium" : null);
+        track("ball_played", {
+          mode: G.mode, role: G.aiBatting ? "bowling" : "batting", ball_no: G.balls, runs: runs + extras,
+          outcome: out ? "wicket" : runs === 6 ? "six" : runs === 4 ? "four" : !legal ? "extra" : runs ? "runs" : "dot",
+          is_special: !!(shot && shot.special && !G.aiBatting),
+        });
         crowdReact({ runs, out, chip, signal });
         setBadge("");
+        if (!G.aiBatting) {
+          const ls = G.shots[G.shots.length - 1];
+          // the captain notes where it went (nets is practice: it doesn't count)
+          if (runs > 0 && ls && ls.runs && !G.cfg.nets) { recordZone(ls.x, ls.z, ls.runs); G.lastScoring = true; }
+          if (shot && shot.special) { if (runs === 6) G.specialSixes = (G.specialSixes || 0) + 1; }
+          else addAdrenaline(runs === 6 ? 12 : runs === 4 ? 8 : 0);
+        }
+        highlightCandidate(runs, out);
       }
 
       // ------------------------------------------------------------------
@@ -4027,17 +4511,29 @@
         audioInit();
         if (userBowling() && G.state === "runup" && G.bowlPick && G.bowlAcc == null) { releaseBall(); return; }
         if (G.state === "replay") { endReplay(); return; }
-        ptr = { x: e.clientX, y: e.clientY, t: performance.now() };
+        ptr = { x: e.clientX, y: e.clientY, t: performance.now(), fired: false };
         swipeTrail.length = 0; swipeTrail.push({ x: e.clientX, y: e.clientY, t: performance.now() });
       });
-      window.addEventListener("pointermove", (e) => { if (ptr) swipeTrail.push({ x: e.clientX, y: e.clientY, t: performance.now() }); });
+      // a swipe long enough to loft plays the shot straight away (no waiting for the finger to lift)
+      window.addEventListener("pointermove", (e) => {
+        if (!ptr) return;
+        swipeTrail.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+        const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y, d = Math.hypot(dx, dy);
+        if (!ptr.fired && d >= swipeLoft()) { ptr.fired = true; trySwing(dx, dy, d); }
+      });
       window.addEventListener("pointerup", (e) => {
         if (!ptr) return;
-        const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
+        const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y, fired = ptr.fired;
         ptr = null;
-        if (G.aiBatting) return;
-        onShot(dx, dy, Math.hypot(dx, dy));
+        if (!fired) trySwing(dx, dy, Math.hypot(dx, dy));
       });
+      const swipeLoft = () => Math.min(120, Math.min(W, H) * 0.22);
+      // a swing at the wrong moment says so, rather than doing nothing
+      function trySwing(dx, dy, dist) {
+        if (G.aiBatting || !G.cfg) return;
+        if (G.state === "ready" || G.state === "runup") { timing("WAIT FOR THE BALL", "#fbbf24"); return; }
+        onShot(dx, dy, dist);
+      }
       window.addEventListener("keydown", (e) => {
         const map = { ArrowDown: [0, 60], ArrowLeft: [-60, 30], ArrowRight: [60, 30], ArrowUp: [0, 160], " ": [0, 0] };
         if (map[e.key] && !G.aiBatting) onShot(...map[e.key], Math.hypot(...map[e.key]));
@@ -4047,32 +4543,41 @@
       let lastFrame = performance.now();
       function onShot(dx, dy, dist) {
         if (G.state !== "delivery" || shot) return;
-        const t = ballT + (performance.now() - lastFrame) / 1000 * (1);
-        if (t + LEAD > del.tStumps + 0.06) return;
+        const t = ballT + ((performance.now() - lastFrame) / 1000) * TS;
+        if (t + LEAD > del.tStumps + 0.06) { if (!G.aiBatting) timing("TOO LATE", "#f87171"); return; }
         const defend = dist < 22;
-        const loft = dist > Math.min(150, Math.min(W, H) * 0.28);
+        const loft = dist >= swipeLoft();
         // swipe down the screen = straight back past the bowler (+z)
+        if (MIRROR.bat) dx = -dx;
         const a = defend ? 0 : Math.atan2(dx, Math.max(dy, -Math.abs(dy)) || 0.0001);
         shot = { defend, loft, a, tInput: t, tContact: t + LEAD, resolved: false };
         // going aerial against spin = dancing down the pitch (and a stumping chance if it's missed)
         shot.charge = loft && del.spin;
+        // an armed special: the swipe direction picks it, always aerial, and the swing goes slow-mo
+        if (G.specialArmed && !defend && !G.aiBatting) {
+          shot.special = specialFor(a); shot.loft = true; shot.charge = false;
+          G.specialArmed = false; G.adr = 0; G.specials = (G.specials || 0) + 1;
+          updateSpecialUI(); slowStart();
+        }
         const ballAt = delPos(del, Math.max(del.tHit, shot.tContact));
-        shot.type = classifyShot(shot, del, ballAt);
+        shot.type = shot.special ? SPECIALS[shot.special].anim : classifyShot(shot, del, ballAt);
         G.batPose = { phase: "shot", t: 0, plan: planShot(shot.type, shot, ballAt) };
         if (!defend) sfx("swing");
+        if (!G.aiBatting) haptic("light");
+        coach(null);
       }
 
       function resolveContact() {
         shot.resolved = true;
         recMark("contact");
         const e = shot.tContact - del.tHit; // <0 early, >0 late
-        const ae = Math.abs(e) / D().win; // difficulty widens/narrows every timing window
+        const ae = Math.abs(e) / D().win / (shot.special ? 1.5 : 1); // difficulty widens/narrows every timing window; a special forgives a little
         const bp = delPos(del, ballT);
         let q;
         if (shot.defend) q = ae < 0.17 ? "block" : "miss";
         else q = ae < 0.03 ? "perfect" : ae < 0.07 ? "good" : ae < 0.12 ? "edge" : "miss";
 
-        if (!shot.defend && q !== "miss") {
+        if (!shot.defend && q !== "miss" && !shot.special) {
           let risk = 0;
           if (shot.loft && del.bz < 2.0) risk += 0.35; // trying to loft a yorker
           if (!shot.loft && bp.y > 1.25) risk += 0.35; // driving a bouncer
@@ -4084,6 +4589,10 @@
         shot.q = q;
         if (q === "perfect") G.perfects++;
         if (q !== "miss") haptic(q === "block" ? "light" : "medium");
+        const sp = shot.special && SPECIALS[shot.special], clean = q === "perfect" || q === "good";
+        // a clean special holds the slow motion; a mistimed one snaps straight back
+        if (sp) slowHold(q === "perfect" ? 1.0 : clean ? 0.6 : 0, clean ? sp.name : null);
+        else if (!G.aiBatting && !shot.defend) addAdrenaline(q === "perfect" ? 34 : q === "good" ? 14 : 0);
         // timing was fine but the shot choice wasn't: say so rather than blaming timing
         const label = shot.miscued && q !== "miss" ? ["MISCUED", "#fbbf24"] : { perfect: ["PERFECT", "#4ade80"], good: [e < 0 ? "GOOD · EARLY" : "GOOD · LATE", "#a3e635"], edge: [e < 0 ? "MISTIMED" : "EDGED!", "#fbbf24"], block: ["SOLID DEFENCE", "#93c5fd"], miss: [e < 0 ? "TOO EARLY" : "TOO LATE", "#f87171"] }[q];
         timing(label[0], label[1]);
@@ -4095,6 +4604,10 @@
         else if (q === "edge") {
           if (e > 0) { a = -(Math.PI - rand(0.12, 0.8)); speed = rand(15, 25); elev = deg(rand(3, 20)); }
           else { a = shot.a + rand(-0.9, 0.9); speed = rand(12, 19); elev = deg(rand(38, 68)); }
+        } else if (sp) {
+          a = sp.a + rand(-sp.spread, sp.spread) - e * 1.5;
+          speed = sp.speed * (q === "perfect" ? 1 : 0.94) * rand(0.97, 1.03);
+          elev = deg(rand(...sp.elev));
         } else {
           let pw = q === "perfect" ? 1 : 0.8;
           if (Math.abs(a) > 1.8) pw *= 0.8;
@@ -4163,7 +4676,8 @@
           }
           case "ready": {
             if (G.walkIn) walkIn(dt);
-            if (G.stateT > 1.0 && !G.walkIn && !(userBowling() && !G.bowlPick)) setState("runup");
+            const jogging = fieldJog(dt) && G.stateT < 2.6;
+            if (G.stateT > 1.0 && !G.walkIn && !jogging && !(userBowling() && !G.bowlPick)) setState("runup");
             break;
           }
           case "runup": {
@@ -4172,6 +4686,7 @@
             const dur = bowlerP.clip ? G.runupDur : spin ? 1.15 : 1.75;
             const k = Math.min(1, G.stateT / dur);
             if (!bowlerP.clip) applyBowlerRoot(G.stateT - dur);
+            if (G.stateT === dt) for (const f of fielders) f.jogFrom = null;
             G.stepT = (G.stepT || 0) - dt;
             if (G.stateT > 0.12 && k < 0.93 && G.stepT <= 0) { sfx("step"); G.stepT = lerp(spin ? 0.34 : 0.32, spin ? 0.26 : 0.2, k); }
             // fielders walk in
@@ -4183,8 +4698,9 @@
               play(f.p, k < 0.95 ? "walk" : "idle", 0.3);
             }
             // non-striker backs up as the bowler approaches
-            if (k > 0.45) moveToward(nonStriker, 1.25, PITCH - CREASE - 1.6, 1.4, dt, 0.05, 1.25, 0);
+            if (k > 0.45) moveToward(nonStriker, 1.25 * handSign(), PITCH - CREASE - 1.6, 1.4, dt, 0.05, 1.25 * handSign(), 0);
             if (k > 0.82 && G.batPose.phase === "stance") G.batPose = { phase: "backlift", t: 0 };
+            coachTick();
             if (userBowling() && G.bowlPick) updateBowlMeter();
             G.ballInHand = k < 1; // drawn in the bowler's palm by applyHands
             if (k >= 1) {
@@ -4216,6 +4732,7 @@
             if (G.aiBatting) { aiBat(); aiTick(); }
             const prev = ballT;
             ballT += dt;
+            coachTick();
             // bowler follow-through (the mocap clip plays itself out)
             if (bowlerP.clip) { if (!bowlerP.clip.action.isRunning()) settleBowler(); }
             else if (!bowlerP.settled) applyBowlerRoot(G.stateT);
@@ -4294,7 +4811,10 @@
           case "result": {
             if (playS) updatePlay(dt);
             if (G.party) updateParty(dt);
-            if (G.chips[G.chips.length - 1] === "W") { wicketHuddle(dt); walkOff(dt); }
+            if (G.chips[G.chips.length - 1] === "W") {
+              wicketHuddle(dt); walkOff(dt);
+              if (G.stateT > 0.5 && !G.nsReact && nonStriker) { G.nsReact = true; play(nonStriker, "upset"); }
+            }
             else if (del && del.gathered) {
               const kp = fielders[9].p;
               if (kp.b.lHand) ballMesh.position.copy(wp(kp.b.lHand).lerp(wp(kp.b.rHand), 0.5));
@@ -4313,7 +4833,7 @@
       function updateParty(dt) {
         const P = G.party;
         P.t += dt;
-        if (P.t > 0.5 && bowlerP && !bowlerP.clip && !P.shrug) { P.shrug = true; play(bowlerP, "shrug", 0.25); }
+        if (P.t > 0.5 && bowlerP && !bowlerP.clip && !P.shrug) { P.shrug = true; play(bowlerP, "upset", 0.25); }
         if (P.t < 0.45 || !striker || !nonStriker) return; // watch it go first
         if (G.batPose.phase !== "carry") { G.batPose = { phase: "carry", t: 0 }; striker.yOff = 0; }
         const mid = PITCH / 2;
@@ -4429,7 +4949,7 @@
               const end = S.throwEnd ? V3(0, 0, PITCH) : V3(0, 0, 0);
               faceTo(p, end.x, end.z);
               if (S.t >= S.throwAt && S.t < S.throwAt + 0.8) play(p, "throw", 0.1, 1.35);
-              else if (ev.kind === "drop" && !S.shrugged) { S.shrugged = true; play(p, "shrug"); }
+              else if (ev.kind === "drop" && !S.shrugged) { S.shrugged = true; play(p, "upset"); }
             } else {
               faceTo(p, bx, bz); play(p, "idle", 0.3);
             }
@@ -4519,7 +5039,7 @@
             G.shots.push({ x: land.x, z: land.z, runs: 6 });
             G.longestSix = Math.max(G.longestSix || 0, m);
             sfx("roar"); sfx("sting6"); sfx("applause");
-            flashScreen(`SIX! ${m}M`, "#e879f9"); burstConfetti(V3(land.x, 0, land.z)); crowdFlash = 1;
+            flashScreen(`SIX! ${m}M`, "#e879f9"); burstConfetti(V3(land.x * (G.lhb ? -1 : 1), 0, land.z)); crowdFlash = 1;
             G.lastSixM = m;
             // the ball is followed into the crowd first (six camera), so the umpire and the dance come later
             endBall({ signal: "six", runs: 6, chip: "6", bigText: "", smallText: "", color: "#e879f9", hold: 3.6 });
@@ -4652,9 +5172,19 @@
         if (G.state === "menu" || G.state === "loading") { camPos.copy(pos); camTgt.copy(tgt); camF = f; }
         // cut to the umpire for his signal
         const sixed = G.signal && G.signal.type === "six";
-        const umpT = sixed ? SIX_CAM : 0.7, partyT = sixed ? SIX_CAM + 1.3 : 2.1;
+        const umpT = sixed ? SIX_CAM : 0.7, cheerT0 = sixed ? SIX_CAM + 1.3 : 2.1, partyT = cheerT0 + (CHEER.length ? 1.3 : 0);
+        const cheerCam = CHEER.length && G.state === "result" && G.party && G.stateT > cheerT0 && G.stateT <= partyT;
         const partyCam = G.state === "result" && G.party && G.stateT > partyT && striker && nonStriker;
-        if (partyCam) {
+        if (cheerCam) {
+          // the podium on the side the ball went, slow push in from the edge of the field
+          // simulation space: the podiums are symmetric, so a left-hander's mirrored camera finds the right one
+          const last = G.shots[G.shots.length - 1] || { x: 30, z: CENTER.z };
+          const P = CHEER_PODS.reduce((b, q) => (Math.hypot(q.base.x - last.x, q.base.z - last.z) < Math.hypot(b.base.x - last.x, b.base.z - last.z) ? q : b));
+          const k = smooth01((G.stateT - cheerT0) / 1.3);
+          camPos.copy(P.base).addScaledVector(P.out, -(11 - 2.5 * k)).addScaledVector(P.tan, 3.5 - 1.5 * k); camPos.y = 2.1;
+          camTgt.copy(P.base); camTgt.y = 1.75;
+          camF = Math.min(W, H) * 1.5;
+        } else if (partyCam) {
           // side-on, slowly orbiting the batting pair as they dance
           const mx = (striker.pos.x + nonStriker.pos.x) / 2, mz = (striker.pos.z + nonStriker.pos.z) / 2;
           const a = -1.25 + (G.stateT - partyT) * 0.16;
@@ -4730,6 +5260,16 @@
               hC: H0 + 0.25, hF: H0 + (type === "flick" ? 0.75 : 0.95), flexC: 0.3, flexF: 0.15, dir: type === "flick" ? n3(0.1, -0.95, 0.25) : n3(0.25, -0.95, 0.0),
               follow: { grip: V3(0.36, 1.3, CREASE + 0.55), dir: n3(0.7, 0.55, 0.2), face: sd } };
             break;
+          case "heli": // whipped off the toes, the bat whirling up over the head
+            P = { F: V3(0.62, 0.07, CREASE + 0.55), B: FOOT_B0.clone(), dRoot: V3(0, 0, 0.12), drop: 0.14,
+              hC: H0 + 0.35, hF: H0 + 1.6, flexC: 0.35, flexF: 0.05, dir: n3(0.15, -0.95, 0.22),
+              follow: { grip: V3(0.42, 1.95, CREASE + 0.1), dir: n3(-0.55, 0.45, -0.7), face: V3(1, 0, 0) } };
+            break;
+          case "scoop": // down on one knee, blade flat and facing the sky, lifting it over the keeper
+            P = { F: V3(0.4, 0.07, CREASE + 0.72), B: V3(0.55, 0.07, CREASE - 0.05), dRoot: V3(-0.04, 0, 0.22), drop: 0.32,
+              hC: H0 + 0.05, hF: H0 + 0.05, flexC: 0.6, flexF: 0.55, dir: n3(0, -0.4, 0.92), faceC: V3(0, 1, 0),
+              follow: { grip: V3(0.35, 1.2, CREASE + 0.42), dir: n3(0.05, 0.6, -0.8), face: V3(0, 1, 0) } };
+            break;
           case "forwardDefence":
             P = { F: V3(0.38, 0.07, CREASE + 0.76), B: FOOT_B0.clone().add(V3(0, 0, 0.08)), dRoot: V3(-0.05, 0, 0.26), drop: 0.1,
               hC: H0 + 0.05, hF: H0 + 0.05, flexC: 0.42, flexF: 0.42, dir: n3(-0.05, -1, 0.3), hold: true };
@@ -4747,7 +5287,7 @@
         const off = grip.clone().sub(chest);
         if (off.length() > 0.72) grip = chest.clone().addScaledVector(off.normalize(), 0.72);
         grip.y = Math.max(0.62, grip.y);
-        P.contact = { grip, dir: P.dir, face: sh.defend ? V3(0, 0, 1) : sd };
+        P.contact = { grip, dir: P.dir, face: P.faceC || (sh.defend ? V3(0, 0, 1) : sd) };
         if (P.hold) P.follow = P.contact;
         P.Fstart = F; P.Bstart = B;
         return P;
@@ -5499,17 +6039,52 @@
       function drawSwipe() {
         const g = $("swipe").getContext("2d");
         g.clearRect(0, 0, W, H);
-        const now = performance.now();
-        while (swipeTrail.length && now - swipeTrail[0].t > 260) swipeTrail.shift();
+        const now = performance.now(), LIFE = 380;
+        while (swipeTrail.length && now - swipeTrail[0].t > LIFE) swipeTrail.shift();
         if (swipeTrail.length < 2) return;
-        g.lineCap = "round";
-        for (let i = 1; i < swipeTrail.length; i++) {
-          const a = swipeTrail[i - 1], b = swipeTrail[i];
-          const life = 1 - (now - b.t) / 260;
-          g.strokeStyle = `rgba(255,214,140,${0.75 * life})`;
-          g.lineWidth = 3 + 7 * life;
-          g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+        g.lineCap = "round"; g.lineJoin = "round";
+        // a gold glow under a white core, thickest at the finger
+        for (const [col, wMul, blur] of [["rgba(250,204,21,", 2.4, 16], ["rgba(255,255,255,", 1, 0]]) {
+          g.shadowColor = "rgba(250,204,21,.8)"; g.shadowBlur = blur;
+          for (let i = 1; i < swipeTrail.length; i++) {
+            const a = swipeTrail[i - 1], b = swipeTrail[i], life = 1 - (now - b.t) / LIFE;
+            g.strokeStyle = `${col}${(blur ? 0.55 : 0.95) * life})`;
+            g.lineWidth = (3 + 7 * life) * wMul;
+            g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+          }
         }
+        g.shadowBlur = 0;
+        // arrowhead at the finger, pointing the way the swipe is going
+        const tip = swipeTrail[swipeTrail.length - 1], from = swipeTrail[Math.max(0, swipeTrail.length - 5)];
+        const ang = Math.atan2(tip.y - from.y, tip.x - from.x), life = 1 - (now - tip.t) / LIFE;
+        if (Math.hypot(tip.x - from.x, tip.y - from.y) > 6) {
+          g.fillStyle = `rgba(255,255,255,${0.95 * life})`;
+          g.save(); g.translate(tip.x, tip.y); g.rotate(ang);
+          g.beginPath(); g.moveTo(16, 0); g.lineTo(-8, -12); g.lineTo(-3, 0); g.lineTo(-8, 12); g.closePath(); g.fill();
+          g.restore();
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // Swipe coach: for a player's first matches (and in the nets), a prompt shows
+      // exactly when to swipe, with an animated finger
+      // ------------------------------------------------------------------
+      const coachOn = () => !!G.cfg && !G.aiBatting && (G.cfg.nets || (loadJSON("so_records").played || 0) < 3);
+      let coachState = null;
+      function coach(st) {
+        if (st === coachState) return;
+        coachState = st;
+        $("coach").className = st ? "on " + st : "";
+        if (st) $("coachTxt").textContent = st === "now" ? "SWIPE NOW!" : "SWIPE WHEN THE BALL ARRIVES";
+      }
+      function coachTick() {
+        if (!coachOn() || shot) return coach(null);
+        if (G.state === "runup") return coach("wait");
+        if (G.state === "delivery") {
+          const go = del.tHit - LEAD - 0.42;
+          return coach(ballT < go ? "wait" : ballT < del.tHit + 0.05 ? "now" : null);
+        }
+        coach(null);
       }
 
       function updateTrail() {
@@ -5532,10 +6107,14 @@
       // End of innings
       // ------------------------------------------------------------------
       function finish(res) {
+        commitHighlight();
         setState("over");
         $("hud").classList.remove("on");
         clearOverlays();
-        if (res === "nets") return finishNets();
+        if (res === "nets") {
+          track("completed", { mode: G.mode, result: "nets", runs: G.runs, wickets: G.wkts, balls_played: G.balls, run_id: G.runId, is_replay: !!G.isReplay });
+          return finishNets();
+        }
         const wl = G.cfg.wkts - G.wkts, bl = G.cfg.balls - G.balls;
         const title = { win: "YOU WON!", lose: "DEFEATED", tie: "MATCH TIED" }[res];
         const sub = res === "win"
@@ -5554,6 +6133,7 @@
         setTimeout(() => { if (G.state === "over" && !INTRO_SONG.src) musicPlay(4); }, 2200);
         G.points = Math.round((G.runs + (res === "win" ? 20 + wl * 5 + bl * 2 : res === "tie" ? 10 : 0)) * D().pts);
         countUp($("pts"), G.points);
+        track("completed", { mode: G.mode, result: res, score: G.points, runs: G.runs, wickets: G.wkts, balls_played: G.balls, target: Number.isFinite(G.target) ? G.target : undefined, run_id: G.runId, is_replay: !!G.isReplay });
         const rec = saveRecords(res);
         $("ptsBest").hidden = !rec.newBest;
         let note = rec.newBest ? "🏆 New personal best!" : rec.r.played === 1 ? "First match in the books. Now beat it!" : `Personal best: ${rec.r.bestPts} pts`;
@@ -5567,6 +6147,9 @@
         drawWagon();
         $("end").classList.add("on");
         submitScore(G.points);
+        // cut the highlight clip behind the result card
+        $("hlBox").classList.remove("on");
+        if (G.hl && clipMime()) setTimeout(() => { if (G.state === "over" && !CLIP) makeHighlight(); }, 900);
       }
 
       // shared by every result: team, mode, scoreline + chase bar, ball-by-ball, stats, legend
@@ -5625,19 +6208,28 @@
           const col = sh.runs === 6 ? "#e879f9" : sh.runs === 4 ? "#60a5fa" : "#f8fafc";
           g.strokeStyle = col; g.lineWidth = sh.runs >= 4 ? 4 : 2.5; g.lineCap = "round";
           g.shadowColor = col; g.shadowBlur = sh.runs >= 4 ? 8 : 0;
-          g.beginPath(); g.moveTo(X(0), Y(CREASE)); g.lineTo(X(sh.x), Y(sh.z)); g.stroke();
-          g.shadowBlur = 0; g.fillStyle = col; g.beginPath(); g.arc(X(sh.x), Y(sh.z), sh.runs >= 4 ? 6 : 4, 0, Math.PI * 2); g.fill();
+          const sx = sh.x * (sh.m || 1); // shots are stored batter-relative; draw where they went
+          g.beginPath(); g.moveTo(X(0), Y(CREASE)); g.lineTo(X(sx), Y(sh.z)); g.stroke();
+          g.shadowBlur = 0; g.fillStyle = col; g.beginPath(); g.arc(X(sx), Y(sh.z), sh.runs >= 4 ? 6 : 4, 0, Math.PI * 2); g.fill();
         }
         if (!shots.length) { g.fillStyle = "rgba(255,255,255,.55)"; g.font = "700 22px system-ui"; g.textAlign = "center"; g.fillText("no shots", cx, cy + R * 0.55); }
       }
 
+      // funnel analytics: the app logs these (super_over_*) through its `analytics` handler;
+      // outside the app, or on an app build without the handler, they go nowhere
+      function track(event, params) {
+        try {
+          const bridge = window.flutter_inappwebview;
+          if (bridge && typeof bridge.callHandler === "function") bridge.callHandler("analytics", { event, params }).catch(() => {});
+        } catch (_) {}
+      }
       async function submitScore(points) {
         const msg = $("submitMsg");
         const bridge = window.flutter_inappwebview;
         if (bridge && typeof bridge.callHandler === "function") {
           msg.textContent = "Submitting score…";
           try {
-            const r = await bridge.callHandler("gameScore", { score: points, runId: G.runId, mode: G.mode, runs: G.runs, target: G.target, difficulty: G.cfg.daily ? "pro" : SET.diff });
+            const r = await bridge.callHandler("gameScore", { score: points, runId: G.runId, mode: G.mode, runs: G.runs, balls: G.balls, target: G.target, difficulty: G.cfg.daily ? "pro" : SET.diff });
             msg.textContent = (r && r.message) || "Score submitted.";
           } catch (_) { msg.textContent = "Couldn't submit score."; }
         } else {
@@ -5953,6 +6545,7 @@
       }
 
       function inningsBreak() {
+        commitHighlight();
         G.skipping = false;
         if (master && SET.sound) master.gain.value = 1;
         G.ai = { runs: G.runs, wkts: G.wkts, balls: G.balls };
@@ -5963,16 +6556,21 @@
         $("aiScore").textContent = `${G.ai.runs}/${G.ai.wkts}`;
         $("aiOvers").textContent = `${ovs(G.ai.balls)} overs · ${G.ai.wkts === G.cfg.wkts ? "all out" : "innings complete"}`;
         $("aiTarget").textContent = G.ai.runs + 1;
+        $("breakTeam").textContent = team().name.toUpperCase();
         $("aiNeed").textContent = `off ${G.cfg.balls} balls · ${G.cfg.wkts} wickets`;
         $("break").classList.add("on");
         sfx("cheer");
         commentary(`Blue Hawks finish on ${G.ai.runs}/${G.ai.wkts}. ${team().name} need ${G.ai.runs + 1} to win.`, 4);
       }
+      // your batting order: everyone the same hand, or alternating for a left-right pair
+      const handFor = (n) => (G.aiBatting ? "R" : SET.hand === "mix" ? (n % 2 ? "L" : "R") : SET.hand);
+      function assignHands() { if (striker) striker.hand = handFor(0); if (nonStriker) nonStriker.hand = handFor(1); }
       function startChase() {
         $("break").classList.remove("on");
-        Object.assign(G, { runs: 0, wkts: 0, balls: 0, fours: 0, sixes: 0, chips: [], shots: [], overBalls: 0, pitchLog: [], freeHitNext: false, perfects: 0, swapStrike: false, innings: 2, walkIn: false, walkOff: null, party: null, batNo: 0, longestSix: 0, lastSixM: 0, sixRun: 0, bestSixRun: 0 });
+        Object.assign(G, { runs: 0, wkts: 0, balls: 0, fours: 0, sixes: 0, chips: [], shots: [], overBalls: 0, pitchLog: [], freeHitNext: false, perfects: 0, swapStrike: false, innings: 2, walkIn: false, walkOff: null, party: null, batNo: 0, longestSix: 0, lastSixM: 0, sixRun: 0, bestSixRun: 0, adr: 0, specialArmed: false, lastScoring: false });
         G.target = G.ai.runs + 1;
         setSides(false);
+        G.lhb = false; assignHands();
         $("hud").classList.add("on");
         $("hint").style.opacity = 1;
         nextBall(true);
@@ -5992,6 +6590,10 @@
       function applyTeam(id) {
         SET.team = id;
         const t = team();
+        // sheets and graphics pick up the team colour (Hash XI's shirt is near-black, so it uses its green)
+        const dark = t.id === "hash" || t.shirt === "#0a0f1f" || t.shirt === "#0b0b0b";
+        document.documentElement.style.setProperty("--tc", dark ? t.accent : t.shirt);
+        document.documentElement.style.setProperty("--tci", dark ? "#06120a" : t.ink);
         Object.assign(KITS.bat, { shirt: t.shirt, pants: t.pants, accent: t.accent, stripe: t.stripe });
         batHelmetMat.color.set(t.helmet);
         for (const p of [striker, nonStriker]) {
@@ -6051,7 +6653,7 @@
         if (out === "bowled") k = "bowled"; else if (out === "caught") k = "caught"; else if (out === "run out") k = "runout"; else if (out === "stumped") k = "stumped";
         else if (signal === "six") k = "six"; else if (signal === "four") k = "four";
         else if (chip === "Wd") k = "wide"; else if (runs > 0) k = "runs"; else if (/^Nb/.test(chip)) k = "noball"; else if (extras === 0) k = "dot";
-        if (k) commentary(fill(pick(LINES[k])), 3.2);
+        if (k) commentary(fill(pick(k === "six" && shot && shot.special && !G.aiBatting ? SPECIALS[shot.special].lines : LINES[k])), 3.2);
         const keeperTook = out === "caught" && playS && playS.ev && playS.ev.f && playS.ev.f.role === "keeper";
         // (a no ball is already called out at the release, so it isn't voiced twice)
         if (k === "six" || k === "four" || k === "bowled" || k === "runout" || k === "stumped") say(k);
@@ -6171,17 +6773,18 @@
       function openPause() {
         if (userPaused || !PAUSABLE.has(G.state)) return;
         userPaused = true;
+        $("pauseTitle").textContent = G.aiBatting ? "Full Match" : G.cfg.name;
         $("pauseInfo").textContent = G.aiBatting
-          ? `Full Match · Blue Hawks ${G.runs}/${G.wkts} after ${ovs(G.balls)} ov`
+          ? `Blue Hawks ${G.runs}/${G.wkts} after ${ovs(G.balls)} ov`
           : G.cfg.nets
-          ? `Nets · ${G.runs} runs off ${G.balls} balls`
-          : `${G.cfg.name} · ${G.runs}/${G.wkts} · need ${Math.max(0, G.target - G.runs)} off ${G.cfg.balls - G.balls}`;
+          ? `${G.runs} runs off ${G.balls} balls`
+          : `${G.runs}/${G.wkts} · need ${Math.max(0, G.target - G.runs)} off ${G.cfg.balls - G.balls}`;
         $("quitBtn").textContent = G.cfg.nets ? "End session" : "Main menu";
         $("restartBtn").style.display = G.cfg.nets ? "none" : "";
-        $("soundBtn").textContent = `Sound: ${SET.sound ? "On" : "Off"}`;
-        $("hapticBtn").textContent = `Haptics: ${SET.haptics ? "On" : "Off"}`;
-        $("voiceBtn").textContent = `Commentary: ${SET.voice ? "On" : "Off"}`;
-        $("calmBtn").textContent = `Effects: ${SET.calm ? "Calm" : "Full"}`;
+        setOpt("soundBtn", "Sound", `${SET.sound ? "On" : "Off"}`);
+        setOpt("hapticBtn", "Haptics", `${SET.haptics ? "On" : "Off"}`);
+        setOpt("voiceBtn", "Commentary", `${SET.voice ? "On" : "Off"}`);
+        setOpt("calmBtn", "Effects", `${SET.calm ? "Calm" : "Full"}`);
         updateGfxLabel(); updateMusicLabels();
         $("pause").classList.add("on");
         if (AC && AC.state === "running") AC.suspend();
@@ -6200,6 +6803,8 @@
         $("runBtn").classList.remove("on", "danger"); $("banner").classList.remove("on"); $("timing").classList.remove("on");
         clearTimeout(sixT); $("sixCard").classList.remove("on");
         if (replay) { replay = null; $("replayBadge").classList.remove("on"); }
+        $("fieldToast").classList.remove("on"); $("slowVig").classList.remove("on"); coach(null);
+        SLOW.on = false; TS = 1; G.specialArmed = false; $("specialBtn").classList.remove("show");
       }
       function quitToMenu() {
         closePause();
@@ -6235,21 +6840,21 @@
       $("soundBtn").addEventListener("click", () => {
         SET.sound = !SET.sound; store.set("so_sound", SET.sound ? "1" : "0");
         if (master) master.gain.value = SET.sound ? 1 : 0;
-        $("soundBtn").textContent = `Sound: ${SET.sound ? "On" : "Off"}`;
+        setOpt("soundBtn", "Sound", `${SET.sound ? "On" : "Off"}`);
       });
       $("calmBtn").addEventListener("click", () => {
         SET.calm = !SET.calm; store.set("so_calm", SET.calm ? "1" : "0");
         document.documentElement.classList.toggle("calm", SET.calm);
-        $("calmBtn").textContent = `Effects: ${SET.calm ? "Calm" : "Full"}`;
+        setOpt("calmBtn", "Effects", `${SET.calm ? "Calm" : "Full"}`);
       });
       $("voiceBtn").addEventListener("click", () => {
         SET.voice = !SET.voice; store.set("so_voice", SET.voice ? "1" : "0");
-        $("voiceBtn").textContent = `Commentary: ${SET.voice ? "On" : "Off"}`;
+        setOpt("voiceBtn", "Commentary", `${SET.voice ? "On" : "Off"}`);
         if (!SET.voice) voiceStop();
       });
       $("hapticBtn").addEventListener("click", () => {
         SET.haptics = !SET.haptics; store.set("so_haptics", SET.haptics ? "1" : "0");
-        $("hapticBtn").textContent = `Haptics: ${SET.haptics ? "On" : "Off"}`;
+        setOpt("hapticBtn", "Haptics", `${SET.haptics ? "On" : "Off"}`);
         haptic("light");
       });
       window.addEventListener("keydown", (e) => { if (e.key === "Escape" || e.key === "p" || e.key === "P") (userPaused ? closePause : openPause)(); });
@@ -6275,13 +6880,16 @@
           ? `<div class="recRow">${[[r.played, "Played"], [r.won || 0, "Won"], [r.bestPts || 0, "Best pts"], [r.sixes || 0, "Sixes"]].map(([v, l]) => `<div class="rt"><b>${v}</b><span>${l}</span></div>`).join("")}</div>`
           : `<div class="recNote">Pick a mode to start your career. Wins, best scores and your <b>daily streak</b> are tracked here.</div>`;
         const got = Object.keys(loadJSON("so_ach")).length;
-        if (r.played) $("records").innerHTML += `<div class="recMore">🏅 ${got}/${ACH.length} badges · View career ▸</div>`;
+        $("careerSub").textContent = `${got}/${ACH.length} badges · bats & kits`;
+        $("careerFill").style.width = `${Math.round((got / ACH.length) * 100)}%`;
+        $("superBest").textContent = r.played ? `Best ${r.bestPts || 0} pts · ${r.won || 0} win${r.won === 1 ? "" : "s"}` : "";
         const t = team();
         $("teamName").textContent = t.name;
         setCrest($("crest"), t);
         for (const b of $("diffSeg").querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === SET.diff);
         $("timeBtn").textContent = TIMES[SET.time].label;
         $("pitchBtn").textContent = `Pitch: ${SET.pitch === "auto" ? "Auto" : SURFACES[SET.pitch].short}`;
+        $("handBtn").textContent = `Bat: ${{ R: "Right", L: "Left", mix: "L+R pair" }[SET.hand] || "Right"}`;
         updateGfxLabel();
       }
       const stepTeam = (k) => {
@@ -6299,6 +6907,10 @@
       $("timeBtn").addEventListener("click", () => {
         const order = Object.keys(TIMES);
         applyTime(order[(order.indexOf(SET.time) + 1) % order.length]); store.set("so_time", SET.time); refreshMenu();
+      });
+      $("handBtn").addEventListener("click", () => {
+        const order = ["R", "L", "mix"];
+        SET.hand = order[(order.indexOf(SET.hand) + 1) % order.length]; store.set("so_hand", SET.hand); refreshMenu();
       });
       $("pitchBtn").addEventListener("click", () => {
         const order = ["auto", ...Object.keys(SURFACES)];
@@ -6327,6 +6939,7 @@
       const fmtPct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
       function renderCareer() {
         const r = loadJSON("so_records"), got = loadJSON("so_ach"), d = loadJSON("so_daily");
+        $("careerName").textContent = baseTeam().name;
         const tiles = [
           [r.played || 0, "Matches"], [`${fmtPct(r.won || 0, r.played || 0)}%`, "Win rate", "hl"], [r.runs || 0, "Runs"], [r.balls ? Math.round(((r.runs || 0) / r.balls) * 100) : "—", "Strike rate"],
           [r.bestRuns || 0, "Best score", "hl"], [r.fours || 0, "Fours"], [r.sixes || 0, "Sixes", "six"], [r.longestSix ? `${r.longestSix}m` : "—", "Longest six", "six"],
@@ -6449,8 +7062,9 @@
       $("runBtn").addEventListener("pointerdown", (e) => { e.stopPropagation(); audioInit(); if (!G.aiBatting) callRun(); });
       window.addEventListener("keydown", (e) => { if ((e.key === "r" || e.key === "R") && !G.aiBatting) callRun(); });
       document.querySelectorAll(".mode").forEach((b) => b.addEventListener("click", () => startInnings(b.dataset.mode)));
-      $("again").addEventListener("click", () => startInnings(G.mode));
-      $("toMenu").addEventListener("click", () => { $("end").classList.remove("on"); refreshMenu(); $("menu").classList.add("on"); setState("menu"); });
+      $("again").addEventListener("click", () => { track("replay_tapped", { mode: G.mode }); G.replayNext = true; startInnings(G.mode); });
+      $("toMenu").addEventListener("click", () => {
+        cancelClip(); $("end").classList.remove("on"); refreshMenu(); $("menu").classList.add("on"); setState("menu"); });
 
       // ------------------------------------------------------------------
       // Audio (synthesised — no extra downloads)
@@ -6748,7 +7362,7 @@
       }
       function updateMusicLabels() {
         $("musicBtn").textContent = `♫ Music: ${MUSIC.on ? "On" : "Off"}`;
-        $("musicBtn2").textContent = `Music: ${MUSIC.on ? "On" : "Off"}`;
+        setOpt("musicBtn2", "Music", `${MUSIC.on ? "On" : "Off"}`);
       }
       updateMusicLabels();
 
@@ -6829,6 +7443,7 @@
       }
       // the stands react depending on which side did what (the crowd supports your team)
       function crowdReact({ runs, out, chip, signal }) {
+        if (out || signal === "six" || signal === "four") cheerHype();
         const usBat = !G.aiBatting;
         if (out) sfx(usBat ? "groan" : "yay");
         else if (signal === "six" || signal === "four") sfx(usBat ? (signal === "six" ? "yay" : "yaySoft") : "boo");
@@ -7049,6 +7664,7 @@
         } catch (_) {}
         playIntro();
         loadDances(); // boundary celebrations: fetched in the background, not on the loading card
+        loadCheer().catch((e) => console.warn("cheer squad unavailable", e));
       }
 
       // branded intro over a stadium fly-in; tap anywhere to skip
@@ -7070,9 +7686,13 @@
         const el = $("intro");
         setState("intro");
         el.classList.add("on", "play");
+        // the very first intro plays in full; once it has been seen, a tap skips it
+        const firstRun = !store.get("so_intro_seen");
+        el.classList.toggle("noskip", firstRun);
         const finish = () => {
           if (introDone) return;
           introDone = true;
+          store.set("so_intro_seen", "1");
           clearIntroTimers();
           if (!INTRO_SONG.src) musicPlay(4); // the intro song (if playing) carries on over the menu and hands over when it ends
           el.classList.add("out");
@@ -7083,7 +7703,8 @@
           setState("menu");
           if (!SET.tutorialSeen && !store.get("so_howseen")) { store.set("so_howseen", "1"); setTimeout(() => $("howSheet").classList.add("on"), 500); }
         };
-        el.addEventListener("pointerdown", () => { audioInit(); finish(); }, { once: true });
+        if (firstRun) el.addEventListener("pointerdown", () => audioInit(), { once: true });
+        else el.addEventListener("pointerdown", () => { audioInit(); finish(); }, { once: true });
         $("introSub").textContent = SET.time === "night" ? "Floodlights on. One over. No second chances." : "Six balls. One target. No second chances.";
         audioInit(); // the app's web view allows audio without a tap; browsers start once tapped
         // the bundled song plays over the opening; without it, the synth anthem's build
@@ -7117,7 +7738,7 @@
       // ------------------------------------------------------------------
       const REC = { on: false, t: 0, frames: [], marks: {} };
       const recParts = () => [ballMesh, bat, bat2, ...stumpParts()];
-      function recStart() { REC.on = true; REC.t = 0; REC.frames.length = 0; REC.marks = {}; }
+      function recStart() { commitHighlight(); REC.on = true; REC.t = 0; REC.frames = []; REC.marks = {}; REC.lhb = !!G.lhb; REC.lab = !!G.lab; }
       function recMark(name) { if (REC.on && REC.marks[name] === undefined) REC.marks[name] = REC.t; }
       function recFrame(dt) {
         if (!REC.on) return;
@@ -7132,8 +7753,7 @@
         for (const o of recParts()) data.push(o.position.x, o.position.y, o.position.z, o.quaternion.x, o.quaternion.y, o.quaternion.z, o.quaternion.w);
         REC.frames.push({ t: REC.t, d: new Float32Array(data), ball: ballMesh.visible });
       }
-      function recApply(t) {
-        const F = REC.frames;
+      function recApply(t, F = REC.frames) {
         if (!F.length) return;
         let i = 0;
         while (i < F.length - 1 && F[i + 1].t <= t) i++;
@@ -7155,7 +7775,7 @@
         const pivot = m.contact ?? m.stumps ?? m.event ?? 0;
         const from = Math.max(0, pivot - 0.75);
         const to = Math.min(REC.t, (m.event ?? pivot) + (G.signal && G.signal.type === "six" ? 1.0 : 0.7));
-        replay = { from, to, t: 0, speed: 0.5 };
+        replay = { from, to, t: 0, speed: 0.5, contact: m.contact ?? m.stumps ?? pivot, lhb: REC.lhb, lab: REC.lab };
         REC.on = false;
         $("banner").classList.remove("on"); $("timing").classList.remove("on");
         $("replayBadge").classList.add("on");
@@ -7168,10 +7788,13 @@
         $("replayBadge").classList.remove("on");
         nextBall();
       }
-      function replayCamera() {
+      // until the ball reaches the bat the replay holds the low side-on shot of the batter; it
+      // used to drift there from the last live camera (often by the umpire), which opened every
+      // replay on a close-up of the bowler mid-leap in his delivery stride
+      function replayCamera(rt = Infinity, contact = -Infinity) {
         const b = ballMesh.position;
         const fromBat = Math.hypot(b.x - 0.4, b.z - 1.3);
-        if (fromBat < 14 || !playS) {
+        if (rt < contact + 0.05 || fromBat < 14 || !playS) {
           // low, side-on from the off side: the classic replay angle
           camPos.set(-6.5, 1.3, 2.4); camTgt.set(0.2, 0.85, 0.75); camF = Math.min(W, H) * 1.7;
         } else {
@@ -7182,16 +7805,408 @@
       }
 
       // ------------------------------------------------------------------
+      // Special shots: good timing fills the adrenaline ring. When it's full the player
+      // arms a special and the swipe direction picks which one; it forgives a little
+      // timing and carries a long way, and a clean one plays out in slow motion.
+      // ------------------------------------------------------------------
+      const SPECIALS = {
+        power: { name: "Power Drive", anim: "drive", a: 0, spread: 0.12, speed: 39, elev: [28, 36],
+          lines: ["POWER DRIVE! Straight back over the bowler, {m} metres!", "Brute force — that's gone miles straight down the ground."] },
+        heli: { name: "Helicopter Shot", anim: "heli", a: 0.62, spread: 0.18, speed: 39.5, elev: [30, 38],
+          lines: ["The helicopter! Whipped off the toes, {m} metres {w}!", "What a finish on that! Helicopter shot, all the way."] },
+        s360: { name: "360 Shot", anim: "drive", a: -0.95, spread: 0.18, speed: 38, elev: [28, 36],
+          lines: ["Inside out over cover — the 360 shot, and it's gone!", "Opened up the off side and deposited it {w}. Outrageous!"] },
+        scoop: { name: "Super Scoop", anim: "scoop", a: Math.PI, spread: 0.22, speed: 33.5, elev: [40, 48],
+          lines: ["The SCOOP! Over the keeper's head and into the crowd!", "Audacious! Scooped {w} — the keeper didn't even move."] },
+      };
+      // swipe direction → special: straight, leg side, off side, or back over the keeper
+      const specialFor = (a) => (Math.abs(a) > 1.9 ? "scoop" : a > 0.35 ? "heli" : a < -0.35 ? "s360" : "power");
+      const ADR_FULL = 100;
+      function addAdrenaline(n) {
+        if (G.aiBatting || G.specialArmed || !G.cfg) return;
+        const was = G.adr || 0;
+        G.adr = Math.min(ADR_FULL, was + n);
+        if (was < ADR_FULL && G.adr >= ADR_FULL) {
+          sfx("riser"); haptic("medium");
+          if (!store.get("so_special_tip")) { store.set("so_special_tip", "1"); commentary("Adrenaline full! Tap ⚡ SPECIAL, then swipe long — the direction picks the shot.", 4.5); }
+          else commentary("Adrenaline's full — the special shot is ready.", 2.6);
+        }
+        updateSpecialUI();
+      }
+      function updateSpecialUI() {
+        const btn = $("specialBtn");
+        btn.classList.toggle("show", !!G.cfg && !G.aiBatting && G.state !== "over" && G.state !== "menu" && G.state !== "clip");
+        const full = (G.adr || 0) >= ADR_FULL;
+        btn.classList.toggle("ready", full && !G.specialArmed);
+        btn.classList.toggle("armed", !!G.specialArmed);
+        $("adrRing").style.strokeDasharray = `${G.specialArmed ? 100 : Math.round(G.adr || 0)} 100`;
+        $("specialLbl").textContent = G.specialArmed ? "ARMED" : full ? "SPECIAL" : `${Math.round(G.adr || 0)}%`;
+      }
+      $("specialBtn").addEventListener("pointerdown", (e) => {
+        e.stopPropagation(); audioInit();
+        if (G.aiBatting || shot || !["ready", "runup", "delivery"].includes(G.state)) return;
+        if (G.specialArmed) { G.specialArmed = false; sfx("click"); }
+        else if ((G.adr || 0) >= ADR_FULL) { G.specialArmed = true; sfx("blip"); haptic("light"); timing("SPECIAL ARMED · SWIPE LONG", "#facc15"); }
+        else timing("TIME IT WELL TO CHARGE", "#cbd5e1");
+        updateSpecialUI();
+      });
+
+      // slow motion: game time runs at TS × real time. It eases in on the swing of a special,
+      // holds through a clean contact, then eases back out.
+      const SLOW = { on: false, t: 0, until: Infinity };
+      let TS = 1;
+      function slowStart() { Object.assign(SLOW, { on: true, t: 0, until: Infinity }); $("slowName").textContent = ""; }
+      function slowHold(sec, name) {
+        if (!SLOW.on) return;
+        SLOW.until = SLOW.t + sec;
+        if (name) { $("slowName").textContent = name.toUpperCase() + "!"; replayAnim($("slowVig"), "on"); }
+      }
+      function slowStep(dt) {
+        if (!SLOW.on) return (TS = 1);
+        SLOW.t += dt;
+        const live = G.state === "delivery" || G.state === "play" || G.state === "result";
+        if (!live) SLOW.until = Math.min(SLOW.until, SLOW.t - 1);
+        else if (SLOW.until === Infinity && SLOW.t > 1.4) SLOW.until = SLOW.t; // contact never came
+        const inK = clamp(SLOW.t / 0.14, 0, 1);
+        const outK = SLOW.until === Infinity ? 0 : clamp((SLOW.t - SLOW.until) / 0.3, 0, 1);
+        TS = lerp(1, 0.22, inK * (1 - outK));
+        if (outK >= 1) { SLOW.on = false; TS = 1; }
+        $("slowVig").classList.toggle("on", SLOW.on && outK < 0.5);
+        return TS;
+      }
+
+      // ------------------------------------------------------------------
+      // AI captain: remembers where you score (this innings, and your history on this
+      // phone) and moves fielders into your favourite areas: a sweeper where you hit
+      // boundaries, a ring fielder where you keep taking singles.
+      // ------------------------------------------------------------------
+      const ZONES = 12; // 30° sectors around the bat; 0 = straight, + = leg side
+      const shotAng = (x, z) => (Math.atan2(x, z - Z_HIT) * 180) / Math.PI;
+      const zoneOf = (a) => ((Math.round(a / 30) % ZONES) + ZONES) % ZONES;
+      const zoneAng = (k) => (k <= 6 ? k * 30 : (k - ZONES) * 30);
+      function fieldName(a, d) {
+        const ad = Math.abs(a), leg = a > 0, deep = d > 45;
+        if (ad < 30) return deep ? (leg ? "long-on" : "long-off") : leg ? "mid-on" : "mid-off";
+        if (ad < 75) return deep ? (leg ? "deep midwicket" : "deep cover") : leg ? "midwicket" : "cover";
+        if (ad < 110) return deep ? (leg ? "deep square leg" : "deep point") : leg ? "square leg" : "point";
+        if (ad < 150) return deep ? (leg ? "deep backward square" : "third man") : leg ? "backward square" : "gully";
+        return deep ? (leg ? "fine leg" : "third man") : leg ? "short fine" : "slip";
+      }
+      function recordZone(x, z, runs) {
+        const k = zoneOf(shotAng(x, z)), w = runs >= 4 ? runs / 2 : 1;
+        G.zone[k] += w; if (runs >= 4) G.zoneB[k] += 1;
+        const c = loadJSON("so_zones"), h = c.h || Array(ZONES).fill(0), b = c.b || Array(ZONES).fill(0);
+        h[k] = +(h[k] + w).toFixed(2); if (runs >= 4) b[k] = +(b[k] + 1).toFixed(2);
+        store.set("so_zones", JSON.stringify({ h, b }));
+      }
+      // older habits fade: every innings counts a bit less than the one after it
+      function decayZones() {
+        const c = loadJSON("so_zones");
+        if (!c.h) return;
+        store.set("so_zones", JSON.stringify({ h: c.h.map((v) => +(v * 0.85).toFixed(2)), b: c.b.map((v) => +(v * 0.85).toFixed(2)) }));
+      }
+      // heat per sector: this innings counts most; history is scaled to at most 12 points
+      function zoneHeat() {
+        const c = loadJSON("so_zones"), h = c.h || [], b = c.b || [];
+        const sum = h.reduce((s, v) => s + v, 0), k = sum > 0 ? Math.min(sum, 12) / sum : 0;
+        return Array.from({ length: ZONES }, (_, i) => ({ heat: G.zone[i] * 1.5 + (h[i] || 0) * k * 0.6, bnd: G.zoneB[i] + (b[i] || 0) * k * 0.6, career: G.zone[i] === 0 }));
+      }
+      const movable = (f) => f.role !== "keeper" && f.role !== "bowler";
+      const fAng = (f) => shotAng(f.base.x, f.base.z), fDist = (f) => Math.hypot(f.base.x, f.base.z - Z_HIT);
+      const covers = (k, deep) => fielders.some((f) => movable(f) && zoneOf(fAng(f)) === k && (deep ? fDist(f) > 45 : fDist(f) <= 45));
+      // move the least useful fielder into sector k; returns the move, or null
+      function captainMove(k, deep, heat) {
+        let best = null, bestS = Infinity;
+        for (const f of fielders) {
+          if (!movable(f) || f.jogFrom) continue;
+          const z = zoneOf(fAng(f));
+          if (z === k) continue;
+          const near = heat[z].heat + 0.5 * (heat[(z + 1) % ZONES].heat + heat[(z + ZONES - 1) % ZONES].heat);
+          const mates = fielders.filter((o) => o !== f && movable(o) && zoneOf(fAng(o)) === z).length;
+          const s = near - 0.8 * mates + (f.role === "slip" ? 0.6 : 0);
+          if (s < bestS) { bestS = s; best = f; }
+        }
+        if (!best) return null;
+        const from = best.base.clone(), a = zoneAng(k) + rand(-7, 7), d = deep ? rand(60, 65) : rand(24, 27);
+        best.jogFrom = best.p.pos.clone();
+        best.base = polarToWorld(a, d);
+        best.role = fieldName(a, d);
+        return { f: best, from, a, deep, k };
+      }
+      // start of an over: up to two changes for your hottest areas (one on Easy, three on Legend)
+      function captainNewOver() {
+        const heat = zoneHeat(), moves = [];
+        const order = heat.map((h, k) => ({ ...h, k })).sort((x, y) => y.heat - x.heat);
+        const max = D() === DIFFS.easy ? 1 : D() === DIFFS.legend ? 3 : 2;
+        for (const z of order) {
+          if (moves.length >= max || z.heat < 3) break;
+          const deep = z.bnd >= 0.6;
+          if (covers(z.k, deep)) continue;
+          const m = captainMove(z.k, deep, heat);
+          if (m) moves.push({ ...m, career: z.career });
+        }
+        if (moves.length) fieldToast(moves);
+      }
+      // between balls: react to the shot just played, if that area is open
+      function captainBetweenBalls() {
+        const last = G.shots[G.shots.length - 1];
+        if (!G.lastScoring || !last) return;
+        G.lastScoring = false;
+        const k = zoneOf(shotAng(last.x, last.z)), heat = zoneHeat(), deep = last.runs >= 4 || heat[k].bnd >= 0.6;
+        if (heat[k].heat < 3 || covers(k, deep)) return;
+        if (Math.random() > (D() === DIFFS.easy ? 0.35 : D() === DIFFS.legend ? 0.9 : 0.65)) return;
+        const m = captainMove(k, deep, heat);
+        if (m) fieldToast([m]);
+      }
+      function fieldToast(moves) {
+        const m = moves[0], role = m.f.role, Role = role[0].toUpperCase() + role.slice(1);
+        $("fieldMain").textContent = moves.length > 1 ? `${moves.length} changes` : `${Role} ${m.deep ? "goes back" : "comes in"}`;
+        $("fieldSub").textContent = moves.length > 1 ? moves.map((x) => x.f.role).join(" · ")
+          : m.career ? "They've done their homework on you." : m.deep ? "Plugging the gap you've been clearing." : "Cutting off your easy runs.";
+        drawFieldMap(moves);
+        const el = $("fieldToast");
+        replayAnim(el, "on");
+        clearTimeout(fieldToast.t); fieldToast.t = setTimeout(() => el.classList.remove("on"), 3200);
+        commentary(m.career && moves.length > 1 ? "The captain's been studying your scoring areas — the field's set for you." : `${Role} ${m.deep ? "goes back" : "comes up"}. The captain's seen where you're scoring.`, 3);
+        sfx("blip");
+      }
+      function drawFieldMap(moves) {
+        const c = $("fieldCanvas"), g = c.getContext("2d"), w = c.width, R = w / 2 - 4, s = R / BOUNDARY;
+        const X = (x) => w / 2 + x * s * (G.lhb ? -1 : 1), Y = (z) => w / 2 - (z - CENTER.z) * s; // bowler end at top, as on the wagon wheel
+        g.clearRect(0, 0, w, w);
+        g.fillStyle = "#1f6a30"; g.beginPath(); g.arc(w / 2, w / 2, R, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = "rgba(255,255,255,.7)"; g.lineWidth = 2; g.stroke();
+        g.setLineDash([3, 4]); g.strokeStyle = "rgba(255,255,255,.3)"; g.beginPath(); g.arc(w / 2, w / 2, 30 * s, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+        g.fillStyle = "#cdb784"; g.fillRect(X(-1.5), Y(PITCH), 3 * s, PITCH * s);
+        const moved = new Set(moves.map((m) => m.f));
+        for (const f of fielders) {
+          if (f.role === "bowler" || moved.has(f)) continue;
+          g.fillStyle = "rgba(255,255,255,.8)"; g.beginPath(); g.arc(X(f.base.x), Y(f.base.z), 4, 0, Math.PI * 2); g.fill();
+        }
+        for (const m of moves) {
+          g.strokeStyle = "rgba(250,204,21,.85)"; g.lineWidth = 2.5; g.setLineDash([4, 3]);
+          g.beginPath(); g.moveTo(X(m.from.x), Y(m.from.z)); g.lineTo(X(m.f.base.x), Y(m.f.base.z)); g.stroke(); g.setLineDash([]);
+          g.fillStyle = "rgba(255,255,255,.25)"; g.beginPath(); g.arc(X(m.from.x), Y(m.from.z), 4, 0, Math.PI * 2); g.fill();
+          g.fillStyle = "#facc15"; g.shadowColor = "#facc15"; g.shadowBlur = 10;
+          g.beginPath(); g.arc(X(m.f.base.x), Y(m.f.base.z), 6, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+        }
+      }
+      // a moved fielder jogs to his new spot before the bowler runs in (snaps there if it's far)
+      function fieldJog(dt) {
+        let busy = false;
+        for (const f of fielders) {
+          if (!f.jogFrom) continue;
+          if (moveToward(f.p, f.base.x, f.base.z, 8.5, dt, 0.4, 0, CENTER.z)) { f.jogFrom = null; play(f.p, "idle", 0.3); }
+          else busy = true;
+        }
+        return busy;
+      }
+
+      // ------------------------------------------------------------------
+      // Highlight clips: the innings' best moment (the biggest six, a special, the
+      // winning hit, a wicket you bowled) keeps its recorded frames. At the end it is
+      // re-rendered from the replay camera into a vertical 720×1280 video with the
+      // score burned in, ready to share.
+      // ------------------------------------------------------------------
+      const CLIP_W = 720, CLIP_H = 1280;
+      let CLIP = null;
+      function clipMime() {
+        if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return null;
+        for (const m of ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"])
+          if (MediaRecorder.isTypeSupported(m)) return m;
+        return null;
+      }
+      function hlScoreLine() {
+        if (G.aiBatting) return `HAWKS ${G.runs}/${G.wkts} · ${ovs(G.balls)} OV`;
+        return `${team().short} ${G.runs}/${G.wkts} · ${ovs(G.balls)} OV${Number.isFinite(G.target) ? ` · TARGET ${G.target}` : ""}`;
+      }
+      // called from endBall: is this ball the innings' best moment so far?
+      function highlightCandidate(runs, out) {
+        if (G.cfg.nets) return;
+        let sc = 0, info = null;
+        if (!G.aiBatting && runs === 6) { sc = 100 + (G.lastSixM || 0); info = { kind: "six", big: "SIX!", m: G.lastSixM }; }
+        else if (!G.aiBatting && runs === 4) { sc = 40; info = { kind: "four", big: "FOUR!" }; }
+        else if (G.aiBatting && out) { sc = 70; info = { kind: "wkt", big: { bowled: "BOWLED!", caught: "CAUGHT!", stumped: "STUMPED!" }[out] || "RUN OUT!" }; }
+        if (!info) return;
+        if (!G.aiBatting && shot && shot.special) { sc += 80; info.special = SPECIALS[shot.special].name; }
+        if (!G.aiBatting && Number.isFinite(G.target) && G.runs >= G.target) { sc += 70; info.winner = true; }
+        G.hlCand = { score: sc, info, line: hlScoreLine() };
+      }
+      // the recorded frames belong to the candidate once its ball has finished recording
+      function commitHighlight() {
+        const c = G.hlCand;
+        G.hlCand = null;
+        if (!c || REC.frames.length < 12 || (G.hl && G.hl.score >= c.score)) return;
+        G.hl = { ...c, frames: REC.frames, marks: { ...REC.marks }, dur: REC.t, lhb: REC.lhb, lab: REC.lab };
+        REC.frames = [];
+      }
+      const hlTitle = (i) => (i.winner ? "Winning hit · " : "") + (i.special ? `${i.special}${i.m ? ` · ${i.m} M` : ""}` : i.kind === "six" ? `Six · ${i.m} M` : i.big.replace("!", ""));
+      function makeHighlight() {
+        const H0 = G.hl, mime = clipMime();
+        if (!H0 || !mime || CLIP) return false;
+        const comp = document.createElement("canvas");
+        comp.width = CLIP_W; comp.height = CLIP_H;
+        const stream = comp.captureStream(30);
+        let bus = null, dest = null;
+        if (AC) {
+          // the clip has its own mix: cues are played into it rather than out of the speakers
+          try {
+            dest = AC.createMediaStreamDestination();
+            bus = AC.createGain(); bus.connect(dest);
+            if (crowdGain) crowdGain.connect(dest);
+            for (const t of dest.stream.getAudioTracks()) stream.addTrack(t);
+          } catch (_) { bus = dest = null; }
+        }
+        let rec;
+        try { rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 3500000 }); } catch (_) { return false; }
+        const m = H0.marks, pivot = m.contact ?? m.stumps ?? m.event ?? 0;
+        const C = { H: H0, comp, ctx: comp.getContext("2d"), rec, chunks: [], bus, dest, mime, pivot, from: Math.max(0, pivot - 1.1),
+          to: Math.min(H0.dur, (m.event ?? pivot) + (H0.info.kind === "six" ? 1.5 : 1.0)), cues: {}, endCard: 0 };
+        C.rt = C.from;
+        rec.ondataavailable = (e) => { if (e.data && e.data.size) C.chunks.push(e.data); };
+        rec.onstop = () => clipFinished(C);
+        rec.start(250);
+        CLIP = C;
+        trailPts.length = 0;
+        setState("clip");
+        $("hlBox").classList.add("on"); $("hlBox").classList.remove("done");
+        $("hlMain").textContent = "Cutting your clip…"; $("hlFill").style.width = "0%";
+        return true;
+      }
+      function cancelClip() {
+        const C = CLIP;
+        if (!C) return;
+        C.cancelled = true; CLIP = null;
+        try { if (C.rec.state !== "inactive") C.rec.stop(); } catch (_) {}
+        $("hlBox").classList.remove("on");
+      }
+      function clipFinished(C) {
+        if (CLIP === C) CLIP = null;
+        try { if (C.bus) C.bus.disconnect(); if (crowdGain && C.dest) crowdGain.disconnect(C.dest); } catch (_) {}
+        if (C.cancelled || !C.chunks.length) { if (!C.cancelled) $("hlBox").classList.remove("on"); if (G.state === "clip") setState("over"); return; }
+        const type = C.mime.split(";")[0];
+        G.hlClip = { blob: new Blob(C.chunks, { type }), ext: type === "video/mp4" ? "mp4" : "webm", info: C.H.info };
+        const v = $("hlVid");
+        if (v.dataset.url) URL.revokeObjectURL(v.dataset.url);
+        v.dataset.url = v.src = URL.createObjectURL(G.hlClip.blob);
+        v.play().catch(() => {});
+        $("hlBox").classList.add("done");
+        $("hlMain").textContent = hlTitle(C.H.info);
+        if (G.state === "clip") setState("over");
+      }
+      function clipSfx(...kinds) {
+        if (!CLIP || !CLIP.bus) return;
+        const m = master;
+        master = CLIP.bus;
+        try { for (const k of kinds) sfx(k); } finally { master = m; }
+      }
+      // replay speed: slow around the moment of contact, near real time either side
+      const clipSpeed = (rt, pivot) => { const d = Math.abs(rt - pivot); return d < 0.35 ? 0.3 : d < 0.7 ? lerp(0.3, 0.9, (d - 0.35) / 0.35) : 0.9; };
+      function clipTick(dt) {
+        const C = CLIP, H0 = C.H, m = H0.marks;
+        if (C.rt < C.to) {
+          const prev = C.rt;
+          C.rt = Math.min(C.to, C.rt + dt * clipSpeed(C.rt, C.pivot));
+          recApply(C.rt, H0.frames);
+          const cue = (at, ...kinds) => { if (at != null && prev < at && C.rt >= at) clipSfx(...kinds); };
+          cue(m.contact, "perfect");
+          cue(m.event, ...(H0.info.kind === "six" ? ["roar", "sting6", "applause"] : H0.info.kind === "four" ? ["cheer", "board", "sting4", "applause"] : ["roar", "stingOut"]));
+          updateTrail();
+          replayCamera(C.rt, C.pivot);
+          camera.position.copy(camPos); camera.lookAt(camTgt);
+          camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(H / (2 * camF))); camera.updateProjectionMatrix();
+        } else {
+          C.endCard += dt;
+          if (C.endCard > 2.1 && C.rec.state === "recording") C.rec.stop();
+        }
+        updateStadiumFx(dt);
+        renderFrame();
+        clipCompose(C);
+        const span = C.to - C.from;
+        $("hlFill").style.width = `${Math.round(clamp(((C.rt - C.from) / span) * 80 + (C.endCard / 2.1) * 20, 0, 100))}%`;
+      }
+      // a skewed broadcast slab with centred text, as on the in-game banners
+      function slab(g, text, y, size, bg, fg, skew = -0.2) {
+        g.font = `italic 900 ${size}px Arial, sans-serif`;
+        const w = g.measureText(text).width + size * 0.9, h = size * 1.18;
+        g.save(); g.translate(CLIP_W / 2, y); g.transform(1, 0, skew, 1, 0, 0);
+        g.fillStyle = bg; g.shadowColor = "rgba(0,0,0,.5)"; g.shadowBlur = 24; g.shadowOffsetY = 10;
+        g.beginPath(); g.roundRect ? g.roundRect(-w / 2, -h / 2, w, h, 10) : g.rect(-w / 2, -h / 2, w, h); g.fill();
+        g.restore();
+        g.fillStyle = fg; g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillText(text, CLIP_W / 2, y + size * 0.06);
+      }
+      function clipCompose(C) {
+        const g = C.ctx, src = canvas, sw = src.width, sh = src.height, ar = CLIP_W / CLIP_H, H0 = C.H, I = H0.info, m = H0.marks;
+        let cw = sw, ch = sh;
+        if (sw / sh > ar) cw = sh * ar; else ch = sw / ar;
+        g.drawImage(src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, CLIP_W, CLIP_H);
+        // top: brand + scoreline
+        const top = g.createLinearGradient(0, 0, 0, 260);
+        top.addColorStop(0, "rgba(0,0,0,.65)"); top.addColorStop(1, "rgba(0,0,0,0)");
+        g.fillStyle = top; g.fillRect(0, 0, CLIP_W, 260);
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillStyle = "#22c55e"; g.font = "900 26px Arial, sans-serif"; g.fillText("HASH ARCADE", CLIP_W / 2, 64);
+        g.fillStyle = "#fff"; g.font = "italic 900 54px Arial, sans-serif"; g.fillText("SUPER OVER", CLIP_W / 2, 112);
+        g.fillStyle = "rgba(6,11,22,.85)"; g.fillRect(CLIP_W / 2 - 250, 150, 500, 50);
+        g.fillStyle = "#facc15"; g.font = "800 26px Arial, sans-serif"; g.fillText(H0.line, CLIP_W / 2, 176);
+        const after = (t) => t != null && C.rt >= t && C.endCard === 0; // the end card replaces the moment's captions
+        if (I.special && after(m.contact)) slab(g, I.special.toUpperCase() + "!", 360, 58, "#facc15", "#1c1003");
+        if (after(m.event)) {
+          const bg = I.kind === "six" ? "#c026d3" : I.kind === "four" ? "#2563eb" : "#dc2626";
+          slab(g, I.big, CLIP_H - 360, 120, bg, "#fff");
+          if (I.kind === "six" && I.m) slab(g, `${I.m} METRES`, CLIP_H - 248, 46, "#fff", "#111827");
+          if (I.winner) slab(g, "WINNING HIT", CLIP_H - 170, 38, "#22c55e", "#052e16");
+        }
+        if (C.endCard > 0) {
+          const k = clamp(C.endCard / 0.4, 0, 1);
+          g.fillStyle = `rgba(6,11,22,${0.9 * k})`; g.fillRect(0, 0, CLIP_W, CLIP_H);
+          g.globalAlpha = k;
+          g.fillStyle = "#fff"; g.font = "italic 900 64px Arial, sans-serif"; g.fillText(`${G.runs}/${G.wkts}`, CLIP_W / 2, CLIP_H / 2 - 150);
+          g.fillStyle = "#94a3b8"; g.font = "800 28px Arial, sans-serif"; g.fillText(G.lastRes === "win" ? "CHASED IT DOWN" : `${G.cfg.name.toUpperCase()}`, CLIP_W / 2, CLIP_H / 2 - 90);
+          slab(g, "BEAT ME? 🏏", CLIP_H / 2 + 20, 76, "#facc15", "#1c1003");
+          g.fillStyle = "#e2e8f0"; g.font = "700 30px Arial, sans-serif"; g.fillText("Play Super Over on the Hash app", CLIP_W / 2, CLIP_H / 2 + 140);
+          g.globalAlpha = 1;
+        }
+      }
+      const blobToB64 = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(b); });
+      async function shareClip() {
+        const c = G.hlClip;
+        if (!c) return;
+        const text = shareText(), name = `hash-super-over-highlight.${c.ext}`, type = c.blob.type, msg = $("submitMsg");
+        const bridge = window.flutter_inappwebview;
+        if (bridge && typeof bridge.callHandler === "function") {
+          msg.textContent = "Opening share…";
+          const b64 = await blobToB64(c.blob);
+          // older app builds have no video handler: don't wait on it forever
+          const ok = await Promise.race([bridge.callHandler("shareVideo", { text, video: b64, mime: type, name }).then((r) => !!(r && r.ok)).catch(() => false), new Promise((r) => setTimeout(() => r(false), 4000))]);
+          msg.textContent = "";
+          if (ok) return;
+        }
+        try {
+          const file = new File([c.blob], name, { type });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text }); return; }
+        } catch (e) { if (e && e.name === "AbortError") return; }
+        const a = document.createElement("a"); a.href = URL.createObjectURL(c.blob); a.download = name; a.click();
+        msg.textContent = "Clip saved";
+      }
+      $("hlShare").addEventListener("click", () => { sfx("click"); shareClip(); });
+
+      // ------------------------------------------------------------------
       // Main loop
       // ------------------------------------------------------------------
       let last = performance.now();
       function tick(dt, render = true) {
+        if (G.state === "clip" && CLIP) { MIRROR.bat = !!CLIP.H.lhb; MIRROR.bowl = !!CLIP.H.lab; clipTick(dt); return; }
+        const live = !["menu", "loading", "intro", "over"].includes(G.state);
+        MIRROR.bat = live && (G.state === "replay" && replay ? !!replay.lhb : !!G.lhb);
+        MIRROR.bowl = live && (G.state === "replay" && replay ? !!replay.lab : !!G.lab);
         if (G.state === "replay" && replay) {
           replay.t += dt;
           const rt = replay.from + replay.t * replay.speed;
           recApply(rt);
           updateTrail();
-          replayCamera();
+          replayCamera(rt, replay.contact);
           camera.position.copy(camPos); camera.lookAt(camTgt);
           camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(H / (2 * camF))); camera.updateProjectionMatrix();
           updateStadiumFx(dt);
@@ -7228,7 +8243,7 @@
         last = now; lastFrame = now;
         if (!window.__paused && !userPaused) {
           if (G.skipping) { for (let i = 0; i < 45 && G.skipping; i++) { lastFrame = performance.now(); tick(1 / 30, false); } renderFrame(); }
-          else { tick(dt); watchPerf(dt); }
+          else { tick(dt * slowStep(dt)); watchPerf(dt); }
         }
         requestAnimationFrame(frame);
       }
@@ -7264,7 +8279,7 @@
         openPause, closePause, quitToMenu, say, sfx, applyNight, applyTime, applyBatSkin, applyTeam, sixDistance, drawShareCard, checkAchievements, dailyScenario, finish, banner, timing, commentary, scene, camera, THREE, MUSIC, musicPlay, musicStop,
         get audio() { return { ac: AC && AC.state, song: !!INTRO_SONG.data, songPlaying: !!INTRO_SONG.src, music: MUSIC.playing }; },
         step(sec, dt = 1 / 60, headless = false) { for (let t = 0; t < sec; t += dt) { lastFrame = performance.now(); tick(dt, !headless || t + dt >= sec); } },
-        get ballT() { return ballT; }, applyHands, LEAD, get replay() { return replay; }, startReplay, endReplay,
+        get ballT() { return ballT; }, applyHands, special, danceTo, stopDance, DANCES, EMOTES_LOADED, LEAD, get replay() { return replay; }, startReplay, endReplay,
         snapshot(type = "image/jpeg") { directCamera(0); renderFrame(); return canvas.toDataURL(type, 0.88); },
         // render one frame from an arbitrary camera (pause first so the director doesn't move it)
         view(p, t, fov = 30) { camera.position.set(...p); camera.fov = fov; camera.updateProjectionMatrix(); camera.lookAt(...t); renderFrame(); },

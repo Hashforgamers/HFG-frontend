@@ -18,6 +18,8 @@ import 'package:hash/core/service_locator.dart';
 import 'package:hash/features/mini_games/flappy_birds/Layouts/Pages/page_start_screen.dart';
 import 'package:hash/features/mini_games/wordly/wordly_screen.dart';
 import 'package:hash/features/mini_games/html_games/services/html_mini_game_catalog_service.dart';
+import 'package:hash/features/mini_games/html_games/super_over_analytics.dart';
+import 'package:hash/features/mini_games/html_games/views/html_game_player_screen.dart';
 import 'package:hash/features/mini_games/pacman/HomePage.dart';
 import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart';
 
@@ -430,6 +432,9 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
               if (_selectedGameId == option.key) return;
               setState(() => _selectedGameId = option.key);
               _loadBoard();
+              if (option.key == SuperOverAnalytics.gameId) {
+                SuperOverAnalytics.leaderboardViewed(source: 'leaderboard');
+              }
               unawaited(
                 _trackLeaderboardEvent('Arcade Leaderboard Filter Selected', {
                   'selected_board': option.key,
@@ -868,6 +873,16 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
       return;
     }
 
+    // HTML games (Super Over) open in the web-view player
+    final htmlGame = HtmlMiniGameCatalogService.games
+        .where((game) => game.gameId == gameKey)
+        .firstOrNull;
+    if (htmlGame != null) {
+      await HtmlGamePlayerScreen.open(htmlGame, source: 'leaderboard');
+      return;
+    }
+
+    if (!context.mounted) return;
     Navigator.pop(context);
   }
 

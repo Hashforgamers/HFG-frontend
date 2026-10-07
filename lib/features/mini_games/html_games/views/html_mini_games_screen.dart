@@ -83,7 +83,8 @@ class _HtmlMiniGamesScreenState extends State<HtmlMiniGamesScreen> {
                   bestScore: _scoresLoaded
                       ? _scoreService.bestScore(game.gameId)
                       : null,
-                  onTap: () => HtmlGamePlayerScreen.open(game),
+                  onTap: () =>
+                      HtmlGamePlayerScreen.open(game, source: 'mini_games'),
                 );
               },
             ),

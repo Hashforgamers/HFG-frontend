@@ -225,7 +225,7 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
   }
 
   void _openHtmlGame(HtmlMiniGame game) {
-    unawaited(HtmlGamePlayerScreen.open(game));
+    unawaited(HtmlGamePlayerScreen.open(game, source: 'home'));
   }
 
   void _showLeaderboard(

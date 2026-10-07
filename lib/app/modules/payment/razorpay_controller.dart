@@ -19,6 +19,7 @@ import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:intl/intl.dart';
+import 'package:hash/features/mini_games/html_games/super_over_analytics.dart';
 
 enum PaymentType { slotBooking, passPurchase }
 
@@ -413,6 +414,11 @@ class RazorpayController extends GetxController {
           },
           deduplicationKey: bookingIds.first.toString(),
         ),
+      );
+      // deduped by booking id, so the summary screen's call for the same booking is a no-op
+      SuperOverAnalytics.bookingConfirmed(
+        bookingId: bookingIds.first.toString(),
+        value: successAmount,
       );
       unawaited(
         _analytics.log(

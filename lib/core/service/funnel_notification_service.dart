@@ -39,7 +39,10 @@ class FunnelNotificationService {
     if (backendUserId.isEmpty) {
       debugPrint('[Funnel] skip $eventType -> backend user id missing');
     }
-    final sanitizedPayload = _sanitizeMap(payload);
+    final sanitizedPayload = _sanitizeMap({
+      ...payload,
+      ...await _resolveUserIdentityPayload(currentUser),
+    });
     final now = DateTime.now();
 
     await _firestore.collection(_eventsCollection).add({
@@ -72,6 +75,46 @@ class FunnelNotificationService {
     } catch (_) {
       return '';
     }
+  }
+
+  Future<Map<String, dynamic>> _resolveUserIdentityPayload(
+    firebase_auth.User currentUser,
+  ) async {
+    String displayName = currentUser.displayName?.trim() ?? '';
+    String username = '';
+
+    try {
+      if (Get.isRegistered<UserController>()) {
+        final user = Get.find<UserController>().user.value;
+        final controllerName = (user.name ?? '').trim();
+        displayName = controllerName.isNotEmpty
+            ? controllerName
+            : displayName;
+        username = (user.gameUserName ?? '').trim();
+      }
+    } catch (_) {}
+
+    try {
+      final userData = await locator<RemoteRepoInterface>()
+          .getUserFromPreferences();
+      displayName = displayName.isNotEmpty
+          ? displayName
+          : (userData?['name'] ?? userData?['displayName'] ?? '')
+                .toString()
+                .trim();
+      username = username.isNotEmpty
+          ? username
+          : (userData?['gameUserName'] ?? userData?['username'] ?? '')
+                .toString()
+                .trim();
+    } catch (_) {}
+
+    final preferredName = username.isNotEmpty ? username : displayName;
+    return {
+      if (displayName.isNotEmpty) 'display_name': displayName,
+      if (username.isNotEmpty) 'username': username,
+      if (preferredName.isNotEmpty) 'user_name': preferredName,
+    };
   }
 
   Map<String, dynamic> _sanitizeMap(Map<String, dynamic> payload) {

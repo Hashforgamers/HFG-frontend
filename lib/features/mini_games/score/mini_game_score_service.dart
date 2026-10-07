@@ -58,6 +58,13 @@ class MiniGameScoreService {
   /// Public hook so widgets can await readiness before reading scores.
   Future<void> ensureLoaded() => _ensureLoaded();
 
+  final Map<String, ScoreSubmissionResult> _lastSubmissions = {};
+
+  /// The leaderboard's answer to the latest [recordScore] for [gameId] (rank,
+  /// previous best), for callers that only get the bool back.
+  ScoreSubmissionResult? lastSubmissionFor(String gameId) =>
+      _lastSubmissions[gameId];
+
   Future<bool> recordScore(String gameId, int score) async {
     await _ensureLoaded();
 
@@ -78,6 +85,7 @@ class MiniGameScoreService {
 
     // Always push latest attempt; backend keeps best per user/game.
     final result = await _leaderboard.submitScore(gameId: gameId, score: score);
+    _lastSubmissions[gameId] = result;
     if (!result.synced) {
       unawaited(
         _trackArcadeScoreEvent('Arcade Score Sync Failed', {

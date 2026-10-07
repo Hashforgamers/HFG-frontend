@@ -39,6 +39,7 @@ import '../../../data/services/user_controller.dart';
 import '../../../../core/repositories/model/booking_model.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/core/localization/app_region.dart';
+import 'package:hash/features/mini_games/html_games/super_over_analytics.dart';
 
 class BookingSummaryScreen extends StatefulWidget {
   final String selectedCafeName;
@@ -2043,6 +2044,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           deduplicationKey: bookingIds.first.toString(),
         ),
       );
+      SuperOverAnalytics.bookingStarted(
+        bookingId: bookingIds.first.toString(),
+        venueId: widget.vendorId.toString(),
+        slotId: _bookingIdToSlotId[bookingIds.first]?.toString(),
+      );
       funnelNotificationService.trackEvent(
         'booking_started',
         payload: {
@@ -2334,6 +2340,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           },
           deduplicationKey: bookingIds.first.toString(),
         ),
+      );
+      SuperOverAnalytics.bookingConfirmed(
+        bookingId: bookingIds.first.toString(),
+        venueId: widget.vendorId.toString(),
+        slotId: _bookingIdToSlotId[bookingIds.first]?.toString(),
+        value: totalPrice,
       );
       if (paymentMode == 'wallet') {
         unawaited(

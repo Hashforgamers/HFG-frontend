@@ -44,7 +44,7 @@ const FUNNEL_CAMPAIGNS = {
   app_open_idle: {
     delayMs: minutes(12),
     cooldownMs: hours(6),
-    title: "PS5 slots are filling fast near you",
+    title: "{name}, PS5 slots are filling fast near you",
     body: "Book now before it's gone",
     channelId: "system_channel",
     excludeEvents: [
@@ -57,7 +57,7 @@ const FUNNEL_CAMPAIGNS = {
   cafe_viewed_followup: {
     delayMs: minutes(7),
     cooldownMs: hours(8),
-    title: "That gaming cafe is still available",
+    title: "{name}, that gaming cafe is still available",
     body: "Check slots before others grab them",
     channelId: "system_channel",
     excludeEvents: [
@@ -69,7 +69,7 @@ const FUNNEL_CAMPAIGNS = {
   booking_summary_followup: {
     delayMs: minutes(4),
     cooldownMs: hours(6),
-    title: "Your slot is waiting",
+    title: "{name}, your slot is waiting",
     body: "Complete booking in seconds",
     channelId: "system_channel",
     excludeEvents: ["booking_started", "booking_confirmed"],
@@ -77,7 +77,7 @@ const FUNNEL_CAMPAIGNS = {
   booking_started_followup: {
     delayMs: minutes(2),
     cooldownMs: hours(4),
-    title: "Almost done!",
+    title: "Almost done, {name}!",
     body: "Don’t lose your slot now",
     channelId: "system_channel",
     excludeEvents: ["booking_confirmed"],
@@ -85,7 +85,7 @@ const FUNNEL_CAMPAIGNS = {
   booking_cancelled_followup: {
     delayMs: minutes(4),
     cooldownMs: hours(4),
-    title: "Your slot is still available",
+    title: "{name}, your slot is still available",
     body: "Complete booking before someone else takes it",
     channelId: "system_channel",
     excludeEvents: ["booking_confirmed"],
@@ -93,7 +93,7 @@ const FUNNEL_CAMPAIGNS = {
   booking_confirmed_followup: {
     delayMs: minutes(90),
     cooldownMs: hours(12),
-    title: "Booking confirmed!",
+    title: "Booking confirmed, {name}!",
     body: "Get ready to dominate",
     channelId: "system_channel",
     excludeEvents: [],
@@ -101,7 +101,7 @@ const FUNNEL_CAMPAIGNS = {
   inactivity_24h: {
     delayMs: hours(24),
     cooldownMs: hours(24),
-    title: "New slots available near you",
+    title: "{name}, new slots are available near you",
     body: "Jump back in and play today",
     channelId: "system_channel",
     excludeEvents: ["app_open"],
@@ -109,7 +109,7 @@ const FUNNEL_CAMPAIGNS = {
   inactivity_3d: {
     delayMs: hours(72),
     cooldownMs: hours(24),
-    title: "You’re missing out!",
+    title: "{name}, you’re missing out!",
     body: "PS5 slots are getting booked fast",
     channelId: "system_channel",
     excludeEvents: ["app_open"],
@@ -117,7 +117,7 @@ const FUNNEL_CAMPAIGNS = {
   wallet_viewed_followup: {
     delayMs: minutes(30),
     cooldownMs: hours(12),
-    title: "Your credit is waiting",
+    title: "{name}, your credit is waiting",
     body: "Use it before it expires",
     channelId: "system_channel",
     excludeEvents: ["booking_started", "booking_confirmed"],
@@ -125,7 +125,7 @@ const FUNNEL_CAMPAIGNS = {
   reward_unlocked_followup: {
     delayMs: minutes(1),
     cooldownMs: minutes(30),
-    title: "You just earned rewards!",
+    title: "{name}, you just earned rewards!",
     body: "Use them for your next booking",
     channelId: "system_channel",
     excludeEvents: [],
@@ -133,7 +133,7 @@ const FUNNEL_CAMPAIGNS = {
   multiple_cafe_views_followup: {
     delayMs: minutes(8),
     cooldownMs: hours(8),
-    title: "Still deciding?",
+    title: "Still deciding, {name}?",
     body: "Best slots are getting booked fast",
     channelId: "system_channel",
     excludeEvents: [
@@ -145,7 +145,7 @@ const FUNNEL_CAMPAIGNS = {
   high_intent_followup: {
     delayMs: minutes(6),
     cooldownMs: hours(6),
-    title: "Your perfect slot is waiting",
+    title: "{name}, your perfect slot is waiting",
     body: "Book now before it's gone",
     channelId: "system_channel",
     excludeEvents: ["booking_started", "booking_confirmed"],
@@ -167,6 +167,26 @@ function asStringList(value) {
 
 function asObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function firstName(value) {
+  const cleaned = asString(value).replace(/^@+/, "");
+  if (!cleaned) return "";
+  return cleaned.split(/\s+/)[0].slice(0, 24);
+}
+
+function userNameFromPayload(payload) {
+  return firstName(
+      payload.user_name ||
+      payload.username ||
+      payload.display_name ||
+      payload.name,
+  );
+}
+
+function renderPersonalizedCopy(template, payload) {
+  const name = userNameFromPayload(payload) || "player";
+  return asString(template).replace(/\{name\}/g, name);
 }
 
 function userTopic(userId) {
@@ -891,15 +911,20 @@ exports.processFunnelNotificationJobs = functions.pubsub
         }
 
         try {
+          const payload = asObject(job.payload);
+          const title = renderPersonalizedCopy(campaign.title, payload);
+          const body = renderPersonalizedCopy(campaign.body, payload);
           const response = await sendPushToUser(userId, {
-            title: campaign.title,
-            body: campaign.body,
+            title,
+            body,
             channelId: campaign.channelId,
             data: {
               type: "funnel_notification",
               campaign_key: campaignKey,
               event_type: asString(job.baseEventType),
-              ...asObject(job.payload),
+              ...payload,
+              title,
+              body,
             },
           });
 

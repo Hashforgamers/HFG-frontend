@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/features/mini_games/html_games/models/html_mini_game.dart';
 import 'package:hash/features/mini_games/html_games/services/html_game_score_bridge_service.dart';
+import 'package:hash/features/mini_games/html_games/super_over_analytics.dart';
 import 'package:hash/features/mini_games/html_games/widgets/game_web_view.dart';
 
 class HtmlGamePlayerScreen extends StatefulWidget {
@@ -14,7 +15,15 @@ class HtmlGamePlayerScreen extends StatefulWidget {
 
   final HtmlMiniGame game;
 
-  static Future<void> open(HtmlMiniGame game) async {
+  /// [source] is where the player came from, for analytics:
+  /// home | notification | mini_games | leaderboard | deep_link.
+  static Future<void> open(
+    HtmlMiniGame game, {
+    String source = 'mini_games',
+  }) async {
+    if (game.gameId == SuperOverAnalytics.gameId) {
+      SuperOverAnalytics.opened(source: source);
+    }
     await AppOrientation.landscape();
     await SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.immersiveSticky,

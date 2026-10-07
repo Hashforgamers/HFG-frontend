@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:hash/features/mini_games/html_games/models/html_mini_game.dart';
 import 'package:hash/features/mini_games/html_games/services/html_game_asset_server.dart';
 import 'package:hash/features/mini_games/html_games/services/html_game_score_bridge_service.dart';
+import 'package:hash/features/mini_games/html_games/super_over_analytics.dart';
 
 enum _WebViewStatusTone { info, success, error }
 
@@ -44,6 +45,8 @@ class _GameWebViewState extends State<GameWebView> {
     _controller?.removeJavaScriptHandler(handlerName: 'gameScore');
     _controller?.removeJavaScriptHandler(handlerName: 'haptic');
     _controller?.removeJavaScriptHandler(handlerName: 'share');
+    _controller?.removeJavaScriptHandler(handlerName: 'shareVideo');
+    _controller?.removeJavaScriptHandler(handlerName: 'analytics');
     super.dispose();
   }
 
@@ -71,8 +74,12 @@ class _GameWebViewState extends State<GameWebView> {
       // Prefer the bundled-asset server: relative scripts/models resolve and the
       // game works offline. Fall back to inlining the HTML if it can't start.
       try {
-        final url = await HtmlGameAssetServer.instance.urlFor(widget.game.gameUrl);
-        await controller.loadUrl(urlRequest: URLRequest(url: WebUri(url.toString())));
+        final url = await HtmlGameAssetServer.instance.urlFor(
+          widget.game.gameUrl,
+        );
+        await controller.loadUrl(
+          urlRequest: URLRequest(url: WebUri(url.toString())),
+        );
         return;
       } catch (_) {}
 
@@ -112,6 +119,7 @@ class _GameWebViewState extends State<GameWebView> {
           game: widget.game,
           payload: payload,
         );
+        _trackScoreSubmitted(payload, result);
 
         if (!mounted) {
           return {'accepted': result.didSubmit, 'message': result.message};
@@ -139,6 +147,42 @@ class _GameWebViewState extends State<GameWebView> {
           'score': result.score,
           'message': result.message,
         };
+      },
+    );
+  }
+
+  void _trackScoreSubmitted(
+    Object? payload,
+    HtmlGameScoreSubmissionResult result,
+  ) {
+    if (widget.game.gameId != SuperOverAnalytics.gameId) return;
+    final map = payload is Map ? payload : const {};
+    final balls = map['balls'];
+    final runId = map['runId'];
+    SuperOverAnalytics.scoreSubmitted(
+      status: result.status.name,
+      score: result.score,
+      ballsPlayed: balls is num ? balls.toInt() : null,
+      rank: result.rank,
+      previousBest: result.previousBest,
+      isNewBest: result.isNewBest,
+      runId: runId == null ? null : '$runId',
+    );
+  }
+
+  /// Games report gameplay moments for analytics with
+  /// `callHandler('analytics', { event, params })`; only Super Over's are
+  /// logged, and only the events and params it whitelists.
+  void _registerAnalyticsHandler(InAppWebViewController controller) {
+    controller.addJavaScriptHandler(
+      handlerName: 'analytics',
+      callback: (arguments) {
+        if (widget.game.gameId == SuperOverAnalytics.gameId) {
+          SuperOverAnalytics.fromWeb(
+            arguments.isNotEmpty ? arguments.first : null,
+          );
+        }
+        return null;
       },
     );
   }
@@ -176,7 +220,9 @@ class _GameWebViewState extends State<GameWebView> {
         final image = payload['image'];
         final files = <XFile>[];
         // a 1080×1350 card is well under this; anything bigger isn't a score card
-        if (image is String && image.isNotEmpty && image.length < 12 * 1024 * 1024) {
+        if (image is String &&
+            image.isNotEmpty &&
+            image.length < 12 * 1024 * 1024) {
           try {
             final dir = await getTemporaryDirectory();
             final file = File('${dir.path}/${widget.game.gameId}_share.png');
@@ -191,6 +237,44 @@ class _GameWebViewState extends State<GameWebView> {
           ),
         );
         return {'ok': true};
+      },
+    );
+  }
+
+  /// Games share a highlight clip with
+  /// `callHandler('shareVideo', { text, video, mime, name })`, where `video` is
+  /// a base64 MP4/WebM. Replies `{ ok: true }` once the share sheet is opening.
+  void _registerShareVideoHandler(InAppWebViewController controller) {
+    controller.addJavaScriptHandler(
+      handlerName: 'shareVideo',
+      callback: (arguments) async {
+        final payload = arguments.isNotEmpty ? arguments.first : null;
+        if (payload is! Map) return {'ok': false};
+        final video = payload['video'];
+        // a 10-second 720p clip is a few MB; anything far bigger isn't a highlight
+        if (video is! String ||
+            video.isEmpty ||
+            video.length > 64 * 1024 * 1024) {
+          return {'ok': false};
+        }
+        final mime = payload['mime']?.toString() ?? 'video/mp4';
+        final ext = mime.contains('webm') ? 'webm' : 'mp4';
+        try {
+          final dir = await getTemporaryDirectory();
+          final file = File('${dir.path}/${widget.game.gameId}_highlight.$ext');
+          await file.writeAsBytes(base64Decode(video), flush: true);
+          unawaited(
+            SharePlus.instance.share(
+              ShareParams(
+                text: payload['text']?.toString(),
+                files: [XFile(file.path, mimeType: mime)],
+              ),
+            ),
+          );
+          return {'ok': true};
+        } catch (_) {
+          return {'ok': false};
+        }
       },
     );
   }
@@ -232,6 +316,8 @@ class _GameWebViewState extends State<GameWebView> {
               _registerScoreHandler(controller);
               _registerHapticHandler(controller);
               _registerShareHandler(controller);
+              _registerShareVideoHandler(controller);
+              _registerAnalyticsHandler(controller);
               unawaited(_loadGameContent(controller));
             },
             onLoadStart: (controller, url) {

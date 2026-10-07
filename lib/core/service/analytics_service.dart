@@ -35,6 +35,35 @@ abstract final class AnalyticsEvent {
   static const hostVerificationSubmitted = 'host_verification_submitted';
   static const tournamentCreated = 'tournament_created';
   static const tournamentPublished = 'tournament_published';
+
+  // Super Over (HTML mini-game) funnel: see SuperOverAnalytics
+  static const superOverOpened = 'super_over_opened';
+  static const superOverStarted = 'super_over_started';
+  static const superOverBallPlayed = 'super_over_ball_played';
+  static const superOverCompleted = 'super_over_completed';
+  static const superOverScoreSubmitted = 'super_over_score_submitted';
+  static const superOverLeaderboardViewed = 'super_over_leaderboard_viewed';
+  static const superOverReplayTapped = 'super_over_replay_tapped';
+  static const superOverBookCtaViewed = 'super_over_book_cta_viewed';
+  static const superOverBookCtaTapped = 'super_over_book_cta_tapped';
+  static const superOverBookingStarted = 'super_over_booking_started';
+  static const superOverBookingConfirmed = 'super_over_booking_confirmed';
+  static const superOverDeeplinkLanded = 'super_over_deeplink_landed';
+
+  static const superOverFunnel = [
+    superOverOpened,
+    superOverStarted,
+    superOverBallPlayed,
+    superOverCompleted,
+    superOverScoreSubmitted,
+    superOverLeaderboardViewed,
+    superOverReplayTapped,
+    superOverBookCtaViewed,
+    superOverBookCtaTapped,
+    superOverBookingStarted,
+    superOverBookingConfirmed,
+    superOverDeeplinkLanded,
+  ];
 }
 
 /// Firebase Analytics facade for HASH's product and tournament journey.
