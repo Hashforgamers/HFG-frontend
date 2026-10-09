@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform, debugPrint;
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,6 +12,7 @@ import 'package:hash/app/modules/live/views/live_stream_screen.dart';
 import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/crash_reporting.dart';
+import 'package:hash/core/service/push_router.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -442,10 +444,6 @@ class NotificationController extends GetxController {
       'Push received -> messageId=${message.messageId ?? "<none>"}, '
       'type=$type, title=$title, body=$body, data=${message.data}',
     );
-    final roomId =
-        (message.data['room_id'] ?? message.data['chat_room_id'] ?? '')
-            .toString()
-            .trim();
     if (type == 'new_notification') {
       if (title.trim().isEmpty) {
         title = 'Team Invite';
@@ -511,13 +509,9 @@ class NotificationController extends GetxController {
 
     final details = NotificationDetails(android: android, iOS: ios);
 
-    final payload = (message.data['deep_link']?.toString().isNotEmpty == true)
-        ? message.data['deep_link']!.toString()
-        : (message.data['route']?.toString().isNotEmpty == true)
-        ? message.data['route']!.toString()
-        : (type == 'new_notification'
-              ? AppRoutes.NOTIFICATIONS
-              : (type == 'chat' && roomId.isNotEmpty ? 'chat:$roomId' : ''));
+    // Carry the whole push payload so a tap on this foreground banner routes
+    // and reports exactly like a tap on a background/cold-start push.
+    final payload = '$_pushPayloadPrefix${jsonEncode(message.data)}';
     final dedupeKey = _notificationDedupeKey(message, title: title, body: body);
     if (dedupeKey.isNotEmpty && _shownNotificationKeys.contains(dedupeKey)) {
       return;
@@ -557,11 +551,28 @@ class NotificationController extends GetxController {
   Future<void> _handleInitialMessage() async {
     final initialMessage = await _fm.getInitialMessage();
     if (initialMessage == null) return;
-    _handleMessageNavigation(initialMessage);
+    _handleMessageNavigation(initialMessage, appState: 'cold_start');
   }
+
+  static const _pushPayloadPrefix = 'push:';
 
   Future<void> _onSelectNotification(String? payload) async {
     if (payload == null || payload.isEmpty) return;
+    if (payload.startsWith(_pushPayloadPrefix)) {
+      try {
+        final data = jsonDecode(payload.substring(_pushPayloadPrefix.length));
+        if (data is Map) {
+          _handlePushData(
+            Map<String, dynamic>.from(data),
+            appState: 'foreground',
+            messageId: null,
+          );
+          return;
+        }
+      } catch (_) {
+        // Malformed payload: fall through to the legacy handling below.
+      }
+    }
     final actionId = payload.hashCode.toString();
     _logNotificationOpen(
       source: 'local_notification',
@@ -619,74 +630,67 @@ class NotificationController extends GetxController {
     }
   }
 
-  void _handleMessageNavigation(RemoteMessage message) {
-    final route = message.data['route'];
-    final type = message.data['type']?.toString() ?? '';
+  void _handleMessageNavigation(
+    RemoteMessage message, {
+    String appState = 'background',
+  }) => _handlePushData(
+    message.data,
+    appState: appState,
+    messageId: message.messageId,
+  );
+
+  /// One path for every push tap, whatever state the app was in.
+  void _handlePushData(
+    Map<String, dynamic> data, {
+    required String appState,
+    required String? messageId,
+  }) {
+    final type = data['type']?.toString() ?? '';
+    final target = PushRouter.resolve(data);
+    final screenTarget = PushRouter.describe(target);
+    final campaignId = (data['campaign_id'] ?? type).toString();
     _logNotificationOpen(
       source: 'push_notification',
-      target: (message.data['deep_link'] ?? route ?? type).toString(),
-      notificationId: (message.data['notification_id'] ?? message.messageId)
-          ?.toString(),
-      campaignId: message.data['campaign_id']?.toString(),
+      target: (data['deep_link'] ?? data['route'] ?? type).toString(),
+      notificationId: (data['notification_id'] ?? messageId)?.toString(),
+      campaignId: data['campaign_id']?.toString(),
       notificationType: type,
     );
-    final roomId =
-        (message.data['room_id'] ?? message.data['chat_room_id'] ?? '')
-            .toString()
-            .trim();
+    segmentService.onPushNotificationClicked(
+      campaignId: campaignId,
+      screenTarget: screenTarget,
+    );
+    fbEventsService.onPushNotificationClicked(
+      campaignId: campaignId,
+      screenTarget: screenTarget,
+    );
+    if (type == 'new_notification' &&
+        Get.isRegistered<AppNotificationsController>()) {
+      Get.find<AppNotificationsController>().onPushNotificationData(data);
+    }
+    unawaited(_openPushTarget(target));
+  }
 
-    if (type == 'new_notification') {
-      segmentService.onPushNotificationClicked(
-        campaignId: message.data['campaign_id'] ?? type,
-        screenTarget: AppRoutes.NOTIFICATIONS,
-      );
-      fbEventsService.onPushNotificationClicked(
-        campaignId: message.data['campaign_id'] ?? type,
-        screenTarget: AppRoutes.NOTIFICATIONS,
-      );
-      if (Get.isRegistered<AppNotificationsController>()) {
-        Get.find<AppNotificationsController>().onPushNotificationData(
-          message.data,
-        );
-      }
-      Get.toNamed(AppRoutes.NOTIFICATIONS, arguments: message.data);
+  Future<void> _openPushTarget(PushTarget target) async {
+    // DeepLinkService waits for splash and sign-in itself; everything else
+    // must not navigate underneath the splash on a cold start.
+    if (target is PushDeepLink) {
+      await _openDeepLink(target.uri.toString());
       return;
     }
-
-    if (type == 'chat') {
-      final target = roomId.isNotEmpty ? 'chat:$roomId' : AppRoutes.CHAT;
-      segmentService.onPushNotificationClicked(
-        campaignId: message.data['campaign_id'] ?? type,
-        screenTarget: target,
-      );
-      fbEventsService.onPushNotificationClicked(
-        campaignId: message.data['campaign_id'] ?? type,
-        screenTarget: target,
-      );
-      if (roomId.isNotEmpty) {
-        Get.toNamed(AppRoutes.CHAT, arguments: {'roomId': roomId});
-      } else {
-        Get.toNamed(AppRoutes.CHAT);
-      }
-      return;
-    }
-
-    final deepLink = message.data['deep_link']?.toString().trim() ?? '';
-    if (deepLink.isNotEmpty) {
-      unawaited(_openDeepLink(deepLink));
-      return;
-    }
-
-    if (route is String && route.isNotEmpty) {
-      segmentService.onPushNotificationClicked(
-        campaignId: message.data['campaign_id'] ?? '',
-        screenTarget: route,
-      );
-      fbEventsService.onPushNotificationClicked(
-        campaignId: message.data['campaign_id'] ?? '',
-        screenTarget: route,
-      );
-      // Get.toNamed(route);
+    await DeepLinkService.whenAppReady();
+    switch (target) {
+      case PushNamedRoute(:final route, :final arguments):
+        Get.toNamed(route, arguments: arguments);
+      case PushChat(:final roomId):
+        roomId.isNotEmpty
+            ? Get.toNamed(AppRoutes.CHAT, arguments: {'roomId': roomId})
+            : Get.toNamed(AppRoutes.CHAT);
+      case PushLiveStream(:final streamId):
+        Get.to(() => LiveStreamScreen(streamId: streamId));
+      case PushDeepLink():
+      case PushNone():
+        break;
     }
   }
 

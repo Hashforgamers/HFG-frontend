@@ -163,6 +163,10 @@ class DeepLinkService extends GetxController {
     if (!_appReady.isCompleted) _appReady.complete();
   }
 
+  /// Completes once splash has routed (or after a 10s safety timeout), so
+  /// push taps from a cold start don't navigate underneath the splash.
+  static Future<void> whenAppReady() => _waitForApp();
+
   static Future<void> _waitForApp() {
     if (_appReady.isCompleted) return Future<void>.value();
     // Never strand a link if splash somehow never reports in.
