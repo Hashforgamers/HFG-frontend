@@ -119,6 +119,7 @@ dependencies:
   animated_glitch: ^2.0.0+2
   firebase_crashlytics: ^4.3.10
   firebase_performance: ^0.10.1+10
+  cloud_functions: ^5.6.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1074,3 +1074,9 @@ exports.dailyMiniGamesPush = functions.pubsub
       });
       return null;
     });
+
+// HashWallet rewards (streak, missions, match/invite/weekly rewards).
+const rewards = require("./rewards");
+exports.rewardsStatus = rewards.rewardsStatus;
+exports.claimDailyStreak = rewards.claimDailyStreak;
+exports.markRewardPaid = rewards.markRewardPaid;

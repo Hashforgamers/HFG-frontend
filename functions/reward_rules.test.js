@@ -1,0 +1,63 @@
+"use strict";
+
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const {claimStreak, streakStatus, istWeekKey, STREAK_REWARDS} =
+  require("./reward_rules");
+const {istDayKey} = require("./push_policy");
+
+const DAY = 24 * 60 * 60 * 1000;
+const t0 = Date.UTC(2026, 9, 9, 6, 0); // Fri 9 Oct 2026, 11:30 IST
+
+test("first claim is day 1", () => {
+  const r = claimStreak({}, t0);
+  assert.deepEqual(r, {alreadyClaimed: false, streak: 1, amount: 5,
+    day: "20261009"});
+});
+
+test("consecutive days escalate to day 7", () => {
+  let state = {};
+  const amounts = [];
+  for (let i = 0; i < 7; i++) {
+    const r = claimStreak(state, t0 + i * DAY);
+    amounts.push(r.amount);
+    state = {lastClaimDay: r.day, streak: r.streak};
+  }
+  assert.deepEqual(amounts, [...STREAK_REWARDS]);
+  // Day 8 starts a new week at day 1.
+  assert.equal(claimStreak(state, t0 + 7 * DAY).streak, 1);
+});
+
+test("second claim the same day is refused", () => {
+  const r = claimStreak({lastClaimDay: "20261009", streak: 3}, t0);
+  assert.equal(r.alreadyClaimed, true);
+  assert.equal(r.amount, 0);
+});
+
+test("missing a day resets to day 1", () => {
+  const r = claimStreak({lastClaimDay: istDayKey(t0 - 2 * DAY), streak: 4},
+      t0);
+  assert.equal(r.streak, 1);
+});
+
+test("status shows the next reward without claiming", () => {
+  assert.deepEqual(
+      streakStatus({lastClaimDay: istDayKey(t0 - DAY), streak: 2}, t0),
+      {claimedToday: false, streak: 2, nextAmount: 15});
+  assert.equal(streakStatus({}, t0).nextAmount, 5);
+  assert.equal(
+      streakStatus({lastClaimDay: "20261009", streak: 2}, t0).claimedToday,
+      true);
+});
+
+test("after day 7, tomorrow shows day 1's reward", () => {
+  assert.equal(
+      streakStatus({lastClaimDay: "20261009", streak: 7}, t0).nextAmount, 5);
+});
+
+test("IST week starts Monday", () => {
+  assert.equal(istWeekKey(t0), "20261005");
+  // Sunday 11 Oct 23:59 IST is still that week; Monday 00:00 IST is next.
+  assert.equal(istWeekKey(Date.UTC(2026, 9, 11, 18, 29)), "20261005");
+  assert.equal(istWeekKey(Date.UTC(2026, 9, 11, 18, 30)), "20261012");
+});

@@ -38,6 +38,7 @@ import 'package:hash/utils/widgets/home_section_title.dart';
 
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/app/modules/home/widgets/home_host_card.dart';
+import 'package:hash/features/rewards/daily_streak_card.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -81,6 +82,7 @@ class _HomeContentViewState extends State<HomeContentView>
         _buildLazyLoadedSection('hostBanner', _buildHostBanner()),
         _buildLazyLoadedSection('playerLobby', _buildPlayerLobby()),
       ],
+      const DailyStreakCard(),
       _buildLazyLoadedSection('cafe', _cachedCafeSection),
       _buildLazyLoadedSection('squadMissions', const SquadMissionsCard()),
       _buildLazyLoadedSection('shorts', _cachedShortsSection),
