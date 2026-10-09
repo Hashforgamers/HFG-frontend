@@ -22,7 +22,7 @@ abstract final class AppRemoteConfig {
   static const Map<String, Object> defaults = {
     ludoBotFillSecondsKey: 20,
     ludoQuickModeEnabledKey: false,
-    ludoQuitCooldownSecondsKey: 120,
+    ludoQuitCooldownSecondsKey: 0,
     ludoQuitCooldownThresholdKey: 2,
     onboardingFirstMatchEnabledKey: true,
   };

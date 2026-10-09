@@ -13,7 +13,6 @@ const admin = require("firebase-admin");
 const {
   claimStreak, streakStatus, sanitizeMissions, applyEvent, missionsView,
   matchEndReward, placement, invitePair, INVITE_REWARD,
-  MAX_MATCH_REWARDS_PER_DAY,
 } = require("./reward_rules");
 const {istDayKey} = require("./push_policy");
 
@@ -21,9 +20,6 @@ const db = admin.firestore();
 const LEDGER = "reward_ledger";
 const STATE = "reward_state";
 const PROGRESS = "mission_progress";
-
-/** App-reported games accepted per user per day (online Ludo isn't one). */
-const MAX_CLIENT_REPORTS_PER_DAY = 40;
 
 let missionsCache = null;
 let missionsCachedAt = 0;
@@ -51,7 +47,7 @@ function progressRef(uid, day) {
 
 /**
  * Counts one finished game toward today's missions. [eventId] dedupes the
- * same game being reported twice; [fromClient] applies the daily cap.
+ * same game being reported twice; [fromClient] is counted for monitoring.
  * @return {Promise<string[]>} ids of missions completed by this event.
  */
 async function recordGameEvent(uid, ev, {eventId, fromClient}) {
@@ -63,7 +59,6 @@ async function recordGameEvent(uid, ev, {eventId, fromClient}) {
     const seen = Array.isArray(p.seen) ? p.seen : [];
     if (eventId && seen.includes(eventId)) return [];
     const reports = Number(p.client_reports) || 0;
-    if (fromClient && reports >= MAX_CLIENT_REPORTS_PER_DAY) return [];
     const before = p.counts || {};
     const counts = applyEvent(missions, before, ev);
     const completed = missions
@@ -280,29 +275,23 @@ function humanSeats(match) {
 }
 
 /**
- * Task 8 + 9: placement reward for finishing (capped per day) and, on a
+ * Task 8 + 9: placement reward for every finished match and, on a
  * friend's first finished friends-room match, the invite reward for both.
  */
 async function rewardMatchEnd({uid, matchId, position, quick, hostUid}) {
-  const day = istDayKey(Date.now());
   const stateRef = db.collection(STATE).doc(uid);
   await db.runTransaction(async (tx) => {
     const state = (await tx.get(stateRef)).data() || {};
     const completedBefore = Number(state.completed_matches) || 0;
-    const today = (state.match_rewards || {}).day === day ?
-      Number(state.match_rewards.count) || 0 : 0;
 
-    const entries = [];
-    if (today < MAX_MATCH_REWARDS_PER_DAY) {
-      entries.push({
-        referenceId: `ludo_end_${matchId}_${uid}`,
-        uid,
-        amount: matchEndReward(position),
-        source: "ludo_match_end",
-        title: position === 1 ? "Ludo win" : "Ludo match finished",
-        meta: {match_id: matchId, position},
-      });
-    }
+    const entries = [{
+      referenceId: `ludo_end_${matchId}_${uid}`,
+      uid,
+      amount: matchEndReward(position),
+      source: "ludo_match_end",
+      title: position === 1 ? "Ludo win" : "Ludo match finished",
+      meta: {match_id: matchId, position},
+    }];
     const pair = invitePair({quick, hostUid, uid, completedBefore});
     if (pair) {
       entries.push({
@@ -325,10 +314,6 @@ async function rewardMatchEnd({uid, matchId, position, quick, hostUid}) {
     write();
     tx.set(stateRef, {
       completed_matches: completedBefore + 1,
-      match_rewards: {
-        day,
-        count: today < MAX_MATCH_REWARDS_PER_DAY ? today + 1 : today,
-      },
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
     }, {merge: true});
   });

@@ -122,7 +122,6 @@ function missionsView(missions, progress) {
 
 /** Coins for finishing an online Ludo match, by placement (1-based). */
 const MATCH_END_REWARDS = Object.freeze([15, 8, 5, 5]);
-const MAX_MATCH_REWARDS_PER_DAY = 5;
 const INVITE_REWARD = 25;
 
 function matchEndReward(position) {
@@ -160,7 +159,6 @@ module.exports = {
   WEEKLY_PRIZES,
   weeklyPrize,
   MATCH_END_REWARDS,
-  MAX_MATCH_REWARDS_PER_DAY,
   INVITE_REWARD,
   matchEndReward,
   placement,
