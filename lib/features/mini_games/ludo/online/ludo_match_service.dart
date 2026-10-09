@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/service/app_remote_config.dart';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../ludo_analytics.dart';
 import 'ludo_match.dart';
+import 'ludo_matchmaking_timer.dart';
 
 /// Firestore-backed store for real-time Ludo matches (`ludo_matches/<id>`).
 ///
@@ -33,8 +35,12 @@ class LudoMatchService {
   List<int> _freshPawns() => List<int>.filled(4, -1);
 
   /// Quick Match rooms wait this long for a real opponent before a bot takes
-  /// the empty seat and the match starts.
-  static const int quickFillSeconds = 15;
+  /// the empty seat and the match starts (Remote Config
+  /// `ludo_bot_fill_seconds`, default 20).
+  static int get quickFillSeconds => AppRemoteConfig.ludoBotFillSeconds;
+
+  static LudoMatchmakingTimer get matchmakingTimer =>
+      LudoMatchmakingTimer(fillSeconds: quickFillSeconds);
 
   /// Quick Match rooms older than this are treated as abandoned: they're no
   /// longer offered to new players and are closed when found.
@@ -42,7 +48,7 @@ class LudoMatchService {
 
   /// If the host's device never auto-starts a Quick Match room (backgrounded,
   /// lost signal), any seated player may start it after this long.
-  static const int quickStartFallbackMs = (quickFillSeconds + 10) * 1000;
+  static int get quickStartFallbackMs => matchmakingTimer.fallbackMs;
 
   // No 0/O/1/I/L so codes read unambiguously over a call or in a chat.
   static const String _codeAlphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';

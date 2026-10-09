@@ -60,10 +60,6 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   // reconnecting). The active player skips themselves the instant it hits 0.
   static const int _abandonGraceMs = 6000;
 
-  // Quick Match: once a second player is seated, give others a moment to land
-  // before starting so a near-simultaneous third joiner isn't left out.
-  static const int _quickStartWithPlayersMs = 3000;
-
   final LudoMatchService _service = LudoMatchService();
   final LudoProvider _provider = LudoProvider()..startGame();
 
@@ -92,6 +88,11 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   LudoPlayerType? _lastTurn;
   int _humansAtStart = 0;
   int _botsAtStart = 0;
+  int _lobbyEnteredAtMs = 0;
+
+  // Other Quick Match rooms looking for players right now (lobby hint only).
+  late final Stream<List<LudoMatch>> _openRooms = _service
+      .watchOpenQuickRooms();
 
   // Quick Match auto-start bookkeeping.
   bool _autoStartInFlight = false;
@@ -236,12 +237,11 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   }
 
   /// Seconds left before a waiting Quick Match room starts with a bot.
-  int _quickSecondsLeft(LudoMatch match) {
-    if (match.createdAtMs <= 0) return 0;
-    final waited = DateTime.now().millisecondsSinceEpoch - match.createdAtMs;
-    final left = (LudoMatchService.quickFillSeconds * 1000 - waited) / 1000;
-    return left <= 0 ? 0 : left.ceil();
-  }
+  int _quickSecondsLeft(LudoMatch match) =>
+      LudoMatchService.matchmakingTimer.secondsLeft(
+        createdAtMs: match.createdAtMs,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+      );
 
   /// Quick Match rooms never wait on the host: they start as soon as a second
   /// player is in (after a short grace), or with a bot once the fill timer
@@ -257,24 +257,18 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     }
     final now = DateTime.now().millisecondsSinceEpoch;
     if (_autoStartFailed || now < _autoStartNextMs) return;
-    final waited = now - match.createdAtMs;
-    final isHost = match.hostUid == _uid;
-
     if (match.seatCount >= 2) {
       if (_secondPlayerSeenAtMs == 0) _secondPlayerSeenAtMs = now;
     } else {
       _secondPlayerSeenAtMs = 0;
     }
-    final bool due;
-    if (isHost) {
-      due =
-          match.isFull ||
-          waited >= LudoMatchService.quickFillSeconds * 1000 ||
-          (_secondPlayerSeenAtMs > 0 &&
-              now - _secondPlayerSeenAtMs >= _quickStartWithPlayersMs);
-    } else {
-      due = waited >= LudoMatchService.quickStartFallbackMs;
-    }
+    final due = LudoMatchService.matchmakingTimer.isDue(
+      isHost: match.hostUid == _uid,
+      isFull: match.isFull,
+      createdAtMs: match.createdAtMs,
+      nowMs: now,
+      secondPlayerSeenAtMs: _secondPlayerSeenAtMs,
+    );
     if (!due) return;
 
     _autoStartInFlight = true;
@@ -434,7 +428,10 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   /// Sends `ludo_match_start` / `ludo_match_end` for a seated player.
   void _trackMatch(LudoMatch match, LudoPlayerType seat) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (match.status == LudoMatchStatus.waiting) _sawWaiting = true;
+    if (match.status == LudoMatchStatus.waiting) {
+      _sawWaiting = true;
+      if (_lobbyEnteredAtMs == 0) _lobbyEnteredAtMs = now;
+    }
     if (match.status == LudoMatchStatus.active && match.turn != _lastTurn) {
       _lastTurn = match.turn;
       _turns++;
@@ -453,6 +450,16 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       _startedAtMs = now;
       _humansAtStart = match.humanCount;
       _botsAtStart = match.botSeats.length;
+      if (match.quick &&
+          _lobbyEnteredAtMs > 0 &&
+          match.status == LudoMatchStatus.active) {
+        LudoAnalytics.matchmakingWaitTime(
+          matchId: match.id,
+          seconds: (now - _lobbyEnteredAtMs) ~/ 1000,
+          realPlayersFound: _humansAtStart - 1,
+          bots: _botsAtStart,
+        );
+      }
       if (freshlyActive && match.status == LudoMatchStatus.active) {
         LudoAnalytics.matchStart(
           matchId: match.id,
@@ -847,10 +854,11 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     final quickLeft = _quickSecondsLeft(match);
     final String lobbyHint;
     if (match.quick) {
-      lobbyHint = match.seatCount >= 2
-          ? 'Opponent found! Starting…'
+      final others = match.humanCount - 1;
+      lobbyHint = others > 0
+          ? '$others player${others == 1 ? '' : 's'} found! Starting…'
           : (quickLeft > 0
-                ? 'Finding a player… starting in ${quickLeft}s'
+                ? 'Finding players… we’ll add a bot in ${quickLeft}s'
                 : 'Starting…');
     } else {
       lobbyHint = isHost
@@ -883,6 +891,10 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
                   textAlign: TextAlign.center,
                   style: gameFont(14, GameColors.soft),
                 ),
+                if (match.quick) ...[
+                  const SizedBox(height: 10),
+                  _findingPlayers(match, quickLeft),
+                ],
                 const SizedBox(height: 12),
                 GameTray(
                   padding: const EdgeInsets.all(8),
@@ -1235,6 +1247,58 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
           ],
         ),
       ),
+    );
+  }
+
+  /// Quick Match progress: real players seated out of 4, a ring counting down
+  /// to the bot fill, and how many other rooms are searching right now.
+  Widget _findingPlayers(LudoMatch match, int secondsLeft) {
+    final total = LudoMatchService.quickFillSeconds;
+    final progress = total <= 0 ? 1.0 : 1 - secondsLeft / total;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 34,
+          height: 34,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CircularProgressIndicator(
+                value: progress.clamp(0.0, 1.0),
+                strokeWidth: 3,
+                color: _accent,
+                backgroundColor: Colors.white12,
+              ),
+              Text('$secondsLeft', style: gameFont(12, Colors.white)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${match.humanCount}/4 players found',
+              style: gameFont(14, Colors.white),
+            ),
+            StreamBuilder<List<LudoMatch>>(
+              stream: _openRooms,
+              builder: (context, snap) {
+                final searching = (snap.data ?? const <LudoMatch>[])
+                    .where((m) => m.id != match.id)
+                    .length;
+                if (searching == 0) return const SizedBox.shrink();
+                return Text(
+                  '$searching other room${searching == 1 ? '' : 's'} '
+                  'searching now',
+                  style: gameFont(12, GameColors.soft),
+                );
+              },
+            ),
+          ],
+        ),
+      ],
     );
   }
 

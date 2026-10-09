@@ -111,6 +111,22 @@ abstract final class LudoAnalytics {
     'bots': bots,
   });
 
+  /// How long a Quick Match player sat in the lobby before the room started,
+  /// and how many real opponents turned up. Not `ludo_`-prefixed: other games'
+  /// matchmaking can report the same event with their own `game`.
+  static void matchmakingWaitTime({
+    required String matchId,
+    required int seconds,
+    required int realPlayersFound,
+    required int bots,
+  }) => _log('matchmaking_wait_time', {
+    'game': 'ludo',
+    'match_id': matchId,
+    'seconds': seconds,
+    'real_players_found': realPlayersFound,
+    'bot_filled': _flag(bots > 0),
+  }, dedupeKey: 'wait_$matchId');
+
   static void roomCreated(String roomType) =>
       _log('ludo_room_created', {'room_type': roomType});
 

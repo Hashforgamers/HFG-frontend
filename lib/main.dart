@@ -1,4 +1,5 @@
 import 'package:hash/core/app_orientation.dart';
+import 'package:hash/core/service/app_remote_config.dart';
 import 'package:hash/core/service/crash_reporting.dart';
 import 'package:hash/core/navigation/blur_popup_observer.dart';
 import 'dart:async';
@@ -66,6 +67,7 @@ void main() => CrashReporting.runGuarded(() async {
   }
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await CrashReporting.init(flavor: 'default');
+  await AppRemoteConfig.init();
 
   // Setup service locator first before any controllers that depend on it
   await setupServiceLocator();
