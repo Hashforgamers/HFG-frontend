@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hash/core/service/notification_permission_gate.dart';
+import 'package:hash/features/rewards/rewards_service.dart';
 
 import '../audio.dart';
 import '../constants.dart';
@@ -476,6 +477,12 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     if (match.status == LudoMatchStatus.finished && !_endTracked) {
       _endTracked = true;
       NotificationPermissionGate.onMatchCompleted('ludo');
+      // The server issues the match-end (and invite) reward from a Firestore
+      // trigger; collect it once that has had a moment to run.
+      Future<void>.delayed(
+        const Duration(seconds: 6),
+        () => RewardsService.instance.payPending(),
+      );
       final points = ludoPlacementScore(
         seat: seat,
         winners: match.winners,

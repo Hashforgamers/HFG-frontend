@@ -120,7 +120,42 @@ function missionsView(missions, progress) {
   }));
 }
 
+/** Coins for finishing an online Ludo match, by placement (1-based). */
+const MATCH_END_REWARDS = Object.freeze([15, 8, 5, 5]);
+const MAX_MATCH_REWARDS_PER_DAY = 5;
+const INVITE_REWARD = 25;
+
+function matchEndReward(position) {
+  if (!(position >= 1)) return MATCH_END_REWARDS[MATCH_END_REWARDS.length - 1];
+  return MATCH_END_REWARDS[Math.min(position, MATCH_END_REWARDS.length) - 1];
+}
+
+/**
+ * Placement of [seat] in a finished match: its index in winners, or last
+ * place among the seats still in the match.
+ */
+function placement(seat, winners, seatCount) {
+  const i = winners.indexOf(seat);
+  return i >= 0 ? i + 1 : Math.max(seatCount, winners.length + 1);
+}
+
+/**
+ * Invite reward applies when a non-host joined a friends room (not Quick
+ * Match) and this is their first finished match ever.
+ */
+function invitePair({quick, hostUid, uid, completedBefore}) {
+  if (quick || !hostUid || uid === hostUid) return null;
+  if ((Number(completedBefore) || 0) > 0) return null;
+  return {inviter: hostUid, invitee: uid};
+}
+
 module.exports = {
+  MATCH_END_REWARDS,
+  MAX_MATCH_REWARDS_PER_DAY,
+  INVITE_REWARD,
+  matchEndReward,
+  placement,
+  invitePair,
   DEFAULT_MISSIONS,
   sanitizeMissions,
   matchesMission,

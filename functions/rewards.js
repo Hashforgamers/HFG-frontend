@@ -12,6 +12,8 @@ const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const {
   claimStreak, streakStatus, sanitizeMissions, applyEvent, missionsView,
+  matchEndReward, placement, invitePair, INVITE_REWARD,
+  MAX_MATCH_REWARDS_PER_DAY,
 } = require("./reward_rules");
 const {istDayKey} = require("./push_policy");
 
@@ -124,6 +126,27 @@ async function issueInTx(tx, {referenceId, uid, amount, source, title, meta}) {
     created_at: admin.firestore.FieldValue.serverTimestamp(),
   });
   return true;
+}
+
+/**
+ * Issues several rewards in one transaction. Firestore needs every read
+ * before any write, so all ledger docs are read first.
+ */
+async function issueManyInTx(tx, entries) {
+  const refs = entries.map((e) => db.collection(LEDGER).doc(e.referenceId));
+  const snaps = await Promise.all(refs.map((r) => tx.get(r)));
+  return () => entries.forEach((e, i) => {
+    if (snaps[i].exists) return;
+    tx.set(refs[i], {
+      uid: e.uid,
+      amount: e.amount,
+      source: e.source,
+      title: e.title || "",
+      meta: e.meta || {},
+      status: "issued",
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
 }
 
 async function issueReward(entry) {
@@ -256,6 +279,61 @@ function humanSeats(match) {
       .map(([seat, s]) => ({seat, uid: String(s.uid)}));
 }
 
+/**
+ * Task 8 + 9: placement reward for finishing (capped per day) and, on a
+ * friend's first finished friends-room match, the invite reward for both.
+ */
+async function rewardMatchEnd({uid, matchId, position, quick, hostUid}) {
+  const day = istDayKey(Date.now());
+  const stateRef = db.collection(STATE).doc(uid);
+  await db.runTransaction(async (tx) => {
+    const state = (await tx.get(stateRef)).data() || {};
+    const completedBefore = Number(state.completed_matches) || 0;
+    const today = (state.match_rewards || {}).day === day ?
+      Number(state.match_rewards.count) || 0 : 0;
+
+    const entries = [];
+    if (today < MAX_MATCH_REWARDS_PER_DAY) {
+      entries.push({
+        referenceId: `ludo_end_${matchId}_${uid}`,
+        uid,
+        amount: matchEndReward(position),
+        source: "ludo_match_end",
+        title: position === 1 ? "Ludo win" : "Ludo match finished",
+        meta: {match_id: matchId, position},
+      });
+    }
+    const pair = invitePair({quick, hostUid, uid, completedBefore});
+    if (pair) {
+      entries.push({
+        referenceId: `invite_${pair.invitee}`,
+        uid: pair.invitee,
+        amount: INVITE_REWARD,
+        source: "invite_joined",
+        title: "Played your first match with a friend",
+        meta: {match_id: matchId, inviter: pair.inviter},
+      }, {
+        referenceId: `invite_by_${pair.inviter}_${pair.invitee}`,
+        uid: pair.inviter,
+        amount: INVITE_REWARD,
+        source: "invite_reward",
+        title: "Your friend finished their first match",
+        meta: {match_id: matchId, invitee: pair.invitee},
+      });
+    }
+    const write = await issueManyInTx(tx, entries);
+    write();
+    tx.set(stateRef, {
+      completed_matches: completedBefore + 1,
+      match_rewards: {
+        day,
+        count: today < MAX_MATCH_REWARDS_PER_DAY ? today + 1 : today,
+      },
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  });
+}
+
 /** Online Ludo: counts plays/wins when a match finishes. */
 const onLudoMatchFinished = functions.firestore
     .document("ludo_matches/{matchId}")
@@ -267,9 +345,19 @@ const onLudoMatchFinished = functions.firestore
       }
       const matchId = context.params.matchId;
       const winners = Array.isArray(after.winners) ? after.winners : [];
-      await Promise.all(humanSeats(after).map(({seat, uid}) =>
-        recordGameEvent(uid, {game: "ludo", won: winners[0] === seat},
-            {eventId: `ludo_${matchId}`, fromClient: false})));
+      const humans = humanSeats(after);
+      const seatCount = Object.keys(after.seats || {}).length;
+      await Promise.all(humans.map(async ({seat, uid}) => {
+        await recordGameEvent(uid, {game: "ludo", won: winners[0] === seat},
+            {eventId: `ludo_${matchId}`, fromClient: false});
+        await rewardMatchEnd({
+          uid,
+          matchId,
+          position: placement(seat, winners, seatCount),
+          quick: after.quick === true,
+          hostUid: String(after.host_uid || ""),
+        });
+      }));
       return null;
     });
 

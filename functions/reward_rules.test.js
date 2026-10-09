@@ -97,3 +97,26 @@ test("bad config falls back to defaults", () => {
     game: "wordly", target: 2, reward: 5}]);
   assert.deepEqual(one.map((m) => m.id), ["x"]);
 });
+
+const {matchEndReward, placement, invitePair} = require("./reward_rules");
+
+test("match-end reward by placement", () => {
+  assert.equal(matchEndReward(1), 15);
+  assert.equal(matchEndReward(2), 8);
+  assert.equal(matchEndReward(4), 5);
+  assert.equal(matchEndReward(9), 5);
+});
+
+test("placement: winners order, else last", () => {
+  assert.equal(placement("blue", ["green", "blue"], 4), 2);
+  assert.equal(placement("red", ["green"], 2), 2);
+  assert.equal(placement("red", ["green", "blue", "yellow"], 4), 4);
+});
+
+test("invite pair only for a friend's first friends-room match", () => {
+  const base = {quick: false, hostUid: "h", uid: "f", completedBefore: 0};
+  assert.deepEqual(invitePair(base), {inviter: "h", invitee: "f"});
+  assert.equal(invitePair({...base, quick: true}), null);
+  assert.equal(invitePair({...base, uid: "h"}), null);
+  assert.equal(invitePair({...base, completedBefore: 1}), null);
+});
