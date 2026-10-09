@@ -114,6 +114,7 @@ class BookingFoodOrderService {
     );
     if (cartItems == null || cartItems.isEmpty) return;
 
+    if (!context.mounted) return;
     final paymentMode = await _pickImmediatePaymentMode(
       context: context,
       cartItems: cartItems,
@@ -127,6 +128,7 @@ class BookingFoodOrderService {
       email: _resolveUserEmail(),
       selectedMeal: cartItems,
     );
+    if (!context.mounted) return;
     final paymentId = await _collectMealPayment(
       context: context,
       bookingId: bookingId,
@@ -157,6 +159,7 @@ class BookingFoodOrderService {
         paymentGateway: 'razorpay',
       );
       Haptics.criticalSuccess();
+      if (!context.mounted) return;
       _showSnack(
         context,
         title: 'Food ordered',
@@ -455,6 +458,7 @@ class BookingFoodOrderService {
         onTimeout: () => null,
       );
     } catch (e) {
+      if (!context.mounted) return null;
       _showSnack(
         context,
         title: 'Payment setup failed',

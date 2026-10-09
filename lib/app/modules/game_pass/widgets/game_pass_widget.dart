@@ -95,6 +95,7 @@ class _VendorPassesWidgetState extends State<VendorPassesWidget> {
       });
     } catch (e) {
       _endPayment();
+      if (!mounted) return;
       _showError(context, e.toString().replaceFirst('Exception: ', ''));
     }
   }

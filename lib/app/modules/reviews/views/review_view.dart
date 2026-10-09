@@ -23,6 +23,7 @@ class ReviewPage extends StatelessWidget {
         ElevatedButton(
           onPressed: () async {
             final token = await locator<AuthDataRepository>().getAccessToken();
+            if (!context.mounted) return;
             if (token == null || token.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

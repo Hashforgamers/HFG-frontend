@@ -1132,6 +1132,7 @@ class BookingTicketCard extends StatelessWidget {
 
       debugPrint('Booking QR scan API success -> $result');
 
+      if (!context.mounted) return;
       await _showScanSuccessDialog(context);
     } catch (e) {
       String errorMessage = 'Failed to process QR code';

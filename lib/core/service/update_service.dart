@@ -57,10 +57,12 @@ class UpdateService {
             /* fall back to dialog */
           }
         }
+        if (!context.mounted) return false;
         await _showForceDialog(context, store, latest, current);
         return true;
       }
 
+      if (!context.mounted) return false;
       if (belowLatest) {
         _showSoftSnack(context, store, latest, current);
       }

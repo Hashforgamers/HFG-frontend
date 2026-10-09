@@ -10,6 +10,7 @@ import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/live/views/live_stream_screen.dart';
 import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
 import 'package:hash/app/routes/app_routes.dart';
+import 'package:hash/core/service/crash_reporting.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -174,6 +175,8 @@ class NotificationController extends GetxController {
   Future<bool>? _registerTokenRequest;
   StreamSubscription<String>? _tokenRefreshSub;
   StreamSubscription<User?>? _authUserSub;
+  StreamSubscription<RemoteMessage>? _foregroundSub;
+  StreamSubscription<RemoteMessage>? _openedSub;
   String? _activeUserTopic;
 
   @override
@@ -181,7 +184,11 @@ class NotificationController extends GetxController {
     super.onInit();
     _authUserSub = _auth.authStateChanges().listen(_handleAuthUserChanged);
     unawaited(_handleAuthUserChanged(_auth.currentUser));
-    _initializeNotifications();
+    unawaited(
+      _initializeNotifications().catchError((Object e, StackTrace st) {
+        CrashReporting.recordNonFatal(e, st, reason: 'notifications init');
+      }),
+    );
   }
 
   @override
@@ -190,6 +197,8 @@ class NotificationController extends GetxController {
     _tokenRefreshSub = null;
     _authUserSub?.cancel();
     _authUserSub = null;
+    _foregroundSub?.cancel();
+    _openedSub?.cancel();
     super.onClose();
   }
 
@@ -237,8 +246,13 @@ class NotificationController extends GetxController {
     }
 
     // 4) Message streams
-    FirebaseMessaging.onMessage.listen(_showLocalNotification);
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageNavigation);
+    // Stored so a second init can't double every push and navigation.
+    await _foregroundSub?.cancel();
+    await _openedSub?.cancel();
+    _foregroundSub = FirebaseMessaging.onMessage.listen(_showLocalNotification);
+    _openedSub = FirebaseMessaging.onMessageOpenedApp.listen(
+      _handleMessageNavigation,
+    );
     unawaited(_handleInitialMessage());
 
     // 5) Tokens (wait for APNs on iOS, then get FCM)

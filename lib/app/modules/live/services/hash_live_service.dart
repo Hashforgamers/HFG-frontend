@@ -9,6 +9,13 @@ import 'package:hash/app/modules/live/models/upcoming_stream_model.dart';
 import 'package:hash/core/service/notification_service.dart';
 
 class HashLiveService extends GetxService {
+  @override
+  void onClose() {
+    _upcomingSub?.cancel();
+    _inboxSub?.cancel();
+    super.onClose();
+  }
+
   static const Duration _maxLiveDuration = Duration(hours: 48);
   static const _streams = 'live_streams';
   static const _messages = 'messages';
@@ -27,7 +34,9 @@ class HashLiveService extends GetxService {
 
   String? get currentUid => _auth.currentUser?.uid;
   final Set<String> _announcedUpcoming = <String>{};
-  bool _inboxListenerStarted = false;
+  StreamSubscription<dynamic>? _upcomingSub;
+  StreamSubscription<dynamic>? _inboxSub;
+  String? _inboxUid;
 
   Stream<List<LiveStreamModel>> watchLiveStreams() {
     return _streamsRef.snapshots().map((snapshot) {
@@ -571,7 +580,9 @@ class HashLiveService extends GetxService {
   void startUpcomingStartAlerts() {
     final uid = currentUid;
     if (uid == null) return;
-    watchUpcomingStreams().listen((items) async {
+    // Called on every visit to the Live tab: replace, never stack, listeners.
+    _upcomingSub?.cancel();
+    _upcomingSub = watchUpcomingStreams().listen((items) async {
       final notification = Get.isRegistered<NotificationController>()
           ? Get.find<NotificationController>()
           : null;
@@ -595,12 +606,14 @@ class HashLiveService extends GetxService {
   }
 
   void startLiveAlertInboxListener() {
-    if (_inboxListenerStarted) return;
     final uid = currentUid;
     if (uid == null) return;
-    _inboxListenerStarted = true;
+    // Keep one listener per signed-in user; a new account replaces it.
+    if (_inboxSub != null && _inboxUid == uid) return;
+    _inboxSub?.cancel();
+    _inboxUid = uid;
 
-    _firestore
+    _inboxSub = _firestore
         .collection(_liveAlerts)
         .where('target_uid', isEqualTo: uid)
         .snapshots()
