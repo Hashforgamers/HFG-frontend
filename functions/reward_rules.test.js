@@ -120,3 +120,13 @@ test("invite pair only for a friend's first friends-room match", () => {
   assert.equal(invitePair({...base, uid: "h"}), null);
   assert.equal(invitePair({...base, completedBefore: 1}), null);
 });
+
+const {weeklyPrize} = require("./reward_rules");
+
+test("weekly prizes for the top 10 only", () => {
+  assert.equal(weeklyPrize(1), 200);
+  assert.equal(weeklyPrize(3), 100);
+  assert.equal(weeklyPrize(10), 50);
+  assert.equal(weeklyPrize(11), 0);
+  assert.equal(weeklyPrize(0), 0);
+});

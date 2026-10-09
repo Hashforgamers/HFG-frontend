@@ -149,7 +149,16 @@ function invitePair({quick, hostUid, uid, completedBefore}) {
   return {inviter: hostUid, invitee: uid};
 }
 
+/** Hash Coins for last week's arcade top 10, by rank (1-based). */
+const WEEKLY_PRIZES = Object.freeze([200, 150, 100, 50, 50, 50, 50, 50, 50, 50]);
+
+function weeklyPrize(rank) {
+  return rank >= 1 && rank <= WEEKLY_PRIZES.length ? WEEKLY_PRIZES[rank - 1] : 0;
+}
+
 module.exports = {
+  WEEKLY_PRIZES,
+  weeklyPrize,
   MATCH_END_REWARDS,
   MAX_MATCH_REWARDS_PER_DAY,
   INVITE_REWARD,

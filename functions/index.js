@@ -1084,3 +1084,69 @@ exports.reportGamePlayed = rewards.reportGamePlayed;
 exports.claimMission = rewards.claimMission;
 exports.onLudoMatchFinished = rewards.onLudoMatchFinished;
 exports.claimFirstMatchReward = rewards.claimFirstMatchReward;
+
+const {istWeekKey, weeklyPrize, WEEKLY_PRIZES} = require("./reward_rules");
+
+/**
+ * Monday 00:05 IST: pays last week's arcade top 10 (mini_game_weekly) in Hash
+ * Coins, redeemable for café booking discounts, and tells each winner. The
+ * board itself "resets" because the app writes to the new week's key.
+ */
+exports.weeklyLeaderboardRewards = functions.pubsub
+    .schedule("5 0 * * 1")
+    .timeZone("Asia/Kolkata")
+    .onRun(async () => {
+      const week = istWeekKey(Date.now() - 24 * 60 * 60 * 1000);
+      const resultRef = db.collection("weekly_results").doc(week);
+      if ((await resultRef.get()).exists) {
+        functions.logger.info("Weekly rewards already paid", {week});
+        return null;
+      }
+      const snap = await db.collection("mini_game_weekly")
+          .where("week", "==", week)
+          .orderBy("totalScore", "desc")
+          .limit(WEEKLY_PRIZES.length)
+          .get();
+      const winners = snap.docs
+          .map((d) => d.data())
+          .filter((d) => asNumber(d.totalScore) > 0 && asString(d.userId));
+
+      const results = [];
+      for (let i = 0; i < winners.length; i++) {
+        const rank = i + 1;
+        const uid = asString(winners[i].userId);
+        const amount = weeklyPrize(rank);
+        await rewards.issueReward({
+          referenceId: `weekly_${week}_${uid}`,
+          uid,
+          amount,
+          source: "weekly_leaderboard",
+          title: `#${rank} on last week's leaderboard`,
+          meta: {week, rank, score: asNumber(winners[i].totalScore)},
+        });
+        results.push({uid, rank, amount,
+          name: asString(winners[i].displayName)});
+        try {
+          await sendPushToUser(uid, {
+            transactional: true,
+            title: `You finished #${rank} this week!`,
+            body: `+${amount} Hash Coins are waiting. Use them for café ` +
+              "booking discounts.",
+            channelId: "system_channel",
+            data: {type: "wallet", campaign_id: `weekly_${week}`,
+              event: "weekly_prize", rank},
+          });
+        } catch (error) {
+          functions.logger.warn("Weekly prize push failed", {uid, error:
+            error instanceof Error ? error.message : String(error)});
+        }
+      }
+      await resultRef.set({
+        week,
+        results,
+        paid_at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      functions.logger.info("Weekly leaderboard rewards issued", {
+        week, winners: results.length});
+      return null;
+    });

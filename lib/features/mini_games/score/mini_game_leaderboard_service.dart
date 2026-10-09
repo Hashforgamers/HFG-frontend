@@ -95,6 +95,25 @@ class MiniGameLeaderboardService {
   static const _chatRoomsCollection = 'chat_rooms';
   static const _chatUsersCollection = 'chat_users';
   static const overallGameId = 'overall';
+
+  /// This week's board (all games, totals), reset every Monday 00:00 IST.
+  /// Last week's top 10 are paid in Hash Coins by the weeklyLeaderboardRewards
+  /// Cloud Function.
+  static const weeklyGameId = 'weekly';
+  static const _weeklyCollection = 'mini_game_weekly';
+
+  /// Monday-based week key on the Indian calendar, e.g. "20261005". Must
+  /// match istWeekKey in functions/reward_rules.js.
+  static String istWeekKey(DateTime now) {
+    final ist = now.toUtc().add(const Duration(hours: 5, minutes: 30));
+    final day = DateTime.utc(ist.year, ist.month, ist.day);
+    final monday = day.subtract(Duration(days: day.weekday - 1));
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${monday.year}${two(monday.month)}${two(monday.day)}';
+  }
+
+  static bool isTotalBoard(String gameId) =>
+      gameId == overallGameId || gameId == weeklyGameId;
   static const supportedGameIds = <String>[
     'ludo',
     'fruit_cutting',
@@ -125,6 +144,10 @@ class MiniGameLeaderboardService {
     }
 
     final doc = _db.collection(_collection).doc(user.uid);
+    final week = istWeekKey(DateTime.now());
+    final weeklyDoc = _db
+        .collection(_weeklyCollection)
+        .doc('${week}_${user.uid}');
     final topSnap = await _db
         .collection(_collection)
         .orderBy('totalScore', descending: true)
@@ -143,6 +166,26 @@ class MiniGameLeaderboardService {
     try {
       await _db.runTransaction((txn) async {
         final snap = await txn.get(doc);
+        final weeklySnap = await txn.get(weeklyDoc);
+
+        // This week's board keeps its own per-game bests, so it fills up
+        // again from zero every Monday.
+        final weekly = Map<String, int>.from(
+          weeklySnap.data()?['scores'] ?? {},
+        );
+        if (score > (weekly[gameId] ?? 0)) {
+          weekly[gameId] = score;
+          txn.set(weeklyDoc, {
+            'userId': user.uid,
+            'week': week,
+            'displayName': user.displayName ?? user.email ?? 'Player',
+            'avatarUrl': user.photoURL,
+            'scores': weekly,
+            'totalScore': weekly.values.fold<int>(0, (a, b) => a + b),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+
         final data = snap.data() ?? <String, dynamic>{};
         final scores = Map<String, int>.from(data['scores'] ?? {});
         final current = scores[gameId] ?? 0;
@@ -222,12 +265,18 @@ class MiniGameLeaderboardService {
   /// Field a board is ranked by. [FieldPath] keeps game ids with unusual
   /// characters from being parsed as nested paths.
   Object _boardField(String gameId) =>
-      gameId == overallGameId ? 'totalScore' : FieldPath(['scores', gameId]);
+      isTotalBoard(gameId) ? 'totalScore' : FieldPath(['scores', gameId]);
 
   /// Players ranked on [gameId]'s board, best first. Per-game boards only
   /// include players who have scored in that game.
   Query<Map<String, dynamic>> _boardQuery(String gameId) {
     final field = _boardField(gameId);
+    if (gameId == weeklyGameId) {
+      return _db
+          .collection(_weeklyCollection)
+          .where('week', isEqualTo: istWeekKey(DateTime.now()))
+          .orderBy(field, descending: true);
+    }
     final base = _db.collection(_collection);
     if (gameId == overallGameId) {
       return base.orderBy(field, descending: true);
@@ -274,19 +323,26 @@ class MiniGameLeaderboardService {
     final players = playersAgg.count ?? 0;
     if (uid == null) return LeaderboardStanding(players: players);
 
-    final mySnap = await _db.collection(_collection).doc(uid).get();
+    final weekly = gameId == weeklyGameId;
+    final week = istWeekKey(DateTime.now());
+    final mySnap = weekly
+        ? await _db.collection(_weeklyCollection).doc('${week}_$uid').get()
+        : await _db.collection(_collection).doc(uid).get();
     if (!mySnap.exists) return LeaderboardStanding(players: players);
     final me = LeaderboardEntry.fromDoc(mySnap);
-    final myScore = gameId == overallGameId
+    final myScore = isTotalBoard(gameId)
         ? me.totalScore
         : (me.scores[gameId] ?? 0);
-    if (gameId != overallGameId && myScore <= 0) {
+    if (!isTotalBoard(gameId) && myScore <= 0) {
       return LeaderboardStanding(players: players);
     }
 
-    final above = _db
-        .collection(_collection)
-        .where(field, isGreaterThan: myScore);
+    final above = weekly
+        ? _db
+              .collection(_weeklyCollection)
+              .where('week', isEqualTo: week)
+              .where(field, isGreaterThan: myScore)
+        : _db.collection(_collection).where(field, isGreaterThan: myScore);
     final aboveAgg = await above.count().get();
     final nextSnap = await above.orderBy(field).limit(1).get();
     return LeaderboardStanding(
@@ -303,7 +359,7 @@ class MiniGameLeaderboardService {
     List<LeaderboardEntry> entries, {
     required String gameId,
   }) {
-    if (gameId == overallGameId) {
+    if (isTotalBoard(gameId)) {
       return List<LeaderboardEntry>.from(entries)
         ..sort((a, b) => b.totalScore.compareTo(a.totalScore));
     }

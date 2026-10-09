@@ -76,13 +76,14 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   bool _openingChat = false;
 
   String get _leaderboardLobbyRoomId {
-    return _selectedGameId == MiniGameLeaderboardService.overallGameId
+    return MiniGameLeaderboardService.isTotalBoard(_selectedGameId)
         ? 'mini_games_lounge'
         : 'mini_games_$_selectedGameId';
   }
 
   late final List<MapEntry<String, String>> _gameOptions = [
     const MapEntry(MiniGameLeaderboardService.overallGameId, 'Overall'),
+    const MapEntry(MiniGameLeaderboardService.weeklyGameId, 'This Week'),
     const MapEntry('ludo', 'Ludo'),
     const MapEntry('snakes_ladders', 'Snakes & Ladders'),
     const MapEntry('fruit_cutting', 'Fruit Cutting'),
@@ -341,7 +342,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
 
     final entries = _mergedEntries();
     if (entries.isEmpty &&
-        _selectedGameId == MiniGameLeaderboardService.overallGameId) {
+        MiniGameLeaderboardService.isTotalBoard(_selectedGameId)) {
       return _emptyState();
     }
 
@@ -669,8 +670,9 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                   height: 46,
                   onPressed: () =>
                       myEntry != null &&
-                          _selectedGameId ==
-                              MiniGameLeaderboardService.overallGameId
+                          MiniGameLeaderboardService.isTotalBoard(
+                            _selectedGameId,
+                          )
                       ? _openBestGame(context, myEntry)
                       : _openSelectedGame(context),
                 ),
@@ -735,7 +737,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
     required int topScore,
     required bool isCurrentUser,
   }) {
-    final subtitle = _selectedGameId == MiniGameLeaderboardService.overallGameId
+    final subtitle = MiniGameLeaderboardService.isTotalBoard(_selectedGameId)
         ? 'Main: ${_primaryGame(data.scores)}'
         : 'Total: ${data.totalScore} pts';
     return Padding(
@@ -1110,7 +1112,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   }
 
   int _displayScore(LeaderboardEntry entry) {
-    if (_selectedGameId == MiniGameLeaderboardService.overallGameId) {
+    if (MiniGameLeaderboardService.isTotalBoard(_selectedGameId)) {
       return entry.totalScore;
     }
     return entry.scores[_selectedGameId] ?? 0;
