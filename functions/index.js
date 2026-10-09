@@ -1,5 +1,6 @@
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
+const {istDayKey, loadPolicy, skipReason} = require("./push_policy");
 
 admin.initializeApp();
 
@@ -277,12 +278,84 @@ async function sendPushToTopic(topic, {title, body, data = {}, channelId = "syst
   return response;
 }
 
+/**
+ * Reserves one of today's engagement pushes for this user, or returns why
+ * not: they were active within push_skip_active_minutes (presence written by
+ * the app to chat_users/{uid}) or already got push_max_per_user_per_day.
+ */
+async function reserveEngagementPush(userId) {
+  const policy = await loadPolicy(admin, functions.logger);
+  const nowMs = Date.now();
+  const presence = (await db.collection("chat_users").doc(userId).get())
+      .data() || {};
+  const day = istDayKey(nowMs);
+  const capRef = db.collection("push_caps").doc(`${userId}_${day}`);
+  return db.runTransaction(async (tx) => {
+    const cap = (await tx.get(capRef)).data() || {};
+    const sentToday = asNumber(cap.count) || 0;
+    const reason = skipReason({
+      isOnline: presence.is_online === true,
+      lastSeenMs: timestampToMs(presence.last_seen_at),
+      sentToday,
+      nowMs,
+      policy,
+    });
+    if (reason) return reason;
+    tx.set(capRef, {
+      user_id: userId,
+      day,
+      count: sentToday + 1,
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      // Enable a Firestore TTL policy on push_caps.expire_at to clean up.
+      expire_at: admin.firestore.Timestamp.fromMillis(
+          nowMs + 3 * 24 * 60 * 60 * 1000),
+    }, {merge: true});
+    return null;
+  });
+}
+
+/**
+ * Sends to one user's topic. Engagement pushes (the default) go through the
+ * frequency cap and active-user skip; pass `transactional: true` for pushes
+ * the user is waiting on (chat messages). Returns the FCM response, or
+ * `{skipped: reason}` when the cap held it back.
+ */
+/**
+ * At most one topic broadcast of this kind per push_social_proof_min_minutes.
+ * @return {Promise<boolean>} true if this caller may send now.
+ */
+async function claimBroadcastSlot(kind) {
+  const policy = await loadPolicy(admin, functions.logger);
+  const ref = db.collection("push_throttle").doc(kind);
+  const nowMs = Date.now();
+  return db.runTransaction(async (tx) => {
+    const last = asNumber(((await tx.get(ref)).data() || {}).last_sent_ms);
+    if (last && nowMs - last < policy.socialProofMinMinutes * 60 * 1000) {
+      return false;
+    }
+    tx.set(ref, {last_sent_ms: nowMs}, {merge: true});
+    return true;
+  });
+}
+
 async function sendPushToUser(userId, options) {
   const safeUserId = asString(userId);
   if (!safeUserId) {
     return null;
   }
-  return sendPushToTopic(userTopic(safeUserId), options);
+  const {transactional = false, ...pushOptions} = options;
+  if (!transactional) {
+    const reason = await reserveEngagementPush(safeUserId);
+    if (reason) {
+      functions.logger.info("Push skipped by frequency policy", {
+        userId: safeUserId,
+        reason,
+        type: pushOptions.data && pushOptions.data.type,
+      });
+      return {skipped: reason};
+    }
+  }
+  return sendPushToTopic(userTopic(safeUserId), pushOptions);
 }
 
 function miniGamesCampaignForToday(now = new Date()) {
@@ -600,6 +673,14 @@ exports.bookingSocialProof = functions.firestore
       });
 
       try {
+        // Every booking used to broadcast to all users. Topic sends can't be
+        // capped per user, so throttle the broadcast itself.
+        if (!(await claimBroadcastSlot("social_proof"))) {
+          functions.logger.info("bookingSocialProof throttled", {
+            bookingId: context.params.bookingId,
+          });
+          return null;
+        }
         await sendTemplateNotification(
             "mira_road_users",
             "social_proof",
@@ -657,6 +738,7 @@ exports.chatMessagePush = functions.firestore
           .filter((memberId) => !mutedUsers.has(memberId))
           .filter((memberId) => !deletedUsers.has(memberId))
           .map((memberId) => sendPushToUser(memberId, {
+            transactional: true,
             title,
             body,
             channelId: "chat_channel",
@@ -927,6 +1009,13 @@ exports.processFunnelNotificationJobs = functions.pubsub
               body,
             },
           });
+
+          if (response && response.skipped) {
+            await markJobState(doc.ref, "cancelled", {
+              cancelReason: `push_${response.skipped}`,
+            });
+            continue;
+          }
 
           await markJobState(doc.ref, "sent", {
             providerResponse: response,
