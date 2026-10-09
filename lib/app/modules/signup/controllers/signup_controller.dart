@@ -17,6 +17,7 @@ import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/core/service/first_session.dart';
 
 class SignUpController extends GetxController {
   var nameController = TextEditingController();
@@ -146,7 +147,7 @@ class SignUpController extends GetxController {
       debugPrint(
         '[iOS Signup][Controller] new_user_bonus_pending saved, navigating to home',
       );
-      Get.offAllNamed('/home');
+      await FirstSession.finishSignup(via: 'signup_form');
     } catch (e, st) {
       debugPrint('[iOS Signup][Controller] Signup failed: $e');
       debugPrint('[iOS Signup][Controller] Stacktrace: $st');

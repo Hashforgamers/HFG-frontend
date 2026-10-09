@@ -15,6 +15,8 @@ abstract final class AppRemoteConfig {
   static const String ludoQuitCooldownSecondsKey = 'ludo_quit_cooldown_seconds';
   static const String ludoQuitCooldownThresholdKey =
       'ludo_quit_cooldown_threshold';
+  static const String onboardingFirstMatchEnabledKey =
+      'onboarding_first_match_enabled';
 
   @visibleForTesting
   static const Map<String, Object> defaults = {
@@ -22,6 +24,7 @@ abstract final class AppRemoteConfig {
     ludoQuickModeEnabledKey: false,
     ludoQuitCooldownSecondsKey: 120,
     ludoQuitCooldownThresholdKey: 2,
+    onboardingFirstMatchEnabledKey: true,
   };
 
   static bool _ready = false;
@@ -78,4 +81,8 @@ abstract final class AppRemoteConfig {
   /// Early quits within 30 minutes that trigger the lockout.
   static int get ludoQuitCooldownThreshold =>
       _int(ludoQuitCooldownThresholdKey, min: 1, max: 10);
+
+  /// New users go straight from signup into an easy 1v1 Ludo match.
+  static bool get onboardingFirstMatchEnabled =>
+      _bool(onboardingFirstMatchEnabledKey);
 }

@@ -30,6 +30,7 @@ import '../../../data/models/user_model.dart';
 import '../../../data/services/user_controller.dart' as user_model;
 import '../../../routes/app_routes.dart';
 import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/core/service/first_session.dart';
 
 class LoginController extends GetxController {
   static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
@@ -644,9 +645,7 @@ class LoginController extends GetxController {
           '[iOS Signup][Nav] Auto-signup produced backend user, going home | backendUserId=${createdUserData['id']}',
         );
         await _finalizeExistingUserLogin(createdUserData);
-        if (!await DeepLinkService.resumePendingAfterAuth()) {
-          Get.offAllNamed(AppRoutes.HOME);
-        }
+        await FirstSession.finishSignup(via: 'auto_signup');
         return;
       }
 

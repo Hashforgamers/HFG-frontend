@@ -51,4 +51,14 @@ void main() {
     expect(game.gameState, isNot(LudoGameState.finish));
     game.dispose();
   });
+
+  test('first match is a 2-token 1v1 vs AI, unranked and not Quick Ludo', () {
+    final game = LudoProvider.firstMatch()..startGame();
+    expect(game.firstMatch, isTrue);
+    expect(game.againstAi, isTrue);
+    expect(game.quickLudo, isFalse);
+    expect(game.activeSeats, {LudoPlayerType.green, LudoPlayerType.blue});
+    expect(game.player(LudoPlayerType.green).pawns.length, 2);
+    game.dispose();
+  });
 }

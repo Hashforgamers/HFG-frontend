@@ -16,6 +16,7 @@ import 'constants.dart';
 import 'ludo_analytics.dart';
 import 'power_ups.dart';
 import 'ludo_provider.dart';
+import 'package:hash/core/service/first_session.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -134,6 +135,7 @@ class _MainScreenState extends State<MainScreen>
   String get _localMode {
     final game = _game!;
     if (!game.againstAi) return 'pass_and_play';
+    if (game.firstMatch) return 'first_match';
     if (game.quickLudo) return 'quick_ludo';
     return game.powerMode ? 'power' : 'vs_ai';
   }
@@ -169,6 +171,9 @@ class _MainScreenState extends State<MainScreen>
   void _trackLocalQuit(String reason) {
     if (_localEnded || _localMatchId.isEmpty) return;
     _localEnded = true;
+    if (_game!.firstMatch) {
+      FirstSession.step('first_match_quit', {'turns': _localTurns});
+    }
     LudoAnalytics.matchQuit(
       matchId: _localMatchId,
       mode: _localMode,
@@ -190,6 +195,14 @@ class _MainScreenState extends State<MainScreen>
     if (game.gameState != LudoGameState.finish) return;
     _localEnded = true;
     NotificationPermissionGate.onMatchCompleted('ludo');
+    if (game.firstMatch) {
+      FirstSession.step('first_match_completed', {
+        'won': game.winners.firstOrNull == LudoPlayerType.green
+            ? 'true'
+            : 'false',
+        'duration_sec': _localDurationSec,
+      });
+    }
     // Pass & Play has no single "you", so it carries no result/placement.
     final solo = game.againstAi;
     final index = game.winners.indexOf(LudoPlayerType.green);
@@ -200,7 +213,7 @@ class _MainScreenState extends State<MainScreen>
       result: solo ? (position == 1 ? 'win' : 'lose') : null,
       position: solo ? position : null,
       // Power and Quick Ludo are unranked: no leaderboard points.
-      points: solo && !game.powerMode && !game.quickLudo
+      points: solo && !game.powerMode && !game.quickLudo && !game.firstMatch
           ? (5 - position) * 100
           : null,
       humans: _localHumans,
@@ -214,10 +227,11 @@ class _MainScreenState extends State<MainScreen>
     _trackLocalEnd();
     final game = _game!;
     if (game.winners.isEmpty) _resultRecorded = false;
-    // Power and Quick Ludo are unranked, so neither can be farmed for points.
+    // Power, Quick and first-match Ludo are unranked, so none can be farmed.
     if (!game.againstAi ||
         game.powerMode ||
         game.quickLudo ||
+        game.firstMatch ||
         _resultRecorded) {
       return;
     }

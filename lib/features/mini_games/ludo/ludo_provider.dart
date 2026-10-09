@@ -12,6 +12,7 @@ import 'constants.dart';
 import 'power_ups.dart';
 import 'online/ludo_match.dart';
 import 'online/ludo_match_service.dart';
+import 'ludo_dice_policy.dart';
 
 class LudoProvider extends ChangeNotifier {
   LudoProvider({
@@ -21,6 +22,7 @@ class LudoProvider extends ChangeNotifier {
     this.soundEnabled = true,
     this.tokens = 4,
     Set<LudoPlayerType>? seats,
+    this.firstMatch = false,
   }) : _random = random ?? Random(),
        _activeSeats = seats ?? kLudoSeatOrder.toSet();
 
@@ -35,7 +37,19 @@ class LudoProvider extends ChangeNotifier {
   final int tokens;
 
   /// Quick Ludo: fewer tokens for a ~5 minute game. Unranked.
-  bool get quickLudo => tokens < 4;
+  bool get quickLudo => tokens < 4 && !firstMatch;
+
+  /// A new player's first game: easy bot and a little dice help
+  /// ([LudoDicePolicy]). Unranked.
+  final bool firstMatch;
+
+  /// The 2-token 1v1 against an easy bot that new players start with.
+  factory LudoProvider.firstMatch() => LudoProvider(
+    againstAi: true,
+    tokens: 2,
+    seats: {LudoPlayerType.green, LudoPlayerType.blue},
+    firstMatch: true,
+  );
   final Random _random;
   Timer? _aiTimer;
   int _generation = 0;
@@ -63,7 +77,11 @@ class LudoProvider extends ChangeNotifier {
           .toList();
       if (choices.isEmpty) return;
       // Finish advanced pawns first; otherwise bring another pawn into play.
-      choices.sort((a, b) => b.step.compareTo(a.step));
+      // The first-match bot does the opposite and dawdles.
+      choices.sort(
+        (a, b) =>
+            firstMatch ? a.step.compareTo(b.step) : b.step.compareTo(a.step),
+      );
       final pawn = choices.first;
       move(
         pawn.type,
@@ -560,7 +578,14 @@ class LudoProvider extends ChangeNotifier {
       _diceStarted = false;
       // Fair, uniform 1–6 roll. (The template was rigged with nextBool() to
       // force a 6 ~58% of the time.)
-      _diceResult = _random.nextInt(6) + 1;
+      _diceResult = LudoDicePolicy.adjust(
+        _random.nextInt(6) + 1,
+        easy: firstMatch,
+        isBot: isAiTurn,
+        allPawnsHome:
+            currentPlayer.pawnInsideCount == currentPlayer.pawns.length,
+        random: _random,
+      );
       if (powerMode && _luckyFor == _currentTurn) {
         _diceResult = 6;
         _luckyFor = null;

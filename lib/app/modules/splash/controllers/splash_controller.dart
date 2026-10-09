@@ -16,6 +16,7 @@ import 'package:hash/core/service/update_service.dart'; // ← NEW
 import '../../../routes/app_routes.dart';
 import '../../../data/services/user_controller.dart';
 import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/core/service/first_session.dart';
 
 class SplashController extends GetxController {
   final UserController userController = Get.find();
@@ -34,6 +35,8 @@ class SplashController extends GetxController {
       AppLogger.d('Splash fallback fired -> local session routing');
       unawaited(_routeFromLocalSession());
     });
+
+    unawaited(FirstSession.markAppOpened());
 
     // Run after first frame so Get.context is available
     WidgetsBinding.instance.addPostFrameCallback((_) => _boot());
