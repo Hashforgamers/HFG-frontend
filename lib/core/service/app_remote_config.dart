@@ -12,11 +12,16 @@ abstract final class AppRemoteConfig {
   // Keys. Add each new key to [defaults] too.
   static const String ludoBotFillSecondsKey = 'ludo_bot_fill_seconds';
   static const String ludoQuickModeEnabledKey = 'ludo_quick_mode_enabled';
+  static const String ludoQuitCooldownSecondsKey = 'ludo_quit_cooldown_seconds';
+  static const String ludoQuitCooldownThresholdKey =
+      'ludo_quit_cooldown_threshold';
 
   @visibleForTesting
   static const Map<String, Object> defaults = {
     ludoBotFillSecondsKey: 20,
     ludoQuickModeEnabledKey: false,
+    ludoQuitCooldownSecondsKey: 120,
+    ludoQuitCooldownThresholdKey: 2,
   };
 
   static bool _ready = false;
@@ -65,4 +70,12 @@ abstract final class AppRemoteConfig {
 
   /// Shows the Quick Ludo (2 tokens, 1v1 vs AI) mode card.
   static bool get ludoQuickModeEnabled => _bool(ludoQuickModeEnabledKey);
+
+  /// Quick Match lockout after repeated early quits from online matches.
+  static int get ludoQuitCooldownSeconds =>
+      _int(ludoQuitCooldownSecondsKey, min: 0, max: 1800);
+
+  /// Early quits within 30 minutes that trigger the lockout.
+  static int get ludoQuitCooldownThreshold =>
+      _int(ludoQuitCooldownThresholdKey, min: 1, max: 10);
 }

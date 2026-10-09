@@ -24,6 +24,7 @@ import 'ludo_backoff.dart';
 import 'ludo_invite_friends_sheet.dart';
 import 'ludo_match.dart';
 import 'ludo_match_service.dart';
+import 'ludo_quit_cooldown.dart';
 
 /// The networked Ludo experience: a lobby while [LudoMatchStatus.waiting], then
 /// the synced board once the host starts. Handles auto-joining an open seat for
@@ -637,15 +638,21 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
 
     if (match.status == LudoMatchStatus.active) {
       final startedAt = _startedAtMs > 0 ? _startedAtMs : match.createdAtMs;
+      final durationSec = startedAt > 0
+          ? (DateTime.now().millisecondsSinceEpoch - startedAt) ~/ 1000
+          : 0;
       LudoAnalytics.matchQuit(
         matchId: match.id,
         mode: LudoAnalytics.onlineMode(match),
         turnNumber: _turns,
-        durationSec: startedAt > 0
-            ? (DateTime.now().millisecondsSinceEpoch - startedAt) ~/ 1000
-            : 0,
+        durationSec: durationSec,
         reason: 'back',
       );
+      // Only walking out on real people counts toward the cooldown.
+      if (match.humanCount > 1 &&
+          durationSec < LudoQuitCooldown.earlyQuitWithin.inSeconds) {
+        unawaited(LudoQuitCooldown.recordEarlyQuit());
+      }
     }
 
     try {

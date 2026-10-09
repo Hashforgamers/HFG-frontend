@@ -137,6 +137,10 @@ abstract final class LudoAnalytics {
     'opponents': opponents,
   }, dedupeKey: matchId);
 
+  /// Quick Match was refused because of repeated early quits.
+  static void quitCooldownBlocked({required int waitSec}) =>
+      _log('ludo_quit_cooldown_blocked', {'wait_sec': waitSec});
+
   static void roomCreated(String roomType) =>
       _log('ludo_room_created', {'room_type': roomType});
 

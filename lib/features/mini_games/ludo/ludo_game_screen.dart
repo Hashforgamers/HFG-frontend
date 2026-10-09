@@ -13,6 +13,7 @@ import 'main_screen.dart';
 import 'online/ludo_live_matches_screen.dart';
 import 'online/ludo_match_screen.dart';
 import 'online/ludo_match_service.dart';
+import 'online/ludo_quit_cooldown.dart';
 import 'online/ludo_presence_widgets.dart';
 
 /// The entry point always offers a mode before creating a local board.
@@ -97,6 +98,24 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   /// Quick Match into someone's waiting room, otherwise a new friends room.
   Future<void> _openOnline({String? matchId, bool quick = false}) async {
     if (_openingOnline) return;
+    if (quick && matchId == null) {
+      final wait = await LudoQuitCooldown.remaining();
+      if (!mounted) return;
+      if (wait > Duration.zero) {
+        LudoAnalytics.quitCooldownBlocked(waitSec: wait.inSeconds);
+        final m = wait.inMinutes;
+        final sec = (wait.inSeconds % 60).toString().padLeft(2, '0');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'You left your last matches early. Quick Match opens again in '
+              '$m:$sec — try Vs AI meanwhile.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
     setState(() => _openingOnline = true);
     final String stage;
     if (matchId != null) {
