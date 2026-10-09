@@ -10,6 +10,7 @@ import 'package:hash/utils/widgets/game_panel.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:hash/core/service/notification_permission_gate.dart';
 
 import '../audio.dart';
 import '../constants.dart';
@@ -474,6 +475,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
 
     if (match.status == LudoMatchStatus.finished && !_endTracked) {
       _endTracked = true;
+      NotificationPermissionGate.onMatchCompleted('ludo');
       final points = ludoPlacementScore(
         seat: seat,
         winners: match.winners,

@@ -16,6 +16,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hash/app/modules/hash_coin/widgets/hash_coin_icon.dart';
+import 'package:hash/core/service/notification_permission_gate.dart';
 
 class MiniGameScoreService {
   static const _prefsKey = 'mini_game_scores';
@@ -68,6 +69,7 @@ class MiniGameScoreService {
 
   Future<bool> recordScore(String gameId, int score) async {
     await _ensureLoaded();
+    NotificationPermissionGate.onMatchCompleted(gameId);
 
     // Reward simply playing (first finish of each game per day) so every player
     // earns something, not only those who crack the global top 100.

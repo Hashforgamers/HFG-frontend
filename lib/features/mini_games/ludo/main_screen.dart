@@ -9,6 +9,7 @@ import 'package:hash/features/mini_games/ludo/widgets/board_widget.dart';
 import 'package:hash/features/mini_games/ludo/widgets/dice_widget.dart';
 import 'package:hash/features/mini_games/ludo/widgets/ludo_reactions.dart';
 import 'package:provider/provider.dart';
+import 'package:hash/core/service/notification_permission_gate.dart';
 
 import 'audio.dart';
 import 'constants.dart';
@@ -188,6 +189,7 @@ class _MainScreenState extends State<MainScreen>
     }
     if (game.gameState != LudoGameState.finish) return;
     _localEnded = true;
+    NotificationPermissionGate.onMatchCompleted('ludo');
     // Pass & Play has no single "you", so it carries no result/placement.
     final solo = game.againstAi;
     final index = game.winners.indexOf(LudoPlayerType.green);

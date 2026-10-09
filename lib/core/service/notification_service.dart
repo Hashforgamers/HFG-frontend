@@ -205,13 +205,9 @@ class NotificationController extends GetxController {
   }
 
   Future<void> _initializeNotifications() async {
-    // 1) Ask permissions (iOS) + foreground presentation
-    final settings = await _fm.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
+    // 1) Read (never request) permission at launch. New users are asked
+    // after their first completed match: see NotificationPermissionGate.
+    final settings = await _fm.getNotificationSettings();
     debugPrint(
       'Push permission status -> auth=${settings.authorizationStatus.name}, '
       'alert=${settings.alert.name}, badge=${settings.badge.name}, '
@@ -267,6 +263,31 @@ class NotificationController extends GetxController {
       debugPrint('FCM token refreshed -> $t');
       unawaited(registerCurrentTokenWithBackend(forceRefresh: true));
     });
+  }
+
+  Future<AuthorizationStatus> permissionStatus() async =>
+      (await _fm.getNotificationSettings()).authorizationStatus;
+
+  /// Shows the OS permission prompt, then (if granted) refreshes the FCM
+  /// token and registers it. Returns whether notifications are now allowed.
+  Future<bool> requestPermissionNow() async {
+    final settings = await _fm.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    final granted =
+        settings.authorizationStatus == AuthorizationStatus.authorized ||
+        settings.authorizationStatus == AuthorizationStatus.provisional;
+    if (granted) {
+      await _initTokens(settings);
+      try {
+        await registerCurrentTokenWithBackend(forceRefresh: true);
+      } catch (e) {
+        debugPrint('[Push] token sync after permission failed: $e');
+      }
+    }
+    return granted;
   }
 
   Future<void> _initTokens(NotificationSettings settings) async {
