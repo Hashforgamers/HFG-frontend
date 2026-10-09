@@ -6,22 +6,25 @@ import 'package:hash/core/utils/haptics.dart';
 
 import 'rewards_service.dart';
 
-/// Home card for the daily login streak: seven escalating HashWallet rewards
-/// (Day 1 -> Day 7), claimed once per IST day and validated server-side.
-class DailyStreakCard extends StatefulWidget {
-  const DailyStreakCard({super.key});
+/// Home card for the daily habit loop: the login streak (seven escalating
+/// HashWallet rewards, Day 1 -> Day 7) and today's missions. Everything is
+/// validated server-side; this only displays and claims.
+class DailyRewardsCard extends StatefulWidget {
+  const DailyRewardsCard({super.key});
 
   /// Mirrors STREAK_REWARDS in functions/reward_rules.js (display only; the
   /// server decides what is actually paid).
   static const rewards = [5, 10, 15, 20, 25, 30, 50];
 
   @override
-  State<DailyStreakCard> createState() => _DailyStreakCardState();
+  State<DailyRewardsCard> createState() => _DailyRewardsCardState();
 }
 
-class _DailyStreakCardState extends State<DailyStreakCard> {
+class _DailyRewardsCardState extends State<DailyRewardsCard> {
   final RewardsService _rewards = RewardsService.instance;
   StreakStatus? _status;
+  List<DailyMission> _missions = const [];
+  final Set<String> _claimingMissions = {};
   bool _claiming = false;
   bool _failed = false;
 
@@ -37,6 +40,7 @@ class _DailyStreakCardState extends State<DailyStreakCard> {
       if (!mounted) return;
       setState(() {
         _status = s.streak;
+        _missions = s.missions;
         _failed = false;
       });
       // Anything issued earlier (match rewards, missions) gets credited now.
@@ -71,6 +75,80 @@ class _DailyStreakCardState extends State<DailyStreakCard> {
     } finally {
       if (mounted) setState(() => _claiming = false);
     }
+  }
+
+  Future<void> _claimMission(DailyMission m) async {
+    if (_claimingMissions.contains(m.id)) return;
+    setState(() => _claimingMissions.add(m.id));
+    try {
+      final amount = await _rewards.claimMission(m.id);
+      Haptics.heavy();
+      if (mounted && amount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${m.title}: +$amount Hash Coins')),
+        );
+      }
+      await _load();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Couldn’t claim right now. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _claimingMissions.remove(m.id));
+    }
+  }
+
+  Widget _missionRow(DailyMission m) {
+    final busy = _claimingMissions.contains(m.id);
+    final Widget trailing;
+    if (m.claimed) {
+      trailing = const Icon(Icons.check_circle_rounded, color: HomeTokens.gold);
+    } else if (m.complete) {
+      trailing = TextButton(
+        onPressed: busy ? null : () => _claimMission(m),
+        style: TextButton.styleFrom(foregroundColor: HomeTokens.gold),
+        child: Text(busy ? '…' : 'Claim +${m.reward}'),
+      );
+    } else {
+      trailing = Text(
+        '+${m.reward}',
+        style: HomeTokens.body(HomeTokens.textSecondary),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(m.title, style: HomeTokens.body(HomeTokens.textPrimary)),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: m.target == 0 ? 0 : m.progress / m.target,
+                    minHeight: 5,
+                    color: HomeTokens.green,
+                    backgroundColor: HomeTokens.hairline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '${m.progress}/${m.target}',
+            style: HomeTokens.body(HomeTokens.textSecondary, size: 12),
+          ),
+          const SizedBox(width: 8),
+          trailing,
+        ],
+      ),
+    );
   }
 
   @override
@@ -144,6 +222,15 @@ class _DailyStreakCardState extends State<DailyStreakCard> {
                     ),
             ),
           ),
+          if (_missions.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Text(
+              'TODAY’S MISSIONS',
+              style: HomeTokens.eyebrow(HomeTokens.green),
+            ),
+            const SizedBox(height: 4),
+            for (final m in _missions) _missionRow(m),
+          ],
         ],
       ),
     );
@@ -172,7 +259,7 @@ class _DailyStreakCardState extends State<DailyStreakCard> {
           child: done
               ? const Icon(Icons.check_rounded, size: 18, color: HomeTokens.ink)
               : Text(
-                  '${DailyStreakCard.rewards[i]}',
+                  '${DailyRewardsCard.rewards[i]}',
                   style: HomeTokens.body(color, size: 11),
                 ),
         ),

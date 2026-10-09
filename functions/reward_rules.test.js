@@ -61,3 +61,39 @@ test("IST week starts Monday", () => {
   assert.equal(istWeekKey(Date.UTC(2026, 9, 11, 18, 29)), "20261005");
   assert.equal(istWeekKey(Date.UTC(2026, 9, 11, 18, 30)), "20261012");
 });
+
+const {DEFAULT_MISSIONS, applyEvent, missionsView, sanitizeMissions} =
+  require("./reward_rules");
+
+test("ludo wins count toward the win mission, losses don't", () => {
+  let c = applyEvent(DEFAULT_MISSIONS, {}, {game: "ludo", won: false});
+  assert.equal(c.win_ludo_2 || 0, 0);
+  c = applyEvent(DEFAULT_MISSIONS, c, {game: "ludo", won: true});
+  c = applyEvent(DEFAULT_MISSIONS, c, {game: "ludo", won: true});
+  c = applyEvent(DEFAULT_MISSIONS, c, {game: "ludo", won: true});
+  assert.equal(c.win_ludo_2, 2); // capped at target
+});
+
+test("arcade plays: specific game and the any-game mission", () => {
+  let c = applyEvent(DEFAULT_MISSIONS, {}, {game: "super_over", won: false});
+  assert.equal(c.play_super_over_1, 1);
+  assert.equal(c.play_arcade_3, 1);
+  c = applyEvent(DEFAULT_MISSIONS, c, {game: "pac_man", won: false});
+  assert.equal(c.play_super_over_1, 1);
+  assert.equal(c.play_arcade_3, 2);
+});
+
+test("view reports progress and claimed flags", () => {
+  const v = missionsView(DEFAULT_MISSIONS,
+      {counts: {win_ludo_2: 1}, claimed: {play_super_over_1: true}});
+  assert.equal(v[0].progress, 1);
+  assert.equal(v[1].claimed, true);
+});
+
+test("bad config falls back to defaults", () => {
+  assert.equal(sanitizeMissions(null).length, 3);
+  assert.equal(sanitizeMissions([{id: 1}]).length, 3);
+  const one = sanitizeMissions([{id: "x", title: "X", event: "play",
+    game: "wordly", target: 2, reward: 5}]);
+  assert.deepEqual(one.map((m) => m.id), ["x"]);
+});

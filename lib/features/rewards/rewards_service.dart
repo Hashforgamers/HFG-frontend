@@ -50,6 +50,35 @@ class StreakStatus {
   final int nextAmount;
 }
 
+class DailyMission {
+  const DailyMission({
+    required this.id,
+    required this.title,
+    required this.target,
+    required this.progress,
+    required this.reward,
+    required this.claimed,
+  });
+
+  factory DailyMission.fromMap(Map<dynamic, dynamic> m) => DailyMission(
+    id: '${m['id']}',
+    title: '${m['title'] ?? m['id']}',
+    target: (m['target'] as num?)?.toInt() ?? 1,
+    progress: (m['progress'] as num?)?.toInt() ?? 0,
+    reward: (m['reward'] as num?)?.toInt() ?? 0,
+    claimed: m['claimed'] == true,
+  );
+
+  final String id;
+  final String title;
+  final int target;
+  final int progress;
+  final int reward;
+  final bool claimed;
+
+  bool get complete => progress >= target;
+}
+
 /// Server-decided HashWallet rewards, paid with the existing hash-coins API.
 ///
 /// Cloud Functions decide eligibility and amount and issue a ledger entry with
@@ -75,12 +104,61 @@ class RewardsService {
           .map(RewardEntry.fromMap)
           .toList();
 
-  Future<({StreakStatus streak, List<RewardEntry> pending})> status() async {
+  List<DailyMission> _missions(Map<dynamic, dynamic> m) =>
+      ((m['missions'] as List?) ?? const [])
+          .whereType<Map>()
+          .map(DailyMission.fromMap)
+          .toList();
+
+  Future<
+    ({
+      StreakStatus streak,
+      List<DailyMission> missions,
+      List<RewardEntry> pending,
+    })
+  >
+  status() async {
     final m = await _call('rewardsStatus');
     return (
       streak: StreakStatus.fromMap((m['streak'] as Map?) ?? const {}),
+      missions: _missions(m),
       pending: _pending(m),
     );
+  }
+
+  /// A finished offline Ludo or arcade game, counted toward daily missions on
+  /// the server. Fire-and-forget: gameplay never waits on it. Online Ludo is
+  /// counted server-side, so don't report it here.
+  void reportGamePlayed({
+    required String game,
+    required String eventId,
+    bool won = false,
+  }) {
+    unawaited(() async {
+      try {
+        final m = await _call('reportGamePlayed', {
+          'game': game,
+          'eventId': eventId,
+          'won': won,
+        });
+        for (final id in (m['completed'] as List?) ?? const []) {
+          _log('mission_completed', {'mission_id': '$id', 'game': game});
+        }
+      } catch (e) {
+        debugPrint('[Rewards] reportGamePlayed failed: $e');
+      }
+    }());
+  }
+
+  /// Claims a completed mission and credits it. Returns coins credited.
+  Future<int> claimMission(String missionId) async {
+    final m = await _call('claimMission', {'missionId': missionId});
+    final amount = (m['amount'] as num?)?.toInt() ?? 0;
+    if (m['issued'] == true) {
+      _log('mission_claimed', {'mission_id': missionId, 'amount': amount});
+    }
+    await payPending(_pending(m));
+    return amount;
   }
 
   /// Claims today's streak reward and credits it. Returns the coins credited

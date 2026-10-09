@@ -1080,3 +1080,6 @@ const rewards = require("./rewards");
 exports.rewardsStatus = rewards.rewardsStatus;
 exports.claimDailyStreak = rewards.claimDailyStreak;
 exports.markRewardPaid = rewards.markRewardPaid;
+exports.reportGamePlayed = rewards.reportGamePlayed;
+exports.claimMission = rewards.claimMission;
+exports.onLudoMatchFinished = rewards.onLudoMatchFinished;

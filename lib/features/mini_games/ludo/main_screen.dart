@@ -17,6 +17,7 @@ import 'ludo_analytics.dart';
 import 'power_ups.dart';
 import 'ludo_provider.dart';
 import 'package:hash/core/service/first_session.dart';
+import 'package:hash/features/rewards/rewards_service.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -195,6 +196,15 @@ class _MainScreenState extends State<MainScreen>
     if (game.gameState != LudoGameState.finish) return;
     _localEnded = true;
     NotificationPermissionGate.onMatchCompleted('ludo');
+    // Offline Ludo counts toward daily missions (online is counted
+    // server-side). Pass & Play has no single player to credit.
+    if (game.againstAi) {
+      RewardsService.instance.reportGamePlayed(
+        game: 'ludo',
+        eventId: _localMatchId,
+        won: game.winners.firstOrNull == LudoPlayerType.green,
+      );
+    }
     if (game.firstMatch) {
       FirstSession.step('first_match_completed', {
         'won': game.winners.firstOrNull == LudoPlayerType.green
