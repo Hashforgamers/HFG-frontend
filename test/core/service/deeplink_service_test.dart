@@ -94,14 +94,8 @@ void main() {
     });
 
     test('resolves contest links in both registered forms', () {
-      expect(
-        DeepLinkService.parse(Uri.parse('hash://contest/c1')).id,
-        'c1',
-      );
-      expect(
-        DeepLinkService.parse(Uri.parse('hash://contest?id=c9')).id,
-        'c9',
-      );
+      expect(DeepLinkService.parse(Uri.parse('hash://contest/c1')).id, 'c1');
+      expect(DeepLinkService.parse(Uri.parse('hash://contest?id=c9')).id, 'c9');
       expect(
         DeepLinkService.parse(
           Uri.parse('https://hashforgamers.co.in/contest/c1'),

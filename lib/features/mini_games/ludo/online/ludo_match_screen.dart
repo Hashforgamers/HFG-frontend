@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hash/core/service/crash_reporting.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
@@ -245,6 +246,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       setState(() => _error = 'This match is no longer available.');
       return;
     }
+    CrashReporting.setGameMode('ludo_${LudoAnalytics.onlineMode(match)}');
 
     if (_spectating &&
         !_attached &&
@@ -447,6 +449,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
 
   @override
   void dispose() {
+    CrashReporting.setGameMode(null);
     _ticker?.cancel();
     Audio.stopTicking();
     _bounce.dispose();

@@ -36,7 +36,7 @@ import '/themes/app_theme.dart';
 import 'firebase_options.dart';
 import 'app/modules/shop_new/controllers/shop_controller.dart';
 
-void main() async {
+void main() => CrashReporting.runGuarded(() async {
   WidgetsFlutterBinding.ensureInitialized();
   // portrait-only app; landscape games opt in while they're on screen
   await AppOrientation.portrait();
@@ -89,7 +89,7 @@ void main() async {
   Get.put(MiniGameLeaderboardNotificationService(), permanent: true);
 
   runApp(MyApp());
-}
+});
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -125,6 +125,7 @@ class MyApp extends StatelessWidget {
                 getPages: AppPages.pages,
                 unknownRoute: AppPages.unknownRoute,
                 navigatorObservers: [
+                  CrashReporting.routeObserver,
                   locator<AnalyticsService>().observer,
                   BlurPopupObserver(),
                 ],
