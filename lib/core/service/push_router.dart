@@ -4,7 +4,8 @@
 ///
 /// Payload contract (any of, in priority order):
 /// - `deep_link`: a link `DeepLinkService` understands (`hash://wallet`).
-/// - `type` (+ ids): `rematch`/`ludo_match` + `match_id`, `ludo`,
+/// - `type` (+ ids): `rematch`/`ludo_match` + `match_id`,
+///   `quick_match_waiting` + `match_id` (join, or Quick Match if gone), `ludo`,
 ///   `leaderboard`, `wallet`/`reward`, `chat` + `room_id`, `live` +
 ///   `stream_id`, `new_notification`.
 /// - `route`: a named app route such as `/wallet`.
@@ -64,6 +65,8 @@ abstract final class PushRouter {
         return PushDeepLink(
           _link(matchId.isEmpty ? 'game/ludo' : 'game/ludomatch_$matchId'),
         );
+      case 'quick_match_waiting':
+        return PushDeepLink(_link('game/ludojoin_$matchId'));
       case 'ludo':
         return PushDeepLink(_link('game/ludo'));
       case 'leaderboard':

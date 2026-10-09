@@ -1150,3 +1150,39 @@ exports.weeklyLeaderboardRewards = functions.pubsub
         week, winners: results.length});
       return null;
     });
+
+/**
+ * Someone opened a Quick Match room and is waiting: tell everyone, by name,
+ * so real players join before the bot fill. The tap opens
+ * game/ludojoin_<id> (that room, or another Quick Match if it filled).
+ * The waiting player's own app drops it (host_uid) when in the foreground.
+ */
+exports.quickMatchWaitingPush = functions.firestore
+    .document("ludo_matches/{matchId}")
+    .onCreate(async (snap, context) => {
+      const match = snap.data() || {};
+      if (match.quick !== true || match.status !== "waiting") return null;
+      const hostUid = asString(match.host_uid);
+      const host = Object.values(match.seats || {})
+          .find((s) => s && asString(s.uid) === hostUid) || {};
+      const name = firstName(host.name) || "A player";
+      const matchId = context.params.matchId;
+      try {
+        await sendPushToTopic(MINI_GAMES_TOPIC, {
+          title: `${name} is waiting for Ludo 🎲`,
+          body: `Join ${name}'s Quick Match now. It starts in seconds!`,
+          channelId: "system_channel",
+          data: {
+            type: "quick_match_waiting",
+            match_id: matchId,
+            host_uid: hostUid,
+            host_name: name,
+            campaign_id: "quick_match_waiting",
+          },
+        });
+      } catch (error) {
+        functions.logger.error("quickMatchWaitingPush failed", {matchId,
+          error: error instanceof Error ? error.message : String(error)});
+      }
+      return null;
+    });

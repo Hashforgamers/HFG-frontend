@@ -456,6 +456,10 @@ class NotificationController extends GetxController {
   }
 
   void _showLocalNotification(RemoteMessage message) {
+    // "X is waiting for Ludo" goes to everyone; never show it to X.
+    final hostUid = message.data['host_uid']?.toString() ?? '';
+    if (hostUid.isNotEmpty && hostUid == _auth.currentUser?.uid) return;
+
     // Default values
     final notif = message.notification;
     String title = (notif?.title ?? (message.data['title'] ?? '')).toString();

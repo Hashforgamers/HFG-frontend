@@ -20,6 +20,8 @@ import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hash/features/mini_games/ludo/online/ludo_match.dart';
+import 'package:hash/features/mini_games/ludo/online/ludo_match_service.dart';
 
 enum DeepLinkType {
   tournament,
@@ -356,6 +358,31 @@ class DeepLinkService extends GetxController {
       );
       replaceStack ? Get.offAll(page) : Get.to(page);
       return;
+    }
+
+    // "X is waiting" Quick Match push: `.../game/ludojoin_<matchId>` joins
+    // that room if it is still open, otherwise Quick Matches into another
+    // (or a new) room, so a late tap never lands on a full/started match.
+    if (destination.type == DeepLinkType.game &&
+        (destination.id ?? '').startsWith('ludojoin_')) {
+      final matchId = destination.id!.substring('ludojoin_'.length);
+      final service = LudoMatchService();
+      var target = matchId;
+      try {
+        final match = matchId.isEmpty ? null : await service.fetch(matchId);
+        if (match == null ||
+            match.status != LudoMatchStatus.waiting ||
+            match.isFull) {
+          target = (await service.quickMatch()).id;
+        }
+      } catch (_) {
+        // Fall through to the original room; its screen shows any error.
+      }
+      if (target.isNotEmpty) {
+        Widget page() => LudoMatchScreen(matchId: target, source: 'quick_push');
+        replaceStack ? Get.offAll(page) : Get.to(page);
+        return;
+      }
     }
 
     // Ludo match invite: `.../game/ludomatch_<matchId>` opens the match lobby.

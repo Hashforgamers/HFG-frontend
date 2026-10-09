@@ -21,6 +21,15 @@ void main() {
     expect(_uri(PushRouter.resolve({'type': 'rematch'})), 'hash://game/ludo');
   });
 
+  test('quick match waiting push joins via the join-or-quick-match link', () {
+    expect(
+      _uri(
+        PushRouter.resolve({'type': 'quick_match_waiting', 'match_id': 'm1'}),
+      ),
+      'hash://game/ludojoin_m1',
+    );
+  });
+
   test('leaderboard and wallet pushes route to their screens', () {
     expect(
       _uri(PushRouter.resolve({'type': 'leaderboard', 'rank': 3})),
@@ -58,6 +67,7 @@ void main() {
   test('every produced link is one DeepLinkService can route', () {
     for (final data in [
       {'type': 'rematch', 'match_id': 'abc'},
+      {'type': 'quick_match_waiting', 'match_id': 'm1'},
       {'type': 'ludo'},
       {'type': 'leaderboard'},
       {'type': 'wallet'},
