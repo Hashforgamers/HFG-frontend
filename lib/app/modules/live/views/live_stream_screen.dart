@@ -83,6 +83,16 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
     super.dispose();
   }
 
+  /// The old player's webview keeps pushing value updates until it unmounts;
+  /// disposing its controller in the same frame crashed in `updateValue`.
+  void _disposeAfterFrame(YoutubePlayerController? controller) {
+    if (controller == null) return;
+    try {
+      controller.pause();
+    } catch (_) {}
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+  }
+
   void _syncYoutubeController(String url) {
     final newId = LiveYoutubeUtils.extractVideoId(url);
     if (newId == null || newId.isEmpty) return;
@@ -93,7 +103,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
     _showPlaybackFallback = false;
     _playbackFallbackMessage = 'This live stream is not available right now.';
     _playbackHealthTimer?.cancel();
-    _youtubeController?.dispose();
+    _disposeAfterFrame(_youtubeController);
     _youtubeController = YoutubePlayerController(
       initialVideoId: newId,
       flags: const YoutubePlayerFlags(
@@ -153,10 +163,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
     _playbackHealthTimer?.cancel();
     final controller = _youtubeController;
     _youtubeController = null;
-    try {
-      controller?.pause();
-    } catch (_) {}
-    controller?.dispose();
+    _disposeAfterFrame(controller);
     if (!mounted) return;
     setState(() {
       _blockedVideoId = _videoId;

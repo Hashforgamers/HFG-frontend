@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -7,7 +8,8 @@ import 'package:hash/core/utils/app_logger.dart';
 
 part 'get_game_pass_state.dart';
 
-class GetGamePassCubit extends Cubit<GetGamePassState> {
+class GetGamePassCubit extends Cubit<GetGamePassState>
+    with SafeEmit<GetGamePassState> {
   GetGamePassCubit() : super(GetGamePassInitial());
 
   final remoteRepo = locator<RemoteRepoInterface>();
@@ -42,7 +44,9 @@ class GetGamePassCubit extends Cubit<GetGamePassState> {
         final response = await remoteRepo.getUserActiveGamePass(userId: userId);
         AppLogger.d('Game pass history response: ${response.length} items');
         if (response.isNotEmpty) {
-          AppLogger.d('First pass: ${response.first.name} - ${response.first.validFrom} to ${response.first.validTo}');
+          AppLogger.d(
+            'First pass: ${response.first.name} - ${response.first.validFrom} to ${response.first.validTo}',
+          );
           emit(GetGamePassLoaded(gamePass: response));
         } else {
           emit(GetGamePassError(message: 'No game pass history found'));
@@ -62,9 +66,14 @@ class GetGamePassCubit extends Cubit<GetGamePassState> {
       final userData = await remoteRepo.getUserFromPreferences();
       if (userData != null) {
         final userId = userData['id']?.toString() ?? '0';
-        final activePasses = await remoteRepo.getUserActiveGamePass(userId: userId);
-        final historyPasses = await remoteRepo.getGamePass(userId: userId, type: 'history');
-        
+        final activePasses = await remoteRepo.getUserActiveGamePass(
+          userId: userId,
+        );
+        final historyPasses = await remoteRepo.getGamePass(
+          userId: userId,
+          type: 'history',
+        );
+
         final allPasses = [...activePasses, ...historyPasses];
         if (allPasses.isNotEmpty) {
           emit(GetGamePassLoaded(gamePass: allPasses));

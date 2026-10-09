@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
@@ -7,7 +8,7 @@ import 'package:hash/core/service_locator.dart';
 
 part 'hash_coin_state.dart';
 
-class HashCoinCubit extends Cubit<HashCoinState> {
+class HashCoinCubit extends Cubit<HashCoinState> with SafeEmit<HashCoinState> {
   HashCoinCubit() : super(HashCoinInitial());
 
   final remoteRepo = locator<RemoteRepoInterface>();

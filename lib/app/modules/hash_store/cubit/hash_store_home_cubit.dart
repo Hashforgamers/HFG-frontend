@@ -1,9 +1,11 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'hash_store_home_state.dart'; // adjust filename
 
-class HashStoreHomeCubit extends Cubit<HashStoreHomeState> {
+class HashStoreHomeCubit extends Cubit<HashStoreHomeState>
+    with SafeEmit<HashStoreHomeState> {
   HashStoreHomeCubit() : super(HashStoreHomeInitial());
 
   Future<void> fetchProducts() async {
@@ -13,21 +15,24 @@ class HashStoreHomeCubit extends Cubit<HashStoreHomeState> {
       final products = [
         {
           'title': 'Monster x Hash',
-          'description': 'Premium quality leather with foam cushion for maximum comfort.',
+          'description':
+              'Premium quality leather with foam cushion for maximum comfort.',
           'price': '149.00',
           'backgroundImage': 'assets/hash_store_images/bg_monster_1.jpg',
           'productImage': null,
         },
         {
           'title': 'Monster x Hash',
-          'description': 'Premium quality leather with foam cushion for maximum comfort.',
+          'description':
+              'Premium quality leather with foam cushion for maximum comfort.',
           'price': '149.00',
           'backgroundImage': 'assets/hash_store_images/bg_monster_2.jpg',
           'productImage': null,
         },
         {
           'title': 'Hash Headphones',
-          'description': 'Premium quality leather with foam cushion for maximum comfort.',
+          'description':
+              'Premium quality leather with foam cushion for maximum comfort.',
           'price': null,
           'backgroundImage': 'assets/hash_store_images/bg_headphones.jpg',
           'productImage': null,

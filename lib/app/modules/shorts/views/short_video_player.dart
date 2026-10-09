@@ -55,9 +55,17 @@ class _ShortVideoPlayerState extends State<ShortVideoPlayer> {
     );
   }
 
+  /// The outgoing player's webview keeps pushing value updates until it
+  /// unmounts, so dispose its controller only after the next frame.
+  void _disposeLater(YoutubePlayerController? controller) {
+    if (controller == null) return;
+    controller.pause();
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+  }
+
   void _prepareNext(int fromIndex) {
     final candidate = fromIndex + 1;
-    _nextController?.dispose();
+    _disposeLater(_nextController);
     _nextController = null;
     _nextIndex = null;
 
@@ -75,9 +83,9 @@ class _ShortVideoPlayerState extends State<ShortVideoPlayer> {
       _ytController = _nextController;
       _nextController = null;
       _nextIndex = null;
-      previous?.dispose();
+      _disposeLater(previous);
     } else {
-      _ytController?.dispose();
+      _disposeLater(previous);
       _ytController = _createController(index, autoPlay: true, mute: false);
     }
     _prepareNext(index);
@@ -96,7 +104,7 @@ class _ShortVideoPlayerState extends State<ShortVideoPlayer> {
       controller.play();
       controller.unMute();
       Future<void>.delayed(const Duration(milliseconds: 220), () {
-        if (!mounted) return;
+        if (!mounted || !identical(controller, _ytController)) return;
         controller.play();
       });
     });

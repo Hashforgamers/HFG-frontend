@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/game_pass/model/vendor_passes_response.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -6,7 +7,8 @@ import 'package:hash/core/service_locator.dart';
 
 part 'get_vendor_passes_state.dart';
 
-class GetVendorPassesCubit extends Cubit<GetVendorPassesState> {
+class GetVendorPassesCubit extends Cubit<GetVendorPassesState>
+    with SafeEmit<GetVendorPassesState> {
   GetVendorPassesCubit() : super(GetVendorPassesInitial());
 
   final remoteRepo = locator<RemoteRepoInterface>();

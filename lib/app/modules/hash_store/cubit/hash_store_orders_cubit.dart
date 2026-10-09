@@ -1,9 +1,11 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'hash_store_orders_state.dart';
 
-class HashStoreOrdersCubit extends Cubit<HashStoreOrdersState> {
+class HashStoreOrdersCubit extends Cubit<HashStoreOrdersState>
+    with SafeEmit<HashStoreOrdersState> {
   HashStoreOrdersCubit() : super(HashStoreOrdersInitial());
 
   Future<void> fetchOrders() async {
@@ -39,7 +41,6 @@ class HashStoreOrdersCubit extends Cubit<HashStoreOrdersState> {
           'paymentMode': 'Online',
           'productImage': 'assets/hash_store_images/monster_can.png',
         },
-
       ];
       emit(HashStoreOrdersLoaded(orders: orders));
     } catch (e) {

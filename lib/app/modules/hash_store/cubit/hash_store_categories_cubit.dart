@@ -1,9 +1,11 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'hash_store_categories_state.dart';
 
-class HashStoreCategoriesCubit extends Cubit<HashStoreCategoriesState> {
+class HashStoreCategoriesCubit extends Cubit<HashStoreCategoriesState>
+    with SafeEmit<HashStoreCategoriesState> {
   HashStoreCategoriesCubit() : super(HashStoreCategoriesInitial());
 
   Future<void> fetchCategories() async {
@@ -19,19 +21,12 @@ class HashStoreCategoriesCubit extends Cubit<HashStoreCategoriesState> {
           'title': 'Protein Bars',
           'productImage': 'assets/hash_store_images/protein_bar.png',
         },
-        {
-          'title': 'Headphones',
-          'productImage': null,
-        },
+        {'title': 'Headphones', 'productImage': null},
         {
           'title': 'Mouse Pad',
           'productImage': 'assets/hash_store_images/mouse_pad.png',
         },
-        {
-          'title': 'Merchandise',
-          'productImage': null,
-        },
-
+        {'title': 'Merchandise', 'productImage': null},
       ];
       emit(HashStoreCategoriesLoaded(categories: categories));
     } catch (e) {

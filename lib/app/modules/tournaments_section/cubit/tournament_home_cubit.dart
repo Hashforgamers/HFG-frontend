@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/safe_emit.dart';
 
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
@@ -13,7 +14,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 part 'tournament_home_state.dart';
 
-class TournamentHomeCubit extends Cubit<TournamentHomeState> {
+class TournamentHomeCubit extends Cubit<TournamentHomeState>
+    with SafeEmit<TournamentHomeState> {
   static const Duration _cacheTtl = Duration(minutes: 5);
   static final Map<String, _TournamentHomeCacheEntry> _cacheByScope = {};
   static final Set<TournamentHomeCubit> _activeInstances =

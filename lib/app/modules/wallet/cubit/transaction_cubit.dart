@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
@@ -9,7 +10,8 @@ import 'package:hash/core/utils/app_logger.dart';
 
 part 'transaction_state.dart';
 
-class TransactionCubit extends Cubit<TransactionState> {
+class TransactionCubit extends Cubit<TransactionState>
+    with SafeEmit<TransactionState> {
   TransactionCubit() : super(TransactionInitial());
 
   final remoteRepo = locator<RemoteRepoInterface>();

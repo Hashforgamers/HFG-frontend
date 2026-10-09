@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -18,7 +19,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 part 'tournaments_register_state.dart';
 
-class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState> {
+class TournamentsRegisterCubit extends Cubit<TournamentsRegisterState>
+    with SafeEmit<TournamentsRegisterState> {
   TournamentsRegisterCubit() : super(TournamentsRegisterInitial()) {
     AppLogger.d('🟩 TournamentsRegisterCubit created');
   }

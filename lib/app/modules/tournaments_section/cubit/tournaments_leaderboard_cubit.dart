@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -6,7 +7,8 @@ import 'package:hash/core/service_locator.dart';
 
 part 'tournaments_leaderboard_state.dart';
 
-class TournamentsLeaderboardCubit extends Cubit<TournamentsLeaderboardState> {
+class TournamentsLeaderboardCubit extends Cubit<TournamentsLeaderboardState>
+    with SafeEmit<TournamentsLeaderboardState> {
   TournamentsLeaderboardCubit() : super(TournamentsLeaderboardInitial());
 
   final remoteRepo = locator<RemoteRepoInterface>();

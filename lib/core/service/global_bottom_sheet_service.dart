@@ -681,26 +681,17 @@ class GlobalBottomSheetService {
             _createOfferCubit.createOffer(percentage, userId);
           } else {
             // Handle error through callback
-            _createOfferCubit.emit(
-              const CreateOfferFailure(message: 'User ID not found'),
-            );
+            _createOfferCubit.fail('User ID not found');
           }
         } else {
-          _createOfferCubit.emit(
-            const CreateOfferFailure(message: 'User data not found'),
-          );
+          _createOfferCubit.fail('User data not found');
         }
       } catch (e) {
-        _createOfferCubit.emit(
-          CreateOfferFailure(message: 'Error processing redemption: $e'),
-        );
+        _createOfferCubit.fail('Error processing redemption: $e');
       }
     } else {
-      _createOfferCubit.emit(
-        CreateOfferFailure(
-          message:
-              'Insufficient coins. You need ${_formatHashCoins(requiredCoins)} coins for $percentage% redemption.',
-        ),
+      _createOfferCubit.fail(
+        'Insufficient coins. You need ${_formatHashCoins(requiredCoins)} coins for $percentage% redemption.',
       );
     }
   }

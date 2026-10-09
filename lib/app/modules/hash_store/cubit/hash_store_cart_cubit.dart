@@ -1,11 +1,13 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/core/utils/app_logger.dart';
 
 part 'hash_store_cart_state.dart';
 
-class HashStoreCartCubit extends Cubit<HashStoreCartState> {
-  HashStoreCartCubit() : super(HashStoreCartInitial()){
+class HashStoreCartCubit extends Cubit<HashStoreCartState>
+    with SafeEmit<HashStoreCartState> {
+  HashStoreCartCubit() : super(HashStoreCartInitial()) {
     AppLogger.d('🟩 HashStoreCartCubit created');
   }
 
@@ -16,14 +18,16 @@ class HashStoreCartCubit extends Cubit<HashStoreCartState> {
       final cartItems = [
         {
           'title': 'Monster x Hash',
-          'description': 'Premium quality leather with foam cushion for maximum comfort.',
+          'description':
+              'Premium quality leather with foam cushion for maximum comfort.',
           'price': '149.00',
           'productImage': 'assets/hash_store_images/monster_can.png',
           'quantity': 1, // Changed to int
         },
         {
           'title': 'Protein Bar',
-          'description': 'Premium quality leather with foam cushion for maximum comfort.',
+          'description':
+              'Premium quality leather with foam cushion for maximum comfort.',
           'price': '99.00',
           'productImage': 'assets/hash_store_images/protein_bar.png',
           'quantity': 1, // Changed to int
@@ -59,5 +63,4 @@ class HashStoreCartCubit extends Cubit<HashStoreCartState> {
       }
     }
   }
-
 }

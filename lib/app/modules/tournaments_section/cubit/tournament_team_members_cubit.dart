@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
@@ -10,7 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 part 'tournament_team_members_state.dart';
 
-class TournamentTeamMembersCubit extends Cubit<TournamentTeamMembersState> {
+class TournamentTeamMembersCubit extends Cubit<TournamentTeamMembersState>
+    with SafeEmit<TournamentTeamMembersState> {
   TournamentTeamMembersCubit() : super(TournamentTeamMembersInitial());
 
   final remoteRepo = locator<RemoteRepoInterface>();

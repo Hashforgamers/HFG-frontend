@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -7,7 +8,8 @@ import 'package:hash/core/utils/app_logger.dart';
 
 part 'tournaments_details_state.dart';
 
-class TournamentsDetailsCubit extends Cubit<TournamentsDetailsState> {
+class TournamentsDetailsCubit extends Cubit<TournamentsDetailsState>
+    with SafeEmit<TournamentsDetailsState> {
   TournamentsDetailsCubit(this._initialTournament)
     : super(TournamentsDetailsLoaded(tournament: _initialTournament)) {
     fetchTournamentDetails();
