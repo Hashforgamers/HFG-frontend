@@ -150,6 +150,14 @@ class RewardsService {
     }());
   }
 
+  /// One-time reward for finishing the onboarding first match. Returns the
+  /// coins credited (0 if this account already had it).
+  Future<int> claimFirstMatchReward() async {
+    final m = await _call('claimFirstMatchReward');
+    await payPending(_pending(m));
+    return m['issued'] == true ? (m['amount'] as num?)?.toInt() ?? 0 : 0;
+  }
+
   /// Claims a completed mission and credits it. Returns coins credited.
   Future<int> claimMission(String missionId) async {
     final m = await _call('claimMission', {'missionId': missionId});

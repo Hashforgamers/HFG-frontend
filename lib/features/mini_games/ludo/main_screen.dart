@@ -212,6 +212,7 @@ class _MainScreenState extends State<MainScreen>
             : 'false',
         'duration_sec': _localDurationSec,
       });
+      unawaited(_payFirstMatchReward());
     }
     // Pass & Play has no single "you", so it carries no result/placement.
     final solo = game.againstAi;
@@ -231,6 +232,22 @@ class _MainScreenState extends State<MainScreen>
       durationSec: _localDurationSec,
       turns: _localTurns,
     );
+  }
+
+  Future<void> _payFirstMatchReward() async {
+    try {
+      final amount = await RewardsService.instance.claimFirstMatchReward();
+      if (amount > 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('First match done! +$amount Hash Coins added'),
+          ),
+        );
+      }
+    } catch (_) {
+      // Best effort: if issuing fails the bonus is skipped. If only the
+      // payout fails, the home card pays the issued entry later.
+    }
   }
 
   void _recordResult() {

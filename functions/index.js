@@ -1083,3 +1083,4 @@ exports.markRewardPaid = rewards.markRewardPaid;
 exports.reportGamePlayed = rewards.reportGamePlayed;
 exports.claimMission = rewards.claimMission;
 exports.onLudoMatchFinished = rewards.onLudoMatchFinished;
+exports.claimFirstMatchReward = rewards.claimFirstMatchReward;

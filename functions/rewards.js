@@ -361,7 +361,24 @@ const onLudoMatchFinished = functions.firestore
       return null;
     });
 
+/** New player's first match (offline, so only ever once per account). */
+const FIRST_MATCH_REWARD = 20;
+
+const claimFirstMatchReward = functions.https.onCall(async (_data, context) => {
+  const uid = requireUid(context);
+  const issued = await issueReward({
+    referenceId: `first_match_${uid}`,
+    uid,
+    amount: FIRST_MATCH_REWARD,
+    source: "first_match",
+    title: "First match complete",
+  });
+  return {issued, amount: issued ? FIRST_MATCH_REWARD : 0,
+    pending: await pendingFor(uid)};
+});
+
 module.exports = {
+  claimFirstMatchReward,
   reportGamePlayed,
   claimMission,
   onLudoMatchFinished,
