@@ -581,6 +581,8 @@ class LudoMatchService {
 
   /// Authoritative state write after a local turn resolves. Callers must only
   /// invoke this when it is their turn (the provider enforces this).
+  static final Set<String> _reportedWriteErrors = <String>{};
+
   Future<void> writeState(
     String matchId, {
     required LudoPlayerType turn,
@@ -609,7 +611,11 @@ class LudoMatchService {
       // force-advance an abandoned turn) must never crash gameplay. The next
       // authoritative snapshot will re-sync this device.
       debugPrint('[LudoMatch] writeState rejected: $e');
-      LudoAnalytics.syncFailed(stage: 'write_state', error: e);
+      // Once per match and error code: a rejected force-advance repeats every
+      // turn and used to flood ludo_sync_failed from a handful of devices.
+      if (_reportedWriteErrors.add('$matchId/${LudoAnalytics.errorCode(e)}')) {
+        LudoAnalytics.syncFailed(stage: 'write_state', error: e);
+      }
     }
   }
 
@@ -731,10 +737,33 @@ class LudoMatchService {
     await prefs.remove(_activeKey(uid));
   }
 
+  /// The remembered match, but only while it can still be resumed: it is
+  /// waiting or active and this user still holds a seat. Anything else is
+  /// forgotten so "Resume Match" never opens a dead room.
   Future<String?> activeMatchId() async {
     final uid = _uid;
     if (uid == null) return null;
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_activeKey(uid));
+    final id = prefs.getString(_activeKey(uid));
+    if (id == null) return null;
+    try {
+      final snap = await _col.doc(id).get();
+      final data = snap.data();
+      final match = (snap.exists && data != null)
+          ? LudoMatch.fromMap(snap.id, data)
+          : null;
+      final live =
+          match != null &&
+          (match.status == LudoMatchStatus.waiting ||
+              match.status == LudoMatchStatus.active) &&
+          match.seatOf(uid) != null;
+      if (!live) {
+        await prefs.remove(_activeKey(uid));
+        return null;
+      }
+    } catch (_) {
+      // Offline: keep offering it; the match screen handles reconnecting.
+    }
+    return id;
   }
 }

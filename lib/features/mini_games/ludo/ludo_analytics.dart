@@ -150,9 +150,13 @@ abstract final class LudoAnalytics {
     'reconnected': _flag(reconnected),
   });
 
-  static void syncFailed({required String stage, required Object error}) =>
-      _log('ludo_sync_failed', {
-        'error_code': errorCode(error),
-        'stage': stage,
-      });
+  static void syncFailed({
+    required String stage,
+    required Object error,
+    int? attempt,
+  }) => _log('ludo_sync_failed', {
+    'error_code': errorCode(error),
+    'stage': stage,
+    if (attempt != null) 'attempt': attempt,
+  });
 }

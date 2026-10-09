@@ -43,6 +43,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(LudoScoreService.instance.sync());
+      unawaited(_refreshMatch());
     }
   }
 

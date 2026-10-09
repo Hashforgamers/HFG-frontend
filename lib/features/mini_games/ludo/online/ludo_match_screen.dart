@@ -20,6 +20,7 @@ import '../widgets/board_widget.dart';
 import '../widgets/dice_widget.dart';
 import '../widgets/ludo_reactions.dart';
 import '../widgets/ludo_seat_token.dart';
+import 'ludo_backoff.dart';
 import 'ludo_invite_friends_sheet.dart';
 import 'ludo_match.dart';
 import 'ludo_match_service.dart';
@@ -50,7 +51,7 @@ class LudoMatchScreen extends StatefulWidget {
 }
 
 class _LudoMatchScreenState extends State<LudoMatchScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   static const _accent = Color(0xFF00DC00);
   static const int _turnSeconds = 30;
 
@@ -94,10 +95,20 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
 
   // Quick Match auto-start bookkeeping.
   bool _autoStartInFlight = false;
-  int _lastAutoStartAttemptMs = 0;
   int _secondPlayerSeenAtMs = 0;
   bool _resultRecorded = false;
   String? _error;
+
+  // Sync health. A failed match stream is retried with backoff; after the cap
+  // the player gets an explicit Retry instead of a silently frozen board.
+  final LudoBackoff _watchBackoff = LudoBackoff();
+  Timer? _resubscribeTimer;
+  _Conn _conn = _Conn.live;
+
+  // Quick Match auto-start retries back off the same way and stop at the cap.
+  final LudoBackoff _autoStartBackoff = LudoBackoff();
+  int _autoStartNextMs = 0;
+  bool _autoStartFailed = false;
 
   Timer? _ticker;
   late final AnimationController _bounce;
@@ -118,16 +129,63 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       duration: const Duration(milliseconds: 450),
     )..repeat(reverse: true);
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
+    WidgetsBinding.instance.addObserver(this);
+    _subscribe();
+  }
+
+  void _subscribe() {
+    _resubscribeTimer?.cancel();
+    unawaited(_sub?.cancel());
     _sub = _service
         .watch(widget.matchId)
-        .listen(
-          _onMatch,
-          onError: (e) {
-            LudoAnalytics.disconnect(turnNumber: _turns, reconnected: false);
-            LudoAnalytics.syncFailed(stage: 'watch', error: e);
-            if (mounted) setState(() => _error = e.toString());
-          },
-        );
+        .listen(_onMatch, onError: _onWatchError);
+  }
+
+  void _onWatchError(Object e) {
+    unawaited(_sub?.cancel());
+    _sub = null;
+    if (_conn == _Conn.live) {
+      LudoAnalytics.disconnect(turnNumber: _turns, reconnected: false);
+    }
+    final delay = _watchBackoff.fail();
+    LudoAnalytics.syncFailed(
+      stage: 'watch',
+      error: e,
+      attempt: _watchBackoff.attempts,
+    );
+    if (!mounted) return;
+    if (_watchBackoff.exhausted) {
+      setState(() => _conn = _Conn.failed);
+      return;
+    }
+    setState(() => _conn = _Conn.reconnecting);
+    _resubscribeTimer = Timer(delay, () {
+      if (mounted) _subscribe();
+    });
+  }
+
+  /// Manual retry (button) or the app coming back to the foreground.
+  void _retryNow(String source) {
+    _watchBackoff.reset();
+    LudoAnalytics.resume(source);
+    setState(() => _conn = _Conn.reconnecting);
+    _subscribe();
+  }
+
+  /// A snapshot arrived, so the stream is healthy again.
+  void _markLive() {
+    if (_conn == _Conn.live) return;
+    LudoAnalytics.disconnect(turnNumber: _turns, reconnected: true);
+    LudoAnalytics.resume('reconnect');
+    _watchBackoff.reset();
+    _conn = _Conn.live;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _conn != _Conn.live) {
+      _retryNow('app_resume');
+    }
   }
 
   int _remainingSeconds(LudoMatch match) {
@@ -198,7 +256,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       return;
     }
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (now - _lastAutoStartAttemptMs < 3000) return; // retry spacing
+    if (_autoStartFailed || now < _autoStartNextMs) return;
     final waited = now - match.createdAtMs;
     final isHost = match.hostUid == _uid;
 
@@ -220,10 +278,10 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     if (!due) return;
 
     _autoStartInFlight = true;
-    _lastAutoStartAttemptMs = now;
     _service
         .fillWithBotAndStart(widget.matchId)
         .then((added) {
+          _autoStartBackoff.reset();
           if (added > 0) {
             LudoAnalytics.botFilled(
               matchId: widget.matchId,
@@ -235,13 +293,24 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         })
         .catchError((Object e) {
           debugPrint('[LudoMatch] auto-start: $e');
-          LudoAnalytics.syncFailed(stage: 'auto_start', error: e);
+          final delay = _autoStartBackoff.fail();
+          _autoStartNextMs =
+              DateTime.now().millisecondsSinceEpoch + delay.inMilliseconds;
+          LudoAnalytics.syncFailed(
+            stage: 'auto_start',
+            error: e,
+            attempt: _autoStartBackoff.attempts,
+          );
+          if (_autoStartBackoff.exhausted && mounted) {
+            setState(() => _autoStartFailed = true);
+          }
         })
         .whenComplete(() => _autoStartInFlight = false);
   }
 
   Future<void> _onMatch(LudoMatch? match) async {
     if (!mounted) return;
+    _markLive();
     if (match == null) {
       setState(() => _error = 'This match is no longer available.');
       return;
@@ -450,6 +519,8 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   @override
   void dispose() {
     CrashReporting.setGameMode(null);
+    WidgetsBinding.instance.removeObserver(this);
+    _resubscribeTimer?.cancel();
     _ticker?.cancel();
     Audio.stopTicking();
     _bounce.dispose();
@@ -581,6 +652,16 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
   }
 
   Widget _body() {
+    if (_conn == _Conn.failed) {
+      return _centered(
+        icon: Icons.wifi_off_rounded,
+        title: 'Connection lost',
+        subtitle:
+            'We couldn’t reach the match after several tries. Check your '
+            'connection and try again — your seat is kept.',
+        onRetry: () => _retryNow('retry_button'),
+      );
+    }
     if (_error != null) {
       return _centered(
         icon: Icons.error_outline_rounded,
@@ -595,6 +676,21 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
 
     return Column(
       children: [
+        if (_conn == _Conn.reconnecting)
+          _statusBanner(
+            'Reconnecting… (${_watchBackoff.attempts}/'
+            '${_watchBackoff.maxAttempts})',
+          ),
+        if (_autoStartFailed && match.status == LudoMatchStatus.waiting)
+          _statusBanner(
+            'Couldn’t start the match.',
+            actionLabel: 'Retry',
+            onAction: () => setState(() {
+              _autoStartBackoff.reset();
+              _autoStartNextMs = 0;
+              _autoStartFailed = false;
+            }),
+          ),
         _header(match),
         Expanded(
           child: match.status == LudoMatchStatus.waiting
@@ -1142,10 +1238,42 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     );
   }
 
+  Widget _statusBanner(
+    String text, {
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFF3A2A00),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          if (actionLabel == null)
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.amber,
+              ),
+            )
+          else
+            const Icon(Icons.warning_amber_rounded, color: Colors.amber),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: gameFont(13, Colors.amber))),
+          if (actionLabel != null)
+            TextButton(onPressed: onAction, child: Text(actionLabel)),
+        ],
+      ),
+    );
+  }
+
   Widget _centered({
     required IconData icon,
     required String title,
     required String subtitle,
+    VoidCallback? onRetry,
   }) {
     return Center(
       child: Padding(
@@ -1169,6 +1297,15 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
                 style: gameFont(14, GameColors.soft),
               ),
               const SizedBox(height: 14),
+              if (onRetry != null) ...[
+                GameButton(
+                  label: 'Retry',
+                  tone: GameButtonTone.green,
+                  height: 46,
+                  onPressed: onRetry,
+                ),
+                const SizedBox(height: 10),
+              ],
               GameButton(
                 label: 'Go Back',
                 tone: GameButtonTone.purple,
@@ -1182,3 +1319,5 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     );
   }
 }
+
+enum _Conn { live, reconnecting, failed }
