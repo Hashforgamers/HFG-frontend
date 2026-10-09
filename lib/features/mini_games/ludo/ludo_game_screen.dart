@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'package:hash/core/service/app_remote_config.dart';
 import 'ludo_score_service.dart';
 import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'constants.dart';
 import 'ludo_analytics.dart';
 import 'ludo_provider.dart';
 import 'main_screen.dart';
@@ -62,15 +64,28 @@ class _LudoGameScreenState extends State<LudoGameScreen>
     }
   }
 
-  void _openLocal({required bool againstAi, bool powerMode = false}) {
+  void _openLocal({
+    required bool againstAi,
+    bool powerMode = false,
+    bool quickLudo = false,
+  }) {
     LudoAnalytics.modeSelected(
-      !againstAi ? 'pass_and_play' : (powerMode ? 'power' : 'vs_ai'),
+      quickLudo
+          ? 'quick_ludo'
+          : (!againstAi ? 'pass_and_play' : (powerMode ? 'power' : 'vs_ai')),
     );
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ChangeNotifierProvider(
           create: (_) =>
-              LudoProvider(againstAi: againstAi, powerMode: powerMode)
+              (quickLudo
+                    ? LudoProvider(
+                        againstAi: true,
+                        tokens: 2,
+                        // Opposite corners for a fair 1v1.
+                        seats: {LudoPlayerType.green, LudoPlayerType.blue},
+                      )
+                    : LudoProvider(againstAi: againstAi, powerMode: powerMode))
                 ..startGame(),
           child: const MainScreen(),
         ),
@@ -228,6 +243,19 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                       ),
                     ),
                   ),
+                  if (AppRemoteConfig.ludoQuickModeEnabled) ...[
+                    const SizedBox(height: 12),
+                    _modeCard(
+                      title: 'Quick Ludo',
+                      subtitle: '2 tokens, 1v1 against AI. About 5 minutes.',
+                      tag: 'New · fast · unranked',
+                      icon: Icons.timer_rounded,
+                      colors: GameColors.green,
+                      tone: GameButtonTone.green,
+                      action: 'Play',
+                      onTap: () => _openLocal(againstAi: true, quickLudo: true),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _modeCard(
                     title: 'Vs AI',

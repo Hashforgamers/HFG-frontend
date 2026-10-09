@@ -19,7 +19,10 @@ class LudoProvider extends ChangeNotifier {
     this.powerMode = false,
     Random? random,
     this.soundEnabled = true,
-  }) : _random = random ?? Random();
+    this.tokens = 4,
+    Set<LudoPlayerType>? seats,
+  }) : _random = random ?? Random(),
+       _activeSeats = seats ?? kLudoSeatOrder.toSet();
 
   final bool againstAi;
 
@@ -27,6 +30,12 @@ class LudoProvider extends ChangeNotifier {
   /// refills a used one (local play only).
   final bool powerMode;
   final bool soundEnabled;
+
+  /// Pawns per player: 4 normally, 2 in Quick Ludo.
+  final int tokens;
+
+  /// Quick Ludo: fewer tokens for a ~5 minute game. Unranked.
+  bool get quickLudo => tokens < 4;
   final Random _random;
   Timer? _aiTimer;
   int _generation = 0;
@@ -40,7 +49,7 @@ class LudoProvider extends ChangeNotifier {
         _isMoving ||
         _diceStarted ||
         _gameState == LudoGameState.finish ||
-        winners.length >= 3) {
+        winners.length >= _endThreshold) {
       return;
     }
     // Online bots occasionally hesitate a beat so they don't feel instant.
@@ -172,7 +181,8 @@ class LudoProvider extends ChangeNotifier {
     if (bag.isEmpty) return false;
     final p = currentPlayer;
     if (_gameState == LudoGameState.throwDice) {
-      if (p.pawnInsideCount == 4 && _canApply(type, PowerUp.luckySix)) {
+      if (p.pawnInsideCount == p.pawns.length &&
+          _canApply(type, PowerUp.luckySix)) {
         _applyPower(type, PowerUp.luckySix);
         return true;
       }
@@ -203,7 +213,10 @@ class LudoProvider extends ChangeNotifier {
   LudoMatchService? _matchService;
   String? _matchId;
   LudoPlayerType? _mySeat;
-  Set<LudoPlayerType> _activeSeats = kLudoSeatOrder.toSet();
+  Set<LudoPlayerType> _activeSeats;
+
+  /// The game ends once every seat but one has brought all pawns home.
+  int get _endThreshold => (_activeSeats.length - 1).clamp(1, 3);
   StreamSubscription<LudoMatch?>? _matchSub;
   Set<LudoPlayerType> _botSeats = {};
 
@@ -379,8 +392,7 @@ class LudoProvider extends ChangeNotifier {
         seat: List<int>.generate(4, (i) => player(seat).pawns[i].step),
     };
     // With N seated players the game ends once N-1 have finished.
-    final endThreshold = (_activeSeats.length - 1).clamp(1, 3);
-    final finished = winners.length >= endThreshold;
+    final finished = winners.length >= _endThreshold;
     _finished = finished;
     _matchService!.writeState(
       _matchId!,
@@ -444,7 +456,7 @@ class LudoProvider extends ChangeNotifier {
     List<List<double>> path,
   ) {
     bool killSomeone = false;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < tokens; i++) {
       var greenElement = player(LudoPlayerType.green).pawns[i];
       var blueElement = player(LudoPlayerType.blue).pawns[i];
       var redElement = player(LudoPlayerType.red).pawns[i];
@@ -562,7 +574,7 @@ class LudoProvider extends ChangeNotifier {
         notifyListeners();
       } else {
         /// all pawns are inside home
-        if (currentPlayer.pawnInsideCount == 4) {
+        if (currentPlayer.pawnInsideCount == currentPlayer.pawns.length) {
           nextTurn();
           _pushOnline();
           return;
@@ -740,7 +752,7 @@ class LudoProvider extends ChangeNotifier {
         _isMoving ||
         _diceStarted ||
         _gameState == LudoGameState.finish ||
-        winners.length >= 3) {
+        winners.length >= _endThreshold) {
       return;
     }
     for (final p in players) {
@@ -752,7 +764,7 @@ class LudoProvider extends ChangeNotifier {
 
   ///Next turn will be called when the player finish the turn
   void nextTurn() {
-    if (winners.length >= 3) {
+    if (winners.length >= _endThreshold) {
       _gameState = LudoGameState.finish;
       notifyListeners();
       return;
@@ -772,11 +784,10 @@ class LudoProvider extends ChangeNotifier {
         break;
     }
 
-    // Skip players who already finished, and (online) skip empty seats so the
-    // turn only ever lands on a real, still-playing participant.
+    // Skip players who already finished, and empty seats (online rooms, Quick
+    // Ludo 1v1) so the turn only ever lands on a real, still-playing seat.
     final skip =
-        winners.contains(_currentTurn) ||
-        (_online && !_activeSeats.contains(_currentTurn));
+        winners.contains(_currentTurn) || !_activeSeats.contains(_currentTurn);
     if (skip) return nextTurn();
     final shield = _shieldTurns[_currentTurn];
     if (shield != null) {
@@ -800,7 +811,7 @@ class LudoProvider extends ChangeNotifier {
       notifyListeners();
     }
 
-    if (winners.length == 3) {
+    if (winners.length >= _endThreshold) {
       _gameState = LudoGameState.finish;
     }
   }
@@ -826,10 +837,10 @@ class LudoProvider extends ChangeNotifier {
     _powerEvent = null;
     players.clear();
     players.addAll([
-      LudoPlayer(LudoPlayerType.green),
-      LudoPlayer(LudoPlayerType.yellow),
-      LudoPlayer(LudoPlayerType.blue),
-      LudoPlayer(LudoPlayerType.red),
+      LudoPlayer(LudoPlayerType.green, pawnCount: tokens),
+      LudoPlayer(LudoPlayerType.yellow, pawnCount: tokens),
+      LudoPlayer(LudoPlayerType.blue, pawnCount: tokens),
+      LudoPlayer(LudoPlayerType.red, pawnCount: tokens),
     ]);
   }
 

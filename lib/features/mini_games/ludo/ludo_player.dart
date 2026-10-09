@@ -20,8 +20,8 @@ class LudoPlayer {
   ///Player color
   late Color color;
 
-  LudoPlayer(this.type) {
-    for (int i = 0; i < 4; i++) {
+  LudoPlayer(this.type, {int pawnCount = 4}) {
+    for (int i = 0; i < pawnCount; i++) {
       pawns.add(PawnWidget(i, type));
     }
 

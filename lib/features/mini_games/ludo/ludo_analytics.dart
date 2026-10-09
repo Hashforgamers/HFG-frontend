@@ -127,6 +127,16 @@ abstract final class LudoAnalytics {
     'bot_filled': _flag(bots > 0),
   }, dedupeKey: 'wait_$matchId');
 
+  static void quickLudoStarted({
+    required String matchId,
+    required int tokens,
+    required int opponents,
+  }) => _log('quick_ludo_started', {
+    'match_id': matchId,
+    'tokens': tokens,
+    'opponents': opponents,
+  }, dedupeKey: matchId);
+
   static void roomCreated(String roomType) =>
       _log('ludo_room_created', {'room_type': roomType});
 

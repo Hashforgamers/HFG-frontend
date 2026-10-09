@@ -11,9 +11,13 @@ import 'package:flutter/foundation.dart';
 abstract final class AppRemoteConfig {
   // Keys. Add each new key to [defaults] too.
   static const String ludoBotFillSecondsKey = 'ludo_bot_fill_seconds';
+  static const String ludoQuickModeEnabledKey = 'ludo_quick_mode_enabled';
 
   @visibleForTesting
-  static const Map<String, Object> defaults = {ludoBotFillSecondsKey: 20};
+  static const Map<String, Object> defaults = {
+    ludoBotFillSecondsKey: 20,
+    ludoQuickModeEnabledKey: false,
+  };
 
   static bool _ready = false;
 
@@ -33,6 +37,16 @@ abstract final class AppRemoteConfig {
     }
   }
 
+  static bool _bool(String key) {
+    final fallback = defaults[key]! as bool;
+    if (!_ready) return fallback;
+    try {
+      return FirebaseRemoteConfig.instance.getBool(key);
+    } catch (_) {
+      return fallback;
+    }
+  }
+
   static int _int(String key, {required int min, required int max}) {
     final fallback = defaults[key]! as int;
     if (!_ready) return fallback;
@@ -48,4 +62,7 @@ abstract final class AppRemoteConfig {
   /// fills the empty seat.
   static int get ludoBotFillSeconds =>
       _int(ludoBotFillSecondsKey, min: 5, max: 60);
+
+  /// Shows the Quick Ludo (2 tokens, 1v1 vs AI) mode card.
+  static bool get ludoQuickModeEnabled => _bool(ludoQuickModeEnabledKey);
 }
