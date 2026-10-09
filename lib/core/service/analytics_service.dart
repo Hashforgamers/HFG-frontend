@@ -28,6 +28,10 @@ abstract final class AnalyticsEvent {
   static const bookingConfirmed = 'booking_confirmed';
   static const walletCreditUsed = 'wallet_credit_used';
   static const notificationOpen = 'notification_open';
+
+  /// Push CTR numerator: one per tap, with campaign/type/app_state. Divide by
+  /// sends logged server-side (FCM delivery reports) for open rate.
+  static const notificationOpened = 'notification_opened';
   static const tournamentJoined = 'tournament_joined';
   static const matchCheckedIn = 'match_checked_in';
   static const resultViewed = 'result_viewed';

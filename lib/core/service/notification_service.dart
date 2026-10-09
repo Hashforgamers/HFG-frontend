@@ -649,12 +649,29 @@ class NotificationController extends GetxController {
     final target = PushRouter.resolve(data);
     final screenTarget = PushRouter.describe(target);
     final campaignId = (data['campaign_id'] ?? type).toString();
+    final notificationId = (data['notification_id'] ?? messageId)?.toString();
     _logNotificationOpen(
       source: 'push_notification',
       target: (data['deep_link'] ?? data['route'] ?? type).toString(),
-      notificationId: (data['notification_id'] ?? messageId)?.toString(),
+      notificationId: notificationId,
       campaignId: data['campaign_id']?.toString(),
       notificationType: type,
+    );
+    unawaited(
+      _analytics.log(
+        AnalyticsEvent.notificationOpened,
+        parameters: {
+          'campaign_id': data['campaign_id']?.toString() ?? 'none',
+          'notification_type': type.isEmpty ? 'unknown' : type,
+          'app_state': appState,
+          'target': screenTarget,
+          'notification_id': notificationId,
+          'event': data['event']?.toString(),
+        },
+        deduplicationKey: notificationId == null
+            ? null
+            : 'opened_$notificationId',
+      ),
     );
     segmentService.onPushNotificationClicked(
       campaignId: campaignId,
