@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -132,7 +133,7 @@ class _TournamentSharePosterViewState extends State<TournamentSharePosterView> {
       );
     } catch (_) {
       if (mounted) {
-        Get.snackbar(
+        AppSnackbar.show(
           'Could not share poster',
           'Please try again in a moment.',
           snackPosition: SnackPosition.BOTTOM,

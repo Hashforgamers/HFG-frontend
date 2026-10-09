@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -47,7 +48,7 @@ class _EventBannerState extends State<EventBanner> {
         );
         
         // Navigate to event details or perform action
-        Get.snackbar(
+        AppSnackbar.show(
           'Event',
           'Event banner clicked!',
           snackPosition: SnackPosition.BOTTOM,

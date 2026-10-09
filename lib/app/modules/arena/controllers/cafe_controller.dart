@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 
 class CybercafesController extends GetxController {
@@ -59,7 +60,7 @@ class CybercafesController extends GetxController {
       if (_cachedCybercafes != null) {
         cybercafes.assignAll(_cachedCybercafes!);
       } else {
-        Get.snackbar('Error', 'Failed to fetch data: $e');
+        AppSnackbar.show('Error', 'Failed to fetch data: $e');
       }
     } finally {
       isLoading.value = false;

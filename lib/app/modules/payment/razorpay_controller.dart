@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -132,7 +133,7 @@ class RazorpayController extends GetxController {
     );
 
     if (!refunded) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Wallet refund pending',
         'We could not auto-refund your wallet contribution. Please contact support if the balance does not update shortly.',
         snackPosition: SnackPosition.BOTTOM,
@@ -220,7 +221,7 @@ class RazorpayController extends GetxController {
       isPaymentInProgress(false);
       paymentStatus.value = '';
       _currentPaymentType = null;
-      Get.snackbar(
+      AppSnackbar.show(
         'Checkout Error',
         'Failed to open Razorpay: $e',
         snackPosition: SnackPosition.BOTTOM,
@@ -318,7 +319,7 @@ class RazorpayController extends GetxController {
         paymentStatus.value =
             'Payment successful! Pass purchased successfully!';
         _reset();
-        Get.snackbar(
+        AppSnackbar.show(
           'Success!',
           'Pass purchased successfully!',
           snackPosition: SnackPosition.BOTTOM,
@@ -331,7 +332,7 @@ class RazorpayController extends GetxController {
       await refundPendingWalletContribution();
       _reset();
       Haptics.error();
-      Get.snackbar(
+      AppSnackbar.show(
         'Payment could not be confirmed',
         'If any amount was deducted it will be refunded automatically. Please try again.',
         snackPosition: SnackPosition.BOTTOM,
@@ -354,7 +355,7 @@ class RazorpayController extends GetxController {
     await _releasePendingBookings();
     await refundPendingWalletContribution();
     _reset();
-    Get.snackbar(
+    AppSnackbar.show(
       'Payment Failed',
       r.message ?? 'Unknown error',
       snackPosition: SnackPosition.BOTTOM,
@@ -363,7 +364,7 @@ class RazorpayController extends GetxController {
 
   void _handleExternalWallet(ExternalWalletResponse r) {
     Haptics.medium();
-    Get.snackbar(
+    AppSnackbar.show(
       'External Wallet',
       r.walletName ?? '',
       snackPosition: SnackPosition.BOTTOM,
@@ -468,7 +469,7 @@ class RazorpayController extends GetxController {
       await refundPendingWalletContribution();
       _reset();
       Haptics.error();
-      Get.snackbar(
+      AppSnackbar.show(
         'Booking not confirmed',
         'Your payment is safe. We could not confirm the booking — please try again or contact support.',
         snackPosition: SnackPosition.BOTTOM,

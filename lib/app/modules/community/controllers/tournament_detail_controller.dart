@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -182,7 +183,7 @@ class TournamentDetailController extends GetxController {
   Future<void> messageHost() async {
     final hostUserId = tournament.value?.hostUserId;
     if (hostUserId == null) {
-      Get.snackbar('Host chat unavailable', 'Host profile is unavailable.');
+      AppSnackbar.show('Host chat unavailable', 'Host profile is unavailable.');
       return;
     }
     final chat = Get.isRegistered<ChatService>()
@@ -206,7 +207,7 @@ class TournamentDetailController extends GetxController {
             )
           : await chat.userByBackendId(hostUserId);
       if (host == null) {
-        Get.snackbar(
+        AppSnackbar.show(
           'Host chat unavailable',
           'The host has not activated chat.',
         );
@@ -215,7 +216,7 @@ class TournamentDetailController extends GetxController {
       final roomId = await chat.getOrCreateDirectRoom(otherUser: host);
       Get.to(() => ChatRoomView(roomId: roomId));
     } catch (_) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Host chat unavailable',
         'Could not open a chat with the host.',
       );
@@ -224,7 +225,7 @@ class TournamentDetailController extends GetxController {
 
   Future<void> openTournamentChat() async {
     if (!hasJoined.value && !canManage.value) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Tournament chat unavailable',
         'Only registered players and tournament staff can open this chat.',
       );
@@ -256,7 +257,7 @@ class TournamentDetailController extends GetxController {
       );
     } catch (error) {
       debugPrint('[TOURNAMENT_CHAT_ERROR] tournament=$_id error=$error');
-      Get.snackbar(
+      AppSnackbar.show(
         'Could not open tournament chat',
         _reason(error),
         snackPosition: SnackPosition.BOTTOM,
@@ -525,13 +526,13 @@ class TournamentDetailController extends GetxController {
     try {
       await _api.cancelMyRegistration(_id);
       await refreshDetail();
-      Get.snackbar(
+      AppSnackbar.show(
         'Registration cancelled',
         '',
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (e) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Could not cancel',
         _reason(e),
         snackPosition: SnackPosition.BOTTOM,
@@ -680,7 +681,7 @@ class TournamentDetailController extends GetxController {
         evidenceAssetIds: evidenceAssetIds,
       );
       await refreshLiveData();
-      Get.snackbar(
+      AppSnackbar.show(
         action == 'accept' ? 'Result accepted' : 'Result disputed',
         action == 'accept'
             ? 'Your captain confirmation has been recorded.'
@@ -696,7 +697,7 @@ class TournamentDetailController extends GetxController {
       }
       return true;
     } catch (error) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Result response failed',
         _reason(error),
         snackPosition: SnackPosition.BOTTOM,
@@ -721,7 +722,7 @@ class TournamentDetailController extends GetxController {
         description: description,
         evidenceAssetIds: evidenceAssetIds,
       );
-      Get.snackbar(
+      AppSnackbar.show(
         'Dispute opened',
         dispute.chatRoomStatus == 'ready'
             ? 'Opening the dispute chat.'
@@ -739,7 +740,7 @@ class TournamentDetailController extends GetxController {
           '[DISPUTE_ERROR] status=${error.response?.statusCode} data=${error.response?.data}',
         );
       }
-      Get.snackbar(
+      AppSnackbar.show(
         'Could not open dispute',
         _reason(error),
         snackPosition: SnackPosition.BOTTOM,
@@ -757,7 +758,7 @@ class TournamentDetailController extends GetxController {
     final normalizedRoomId = roomId?.trim() ?? '';
     final normalizedStatus = roomStatus?.trim().toLowerCase() ?? '';
     if (normalizedRoomId.isEmpty || normalizedStatus != 'ready') {
-      Get.snackbar(
+      AppSnackbar.show(
         'Dispute chat is being prepared',
         'Open this dispute again shortly from the tournament participant hub.',
         snackPosition: SnackPosition.BOTTOM,
@@ -777,7 +778,7 @@ class TournamentDetailController extends GetxController {
       );
     } catch (error) {
       debugPrint('[DISPUTE_CHAT_ERROR] room=$normalizedRoomId error=$error');
-      Get.snackbar(
+      AppSnackbar.show(
         'Could not open dispute chat',
         _reason(error),
         snackPosition: SnackPosition.BOTTOM,

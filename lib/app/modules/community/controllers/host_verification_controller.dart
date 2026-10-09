@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -109,7 +110,7 @@ class HostVerificationController extends GetxController {
       );
       await _clearPendingPaymentReference();
       Get.back(result: record.status);
-      Get.snackbar(
+      AppSnackbar.show(
         'Application submitted',
         record.status == HostVerificationStatus.verified
             ? 'You are verified!'

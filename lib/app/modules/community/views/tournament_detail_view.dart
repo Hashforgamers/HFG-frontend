@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1317,7 +1318,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
         .where((item) => item.backendUserId == member.userId)
         .firstOrNull;
     if (user == null) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Player chat unavailable',
         '${member.displayName} has not activated Hash Hub chat yet.',
       );
@@ -1327,7 +1328,7 @@ class TournamentDetailView extends GetView<TournamentDetailController> {
       final roomId = await chat.getOrCreateDirectRoom(otherUser: user);
       Get.to(() => ChatRoomView(roomId: roomId));
     } catch (error) {
-      Get.snackbar('Could not open chat', error.toString());
+      AppSnackbar.show('Could not open chat', error.toString());
     }
   }
 

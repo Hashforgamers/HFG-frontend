@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 
 import 'package:flutter/material.dart';
 import 'package:hash/config/feature_flags.dart';
@@ -253,7 +254,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       Haptics.light();
     } catch (e) {
       if (!mounted) return;
-      Get.snackbar(
+      AppSnackbar.show(
         'Chat',
         e.toString().replaceFirst('Exception: ', ''),
         snackPosition: SnackPosition.BOTTOM,
@@ -1369,7 +1370,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       setState(() {
         _inviteActionStateByMessageId[messageId] = 'joined';
       });
-      Get.snackbar(
+      AppSnackbar.show(
         'Team Joined',
         'You have joined the team successfully.',
         snackPosition: SnackPosition.BOTTOM,
@@ -1385,7 +1386,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             ? 'already_member'
             : 'failed';
       });
-      Get.snackbar(
+      AppSnackbar.show(
         'Unable to Join',
         error,
         snackPosition: SnackPosition.BOTTOM,
@@ -1405,7 +1406,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     required bool communityTeam,
   }) async {
     if (!FeatureFlags.tournamentsEnabled) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Tournaments',
         'Tournaments aren\'t available right now.',
         snackPosition: SnackPosition.BOTTOM,
@@ -1430,7 +1431,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       );
     } catch (error) {
       if (!mounted) return;
-      Get.snackbar(
+      AppSnackbar.show(
         'Tournament',
         error.toString().replaceFirst('Exception: ', ''),
         snackPosition: SnackPosition.BOTTOM,

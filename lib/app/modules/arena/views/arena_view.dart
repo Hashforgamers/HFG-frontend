@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:ui';
@@ -544,7 +545,7 @@ class _ArenaViewState extends State<ArenaView> {
   Future<String?> _roomForPlayer(Map<String, dynamic> player) async {
     final uid = (player['firebase_uid'] ?? player['uid'] ?? '').toString();
     if (uid.isEmpty) {
-      Get.snackbar('Connect', 'This player is not available for chat yet.');
+      AppSnackbar.show('Connect', 'This player is not available for chat yet.');
       return null;
     }
     final user = ChatUserModel.fromMap({...player, 'uid': uid});
@@ -558,7 +559,7 @@ class _ArenaViewState extends State<ArenaView> {
   Future<void> _invitePlayerToCafe(Map<String, dynamic> player) async {
     final cafes = _sortCafesByDistance(_filteredCafes.toList());
     if (cafes.isEmpty) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Cafe invite',
         'No nearby cafes are available to invite to.',
       );
@@ -742,7 +743,7 @@ class _ArenaViewState extends State<ArenaView> {
       );
       Get.to(() => ChatRoomView(roomId: roomId));
     } catch (_) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Tournament invite',
         'Unable to load tournaments right now.',
       );
@@ -1679,7 +1680,7 @@ class _ArenaViewState extends State<ArenaView> {
       request: request,
     );
     if (result.points.isEmpty) {
-      Get.snackbar('Route', 'No route found');
+      AppSnackbar.show('Route', 'No route found');
       return;
     }
 
@@ -1728,7 +1729,7 @@ class _ArenaViewState extends State<ArenaView> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      Get.snackbar('Error', 'Could not open Google Maps');
+      AppSnackbar.show('Error', 'Could not open Google Maps');
     }
   }
 

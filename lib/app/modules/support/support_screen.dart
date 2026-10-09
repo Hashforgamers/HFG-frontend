@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,7 +25,7 @@ Screenshot (if any):
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } else {
-      Get.snackbar('Error', 'Could not open WhatsApp');
+      AppSnackbar.show('Error', 'Could not open WhatsApp');
     }
   }
 

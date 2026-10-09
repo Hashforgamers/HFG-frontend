@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -148,7 +149,7 @@ class NeedHelpPage extends StatelessWidget {
     if (await canLaunchUrl(emailUri)) {
       await launchUrl(emailUri);
     } else {
-      Get.snackbar(
+      AppSnackbar.show(
         'Error',
         'Could not open email app',
         backgroundColor: Colors.red,
@@ -163,7 +164,7 @@ class NeedHelpPage extends StatelessWidget {
     if (await canLaunchUrl(websiteUri)) {
       await launchUrl(websiteUri, mode: LaunchMode.externalApplication);
     } else {
-      Get.snackbar(
+      AppSnackbar.show(
         'Error',
         'Could not open website',
         backgroundColor: Colors.red,
@@ -173,7 +174,7 @@ class NeedHelpPage extends StatelessWidget {
   }
 
   void _navigateToFaqs() {
-    Get.snackbar(
+    AppSnackbar.show(
       'Coming Soon',
       'FAQ section will be available soon!',
       backgroundColor: const Color(0xffDE3A3A),

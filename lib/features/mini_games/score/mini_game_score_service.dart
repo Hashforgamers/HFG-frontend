@@ -1,4 +1,5 @@
 import 'package:hash/utils/widgets/game_button.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 import 'dart:async';
 
@@ -93,7 +94,7 @@ class MiniGameScoreService {
           'score': score,
         }),
       );
-      Get.snackbar(
+      AppSnackbar.show(
         'Score not synced',
         'Could not sync to leaderboard. Check login or connection.',
         snackPosition: SnackPosition.BOTTOM,
@@ -150,7 +151,7 @@ class MiniGameScoreService {
               'score': result.newBest,
             }),
           );
-          Get.snackbar(
+          AppSnackbar.show(
             'Reward limit reached',
             'Rank #$rank HashCoin rewards can only be claimed 3 times.',
             snackPosition: SnackPosition.BOTTOM,
@@ -172,7 +173,7 @@ class MiniGameScoreService {
         }
       }
 
-      Get.snackbar(
+      AppSnackbar.show(
         'New personal best',
         '${MiniGameLeaderboardService.readableGameName(gameId)}: ${result.newBest} pts',
         snackPosition: SnackPosition.BOTTOM,

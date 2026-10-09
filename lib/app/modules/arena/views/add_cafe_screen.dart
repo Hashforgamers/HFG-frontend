@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -68,7 +69,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
         }
       }
     } catch (e) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Error',
         'Could not fetch address details. Please enter manually.',
         snackPosition: SnackPosition.BOTTOM,
@@ -97,7 +98,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
 
         if (success) {
           Get.back(); // First pop the screen
-          Get.snackbar(
+          AppSnackbar.show(
             'Success',
             'Your cafe request has been submitted successfully! We will review it shortly.',
             snackPosition: SnackPosition.BOTTOM,

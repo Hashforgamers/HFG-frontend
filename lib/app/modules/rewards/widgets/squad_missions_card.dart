@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/rewards/models/squad_weekly_progress.dart';
@@ -48,7 +49,7 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
     final ok = await _service.claimMission(missionKey);
     if (!mounted) return;
     setState(() => _claiming.remove(missionKey));
-    Get.snackbar(
+    AppSnackbar.show(
       ok ? 'Mission Claimed' : 'Cannot Claim Yet',
       ok
           ? 'Reward claimed successfully.'

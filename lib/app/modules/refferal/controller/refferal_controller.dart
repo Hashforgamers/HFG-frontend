@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -22,7 +23,7 @@ class ReferralController extends GetxController {
   void _showSnackbar(String title, String message, Color backgroundColor) {
     try {
       // Try Get.snackbar first
-      Get.snackbar(
+      AppSnackbar.show(
         title,
         message,
         snackPosition: SnackPosition.BOTTOM,

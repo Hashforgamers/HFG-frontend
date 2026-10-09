@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:math';
 import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
@@ -218,7 +219,7 @@ class _HomeViewState extends State<HomeView> {
 
   Future<void> _openChatInbox() async {
     if (!chatService.isLoggedIn) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Chat',
         'Please sign in to use chat.',
         snackPosition: SnackPosition.BOTTOM,

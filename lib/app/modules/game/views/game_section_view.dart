@@ -1,5 +1,6 @@
 // Optimized GamesSection: paging + smooth scrolling + low-jank parsing & images
 import 'dart:convert';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show compute, kDebugMode;
@@ -472,7 +473,7 @@ class GameCard extends StatelessWidget {
         );
         fb.onGameDetailsViewed(gameId: game.id.toString(), cafeId: 'general');
 
-        Get.snackbar(
+        AppSnackbar.show(
           'Game Details',
           'Viewing details for ${game.name}',
           snackPosition: SnackPosition.BOTTOM,

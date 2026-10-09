@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 
 import 'package:flutter/material.dart';
 import 'package:hash/utils/widgets/loader.dart';
@@ -128,7 +129,7 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
       Get.off(() => ChatRoomView(roomId: roomId));
     } catch (e) {
       if (!mounted) return;
-      Get.snackbar(
+      AppSnackbar.show(
         'Chat',
         e.toString().replaceFirst('Exception: ', ''),
         snackPosition: SnackPosition.BOTTOM,
@@ -148,7 +149,7 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
       await _chatService.removeUserFromRecentSearchHistory(user.uid);
       await _runSearch();
       if (!mounted) return;
-      Get.snackbar(
+      AppSnackbar.show(
         'History updated',
         'Removed from recent search history',
         snackPosition: SnackPosition.BOTTOM,
@@ -193,7 +194,7 @@ class _ChatUserPickerViewState extends State<ChatUserPickerView> {
       await _chatService.clearRecentSearchHistory();
       await _runSearch();
       if (!mounted) return;
-      Get.snackbar(
+      AppSnackbar.show(
         'History cleared',
         'Recent search history removed',
         snackPosition: SnackPosition.BOTTOM,

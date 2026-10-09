@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -152,7 +153,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
       _processingPasses[passId] = false;
       await Haptics.long();
 
-      Get.snackbar(
+      AppSnackbar.show(
         'Error',
         'Failed to initiate payment: $e',
         snackPosition: SnackPosition.BOTTOM,

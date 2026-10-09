@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -995,7 +996,7 @@ class _WalletScreenState extends State<WalletScreen> {
                             amountController.text.trim(),
                           );
                           if (amt == null || amt < 50) {
-                            Get.snackbar(
+                            AppSnackbar.show(
                               "Invalid",
                               "Minimum top-up is ${Money.symbol}50",
                               backgroundColor: Colors.red,

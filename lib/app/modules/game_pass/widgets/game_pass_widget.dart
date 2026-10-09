@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
 import 'package:hash/app/data/services/user_controller.dart';
@@ -145,7 +146,7 @@ class _VendorPassesWidgetState extends State<VendorPassesWidget> {
       );
 
       if (!mounted) return;
-      Get.snackbar(
+      AppSnackbar.show(
         'Success',
         'Pass purchased successfully.',
         snackPosition: SnackPosition.BOTTOM,
@@ -167,7 +168,7 @@ class _VendorPassesWidgetState extends State<VendorPassesWidget> {
 
   void _onExternalWallet(ExternalWalletResponse response) {
     Haptics.warning();
-    Get.snackbar(
+    AppSnackbar.show(
       'Wallet',
       response.walletName ?? 'External wallet',
       snackPosition: SnackPosition.BOTTOM,
@@ -192,7 +193,7 @@ class _VendorPassesWidgetState extends State<VendorPassesWidget> {
       return;
     }
     if (!mounted) return;
-    Get.snackbar(
+    AppSnackbar.show(
       'Error',
       safeMessage,
       snackPosition: SnackPosition.BOTTOM,

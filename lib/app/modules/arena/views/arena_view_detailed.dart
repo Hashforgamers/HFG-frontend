@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -266,7 +267,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           cafeId: widget.vendorId.toString(),
           slotTime: 'shop_closed',
         );
-        Get.snackbar(
+        AppSnackbar.show(
           'Shop Closed',
           'Shop is closed today, no games available.',
           snackPosition: SnackPosition.BOTTOM,
@@ -2085,7 +2086,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       );
       // Check if shop is open before showing booking options.
       if (!_gamesController.shopOpen.value) {
-        Get.snackbar(
+        AppSnackbar.show(
           'Shop Closed',
           'Shop is closed today, no games available.',
           snackPosition: SnackPosition.BOTTOM,
@@ -2824,7 +2825,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
 
     final fallbackContext = Get.context;
     if (fallbackContext != null && Overlay.maybeOf(fallbackContext) != null) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Error',
         message,
         snackPosition: SnackPosition.BOTTOM,

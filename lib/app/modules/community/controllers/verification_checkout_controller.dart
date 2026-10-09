@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
@@ -67,7 +68,7 @@ class VerificationCheckoutController extends GetxController {
     if (processing.value) return;
     final fee = program.value?.verificationFee;
     if (fee == null) {
-      Get.snackbar('Unable to continue', 'Verification fee is unavailable.');
+      AppSnackbar.show('Unable to continue', 'Verification fee is unavailable.');
       return;
     }
 
@@ -128,7 +129,7 @@ class VerificationCheckoutController extends GetxController {
         error: e,
         stackTrace: st,
       );
-      Get.snackbar(
+      AppSnackbar.show(
         'Payment unavailable',
         'Could not start the payment. Please try again.',
         snackPosition: SnackPosition.BOTTOM,
@@ -163,7 +164,7 @@ class VerificationCheckoutController extends GetxController {
         error: e,
         stackTrace: st,
       );
-      Get.snackbar(
+      AppSnackbar.show(
         'Payment confirmation pending',
         'Payment was received but could not be confirmed. Please contact support before paying again.',
         snackPosition: SnackPosition.BOTTOM,
@@ -176,7 +177,7 @@ class VerificationCheckoutController extends GetxController {
     processing.value = false;
     _activeOrderId = null;
     Haptics.criticalError();
-    Get.snackbar(
+    AppSnackbar.show(
       'Payment failed',
       response.message?.trim().isNotEmpty == true
           ? response.message!
@@ -186,7 +187,7 @@ class VerificationCheckoutController extends GetxController {
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
-    Get.snackbar(
+    AppSnackbar.show(
       'External wallet selected',
       'Complete the payment in ${response.walletName ?? 'your wallet'}.',
       snackPosition: SnackPosition.BOTTOM,

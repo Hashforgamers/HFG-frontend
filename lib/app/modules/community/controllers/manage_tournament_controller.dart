@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
@@ -701,7 +702,7 @@ class ManageTournamentController extends GetxController {
         Overlay.maybeOf(overlayContext) == null) {
       return;
     }
-    Get.snackbar(title, message, snackPosition: snackPosition);
+    AppSnackbar.show(title, message, snackPosition: snackPosition);
   }
 
   String _message(DioException e, {required String fallback}) {

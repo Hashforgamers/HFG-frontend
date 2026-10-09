@@ -1,6 +1,6 @@
 import 'dart:ui';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -28,7 +28,7 @@ class _GlassSearchBarState extends State<GlassSearchBar> {
         AppLogger.d('Navigate to: $latLng');
       }
     } catch (_) {
-      Get.snackbar('Error', 'Location not found');
+      AppSnackbar.show('Error', 'Location not found');
     }
   }
 

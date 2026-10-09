@@ -169,7 +169,7 @@
 //   void _verifyOtp() {
 //     final otp = _otpController.text.trim();
 //     if (otp.length != 6) {
-//       Get.snackbar('Error', 'Enter a valid 6-digit OTP',
+//       AppSnackbar.show('Error', 'Enter a valid 6-digit OTP',
 //           snackPosition: SnackPosition.BOTTOM,
 //           backgroundColor: Colors.red,
 //           colorText: Colors.white);
@@ -186,7 +186,7 @@
 //
 //   void _resendOtp() {
 //     // your resend logic …
-//     Get.snackbar('Info', 'OTP resent',
+//     AppSnackbar.show('Info', 'OTP resent',
 //         snackPosition: SnackPosition.BOTTOM,
 //         backgroundColor: Colors.blue,
 //         colorText: Colors.white);

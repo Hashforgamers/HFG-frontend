@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/app/data/models/user_model.dart' as model;
 import 'package:flutter/material.dart';
@@ -284,7 +285,7 @@ class VerifyOtpController extends GetxController {
   }
 
   void _toast(String title, String message) {
-    Get.snackbar(
+    AppSnackbar.show(
       title,
       message,
       snackPosition: SnackPosition.BOTTOM,

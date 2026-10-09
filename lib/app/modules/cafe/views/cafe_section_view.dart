@@ -1,4 +1,5 @@
 import 'package:hash/app/modules/cafe/widgets/cafe_card.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:io' show Platform;
@@ -91,7 +92,7 @@ class _CafeSectionState extends State<CafeSection> {
     final uri = Uri.parse(_sheetUrl);
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (opened) return;
-    Get.snackbar(
+    AppSnackbar.show(
       'Unable to open onboarding',
       'Please try again, or visit onboard.hashforgamers.com in your browser.',
       snackPosition: SnackPosition.BOTTOM,
@@ -565,7 +566,7 @@ class _CafeSectionState extends State<CafeSection> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      Get.snackbar('Maps', 'Could not open Google Maps');
+      AppSnackbar.show('Maps', 'Could not open Google Maps');
     }
   }
 
@@ -1441,7 +1442,7 @@ class _CafeSectionState extends State<CafeSection> {
   }
 
   void _showEmptyStateCtaMessage(String title, String message) {
-    Get.snackbar(
+    AppSnackbar.show(
       title,
       message,
       snackPosition: SnackPosition.BOTTOM,
@@ -1467,12 +1468,12 @@ class _CafeSectionState extends State<CafeSection> {
         place: place,
       );
       if (!liked) {
-        Get.snackbar('Like', 'You already liked this cafe.');
+        AppSnackbar.show('Like', 'You already liked this cafe.');
       } else {
         await _rewardLikeWithHashCoins();
       }
     } catch (_) {
-      Get.snackbar('Like', 'Could not register your like right now.');
+      AppSnackbar.show('Like', 'Could not register your like right now.');
     } finally {
       if (mounted) {
         setState(() {

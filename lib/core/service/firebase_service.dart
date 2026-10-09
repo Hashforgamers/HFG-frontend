@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -21,7 +22,7 @@ class FirebaseService {
       });
       return true;
     } catch (e) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Error',
         'Failed to submit cafe request. Please try again.',
         snackPosition: SnackPosition.BOTTOM,
@@ -46,7 +47,7 @@ class FirebaseService {
         'updated_at': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Error',
         'Failed to update cafe request status.',
         snackPosition: SnackPosition.BOTTOM,

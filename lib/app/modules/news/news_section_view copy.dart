@@ -130,7 +130,7 @@
 //           await launchUrl(Uri.parse(siteUrl),
 //               mode: LaunchMode.externalApplication);
 //         } else {
-//           Get.snackbar('Error', 'Could not launch article');
+//           AppSnackbar.show('Error', 'Could not launch article');
 //         }
 //       },
 //       child: Stack(

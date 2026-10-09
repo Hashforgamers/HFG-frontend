@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:hash/core/utils/app_snackbar.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -175,7 +176,7 @@ class CafeGamesController extends GetxController {
       if (_gamesCache.containsKey(vendorId)) {
         _restoreGamesFromCache(vendorId);
       } else {
-        Get.snackbar(
+        AppSnackbar.show(
           'Error',
           'Failed to fetch games: $e',
           snackPosition: SnackPosition.BOTTOM,

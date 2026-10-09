@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/network/api_error_handler.dart';
@@ -15,7 +16,7 @@ class ErrorHandler {
     // Track API error event
     segmentService.onApiError(endpoint: endpoint, errorMessage: errorMessage);
 
-    Get.snackbar(
+    AppSnackbar.show(
       'Error',
       errorMessage,
       snackPosition: SnackPosition.BOTTOM,
@@ -36,7 +37,7 @@ class ErrorHandler {
     // Track API error event for generic errors
     segmentService.onApiError(endpoint: 'unknown', errorMessage: errorMessage);
 
-    Get.snackbar(
+    AppSnackbar.show(
       'Error',
       errorMessage,
       snackPosition: SnackPosition.BOTTOM,

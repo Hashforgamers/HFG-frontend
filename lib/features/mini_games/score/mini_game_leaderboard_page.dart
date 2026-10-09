@@ -1,4 +1,5 @@
 import '../ludo/ludo_game_screen.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import '../snakes_ladders/snl_game_screen.dart';
 import '../ludo/ludo_score_service.dart';
 import 'dart:async';
@@ -1059,7 +1060,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
       if (!mounted) return;
       await Get.to(() => ChatRoomView(roomId: roomId));
     } catch (e) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Leaderboard chat',
         e.toString().replaceFirst('Exception: ', ''),
         snackPosition: SnackPosition.BOTTOM,
@@ -1098,7 +1099,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
       if (!mounted) return;
       await Get.to(() => ChatRoomView(roomId: roomId));
     } catch (e) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Direct chat',
         e.toString().replaceFirst('Exception: ', ''),
         snackPosition: SnackPosition.BOTTOM,

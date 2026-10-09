@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 
 import 'package:flutter/material.dart';
 import 'package:hash/utils/widgets/loader.dart';
@@ -107,7 +108,7 @@ class _ChatCreateGroupViewState extends State<ChatCreateGroupView> {
         .toList();
 
     if (name.isEmpty) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Group Chat',
         'Please enter a group name.',
         snackPosition: SnackPosition.BOTTOM,
@@ -117,7 +118,7 @@ class _ChatCreateGroupViewState extends State<ChatCreateGroupView> {
     }
 
     if (selectedUsers.isEmpty) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Group Chat',
         'Select at least one participant.',
         snackPosition: SnackPosition.BOTTOM,
@@ -139,7 +140,7 @@ class _ChatCreateGroupViewState extends State<ChatCreateGroupView> {
       Get.off(() => ChatRoomView(roomId: roomId));
     } catch (e) {
       if (!mounted) return;
-      Get.snackbar(
+      AppSnackbar.show(
         'Group Chat',
         e.toString().replaceFirst('Exception: ', ''),
         snackPosition: SnackPosition.BOTTOM,

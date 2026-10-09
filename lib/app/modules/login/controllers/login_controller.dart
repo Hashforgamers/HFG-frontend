@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -90,7 +91,7 @@ class LoginController extends GetxController {
   Future<void> startPhoneSignIn() async {
     final raw = phoneController.text.trim();
     if (raw.isEmpty) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Phone',
         'Please enter your phone number',
         colorText: Colors.white,
@@ -150,7 +151,7 @@ class LoginController extends GetxController {
           _verificationId = verificationId;
           otpSent.value = true;
           _startCountdown(60);
-          Get.snackbar(
+          AppSnackbar.show(
             'OTP Sent',
             'We have sent an OTP to $phone',
             colorText: Colors.white,
@@ -170,7 +171,7 @@ class LoginController extends GetxController {
   Future<void> verifyOtpAndSignIn() async {
     final code = otpController.text.trim();
     if (code.length != 6) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Invalid OTP',
         'Enter the 6-digit code',
         colorText: Colors.white,
@@ -178,7 +179,7 @@ class LoginController extends GetxController {
       return;
     }
     if (_verificationId == null) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Error',
         'Verification session expired, try resending.',
         colorText: Colors.white,
@@ -1120,7 +1121,7 @@ class LoginController extends GetxController {
     }
 
     try {
-      Get.snackbar(
+      AppSnackbar.show(
         title,
         message,
         snackPosition: SnackPosition.BOTTOM,

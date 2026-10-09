@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -74,9 +75,9 @@ class RewardsSection extends StatelessWidget {
     GlobalBottomSheetService().showHashCoinRedemptionBottomSheet(
       context,
       hashCoin: hashCoin,
-      onSuccess: (message) => Get.snackbar("Success", message),
-      onError: (message) => Get.snackbar("Error", message),
-      onLoading: () => Get.snackbar("Loading", "Please wait..."),
+      onSuccess: (message) => AppSnackbar.show("Success", message),
+      onError: (message) => AppSnackbar.show("Error", message),
+      onLoading: () => AppSnackbar.show("Loading", "Please wait..."),
     );
   }
 

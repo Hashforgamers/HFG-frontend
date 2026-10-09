@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hash/config/feature_flags.dart';
@@ -1282,7 +1283,7 @@ class _UserProfileViewState extends State<UserProfileView> {
 
             Get.offAllNamed(AppRoutes.LOGIN);
           } catch (e) {
-            Get.snackbar(
+            AppSnackbar.show(
               'Logout Error',
               e.toString(),
               backgroundColor: Colors.red,
@@ -1490,7 +1491,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                                   await prefs.clear();
                                   Get.offAllNamed(AppRoutes.LOGIN);
                                 } else {
-                                  Get.snackbar(
+                                  AppSnackbar.show(
                                     "Error",
                                     "Failed to delete account",
                                     backgroundColor: CupertinoColors.systemRed,
@@ -1648,7 +1649,7 @@ Future<void> showBlackCupertinoDeleteDialog(
                             await prefs.clear();
                             Get.offAllNamed(AppRoutes.LOGIN);
                           } else {
-                            Get.snackbar(
+                            AppSnackbar.show(
                               'Error',
                               'Failed to delete account',
                               backgroundColor: Colors.red,

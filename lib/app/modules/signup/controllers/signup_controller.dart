@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -130,7 +131,7 @@ class SignUpController extends GetxController {
         userId: currentUser.uid,
       );
 
-      // Get.snackbar(
+      // AppSnackbar.show(
       //   'Success',
       //   response['message'] ?? 'Signup successful',
       //   backgroundColor: const Color(0xff00DC00),
@@ -249,7 +250,7 @@ class SignUpController extends GetxController {
       }
     } else if (status.isDenied || status.isPermanentlyDenied) {
       Haptics.warning();
-      Get.snackbar(
+      AppSnackbar.show(
         'Location Permission',
         'Location access denied. Enable from settings if needed.',
         backgroundColor: Colors.orange,
@@ -260,7 +261,7 @@ class SignUpController extends GetxController {
 
   void _showError(String msg) {
     Haptics.error();
-    Get.snackbar(
+    AppSnackbar.show(
       'Error',
       msg,
       backgroundColor: Colors.red,

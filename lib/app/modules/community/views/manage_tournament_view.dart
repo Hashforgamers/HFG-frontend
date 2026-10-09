@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
 
@@ -1668,7 +1669,7 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                                                 }
                                               });
                                             } catch (error) {
-                                              Get.snackbar(
+                                              AppSnackbar.show(
                                                 'Could not read screenshot',
                                                 error.toString(),
                                                 snackPosition:

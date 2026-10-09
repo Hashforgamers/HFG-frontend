@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -117,7 +118,7 @@ class _GamerProfileStoryViewState extends State<GamerProfileStoryView> {
       debugPrint('Failed to share gamer story: $error');
       debugPrintStack(stackTrace: stackTrace);
       if (mounted) {
-        Get.snackbar(
+        AppSnackbar.show(
           'Story failed the vibe check',
           'Give it one more try.',
           snackPosition: SnackPosition.BOTTOM,

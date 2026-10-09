@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -55,7 +56,7 @@ class _EventBannerState extends State<EventBanner> {
           source: 'home_banner',
         );
 
-        Get.snackbar(
+        AppSnackbar.show(
           'Event',
           'Event banner clicked!',
           snackPosition: SnackPosition.BOTTOM,

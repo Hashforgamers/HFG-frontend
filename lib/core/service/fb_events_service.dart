@@ -25,6 +25,17 @@ class FbEventsService {
       FirebaseAnalytics.instance;
   final DeviceIdentifierService _deviceIdentifierService;
 
+  /// Sends one event to Meta. `fbAppEvents` is `dynamic`, so never cast its
+  /// result: `await x as Future<void>` parses as `(await x) as Future<void>`
+  /// and threw on every login. A Meta failure must never break the caller.
+  static Future<void> _fbLog(String name, Map<String, dynamic> params) async {
+    try {
+      await fbAppEvents.logEvent(name: name, parameters: params);
+    } catch (e) {
+      debugPrint('[FbEventsService] Meta event $name failed: $e');
+    }
+  }
+
   String _toFirebaseKey(String raw, {required String fallback}) {
     final normalized = raw
         .toLowerCase()
@@ -117,9 +128,7 @@ class FbEventsService {
     debugPrint(
       '[FbEventsService] Facebook event -> name: $eventName, payload: $payload',
     );
-    final facebookFuture =
-        fbAppEvents.logEvent(name: eventName, parameters: payload)
-            as Future<void>;
+    final facebookFuture = _fbLog(eventName, payload);
     await Future.wait<void>([
       facebookFuture,
       _logFirebaseEvent(eventName, payload),
@@ -231,8 +240,7 @@ class FbEventsService {
     Map<String, dynamic> parameters,
   ) async {
     final payload = _toFirebaseParams(parameters);
-    await (fbAppEvents.logEvent(name: eventName, parameters: payload)
-        as Future<void>);
+    await _fbLog(eventName, payload);
   }
 
   /// iOS only: sync ATT status to Facebook SDK.
@@ -324,15 +332,11 @@ class FbEventsService {
       'sign_up',
       parameters: {'method': 'app', 'source_screen': 'signup'},
     );
-    await fbAppEvents.logEvent(
-          name: 'Signup Completed',
-          parameters: {
-            'user_id': userId,
-            'referred_by': referralBy,
-            'source': '',
-          },
-        )
-        as Future<void>;
+    await _fbLog('Signup Completed', {
+      'user_id': userId,
+      'referred_by': referralBy,
+      'source': '',
+    });
   }
 
   // Event 6 - Login Success
@@ -350,15 +354,11 @@ class FbEventsService {
       'login',
       parameters: {'method': loginMethod, 'source_screen': 'login'},
     );
-    await fbAppEvents.logEvent(
-          name: 'Login Successful',
-          parameters: {
-            'user_id': userId,
-            'device_id': deviceId,
-            'login_method': loginMethod,
-          },
-        )
-        as Future<void>;
+    await _fbLog('Login Successful', {
+      'user_id': userId,
+      'device_id': deviceId,
+      'login_method': loginMethod,
+    });
   }
 
   // Permissions Granted
@@ -814,12 +814,10 @@ class FbEventsService {
   Future<void> onTournamentJoined({
     required String eventId,
     required String teamId,
-  }) async =>
-      fbAppEvents.logEvent(
-            name: 'Tournament Joined',
-            parameters: {'event_id': eventId, 'team_id': teamId},
-          )
-          as Future<void>;
+  }) => _fbLog('Tournament Joined', {
+    'event_id': eventId,
+    'team_id': teamId,
+  });
 
   Future<void> onFriendInvited({
     required String targetUserId,
