@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#070a18" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>HASH RUSH</title>
+    <style>
+      /* inlined so the loading screen paints before any script or stylesheet arrives */
+      html, body { margin: 0; height: 100%; background: #070a18; }
+      #boot { position: fixed; inset: 0; display: grid; place-content: center; gap: 22px; justify-items: center;
+        font: 800 15px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #9fb4e8; letter-spacing: .14em;
+        background: radial-gradient(120% 80% at 50% 30%, #18265c 0%, #070a18 70%); z-index: 50; transition: opacity .4s; }
+      #boot.done { opacity: 0; pointer-events: none; }
+      #boot .word { font-size: 46px; font-weight: 900; letter-spacing: .04em; color: #fff; font-style: italic; }
+      #boot .word b { color: #3fd5ff; }
+      #boot .track { width: 220px; height: 8px; border-radius: 8px; background: #1a2550; overflow: hidden; }
+      #boot .fill { height: 100%; width: 100%; transform-origin: left; transform: scaleX(.02); border-radius: 8px;
+        background: linear-gradient(90deg, #2b7bff, #3fd5ff); transition: transform .2s; }
+      #boot .err { max-width: 280px; text-align: center; line-height: 1.5; letter-spacing: 0; font-weight: 600; color: #ff9a8a; }
+    </style>
+  </head>
+  <body>
+    <div id="boot">
+      <div class="word">HASH <b>RUSH</b></div>
+      <div class="track"><div class="fill" id="boot-fill"></div></div>
+      <div id="boot-label">LOADING</div>
+    </div>
+    <div id="app">
+      <div class="side left"><div class="side-word">HASH<br /><b>RUSH</b></div><p>Drag or move the mouse to steer.<br />A / D or ← → also work.<br />Space — Overdrive · Esc — Pause</p></div>
+      <div id="stage"></div>
+      <div class="side right"><p>Fire pods. Each pod deploys a unit.<br />Walk units through gates to multiply.<br />Crush the boss at the end of the road.</p></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

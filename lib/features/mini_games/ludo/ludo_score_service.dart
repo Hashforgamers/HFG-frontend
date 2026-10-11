@@ -54,17 +54,36 @@ class LudoScoreService {
   final Future<bool> Function(int score) submit;
   Future<void> _tail = Future<void>.value();
 
-  Future<bool> record(int score) => _enqueue(score);
+  /// What the latest [record] did with its score, for analytics.
+  Future<({bool isNewBest, bool synced})>? lastRecord;
+
+  Future<bool> record(int score) {
+    var isNewBest = false;
+    final operation = _enqueue(
+      score,
+      onPreviousBest: (previous) => isNewBest = score > previous,
+    );
+    lastRecord = operation.then(
+      (synced) => (isNewBest: isNewBest, synced: synced),
+    );
+    return operation;
+  }
+
   Future<bool> sync() => _enqueue(null);
 
-  Future<bool> _enqueue(int? score) {
+  Future<bool> _enqueue(
+    int? score, {
+    void Function(int previousBest)? onPreviousBest,
+  }) {
     final uid = currentUid();
     if (uid == null || uid.isEmpty) return Future.value(false);
     final operation = _tail
         .then((_) async {
           final bestKey = 'ludo_best_v1_$uid';
           final syncedKey = 'ludo_synced_v1_$uid';
-          final best = max(await read(bestKey), score ?? 0);
+          final previous = await read(bestKey);
+          onPreviousBest?.call(previous);
+          final best = max(previous, score ?? 0);
           if (score != null) await write(bestKey, best);
           final synced = await read(syncedKey);
           if (best <= synced) return true;

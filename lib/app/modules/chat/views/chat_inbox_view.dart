@@ -260,18 +260,18 @@ class _ChatInboxViewState extends State<ChatInboxView> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: ChatPalette.bgBottom,
+          backgroundColor: ChatPalette.roomBg,
           title: Text(
             'Delete chat?',
             style: GoogleFonts.inter(
-              color: ChatPalette.textPrimary,
+              color: ChatPalette.roomText,
               fontWeight: FontWeight.w700,
             ),
           ),
           content: Text(
             'This removes "$roomTitle" from your inbox only. You can start a fresh chat anytime.',
             style: GoogleFonts.inter(
-              color: ChatPalette.textSecondary,
+              color: ChatPalette.roomTextMuted,
               height: 1.4,
             ),
           ),
@@ -280,7 +280,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: Text(
                 'Cancel',
-                style: GoogleFonts.inter(color: ChatPalette.textSecondary),
+                style: GoogleFonts.inter(color: ChatPalette.roomTextMuted),
               ),
             ),
             FilledButton(
@@ -382,9 +382,9 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     final currentUid = _chatService.currentUid;
     if (currentUid == null) {
       return Scaffold(
-        backgroundColor: ChatPalette.bgBottom,
+        backgroundColor: ChatPalette.roomBg,
         appBar: AppBar(
-          backgroundColor: ChatPalette.surface,
+          backgroundColor: ChatPalette.roomBar,
           surfaceTintColor: Colors.transparent,
           title: Row(
             mainAxisSize: MainAxisSize.min,
@@ -394,7 +394,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
               Text(
                 'HUB CHATS',
                 style: GoogleFonts.michroma(
-                  color: ChatPalette.textPrimary,
+                  color: ChatPalette.roomText,
                   fontSize: 13,
                   letterSpacing: 2,
                 ),
@@ -402,12 +402,12 @@ class _ChatInboxViewState extends State<ChatInboxView> {
             ],
           ),
         ),
-        body: DecoratedBox(
-          decoration: const BoxDecoration(gradient: ChatPalette.pageGradient),
+        body: ColoredBox(
+          color: ChatPalette.roomBg,
           child: Center(
             child: Text(
               'Please sign in to use chat.',
-              style: GoogleFonts.inter(color: ChatPalette.textSecondary),
+              style: GoogleFonts.inter(color: ChatPalette.roomTextMuted),
             ),
           ),
         ),
@@ -415,9 +415,9 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     }
 
     return Scaffold(
-      backgroundColor: ChatPalette.bgBottom,
+      backgroundColor: ChatPalette.roomBg,
       appBar: AppBar(
-        backgroundColor: ChatPalette.bgBottom,
+        backgroundColor: ChatPalette.roomBg,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: Row(
@@ -428,7 +428,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
             Text(
               'HUB',
               style: GoogleFonts.michroma(
-                color: ChatPalette.textPrimary,
+                color: ChatPalette.roomText,
                 fontSize: 13,
                 letterSpacing: 2,
               ),
@@ -444,7 +444,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
             },
             icon: const Icon(
               Icons.group_add_rounded,
-              color: ChatPalette.textPrimary,
+              color: ChatPalette.roomText,
             ),
           ),
         ],
@@ -454,28 +454,33 @@ class _ChatInboxViewState extends State<ChatInboxView> {
           Haptics.medium();
           Get.to(() => const ChatUserPickerView());
         },
-        backgroundColor: ChatPalette.primary,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        child: const Icon(Icons.edit_rounded, size: 22, color: Colors.black),
+        backgroundColor: ChatPalette.roomAccent,
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: const Icon(
+          Icons.add_comment_rounded,
+          size: 24,
+          color: Colors.white,
+        ),
       ),
-      body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: ChatPalette.pageGradient),
+      body: ColoredBox(
+        color: ChatPalette.roomBg,
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
               child: TextField(
+                cursorColor: ChatPalette.roomAccent,
                 controller: _searchController,
-                style: GoogleFonts.inter(color: ChatPalette.textPrimary),
+                style: GoogleFonts.inter(color: ChatPalette.roomText),
                 decoration: InputDecoration(
                   hintText: 'Search chats',
                   hintStyle: GoogleFonts.inter(
-                    color: ChatPalette.textSecondary,
+                    color: ChatPalette.roomTextMuted,
                   ),
                   prefixIcon: const Icon(
                     Icons.search,
-                    color: ChatPalette.textSecondary,
+                    color: ChatPalette.roomTextMuted,
                   ),
                   suffixIcon: _query.isEmpty
                       ? null
@@ -484,46 +489,36 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                           onPressed: _searchController.clear,
                           icon: const Icon(
                             Icons.close_rounded,
-                            color: ChatPalette.textSecondary,
+                            color: ChatPalette.roomTextMuted,
                             size: 18,
                           ),
                         ),
                   filled: true,
-                  fillColor: ChatPalette.inputFill,
+                  fillColor: ChatPalette.roomBar,
+                  isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
+                    horizontal: 16,
                     vertical: 12,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: ChatPalette.border.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: ChatPalette.border.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: ChatPalette.primary),
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
                   ),
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
                 children: [
                   _buildFilterChip(_InboxFilter.all, 'All'),
                   const SizedBox(width: 8),
                   _buildFilterChip(_InboxFilter.direct, 'Direct'),
                   const SizedBox(width: 8),
-                  _buildFilterChip(_InboxFilter.groups, 'Group'),
+                  _buildFilterChip(_InboxFilter.groups, 'Groups'),
                   const SizedBox(width: 8),
-                  _buildFilterChip(_InboxFilter.tournament, 'Tournament'),
+                  _buildFilterChip(_InboxFilter.tournament, 'Tournaments'),
                 ],
               ),
             ),
@@ -539,7 +534,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                           'Could not load chats. Check your connection and try again.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inter(
-                            color: ChatPalette.textSecondary,
+                            color: ChatPalette.roomTextMuted,
                           ),
                         ),
                       ),
@@ -576,7 +571,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                           'No conversations yet. Tap New Chat to start.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inter(
-                            color: ChatPalette.textSecondary,
+                            color: ChatPalette.roomTextMuted,
                           ),
                         ),
                       ),
@@ -596,12 +591,12 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                         onTap: () =>
                             setState(() => _showArchived = !_showArchived),
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(6, 18, 6, 12),
+                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
                           child: Row(
                             children: [
                               const Icon(
                                 Icons.archive_outlined,
-                                color: ChatPalette.textSecondary,
+                                color: ChatPalette.roomTextMuted,
                                 size: 18,
                               ),
                               const SizedBox(width: 9),
@@ -609,9 +604,9 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                 child: Text(
                                   'Archived (${archivedRooms.length})',
                                   style: GoogleFonts.inter(
-                                    color: ChatPalette.textSecondary,
+                                    color: ChatPalette.roomTextMuted,
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 12,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),
@@ -620,7 +615,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                 duration: const Duration(milliseconds: 180),
                                 child: const Icon(
                                   Icons.keyboard_arrow_down_rounded,
-                                  color: ChatPalette.textSecondary,
+                                  color: ChatPalette.roomTextMuted,
                                   size: 20,
                                 ),
                               ),
@@ -642,8 +637,8 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                   }
 
                   return RefreshIndicator(
-                    color: ChatPalette.primary,
-                    backgroundColor: ChatPalette.surface,
+                    color: ChatPalette.roomAccent,
+                    backgroundColor: ChatPalette.roomBar,
                     onRefresh: () async {
                       await _chatService.ensureCurrentUserProfile();
                       if (!mounted) return;
@@ -653,7 +648,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                       physics: const AlwaysScrollableScrollPhysics(
                         parent: BouncingScrollPhysics(),
                       ),
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 90),
+                      padding: const EdgeInsets.only(bottom: 90),
                       itemCount: items.length,
                       separatorBuilder: (context, index) =>
                           const SizedBox.shrink(),
@@ -671,29 +666,23 @@ class _ChatInboxViewState extends State<ChatInboxView> {
 
   Widget _buildFilterChip(_InboxFilter filter, String label) {
     final selected = _selectedFilter == filter;
-    return Expanded(
+    return Material(
+      color: selected ? ChatPalette.chipSelected : ChatPalette.roomBar,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
+        borderRadius: BorderRadius.circular(18),
         onTap: () => setState(() => _selectedFilter = filter),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          child: Column(
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  color: selected
-                      ? ChatPalette.textPrimary
-                      : ChatPalette.textSecondary,
-                  fontSize: 12,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Container(
-                height: 2,
-                color: selected ? ChatPalette.primary : Colors.transparent,
-              ),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              color: selected
+                  ? ChatPalette.chipSelectedText
+                  : ChatPalette.roomTextMuted,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            ),
           ),
         ),
       ),
@@ -739,7 +728,6 @@ class _ChatInboxViewState extends State<ChatInboxView> {
         background: Container(
           decoration: BoxDecoration(
             color: isMuted ? const Color(0xFF2D2D2D) : const Color(0xFF2A4E22),
-            borderRadius: BorderRadius.circular(18),
           ),
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -761,10 +749,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
           ),
         ),
         secondaryBackground: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF6D1B1B),
-            borderRadius: BorderRadius.circular(18),
-          ),
+          decoration: BoxDecoration(color: const Color(0xFF6D1B1B)),
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
@@ -835,31 +820,23 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                     );
                   },
             child: Ink(
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: ChatPalette.border)),
-              ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
+                padding: const EdgeInsets.fromLTRB(16, 10, 6, 10),
                 child: Stack(
                   children: [
                     Row(
                       children: [
                         Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
+                          width: 50,
+                          height: 50,
+                          decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            color: room.isGroup
-                                ? ChatPalette.accent
-                                : ChatPalette.primary,
+                            color: ChatPalette.avatarFill,
                           ),
                           child: Center(
                             child: hasAvatar
                                 ? CircleAvatar(
-                                    radius: 18,
+                                    radius: 25,
                                     backgroundImage: CachedNetworkImageProvider(
                                       room.imageUrl.trim(),
                                     ),
@@ -867,8 +844,8 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                 : room.isGroup
                                 ? const Icon(
                                     Icons.groups_rounded,
-                                    color: Colors.white,
-                                    size: 18,
+                                    color: ChatPalette.roomTextMuted,
+                                    size: 26,
                                   )
                                 : StreamBuilder<ChatUserModel?>(
                                     stream: _chatService.streamUserById(
@@ -893,7 +870,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                           : selfGoogle;
                                       if (effectivePhoto.isNotEmpty) {
                                         return CircleAvatar(
-                                          radius: 18,
+                                          radius: 25,
                                           backgroundImage:
                                               CachedNetworkImageProvider(
                                                 effectivePhoto,
@@ -903,16 +880,16 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                       return Text(
                                         prefix,
                                         style: GoogleFonts.inter(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
+                                          color: ChatPalette.roomText,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 19,
                                         ),
                                       );
                                     },
                                   ),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -922,11 +899,11 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
-                                  color: ChatPalette.textPrimary,
+                                  color: ChatPalette.roomText,
                                   fontWeight: isUnread
                                       ? FontWeight.w700
-                                      : FontWeight.w600,
-                                  fontSize: 14,
+                                      : FontWeight.w500,
+                                  fontSize: 16,
                                 ),
                               ),
                               if (room.tournamentContext.isNotEmpty) ...[
@@ -939,66 +916,38 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                     color: room.isDispute
                                         ? const Color(0xFFE88686)
                                         : ChatPalette.accent,
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
                               const SizedBox(height: 3),
-                              if (room.isGroup)
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        typingPeers.isNotEmpty
-                                            ? 'typing...'
-                                            : subtitle,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.inter(
-                                          color: typingPeers.isNotEmpty
-                                              ? ChatPalette.success
-                                              : isUnread
-                                              ? ChatPalette.primary
-                                              : ChatPalette.textSecondary,
-                                          fontSize: 12,
-                                          fontWeight: isUnread
-                                              ? FontWeight.w700
-                                              : FontWeight.w500,
-                                        ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      typingPeers.isNotEmpty
+                                          ? 'typing...'
+                                          : subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        color: typingPeers.isNotEmpty
+                                            ? ChatPalette.roomAccent
+                                            : isUnread
+                                            ? ChatPalette.roomText
+                                            : ChatPalette.roomTextMuted,
+                                        fontSize: 13.5,
+                                        fontWeight: isUnread
+                                            ? FontWeight.w600
+                                            : FontWeight.w400,
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    _typeTag(room, badgeText),
-                                  ],
-                                )
-                              else
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        typingPeers.isNotEmpty
-                                            ? 'typing...'
-                                            : subtitle,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.inter(
-                                          color: typingPeers.isNotEmpty
-                                              ? ChatPalette.success
-                                              : isUnread
-                                              ? ChatPalette.primary
-                                              : ChatPalette.textSecondary,
-                                          fontSize: 12,
-                                          fontWeight: isUnread
-                                              ? FontWeight.w700
-                                              : FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    _typeTag(room, badgeText),
-                                  ],
-                                ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _typeTag(room, badgeText),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -1010,27 +959,27 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                               _formatTime(stamp),
                               style: GoogleFonts.inter(
                                 color: isUnread
-                                    ? ChatPalette.primary
-                                    : ChatPalette.textSecondary,
-                                fontSize: 11,
+                                    ? ChatPalette.roomAccent
+                                    : ChatPalette.roomTextMuted,
+                                fontSize: 12,
                                 fontWeight: isUnread
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
                               ),
                             ),
                             if (isUnread) ...[
-                              const SizedBox(height: 7),
+                              const SizedBox(height: 6),
                               const Icon(
                                 Icons.circle,
-                                color: ChatPalette.primary,
-                                size: 7,
+                                color: ChatPalette.roomAccent,
+                                size: 12,
                               ),
                             ],
                             if (isMuted) ...[
                               const SizedBox(height: 3),
                               const Icon(
                                 Icons.volume_off_rounded,
-                                color: ChatPalette.textSecondary,
+                                color: ChatPalette.roomTextMuted,
                                 size: 13,
                               ),
                             ],
@@ -1052,15 +1001,9 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                                 ),
                           icon: const Icon(
                             Icons.more_vert_rounded,
-                            color: ChatPalette.textSecondary,
-                            size: 17,
+                            color: ChatPalette.roomTextMuted,
+                            size: 18,
                           ),
-                        ),
-                        const SizedBox(width: 2),
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          color: ChatPalette.textSecondary,
-                          size: 18,
                         ),
                       ],
                     ),
@@ -1069,7 +1012,6 @@ class _ChatInboxViewState extends State<ChatInboxView> {
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.28),
-                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: const Center(
                             child: AppLinearLoader(width: 42, height: 3),
@@ -1094,7 +1036,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
             ? const Color(0xFFE88686)
             : room.isTournamentConversation || room.isGroup
             ? ChatPalette.accent
-            : ChatPalette.primary,
+            : ChatPalette.roomAccent,
         fontSize: 8.5,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.3,
@@ -1110,7 +1052,7 @@ class _ChatInboxViewState extends State<ChatInboxView> {
     final isArchived = room.archivedUserIds.contains(currentUid);
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: ChatPalette.surface,
+      backgroundColor: ChatPalette.roomBar,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -1123,11 +1065,11 @@ class _ChatInboxViewState extends State<ChatInboxView> {
               ListTile(
                 leading: Icon(
                   isMuted ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-                  color: ChatPalette.textPrimary,
+                  color: ChatPalette.roomText,
                 ),
                 title: Text(
                   isMuted ? 'Unmute chat' : 'Mute chat',
-                  style: GoogleFonts.inter(color: ChatPalette.textPrimary),
+                  style: GoogleFonts.inter(color: ChatPalette.roomText),
                 ),
                 onTap: () async {
                   Navigator.of(sheetContext).pop();
@@ -1141,11 +1083,11 @@ class _ChatInboxViewState extends State<ChatInboxView> {
               ListTile(
                 leading: Icon(
                   isArchived ? Icons.unarchive_rounded : Icons.archive_rounded,
-                  color: ChatPalette.textPrimary,
+                  color: ChatPalette.roomText,
                 ),
                 title: Text(
                   isArchived ? 'Move to inbox' : 'Archive chat',
-                  style: GoogleFonts.inter(color: ChatPalette.textPrimary),
+                  style: GoogleFonts.inter(color: ChatPalette.roomText),
                 ),
                 onTap: () async {
                   Navigator.of(sheetContext).pop();

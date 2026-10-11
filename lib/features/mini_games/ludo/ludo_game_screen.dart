@@ -15,6 +15,9 @@ import 'online/ludo_match_screen.dart';
 import 'online/ludo_match_service.dart';
 import 'online/ludo_quit_cooldown.dart';
 import 'online/ludo_presence_widgets.dart';
+import 'skins/ludo_skin_store.dart';
+import 'skins/ludo_skins_screen.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 /// The entry point always offers a mode before creating a local board.
 class LudoGameScreen extends StatefulWidget {
@@ -37,9 +40,11 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   void initState() {
     super.initState();
     LudoAnalytics.opened(widget.source);
+    ArcadeAnalytics.opened('ludo', source: widget.source);
     _refreshMatch();
     WidgetsBinding.instance.addObserver(this);
     unawaited(LudoScoreService.instance.sync());
+    unawaited(LudoSkinStore.instance.load());
   }
 
   @override
@@ -52,6 +57,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
 
   @override
   void dispose() {
+    ArcadeAnalytics.closed('ludo');
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -326,6 +332,21 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                         ),
                       );
                     },
+                  ),
+                  const SizedBox(height: 12),
+                  _modeCard(
+                    title: 'Skins & Boards',
+                    subtitle: 'Tokens, boards and dice your rivals see.',
+                    tag: 'HashCoins',
+                    icon: Icons.palette_rounded,
+                    colors: GameColors.purple,
+                    tone: GameButtonTone.purple,
+                    action: 'Shop',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const LudoSkinsScreen(),
+                      ),
+                    ),
                   ),
                   if (_activeMatchId != null) ...[
                     const SizedBox(height: 20),

@@ -4,7 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service_locator.dart';
 
+import '../score/mini_game_score_service.dart';
+import 'ludo_score_service.dart';
 import 'online/ludo_match.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 /// Ludo's analytics events (`ludo_*`), sent through [AnalyticsService] so they
 /// reach Firebase and Segment with identical snake_case names.
@@ -42,6 +45,21 @@ abstract final class LudoAnalytics {
   static String errorCode(Object error) =>
       error is FirebaseException ? error.code : 'unknown';
 
+  /// How this match's score fared, once [LudoScoreService] has handed it in.
+  static Future<ArcadeScoreOutcome?> _scoreOutcome() async {
+    // The screen records the score in the same turn it reports the match end.
+    await Future<void>.delayed(Duration.zero);
+    final record = await LudoScoreService.instance.lastRecord;
+    if (record == null) return null;
+    return (
+      synced: record.synced,
+      isNewBest: record.isNewBest,
+      rank: record.isNewBest && record.synced
+          ? MiniGameScoreService().lastSubmissionFor('ludo')?.currentRank
+          : null,
+    );
+  }
+
   static void opened(String source) => _log('ludo_opened', {'source': source});
 
   static void modeSelected(String mode) =>
@@ -53,14 +71,17 @@ abstract final class LudoAnalytics {
     required int humans,
     required int bots,
     required bool quick,
-  }) => _log('ludo_match_start', {
-    'match_id': matchId,
-    'mode': mode,
-    'players': humans + bots,
-    'humans': humans,
-    'bots': bots,
-    'quick': _flag(quick),
-  }, dedupeKey: matchId);
+  }) {
+    ArcadeAnalytics.started('ludo', mode: mode);
+    _log('ludo_match_start', {
+      'match_id': matchId,
+      'mode': mode,
+      'players': humans + bots,
+      'humans': humans,
+      'bots': bots,
+      'quick': _flag(quick),
+    }, dedupeKey: matchId);
+  }
 
   static void matchEnd({
     required String matchId,
@@ -72,18 +93,26 @@ abstract final class LudoAnalytics {
     required int bots,
     required int durationSec,
     required int turns,
-  }) => _log('ludo_match_end', {
-    'match_id': matchId,
-    'mode': mode,
-    'result': result,
-    'position': position,
-    'points': points,
-    'vs_bot': _flag(bots > 0),
-    'humans': humans,
-    'bots': bots,
-    'duration_sec': durationSec,
-    'turns': turns,
-  }, dedupeKey: matchId);
+  }) {
+    ArcadeAnalytics.completed(
+      'ludo',
+      score: points ?? 0,
+      // Unranked matches (no points) never reach the leaderboard.
+      outcome: points == null ? null : _scoreOutcome(),
+    );
+    _log('ludo_match_end', {
+      'match_id': matchId,
+      'mode': mode,
+      'result': result,
+      'position': position,
+      'points': points,
+      'vs_bot': _flag(bots > 0),
+      'humans': humans,
+      'bots': bots,
+      'duration_sec': durationSec,
+      'turns': turns,
+    }, dedupeKey: matchId);
+  }
 
   static void matchQuit({
     required String matchId,

@@ -632,17 +632,28 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     }
 
     final onePlayerLeft = match.seatCount <= 2;
-    final confirmed = await showGameDialog(
-      context,
-      title: 'LEAVE MATCH?',
-      message: onePlayerLeft
-          ? 'If you leave now, your opponent wins the match.'
-          : 'You’ll forfeit and the others will keep playing without you.',
-      cancelLabel: 'Keep Playing',
-      confirmLabel: 'Leave',
-      confirmTone: GameButtonTone.red,
-      headerColors: GameColors.red,
-    );
+    // Backing out of a lobby pulls the invite that went out (to everyone for
+    // Quick Match, to friends for a hosted room), so say that instead of
+    // talking about a forfeit.
+    final invitedLobby =
+        match.status == LudoMatchStatus.waiting &&
+        (match.quick || match.hostUid == _uid);
+    final bool? confirmed;
+    if (invitedLobby) {
+      confirmed = await confirmCancelInvite(context);
+    } else {
+      confirmed = await showGameDialog(
+        context,
+        title: 'LEAVE MATCH?',
+        message: onePlayerLeft
+            ? 'If you leave now, your opponent wins the match.'
+            : 'You’ll forfeit and the others will keep playing without you.',
+        cancelLabel: 'Keep Playing',
+        confirmLabel: 'Leave',
+        confirmTone: GameButtonTone.red,
+        headerColors: GameColors.red,
+      );
+    }
     if (confirmed != true) return;
 
     if (match.status == LudoMatchStatus.active) {

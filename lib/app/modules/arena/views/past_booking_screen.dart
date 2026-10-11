@@ -1073,14 +1073,17 @@ class BookingTicketCard extends StatelessWidget {
     );
   }
 
+  static final Set<String> _scansInFlight = {};
+
   void _handleScannedCode(
     BuildContext context,
     ScaffoldMessengerState messenger,
     String scannedCode,
   ) async {
+    // One request per ticket at a time, however often it gets scanned.
+    final scanKey = id.toString();
+    if (!_scansInFlight.add(scanKey)) return;
     try {
-      debugPrint('Booking QR scan raw payload: $scannedCode');
-
       Map<String, dynamic> qrData;
       final trimmedCode = scannedCode.trim();
       try {
@@ -1140,7 +1143,7 @@ class BookingTicketCard extends StatelessWidget {
       if (e is FormatException) {
         errorMessage = 'Invalid QR Code format. Please scan a valid QR code.';
       } else {
-        errorMessage = 'Failed to verify booking: ${e.toString()}';
+        errorMessage = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       }
 
       debugPrint('Booking QR scan error -> $e');
@@ -1151,6 +1154,8 @@ class BookingTicketCard extends StatelessWidget {
         message: errorMessage,
         backgroundColor: Colors.red.withValues(alpha: 0.88),
       );
+    } finally {
+      _scansInFlight.remove(scanKey);
     }
   }
 
@@ -1931,6 +1936,7 @@ class _WriteReviewDialogState extends State<_WriteReviewDialog> {
     );
   }
 }
+
 class ExtraService {
   final String name;
   final double price;

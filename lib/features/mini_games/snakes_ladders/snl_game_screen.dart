@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hash/features/mini_games/common/game_shops.dart';
 import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 
 import 'snl_match_screen.dart';
 import 'snl_match_service.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 /// Snakes & Ladders entry: create an online room or resume one.
 class SnlGameScreen extends StatefulWidget {
@@ -23,7 +25,14 @@ class _SnlGameScreenState extends State<SnlGameScreen> {
   @override
   void initState() {
     super.initState();
+    ArcadeAnalytics.opened(SnlMatchScreen.gameId);
     unawaited(_refresh());
+  }
+
+  @override
+  void dispose() {
+    ArcadeAnalytics.closed(SnlMatchScreen.gameId);
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -161,6 +170,18 @@ class _SnlGameScreenState extends State<SnlGameScreen> {
                             : () => _open(matchId: _activeMatchId),
                       ),
                     ],
+                    const SizedBox(height: 10),
+                    GameButton(
+                      label: 'Board Themes',
+                      icon: Icons.palette_rounded,
+                      tone: GameButtonTone.purple,
+                      height: 46,
+                      onPressed: () => openCosmeticShop(
+                        context,
+                        title: 'BOARD THEMES',
+                        tabs: GameShops.snakesLadders,
+                      ),
+                    ),
                     const SizedBox(height: 14),
                     Text(
                       'Placement points: 1st 400 · 2nd 300 · 3rd 200 · 4th 100',

@@ -7,6 +7,7 @@ import 'package:hash/features/mini_games/score/mini_game_score_service.dart';
 
 import 'main_router_game.dart';
 import 'presentation/overlays/fruit_overlays.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 /// Hosts the Fruit Cutting Flame game with Flutter overlays for the menu,
 /// HUD, pause and result screens.
@@ -26,6 +27,7 @@ class _FruitCuttingScreenState extends State<FruitCuttingScreen>
   @override
   void initState() {
     super.initState();
+    ArcadeAnalytics.opened(MainRouterGame.gameId);
     WidgetsBinding.instance.addObserver(this);
     _game.resultListenable.addListener(_onResult);
     _loadBest();
@@ -50,6 +52,7 @@ class _FruitCuttingScreenState extends State<FruitCuttingScreen>
 
   @override
   void dispose() {
+    ArcadeAnalytics.closed(MainRouterGame.gameId);
     WidgetsBinding.instance.removeObserver(this);
     _game.resultListenable.removeListener(_onResult);
     _game.stopMusic();

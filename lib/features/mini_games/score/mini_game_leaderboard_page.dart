@@ -23,6 +23,8 @@ import 'package:hash/features/mini_games/html_games/super_over_analytics.dart';
 import 'package:hash/features/mini_games/html_games/views/html_game_player_screen.dart';
 import 'package:hash/features/mini_games/pacman/HomePage.dart';
 import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart';
+import 'package:hash/features/mini_games/road_rumble/road_rumble_screen.dart';
+import 'package:hash/features/mini_games/arrow_escape/arrow_escape_screen.dart';
 
 import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
 import 'mini_game_leaderboard_service.dart';
@@ -30,6 +32,7 @@ import 'mini_game_score_service.dart';
 import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 import '../ludo/widgets/ludo_seat_token.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 class MiniGameLeaderboardPage extends StatefulWidget {
   final MiniGameScoreService scoreService;
@@ -74,6 +77,9 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   late final FbEventsService _fbEventsService;
   String _selectedGameId = MiniGameLeaderboardService.overallGameId;
   bool _openingChat = false;
+  bool _challenging = false;
+  // one challenge per game per visit, so the chat isn't spammed
+  final Set<String> _challengedGames = <String>{};
 
   String get _leaderboardLobbyRoomId {
     return MiniGameLeaderboardService.isTotalBoard(_selectedGameId)
@@ -91,6 +97,8 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
     const MapEntry('pac_man', 'Pac Man'),
     const MapEntry('laggy_bird', 'Laggy Bird'),
     const MapEntry('wordly', 'Wordly'),
+    const MapEntry('road_rumble', 'Road Rumble'),
+    const MapEntry('arrow_escape', 'Arrow Escape'),
     ...HtmlMiniGameCatalogService.games.map(
       (game) => MapEntry(game.gameId, game.name),
     ),
@@ -679,6 +687,33 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
               ),
             ],
           ),
+          if (myEntry != null && _challengeTarget(myEntry) != null) ...[
+            const SizedBox(height: 10),
+            Builder(
+              builder: (context) {
+                final target = _challengeTarget(myEntry)!;
+                final sent = _challengedGames.contains(target.gameId);
+                return GameButton(
+                  label: sent
+                      ? 'Challenge posted in chat'
+                      : (_challenging
+                            ? 'Posting…'
+                            : 'Challenge the chat to beat ${target.score}'),
+                  subtitle: sent
+                      ? null
+                      : '${target.gameName} · posts in leaderboard chat',
+                  icon: sent ? Icons.check_rounded : Icons.emoji_events_rounded,
+                  tone: sent || _challenging
+                      ? GameButtonTone.grey
+                      : GameButtonTone.yellow,
+                  height: 54,
+                  onPressed: sent || _challenging
+                      ? null
+                      : () => _sendScoreChallenge(target),
+                );
+              },
+            ),
+          ],
           const SizedBox(height: 4),
           Text(
             '$players players on the ${_selectedGameLabel()} board',
@@ -869,9 +904,16 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
       case 'wordly':
         target = const WordlyGame();
         break;
+      case 'road_rumble':
+        target = const RoadRumbleScreen();
+        break;
+      case 'arrow_escape':
+        target = const ArrowEscapeScreen();
+        break;
     }
 
     if (target != null) {
+      ArcadeAnalytics.from('leaderboard');
       await Get.to(() => target!);
       return;
     }
@@ -1041,6 +1083,63 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
         );
       },
     );
+  }
+
+  /// The game and score a challenge from this board would be about: the
+  /// selected game, or on the total boards the player's best game.
+  ({String gameId, String gameName, int score})? _challengeTarget(
+    LeaderboardEntry myEntry,
+  ) {
+    String gameId;
+    if (MiniGameLeaderboardService.isTotalBoard(_selectedGameId)) {
+      if (myEntry.scores.isEmpty) return null;
+      gameId =
+          (myEntry.scores.entries.toList()
+                ..sort((a, b) => b.value.compareTo(a.value)))
+              .first
+              .key;
+    } else {
+      gameId = _selectedGameId;
+    }
+    final score = myEntry.scores[gameId] ?? 0;
+    if (score <= 0) return null;
+    return (
+      gameId: gameId,
+      gameName: MiniGameLeaderboardService.readableGameName(gameId),
+      score: score,
+    );
+  }
+
+  Future<void> _sendScoreChallenge(
+    ({String gameId, String gameName, int score}) target,
+  ) async {
+    if (_challenging) return;
+    setState(() => _challenging = true);
+    try {
+      await _chatService.sendScoreChallenge(
+        gameId: target.gameId,
+        gameName: target.gameName,
+        score: target.score,
+      );
+      unawaited(
+        _trackLeaderboardEvent('Arcade Score Challenge Sent', {
+          'selected_board': _selectedGameId,
+          'target_game_id': target.gameId,
+          'score': target.score,
+        }),
+      );
+      if (mounted) setState(() => _challengedGames.add(target.gameId));
+    } catch (e) {
+      AppSnackbar.show(
+        'Score challenge',
+        e.toString().replaceFirst('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFF1A1A1A),
+        colorText: Colors.white,
+      );
+    } finally {
+      if (mounted) setState(() => _challenging = false);
+    }
   }
 
   Future<void> _openLeaderboardChat() async {

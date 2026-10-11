@@ -1682,6 +1682,30 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
+  Future<int> spendHashCoins({
+    required int amount,
+    required String source,
+    required String referenceId,
+  }) async {
+    final dio = await networkProvider.auth();
+    final response = await dio.post(
+      ApiEndpoints.spendHashCoin,
+      data: {'amount': amount, 'source': source, 'reference_id': referenceId},
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'Failed to spend hash coins. Status code: ${response.statusCode}',
+      );
+    }
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      final hashCoins = data['hash_coins'] ?? data['total_hash_coins'];
+      if (hashCoins is num) return hashCoins.toInt();
+    }
+    return getHashCoin();
+  }
+
+  @override
   Future<CreateVoucherResponse> createOffer({
     required int discountPercentage,
   }) async {
@@ -1704,6 +1728,9 @@ class RemoteRepo implements RemoteRepoInterface {
     }
   }
 
+  static const _scanSignInAgain =
+      'Your session has expired. Please sign in again.';
+
   @override
   Future<String> scanQrCode({
     required String consoleId,
@@ -1711,89 +1738,93 @@ class RemoteRepo implements RemoteRepoInterface {
     required String vendorId,
     required String bookingId,
   }) async {
-    final dio = await networkProvider.auth();
+    final data = {
+      'console_id': consoleId,
+      'game_id': gameId,
+      'vendor_id': vendorId,
+      'booking_id': bookingId,
+    };
+
+    Dio dio;
     try {
-      debugPrint(
-        'scanQrCode request -> console_id=$consoleId, game_id=$gameId, vendor_id=$vendorId, booking_id=$bookingId',
-      );
-      final response = await dio.post(
-        ApiEndpoints.scanQrCode,
-        data: {
-          'console_id': consoleId,
-          'game_id': gameId,
-          'vendor_id': vendorId,
-          'booking_id': bookingId,
-        },
-      );
-      debugPrint(
-        'scanQrCode response -> status=${response.statusCode}, body=${response.data}',
-      );
-      final responseData = response.data;
-      final statusCode = response.statusCode ?? 0;
-
-      String? successMessage;
-      String? errorMessage;
-
-      if (responseData is Map<String, dynamic>) {
-        final rawMessage = responseData['message']?.toString().trim() ?? '';
-        final rawError = responseData['error']?.toString().trim() ?? '';
-        if (rawMessage.isNotEmpty) successMessage = rawMessage;
-        if (rawError.isNotEmpty) errorMessage = rawError;
-      } else if (responseData is List && responseData.isNotEmpty) {
-        final first = responseData.first;
-        if (first is Map<String, dynamic>) {
-          final rawMessage = first['message']?.toString().trim() ?? '';
-          final rawError = first['error']?.toString().trim() ?? '';
-          if (rawMessage.isNotEmpty) successMessage = rawMessage;
-          if (rawError.isNotEmpty) errorMessage = rawError;
-        } else if (first is Map) {
-          final map = Map<String, dynamic>.from(first);
-          final rawMessage = map['message']?.toString().trim() ?? '';
-          final rawError = map['error']?.toString().trim() ?? '';
-          if (rawMessage.isNotEmpty) successMessage = rawMessage;
-          if (rawError.isNotEmpty) errorMessage = rawError;
-        }
-      }
-
-      if (statusCode >= 200 && statusCode < 300 && errorMessage == null) {
-        return successMessage ?? 'QR scanned successfully.';
-      }
-
-      final resolvedError = errorMessage ?? 'Failed to scan QR code.';
-      debugPrint('scanQrCode resolved error -> $resolvedError');
-      throw Exception(resolvedError);
-    } catch (e) {
-      // Handle DioException specifically to extract error message
-      if (e is DioException && e.response != null) {
-        final statusCode = e.response!.statusCode;
-        final responseData = e.response!.data;
-        debugPrint(
-          'scanQrCode DioException -> status=$statusCode, body=$responseData, error=${e.message}',
-        );
-
-        if (statusCode == 400) {
-          // Extract error message from response data
-          String errorMessage = 'Failed to scan QR code.';
-          if (responseData is Map<String, dynamic> &&
-              responseData.containsKey('error')) {
-            errorMessage = responseData['error'];
-          } else if (responseData is List && responseData.isNotEmpty) {
-            final first = responseData.first;
-            if (first is Map && first['error'] != null) {
-              errorMessage = first['error'].toString();
-            }
-          }
-          debugPrint('scanQrCode 400 error -> $errorMessage');
-          throw Exception(errorMessage);
-        } else {
-          debugPrint('scanQrCode unexpected status -> $statusCode');
-          throw Exception('Failed to scan QR code. Status code: $statusCode');
-        }
-      }
-
-      debugPrint('scanQrCode unexpected exception -> $e');
-      rethrow;
+      dio = await networkProvider.auth();
+    } catch (_) {
+      throw Exception(_scanSignInAgain);
     }
+
+    Response<dynamic> response;
+    try {
+      response = await dio.post(ApiEndpoints.scanQrCode, data: data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode != 401) throw Exception(_scanFailure(e));
+      _logScan(e.response);
+      // The backend rejected the stored token: refresh once and retry the
+      // same ticket. A second 401 means the user has to sign in again.
+      try {
+        dio = await networkProvider.refreshedAuth();
+      } catch (_) {
+        throw Exception(_scanSignInAgain);
+      }
+      try {
+        response = await dio.post(ApiEndpoints.scanQrCode, data: data);
+      } on DioException catch (retryError) {
+        if (retryError.response?.statusCode == 401) {
+          _logScan(retryError.response);
+          throw Exception(_scanSignInAgain);
+        }
+        throw Exception(_scanFailure(retryError));
+      }
+    }
+
+    _logScan(response);
+    final statusCode = response.statusCode ?? 0;
+    final errorMessage = _scanBodyField(response.data, const ['error']);
+    if (statusCode >= 200 && statusCode < 300 && errorMessage == null) {
+      return _scanBodyField(response.data, const ['message']) ??
+          'QR scanned successfully.';
+    }
+    throw Exception(errorMessage ?? 'Failed to scan QR code.');
+  }
+
+  /// First non-empty [keys] value in a scan response, which is either a map
+  /// or a list whose first item is one.
+  String? _scanBodyField(dynamic body, List<String> keys) {
+    final map = body is List && body.isNotEmpty ? body.first : body;
+    if (map is! Map) return null;
+    for (final key in keys) {
+      final value = map[key]?.toString().trim() ?? '';
+      if (value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  String _scanFailure(DioException e) {
+    final response = e.response;
+    if (response == null) {
+      debugPrint('scanQrCode -> no response (${e.type.name})');
+      return 'Could not reach the server. Check your connection and try again.';
+    }
+    _logScan(response);
+    return _scanBodyField(response.data, const [
+          'error',
+          'message',
+          'detail',
+        ]) ??
+        'Failed to scan QR code. Status code: ${response.statusCode}';
+  }
+
+  /// Diagnostics only: never the token, the QR contents or the access code.
+  void _logScan(Response<dynamic>? response) {
+    if (response == null) return;
+    final code = _scanBodyField(response.data, const ['code', 'error_code']);
+    final requestId =
+        response.headers.value('x-request-id') ??
+        response.headers.value('rndr-id') ??
+        _scanBodyField(response.data, const ['request_id']);
+    debugPrint(
+      'scanQrCode -> path=${response.requestOptions.path}, '
+      'status=${response.statusCode}, code=$code, request_id=$requestId',
+    );
   }
 
   @override

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:simple_ripple_animation/simple_ripple_animation.dart';
 
 import '../constants.dart';
+import '../skins/ludo_dice_skin.dart';
 
 ///Widget for the dice
 class DiceWidget extends StatelessWidget {
@@ -29,15 +30,11 @@ class DiceWidget extends StatelessWidget {
               ? value.throwDice
               : null,
           padding: const EdgeInsets.only(),
-          child: value.diceStarted
-              ? Image.asset(
-                  "assets/ludo/images/dice/draw.gif",
-                  fit: BoxFit.contain,
-                )
-              : Image.asset(
-                  "assets/ludo/images/dice/${value.diceResult}.png",
-                  fit: BoxFit.contain,
-                ),
+          child: LudoDice(
+            skin: LudoDiceSkin.byId(value.currentDice),
+            value: value.diceResult,
+            rolling: value.diceStarted,
+          ),
         ),
       ),
     );

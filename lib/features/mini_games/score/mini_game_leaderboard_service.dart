@@ -121,6 +121,8 @@ class MiniGameLeaderboardService {
     'pac_man',
     'laggy_bird',
     'wordly',
+    'road_rumble',
+    'arrow_escape',
     ...HtmlMiniGameCatalogService.supportedGameIds,
   ];
 

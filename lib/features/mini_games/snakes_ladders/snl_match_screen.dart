@@ -10,7 +10,11 @@ import 'package:hash/features/mini_games/score/mini_game_score_service.dart';
 import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 
+import '../common/cosmetics.dart';
+import '../common/game_looks.dart';
 import '../ludo/constants.dart';
+import '../ludo/skins/ludo_dice_skin.dart';
+import '../ludo/skins/ludo_skin_store.dart';
 import '../ludo/ludo_score_service.dart';
 import '../ludo/online/ludo_invite_friends_sheet.dart';
 import '../ludo/online/ludo_match.dart';
@@ -18,6 +22,7 @@ import '../ludo/widgets/ludo_seat_token.dart';
 import 'snl_board.dart';
 import 'snl_match.dart';
 import 'snl_match_service.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 /// Online Snakes & Ladders: lobby while waiting, then the synced board.
 /// Every device animates the same [SnlMove] from the match document.
@@ -63,9 +68,20 @@ class _SnlMatchScreenState extends State<SnlMatchScreen>
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
+  bool _ownsSession = false;
+
   @override
   void initState() {
     super.initState();
+    // An invite lands here without passing through the lobby screen.
+    _ownsSession = !ArcadeAnalytics.isOpen(SnlMatchScreen.gameId);
+    if (_ownsSession) {
+      ArcadeAnalytics.opened(SnlMatchScreen.gameId, source: 'invite');
+    }
+    unawaited(LudoSkinStore.instance.load());
+    CosmeticStore.instance.load().then((_) {
+      if (mounted) setState(() {});
+    });
     _pulse = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -83,6 +99,7 @@ class _SnlMatchScreenState extends State<SnlMatchScreen>
 
   @override
   void dispose() {
+    if (_ownsSession) ArcadeAnalytics.closed(SnlMatchScreen.gameId);
     _ticker?.cancel();
     _pulse.dispose();
     _sub?.cancel();
@@ -140,6 +157,14 @@ class _SnlMatchScreenState extends State<SnlMatchScreen>
       } else {
         unawaited(_service.clearActiveMatch(widget.matchId));
       }
+    }
+    if (seat != null && match.status == LudoMatchStatus.active) {
+      // Fires on every sync of a live match, hence ifIdle.
+      ArcadeAnalytics.started(
+        SnlMatchScreen.gameId,
+        mode: 'online',
+        ifIdle: true,
+      );
     }
     if (match.status == LudoMatchStatus.finished) _recordResult(match, seat);
 
@@ -297,6 +322,7 @@ class _SnlMatchScreenState extends State<SnlMatchScreen>
       isScrollControlled: true,
       builder: (_) => LudoInviteFriendsSheet(
         matchId: widget.matchId,
+        game: 'snl',
         sendInvite: (friend, id) =>
             chat.sendSnlInviteMessage(friend: friend, matchId: id),
       ),
@@ -314,19 +340,24 @@ class _SnlMatchScreenState extends State<SnlMatchScreen>
       if (mounted) Navigator.of(context).pop();
       return;
     }
-    final confirmed = await showGameDialog(
-      context,
-      title: 'LEAVE MATCH?',
-      message: m.status == LudoMatchStatus.waiting
-          ? 'You’ll give up your seat in this room.'
-          : (m.seatCount <= 2
-                ? 'If you leave now, your opponent wins.'
-                : 'You’ll forfeit and the others keep playing.'),
-      cancelLabel: 'Stay',
-      confirmLabel: 'Leave',
-      confirmTone: GameButtonTone.red,
-      headerColors: GameColors.red,
-    );
+    final bool? confirmed;
+    if (m.status == LudoMatchStatus.waiting && m.hostUid == _uid) {
+      confirmed = await confirmCancelInvite(context);
+    } else {
+      confirmed = await showGameDialog(
+        context,
+        title: 'LEAVE MATCH?',
+        message: m.status == LudoMatchStatus.waiting
+            ? 'You’ll give up your seat in this room.'
+            : (m.seatCount <= 2
+                  ? 'If you leave now, your opponent wins.'
+                  : 'You’ll forfeit and the others keep playing.'),
+        cancelLabel: 'Stay',
+        confirmLabel: 'Leave',
+        confirmTone: GameButtonTone.red,
+        headerColors: GameColors.red,
+      );
+    }
     if (confirmed != true) return;
     try {
       await _service.leaveMatch(widget.matchId, seat);
@@ -668,9 +699,11 @@ class _SnlMatchScreenState extends State<SnlMatchScreen>
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  const Positioned.fill(
+                  Positioned.fill(
                     child: RepaintBoundary(
-                      child: CustomPaint(painter: SnlBoardPainter()),
+                      child: CustomPaint(
+                        painter: SnlBoardPainter(SnlLook.current),
+                      ),
                     ),
                   ),
                   for (final entry in bySquare.entries)
@@ -772,11 +805,11 @@ class _SnlMatchScreenState extends State<SnlMatchScreen>
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: GameColors.trayEdge, width: 2),
               ),
-              child: Image.asset(
-                spinning && _rolling
-                    ? 'assets/ludo/images/dice/draw.gif'
-                    : 'assets/ludo/images/dice/$dice.png',
-                gaplessPlayback: true,
+              // Shares the dice bought in the Ludo shop.
+              child: LudoDice(
+                skin: LudoDiceSkin.byId(LudoSkinStore.instance.selectedDice),
+                value: dice,
+                rolling: spinning && _rolling,
               ),
             ),
             const SizedBox(width: 10),

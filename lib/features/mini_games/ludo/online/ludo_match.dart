@@ -38,6 +38,9 @@ class LudoSeatInfo {
     required this.name,
     this.photo,
     this.bot = false,
+    this.skin,
+    this.board,
+    this.dice,
   });
 
   final String uid;
@@ -48,11 +51,22 @@ class LudoSeatInfo {
   /// seated human's device (see [LudoMatch.botDriverUid]).
   final bool bot;
 
+  /// Id of the pawn skin this player has equipped (null = classic).
+  final String? skin;
+
+  /// Ids of this player's equipped board theme and dice (null = classic).
+  /// Everyone plays on the host's board and sees each roller's own dice.
+  final String? board;
+  final String? dice;
+
   Map<String, dynamic> toMap() => {
     'uid': uid,
     'name': name,
     if (photo != null && photo!.isNotEmpty) 'photo': photo,
     if (bot) 'bot': true,
+    if (skin != null) 'skin': skin,
+    if (board != null) 'board': board,
+    if (dice != null) 'dice': dice,
   };
 
   factory LudoSeatInfo.fromMap(Map<String, dynamic> m) => LudoSeatInfo(
@@ -60,6 +74,9 @@ class LudoSeatInfo {
     name: (m['name'] ?? 'Player').toString(),
     photo: (m['photo'] as String?),
     bot: m['bot'] == true,
+    skin: m['skin'] as String?,
+    board: m['board'] as String?,
+    dice: m['dice'] as String?,
   );
 }
 

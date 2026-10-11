@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hash/features/mini_games/arrow_escape/arrow_escape_screen.dart';
 import 'package:hash/features/mini_games/pacman/HomePage.dart';
 import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart';
+import 'package:hash/features/mini_games/road_rumble/road_rumble_screen.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -64,6 +66,26 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
         icon: const AssetImage("assets/mini_game_icons/snakes_ladders.png"),
         onTap: () async {
           await Get.to(() => const SnlGameScreen());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'road_rumble',
+        title: "Road Rumble",
+        subtitle: "Race & brawl · win cash",
+        icon: const AssetImage("assets/mini_game_icons/road_rumble.png"),
+        onTap: () async {
+          await Get.to(() => const RoadRumbleScreen());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'arrow_escape',
+        title: "Arrow Escape",
+        subtitle: "Untangle arrows · +coins",
+        icon: const AssetImage("assets/mini_game_icons/arrow_escape.png"),
+        onTap: () async {
+          await Get.to(() => const ArrowEscapeScreen());
           await _loadScores();
         },
       ),
@@ -173,19 +195,28 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
         ],
         Builder(
           builder: (context) {
-            // Row order: natives then HTML games, with Super Over swapped into
-            // Snakes & Ladders' slot (Snakes & Ladders takes Super Over's place).
-            final order = List<int>.generate(
-              games.length + _htmlGames.length,
-              (i) => i,
-            );
-            final snl = games.indexWhere((g) => g.id == 'snakes_ladders');
-            final so = _htmlGames.indexWhere((g) => g.gameId == 'super_over');
-            if (snl >= 0 && so >= 0) {
-              final a = snl, b = games.length + so;
-              order[a] = b;
-              order[b] = a;
+            // Row order: the newest games lead (newest first), then everything
+            // else in catalogue order (natives, then HTML games), with the
+            // games pinned to the end last.
+            const newestFirst = ['hash_rush', 'arrow_escape', 'super_over'];
+            const pinnedLast = ['road_rumble'];
+            String idAt(int slot) => slot < games.length
+                ? (games[slot].id ?? '')
+                : _htmlGames[slot - games.length].gameId;
+            int rank(int slot) {
+              final id = idAt(slot);
+              final last = pinnedLast.indexOf(id);
+              if (last >= 0) return newestFirst.length + 1 + last;
+              final i = newestFirst.indexOf(id);
+              return i < 0 ? newestFirst.length : i;
             }
+
+            final order =
+                List<int>.generate(games.length + _htmlGames.length, (i) => i)
+                  ..sort((a, b) {
+                    final byRank = rank(a).compareTo(rank(b));
+                    return byRank != 0 ? byRank : a.compareTo(b);
+                  });
             return SizedBox(
               height: 132,
               child: ListView.separated(
@@ -285,26 +316,35 @@ class _FeaturedGameTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const GameText('LUDO', size: 26),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF3B30),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: GameColors.outline,
-                          width: 1.5,
+                // title + badge shrink together on narrow screens instead of overflowing
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const GameText('LUDO', size: 26),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF3B30),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: GameColors.outline,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          'ONLINE',
+                          style: gameFont(10, Colors.white),
                         ),
                       ),
-                      child: Text('ONLINE', style: gameFont(10, Colors.white)),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 Text(
                   'Online · vs AI · Pass & Play',

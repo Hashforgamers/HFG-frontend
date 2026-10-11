@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/features/mini_games/common/game_looks.dart';
 
 import 'snl_match.dart';
 
@@ -22,15 +23,10 @@ Offset snlCellCenter(int square, double side) {
 /// Static board art: tiles, numbers, ladders and snakes. Paint once inside a
 /// RepaintBoundary; tokens are separate widgets on top.
 class SnlBoardPainter extends CustomPainter {
-  const SnlBoardPainter();
+  const SnlBoardPainter(this.look);
 
-  static const _rowColors = [
-    (Color(0xFFFFE680), Color(0xFFFFD23F)),
-    (Color(0xFFA6F28F), Color(0xFF7CD95F)),
-    (Color(0xFF9FD4FF), Color(0xFF6BB8FF)),
-    (Color(0xFFFFB38A), Color(0xFFFF9160)),
-    (Color(0xFFD7B8FF), Color(0xFFBE92FF)),
-  ];
+  /// The board theme: tile and number colours.
+  final SnlLook look;
 
   static const _snakeColors = [
     (Color(0xFF3DDC5A), Color(0xFF168A2E)),
@@ -61,7 +57,7 @@ class SnlBoardPainter extends CustomPainter {
       final row = (n - 1) ~/ 10;
       final c = snlCellCenter(n, side);
       final rect = Rect.fromCenter(center: c, width: cell, height: cell);
-      final (light, dark) = _rowColors[(row ~/ 2) % _rowColors.length];
+      final (light, dark) = look.rows[(row ~/ 2) % look.rows.length];
       fill.color = (n.isEven) ? light : dark;
       canvas.drawRect(rect, fill);
       // Soft top highlight for a chunky tile look.
@@ -75,7 +71,7 @@ class SnlBoardPainter extends CustomPainter {
           text: label,
           style: GoogleFonts.lilitaOne(
             fontSize: cell * (n == 100 ? 0.42 : 0.26),
-            color: const Color(0xCC2A1A00),
+            color: look.number,
           ),
         ),
         textDirection: TextDirection.ltr,
@@ -240,5 +236,5 @@ class SnlBoardPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(SnlBoardPainter oldDelegate) => false;
+  bool shouldRepaint(SnlBoardPainter oldDelegate) => oldDelegate.look != look;
 }

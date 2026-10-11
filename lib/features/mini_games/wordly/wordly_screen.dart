@@ -9,6 +9,10 @@ import 'package:get/get.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/features/mini_games/common/cosmetics.dart';
+import 'package:hash/features/mini_games/common/game_looks.dart';
+import 'package:hash/features/mini_games/common/game_shops.dart';
+import 'package:hash/features/mini_games/common/mini_game_coins.dart';
 import 'package:hash/features/mini_games/ludo/online/ludo_invite_friends_sheet.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_service.dart';
@@ -20,6 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'online/wordly_match.dart';
 import 'online/wordly_match_service.dart';
 import 'wordly_engine.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 enum _Mode { daily, practice, online }
 
@@ -62,6 +67,10 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
   final List<String> _guesses = [];
   final List<List<LetterMark>> _marks = [];
   String _current = '';
+
+  /// Letters bought with HashCoins this board: position -> letter.
+  final Map<int, String> _revealed = {};
+  bool _paying = false;
   bool _locked = false;
 
   late final AnimationController _flip = AnimationController(
@@ -99,7 +108,14 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    ArcadeAnalytics.opened(
+      gameId,
+      source: widget.matchId == null ? null : 'invite',
+    );
     unawaited(_init());
+    CosmeticStore.instance.load().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _init() async {
@@ -124,6 +140,7 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    ArcadeAnalytics.closed(gameId);
     _flip.dispose();
     _shake.dispose();
     _toastTimer?.cancel();
@@ -180,10 +197,66 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
 
   // ------------------------------------------------------------------ flow
 
+  /// Positions the player hasn't pinned down yet (no green, not bought).
+  List<int> get _unknownSpots => [
+    for (var i = 0; i < kWordLength; i++)
+      if (!_revealed.containsKey(i) &&
+          !_marks.any((row) => row[i] == LetterMark.correct))
+        i,
+  ];
+
+  /// Spends HashCoins to reveal one letter of the answer (solo boards only).
+  Future<void> _buyReveal() async {
+    if (_paying || _online || _phase != _Phase.playing || _boardDone) return;
+    final spots = _unknownSpots;
+    if (spots.isEmpty) return;
+    setState(() => _paying = true);
+    final paid = await MiniGameCoins.spend(
+      context,
+      amount: MiniGameCoins.wordlyReveal,
+      source: 'wordly_reveal',
+    );
+    if (!mounted) return;
+    setState(() {
+      _paying = false;
+      if (!paid) return;
+      final spot = spots[Random().nextInt(spots.length)];
+      _revealed[spot] = _answer[spot].toUpperCase();
+    });
+  }
+
+  Widget _revealRow() {
+    final canBuy = !_paying && _unknownSpots.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 6,
+        runSpacing: 4,
+        children: [
+          for (final e
+              in _revealed.entries.toList()
+                ..sort((a, b) => a.key.compareTo(b.key)))
+            GameBadge(label: 'Letter ${e.key + 1}: ${e.value}'),
+          if (canBuy)
+            GestureDetector(
+              onTap: _buyReveal,
+              child: const GameBadge(
+                label:
+                    '💡 Reveal a letter · ${MiniGameCoins.wordlyReveal} coins',
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   void _resetBoard(String answer) {
     _answer = answer;
     _guesses.clear();
     _marks.clear();
+    _revealed.clear();
     _current = '';
     _locked = false;
     _revealing = null;
@@ -209,6 +282,10 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
       () =>
           _phase = saved != null && _boardDone ? _Phase.result : _Phase.playing,
     );
+    // Reopening today's finished board is not a new run.
+    if (_phase == _Phase.playing) {
+      ArcadeAnalytics.started(gameId, mode: 'daily');
+    }
   }
 
   void _startPractice() {
@@ -216,6 +293,7 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
     if (words == null) return;
     _mode = _Mode.practice;
     _resetBoard(words.random());
+    ArcadeAnalytics.started(gameId, mode: 'practice');
     setState(() => _phase = _Phase.playing);
   }
 
@@ -383,6 +461,7 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
     if (m == null) return;
     final now = _net.serverNowMs;
     if (_phase == _Phase.countdown && now >= m.startAtMs) {
+      ArcadeAnalytics.started(gameId, mode: 'online');
       setState(() => _phase = _Phase.playing);
     } else if (_phase == _Phase.playing && now >= m.endAtMs) {
       // Time's up: lock the board as unsolved.
@@ -464,6 +543,7 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
       isScrollControlled: true,
       builder: (_) => LudoInviteFriendsSheet(
         matchId: id,
+        game: 'wordly',
         sendInvite: (friend, matchId) =>
             chat.sendWordlyInviteMessage(friend: friend, matchId: matchId),
       ),
@@ -472,7 +552,19 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
 
   // ------------------------------------------------------------------- UI
 
+  /// The host backing out of the lobby closes the room for everyone they
+  /// invited, so check first.
+  Future<void> _confirmLeaveLobby() async {
+    if (!await confirmCancelInvite(context)) return;
+    if (!mounted) return;
+    await _leaveRace();
+  }
+
   void _onBack() {
+    if (_online && _phase == _Phase.lobby && _match?.hostUid == _net.uid) {
+      unawaited(_confirmLeaveLobby());
+      return;
+    }
     if (_online) {
       unawaited(_leaveRace());
     } else if (_phase == _Phase.playing || _phase == _Phase.result) {
@@ -503,6 +595,7 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
                     Expanded(
                       child: _showBoard ? _boardArea() : const SizedBox(),
                     ),
+                    if (_phase == _Phase.playing && !_online) _revealRow(),
                     if (_showBoard) _keyboard(),
                     const SizedBox(height: 8),
                   ],
@@ -896,6 +989,21 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
             tone: GameButtonTone.yellow,
             height: 54,
             onPressed: _startPractice,
+          ),
+          const SizedBox(height: 8),
+          GameButton(
+            label: 'Tile Themes',
+            icon: Icons.palette_rounded,
+            tone: GameButtonTone.purple,
+            height: 46,
+            onPressed: () async {
+              await openCosmeticShop(
+                context,
+                title: 'WORDLY THEMES',
+                tabs: GameShops.wordly,
+              );
+              if (mounted) setState(() {});
+            },
           ),
           const SizedBox(height: 8),
           GameButton(
@@ -1301,9 +1409,9 @@ class _WordlyGameState extends State<WordlyGame> with TickerProviderStateMixin {
 // ---------------------------------------------------------------- widgets
 
 (Color, Color) _markColors(LetterMark? mark) => switch (mark) {
-  LetterMark.correct => GameColors.green,
-  LetterMark.present => GameColors.yellow,
-  LetterMark.absent => GameColors.grey,
+  LetterMark.correct => WordlyLook.current.correct,
+  LetterMark.present => WordlyLook.current.present,
+  LetterMark.absent => WordlyLook.current.absent,
   null => (GameColors.socket, GameColors.socket),
 };
 

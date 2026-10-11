@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hash/features/mini_games/common/game_looks.dart';
 import 'package:hash/features/mini_games/snakes_ladders/snl_board.dart';
 import 'package:hash/features/mini_games/snakes_ladders/snl_match.dart';
 
@@ -44,11 +45,11 @@ void main() {
 
   testWidgets('board paints without errors', (tester) async {
     await tester.pumpWidget(
-      const Center(
+      Center(
         child: SizedBox(
           width: 400,
           height: 400,
-          child: CustomPaint(painter: SnlBoardPainter()),
+          child: CustomPaint(painter: SnlBoardPainter(SnlLook.all.first.look)),
         ),
       ),
     );

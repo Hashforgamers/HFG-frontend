@@ -13,11 +13,17 @@ import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/theme/chat_palette.dart';
 import 'package:hash/app/modules/chat/views/chat_group_details_view.dart';
+import 'package:hash/app/modules/chat/widgets/chat_wallpaper.dart';
 import 'package:hash/app/modules/chat/widgets/ludo_invite_card.dart';
+import 'package:hash/app/modules/chat/widgets/score_challenge_card.dart';
+import 'package:hash/features/mini_games/mini_game_launcher.dart';
 import 'package:hash/features/mini_games/snakes_ladders/snl_match_screen.dart';
 import 'package:hash/features/mini_games/snakes_ladders/snl_match_service.dart';
 import 'package:hash/features/mini_games/flappy_birds/Layouts/Pages/page_start_screen.dart';
 import 'package:hash/features/mini_games/flappy_birds/online/bird_match.dart';
+import 'package:hash/features/mini_games/arrow_escape/arrow_escape_screen.dart';
+import 'package:hash/features/mini_games/arrow_escape/online/arrow_match.dart';
+import 'package:hash/features/mini_games/arrow_escape/online/arrow_match_service.dart';
 import 'package:hash/features/mini_games/wordly/online/wordly_match.dart';
 import 'package:hash/features/mini_games/wordly/online/wordly_match_service.dart';
 import 'package:hash/features/mini_games/wordly/wordly_screen.dart';
@@ -34,6 +40,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/squad_missions_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 class ChatParticipantAccount {
   const ChatParticipantAccount({
@@ -284,6 +291,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     if (message.type == 'arena_booking_invite') {
       return _buildArenaBookingInviteCard(message: message, isMine: isMine);
     }
+    if (message.type == 'score_challenge') {
+      return _buildScoreChallengeCard(message: message, isMine: isMine);
+    }
     if (message.type == 'ludo_invite') {
       return _buildLudoInviteCard(message: message, isMine: isMine);
     }
@@ -292,6 +302,13 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     }
     if (message.type == 'bird_invite') {
       return _buildLudoInviteCard(message: message, isMine: isMine, bird: true);
+    }
+    if (message.type == 'arrow_invite') {
+      return _buildLudoInviteCard(
+        message: message,
+        isMine: isMine,
+        arrow: true,
+      );
     }
     if (message.type == 'wordly_invite') {
       return _buildLudoInviteCard(
@@ -302,82 +319,91 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     }
 
     final alignment = isMine ? Alignment.centerRight : Alignment.centerLeft;
-    final bubbleColor = isMine ? ChatPalette.primary : ChatPalette.surfaceAlt;
-    final textColor = isMine ? Colors.black : ChatPalette.textPrimary;
+    final isSeen = message.seenBy.length > 1;
+    final metaColor = isMine
+        ? Colors.white.withValues(alpha: 0.6)
+        : ChatPalette.roomTextMuted;
 
     return Align(
       alignment: alignment,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.76,
+          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
         ),
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.fromLTRB(9, 6, 8, 5),
           decoration: BoxDecoration(
-            color: bubbleColor,
+            color: isMine ? ChatPalette.bubbleOut : ChatPalette.bubbleIn,
             borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(14),
-              topRight: const Radius.circular(14),
-              bottomLeft: Radius.circular(isMine ? 14 : 4),
-              bottomRight: Radius.circular(isMine ? 4 : 14),
+              topLeft: Radius.circular(isMine ? 10 : 2),
+              topRight: Radius.circular(isMine ? 2 : 10),
+              bottomLeft: const Radius.circular(10),
+              bottomRight: const Radius.circular(10),
             ),
-            border: isMine ? null : Border.all(color: ChatPalette.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 1,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
           child: Column(
-            crossAxisAlignment: isMine
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (isGroup && !isMine)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 3),
+                  padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
                     message.senderName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
                       color: ChatPalette.accent,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-              Text(
-                message.text,
-                style: GoogleFonts.inter(
-                  color: textColor,
-                  fontSize: 14,
-                  height: 1.3,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _formatTime(message.createdAt),
-                style: GoogleFonts.inter(
-                  color: isMine ? Colors.black54 : ChatPalette.textSecondary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (isMine)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Row(
+              // Time and ticks sit beside short messages and drop to their
+              // own line under long ones.
+              Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 8,
+                children: [
+                  Text(
+                    message.text,
+                    style: GoogleFonts.inter(
+                      color: ChatPalette.roomText,
+                      fontSize: 14.5,
+                      height: 1.3,
+                    ),
+                  ),
+                  Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        message.seenBy.length > 1
-                            ? Icons.done_all_rounded
-                            : Icons.done_rounded,
-                        size: 14,
-                        color: message.seenBy.length > 1
-                            ? Colors.black
-                            : Colors.black54,
+                      Text(
+                        _formatTime(message.createdAt),
+                        style: GoogleFonts.inter(
+                          color: metaColor,
+                          fontSize: 10.5,
+                        ),
                       ),
+                      if (isMine) ...[
+                        const SizedBox(width: 3),
+                        Icon(
+                          isSeen ? Icons.done_all_rounded : Icons.done_rounded,
+                          size: 15,
+                          color: isSeen ? ChatPalette.tickSeen : metaColor,
+                        ),
+                      ],
                     ],
                   ),
-                ),
+                ],
+              ),
             ],
           ),
         ),
@@ -907,6 +933,35 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
   }
 
+  /// Maps an Arrow Escape race onto the invite card's four seat colours.
+  static InviteLobby? _arrowLobby(ArrowMatch? m) {
+    if (m == null) return null;
+    const seats = LudoPlayerType.values;
+    final ordered = m.ordered.take(seats.length).toList();
+    final seatOf = {for (final (i, p) in ordered.indexed) p.uid: seats[i]};
+    return InviteLobby(
+      status: switch (m.status) {
+        ArrowMatchStatus.waiting => LudoMatchStatus.waiting,
+        ArrowMatchStatus.active => LudoMatchStatus.active,
+        ArrowMatchStatus.finished => LudoMatchStatus.finished,
+      },
+      seats: {
+        for (final p in ordered)
+          seatOf[p.uid]!: LudoSeatInfo(
+            uid: p.uid,
+            name: p.name,
+            photo: p.photo,
+          ),
+      },
+      turn: seats.first,
+      winners: [
+        if (m.status == ArrowMatchStatus.finished)
+          for (final p in m.standings)
+            if (seatOf[p.uid] != null) seatOf[p.uid]!,
+      ],
+    );
+  }
+
   /// Maps a Laggy Bird race onto the invite card's four seat colours.
   static InviteLobby? _birdLobby(BirdMatch? m) {
     if (m == null) return null;
@@ -936,12 +991,49 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
   }
 
+  Widget _buildScoreChallengeCard({
+    required ChatMessageModel message,
+    required bool isMine,
+  }) {
+    final meta = _messageMeta(message);
+    final gameId = (meta['game_id'] ?? '').toString().trim();
+    final game = MiniGameLauncher.find(gameId);
+    final score = meta['score'];
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.82,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: ScoreChallengeCard(
+            challenger: (meta['challenger_name'] ?? message.senderName)
+                .toString(),
+            gameName: (meta['game_name'] ?? game?.title ?? 'the arcade')
+                .toString(),
+            score: score is num ? score.toInt() : 0,
+            isMine: isMine,
+            icon: game?.icon,
+            onPlay: game == null
+                ? null
+                : () {
+                    ArcadeAnalytics.from('chat_challenge');
+                    unawaited(game.open());
+                  },
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLudoInviteCard({
     required ChatMessageModel message,
     required bool isMine,
     bool snl = false,
     bool bird = false,
     bool wordly = false,
+    bool arrow = false,
   }) {
     final meta = _messageMeta(message);
     final matchId = (meta['match_id'] ?? '').toString().trim();
@@ -949,7 +1041,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     void open() {
       if (matchId.isEmpty) return;
       Get.to(
-        () => wordly
+        () => arrow
+            ? ArrowEscapeScreen(matchId: matchId)
+            : wordly
             ? WordlyGame(matchId: matchId)
             : bird
             ? FlappyBirds(matchId: matchId)
@@ -973,19 +1067,25 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             isMine: isMine,
             timeLabel: _formatTime(message.createdAt),
             onOpen: open,
-            title: wordly
+            title: arrow
+                ? 'ARROW RACE'
+                : wordly
                 ? 'WORDLY'
                 : bird
                 ? 'BIRD RACE'
                 : (snl ? 'SNAKES' : 'LUDO'),
-            iconAsset: wordly
+            iconAsset: arrow
+                ? 'assets/mini_game_icons/arrow_escape.png'
+                : wordly
                 ? 'assets/mini_game_icons/wordly.png'
                 : bird
                 ? 'assets/mini_game_icons/flappy_birds.png'
                 : snl
                 ? 'assets/mini_game_icons/snakes_ladders.png'
                 : 'assets/mini_game_icons/ludo_icon.png',
-            lobby: wordly && matchId.isNotEmpty
+            lobby: arrow && matchId.isNotEmpty
+                ? ArrowMatchService().watch(matchId).map(_arrowLobby)
+                : wordly && matchId.isNotEmpty
                 ? WordlyMatchService().watch(matchId).map(_wordlyLobby)
                 : bird && matchId.isNotEmpty
                 ? BirdMatchService().watch(matchId).map(_birdLobby)
@@ -1444,20 +1544,16 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     return SafeArea(
       top: false,
       child: Container(
-        decoration: BoxDecoration(
-          color: ChatPalette.surface.withValues(alpha: 0.94),
-          border: Border(
-            top: BorderSide(color: ChatPalette.border.withValues(alpha: 0.8)),
-          ),
-        ),
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
               child: TextField(
                 controller: _messageController,
                 focusNode: _messageFocus,
-                style: GoogleFonts.inter(color: ChatPalette.textPrimary),
+                style: GoogleFonts.inter(color: ChatPalette.roomText),
+                cursorColor: ChatPalette.roomAccent,
                 minLines: 1,
                 maxLines: 4,
                 onChanged: (value) async {
@@ -1473,64 +1569,108 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _sendMessage(),
                 decoration: InputDecoration(
-                  hintText: 'Type a message',
+                  hintText: 'Message',
                   hintStyle: GoogleFonts.inter(
-                    color: ChatPalette.textSecondary,
+                    color: ChatPalette.roomTextMuted,
                   ),
                   filled: true,
-                  fillColor: ChatPalette.inputFill,
+                  fillColor: ChatPalette.roomBar,
+                  isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
+                    horizontal: 18,
+                    vertical: 13,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: ChatPalette.border.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: ChatPalette.border.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: ChatPalette.primary),
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             GestureDetector(
               onTap: _isSending ? null : _sendMessage,
               child: Container(
-                width: 44,
-                height: 44,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
                   color: _isSending
-                      ? ChatPalette.surfaceAlt
-                      : ChatPalette.primary,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: _isSending
-                        ? ChatPalette.primary.withValues(alpha: 0.35)
-                        : ChatPalette.primary,
-                    width: 1.6,
-                  ),
+                      ? ChatPalette.roomBar
+                      : ChatPalette.roomAccent,
+                  shape: BoxShape.circle,
                 ),
                 child: _isSending
                     ? const Padding(
                         padding: EdgeInsets.all(12.0),
                         child: AppLinearLoader(width: 24, height: 3),
                       )
-                    : const Icon(Icons.send_rounded, color: Colors.black),
+                    : const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAppBarTitle(
+    String title, {
+    String? subtitle,
+    bool highlightSubtitle = false,
+  }) {
+    final initial = title.trim().isEmpty
+        ? '#'
+        : title.trim().characters.first.toUpperCase();
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: ChatPalette.roomAccent,
+          child: Text(
+            initial,
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: ChatPalette.roomText,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: highlightSubtitle
+                        ? ChatPalette.roomAccent
+                        : ChatPalette.roomTextMuted,
+                    fontSize: 12,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1643,11 +1783,13 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     final currentUid = _chatService.currentUid;
 
     return Scaffold(
-      backgroundColor: ChatPalette.bgBottom,
+      backgroundColor: ChatPalette.roomBg,
       appBar: AppBar(
-        backgroundColor: ChatPalette.bgBottom,
+        backgroundColor: ChatPalette.roomBar,
+        foregroundColor: ChatPalette.roomText,
         elevation: 0,
-        centerTitle: true,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
         surfaceTintColor: Colors.transparent,
         titleSpacing: 0,
         title: StreamBuilder<ChatRoomModel?>(
@@ -1657,10 +1799,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
           ),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
-              return Text(
-                'Chat unavailable',
-                style: GoogleFonts.inter(color: ChatPalette.textPrimary),
-              );
+              return _buildAppBarTitle('Chat unavailable');
             }
             final room = snapshot.data;
             final title = room == null || currentUid == null
@@ -1673,45 +1812,17 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 const [];
 
             if (room == null) {
-              return Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  color: ChatPalette.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              );
+              return _buildAppBarTitle(title);
             }
 
             if (room.isGroup || room.isDispute) {
               final subtitle = typingPeers.isNotEmpty
                   ? 'typing...'
                   : '${{...room.members, ...widget.participantAccounts.map((e) => e.firebaseUid)}.where((id) => id.trim().isNotEmpty).length} members';
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: ChatPalette.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.inter(
-                      color: typingPeers.isNotEmpty
-                          ? ChatPalette.success
-                          : ChatPalette.textSecondary,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
+              return _buildAppBarTitle(
+                title,
+                subtitle: subtitle,
+                highlightSubtitle: typingPeers.isNotEmpty,
               );
             }
 
@@ -1733,31 +1844,11 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                     ? 'Last seen recently'
                     : 'Last seen ${_formatTime(other.lastSeenAt!)}';
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: ChatPalette.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.inter(
-                        color: typingPeers.isNotEmpty
-                            ? ChatPalette.success
-                            : other?.isOnline == true
-                            ? ChatPalette.success
-                            : ChatPalette.textSecondary,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
+                return _buildAppBarTitle(
+                  title,
+                  subtitle: subtitle,
+                  highlightSubtitle:
+                      typingPeers.isNotEmpty || other?.isOnline == true,
                 );
               },
             );
@@ -1794,15 +1885,14 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 },
                 icon: const Icon(
                   Icons.info_outline_rounded,
-                  color: ChatPalette.textPrimary,
+                  color: ChatPalette.roomText,
                 ),
               );
             },
           ),
         ],
       ),
-      body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: ChatPalette.pageGradient),
+      body: ChatWallpaper(
         child: _isValidatingRoom
             ? const AppLinearLoader.screen()
             : _roomAccessError != null
@@ -1914,12 +2004,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                               keyboardDismissBehavior:
                                   ScrollViewKeyboardDismissBehavior.onDrag,
                               physics: const BouncingScrollPhysics(),
-                              padding: const EdgeInsets.fromLTRB(
-                                12,
-                                10,
-                                12,
-                                12,
-                              ),
+                              padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
                               itemCount: messages.length,
                               itemBuilder: (context, index) {
                                 final message = messages[index];

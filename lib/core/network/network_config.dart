@@ -159,6 +159,24 @@ class NetworkProvider {
     }
   }
 
+  /// Like [auth], but always fetches a new backend JWT first. For recovering
+  /// from a 401 on a token that still looked valid locally.
+  Future<Dio> refreshedAuth() async {
+    final remoteRepo = locator<RemoteRepoInterface>();
+    _jwtRefresh ??= _refreshBackendJwt(
+      remoteRepo,
+    ).whenComplete(() => _jwtRefresh = null);
+    final jwt = await _jwtRefresh;
+    if (jwt == null || jwt.isEmpty || isJwtExpired(jwt)) {
+      throw Exception('No auth token available');
+    }
+    _dio.options.headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $jwt',
+    };
+    return _dio;
+  }
+
   Future<String?> _refreshBackendJwt(RemoteRepoInterface remoteRepo) async {
     final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
     if (firebaseUser == null) return null;

@@ -9,6 +9,9 @@ class HtmlMiniGame {
   /// rejected before it reaches the leaderboard. `null` = no ceiling.
   final int? maxScore;
 
+  /// Whether the game is played in landscape (the default) or portrait.
+  final bool landscape;
+
   const HtmlMiniGame({
     required this.gameId,
     required this.name,
@@ -16,6 +19,7 @@ class HtmlMiniGame {
     required this.gameUrl,
     required this.description,
     this.maxScore,
+    this.landscape = true,
   });
 
   bool get isRemoteUrl {

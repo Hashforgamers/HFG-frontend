@@ -18,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hash/app/modules/hash_coin/widgets/hash_coin_icon.dart';
 import 'package:hash/core/service/notification_permission_gate.dart';
 import 'package:hash/features/rewards/rewards_service.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 class MiniGameScoreService {
   static const _prefsKey = 'mini_game_scores';
@@ -68,8 +69,17 @@ class MiniGameScoreService {
   ScoreSubmissionResult? lastSubmissionFor(String gameId) =>
       _lastSubmissions[gameId];
 
+  static const _lastPlayedKey = 'mini_game_last_played';
+
+  /// The arcade game this player finished most recently, if any.
+  Future<String?> lastPlayedGame() async {
+    _prefsFuture ??= SharedPreferences.getInstance();
+    return (await _prefsFuture!).getString(_lastPlayedKey);
+  }
+
   Future<bool> recordScore(String gameId, int score) async {
     await _ensureLoaded();
+    unawaited(_prefsFuture!.then((p) => p.setString(_lastPlayedKey, gameId)));
     NotificationPermissionGate.onMatchCompleted(gameId);
     // Ludo reports its own results (it knows wins and online vs offline).
     if (gameId != 'ludo') {
@@ -97,6 +107,17 @@ class MiniGameScoreService {
     // Always push latest attempt; backend keeps best per user/game.
     final result = await _leaderboard.submitScore(gameId: gameId, score: score);
     _lastSubmissions[gameId] = result;
+    // Ludo only gets here when its best improves; LudoAnalytics reports
+    // every match instead.
+    if (gameId != 'ludo') {
+      ArcadeAnalytics.completed(
+        gameId,
+        score: score,
+        synced: result.synced,
+        isNewBest: result.synced ? result.storedNewBest : isNewBest,
+        rank: result.currentRank,
+      );
+    }
     if (!result.synced) {
       unawaited(
         _trackArcadeScoreEvent('Arcade Score Sync Failed', {

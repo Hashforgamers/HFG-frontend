@@ -10,7 +10,7 @@ import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
-import 'package:hash/app/modules/home/widgets/home_game_on_india_banner.dart';
+import 'package:hash/app/modules/home/widgets/home_sign_off_card.dart';
 import 'package:hash/app/modules/home/widgets/home_game_pass_card.dart';
 import 'package:hash/app/modules/home/widgets/optimized_app_bar.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
@@ -66,6 +66,10 @@ class _HomeContentViewState extends State<HomeContentView>
   static const double _sectionGap = 24.0;
   static const double _maxContentWidth = 720.0;
 
+  // Hidden from the home feed for now; flip to bring them back.
+  static const bool _showGamePassCard = false;
+  static const bool _showUpcomingGames = false;
+
   final remoteRepo = locator<RemoteRepoInterface>();
 
   List<Widget> _intersperse(List<Widget> items, Widget separator) {
@@ -84,13 +88,15 @@ class _HomeContentViewState extends State<HomeContentView>
       ],
       const DailyRewardsCard(),
       _buildLazyLoadedSection('cafe', _cachedCafeSection),
-      _buildLazyLoadedSection('squadMissions', const SquadMissionsCard()),
-      _buildLazyLoadedSection('shorts', _cachedShortsSection),
       _buildLazyLoadedSection('miniGames', _cachedMiniGamesSection),
-      _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
-      _buildLazyLoadedSection('games', _cachedGamesSection),
+      _buildLazyLoadedSection('shorts', _cachedShortsSection),
+      if (_showGamePassCard)
+        _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+      if (_showUpcomingGames)
+        _buildLazyLoadedSection('games', _cachedGamesSection),
       _buildLazyLoadedSection('news', _cachedNewsSection),
       _buildLazyLoadedSection('referral', _buildReferFriendModal()),
+      _buildLazyLoadedSection('squadMissions', const SquadMissionsCard()),
       _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
     ];
 
@@ -181,7 +187,8 @@ class _HomeContentViewState extends State<HomeContentView>
       'gamePass': true,
       'hostBanner': true,
       'miniGames': true,
-      'squadMissions': true,
+      // near the end of the feed: shown once the sections above it have been revealed
+      'squadMissions': false,
       'referral': false,
       'shorts': true,
       'news': false,
@@ -215,11 +222,11 @@ class _HomeContentViewState extends State<HomeContentView>
     }
 
     if (currentScroll > maxScroll * 0.15) reveal('miniGames');
-    if (currentScroll > maxScroll * 0.30) reveal('squadMissions');
     if (currentScroll > maxScroll * 0.45) reveal('referral');
     if (currentScroll > maxScroll * 0.60) reveal('shorts');
     if (currentScroll > maxScroll * 0.72) reveal('news');
     if (currentScroll > maxScroll * 0.82) reveal('games');
+    if (currentScroll > maxScroll * 0.82) reveal('squadMissions');
     if (currentScroll > maxScroll * 0.90) reveal('gameOnIndia');
 
     if (changed && mounted) {
@@ -858,7 +865,7 @@ class _HomeContentViewState extends State<HomeContentView>
   Widget _buildGameOnIndiaBanner() {
     if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
 
-    _cachedGameOnIndiaBanner = const HomeGameOnIndiaBanner();
+    _cachedGameOnIndiaBanner = const HomeSignOffCard();
 
     return _cachedGameOnIndiaBanner!;
   }

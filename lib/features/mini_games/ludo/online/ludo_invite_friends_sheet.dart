@@ -18,6 +18,7 @@ class LudoInviteFriendsSheet extends StatefulWidget {
     super.key,
     required this.matchId,
     this.sendInvite,
+    this.game = 'ludo',
   });
 
   final String matchId;
@@ -25,6 +26,10 @@ class LudoInviteFriendsSheet extends StatefulWidget {
   /// Sends the invite; defaults to a Ludo invite. Other games (e.g. Snakes &
   /// Ladders) pass their own chat message sender.
   final Future<void> Function(ChatUserModel friend, String matchId)? sendInvite;
+
+  /// Which game this match is, for the open invite posted in the Arcade
+  /// Lounge chat: `ludo`, `snl`, `bird`, `wordly` or `arrow`.
+  final String game;
 
   @override
   State<LudoInviteFriendsSheet> createState() => _LudoInviteFriendsSheetState();
@@ -44,6 +49,8 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
   String _query = '';
   final Set<String> _inviting = {};
   final Set<String> _invited = {};
+  bool _postingLounge = false;
+  bool _postedLounge = false;
 
   @override
   void initState() {
@@ -101,6 +108,27 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
               u.username.toLowerCase().contains(q),
         )
         .toList();
+  }
+
+  /// Posts an open invite in the leaderboard chats (the Arcade Lounge and this
+  /// game's own board chat), where every arcade player can see and join it.
+  Future<void> _postToLounge() async {
+    if (_postingLounge || _postedLounge) return;
+    setState(() => _postingLounge = true);
+    try {
+      await _chat.sendGameInviteToLounge(
+        game: widget.game,
+        matchId: widget.matchId,
+      );
+      if (mounted) setState(() => _postedLounge = true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _postingLounge = false);
+    }
   }
 
   Future<void> _invite(ChatUserModel friend) async {
@@ -189,8 +217,29 @@ class _LudoInviteFriendsSheetState extends State<LudoInviteFriendsSheet> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      GameButton(
+                        label: _postedLounge
+                            ? 'Posted in leaderboard chat'
+                            : (_postingLounge
+                                  ? 'Posting…'
+                                  : 'Post in leaderboard chat'),
+                        subtitle: _postedLounge
+                            ? null
+                            : 'Open invite · anyone can join',
+                        icon: _postedLounge
+                            ? Icons.check_rounded
+                            : Icons.campaign_rounded,
+                        tone: _postedLounge || _postingLounge
+                            ? GameButtonTone.grey
+                            : GameButtonTone.yellow,
+                        height: 54,
+                        onPressed: _postedLounge || _postingLounge
+                            ? null
+                            : _postToLounge,
+                      ),
+                      const SizedBox(height: 12),
                       Text(
-                        'They’ll get a match invite in chat.',
+                        'Or pick players — they’ll get a match invite in chat.',
                         style: gameFont(14, GameColors.soft),
                       ),
                       const SizedBox(height: 10),

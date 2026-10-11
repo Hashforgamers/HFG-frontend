@@ -117,6 +117,14 @@ abstract class RemoteRepoInterface {
     String? referenceId,
   });
 
+  /// Debits [amount] HashCoins and returns the new balance. Throws when the
+  /// server refuses (e.g. not enough coins).
+  Future<int> spendHashCoins({
+    required int amount,
+    required String source,
+    required String referenceId,
+  });
+
   Future<CreateVoucherResponse> createOffer({required int discountPercentage});
 
   Future<String> scanQrCode({

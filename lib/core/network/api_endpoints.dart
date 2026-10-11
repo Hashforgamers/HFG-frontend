@@ -134,6 +134,10 @@ class ApiEndpoints {
   // Get HashCoin For a User By User ID (userOnboard)
   static String get getHashCoin => '$userOnboardBaseUrl/api/users/hash-coins';
 
+  // Debit HashCoins (userOnboard)
+  static String get spendHashCoin =>
+      '$userOnboardBaseUrl/api/users/hash-coins/spend';
+
   // Wallet core endpoints (dynamic by userId)
   static String walletByUserId(String userId) =>
       '$userOnboardBaseUrl/api/users/$userId/wallet';

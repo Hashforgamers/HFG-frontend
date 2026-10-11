@@ -11,6 +11,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
 import '../ludo_analytics.dart';
+import '../skins/ludo_board_theme.dart';
+import '../skins/ludo_dice_skin.dart';
+import '../skins/ludo_skin.dart';
+import '../skins/ludo_skin_store.dart';
 import 'ludo_match.dart';
 import 'ludo_matchmaking_timer.dart';
 
@@ -128,6 +132,8 @@ class LudoMatchService {
   }
 
   LudoSeatInfo _me() {
+    final store = LudoSkinStore.instance;
+    final skin = store.selected;
     final user = Get.find<UserController>().user.value;
     final displayName = (user.name ?? '').trim();
     final gamerTag = (user.gameUserName ?? '').trim();
@@ -139,6 +145,13 @@ class LudoMatchService {
       uid: _uid ?? '',
       name: name,
       photo: photo.isEmpty ? null : photo,
+      skin: skin == LudoSkin.classicId ? null : skin,
+      board: store.selectedBoard == LudoBoardTheme.classicId
+          ? null
+          : store.selectedBoard,
+      dice: store.selectedDice == LudoDiceSkin.classicId
+          ? null
+          : store.selectedDice,
     );
   }
 
@@ -197,6 +210,7 @@ class LudoMatchService {
       throw Exception('Please sign in to start a match.');
     }
     final ref = _col.doc();
+    await LudoSkinStore.instance.load();
     final host = _me();
     final match = LudoMatch(
       id: ref.id,
@@ -305,6 +319,7 @@ class LudoMatchService {
   ) async {
     final uid = _uid;
     if (uid == null) throw Exception('Please sign in to play online.');
+    await LudoSkinStore.instance.load();
     final me = _me();
     final oldRef = _col.doc(oldMatchId);
     final newRef = _col.doc();
@@ -454,6 +469,7 @@ class LudoMatchService {
   }) async {
     final uid = _uid;
     if (uid == null) throw Exception('Please sign in to join.');
+    await LudoSkinStore.instance.load();
     final me = _me();
     final ref = _col.doc(matchId);
 

@@ -1,6 +1,7 @@
 import 'package:hash/features/mini_games/snakes_ladders/snl_match_screen.dart';
 import 'package:hash/config/feature_flags.dart';
 import 'package:hash/features/mini_games/flappy_birds/Layouts/Pages/page_start_screen.dart';
+import 'package:hash/features/mini_games/arrow_escape/arrow_escape_screen.dart';
 import 'package:hash/features/mini_games/wordly/wordly_screen.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -411,6 +412,16 @@ class DeepLinkService extends GetxController {
       final matchId = destination.id!.substring('wordlymatch_'.length);
       if (matchId.isNotEmpty) {
         Widget page() => WordlyGame(matchId: matchId);
+        replaceStack ? Get.offAll(page) : Get.to(page);
+        return;
+      }
+    }
+    // Arrow Escape race invite: `.../game/arrowmatch_<matchId>`.
+    if (destination.type == DeepLinkType.game &&
+        (destination.id ?? '').startsWith('arrowmatch_')) {
+      final matchId = destination.id!.substring('arrowmatch_'.length);
+      if (matchId.isNotEmpty) {
+        Widget page() => ArrowEscapeScreen(matchId: matchId);
         replaceStack ? Get.offAll(page) : Get.to(page);
         return;
       }

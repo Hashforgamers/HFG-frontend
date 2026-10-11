@@ -9,10 +9,13 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:hash/features/mini_games/common/mini_game_coins.dart';
 import 'package:hash/features/mini_games/html_games/models/html_mini_game.dart';
+import 'package:hash/features/mini_games/html_games/services/hash_rush_shop.dart';
 import 'package:hash/features/mini_games/html_games/services/html_game_asset_server.dart';
 import 'package:hash/features/mini_games/html_games/services/html_game_score_bridge_service.dart';
 import 'package:hash/features/mini_games/html_games/super_over_analytics.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 enum _WebViewStatusTone { info, success, error }
 
@@ -177,6 +180,8 @@ class _GameWebViewState extends State<GameWebView> {
     controller.addJavaScriptHandler(
       handlerName: 'analytics',
       callback: (arguments) {
+        final payload = arguments.isNotEmpty ? arguments.first : null;
+        ArcadeAnalytics.fromWeb(widget.game.gameId, payload);
         if (widget.game.gameId == SuperOverAnalytics.gameId) {
           SuperOverAnalytics.fromWeb(
             arguments.isNotEmpty ? arguments.first : null,
@@ -189,6 +194,76 @@ class _GameWebViewState extends State<GameWebView> {
 
   /// Games ask for a tap of feedback on big moments (a wicket, a six) with
   /// `callHandler('haptic', 'light' | 'medium' | 'heavy')`.
+  /// HashCoin continues. A game asks `callHandler('coinContinue', {quote: true})`
+  /// for the price (`{cost}`; 0 = not sold) and `{quote: false}` to pay, which
+  /// replies `{ok}`. The price lives here, never in the page, and a page can only
+  /// ever trigger its own game's fixed-price continue.
+  void _registerCoinContinueHandler(InAppWebViewController controller) {
+    const costs = <String, int>{'hash_rush': MiniGameCoins.hashRushContinue};
+    var paying = false;
+    controller.addJavaScriptHandler(
+      handlerName: 'coinContinue',
+      callback: (arguments) async {
+        final cost = costs[widget.game.gameId] ?? 0;
+        final payload = arguments.isNotEmpty ? arguments.first : null;
+        final quote = payload is Map && payload['quote'] == true;
+        if (quote || cost <= 0) return {'cost': cost, 'ok': false};
+        if (paying || !mounted) return {'cost': cost, 'ok': false};
+        paying = true;
+        try {
+          final ok = await MiniGameCoins.spend(
+            context,
+            amount: cost,
+            source: '${widget.game.gameId}_continue',
+          );
+          return {'cost': cost, 'ok': ok};
+        } finally {
+          paying = false;
+        }
+      },
+    );
+  }
+
+  /// Hash Rush's upgrade and skin shop, paid in HashCoins.
+  /// `callHandler('coinShop', {action: 'catalog'})` replies with the price
+  /// list and the player's balance; `{action: 'buy', kind, id, ...}` charges
+  /// for one item and replies `{ok, balance}`. The page only names the item:
+  /// [HashRushShop] decides the price.
+  void _registerCoinShopHandler(InAppWebViewController controller) {
+    if (widget.game.gameId != 'hash_rush') return;
+    var buying = false;
+    controller.addJavaScriptHandler(
+      handlerName: 'coinShop',
+      callback: (arguments) async {
+        final payload = arguments.isNotEmpty ? arguments.first : null;
+        if (payload is! Map) return null;
+        if (payload['action'] == 'catalog') {
+          return {
+            ...HashRushShop.catalog(),
+            'balance': await MiniGameCoins.balance(),
+          };
+        }
+        final item = payload['action'] == 'buy'
+            ? HashRushShop.quote(payload)
+            : null;
+        if (item == null || buying || !mounted) {
+          return {'ok': false, 'balance': null};
+        }
+        buying = true;
+        try {
+          final ok = await MiniGameCoins.spend(
+            context,
+            amount: item.cost,
+            source: item.source,
+          );
+          return {'ok': ok, 'balance': await MiniGameCoins.balance()};
+        } finally {
+          buying = false;
+        }
+      },
+    );
+  }
+
   void _registerHapticHandler(InAppWebViewController controller) {
     controller.addJavaScriptHandler(
       handlerName: 'haptic',
@@ -315,6 +390,8 @@ class _GameWebViewState extends State<GameWebView> {
               _controller = controller;
               _registerScoreHandler(controller);
               _registerHapticHandler(controller);
+              _registerCoinContinueHandler(controller);
+              _registerCoinShopHandler(controller);
               _registerShareHandler(controller);
               _registerShareVideoHandler(controller);
               _registerAnalyticsHandler(controller);

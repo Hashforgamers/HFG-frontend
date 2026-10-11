@@ -23,6 +23,7 @@ import '../../Resources/strings.dart';
 import '../../online/bird_match.dart';
 import '../../online/bird_match_service.dart';
 import '../Widgets/bird_skins.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 enum _Phase {
   menu,
@@ -222,6 +223,10 @@ class _FlappyBirdsState extends State<FlappyBirds>
   @override
   void initState() {
     super.initState();
+    ArcadeAnalytics.opened(
+      gameId,
+      source: widget.matchId == null ? null : 'invite',
+    );
     WidgetsBinding.instance.addObserver(this);
     _loadSettings();
     _ticker.start(); // idle bob on the menu
@@ -279,6 +284,7 @@ class _FlappyBirdsState extends State<FlappyBirds>
 
   @override
   void dispose() {
+    ArcadeAnalytics.closed(gameId);
     WidgetsBinding.instance.removeObserver(this);
     _ticker.dispose();
     _frame.dispose();
@@ -399,6 +405,8 @@ class _FlappyBirdsState extends State<FlappyBirds>
   void _onTap() {
     switch (_phase) {
       case _Phase.ready:
+        // Also reached when resuming from pause, hence ifIdle.
+        ArcadeAnalytics.started(gameId, ifIdle: true);
         setState(() => _phase = _Phase.playing);
         _flapQueued = true;
       case _Phase.playing:
@@ -626,6 +634,7 @@ class _FlappyBirdsState extends State<FlappyBirds>
       isScrollControlled: true,
       builder: (_) => LudoInviteFriendsSheet(
         matchId: id,
+        game: 'bird',
         sendInvite: (friend, matchId) =>
             chat.sendBirdInviteMessage(friend: friend, matchId: matchId),
       ),
@@ -693,6 +702,7 @@ class _FlappyBirdsState extends State<FlappyBirds>
         _hover();
         _viewT = 0;
         if (runT >= 0) {
+          ArcadeAnalytics.started(gameId, mode: 'online');
           setState(() => _phase = _Phase.playing);
           _y = _Physics.startY;
           _v = 0;
@@ -742,7 +752,19 @@ class _FlappyBirdsState extends State<FlappyBirds>
 
   // ------------------------------------------------------------------- UI
 
+  /// The host backing out of the lobby closes the room for everyone they
+  /// invited, so check first.
+  Future<void> _confirmLeaveLobby() async {
+    if (!await confirmCancelInvite(context)) return;
+    if (!mounted) return;
+    await _leaveRace();
+  }
+
   void _onBack() {
+    if (_online && _phase == _Phase.lobby && _match?.hostUid == _net.uid) {
+      unawaited(_confirmLeaveLobby());
+      return;
+    }
     if (_online) {
       unawaited(_leaveRace());
       return;

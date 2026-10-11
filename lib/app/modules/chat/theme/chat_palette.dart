@@ -18,6 +18,19 @@ class ChatPalette {
   static const Color primaryGlow = Color(0xFF55F05A);
   static const Color success = Color(0xFF55E878);
 
+  // WhatsApp-dark tones used by the conversation screen.
+  static const Color roomBg = Color(0xFF0B141A);
+  static const Color roomBar = Color(0xFF1F2C34);
+  static const Color bubbleIn = Color(0xFF202C33);
+  static const Color bubbleOut = Color(0xFF005C4B);
+  static const Color roomText = Color(0xFFE9EDEF);
+  static const Color roomTextMuted = Color(0xFF8696A0);
+  static const Color roomAccent = Color(0xFF00A884);
+  static const Color tickSeen = Color(0xFF53BDEB);
+  static const Color avatarFill = Color(0xFF2A3942);
+  static const Color chipSelected = Color(0xFF0A332C);
+  static const Color chipSelectedText = Color(0xFFD9FDD3);
+
   static const LinearGradient pageGradient = LinearGradient(
     colors: [bgTop, bgBottom],
     begin: Alignment.topCenter,

@@ -9,6 +9,7 @@ import 'package:hash/features/mini_games/html_games/models/html_mini_game.dart';
 import 'package:hash/features/mini_games/html_games/services/html_game_score_bridge_service.dart';
 import 'package:hash/features/mini_games/html_games/super_over_analytics.dart';
 import 'package:hash/features/mini_games/html_games/widgets/game_web_view.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 class HtmlGamePlayerScreen extends StatefulWidget {
   const HtmlGamePlayerScreen({super.key, required this.game});
@@ -21,10 +22,13 @@ class HtmlGamePlayerScreen extends StatefulWidget {
     HtmlMiniGame game, {
     String source = 'mini_games',
   }) async {
+    ArcadeAnalytics.opened(game.gameId, source: source);
     if (game.gameId == SuperOverAnalytics.gameId) {
       SuperOverAnalytics.opened(source: source);
     }
-    await AppOrientation.landscape();
+    await (game.landscape
+        ? AppOrientation.landscape()
+        : AppOrientation.portrait());
     await SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.immersiveSticky,
       overlays: [],
@@ -47,7 +51,9 @@ class _HtmlGamePlayerScreenState extends State<HtmlGamePlayerScreen> {
   }
 
   Future<void> _enterGameMode() async {
-    await AppOrientation.landscape();
+    await (widget.game.landscape
+        ? AppOrientation.landscape()
+        : AppOrientation.portrait());
     await SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.immersiveSticky,
       overlays: [],
@@ -61,6 +67,7 @@ class _HtmlGamePlayerScreenState extends State<HtmlGamePlayerScreen> {
 
   @override
   void dispose() {
+    ArcadeAnalytics.closed(widget.game.gameId);
     unawaited(_exitGameMode());
     super.dispose();
   }

@@ -19,6 +19,7 @@ import 'core/configs/assets/app_images.dart';
 import 'core/configs/assets/app_sfx.dart';
 import 'core/configs/constants/app_configs.dart';
 import 'data/models/fruit_model.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 /// Overlay keys shown by [FruitCuttingScreen] on top of the Flame canvas.
 class FruitOverlay {
@@ -140,6 +141,7 @@ class MainRouterGame extends FlameGame with KeyboardEvents {
   // ------------------------------------------------------------------ flow
 
   void startGame() {
+    ArcadeAnalytics.started(gameId);
     _page?.removeFromParent();
     _score = 0;
     _userId = FirebaseAuth.instance.currentUser?.uid ?? '';

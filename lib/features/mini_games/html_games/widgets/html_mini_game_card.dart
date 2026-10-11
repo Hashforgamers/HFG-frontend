@@ -288,19 +288,19 @@ class _GameThumbnail extends StatelessWidget {
             Positioned(top: 10, left: 10, child: _htmlBadge(compact)),
           if (!compact)
             Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.48),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.48),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       );
     }
@@ -405,6 +405,13 @@ _GamePalette _paletteForGame(String gameId) {
         secondary: Color(0xFF0F2A2C),
         accent: Color(0xFF7EF1D0),
         shadow: Color(0xFF0C5F58),
+      );
+    case 'hash_rush':
+      return const _GamePalette(
+        primary: Color(0xFF2B7BFF),
+        secondary: Color(0xFF070A18),
+        accent: Color(0xFF3FD5FF),
+        shadow: Color(0xFF1546A8),
       );
     case 'super_over':
       return const _GamePalette(

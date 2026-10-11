@@ -363,7 +363,11 @@ class _DiamondGridPainter extends CustomPainter {
       ..strokeWidth = 1;
     const step = 46.0;
     for (double x = -size.height; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x + size.height, size.height), paint);
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        paint,
+      );
       canvas.drawLine(
         Offset(x + size.height, 0),
         Offset(x, size.height),
@@ -413,6 +417,23 @@ class GameIconPattern extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Asked when someone backs out of a lobby they invited players to: leaving
+/// closes the room, so the invite stops working. Returns true to leave.
+Future<bool> confirmCancelInvite(BuildContext context) async {
+  final confirmed = await showGameDialog(
+    context,
+    title: 'CANCEL INVITE?',
+    message:
+        'Going back will cancel the invite you sent. Stay on this screen so '
+        'the players you invited can join your match.',
+    cancelLabel: 'Stay',
+    confirmLabel: 'Leave',
+    confirmTone: GameButtonTone.red,
+    headerColors: GameColors.red,
+  );
+  return confirmed == true;
 }
 
 /// A confirm dialog drawn as a [GamePanel]. Returns true when confirmed.

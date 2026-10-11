@@ -29,7 +29,8 @@ class ChatUserModel {
   factory ChatUserModel.fromMap(Map<String, dynamic> map) {
     final lastSeenAt = _parseDateTime(map['last_seen_at']);
     final now = DateTime.now();
-    final freshEnough = lastSeenAt != null &&
+    final freshEnough =
+        lastSeenAt != null &&
         now.difference(lastSeenAt) <= onlineFreshnessWindow;
     return ChatUserModel(
       uid: (map['uid'] ?? '').toString(),
@@ -38,15 +39,18 @@ class ChatUserModel {
           (map['username'] ?? map['user_name'] ?? map['gameUserName'] ?? '')
               .toString(),
       email: (map['email'] ?? '').toString(),
-      phoneNumber: (map['phone_number'] ??
-              map['phone'] ??
-              map['mobileNo'] ??
-              map['mobile_number'] ??
-              map['mobile'] ??
-              '')
-          .toString(),
+      phoneNumber:
+          (map['phone_number'] ??
+                  map['phone'] ??
+                  map['mobileNo'] ??
+                  map['mobile_number'] ??
+                  map['mobile'] ??
+                  '')
+              .toString(),
       photoUrl: (map['photo_url'] ?? '').toString(),
-      backendUserId: _parseInt(map['backend_user_id'] ?? map['user_id'] ?? map['id']),
+      backendUserId: _parseInt(
+        map['backend_user_id'] ?? map['user_id'] ?? map['id'],
+      ),
       isOnline: map['is_online'] == true && freshEnough,
       updatedAt: _parseDateTime(map['updated_at']) ?? DateTime.now(),
       lastSeenAt: lastSeenAt,

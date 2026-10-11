@@ -13,6 +13,10 @@ import 'power_ups.dart';
 import 'online/ludo_match.dart';
 import 'online/ludo_match_service.dart';
 import 'ludo_dice_policy.dart';
+import 'skins/ludo_board_theme.dart';
+import 'skins/ludo_dice_skin.dart';
+import 'skins/ludo_skin.dart';
+import 'skins/ludo_skin_store.dart';
 
 class LudoProvider extends ChangeNotifier {
   LudoProvider({
@@ -266,6 +270,31 @@ class LudoProvider extends ChangeNotifier {
   bool get isOnline => _online;
   LudoPlayerType? get mySeat => _mySeat;
 
+  Map<LudoPlayerType, String> _seatSkins = {};
+
+  /// The pawn skin a seat wears: online, whatever that player equipped;
+  /// locally, mine on every human seat.
+  String skinFor(LudoPlayerType seat) {
+    if (_online) return _seatSkins[seat] ?? LudoSkin.classicId;
+    final human = !againstAi || seat == LudoPlayerType.green;
+    return human ? LudoSkinStore.instance.selected : LudoSkin.classicId;
+  }
+
+  Map<LudoPlayerType, String> _seatDice = {};
+  String? _hostBoard;
+
+  /// The board everyone plays on: the host's online, mine locally.
+  String get boardTheme => _online
+      ? (_hostBoard ?? LudoBoardTheme.classicId)
+      : LudoSkinStore.instance.selectedBoard;
+
+  /// The dice on screen: whoever's turn it is rolls their own.
+  String get currentDice {
+    if (_online) return _seatDice[_currentTurn] ?? LudoDiceSkin.classicId;
+    final human = !againstAi || _currentTurn == LudoPlayerType.green;
+    return human ? LudoSkinStore.instance.selectedDice : LudoDiceSkin.classicId;
+  }
+
   /// A seat-less online client is a spectator: it mirrors the match but can
   /// never roll, move or skip.
   bool get isSpectator => _online && _mySeat == null;
@@ -309,6 +338,18 @@ class LudoProvider extends ChangeNotifier {
   /// we skip those (we already hold that state) unless [force] (initial load).
   void _applyRemote(LudoMatch m, {bool force = false}) {
     _activeSeats = m.seats.keys.toSet();
+    _seatSkins = {
+      for (final e in m.seats.entries)
+        if (e.value.skin != null) e.key: e.value.skin!,
+    };
+    _seatDice = {
+      for (final e in m.seats.entries)
+        if (e.value.dice != null) e.key: e.value.dice!,
+    };
+    _hostBoard = m.seats.values
+        .where((s) => s.uid == m.hostUid)
+        .firstOrNull
+        ?.board;
     _botSeats = m.botSeats;
     _drivesBots = _mySeat != null && m.botDriverUid == _uid;
     _version = m.version;

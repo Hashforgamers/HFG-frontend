@@ -179,6 +179,12 @@ flutter:
     - assets/audio/music/
     - assets/audio/sfx/
     - assets/mini_game_icons/
+    - assets/html_games/hash_rush/
+    - assets/html_games/hash_rush/app/
+    - assets/html_games/hash_rush/models/
+    - assets/html_games/road_rumble/
+    - assets/html_games/road_rumble/tex/
+    - assets/html_games/road_rumble/models/
     - assets/html_games/super_over/
     - assets/html_games/super_over/lib/
     - assets/html_games/super_over/lib/jsm/loaders/
@@ -196,6 +202,9 @@ flutter:
     - assets/plant_vs_zombies/images/
     - assets/plant_vs_zombies/sounds/
 
+    - assets/arrow_escape/
+    - assets/road_rumble/
+    - assets/road_rumble/menu/
     - assets/pacman/
     - assets/pacman/images/ghost2.png
     - assets/pacman/images/ghost3.png

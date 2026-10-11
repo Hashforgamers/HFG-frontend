@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../constants.dart' show LudoPath, LudoPlayerType, LudoGameState;
 import '../ludo_player.dart';
+import '../skins/ludo_board_theme.dart';
 
 ///Widget for the board
 class BoardWidget extends StatelessWidget {
@@ -43,142 +44,151 @@ class BoardWidget extends StatelessWidget {
       height: ludoBoard(context),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(size == null ? 40 : 18),
-        image: const DecorationImage(
-          image: AssetImage("assets/ludo/images/board.png"),
-          fit: BoxFit.cover,
-          alignment: Alignment.topCenter,
-        ),
       ),
-      child: Consumer<LudoProvider>(
-        builder: (context, value, child) {
-          //We use `Stack` to put all widgets on top of each other
-          //so we make some logic to change the order of players to make sure
-          //the player on top is the one who is playing
-          List<LudoPlayer> players = List.from(value.players);
-          Map<String, List<PawnWidget>> pawnsRaw = {};
-          Map<String, List<String>> pawnsToPrint = {};
-          List<Widget> playersPawn = [];
+      child: LudoBoardSurface(
+        theme: LudoBoardTheme.byId(
+          context.select<LudoProvider, String>((p) => p.boardTheme),
+        ),
+        child: Consumer<LudoProvider>(
+          builder: (context, value, child) {
+            //We use `Stack` to put all widgets on top of each other
+            //so we make some logic to change the order of players to make sure
+            //the player on top is the one who is playing
+            List<LudoPlayer> players = List.from(value.players);
+            Map<String, List<PawnWidget>> pawnsRaw = {};
+            Map<String, List<String>> pawnsToPrint = {};
+            List<Widget> playersPawn = [];
 
-          //Sort players by current turn to make sure the player on top is the one who is playing
-          players.sort((a, b) => value.currentPlayer.type == a.type ? 1 : -1);
+            //Sort players by current turn to make sure the player on top is the one who is playing
+            players.sort((a, b) => value.currentPlayer.type == a.type ? 1 : -1);
 
-          ///Loop through all players and add their pawns to the map
-          for (int i = 0; i < players.length; i++) {
-            var player = players[i];
-            for (int j = 0; j < player.pawns.length; j++) {
-              var pawn = player.pawns[j];
-              if (pawn.step > -1) {
-                String step = player.path[pawn.step].toString();
-                if (pawnsRaw[step] == null) {
-                  pawnsRaw[step] = [];
-                  pawnsToPrint[step] = [];
+            ///Loop through all players and add their pawns to the map
+            for (int i = 0; i < players.length; i++) {
+              var player = players[i];
+              for (int j = 0; j < player.pawns.length; j++) {
+                var pawn = player.pawns[j];
+                if (pawn.step > -1) {
+                  String step = player.path[pawn.step].toString();
+                  if (pawnsRaw[step] == null) {
+                    pawnsRaw[step] = [];
+                    pawnsToPrint[step] = [];
+                  }
+                  pawnsRaw[step]!.add(pawn);
+                  pawnsToPrint[step]!.add(player.type.toString());
+                } else {
+                  if (pawnsRaw["home"] == null) {
+                    pawnsRaw["home"] = [];
+                    pawnsToPrint["home"] = [];
+                  }
+                  pawnsRaw["home"]!.add(pawn);
+                  pawnsToPrint["home"]!.add(player.type.toString());
                 }
-                pawnsRaw[step]!.add(pawn);
-                pawnsToPrint[step]!.add(player.type.toString());
-              } else {
-                if (pawnsRaw["home"] == null) {
-                  pawnsRaw["home"] = [];
-                  pawnsToPrint["home"] = [];
-                }
-                pawnsRaw["home"]!.add(pawn);
-                pawnsToPrint["home"]!.add(player.type.toString());
               }
             }
-          }
 
-          for (int i = 0; i < pawnsRaw.keys.length; i++) {
-            String key = pawnsRaw.keys.elementAt(i);
-            List<PawnWidget> pawnsValue = pawnsRaw[key]!;
+            for (int i = 0; i < pawnsRaw.keys.length; i++) {
+              String key = pawnsRaw.keys.elementAt(i);
+              List<PawnWidget> pawnsValue = pawnsRaw[key]!;
 
-            /// This is for every pawn in home
-            if (key == "home") {
-              playersPawn.addAll(
-                pawnsValue.map((e) {
-                  var player = value.players.firstWhere(
-                    (element) => element.type == e.type,
-                  );
-                  return AnimatedPositioned(
-                    key: ValueKey("${e.type.name}_${e.index}"),
-                    left: LudoPath.stepBox(
-                      ludoBoard(context),
-                      player.homePath[e.index][0],
-                    ),
-                    top: LudoPath.stepBox(
-                      ludoBoard(context),
-                      player.homePath[e.index][1],
-                    ),
-                    width: boxStepSize(context),
-                    height: boxStepSize(context),
-                    duration: const Duration(milliseconds: 200),
-                    child: e,
-                  );
-                }),
-              );
-            } else {
-              // This is for every pawn in path (not in home)
-              // I'm so lazy, so make it simple h3h3
-              List<double> coordinates = key
-                  .replaceAll("[", "")
-                  .replaceAll("]", "")
-                  .split(",")
-                  .map((e) => double.parse(e.trim()))
-                  .toList();
-
-              if (pawnsValue.length == 1) {
-                // This is for 1 pawn in 1 box
-                var e = pawnsValue.first;
-                playersPawn.add(
-                  AnimatedPositioned(
-                    key: ValueKey("${e.type.name}_${e.index}"),
-                    duration: const Duration(milliseconds: 200),
-                    left: LudoPath.stepBox(ludoBoard(context), coordinates[0]),
-                    top: LudoPath.stepBox(ludoBoard(context), coordinates[1]),
-                    width: boxStepSize(context),
-                    height: boxStepSize(context),
-                    child: pawnsValue.first,
-                  ),
-                );
-              } else {
-                // This is for more than 1 pawn in 1 box
+              /// This is for every pawn in home
+              if (key == "home") {
                 playersPawn.addAll(
-                  List.generate(pawnsValue.length, (index) {
-                    var e = pawnsValue[index];
+                  pawnsValue.map((e) {
+                    var player = value.players.firstWhere(
+                      (element) => element.type == e.type,
+                    );
                     return AnimatedPositioned(
                       key: ValueKey("${e.type.name}_${e.index}"),
-                      duration: const Duration(milliseconds: 200),
-                      left:
-                          LudoPath.stepBox(ludoBoard(context), coordinates[0]) +
-                          (index * 3),
-                      top: LudoPath.stepBox(ludoBoard(context), coordinates[1]),
-                      width: boxStepSize(context) - 5,
+                      left: LudoPath.stepBox(
+                        ludoBoard(context),
+                        player.homePath[e.index][0],
+                      ),
+                      top: LudoPath.stepBox(
+                        ludoBoard(context),
+                        player.homePath[e.index][1],
+                      ),
+                      width: boxStepSize(context),
                       height: boxStepSize(context),
-                      child: pawnsValue[index],
+                      duration: const Duration(milliseconds: 200),
+                      child: e,
                     );
                   }),
                 );
+              } else {
+                // This is for every pawn in path (not in home)
+                // I'm so lazy, so make it simple h3h3
+                List<double> coordinates = key
+                    .replaceAll("[", "")
+                    .replaceAll("]", "")
+                    .split(",")
+                    .map((e) => double.parse(e.trim()))
+                    .toList();
+
+                if (pawnsValue.length == 1) {
+                  // This is for 1 pawn in 1 box
+                  var e = pawnsValue.first;
+                  playersPawn.add(
+                    AnimatedPositioned(
+                      key: ValueKey("${e.type.name}_${e.index}"),
+                      duration: const Duration(milliseconds: 200),
+                      left: LudoPath.stepBox(
+                        ludoBoard(context),
+                        coordinates[0],
+                      ),
+                      top: LudoPath.stepBox(ludoBoard(context), coordinates[1]),
+                      width: boxStepSize(context),
+                      height: boxStepSize(context),
+                      child: pawnsValue.first,
+                    ),
+                  );
+                } else {
+                  // This is for more than 1 pawn in 1 box
+                  playersPawn.addAll(
+                    List.generate(pawnsValue.length, (index) {
+                      var e = pawnsValue[index];
+                      return AnimatedPositioned(
+                        key: ValueKey("${e.type.name}_${e.index}"),
+                        duration: const Duration(milliseconds: 200),
+                        left:
+                            LudoPath.stepBox(
+                              ludoBoard(context),
+                              coordinates[0],
+                            ) +
+                            (index * 3),
+                        top: LudoPath.stepBox(
+                          ludoBoard(context),
+                          coordinates[1],
+                        ),
+                        width: boxStepSize(context) - 5,
+                        height: boxStepSize(context),
+                        child: pawnsValue[index],
+                      );
+                    }),
+                  );
+                }
               }
             }
-          }
 
-          return Center(
-            child: Stack(
-              fit: StackFit.expand,
-              alignment: Alignment.center,
-              children: [
-                ...playersPawn,
-                ...winners(context, value.winners),
-                if (showTurnIndicator)
-                  turnIndicator(
-                    context,
-                    value.currentPlayer.type,
-                    value.currentPlayer.color,
-                    value.gameState,
-                    isMine: !value.isOnline || value.isMyTurn,
-                  ),
-              ],
-            ),
-          );
-        },
+            return Center(
+              child: Stack(
+                fit: StackFit.expand,
+                alignment: Alignment.center,
+                children: [
+                  ...playersPawn,
+                  ...winners(context, value.winners),
+                  if (showTurnIndicator)
+                    turnIndicator(
+                      context,
+                      value.currentPlayer.type,
+                      value.currentPlayer.color,
+                      value.gameState,
+                      isMine: !value.isOnline || value.isMyTurn,
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

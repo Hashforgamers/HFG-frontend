@@ -2,7 +2,11 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 
+import 'package:hash/features/mini_games/common/cosmetics.dart';
+import 'package:hash/features/mini_games/common/game_looks.dart';
 import 'package:hash/features/mini_games/common/game_sfx.dart';
+import 'package:hash/features/mini_games/common/game_shops.dart';
+import 'package:hash/features/mini_games/common/mini_game_coins.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -16,6 +20,7 @@ import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 
 import 'pacman_engine.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 enum _Phase { menu, ready, playing, dying, paused, over }
 
@@ -50,6 +55,8 @@ class _PacManHomeState extends State<PacManHome>
 
   // Result.
   bool _saving = false;
+  bool _continued = false;
+  bool _paying = false;
   bool _synced = true;
   bool _newBest = false;
 
@@ -60,11 +67,15 @@ class _PacManHomeState extends State<PacManHome>
   @override
   void initState() {
     super.initState();
+    ArcadeAnalytics.opened(gameId);
     _ticker = createTicker(_tick);
     WidgetsBinding.instance.addObserver(this);
     _engine.newGame();
     unawaited(_loadBest());
     unawaited(_loadAudio());
+    CosmeticStore.instance.load().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _loadBest() async {
@@ -88,6 +99,7 @@ class _PacManHomeState extends State<PacManHome>
 
   @override
   void dispose() {
+    ArcadeAnalytics.closed(gameId);
     WidgetsBinding.instance.removeObserver(this);
     _ticker.dispose();
     _frame.dispose();
@@ -98,7 +110,29 @@ class _PacManHomeState extends State<PacManHome>
 
   // ------------------------------------------------------------------ flow
 
+  /// Spends HashCoins to carry on with full lives; once per run.
+  Future<void> _continueWithCoins() async {
+    if (_continued || _paying) return;
+    setState(() => _paying = true);
+    final paid = await MiniGameCoins.spend(
+      context,
+      amount: MiniGameCoins.pacManContinue,
+      source: 'pac_man_continue',
+    );
+    if (!mounted) return;
+    setState(() => _paying = false);
+    if (!paid) return;
+    _continued = true;
+    _engine.lives = PacEngine.startLives;
+    _engine.resetPositions();
+    _enterReady();
+    _last = Duration.zero;
+    if (!_ticker.isActive) _ticker.start();
+  }
+
   void _start() {
+    ArcadeAnalytics.started(gameId);
+    _continued = false;
     _engine.newGame();
     _saving = false;
     _newBest = false;
@@ -391,7 +425,15 @@ class _PacManHomeState extends State<PacManHome>
                   height: h,
                   child: Stack(
                     children: [
-                      Positioned.fill(child: _MazeImage(cell: cell)),
+                      Positioned.fill(
+                        child: _MazeImage(
+                          // A new theme needs a freshly drawn maze.
+                          key: ValueKey(
+                            CosmeticStore.instance.selected(PacLook.slot),
+                          ),
+                          cell: cell,
+                        ),
+                      ),
                       Positioned.fill(
                         child: RepaintBoundary(
                           child: CustomPaint(
@@ -535,6 +577,21 @@ class _PacManHomeState extends State<PacManHome>
             height: 58,
             onPressed: _start,
           ),
+          const SizedBox(height: 8),
+          GameButton(
+            label: 'Themes',
+            icon: Icons.palette_rounded,
+            tone: GameButtonTone.purple,
+            height: 46,
+            onPressed: () async {
+              await openCosmeticShop(
+                context,
+                title: 'PAC THEMES',
+                tabs: GameShops.pacMan,
+              );
+              if (mounted) setState(() {});
+            },
+          ),
         ],
       ),
     ),
@@ -656,6 +713,18 @@ class _PacManHomeState extends State<PacManHome>
             ),
           ),
           const SizedBox(height: 14),
+          if (!_continued) ...[
+            GameButton(
+              label: _paying ? 'Spending…' : 'Continue',
+              icon: Icons.favorite_rounded,
+              subtitle:
+                  '${MiniGameCoins.pacManContinue} HashCoins · keep score',
+              tone: _paying ? GameButtonTone.grey : GameButtonTone.yellow,
+              height: 60,
+              onPressed: _paying ? null : _continueWithCoins,
+            ),
+            const SizedBox(height: 8),
+          ],
           GameButton(
             label: 'Play Again',
             icon: Icons.refresh_rounded,
@@ -706,17 +775,15 @@ class _MazePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = const Color(0xFF05041A),
-    );
-    final fill = Paint()..color = const Color(0xFF1B1766);
+    final look = PacLook.current;
+    canvas.drawRect(Offset.zero & size, Paint()..color = look.background);
+    final fill = Paint()..color = look.wall;
     final edge = Paint()
-      ..color = const Color(0xFF6E8BFF)
+      ..color = look.wallLine
       ..strokeWidth = max(1.5, cell * 0.09)
       ..strokeCap = StrokeCap.round;
     final glow = Paint()
-      ..color = const Color(0x556E8BFF)
+      ..color = look.wallLine.withValues(alpha: 0.33)
       ..strokeWidth = max(3, cell * 0.28)
       ..strokeCap = StrokeCap.round
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, cell * 0.12);
@@ -807,12 +874,13 @@ class _ActorsPainter extends CustomPainter {
     final pulse = 0.75 + 0.25 * sin(e.elapsed * 8);
 
     // Dots and pellets.
-    final dot = Paint()..color = const Color(0xFFFFE0B0);
+    final look = PacLook.current;
+    final dot = Paint()..color = look.dot;
     for (final k in e.dots) {
       final c = _center(k % kPacCols + 0.0, k ~/ kPacCols + 0.0);
       canvas.drawCircle(c, cell * 0.11, dot);
     }
-    final pellet = Paint()..color = const Color(0xFFFFE0B0);
+    final pellet = Paint()..color = look.dot;
     for (final k in e.pellets) {
       final c = _center(k % kPacCols + 0.0, k ~/ kPacCols + 0.0);
       canvas.drawCircle(c, cell * 0.3 * pulse, pellet);
@@ -871,9 +939,9 @@ class _ActorsPainter extends CustomPainter {
       2 * pi - mouth * 2,
       true,
       Paint()
-        ..shader = const RadialGradient(
-          colors: [Color(0xFFFFF27A), Color(0xFFFFC400)],
-          center: Alignment(-0.3, -0.4),
+        ..shader = RadialGradient(
+          colors: [PacLook.current.pacLight, PacLook.current.pacDark],
+          center: const Alignment(-0.3, -0.4),
         ).createShader(rect),
     );
   }
@@ -999,7 +1067,7 @@ class _PacIconPainter extends CustomPainter {
 /// Renders [_MazePainter] to an image once per size: the glow blur is too
 /// costly to replay every frame on renderers without a raster cache.
 class _MazeImage extends StatefulWidget {
-  const _MazeImage({required this.cell});
+  const _MazeImage({super.key, required this.cell});
 
   final double cell;
 
@@ -1058,7 +1126,7 @@ class _MazeImageState extends State<_MazeImage> {
   Widget build(BuildContext context) {
     final image = _image;
     if (image == null) {
-      return const ColoredBox(color: Color(0xFF05041A));
+      return ColoredBox(color: PacLook.current.background);
     }
     return RawImage(image: image, fit: BoxFit.fill);
   }

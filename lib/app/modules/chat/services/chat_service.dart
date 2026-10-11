@@ -17,6 +17,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/features/mini_games/score/mini_game_leaderboard_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatService extends GetxService with WidgetsBindingObserver {
@@ -1070,8 +1071,133 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     emoji: '🟩',
   );
 
-  Future<void> _sendGameInviteMessage({
+  /// Arrow Escape race counterpart of [sendLudoInviteMessage]
+  /// (`arrow_invite`).
+  Future<void> sendArrowEscapeInviteMessage({
     required ChatUserModel friend,
+    required String matchId,
+  }) => _sendGameInviteMessage(
+    friend: friend,
+    matchId: matchId,
+    type: 'arrow_invite',
+    pathPrefix: 'arrowmatch_',
+    gameName: 'Arrow Escape',
+    emoji: '🏹',
+  );
+
+  /// Leaderboard board id for a match-invite [game] key, or null when the game
+  /// has no leaderboard of its own (its invites go to the lounge only).
+  static String? leaderboardGameIdFor(String game) => switch (game) {
+    'ludo' => 'ludo',
+    'bird' => 'laggy_bird',
+    'wordly' => 'wordly',
+    'arrow' => 'arrow_escape',
+    _ => null,
+  };
+
+  /// Posts a match invite for [game] (`ludo`, `snl`, `bird`, `wordly` or
+  /// `arrow`) in the leaderboard chats, where any player can join: the shared
+  /// Hash Arcade Lounge and, when the game has its own board, that game's
+  /// leaderboard chat too.
+  Future<void> sendGameInviteToLounge({
+    required String game,
+    required String matchId,
+  }) async {
+    final spec = switch (game) {
+      'snl' => ('snl_invite', 'snlmatch_', 'Snakes & Ladders', '🐍'),
+      'bird' => ('bird_invite', 'birdmatch_', 'Laggy Bird', '🐦'),
+      'wordly' => ('wordly_invite', 'wordlymatch_', 'Wordly', '🟩'),
+      'arrow' => ('arrow_invite', 'arrowmatch_', 'Arrow Escape', '🏹'),
+      _ => ('ludo_invite', 'ludomatch_', 'Ludo', '🎲'),
+    };
+    final roomId = await MiniGameLeaderboardService()
+        .ensureLeaderboardChatRoom();
+    await _sendGameInviteMessage(
+      roomId: roomId,
+      matchId: matchId,
+      type: spec.$1,
+      pathPrefix: spec.$2,
+      gameName: spec.$3,
+      emoji: spec.$4,
+    );
+    final boardId = leaderboardGameIdFor(game);
+    if (boardId == null) return;
+    try {
+      final boardRoomId = await MiniGameLeaderboardService()
+          .ensureLeaderboardChatRoom(gameId: boardId);
+      if (boardRoomId == roomId) return;
+      await _sendGameInviteMessage(
+        roomId: boardRoomId,
+        matchId: matchId,
+        type: spec.$1,
+        pathPrefix: spec.$2,
+        gameName: spec.$3,
+        emoji: spec.$4,
+      );
+    } catch (_) {
+      // the lounge post already went out; the game's own chat is a bonus
+    }
+  }
+
+  /// Posts a "beat my score" challenge for [gameId] in the leaderboard chats
+  /// (the game's own chat and the shared lounge). Each message carries the
+  /// game id, so the card in chat can open the game.
+  Future<void> sendScoreChallenge({
+    required String gameId,
+    required String gameName,
+    required int score,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to send a challenge.');
+    }
+    final safeGameId = gameId.trim();
+    if (safeGameId.isEmpty || score <= 0) {
+      throw Exception('Play a game first, then challenge the chat.');
+    }
+    final senderName = await _resolveCurrentUserNameFromStore(uid);
+    final boards = MiniGameLeaderboardService();
+    final roomIds = <String>{
+      await boards.ensureLeaderboardChatRoom(gameId: safeGameId),
+      await boards.ensureLeaderboardChatRoom(),
+    };
+    final text = '$senderName scored $score in $gameName 🏆 Can you beat it?';
+    for (final roomId in roomIds) {
+      final roomRef = _roomsRef.doc(roomId);
+      final messageRef = roomRef.collection(_messagesCollection).doc();
+      await messageRef.set({
+        'id': messageRef.id,
+        'room_id': roomId,
+        'sender_id': uid,
+        'sender_name': senderName,
+        'text': text,
+        'type': 'score_challenge',
+        'meta': {
+          'game_id': safeGameId,
+          'game_name': gameName,
+          'score': score,
+          'challenger_uid': uid,
+          'challenger_name': senderName,
+        },
+        'seen_by': [uid],
+        'created_at': FieldValue.serverTimestamp(),
+        'client_created_at': DateTime.now().toIso8601String(),
+      });
+      await roomRef.set({
+        'last_message': '$gameName score challenge 🏆',
+        'last_message_sender_id': uid,
+        'last_message_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+        'client_updated_at': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+    }
+  }
+
+  /// Posts the invite in the direct room with [friend], or in [roomId] (a
+  /// group room) when given.
+  Future<void> _sendGameInviteMessage({
+    ChatUserModel? friend,
+    String? roomId,
     required String matchId,
     required String type,
     required String pathPrefix,
@@ -1087,7 +1213,9 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       throw Exception('Invalid match.');
     }
 
-    final roomId = await getOrCreateDirectRoom(otherUser: friend);
+    final open = roomId != null;
+    final targetRoomId =
+        roomId ?? await getOrCreateDirectRoom(otherUser: friend!);
     final senderName = await _resolveCurrentUserNameFromStore(uid);
     final deepLink = Uri(
       scheme: 'hashforgamers',
@@ -1098,14 +1226,15 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       'hashforgamers.com',
       '/game/$pathPrefix$safeMatchId',
     ).toString();
-    final previewText =
-        '$senderName invited you to a $gameName match $emoji\nTap to join: $deepLink';
+    final previewText = open
+        ? '$senderName is looking for players for a $gameName match $emoji\nTap to join: $deepLink'
+        : '$senderName invited you to a $gameName match $emoji\nTap to join: $deepLink';
 
-    final roomRef = _roomsRef.doc(roomId);
+    final roomRef = _roomsRef.doc(targetRoomId);
     final messageRef = roomRef.collection(_messagesCollection).doc();
     await messageRef.set({
       'id': messageRef.id,
-      'room_id': roomId,
+      'room_id': targetRoomId,
       'sender_id': uid,
       'sender_name': senderName,
       'text': previewText,

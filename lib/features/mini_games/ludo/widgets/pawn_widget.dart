@@ -5,6 +5,7 @@ import 'package:simple_ripple_animation/simple_ripple_animation.dart';
 
 import '../constants.dart';
 import '../ludo_provider.dart';
+import '../skins/ludo_skin.dart';
 
 ///Widget for the pawn
 class PawnWidget extends StatelessWidget {
@@ -61,18 +62,9 @@ class PawnWidget extends StatelessWidget {
                   provider.move(type, index, (step + 1) + provider.diceResult);
                 }
               },
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: color, width: 2),
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
+              child: LudoPawn(
+                skin: LudoSkin.byId(provider.skinFor(type)),
+                color: color,
               ),
             ),
           ),

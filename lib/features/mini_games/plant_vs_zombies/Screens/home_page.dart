@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:hash/features/mini_games/common/game_sfx.dart';
+import 'package:hash/features/mini_games/common/mini_game_coins.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -15,6 +16,7 @@ import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 
 import '../Constant/assets.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
 enum _Phase { menu, playing, paused, over }
 
@@ -70,6 +72,8 @@ class _PlantVsZombieState extends State<PlantVsZombie>
   int _plantLane = 2;
   int _score = 0;
   int _lives = _maxLives;
+  bool _continued = false;
+  bool _paying = false;
   int _best = 0;
   double _spawnIn = 1.2;
   double _cooldown = 0;
@@ -95,6 +99,7 @@ class _PlantVsZombieState extends State<PlantVsZombie>
   @override
   void initState() {
     super.initState();
+    ArcadeAnalytics.opened(gameId);
     _ticker = createTicker(_tick);
     WidgetsBinding.instance.addObserver(this);
     unawaited(_loadBest());
@@ -117,6 +122,7 @@ class _PlantVsZombieState extends State<PlantVsZombie>
 
   @override
   void dispose() {
+    ArcadeAnalytics.closed(gameId);
     WidgetsBinding.instance.removeObserver(this);
     _ticker.dispose();
     _frame.dispose();
@@ -126,7 +132,31 @@ class _PlantVsZombieState extends State<PlantVsZombie>
 
   // ------------------------------------------------------------------ flow
 
+  /// Spends HashCoins to carry on with full lives; once per run.
+  Future<void> _continueWithCoins() async {
+    if (_continued || _paying) return;
+    setState(() => _paying = true);
+    final paid = await MiniGameCoins.spend(
+      context,
+      amount: MiniGameCoins.plantVsZombieContinue,
+      source: 'plant_vs_zombie_continue',
+    );
+    if (!mounted) return;
+    setState(() {
+      _paying = false;
+      if (!paid) return;
+      _continued = true;
+      _lives = _maxLives;
+      _phase = _Phase.playing;
+    });
+    if (!paid) return;
+    _lastTick = Duration.zero;
+    if (!_ticker.isActive) _ticker.start();
+  }
+
   void _start() {
+    ArcadeAnalytics.started(gameId);
+    _continued = false;
     setState(() {
       _phase = _Phase.playing;
       _plantLane = 2;
@@ -856,6 +886,18 @@ class _PlantVsZombieState extends State<PlantVsZombie>
             ),
           ),
           const SizedBox(height: 14),
+          if (!_continued) ...[
+            GameButton(
+              label: _paying ? 'Spending…' : 'Continue',
+              icon: Icons.favorite_rounded,
+              subtitle:
+                  '${MiniGameCoins.plantVsZombieContinue} HashCoins · keep score',
+              tone: _paying ? GameButtonTone.grey : GameButtonTone.yellow,
+              height: 60,
+              onPressed: _paying ? null : _continueWithCoins,
+            ),
+            const SizedBox(height: 8),
+          ],
           GameButton(
             label: 'Play Again',
             icon: Icons.refresh_rounded,
