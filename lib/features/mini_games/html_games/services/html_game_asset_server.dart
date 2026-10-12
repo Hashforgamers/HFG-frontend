@@ -8,12 +8,19 @@ import 'package:flutter/services.dart';
 ///
 /// `loadData` can't resolve relative URLs, so games with ES modules or asset
 /// files load from here instead: they then work offline and load instantly.
-/// Only paths under [_root] are served; it binds an ephemeral port on
-/// 127.0.0.1 so nothing outside the device can reach it.
+/// Only paths under [_root] are served; it binds 127.0.0.1 so nothing outside
+/// the device can reach it.
+///
+/// The port is fixed ([_preferredPort]) because a page's `localStorage` is
+/// keyed by origin, port included: on a random port every app launch would be
+/// a new origin and a game's saved progress would vanish. A random port is
+/// only the fallback when the fixed one is taken.
 class HtmlGameAssetServer {
   HtmlGameAssetServer._();
 
   static final HtmlGameAssetServer instance = HtmlGameAssetServer._();
+
+  static const _preferredPort = 47631;
 
   static const _root = 'assets/html_games/';
   static const _types = <String, String>{
@@ -51,7 +58,15 @@ class HtmlGameAssetServer {
   Future<Uri> urlFor(String assetPath) async => (await start()).resolve(assetPath);
 
   Future<Uri> _bind() async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    HttpServer server;
+    try {
+      server = await HttpServer.bind(
+        InternetAddress.loopbackIPv4,
+        _preferredPort,
+      );
+    } on SocketException {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    }
     _server = server;
     server.listen(_handle, onError: (_) {});
     return Uri.parse('http://127.0.0.1:${server.port}/');

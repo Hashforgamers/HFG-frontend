@@ -397,3 +397,14 @@ button { font: inherit; color: inherit; border: 0; background: none; padding: 0;
   background: none; color: var(--text); font: inherit; font-size: calc(10 * var(--u)); font-weight: 800; letter-spacing: 0.08em; cursor: pointer; transition: background 0.15s, transform 0.1s; }
 .dock-tab .ic { width: calc(22 * var(--u)); height: calc(22 * var(--u)); color: var(--cyan); }
 .dock-tab:active { background: rgba(120, 160, 255, 0.18); transform: scale(0.94); }
+
+/* ---------- purchase in progress ---------- */
+.loading { position: relative; pointer-events: none; animation: none !important; }
+.loading > * { visibility: hidden; }
+.loading::after { content: ''; position: absolute; left: 50%; top: 50%; width: calc(18 * var(--u)); height: calc(18 * var(--u)); margin: calc(-9 * var(--u)) 0 0 calc(-9 * var(--u));
+  border-radius: 50%; border: calc(3 * var(--u)) solid rgba(42, 26, 0, 0.25); border-top-color: #2a1a00; animation: spin 0.7s linear infinite; }
+.skin-state.loading { min-width: calc(54 * var(--u)); min-height: calc(20 * var(--u)); color: transparent; }
+.skin-state.loading::after { width: calc(12 * var(--u)); height: calc(12 * var(--u)); margin: calc(-6 * var(--u)) 0 0 calc(-6 * var(--u)); border-width: calc(2 * var(--u)); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.busy { pointer-events: none; }
+.busy > :not(:has(.loading)) { opacity: 0.7; transition: opacity 0.15s; }

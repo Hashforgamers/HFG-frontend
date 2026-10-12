@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hash/core/repositories/model/hash_coin_spend.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/app_logger.dart';
@@ -95,6 +96,20 @@ class LudoSkinStore extends ChangeNotifier {
         if (remote is List) _owned.addAll(remote.map((e) => e.toString()));
         await prefs.setStringList(_ownedKey, _owned.toList());
       }
+      if (uid != 'guest' && spend == null) {
+        // the HashCoin ledger is the source of truth for what was paid for
+        final purchases = await locator<RemoteRepoInterface>()
+            .getHashCoinPurchases()
+            .timeout(const Duration(seconds: 4));
+        final bought = HashCoinPurchase.itemIds(
+          purchases,
+          'ludo_skin_purchase',
+        );
+        if (bought.isNotEmpty && !_owned.containsAll(bought)) {
+          _owned.addAll(bought);
+          await prefs.setStringList(_ownedKey, _owned.toList());
+        }
+      }
     } catch (e) {
       if (kDebugMode) AppLogger.d('Ludo skins load failed: $e');
     }
@@ -148,13 +163,21 @@ class LudoSkinStore extends ChangeNotifier {
   /// balance; throws (and changes nothing) if the payment fails.
   Future<int> buy(LudoShopItem item) async {
     if (owns(item.id)) throw StateError('Already owned');
-    final balance =
-        await (spend ??
-            (s) => locator<RemoteRepoInterface>().spendHashCoins(
-              amount: s.price,
-              source: 'ludo_skin_purchase',
-              referenceId: 'ludo_skin_${s.id}_$_uid',
-            ))(item);
+    int balance;
+    try {
+      balance =
+          await (spend ??
+              (s) => locator<RemoteRepoInterface>().spendHashCoins(
+                amount: s.price,
+                source: 'ludo_skin_purchase',
+                itemId: s.id,
+                referenceId: 'ludo_skin_${s.id}_$_uid',
+              ))(item);
+    } on HashCoinSpendException catch (e) {
+      // bought before (another device, or the reply was lost): theirs, no charge
+      if (!e.alreadyOwned) rethrow;
+      balance = e.balance ?? await locator<RemoteRepoInterface>().getHashCoin();
+    }
     _owned.add(item.id);
     _select(item.id);
     notifyListeners();

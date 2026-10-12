@@ -100,6 +100,8 @@ export interface ShopCatalog {
   upgrades: Record<string, number[]>;
   /** Skin id → price. */
   skins: Record<string, number>;
+  /** Skins the host's ledger says this player has already paid for, per slot. */
+  owned?: { army: string[]; cannon: string[] };
 }
 
 export interface PurchaseResult {
@@ -186,6 +188,7 @@ export class FlutterBridgeAdapter implements HashArcadeAdapter {
       balance: typeof reply.balance === 'number' ? reply.balance : null,
       upgrades: reply.upgrades as Record<string, number[]>,
       skins: reply.skins as Record<string, number>,
+      owned: ownedSkins(reply.owned),
     };
   }
 
@@ -193,6 +196,13 @@ export class FlutterBridgeAdapter implements HashArcadeAdapter {
     const reply = (await this.bridge.callHandler('coinShop', { action: 'buy', ...item })) as { ok?: boolean; balance?: unknown } | null;
     return { ok: reply?.ok === true, balance: typeof reply?.balance === 'number' ? reply.balance : null };
   }
+}
+
+/** Validate the host's owned-skins reply: two lists of strings, anything else dropped. */
+export function ownedSkins(raw: unknown): { army: string[]; cannon: string[] } {
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+  const o = (raw ?? {}) as { army?: unknown; cannon?: unknown };
+  return { army: list(o.army), cannon: list(o.cannon) };
 }
 
 /** Pick the adapter for the environment the page finds itself in. */

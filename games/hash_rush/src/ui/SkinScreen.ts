@@ -44,6 +44,7 @@ export class SkinScreen implements ScreenView {
     }
     const kind = this.kind;
     this.grid.replaceChildren();
+    this.grid.classList.remove('busy');
     for (const skin of SKINS) {
       const owned = save.skins.owned[kind].includes(skin.id);
       const equipped = save.skins[kind] === skin.id;
@@ -55,7 +56,14 @@ export class SkinScreen implements ScreenView {
           ? h('span.skin-state', null, 'EQUIP')
           : this.priceTag(shop?.skins[skin.id] ?? null, have);
       const card = h(`button.skin${equipped ? '.equipped' : ''}` as 'button', { type: 'button' }, swatch, h('span.skin-name', null, skin.name), state);
-      card.onclick = () => this.onPick(kind, skin.id);
+      card.onclick = () => {
+        // buying goes through the host: show a spinner and lock the grid until it answers
+        if (!owned) {
+          state.classList.add('loading');
+          this.grid.classList.add('busy');
+        }
+        this.onPick(kind, skin.id);
+      };
       this.grid.append(card);
     }
   }

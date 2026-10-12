@@ -35,6 +35,7 @@ export class ContinueScreen implements ScreenView {
     this.currency.textContent = ` ${offer.currency}`;
     this.note.textContent = '';
     this.payBtn.disabled = false;
+    this.payBtn.classList.remove('loading');
     this.left = SECONDS;
     this.tick();
     window.clearInterval(this.timer);
@@ -57,11 +58,13 @@ export class ContinueScreen implements ScreenView {
   busy(): void {
     this.stop();
     this.payBtn.disabled = true;
+    this.payBtn.classList.add('loading');
     this.note.textContent = 'Processing…';
   }
 
   failed(): void {
     this.payBtn.disabled = false;
+    this.payBtn.classList.remove('loading');
     this.note.textContent = 'Not charged. You can try again or skip.';
   }
 

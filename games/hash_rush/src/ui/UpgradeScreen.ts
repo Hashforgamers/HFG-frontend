@@ -29,6 +29,7 @@ export class UpgradeScreen implements ScreenView {
     this.wallet.hidden = have == null;
     this.balance.textContent = have == null ? '' : fmt(have);
     this.list.replaceChildren();
+    this.list.classList.remove('busy');
     for (const id of UPGRADE_IDS) {
       const def = UPGRADES[id];
       const level = save.upgrades[id];
@@ -37,7 +38,18 @@ export class UpgradeScreen implements ScreenView {
       const poor = cost == null || (have != null && have < cost);
       const buy = h(
         `button.btn.buy${maxed ? '.maxed' : poor ? '.poor' : '.can'}` as 'button',
-        { type: 'button', onclick: () => ((this.justBought = id), this.onBuy(id)) },
+        {
+          type: 'button',
+          onclick: () => {
+            this.justBought = id;
+            // the host charges over the network: show a spinner and lock the list until it answers
+            if (!maxed) {
+              buy.classList.add('loading');
+              this.list.classList.add('busy');
+            }
+            this.onBuy(id);
+          },
+        },
         maxed ? 'MAX' : cost == null ? '—' : h('span', null, h('span.credit-icon'), fmt(cost)),
       );
       buy.disabled = !maxed && cost == null;

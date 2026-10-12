@@ -6,6 +6,7 @@ import 'package:hash/core/repositories/model/extra_services_model.dart';
 import 'package:hash/core/repositories/model/event_team_members_response.dart';
 import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
+import 'package:hash/core/repositories/model/hash_coin_spend.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:hash/core/repositories/model/transaction_history_model.dart';
@@ -117,13 +118,22 @@ abstract class RemoteRepoInterface {
     String? referenceId,
   });
 
-  /// Debits [amount] HashCoins and returns the new balance. Throws when the
-  /// server refuses (e.g. not enough coins).
+  /// Debits [amount] HashCoins and returns the new balance. Throws a
+  /// [HashCoinSpendException] when the server refuses (not enough coins,
+  /// already owned, not sold...).
+  ///
+  /// [itemId] names a permanent catalogue item (Ludo skins, cosmetics); leave
+  /// it out for consumables and for Hash Rush. Retrying with the same
+  /// [referenceId] and payload is safe: the server debits once.
   Future<int> spendHashCoins({
     required int amount,
     required String source,
     required String referenceId,
+    String? itemId,
   });
+
+  /// The permanent items this player has bought with HashCoins.
+  Future<List<HashCoinPurchase>> getHashCoinPurchases();
 
   Future<CreateVoucherResponse> createOffer({required int discountPercentage});
 

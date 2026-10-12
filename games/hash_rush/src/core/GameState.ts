@@ -168,6 +168,24 @@ export function grantSkin(save: SaveData, kind: SkinKind, id: string): void {
   save.skins[kind] = skin.id;
 }
 
+/**
+ * Add skins the host's ledger says are already paid for (another device, a
+ * reinstall). Only known skin ids are accepted and nothing is equipped.
+ * Returns true if anything was added.
+ */
+export function restoreOwnedSkins(save: SaveData, owned: Record<SkinKind, readonly string[]>): boolean {
+  let changed = false;
+  for (const kind of ['army', 'cannon'] as const) {
+    for (const id of owned[kind] ?? []) {
+      if (SKINS.some((s) => s.id === id) && !save.skins.owned[kind].includes(id)) {
+        save.skins.owned[kind].push(id);
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
 /** Fold a finished endless run into the save. Returns true on a new best score. */
 export function applyEndless(save: SaveData, score: number, stage: number): boolean {
   const better = score > save.endless.score;

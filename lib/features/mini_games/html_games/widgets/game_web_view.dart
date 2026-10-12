@@ -215,6 +215,8 @@ class _GameWebViewState extends State<GameWebView> {
             context,
             amount: cost,
             source: '${widget.game.gameId}_continue',
+            // the game page shows its own spinner
+            showLoader: false,
           );
           return {'cost': cost, 'ok': ok};
         } finally {
@@ -241,6 +243,8 @@ class _GameWebViewState extends State<GameWebView> {
           return {
             ...HashRushShop.catalog(),
             'balance': await MiniGameCoins.balance(),
+            // skins already paid for (this or another device), per slot
+            'owned': await HashRushShop.ownedSkins(),
           };
         }
         final item = payload['action'] == 'buy'
@@ -255,6 +259,7 @@ class _GameWebViewState extends State<GameWebView> {
             context,
             amount: item.cost,
             source: item.source,
+            showLoader: false,
           );
           return {'ok': ok, 'balance': await MiniGameCoins.balance()};
         } finally {

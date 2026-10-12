@@ -321,6 +321,7 @@ class _CosmeticShopScreenState extends State<CosmeticShopScreen> {
               icon: Icons.shopping_bag_rounded,
               tone: busy ? GameButtonTone.grey : GameButtonTone.yellow,
               height: 46,
+              loading: busy,
               onPressed: busy ? null : () => _buy(tab, item),
             ),
         ],

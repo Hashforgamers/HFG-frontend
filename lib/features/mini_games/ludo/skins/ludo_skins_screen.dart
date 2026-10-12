@@ -369,6 +369,7 @@ class _LudoSkinsScreenState extends State<LudoSkinsScreen> {
               icon: Icons.shopping_bag_rounded,
               tone: busy ? GameButtonTone.grey : GameButtonTone.yellow,
               height: 46,
+              loading: busy,
               onPressed: busy ? null : () => _buy(skin),
             ),
         ],

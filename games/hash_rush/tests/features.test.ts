@@ -225,3 +225,18 @@ describe('continue payment (mock host)', () => {
     expect(host.wallet).toBe(5000);
   });
 });
+
+describe('restoring skins from the host ledger', () => {
+  it('adds known skins per slot without equipping, and ignores unknown ids', async () => {
+    const { restoreOwnedSkins } = await import('../src/core/GameState');
+    const { ownedSkins } = await import('../src/integration/HashArcadeAdapter');
+    const save = defaultSave();
+    expect(restoreOwnedSkins(save, { army: ['emerald', 'hacked'], cannon: ['gold'] })).toBe(true);
+    expect(save.skins.owned.army).toEqual(['classic', 'emerald']);
+    expect(save.skins.owned.cannon).toEqual(['classic', 'gold']);
+    expect(save.skins.army).toBe('classic');
+    expect(restoreOwnedSkins(save, { army: ['emerald'], cannon: [] })).toBe(false);
+    expect(ownedSkins({ army: ['emerald', 7, null], cannon: 'x' })).toEqual({ army: ['emerald'], cannon: [] });
+    expect(ownedSkins(undefined)).toEqual({ army: [], cannon: [] });
+  });
+});

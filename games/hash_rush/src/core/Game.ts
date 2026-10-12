@@ -35,7 +35,7 @@ import { UpgradeScreen } from '../ui/UpgradeScreen';
 import { h, type ScreenView } from '../ui/dom';
 import { AssetManager } from './AssetManager';
 import { GameLoop } from './GameLoop';
-import { applyEndless, applyRun, careerScore, equipSkin, grantSkin, grantUpgrade, loadSave, ownsSkin, storeSave, type RunReward, type SaveData, type Screen, type Settings } from './GameState';
+import { applyEndless, applyRun, careerScore, equipSkin, grantSkin, grantUpgrade, loadSave, ownsSkin, restoreOwnedSkins, storeSave, type RunReward, type SaveData, type Screen, type Settings } from './GameState';
 
 const BOSS_COLORS = { titan: 0xff8a3a, inferno: 0xff5a1e, void: 0xb06bff } as const;
 
@@ -394,6 +394,8 @@ export class Game {
     } catch {
       return; // keep the last known prices
     }
+    // skins paid for on another device (or before a reinstall) come back from the host's ledger
+    if (this.shop?.owned && restoreOwnedSkins(this.save, this.shop.owned)) this.persist();
     this.refreshShopViews();
   }
 

@@ -58,6 +58,7 @@ class GameButton extends StatefulWidget {
     this.icon,
     this.subtitle,
     this.height = 54,
+    this.loading = false,
   });
 
   final String label;
@@ -68,6 +69,9 @@ class GameButton extends StatefulWidget {
   /// Optional small second line under the label, e.g. "2 seats left".
   final String? subtitle;
   final double height;
+
+  /// Shows a spinner in place of the icon, for work in progress (a purchase).
+  final bool loading;
 
   @override
   State<GameButton> createState() => _GameButtonState();
@@ -187,7 +191,16 @@ class _GameButtonState extends State<GameButton> {
     final title = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.icon != null) ...[
+        if (widget.loading) ...[
+          SizedBox.square(
+            dimension: widget.height * 0.36,
+            child: const CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ] else if (widget.icon != null) ...[
           GameIcon(icon: widget.icon!, size: widget.height * 0.4),
           const SizedBox(width: 8),
         ],

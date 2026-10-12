@@ -10,6 +10,7 @@ import 'package:hash/core/network/api_error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
+import 'package:hash/core/repositories/model/hash_coin_spend.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/extra_services_model.dart';
@@ -1686,15 +1687,34 @@ class RemoteRepo implements RemoteRepoInterface {
     required int amount,
     required String source,
     required String referenceId,
+    String? itemId,
   }) async {
     final dio = await networkProvider.auth();
-    final response = await dio.post(
-      ApiEndpoints.spendHashCoin,
-      data: {'amount': amount, 'source': source, 'reference_id': referenceId},
-    );
+    final Response<dynamic> response;
+    try {
+      response = await dio.post(
+        ApiEndpoints.spendHashCoin,
+        data: {
+          'amount': amount,
+          'source': source,
+          if (itemId != null) 'item_id': itemId,
+          'reference_id': referenceId,
+        },
+      );
+    } on DioException catch (e) {
+      // a refusal (4xx) carries the reason; anything else is a transport
+      // failure and is rethrown so the caller can retry with the same reference
+      final refused = e.response;
+      if (refused == null) rethrow;
+      throw HashCoinSpendException.fromResponse(
+        refused.statusCode,
+        refused.data,
+      );
+    }
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(
-        'Failed to spend hash coins. Status code: ${response.statusCode}',
+      throw HashCoinSpendException.fromResponse(
+        response.statusCode,
+        response.data,
       );
     }
     final data = response.data;
@@ -1703,6 +1723,13 @@ class RemoteRepo implements RemoteRepoInterface {
       if (hashCoins is num) return hashCoins.toInt();
     }
     return getHashCoin();
+  }
+
+  @override
+  Future<List<HashCoinPurchase>> getHashCoinPurchases() async {
+    final dio = await networkProvider.auth();
+    final response = await dio.get(ApiEndpoints.hashCoinPurchases);
+    return HashCoinPurchase.listFrom(response.data);
   }
 
   @override

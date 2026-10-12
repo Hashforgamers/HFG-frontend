@@ -1,5 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:hash/core/repositories/model/hash_coin_spend.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
+
 /// What Hash Rush upgrades and skins cost, in HashCoins.
 ///
 /// The game page only names the item it wants; the price is decided here so a
@@ -34,6 +38,38 @@ class HashRushShop {
   }
 
   static int? skinCost(String id) => _skins[id];
+
+  /// Skin ids the player owns in each slot, read from [purchases]
+  /// (`hash_rush_skin_<slot>_<id>` sources). Unknown ids are dropped.
+  static Map<String, List<String>> ownedFrom(
+    Iterable<HashCoinPurchase> purchases,
+  ) {
+    final owned = <String, List<String>>{'army': [], 'cannon': []};
+    for (final p in purchases) {
+      for (final slot in owned.keys) {
+        final prefix = 'hash_rush_skin_${slot}_';
+        if (!p.source.startsWith(prefix)) continue;
+        final id = p.source.substring(prefix.length);
+        if (_skins.containsKey(id) && !owned[slot]!.contains(id)) {
+          owned[slot]!.add(id);
+        }
+      }
+    }
+    return owned;
+  }
+
+  /// [ownedFrom] the server's purchase ledger; empty when it can't be read.
+  static Future<Map<String, List<String>>> ownedSkins() async {
+    try {
+      return ownedFrom(
+        await locator<RemoteRepoInterface>().getHashCoinPurchases().timeout(
+          const Duration(seconds: 4),
+        ),
+      );
+    } catch (_) {
+      return ownedFrom(const []);
+    }
+  }
 
   /// The price list the game displays.
   static Map<String, Object> catalog() => {
