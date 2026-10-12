@@ -1,3 +1,4 @@
+import 'package:hash/core/utils/share_origin.dart';
 import 'dart:async';
 import 'dart:ui';
 
@@ -409,7 +410,7 @@ class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
               onPressed: () {
                 final shareText =
                     '${widget.tournament.title}\nJoin this tournament on Hash Hub.';
-                Share.share(shareText);
+                Share.share(shareText, sharePositionOrigin: shareOriginRect(),);
               },
             ),
           ),
@@ -1302,7 +1303,7 @@ class ExpandedTeamListView extends StatelessWidget {
       return;
     }
     SharePlus.instance.share(
-      ShareParams(
+      ShareParams(sharePositionOrigin: shareOriginRect(), 
         text:
             'Join my team "${team.name}" on HashForGamers.\n'
             'hashforgamers://team/join?event_id=${tournament.id}&team_id=${team.id}\n'

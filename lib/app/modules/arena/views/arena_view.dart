@@ -523,7 +523,8 @@ class _ArenaViewState extends State<ArenaView> {
       Heatmap(
         heatmapId: const HeatmapId('nearby_player_activity'),
         data: points,
-        radius: const HeatmapRadius.fromPixels(54),
+        // the Maps SDK only accepts 10–50 px and throws outside that range
+        radius: const HeatmapRadius.fromPixels(50),
         opacity: 0.72,
         maxIntensity: 3,
         gradient: const HeatmapGradient([

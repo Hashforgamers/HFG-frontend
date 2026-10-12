@@ -1,3 +1,4 @@
+import 'package:hash/core/utils/share_origin.dart';
 import 'dart:async';
 import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:math' as math;
@@ -1800,9 +1801,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         .cast<String>();
 
     void share() {
-      Share.share(
-        '${widget.title}\n${widget.address}\nCheck it out on Hash Hub.',
-      );
+      Share.share('${widget.title}\n${widget.address}\nCheck it out on Hash Hub.', sharePositionOrigin: shareOriginRect(),);
       segmentService.onCustomEvent('Cafe Shared', {
         'cafe_id': widget.vendorId.toString(),
         'channel': 'system_share',

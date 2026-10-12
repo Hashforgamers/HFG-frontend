@@ -1,5 +1,6 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_constructors_in_immutables
 
+import 'package:hash/core/utils/share_origin.dart';
 import 'package:flutter/material.dart';
 import 'package:rating_dialog/rating_dialog.dart';
 import 'package:share_plus/share_plus.dart';
@@ -35,9 +36,7 @@ class RateUs extends StatelessWidget {
                   backgroundColor: Colors.cyan.shade300,
                 ),
                 onPressed: () {
-                  Share.share(
-                    "https://github.com/moha-b/Flappy-Bird/releases/download/v.0.4.2/app-release.apk",
-                  );
+                  Share.share("https://github.com/moha-b/Flappy-Bird/releases/download/v.0.4.2/app-release.apk", sharePositionOrigin: shareOriginRect(),);
                 },
                 child: Icon(Icons.share_rounded, size: 30),
               ),

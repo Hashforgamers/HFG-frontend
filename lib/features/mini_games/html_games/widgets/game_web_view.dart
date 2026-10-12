@@ -1,3 +1,4 @@
+import 'package:hash/core/utils/share_origin.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -313,7 +314,7 @@ class _GameWebViewState extends State<GameWebView> {
         if (text.isEmpty && files.isEmpty) return {'ok': false};
         unawaited(
           SharePlus.instance.share(
-            ShareParams(text: text, files: files.isEmpty ? null : files),
+            ShareParams(sharePositionOrigin: shareOriginRect(), text: text, files: files.isEmpty ? null : files),
           ),
         );
         return {'ok': true};
@@ -345,7 +346,7 @@ class _GameWebViewState extends State<GameWebView> {
           await file.writeAsBytes(base64Decode(video), flush: true);
           unawaited(
             SharePlus.instance.share(
-              ShareParams(
+              ShareParams(sharePositionOrigin: shareOriginRect(), 
                 text: payload['text']?.toString(),
                 files: [XFile(file.path, mimeType: mime)],
               ),

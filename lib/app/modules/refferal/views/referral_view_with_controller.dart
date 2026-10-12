@@ -1,3 +1,4 @@
+import 'package:hash/core/utils/share_origin.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -216,7 +217,7 @@ class _ReferralViewWithControllerState
     squadMissionsService.trackAction(action: SquadMissionAction.referFriend);
 
     SharePlus.instance.share(
-      ShareParams(
+      ShareParams(sharePositionOrigin: shareOriginRect(), 
         text:
             '🎮 Join me on *HashforGamers*! Get access to top gaming cafes, exclusive tournaments, and earn rewards.\n\n'
             'Use my referral code 👉 $code to sign up and unlock **unlimited rewards**!\n\n'
@@ -809,7 +810,7 @@ class _ReferralViewWithControllerState
               GestureDetector(
                 onTap: () {
                   SharePlus.instance.share(
-                    ShareParams(
+                    ShareParams(sharePositionOrigin: shareOriginRect(), 
                       text:
                           'Use my HashforGamers voucher code: ${voucher.code} for ${voucher.discountPercentage}% discount! 🎮',
                     ),
