@@ -969,10 +969,14 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     await removeGroupMember(roomId: roomId, memberId: uid);
   }
 
+  /// [replyTo] quotes an earlier message of the same room; [forwarded] marks
+  /// a copy sent on from another chat. Both travel in the message's `meta`.
   Future<void> sendTextMessage({
     required String roomId,
     required String text,
     String? collection,
+    ChatMessageModel? replyTo,
+    bool forwarded = false,
   }) async {
     final uid = currentUid;
     if (uid == null) {
@@ -998,6 +1002,19 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       'text': trimmedText,
       'type': 'text',
       'message_type': 'user',
+      if (replyTo != null || forwarded)
+        'meta': {
+          if (replyTo != null)
+            'reply_to': {
+              'id': replyTo.id,
+              'sender_id': replyTo.senderId,
+              'sender_name': replyTo.senderName,
+              'text': replyTo.text.length > 160
+                  ? '${replyTo.text.substring(0, 160)}…'
+                  : replyTo.text,
+            },
+          if (forwarded) 'forwarded': true,
+        },
       'seen_by': [uid],
       'created_at': FieldValue.serverTimestamp(),
       'client_created_at': now,

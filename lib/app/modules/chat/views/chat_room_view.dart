@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:hash/core/utils/app_snackbar.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hash/config/feature_flags.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
@@ -13,6 +14,8 @@ import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/theme/chat_palette.dart';
 import 'package:hash/app/modules/chat/views/chat_group_details_view.dart';
+import 'package:hash/app/modules/chat/widgets/chat_forward_sheet.dart';
+import 'package:hash/app/modules/chat/widgets/chat_user_profile_sheet.dart';
 import 'package:hash/app/modules/chat/widgets/chat_wallpaper.dart';
 import 'package:hash/app/modules/chat/widgets/ludo_invite_card.dart';
 import 'package:hash/app/modules/chat/widgets/score_challenge_card.dart';
@@ -87,6 +90,13 @@ class _ChatRoomViewState extends State<ChatRoomView> {
   String? _roomAccessError;
   final Set<String> _joiningInviteMessageIds = <String>{};
   final Map<String, String> _inviteActionStateByMessageId = <String, String>{};
+
+  /// The message being replied to, shown above the composer until sent.
+  ChatMessageModel? _replyTo;
+
+  /// Keys of the text bubbles currently built, for jumping to a quoted one.
+  final Map<String, GlobalKey> _bubbleKeys = <String, GlobalKey>{};
+  String? _highlightedMessageId;
 
   @override
   void initState() {
@@ -230,8 +240,10 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         roomId: widget.roomId,
         text: text,
         collection: widget.roomCollection,
+        replyTo: _replyTo,
       );
       _messageController.clear();
+      if (mounted) setState(() => _replyTo = null);
       await _chatService.setTyping(
         roomId: widget.roomId,
         isTyping: false,
@@ -272,6 +284,185 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         setState(() => _isSending = false);
       }
     }
+  }
+
+  void _startReply(ChatMessageModel message) {
+    Haptics.light();
+    setState(() => _replyTo = message);
+    _messageFocus.requestFocus();
+  }
+
+  /// Scrolls to the quoted message and flashes it. Only messages still laid
+  /// out by the list can be reached; older ones stay where they are.
+  void _jumpToMessage(String messageId) {
+    final target = _bubbleKeys[messageId]?.currentContext;
+    if (target == null) {
+      AppSnackbar.show(
+        'Chat',
+        'Scroll up to find the original message.',
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    Scrollable.ensureVisible(
+      target,
+      alignment: 0.5,
+      duration: const Duration(milliseconds: 250),
+    );
+    setState(() => _highlightedMessageId = messageId);
+    Future<void>.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted && _highlightedMessageId == messageId) {
+        setState(() => _highlightedMessageId = null);
+      }
+    });
+  }
+
+  void _openProfile(String uid, String name, {bool canMessage = true}) {
+    if (uid.trim().isEmpty || uid == _chatService.currentUid) return;
+    Haptics.tap();
+    showChatUserProfileSheet(
+      context,
+      chatService: _chatService,
+      uid: uid,
+      fallbackName: name,
+      canMessage: canMessage,
+    );
+  }
+
+  Future<void> _forwardMessage(ChatMessageModel message) async {
+    final rooms = await showChatForwardSheet(
+      context,
+      chatService: _chatService,
+    );
+    if (rooms == null || rooms.isEmpty || !mounted) return;
+    var failed = 0;
+    for (final room in rooms) {
+      try {
+        await _chatService.sendTextMessage(
+          roomId: room.id,
+          text: message.text,
+          forwarded: true,
+        );
+      } catch (_) {
+        failed++;
+      }
+    }
+    if (!mounted) return;
+    final sent = rooms.length - failed;
+    AppSnackbar.show(
+      'Chat',
+      failed == 0
+          ? 'Forwarded to $sent chat${sent == 1 ? '' : 's'}.'
+          : 'Forwarded to $sent of ${rooms.length} chats.',
+      snackPosition: SnackPosition.BOTTOM,
+      colorText: Colors.white,
+    );
+  }
+
+  void _showMessageActions(ChatMessageModel message) {
+    Haptics.light();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: ChatPalette.roomBar,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        Widget action(IconData icon, String label, VoidCallback onTap) =>
+            ListTile(
+              leading: Icon(icon, color: ChatPalette.roomText),
+              title: Text(
+                label,
+                style: GoogleFonts.inter(color: ChatPalette.roomText),
+              ),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onTap();
+              },
+            );
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              action(Icons.reply_rounded, 'Reply', () => _startReply(message)),
+              action(
+                Icons.shortcut_rounded,
+                'Forward',
+                () => _forwardMessage(message),
+              ),
+              action(Icons.copy_rounded, 'Copy', () {
+                Clipboard.setData(ClipboardData(text: message.text));
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// The quoted message inside a reply bubble, or above the composer.
+  Widget _buildQuote({
+    required String senderName,
+    required String text,
+    VoidCallback? onTap,
+    VoidCallback? onClose,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.fromLTRB(8, 5, 4, 5),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.22),
+          borderRadius: BorderRadius.circular(6),
+          border: const Border(
+            left: BorderSide(color: ChatPalette.roomAccent, width: 3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    senderName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: ChatPalette.roomAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: ChatPalette.roomTextMuted,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (onClose != null)
+              IconButton(
+                onPressed: onClose,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: ChatPalette.roomTextMuted,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildMessageBubble({
@@ -323,8 +514,11 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     final metaColor = isMine
         ? Colors.white.withValues(alpha: 0.6)
         : ChatPalette.roomTextMuted;
+    final replyTo = message.meta['reply_to'];
+    final isForwarded = message.meta['forwarded'] == true;
+    final isHighlighted = _highlightedMessageId == message.id;
 
-    return Align(
+    final bubble = Align(
       alignment: alignment,
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -334,7 +528,11 @@ class _ChatRoomViewState extends State<ChatRoomView> {
           margin: const EdgeInsets.symmetric(vertical: 2),
           padding: const EdgeInsets.fromLTRB(9, 6, 8, 5),
           decoration: BoxDecoration(
-            color: isMine ? ChatPalette.bubbleOut : ChatPalette.bubbleIn,
+            color: isHighlighted
+                ? ChatPalette.roomAccent.withValues(alpha: 0.55)
+                : isMine
+                ? ChatPalette.bubbleOut
+                : ChatPalette.bubbleIn,
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(isMine ? 10 : 2),
               topRight: Radius.circular(isMine ? 2 : 10),
@@ -354,18 +552,47 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (isGroup && !isMine)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Text(
-                    message.senderName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: ChatPalette.accent,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                GestureDetector(
+                  onTap: () =>
+                      _openProfile(message.senderId, message.senderName),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      message.senderName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: ChatPalette.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
+                ),
+              if (isForwarded)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.shortcut_rounded, size: 13, color: metaColor),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Forwarded',
+                        style: GoogleFonts.inter(
+                          color: metaColor,
+                          fontSize: 11.5,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (replyTo is Map)
+                _buildQuote(
+                  senderName: (replyTo['sender_name'] ?? 'Player').toString(),
+                  text: (replyTo['text'] ?? '').toString(),
+                  onTap: () => _jumpToMessage((replyTo['id'] ?? '').toString()),
                 ),
               // Time and ticks sit beside short messages and drop to their
               // own line under long ones.
@@ -407,6 +634,25 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             ],
           ),
         ),
+      ),
+    );
+
+    // Dispute rooms are written by the backend: plain messages only.
+    if (widget.roomCollection != null) return bubble;
+
+    // Swiping right starts a reply; the bubble itself never leaves the list.
+    return Dismissible(
+      key: _bubbleKeys.putIfAbsent(message.id, GlobalKey.new),
+      direction: DismissDirection.startToEnd,
+      dismissThresholds: const {DismissDirection.startToEnd: 0.2},
+      confirmDismiss: (_) async {
+        _startReply(message);
+        return false;
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPress: () => _showMessageActions(message),
+        child: bubble,
       ),
     );
   }
@@ -1545,75 +1791,84 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: TextField(
-                controller: _messageController,
-                focusNode: _messageFocus,
-                style: GoogleFonts.inter(color: ChatPalette.roomText),
-                cursorColor: ChatPalette.roomAccent,
-                minLines: 1,
-                maxLines: 4,
-                onChanged: (value) async {
-                  final nextTyping = value.trim().isNotEmpty;
-                  if (nextTyping == _isTyping) return;
-                  _isTyping = nextTyping;
-                  await _chatService.setTyping(
-                    roomId: widget.roomId,
-                    isTyping: nextTyping,
-                    collection: widget.roomCollection,
-                  );
-                },
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _sendMessage(),
-                decoration: InputDecoration(
-                  hintText: 'Message',
-                  hintStyle: GoogleFonts.inter(
-                    color: ChatPalette.roomTextMuted,
-                  ),
-                  filled: true,
-                  fillColor: ChatPalette.roomBar,
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 13,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
+            if (_replyTo != null)
+              _buildQuote(
+                senderName: _replyTo!.senderId == _chatService.currentUid
+                    ? 'You'
+                    : _replyTo!.senderName,
+                text: _replyTo!.text,
+                onClose: () => setState(() => _replyTo = null),
               ),
-            ),
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: _isSending ? null : _sendMessage,
-              child: Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: _isSending
-                      ? ChatPalette.roomBar
-                      : ChatPalette.roomAccent,
-                  shape: BoxShape.circle,
-                ),
-                child: _isSending
-                    ? const Padding(
-                        padding: EdgeInsets.all(12.0),
-                        child: AppLinearLoader(width: 24, height: 3),
-                      )
-                    : const Icon(
-                        Icons.send_rounded,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-              ),
-            ),
+            _buildComposerRow(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildComposerRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _messageController,
+            focusNode: _messageFocus,
+            style: GoogleFonts.inter(color: ChatPalette.roomText),
+            cursorColor: ChatPalette.roomAccent,
+            minLines: 1,
+            maxLines: 4,
+            onChanged: (value) async {
+              final nextTyping = value.trim().isNotEmpty;
+              if (nextTyping == _isTyping) return;
+              _isTyping = nextTyping;
+              await _chatService.setTyping(
+                roomId: widget.roomId,
+                isTyping: nextTyping,
+                collection: widget.roomCollection,
+              );
+            },
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) => _sendMessage(),
+            decoration: InputDecoration(
+              hintText: 'Message',
+              hintStyle: GoogleFonts.inter(color: ChatPalette.roomTextMuted),
+              filled: true,
+              fillColor: ChatPalette.roomBar,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 13,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        GestureDetector(
+          onTap: _isSending ? null : _sendMessage,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: _isSending ? ChatPalette.roomBar : ChatPalette.roomAccent,
+              shape: BoxShape.circle,
+            ),
+            child: _isSending
+                ? const Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: AppLinearLoader(width: 24, height: 3),
+                  )
+                : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1844,11 +2099,15 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                     ? 'Last seen recently'
                     : 'Last seen ${_formatTime(other.lastSeenAt!)}';
 
-                return _buildAppBarTitle(
-                  title,
-                  subtitle: subtitle,
-                  highlightSubtitle:
-                      typingPeers.isNotEmpty || other?.isOnline == true,
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _openProfile(otherId, title, canMessage: false),
+                  child: _buildAppBarTitle(
+                    title,
+                    subtitle: subtitle,
+                    highlightSubtitle:
+                        typingPeers.isNotEmpty || other?.isOnline == true,
+                  ),
                 );
               },
             );

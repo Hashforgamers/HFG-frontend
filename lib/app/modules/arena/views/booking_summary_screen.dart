@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/arena/views/booking_design.dart';
+import 'package:hash/app/modules/arena/views/booking_summary/booking_payment_methods.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_bottom_bar.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_cart_section.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_game_pass_dialog.dart';
@@ -17,6 +18,8 @@ import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_slo
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_user_section.dart';
 import 'package:hash/app/modules/arena/views/booking_summary/booking_summary_voucher_section.dart';
 import 'package:hash/app/modules/arena/views/payment_success.dart';
+import 'package:hash/app/modules/cafe_play/data/cafe_play_api.dart';
+import 'package:hash/app/modules/cafe_play/models/cafe_play_models.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
@@ -86,7 +89,8 @@ enum PaymentStage {
   error,
 }
 
-class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
+class _BookingSummaryScreenState extends State<BookingSummaryScreen>
+    with WidgetsBindingObserver {
   final AnalyticsService _analytics = locator<AnalyticsService>();
   final BookingController bookingController = Get.put(BookingController());
   final RazorpayController razorpayController = Get.put(RazorpayController());
@@ -102,8 +106,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   final ChatService _chatService = Get.find<ChatService>();
   final _remoteRepo = locator<RemoteRepoInterface>();
   final _networkProvider = locator<NetworkProvider>();
-  final RxString _selectedPayment =
-      'pay_at_cafe'.obs; // 'wallet', 'gateway', 'pay_at_cafe' or 'none'
+  // 'wallet', 'cafe_wallet', 'gateway', 'pay_at_cafe', 'none' (game pass),
+  // or empty while nothing is selected.
+  final RxString _selectedPayment = ''.obs;
+
+  // What the cafe accepts right now, from its dashboard switches.
+  final Rx<CafePaymentMethods?> _paymentMethods = Rx<CafePaymentMethods?>(null);
+  final RxBool _isLoadingMethods = false.obs;
+  final RxBool _isCheckingMethods = false.obs;
+  final RxString _methodsError = ''.obs;
+  final Rx<CafeWallet?> _cafeWallet = Rx<CafeWallet?>(null);
+  Timer? _methodsPoll;
+  int _methodsRequest = 0;
   final RxInt _selectedControllerCount = 1.obs;
   final RxBool _isLoadingPricingEstimate = false.obs;
   final RxMap<String, dynamic> _pricingEstimate = <String, dynamic>{}.obs;
@@ -145,10 +159,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   @override
   void initState() {
     super.initState();
-    if (!widget.isPayAtCafeAvailable &&
-        _selectedPayment.value == 'pay_at_cafe') {
-      _selectedPayment.value = 'gateway';
-    }
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_loadPaymentMethods());
+    // Dashboard switches should show up without reopening checkout.
+    _methodsPoll = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _refreshPaymentMethods(),
+    );
     _loadVouchers();
     _loadUserGamePasses();
     unawaited(_loadPricingEstimate());
@@ -192,6 +209,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         step: _stage.value.name,
       );
     }
+    WidgetsBinding.instance.removeObserver(this);
+    _methodsPoll?.cancel();
     _voucherController.dispose();
     for (final worker in _paymentWorkers) {
       worker.dispose();
@@ -201,6 +220,144 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     _resetPaymentState();
     _selectedGamePass.value = null;
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshPaymentMethods();
+  }
+
+  /// Background refresh (app resume, 30s poll). Never runs over a payment or
+  /// the pre-payment check, whose result it would otherwise supersede.
+  void _refreshPaymentMethods() {
+    if (_isProcessingPayment.value ||
+        _isCheckingMethods.value ||
+        _isLoadingMethods.value) {
+      return;
+    }
+    unawaited(_loadPaymentMethods(silent: _paymentMethods.value != null));
+  }
+
+  bool _isSelectionEnabled(String selection, CafePaymentMethods methods) =>
+      switch (selection) {
+        'wallet' => methods.has(CafePaymentMethods.hashWallet),
+        'cafe_wallet' => methods.has(CafePaymentMethods.cafeWallet),
+        'none' => methods.hasPass,
+        'gateway' => methods.has(CafePaymentMethods.paymentGateway),
+        'pay_at_cafe' => methods.has(CafePaymentMethods.payAtCafe),
+        _ => false,
+      };
+
+  bool get _gatewayEnabled =>
+      _paymentMethods.value?.has(CafePaymentMethods.paymentGateway) ?? false;
+
+  /// Reloads what the cafe accepts. A [silent] reload (resume, poll) keeps
+  /// the last known methods when it fails; otherwise a failure leaves nothing
+  /// selectable until Retry. Returns whether fresh methods were loaded.
+  Future<bool> _loadPaymentMethods({bool silent = false}) async {
+    final request = ++_methodsRequest;
+    if (!silent) {
+      _isLoadingMethods(true);
+      _methodsError.value = '';
+    }
+    try {
+      final methods = await CafePaymentMethods.fetch(widget.vendorId);
+      if (!mounted || request != _methodsRequest) return false;
+      final firstLoad = _paymentMethods.value == null;
+      _paymentMethods.value = methods;
+      _methodsError.value = '';
+
+      final selected = _selectedPayment.value;
+      if (selected.isNotEmpty && !_isSelectionEnabled(selected, methods)) {
+        _onPaymentSelected('');
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text(
+                'That payment method is no longer available at this cafe. '
+                'Please choose another.',
+              ),
+            ),
+          );
+      } else if (selected.isEmpty && firstLoad) {
+        if (methods.has(CafePaymentMethods.payAtCafe)) {
+          _selectedPayment.value = 'pay_at_cafe';
+        } else if (methods.has(CafePaymentMethods.paymentGateway)) {
+          _selectedPayment.value = 'gateway';
+        }
+      }
+      if (methods.has(CafePaymentMethods.cafeWallet)) {
+        unawaited(_loadCafeWallet());
+      } else {
+        _cafeWallet.value = null;
+      }
+      return true;
+    } catch (e) {
+      if (!mounted || request != _methodsRequest) return false;
+      AppLogger.d('Payment methods load failed: $e');
+      if (!silent) {
+        _paymentMethods.value = null;
+        _onPaymentSelected('');
+        _methodsError.value =
+            'Could not load this cafe\'s payment methods. Check your '
+            'connection and retry.';
+      }
+      return false;
+    } finally {
+      if (!silent) _isLoadingMethods(false);
+    }
+  }
+
+  /// Balance of this cafe's own wallet; never the global Hash Wallet.
+  Future<void> _loadCafeWallet() async {
+    try {
+      final wallet = await CafePlayApi.instance.getWallet(widget.vendorId);
+      if (mounted) _cafeWallet.value = wallet;
+    } catch (e) {
+      AppLogger.d('Cafe wallet load failed: $e');
+      if (mounted) _cafeWallet.value = null;
+    }
+  }
+
+  /// Re-reads the cafe's accepted methods right before paying, so a method
+  /// switched off while checkout was open is never charged.
+  Future<void> _payWithFreshMethods(VoidCallback pay) async {
+    if (_isCheckingMethods.value || _isProcessingPayment.value) return;
+    final selected = _selectedPayment.value;
+    if (selected.isEmpty) {
+      if (_paymentMethods.value == null && !_isLoadingMethods.value) {
+        unawaited(_loadPaymentMethods());
+      }
+      _showMethodMessage('Choose a payment method to continue.');
+      return;
+    }
+    _isCheckingMethods(true);
+    try {
+      final loaded = await _loadPaymentMethods();
+      if (!mounted || !loaded || _selectedPayment.value != selected) return;
+      if (selected == 'cafe_wallet') {
+        final wallet = _cafeWallet.value;
+        final duePaise = (calculateTotalPrice() * 100).round();
+        if (wallet != null && wallet.availableBalance < duePaise) {
+          _showMethodMessage(
+            'Not enough balance in your ${widget.selectedCafeName} wallet. '
+            'Top up at the cafe desk or choose another method.',
+          );
+          return;
+        }
+      }
+    } finally {
+      _isCheckingMethods(false);
+    }
+    pay();
+  }
+
+  void _showMethodMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _setupPaymentListeners() {
@@ -389,12 +546,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     // or are HASH Passes (vendor_id is null) - which can be used at any cafe
     return passes.where((pass) {
       // Show HASH Passes (vendor_id is null) - can be used at any cafe
+      // that accepts the global pass
+      final methods = _paymentMethods.value;
       if (pass.vendorId == null) {
-        return true;
+        return methods?.has(CafePaymentMethods.hashGlobalPass) ?? false;
       }
 
       // Show passes that match the current vendor
-      return pass.vendorId == currentVendorId;
+      return pass.vendorId == currentVendorId &&
+          (methods?.has(CafePaymentMethods.cafeSpecificPass) ?? false);
     }).toList();
   }
 
@@ -1157,7 +1317,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       BookingSummaryPaymentMethodSection(
                         selectedPayment: _selectedPayment,
                         selectedGamePass: _selectedGamePass,
-                        showPayAtCafeOption: widget.isPayAtCafeAvailable,
+                        paymentMethods: _paymentMethods,
+                        isLoadingMethods: _isLoadingMethods,
+                        methodsError: _methodsError,
+                        onRetryMethods: _loadPaymentMethods,
+                        cafeName: widget.selectedCafeName,
+                        cafeWallet: _cafeWallet,
                         walletBalance: walletController.balance,
                         walletAppliedAmount: _walletAppliedAmountFor(
                           calculateTotalPrice(),
@@ -1234,6 +1399,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         bottomBar: Obx(() {
           final isProcessing =
               _isProcessingPayment.value ||
+              _isCheckingMethods.value ||
               _stage.value == PaymentStage.creatingBooking ||
               _stage.value == PaymentStage.debitingWallet ||
               _stage.value == PaymentStage.initiatingGateway ||
@@ -1253,6 +1419,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
               : totalPrice;
           final ctaLabel = showSelectPass
               ? 'Select Pass'
+              : _selectedPayment.value.isEmpty
+              ? 'Select Payment'
               : _selectedPayment.value == 'pay_at_cafe'
               ? 'Confirm'
               : _selectedPayment.value == 'wallet'
@@ -1266,7 +1434,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             isProcessing: isProcessing,
             showSelectPass: showSelectPass,
             buttonLabel: ctaLabel,
-            onPressed: () {
+            onPressed: () => _payWithFreshMethods(() {
               final initiatedAmount =
                   _selectedPayment.value == 'wallet' && payableNow > 0
                   ? payableNow
@@ -1306,12 +1474,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 handleBooking(
                   isVoucherApplied: _appliedVoucher.value != null,
                   useWallet: _selectedPayment.value == 'wallet',
+                  useCafeWallet: _selectedPayment.value == 'cafe_wallet',
                   isGamePass: false,
                   selectedPassId: null,
                   isPayAtCafe: false,
                 );
               }
-            },
+            }),
           );
         }),
       ),
@@ -1643,6 +1812,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           final data = response.data;
 
           if (data is Map<String, dynamic>) {
+            // `error` can be a bare code (e.g. insufficient_cafe_wallet)
+            // sent alongside a readable message.
+            final code = data['error'], readable = data['message'];
+            if (code is String &&
+                readable is String &&
+                readable.trim().isNotEmpty &&
+                !code.contains(' ')) {
+              return '$readable ($code)';
+            }
             if (data.containsKey('error')) return data['error'];
             if (data.containsKey('message')) return data['message'];
           } else if (data is String) {
@@ -1704,8 +1882,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     // Hard safety: never keep loader active while rendering an error UX.
     _resetButtonState();
 
+    // The sheet's only action is switching to UPI/Card.
     final showWalletSheet =
         fromWallet &&
+        _gatewayEnabled &&
         (_isInsufficientWalletError(errorMessage) ||
             _isWalletServiceError(errorMessage));
 
@@ -1955,6 +2135,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   Future<void> handleBooking({
     required bool isVoucherApplied,
     required bool useWallet,
+    bool useCafeWallet = false,
     required bool isGamePass,
     String? selectedPassId,
     required bool isPayAtCafe,
@@ -2173,6 +2354,21 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         return;
       }
 
+      // Cafe Wallet: the booking backend debits the selected cafe's wallet
+      // in the same transaction as the confirmation. Never the Hash Wallet
+      // and never the gateway.
+      if (useCafeWallet) {
+        _stage.value = PaymentStage.debitingWallet;
+        _paymentStatus.value = 'Confirming cafe wallet payment...';
+        await confirmBooking(
+          bookingIds: bookingIds,
+          paymentMode: 'cafe_wallet',
+          voucherCode: isVoucherApplied ? _appliedVoucher.value!.code : null,
+          totalPrice: totalPrice,
+        );
+        return;
+      }
+
       // b) VOUCHER route (if voucher is applied and not using Razorpay or Wallet)
       if (isVoucherApplied &&
           _appliedVoucher.value != null &&
@@ -2231,7 +2427,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           (errorMessage.toLowerCase().contains(
                 'wallet service is temporarily unavailable',
               ) ||
-              errorMessage.contains("name 'Decimal' is not defined"))) {
+              errorMessage.contains("name 'Decimal' is not defined")) &&
+          _gatewayEnabled) {
         _selectedPayment.value = 'gateway';
       }
 
@@ -2240,7 +2437,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       // Wallet/voucher/pass/pay-at-cafe do not rely on external gateway callbacks.
       // Ensure loader is always released even if any internal method swallows errors.
       final nonGatewayPath =
-          useWallet || isVoucherApplied || isGamePass || isPayAtCafe;
+          useWallet ||
+          useCafeWallet ||
+          isVoucherApplied ||
+          isGamePass ||
+          isPayAtCafe;
       if (nonGatewayPath && _stage.value != PaymentStage.done) {
         _isProcessingPayment(false);
       }
@@ -2471,8 +2672,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           (errorMessage.toLowerCase().contains(
                 'wallet service is temporarily unavailable',
               ) ||
-              errorMessage.contains("name 'Decimal' is not defined"))) {
+              errorMessage.contains("name 'Decimal' is not defined")) &&
+          _gatewayEnabled) {
         _selectedPayment.value = 'gateway';
+      }
+      if (paymentMode == 'cafe_wallet') unawaited(_loadCafeWallet());
+      // The cafe may have just switched this method off.
+      if (errorMessage.contains('payment_method_disabled') ||
+          (e is DioException &&
+              e.response?.data.toString().contains('payment_method_disabled') ==
+                  true)) {
+        unawaited(_loadPaymentMethods(silent: true));
       }
 
       _paymentStatus.value = 'Failed to confirm booking';

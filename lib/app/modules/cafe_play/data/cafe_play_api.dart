@@ -168,6 +168,29 @@ class CafePlayApi {
     return CafeSession.fromJson(Map<String, dynamic>.from(res.data as Map));
   }
 
+  /// Starts a booked ticket on the PC scanned from the phone ticket. Returns
+  /// the raw response (the caller reads status, code and request id); only a
+  /// failed token exchange or a transport error throws.
+  Future<Response> startPhoneBooking(Map<String, dynamic> body) async {
+    Future<Response> attempt(String token) async {
+      try {
+        return await _dio.post(
+          ApiEndpoints.scanQrCode,
+          data: body,
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+      } on DioException catch (e) {
+        throw CafePlayException(_transportMessage(e));
+      }
+    }
+
+    var res = await attempt(await _token());
+    if (res.statusCode == 401) {
+      res = await attempt(await _token(force: true));
+    }
+    return res;
+  }
+
   Future<CafeSession> getSession(String sessionId) async {
     final res = await _send('GET', ApiEndpoints.cafeSession(sessionId));
     return CafeSession.fromJson(Map<String, dynamic>.from(res.data as Map));

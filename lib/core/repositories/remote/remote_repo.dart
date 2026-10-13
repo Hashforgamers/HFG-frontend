@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:hash/app/modules/cafe_play/data/cafe_play_api.dart';
+import 'package:hash/app/modules/cafe_play/models/cafe_play_models.dart';
 import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
 import 'package:hash/app/modules/game_pass/model/vendor_passes_response.dart';
 import 'package:hash/core/network/api_endpoints.dart';
@@ -1765,92 +1767,136 @@ class RemoteRepo implements RemoteRepoInterface {
     required String vendorId,
     required String bookingId,
   }) async {
-    final data = {
-      'console_id': consoleId,
-      'game_id': gameId,
-      'vendor_id': vendorId,
-      'booking_id': bookingId,
+    // vendor_id and game_id are optional consistency checks on the backend.
+    final data = <String, dynamic>{
+      'booking_id': int.tryParse(bookingId) ?? bookingId,
+      'console_id': int.tryParse(consoleId) ?? consoleId,
+      if (int.tryParse(vendorId) case final vendor?) 'vendor_id': vendor,
+      if (int.tryParse(gameId) case final game?) 'game_id': game,
     };
 
-    Dio dio;
-    try {
-      dio = await networkProvider.auth();
-    } catch (_) {
-      throw Exception(_scanSignInAgain);
+    // The user JWT is only exchanged for a short-lived checkout token, which
+    // authorizes the start; CafePlayApi renews that token once on a 401.
+    final cafeApi = CafePlayApi.instance;
+    Future<Response<dynamic>> start() async {
+      try {
+        return await cafeApi.startPhoneBooking(data);
+      } on CafePlayException catch (e) {
+        if (!e.isUnknownOutcome) rethrow;
+        // Timed out or dropped: the same booking and PC are safe to resend.
+        return cafeApi.startPhoneBooking(data);
+      }
     }
 
     Response<dynamic> response;
     try {
-      response = await dio.post(ApiEndpoints.scanQrCode, data: data);
-    } on DioException catch (e) {
-      if (e.response?.statusCode != 401) throw Exception(_scanFailure(e));
-      _logScan(e.response);
-      // The backend rejected the stored token: refresh once and retry the
+      response = await start();
+    } on CafePlayException catch (e) {
+      if (e.statusCode != 401) throw Exception(e.message);
+      // The exchange rejected the stored JWT: refresh it once and retry the
       // same ticket. A second 401 means the user has to sign in again.
       try {
-        dio = await networkProvider.refreshedAuth();
+        await networkProvider.refreshedAuth();
+        cafeApi.clear();
+        response = await start();
+      } on CafePlayException catch (retryError) {
+        if (retryError.statusCode == 401) throw Exception(_scanSignInAgain);
+        throw Exception(retryError.message);
       } catch (_) {
         throw Exception(_scanSignInAgain);
       }
-      try {
-        response = await dio.post(ApiEndpoints.scanQrCode, data: data);
-      } on DioException catch (retryError) {
-        if (retryError.response?.statusCode == 401) {
-          _logScan(retryError.response);
-          throw Exception(_scanSignInAgain);
-        }
-        throw Exception(_scanFailure(retryError));
-      }
+    } catch (_) {
+      throw Exception(_scanSignInAgain);
     }
 
     _logScan(response);
     final statusCode = response.statusCode ?? 0;
-    final errorMessage = _scanBodyField(response.data, const ['error']);
-    if (statusCode >= 200 && statusCode < 300 && errorMessage == null) {
-      return _scanBodyField(response.data, const ['message']) ??
-          'QR scanned successfully.';
+    if (statusCode >= 200 && statusCode < 300) {
+      return _scanSuccess(response.data);
     }
-    throw Exception(errorMessage ?? 'Failed to scan QR code.');
+    throw Exception(_scanFailure(response));
   }
 
-  /// First non-empty [keys] value in a scan response, which is either a map
-  /// or a list whose first item is one.
+  /// The backend's confirmed session is authoritative; its end time carries
+  /// an explicit offset and is shown in IST.
+  String _scanSuccess(dynamic body) {
+    const started = 'Your session has started.';
+    final session = body is Map && body['data'] is Map ? body['data'] : body;
+    final end = session is Map
+        ? DateTime.tryParse(session['end_time']?.toString() ?? '')
+        : null;
+    if (end == null) return started;
+    final ist = end.toUtc().add(const Duration(hours: 5, minutes: 30));
+    final hour = ist.hour % 12 == 0 ? 12 : ist.hour % 12;
+    final minute = ist.minute.toString().padLeft(2, '0');
+    return '$started It ends at $hour:$minute ${ist.hour < 12 ? 'AM' : 'PM'}.';
+  }
+
+  /// First non-empty [keys] value in a scan response: a map (or a list whose
+  /// first item is one), with error details optionally nested under `error`.
   String? _scanBodyField(dynamic body, List<String> keys) {
     final map = body is List && body.isNotEmpty ? body.first : body;
     if (map is! Map) return null;
     for (final key in keys) {
-      final value = map[key]?.toString().trim() ?? '';
-      if (value.isNotEmpty) return value;
+      final value = map[key];
+      if (value is Map || value is List) continue;
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty) return text;
     }
-    return null;
+    final nested = map['error'];
+    return nested is Map ? _scanBodyField(nested, keys) : null;
   }
 
-  String _scanFailure(DioException e) {
-    final response = e.response;
-    if (response == null) {
-      debugPrint('scanQrCode -> no response (${e.type.name})');
-      return 'Could not reach the server. Check your connection and try again.';
-    }
-    _logScan(response);
-    return _scanBodyField(response.data, const [
-          'error',
-          'message',
-          'detail',
-        ]) ??
-        'Failed to scan QR code. Status code: ${response.statusCode}';
+  String? _scanCode(Response<dynamic> response) =>
+      _scanBodyField(response.data, const ['code', 'error_code']);
+
+  String? _scanRequestId(Response<dynamic> response) =>
+      _scanBodyField(response.data, const ['request_id']) ??
+      response.headers.value('x-request-id') ??
+      response.headers.value('rndr-id');
+
+  /// Backend message, code and request id, so support can trace a failure.
+  String _scanFailure(Response<dynamic> response) {
+    final code = _scanCode(response);
+    final retryAfter = response.headers.value('retry-after');
+    final message =
+        _scanBodyField(response.data, const ['message', 'error', 'detail']) ??
+        switch (code) {
+          'booking_not_owned' => 'This ticket belongs to another account.',
+          'booking_console_mismatch' ||
+          'console_mismatch' ||
+          'booking_scope_mismatch' =>
+            'This ticket isn\'t for this PC. Please ask the cafe staff.',
+          'booking_not_accepted' =>
+            'The cafe hasn\'t accepted this booking yet.',
+          'rate_limited' => 'Too many attempts. Please wait and try again.',
+          'invalid_id' ||
+          'invalid_json' ||
+          'invalid_console_ids' => 'This QR code isn\'t a valid PC code.',
+          _ => switch (response.statusCode) {
+            401 => _scanSignInAgain,
+            403 => 'This ticket can\'t be started on this PC.',
+            409 => 'This booking can\'t be started right now.',
+            429 => 'Too many attempts. Please wait and try again.',
+            _ => 'Failed to scan QR code. Status code: ${response.statusCode}',
+          },
+        };
+    final requestId = _scanRequestId(response);
+    return [
+      message,
+      if (response.statusCode == 429 && int.tryParse(retryAfter ?? '') != null)
+        'Try again in $retryAfter seconds.',
+      if (code != null && code != message) 'Code: $code',
+      if (requestId != null) 'Request ID: $requestId',
+    ].join('\n');
   }
 
   /// Diagnostics only: never the token, the QR contents or the access code.
-  void _logScan(Response<dynamic>? response) {
-    if (response == null) return;
-    final code = _scanBodyField(response.data, const ['code', 'error_code']);
-    final requestId =
-        response.headers.value('x-request-id') ??
-        response.headers.value('rndr-id') ??
-        _scanBodyField(response.data, const ['request_id']);
+  void _logScan(Response<dynamic> response) {
     debugPrint(
       'scanQrCode -> path=${response.requestOptions.path}, '
-      'status=${response.statusCode}, code=$code, request_id=$requestId',
+      'status=${response.statusCode}, code=${_scanCode(response)}, '
+      'request_id=${_scanRequestId(response)}',
     );
   }
 

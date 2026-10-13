@@ -61,15 +61,21 @@ class ApiEndpoints {
   static String get vendorBaseUrl => FlavorConfig.getBaseUrl('vendor');
   static String get getAllVendorsList =>
       '$vendorBaseUrl/api/vendor/getAllGamingCafe';
-  static String get scanQrCode => '$vendorBaseUrl/api/bookingQueue';
 
   // Dashboard Service
   static String get dashboardBaseUrl => FlavorConfig.getBaseUrl('dashboard');
+
+  // Payment methods the cafe accepts (dashboard switches); never cached.
+  static String vendorPaymentMethods(int vendorId) =>
+      '$bookingBaseUrl/api/vendor/$vendorId/payment-methods';
 
   // Cafe scan & play (PC QR checkout, cafe-specific wallet)
   static String get cafeCheckoutToken =>
       '$bookingBaseUrl/api/cafe-checkout/token';
   static String get cafeCheckout => '$dashboardBaseUrl/api/cafe/checkout';
+  // Phone ticket scanner: starts a booked ticket on the scanned PC.
+  static String get scanQrCode =>
+      '$dashboardBaseUrl/api/phone/bookings/start-session';
   static String cafeSession(String sessionId) =>
       '$dashboardBaseUrl/api/cafe/sessions/$sessionId';
   // Read-only cafe wallets (balance per cafe; top-up happens at the desk).

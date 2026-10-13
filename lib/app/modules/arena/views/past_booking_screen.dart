@@ -974,12 +974,15 @@ class BookingTicketCard extends StatelessWidget {
           ),
           backgroundColor: backgroundColor,
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 6),
         ),
       );
   }
 
-  Future<void> _showScanSuccessDialog(BuildContext context) async {
+  Future<void> _showScanSuccessDialog(
+    BuildContext context,
+    String message,
+  ) async {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -1033,7 +1036,8 @@ class BookingTicketCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Enjoy gaming. Your console has been queued successfully.',
+                  // Server start is confirmed; the PC unlock isn't observed.
+                  '$message The PC will unlock shortly.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
                     color: Colors.white70,
@@ -1105,20 +1109,13 @@ class BookingTicketCard extends StatelessWidget {
       final vendorId = _resolveVendorId(qrData);
       final bookingId = id.toString();
 
-      debugPrint(
-        'Booking QR scan parsed -> console_id=$consoleId, game_id=$gameId, vendor_id=$vendorId, booking_id=$bookingId',
-      );
-
-      // Validate that all required fields are present
-      if (consoleId.isEmpty || gameId.isEmpty || vendorId.isEmpty) {
-        debugPrint(
-          'Booking QR scan validation failed -> missing required fields',
-        );
+      // The ticket and the scanned PC are enough to start; game and vendor
+      // are optional consistency checks.
+      if (consoleId.isEmpty) {
         _showScanMessage(
           messenger,
           title: 'Error',
-          message:
-              'Missing console, game, or vendor details for queue check-in.',
+          message: 'This QR code has no PC details. Scan the code on the PC.',
           backgroundColor: Colors.red.withValues(alpha: 0.88),
         );
         return;
@@ -1133,10 +1130,8 @@ class BookingTicketCard extends StatelessWidget {
         bookingId: bookingId,
       );
 
-      debugPrint('Booking QR scan API success -> $result');
-
       if (!context.mounted) return;
-      await _showScanSuccessDialog(context);
+      await _showScanSuccessDialog(context, result);
     } catch (e) {
       String errorMessage = 'Failed to process QR code';
 
@@ -1145,8 +1140,6 @@ class BookingTicketCard extends StatelessWidget {
       } else {
         errorMessage = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       }
-
-      debugPrint('Booking QR scan error -> $e');
 
       _showScanMessage(
         messenger,
