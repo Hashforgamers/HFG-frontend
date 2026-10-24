@@ -10,15 +10,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Hash Store backed by Medusa 2.x. See HFG-STORE-API.md for the contract.
 ///
-/// Only the base URL is build config (`--dart-define=MEDUSA_BASE_URL`); while
-/// it is empty the store stays behind the "Coming Soon" lock. The publishable
+/// Only the base URL is build config (`--dart-define=MEDUSA_BASE_URL`, defaults
+/// to the live store); pass an empty value to keep the store behind the
+/// "Coming Soon" lock. The publishable
 /// key, region and sales channel come from the public `GET /hash-store/config`
 /// bootstrap and live in memory for the current store visit.
 class MedusaStoreService {
   MedusaStoreService._();
   static final MedusaStoreService instance = MedusaStoreService._();
 
-  static const String baseUrl = String.fromEnvironment('MEDUSA_BASE_URL');
+  static const String baseUrl = String.fromEnvironment(
+    'MEDUSA_BASE_URL',
+    defaultValue: 'https://hash-medusa.onrender.com',
+  );
 
   static bool get isConfigured => baseUrl.isNotEmpty;
 
