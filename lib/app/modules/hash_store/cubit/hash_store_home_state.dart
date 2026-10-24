@@ -1,29 +1,37 @@
 part of 'hash_store_home_cubit.dart';
 
-abstract class HashStoreHomeState extends Equatable {
-  const HashStoreHomeState();
-}
-
-class HashStoreHomeInitial extends HashStoreHomeState {
-  @override
-  List<Object?> get props => [];
-}
-
-class HashStoreHomeLoading extends HashStoreHomeState {
-  @override
-  List<Object?> get props => [];
-}
-
-class HashStoreHomeLoaded extends HashStoreHomeState {
+class HashStoreHomeState extends Equatable {
+  /// Catalog rows as returned by `/store/hash/products`.
   final List<Map<String, dynamic>> products;
-  const HashStoreHomeLoaded({required this.products});
-  @override
-  List<Object?> get props => [products];
-}
+  final int count;
+  final String? vendorId;
 
-class HashStoreHomeError extends HashStoreHomeState {
-  final String message;
-  const HashStoreHomeError({required this.message});
+  /// vendor_id -> vendor_name, collected from the unfiltered catalog.
+  final Map<String, String> vendors;
+  final bool loading;
+  final bool loadingMore;
+  final String? error;
+
+  const HashStoreHomeState({
+    this.products = const [],
+    this.count = 0,
+    this.vendorId,
+    this.vendors = const {},
+    this.loading = false,
+    this.loadingMore = false,
+    this.error,
+  });
+
+  bool get hasMore => products.length < count;
+
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [
+    products,
+    count,
+    vendorId,
+    vendors,
+    loading,
+    loadingMore,
+    error,
+  ];
 }

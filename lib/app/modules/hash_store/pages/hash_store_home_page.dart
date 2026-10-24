@@ -1,108 +1,88 @@
+import 'dart:ui';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/hash_store/cubit/hash_store_cart_cubit.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_home_cubit.dart';
+import 'package:hash/app/modules/hash_store/pages/hash_store_product_page.dart';
 import 'package:hash/app/modules/hash_store/widgets/hash_store_app_bar.dart';
-import 'package:hash/core/utils/app_logger.dart';
-import 'package:hash/utils/widgets/bounce_tap_widget.dart';
-import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 import 'package:hash/core/localization/app_region.dart';
+import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 
-class HashStoreHomePage extends StatefulWidget {
+/// Shop home, per the Figma "Home" frame: profile header, a title, then one
+/// full-width banner card per listing.
+class HashStoreHomePage extends StatelessWidget {
   const HashStoreHomePage({super.key});
 
-  @override
-  State<HashStoreHomePage> createState() => _HashStoreHomePageState();
-}
-
-class _HashStoreHomePageState extends State<HashStoreHomePage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => HashStoreHomeCubit()..fetchProducts(),
-      child: BlocBuilder<HashStoreHomeCubit, HashStoreHomeState>(
+      child: const _CatalogBody(),
+    );
+  }
+}
+
+bool _soldOut(Map<String, dynamic> p) =>
+    p['available'] != null && storeNum(p['available']) <= 0;
+
+class _CatalogBody extends StatelessWidget {
+  const _CatalogBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<HashStoreHomeCubit>();
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: BlocBuilder<HashStoreHomeCubit, HashStoreHomeState>(
         builder: (context, state) {
-          return Scaffold(
-            backgroundColor: Colors.black,
-            body: Stack(
-              children: [
-                // Main content
-                CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    const HashStoreAppBar(),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 24,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Buy our Exclusive Hash Products',
-                              style: GoogleFonts.orbitron(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (state is HashStoreHomeLoaded)
-                              ListView.separated(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: state.products.length,
-                                separatorBuilder: (context, index) =>
-                                    const SizedBox(height: 16),
-                                itemBuilder: (context, index) {
-                                  final product = state.products[index];
-                                  return TweenAnimationBuilder<double>(
-                                    tween: Tween(begin: 0, end: 1),
-                                    duration: Duration(
-                                      milliseconds: 340 + (index * 90),
-                                    ),
-                                    curve: Curves.easeOutCubic,
-                                    builder: (context, value, child) {
-                                      return Opacity(
-                                        opacity: value,
-                                        child: Transform.translate(
-                                          offset: Offset(0, 18 * (1 - value)),
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                    child: _buildProductCard(
-                                      title: product['title'] ?? '',
-                                      description: product['description'] ?? '',
-                                      price: product['price'],
-                                      backgroundImage:
-                                          product['backgroundImage'],
-                                      productImage: product['productImage'],
-                                    ),
-                                  );
-                                },
-                              ),
-                            if (state is HashStoreHomeError)
-                              Center(
-                                child: Text(
-                                  state.message,
-                                  style: const TextStyle(color: Colors.red),
-                                ),
-                              ),
-                            if (state is! HashStoreHomeLoaded &&
-                                state is! HashStoreHomeError)
-                              const SizedBox.shrink(),
-                          ],
-                        ),
+          return NotificationListener<ScrollNotification>(
+            onNotification: (n) {
+              if (n.metrics.extentAfter < 400) cubit.loadMore();
+              return false;
+            },
+            child: RefreshIndicator(
+              color: StoreColors.green,
+              backgroundColor: StoreColors.surface,
+              onRefresh: () => cubit.fetchProducts(vendorId: state.vendorId),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                slivers: [
+                  const HashStoreAppBar(),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 28, 16, 20),
+                      child: Text(
+                        'Buy our Exclusive Hash Products',
+                        textAlign: TextAlign.center,
+                        style: storeDisplay(16),
                       ),
                     ),
-                  ],
-                ),
-                // Centered loader when loading
-                if (state is HashStoreHomeLoading)
-                  const Center(child: RainbowGlowingLoader(size: 60)),
-              ],
+                  ),
+                  ..._content(context, state),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 96,
+                      child: state.loadingMore
+                          ? const Center(
+                              child: SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: StoreColors.green,
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -110,130 +90,259 @@ class _HashStoreHomePageState extends State<HashStoreHomePage> {
     );
   }
 
-  Widget _buildProductCard({
-    required String title,
-    required String description,
-    String? price,
-    String? backgroundImage,
-    String? productImage,
-  }) {
-    return BounceTap(
-      onTap: () {
-        AppLogger.d('Tapped $title');
-      },
-      child: Container(
-        height: 170,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white24, width: 0.8),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF7A44C0).withValues(alpha: 0.12),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+  List<Widget> _content(BuildContext context, HashStoreHomeState state) {
+    final cubit = context.read<HashStoreHomeCubit>();
+    if (state.loading) {
+      return [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverList.separated(
+            itemCount: 3,
+            separatorBuilder: (_, _) => const SizedBox(height: 28),
+            itemBuilder: (_, _) => const AspectRatio(
+              aspectRatio: _BannerCard.aspectRatio,
+              child: StoreSkeleton(height: double.infinity, radius: 22),
             ),
-          ],
+          ),
         ),
-        child: Stack(
-          children: [
-            // Background image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.asset(
-                backgroundImage ?? 'assets/hash_store_images/fallback_bg.jpg',
-                height: 170,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                color: Colors.black.withValues(alpha: 0.3),
-                colorBlendMode: BlendMode.darken,
-              ),
+      ];
+    }
+    if (state.error != null) {
+      return [
+        SliverToBoxAdapter(
+          child: StoreMessage(
+            icon: Icons.wifi_off_rounded,
+            title: 'Store is offline',
+            body: state.error,
+            actionLabel: 'Try again',
+            onAction: () => cubit.fetchProducts(vendorId: state.vendorId),
+          ),
+        ),
+      ];
+    }
+    if (state.products.isEmpty) {
+      return const [
+        SliverToBoxAdapter(
+          child: StoreMessage(
+            icon: Icons.storefront_outlined,
+            title: 'Nothing here yet',
+            body: 'New Hash products appear here as soon as they are approved.',
+          ),
+        ),
+      ];
+    }
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        sliver: SliverList.separated(
+          itemCount: state.products.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 28),
+          itemBuilder: (context, i) => StoreEntrance(
+            index: i % 6,
+            child: _BannerCard(product: state.products[i]),
+          ),
+        ),
+      ),
+    ];
+  }
+}
+
+/// Figma product banner: tinted art background, copy and an "Add to Cart"
+/// pill on the left, the product image on the right.
+class _BannerCard extends StatelessWidget {
+  final Map<String, dynamic> product;
+  const _BannerCard({required this.product});
+
+  /// 662 × 328 in the Figma frame.
+  static const aspectRatio = 2.02;
+
+  @override
+  Widget build(BuildContext context) {
+    final thumbnail = product['thumbnail'] as String?;
+    final hasImage = thumbnail != null && thumbnail.isNotEmpty;
+    final description = '${product['description'] ?? ''}';
+    return StoreTilt(
+      maxAngle: 0.06,
+      child: BounceTap(
+        onTap: () => openStoreProduct(context, product),
+        child: AspectRatio(
+          aspectRatio: aspectRatio,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: Colors.white24),
             ),
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(21),
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  // Text and button
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: GoogleFonts.orbitron(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  // The product's own art, blurred, gives each card its tint.
+                  if (hasImage)
+                    ImageFiltered(
+                      imageFilter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                      child: Transform.scale(
+                        scale: 1.4,
+                        child: CachedNetworkImage(
+                          imageUrl: thumbnail,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, _, _) => const SizedBox.shrink(),
                         ),
-                        const SizedBox(height: 6),
-                        Padding(
-                          padding: const EdgeInsets.only(right: 55),
-                          child: Text(
-                            description,
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontSize: 12,
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                      ),
+                    )
+                  else
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF1A1325), Color(0xFF5B1C8C)],
                         ),
-                        if (price != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            "${Money.symbol}$price",
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                      ),
+                    ),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withValues(alpha: 0.72),
+                          Colors.black.withValues(alpha: 0.25),
                         ],
-                        const Spacer(),
-                        BounceTap(
-                          onTap: () {
-                            AppLogger.d('Add to Cart: $title');
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: const Color(0xff00DC00),
-                                width: 1.5,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'Add to Cart',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                  // Product image
-                  if (productImage != null)
-                    Image.asset(
-                      productImage,
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.contain,
+                  if (hasImage)
+                    Positioned(
+                      top: 0,
+                      bottom: 0,
+                      right: 0,
+                      width: MediaQuery.sizeOf(context).width * 0.42,
+                      child: ShaderMask(
+                        // Fades the photo into the card on its left edge.
+                        shaderCallback: (rect) => const LinearGradient(
+                          colors: [Colors.transparent, Colors.black],
+                          stops: [0, 0.35],
+                        ).createShader(rect),
+                        blendMode: BlendMode.dstIn,
+                        child: StoreImage(url: thumbnail, radius: 0),
+                      ),
                     ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                    child: FractionallySizedBox(
+                      widthFactor: 0.68,
+                      alignment: Alignment.centerLeft,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${product['title'] ?? ''}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: storeDisplay(19),
+                          ),
+                          if (description.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: storeBody(
+                                size: 11.5,
+                                color: Colors.white.withValues(alpha: 0.85),
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Text(
+                            Money.format(
+                              storeNum(product['price_inr']),
+                              decimals: 2,
+                            ),
+                            style: storeBody(size: 14, weight: FontWeight.w600),
+                          ),
+                          const Spacer(),
+                          _AddToCartPill(product: product),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Green outline "Add to Cart"; turns white once the item is in the cart.
+class _AddToCartPill extends StatelessWidget {
+  final Map<String, dynamic> product;
+  const _AddToCartPill({required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    final cart = context.watch<HashStoreCartCubit>().state;
+    final inCart = cart.items.any(
+      (i) => i['variant_id'] == product['variant_id'],
+    );
+    final soldOut = _soldOut(product);
+    final label = soldOut
+        ? 'Sold Out'
+        : inCart
+        ? 'In Cart'
+        : 'Add to Cart';
+    return Semantics(
+      button: true,
+      enabled: !soldOut && !cart.busy,
+      label: '$label, ${product['title']}',
+      excludeSemantics: true,
+      child: BounceTap(
+        onTap: soldOut || cart.busy
+            ? null
+            : inCart
+            ? () => openShopTab(context, 2)
+            : () => addProductToCart(context, product),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          decoration: BoxDecoration(
+            color: inCart ? Colors.white : Colors.black.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: inCart
+                  ? Colors.white
+                  : soldOut
+                  ? Colors.white38
+                  : StoreColors.green,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (inCart) ...[
+                const Icon(Icons.check_rounded, size: 16, color: Colors.black),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: storeBody(
+                  size: 13,
+                  weight: FontWeight.w700,
+                  color: inCart
+                      ? Colors.black
+                      : soldOut
+                      ? Colors.white54
+                      : Colors.white,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

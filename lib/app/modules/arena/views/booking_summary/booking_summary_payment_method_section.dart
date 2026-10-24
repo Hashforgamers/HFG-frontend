@@ -61,9 +61,11 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
         ),
       if (methods.has(CafePaymentMethods.cafeWallet))
         BookingSummaryPaymentOptionChip(
+          // The cafe's name is in the note below: with it here the balance
+          // was cut off on phone widths.
           label: wallet == null
-              ? 'Cafe Wallet • $cafeName'
-              : 'Cafe Wallet • $cafeName • '
+              ? 'Cafe Wallet'
+              : 'Cafe Wallet • '
                     '${Money.symbol}${(wallet.availableBalance / 100).toStringAsFixed(2)}',
           icon: Icons.storefront_rounded,
           isSelected: selectedPayment.value == 'cafe_wallet',

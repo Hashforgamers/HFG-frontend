@@ -134,6 +134,16 @@ class SegmentSdkService {
     final fingerprint = '$userId|$email|$fid|$phone|$username';
     if (fingerprint == _lastIdentityFingerprint) return;
 
+    // Segment merges new traits over persisted ones, so a different user
+    // would inherit the previous user's email/phone unless we reset first.
+    final previousUserId = (await analytics.state.userInfo.state).userId;
+    if (userId.isNotEmpty &&
+        previousUserId != null &&
+        previousUserId.isNotEmpty &&
+        previousUserId != userId) {
+      await analytics.reset();
+    }
+
     final traits = UserTraits(
       id: userId.isEmpty ? null : userId,
       email: email.isEmpty ? null : email,
@@ -147,6 +157,13 @@ class SegmentSdkService {
       userId: userId.isEmpty ? null : userId,
       userTraits: traits,
     );
+    // The SDK fills context.traits once at launch and never refreshes it,
+    // so track events would keep the launch-time user's traits.
+    final context = await analytics.state.context.state;
+    if (context != null) {
+      context.traits = (await analytics.state.userInfo.state).userTraits ?? traits;
+      analytics.state.context.setState(context);
+    }
     _lastIdentityFingerprint = fingerprint;
   }
 

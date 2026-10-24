@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_cart_cubit.dart';
-import 'package:hash/app/modules/hash_store/pages/hash_store_orders_view.dart';
+import 'package:hash/app/modules/hash_store/pages/hash_store_checkout_page.dart';
+import 'package:hash/app/modules/hash_store/data/medusa_store_service.dart';
 import 'package:hash/app/modules/hash_store/widgets/hash_store_app_bar.dart';
-import 'package:hash/utils/widgets/bounce_tap_widget.dart';
-import 'package:hash/utils/widgets/glow_neon_loader.dart';
-import 'package:hive/hive.dart';
-import 'package:hash/core/utils/app_logger.dart';
-import 'package:hash/core/localization/app_region.dart';
+import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
+import 'package:hash/core/utils/haptics.dart';
 
 class HashStoreCartView extends StatefulWidget {
   const HashStoreCartView({super.key});
@@ -21,288 +18,318 @@ class _HashStoreCartViewState extends State<HashStoreCartView> {
   @override
   void initState() {
     super.initState();
-    // Ensure fetchCart is called when the widget is built
+    context.read<HashStoreCartCubit>().fetchCart();
   }
 
-  double getTotalPrice(List<Map<String, dynamic>> cartItems) {
-    double total = 0;
-    for (var item in cartItems) {
-      double price = double.tryParse(item['price']?.toString() ?? '0') ?? 0;
-      int qty = item['quantity'] is int
-          ? item['quantity']
-          : int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
-      total += price * qty;
+  /// Removes a line, then offers Undo instead of asking first.
+  Future<void> _remove(Map<String, dynamic> item) async {
+    final cubit = context.read<HashStoreCartCubit>();
+    final messenger = ScaffoldMessenger.of(context);
+    final vendorId = await MedusaStoreService.instance.cartVendorId();
+    try {
+      await cubit.removeItem(item['id'] as String);
+    } catch (e) {
+      storeToast(e.toString(), error: true);
+      return;
     }
-    return total;
+    Haptics.light();
+    final title = '${item['product_title'] ?? item['title'] ?? 'Item'}';
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: StoreColors.surfaceHigh,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Text('$title removed', style: storeBody(size: 14)),
+          action: vendorId == null || item['variant_id'] == null
+              ? null
+              : SnackBarAction(
+                  label: 'Undo',
+                  textColor: StoreColors.greenSoft,
+                  onPressed: () => _guard(
+                    () => cubit.addItem({
+                      'variant_id': item['variant_id'],
+                      'vendor_id': vendorId,
+                      'title': title,
+                    }, quantity: storeNum(item['quantity']).toInt()),
+                  ),
+                ),
+        ),
+      );
+  }
+
+  Future<void> _guard(Future<void> Function() call) async {
+    try {
+      await call();
+    } catch (e) {
+      storeToast(e.toString(), error: true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => HashStoreCartCubit()..fetchCart(), // Trigger fetch on creation
-      child: BlocBuilder<HashStoreCartCubit, HashStoreCartState>(
-        builder: (context, state) {
-          return Scaffold(
-            floatingActionButton: FloatingActionButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => HashStoreOrdersView()));
-              },
-              child: const Icon(Icons.arrow_forward),
-            ),
-            body: Stack(
-              children: [
-                // Main content
-                CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    const HashStoreAppBar(),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Your Cart',
-                              style: GoogleFonts.orbitron(
-                                color: Colors.white,
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (state is HashStoreCartLoaded)
-                              Column(
-                                children: [
-                                  ListView.separated(
-                                    shrinkWrap: true,
-                                    physics: const NeverScrollableScrollPhysics(),
-                                    itemCount: state.cartItems.length,
-                                    separatorBuilder: (_, __) => const SizedBox(height: 20),
-                                    itemBuilder: (context, index) {
-                                      final item = state.cartItems[index];
-                                      final cubit = context.read<HashStoreCartCubit>();
-                                      return _buildProductCard(
-                                        index: index,
-                                        title: item['title'] ?? '',
-                                        price: item['price']?.toString() ?? '',
-                                        productImage: item['productImage'],
-                                        quantity: item['quantity'] is int
-                                            ? item['quantity']
-                                            : int.tryParse(item['quantity']?.toString() ?? '1') ?? 1,
-                                        onIncrement: () => cubit.incrementQuantity(index),
-                                        onDecrement: () => cubit.decrementQuantity(index),
-                                      );
-                                    },
-                                  ),
-                                  const SizedBox(height: 20),
-                                  const Divider(color: Color(0xFF7A44C0)),
-                                  const SizedBox(height: 20),
-                                  ...state.cartItems.map((item) => Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 4),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          "${item['title']} (${item['quantity']})",
-                                          style: const TextStyle(color: Colors.white54, fontSize: 14),
-                                        ),
-                                        Text(
-                                          "Rs. ${(double.tryParse(item['price']?.toString() ?? '0')! * (item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity']?.toString() ?? '1') ?? 1)).toStringAsFixed(2)}",
-                                          style: const TextStyle(color: Colors.white54, fontSize: 14),
-                                        ),
-                                      ],
-                                    ),
-                                  )),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text(
-                                        "Total",
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      Text(
-                                        "Rs. ${getTotalPrice(state.cartItems).toStringAsFixed(2)}",
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 20),
-                                  BounceTap(
-                                    onTap: () {},
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 5),
-                                      width: MediaQuery.of(context).size.width,
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: const Color(0xff00DC00),
-                                          width: 1.5,
-                                        ),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: const Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            "Check Out",
-                                            style: TextStyle(color: const Color(0xff00DC00), fontWeight: FontWeight.bold),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  Row(
-                                    children: [
-                                      const Text(
-                                        "Shipping Address",
-                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                      ),
-                                      const Spacer(),
-                                      GestureDetector(
-                                        onTap: () {},
-                                        child: const Text(
-                                          "Edit",
-                                          style: TextStyle(
-                                            decoration: TextDecoration.underline,
-                                            color: Colors.white54,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            if (state is HashStoreCartError)
-                              Center(child: Text(state.message, style: const TextStyle(color: Colors.red))),
-                            if (state is! HashStoreCartLoaded && state is! HashStoreCartError)
-                              const SizedBox.shrink(),
-                          ],
+    final cubit = context.read<HashStoreCartCubit>();
+    return BlocBuilder<HashStoreCartCubit, HashStoreCartState>(
+      builder: (context, state) {
+        final items = state.items;
+        final cart = state.cart;
+        final hasItems = items.isNotEmpty;
+        return Scaffold(
+          backgroundColor: StoreColors.bg,
+          bottomNavigationBar: hasItems
+              ? StoreBottomBar(
+                  child: Row(
+                    children: [
+                      StoreTotalLabel(amount: cart!['total']),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: StoreButton(
+                          label: 'Checkout',
+                          icon: Icons.lock_rounded,
+                          onTap: state.busy
+                              ? null
+                              : () => openStoreCheckout(context),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                // Centered loader when loading
-                if (state is HashStoreCartLoading)
-                  const Center(
-                    child: RainbowGlowingLoader(size: 60),
+                    ],
                   ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildProductCard({
-    required int index,
-    required String title,
-    required String price,
-    required int quantity,
-    String? productImage,
-    required VoidCallback onIncrement,
-    required VoidCallback onDecrement,
-  }) {
-    return BounceTap(
-      onTap: () {
-        AppLogger.d('Tapped $title');
-      },
-      child: Container(
-        height: 140,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF7A44C0), width: 0.5),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.orbitron(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
+                )
+              : null,
+          body: RefreshIndicator(
+            color: StoreColors.green,
+            backgroundColor: StoreColors.surface,
+            onRefresh: cubit.fetchCart,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                const HashStoreAppBar(),
+                StoreTabTitle(
+                  'Your Cart',
+                  subtitle: hasItems
+                      ? '${state.itemCount} item${state.itemCount == 1 ? '' : 's'}'
+                      : null,
+                ),
+                if (state.loading && cart == null)
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverList.list(
+                      children: const [
+                        StoreSkeleton(height: 112, radius: 20),
+                        SizedBox(height: 12),
+                        StoreSkeleton(height: 112, radius: 20),
+                      ],
                     ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        Text(
-                          "${Money.symbol}$price",
-                          style: GoogleFonts.inter(
-                            color: const Color(0xff00DC00),
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                  )
+                else if (state.error != null && cart == null)
+                  SliverToBoxAdapter(
+                    child: StoreMessage(
+                      icon: Icons.error_outline_rounded,
+                      title: 'Could not load your cart',
+                      body: state.error,
+                      actionLabel: 'Try again',
+                      onAction: cubit.fetchCart,
+                    ),
+                  )
+                else if (!hasItems)
+                  SliverToBoxAdapter(
+                    child: StoreMessage(
+                      icon: Icons.shopping_bag_outlined,
+                      title: 'Your cart is empty',
+                      body: 'Find gear and sessions from Hash partners.',
+                      actionLabel: 'Browse the store',
+                      onAction: () => openShopTab(context, 0),
+                    ),
+                  )
+                else ...[
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    sliver: SliverList.separated(
+                      itemCount: items.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (context, i) {
+                        final id = items[i]['id'] as String;
+                        return StoreEntrance(
+                          key: ValueKey(id),
+                          index: i,
+                          child: _CartRow(
+                            item: items[i],
+                            busy: state.busy,
+                            onQty: (q) =>
+                                _guard(() => cubit.setQuantity(id, q)),
+                            onRemove: () => _remove(items[i]),
                           ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(5),
-                            border: Border.all(color: const Color(0xFF412D65)),
-                          ),
-                          child: Row(
+                        );
+                      },
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          StoreTotals(cart: cart!),
+                          const SizedBox(height: 14),
+                          Row(
                             children: [
-                              InkWell(
-                                onTap: onDecrement,
-                                child: const Icon(Icons.remove),
+                              const Icon(
+                                Icons.info_outline_rounded,
+                                size: 14,
+                                color: StoreColors.faint,
                               ),
-                              const SizedBox(width: 3),
-                              Text(
-                                "$quantity",
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Delivery is chosen at checkout. Prices '
+                                  'and stock are confirmed by the store.',
+                                  style: storeBody(
+                                    size: 11,
+                                    color: StoreColors.faint,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 3),
-                              InkWell(
-                                onTap: onIncrement,
-                                child: const Icon(Icons.add),
                               ),
                             ],
                           ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CartRow extends StatelessWidget {
+  final Map<String, dynamic> item;
+  final bool busy;
+  final ValueChanged<int> onQty;
+  final Future<void> Function() onRemove;
+  const _CartRow({
+    required this.item,
+    required this.busy,
+    required this.onQty,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final qty = storeNum(item['quantity']).toInt();
+    final variant = '${item['variant_title'] ?? ''}';
+    final title = '${item['product_title'] ?? item['title'] ?? ''}';
+    return Dismissible(
+      key: ValueKey('dismiss-${item['id']}'),
+      direction: busy ? DismissDirection.none : DismissDirection.endToStart,
+      // Removal is async, so the row is never dismissed in place; it goes
+      // away when the server cart comes back without it.
+      confirmDismiss: (_) async {
+        await onRemove();
+        return false;
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        decoration: BoxDecoration(
+          color: StoreColors.danger.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: StoreColors.danger,
+        ),
+      ),
+      child: StorePanel(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            StoreImage(
+              url: item['thumbnail'] as String?,
+              width: 88,
+              height: 88,
+              radius: 14,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: SizedBox(
+                height: 88,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: storeBody(
+                              size: 14,
+                              weight: FontWeight.w600,
+                              height: 1.25,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: IconButton(
+                            tooltip: 'Remove $title',
+                            padding: EdgeInsets.zero,
+                            onPressed: busy ? null : onRemove,
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              size: 18,
+                              color: StoreColors.faint,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (variant.isNotEmpty && variant != 'Default variant')
+                      Text(
+                        variant,
+                        style: storeBody(size: 12, color: StoreColors.muted),
+                      ),
+                    const Spacer(),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            storeMoney(
+                              item['total'] ??
+                                  storeNum(item['unit_price']) * qty,
+                            ),
+                            style: storeTitle(
+                              16,
+                            ).copyWith(color: StoreColors.greenSoft),
+                          ),
+                        ),
+                        StoreQtyStepper(
+                          compact: true,
+                          value: qty,
+                          onMinus: busy || qty <= 1
+                              ? null
+                              : () => onQty(qty - 1),
+                          onPlus: busy ? null : () => onQty(qty + 1),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              SizedBox(
-                width: 80,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (productImage != null)
-                      Image.asset(
-                        productImage,
-                        width: MediaQuery.of(context).size.width,
-                        fit: BoxFit.contain,
-                      ),
-                    if (productImage == null) const Icon(Icons.error_outline, size: 20),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -31,6 +31,8 @@ import '../../../utils/widgets/glow_neon_loader.dart';
 import '../../data/models/user_model.dart' as model;
 import '../../data/services/user_controller.dart';
 import '../../routes/app_routes.dart';
+import '../hash_store/data/medusa_store_service.dart';
+import '../shop_new/controllers/shop_controller.dart';
 
 class UserProfileView extends StatefulWidget {
   const UserProfileView({super.key});
@@ -1280,6 +1282,10 @@ class _UserProfileViewState extends State<UserProfileView> {
               context.read<HashCoinCubit>().reset();
             }
             userController.clearSession();
+            MedusaStoreService.instance.clearSession();
+            if (Get.isRegistered<ShopController>()) {
+              Get.find<ShopController>().clearCart();
+            }
 
             Get.offAllNamed(AppRoutes.LOGIN);
           } catch (e) {

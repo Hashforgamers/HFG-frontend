@@ -1,29 +1,28 @@
 part of 'hash_store_cart_cubit.dart';
 
-abstract class HashStoreCartState extends Equatable {
-  const HashStoreCartState();
-}
+class HashStoreCartState extends Equatable {
+  /// Medusa cart; null when the account has no open cart.
+  final Map<String, dynamic>? cart;
+  final bool loading;
 
-class HashStoreCartInitial extends HashStoreCartState {
-  @override
-  List<Object?> get props => [];
-}
+  /// An add/update/remove request is in flight.
+  final bool busy;
+  final String? error;
 
-class HashStoreCartLoading extends HashStoreCartState {
-  @override
-  List<Object?> get props => [];
-}
+  const HashStoreCartState({
+    this.cart,
+    this.loading = false,
+    this.busy = false,
+    this.error,
+  });
 
-class HashStoreCartLoaded extends HashStoreCartState {
-  final List<Map<String, dynamic>> cartItems;
-  const HashStoreCartLoaded({required this.cartItems});
-  @override
-  List<Object?> get props => [cartItems];
-}
+  List<Map<String, dynamic>> get items => (cart?['items'] as List? ?? [])
+      .map((i) => Map<String, dynamic>.from(i as Map))
+      .toList();
 
-class HashStoreCartError extends HashStoreCartState {
-  final String message;
-  const HashStoreCartError({required this.message});
+  int get itemCount =>
+      items.fold(0, (sum, i) => sum + ((i['quantity'] as num?)?.toInt() ?? 0));
+
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [cart, loading, busy, error];
 }

@@ -16,6 +16,7 @@ import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/home/controllers/app_mode_controller.dart';
 import 'package:hash/app/modules/home/controllers/session_progress_controller.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
+import 'package:hash/app/modules/hash_store/widgets/shop_nav_bar.dart';
 import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
 import 'package:hash/app/modules/shop_new/view/shop_view.dart';
 import 'package:hash/app/modules/cafe_play/data/cafe_live_session_sync.dart';
@@ -296,6 +297,7 @@ class _HomeViewState extends State<HomeView> {
     controller.isShopOpen.value = true;
     if (wasClosed) {
       Haptics.medium();
+      shopController.refreshCart();
     }
   }
 
@@ -356,8 +358,6 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
     return Scaffold(
       body: Stack(
         children: [
@@ -576,11 +576,6 @@ class _HomeViewState extends State<HomeView> {
       bottomNavigationBar: Obx(() {
         final bool isShopMenuOpen = _isShopBarExpanded;
         final int activeShopIndex = shopController.shopMenuIndex.value;
-        final reduceMotion = MediaQuery.disableAnimationsOf(context);
-        final double shopActionsWidth = (screenWidth - 140).clamp(
-          0.0,
-          double.infinity,
-        );
 
         return Stack(
           alignment: Alignment.bottomCenter,
@@ -618,224 +613,16 @@ class _HomeViewState extends State<HomeView> {
               ],
             ),
 
-            // --- Slide-in Hash Shop Bar ---
+            // --- Hash Shop dock: pill that unfolds into the shop nav bar ---
             if (HomeController.isHashShopReleased)
-              Positioned(
-                right: 0,
-                bottom: bottomSafeArea + 5,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.horizontal(
-                    left: Radius.circular(isShopMenuOpen ? 0 : 24),
-                  ),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                    child: AnimatedContainer(
-                      duration: Duration(milliseconds: reduceMotion ? 0 : 540),
-                      curve: Curves.easeOutCubic,
-                      width: isShopMenuOpen ? screenWidth : 84,
-                      height: isShopMenuOpen ? 52 : 46,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.horizontal(
-                          left: Radius.circular(isShopMenuOpen ? 0 : 24),
-                        ),
-                        gradient: isShopMenuOpen
-                            ? const LinearGradient(
-                                colors: [
-                                  Color(0xFF0B1B08),
-                                  Color(0xFF12351E),
-                                  Color(0xFF4A2D7A),
-                                  Color(0xFF7A44C0),
-                                ],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              )
-                            : LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.08),
-                                  const Color(
-                                    0xFF7A44C0,
-                                  ).withValues(alpha: 0.28),
-                                  Colors.black.withValues(alpha: 0.48),
-                                ],
-                              ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            blurRadius: 2,
-                            offset: const Offset(0, 3),
-                          ),
-                          BoxShadow(
-                            color: const Color(
-                              0xFF7A44C0,
-                            ).withValues(alpha: 0.24),
-                            blurRadius: 10,
-                            offset: const Offset(0, 0),
-                          ),
-                          BoxShadow(
-                            color: const Color(
-                              0xFF56C785,
-                            ).withValues(alpha: 0.14),
-                            blurRadius: 8,
-                            offset: const Offset(0, 0),
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Positioned.fill(
-                            child: IgnorePointer(
-                              child: TweenAnimationBuilder<double>(
-                                key: ValueKey(isShopMenuOpen),
-                                tween: Tween(begin: 0, end: 1),
-                                duration: Duration(
-                                  milliseconds: reduceMotion ? 0 : 950,
-                                ),
-                                builder: (context, progress, _) => CustomPaint(
-                                  painter: _ShopLightSweep(
-                                    progress: progress,
-                                    enabled: isShopMenuOpen && !reduceMotion,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          IgnorePointer(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black.withValues(alpha: 0.42),
-                                    Colors.black,
-                                    Colors.black,
-                                  ],
-                                  stops: const [0.0, 0.34, 0.82, 1.0],
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isShopMenuOpen ? 10 : 8,
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                GestureDetector(
-                                  onTap: () {
-                                    if (isShopMenuOpen) {
-                                      _closeShop();
-                                    } else {
-                                      _openShopSection(0);
-                                    }
-                                  },
-                                  child: Row(
-                                    children: [
-                                      AnimatedOpacity(
-                                        duration: const Duration(
-                                          milliseconds: 220,
-                                        ),
-                                        opacity: isShopMenuOpen ? 1 : 0,
-                                        child: const Padding(
-                                          padding: EdgeInsets.only(right: 8.0),
-                                          child: Icon(
-                                            Icons.arrow_back_ios_new_sharp,
-                                            size: 12,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                      AnimatedSwitcher(
-                                        duration: const Duration(
-                                          milliseconds: 150,
-                                        ),
-                                        transitionBuilder: (child, animation) =>
-                                            FadeTransition(
-                                              opacity: animation,
-                                              child: child,
-                                            ),
-                                        child: Text(
-                                          isShopMenuOpen
-                                              ? "HASH\nAPP"
-                                              : "HASH\nSHOP",
-                                          key: ValueKey(isShopMenuOpen),
-                                          style: GoogleFonts.orbitron(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            letterSpacing: 0.6,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                AnimatedContainer(
-                                  duration: const Duration(milliseconds: 280),
-                                  curve: Curves.easeInOutCubic,
-                                  width: isShopMenuOpen ? shopActionsWidth : 0,
-                                  margin: EdgeInsets.only(
-                                    left: isShopMenuOpen ? 8 : 0,
-                                  ),
-                                  child: ClipRect(
-                                    child: OverflowBox(
-                                      alignment: Alignment.centerRight,
-                                      minWidth: shopActionsWidth,
-                                      maxWidth: shopActionsWidth,
-                                      child: IgnorePointer(
-                                        ignoring: !isShopMenuOpen,
-                                        child: AnimatedOpacity(
-                                          duration: const Duration(
-                                            milliseconds: 150,
-                                          ),
-                                          opacity: isShopMenuOpen ? 1 : 0,
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceEvenly,
-                                            children: [
-                                              _shopIcon(
-                                                Icons.storefront_rounded,
-                                                entrance: isShopMenuOpen,
-                                                order: 0,
-                                                isActive: activeShopIndex == 0,
-                                                onTap: () =>
-                                                    _openShopSection(0),
-                                              ),
-                                              _shopIcon(
-                                                Icons.shopping_bag_rounded,
-                                                entrance: isShopMenuOpen,
-                                                order: 1,
-                                                isActive: activeShopIndex == 2,
-                                                onTap: () =>
-                                                    _openShopSection(2),
-                                              ),
-                                              _shopIcon(
-                                                Icons.receipt_long_rounded,
-                                                entrance: isShopMenuOpen,
-                                                order: 2,
-                                                isActive: activeShopIndex == 3,
-                                                onTap: () =>
-                                                    _openShopSection(3),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+              Positioned.fill(
+                child: HashShopDock(
+                  open: isShopMenuOpen,
+                  activeIndex: activeShopIndex,
+                  cart: shopController.cart,
+                  onOpen: () => _openShopSection(0),
+                  onSelect: _openShopSection,
+                  onExit: _closeShop,
                 ),
               ),
           ],
@@ -912,126 +699,6 @@ class _HomeViewState extends State<HomeView> {
       label: label,
     );
   }
-
-  // --- Shop Icons ---
-  Widget _shopIcon(
-    IconData icon, {
-    required VoidCallback onTap,
-    required bool isActive,
-    required bool entrance,
-    required int order,
-  }) {
-    final activeBg = LinearGradient(
-      colors: [
-        const Color(0xff00DC00).withValues(alpha: 0.28),
-        const Color(0xFF7A44C0).withValues(alpha: 0.32),
-      ],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    return TweenAnimationBuilder<double>(
-      tween: Tween(end: entrance ? 1 : 0),
-      duration: Duration(milliseconds: reduceMotion ? 0 : 650),
-      builder: (context, value, child) {
-        final progress = Interval(
-          0.12 + order * 0.12,
-          0.72 + order * 0.12,
-          curve: Curves.easeOutCubic,
-        ).transform(value);
-        return Opacity(
-          opacity: progress,
-          child: Transform.translate(
-            offset: Offset(0, 16 * (1 - progress)),
-            child: child,
-          ),
-        );
-      },
-      child: AnimatedScale(
-        scale: isActive ? 1.08 : 1,
-        duration: Duration(milliseconds: reduceMotion ? 0 : 420),
-        curve: Curves.easeOutBack,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: AnimatedContainer(
-            duration: Duration(milliseconds: reduceMotion ? 0 : 320),
-            curve: Curves.easeOut,
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              gradient: isActive ? activeBg : null,
-              color: isActive ? null : Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(
-                    0xFF7A44C0,
-                  ).withValues(alpha: isActive ? 0.4 : 0),
-                  blurRadius: 12,
-                  spreadRadius: 1,
-                ),
-              ],
-              border: Border.all(
-                color: isActive
-                    ? const Color(0xff00DC00).withValues(alpha: 0.72)
-                    : Colors.white.withValues(alpha: 0.12),
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: isActive ? const Color(0xff67FF67) : Colors.white70,
-              size: isActive ? 21 : 20,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A single glint follows the shop drawer opening, then disappears completely.
-class _ShopLightSweep extends CustomPainter {
-  const _ShopLightSweep({required this.progress, required this.enabled});
-
-  final double progress;
-  final bool enabled;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (!enabled || progress <= 0 || progress >= 1) return;
-    final x = size.width * (1.2 - progress * 1.4);
-    final rect = Rect.fromLTWH(x - 45, 0, 90, size.height);
-    final opacity = sin(progress * pi) * 0.32;
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()
-        ..shader = LinearGradient(
-          colors: [
-            Colors.transparent,
-            const Color(0xFFCBB1FF).withValues(alpha: opacity),
-            Colors.transparent,
-          ],
-        ).createShader(rect),
-    );
-    canvas.drawLine(
-      Offset(x - 42, 1),
-      Offset(x + 42, 1),
-      Paint()
-        ..shader = LinearGradient(
-          colors: [
-            Colors.transparent,
-            Colors.white.withValues(alpha: opacity),
-            Colors.transparent,
-          ],
-        ).createShader(rect)
-        ..strokeWidth = 1.5,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_ShopLightSweep oldDelegate) =>
-      progress != oldDelegate.progress || enabled != oldDelegate.enabled;
 }
 
 class _NavTab {

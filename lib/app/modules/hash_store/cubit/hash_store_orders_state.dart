@@ -15,6 +15,7 @@ class HashStoreOrdersLoading extends HashStoreOrdersState {
 }
 
 class HashStoreOrdersLoaded extends HashStoreOrdersState {
+  /// Medusa orders, newest first.
   final List<Map<String, dynamic>> orders;
   const HashStoreOrdersLoaded({required this.orders});
   @override

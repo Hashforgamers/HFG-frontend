@@ -3,7 +3,9 @@ import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
+import 'package:hash/app/modules/hash_store/data/medusa_store_service.dart';
 import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
 import '../../hash_store/pages/categories_view.dart';
 import '../../hash_store/pages/hash_store_cart_view.dart';
@@ -15,31 +17,35 @@ class ShopMenuView extends GetView<ShopController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Obx(() {
-            final index = controller.shopMenuIndex.value;
+    return BlocProvider.value(
+      value: controller.cart,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Obx(() {
+              final index = controller.shopMenuIndex.value;
 
-            return AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0.1, 0),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0.1, 0),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
                 ),
-              ),
-              child: _buildShopSection(index),
-            );
-          }),
-          const _DelayedComingSoonLock(),
-        ],
+                child: _buildShopSection(index),
+              );
+            }),
+            if (!MedusaStoreService.isConfigured)
+              const _DelayedComingSoonLock(),
+          ],
+        ),
       ),
     );
   }
