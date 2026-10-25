@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/hash_store/widgets/neon_switch.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:hash/utils/widgets/loader.dart';
@@ -32,22 +33,24 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
               icon: const Icon(Icons.refresh_rounded),
             ),
           ],
-          bottom: TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            indicatorColor: CT.primary,
-            labelColor: Colors.white,
-            unselectedLabelColor: CT.muted,
-            tabs: const [
-              Tab(text: 'OVERVIEW'),
-              Tab(text: 'ROSTER'),
-              Tab(text: 'TEAMS'),
-              Tab(text: 'MATCHES'),
-              Tab(text: 'RESULTS'),
-              Tab(text: 'MESSAGES'),
-              Tab(text: 'PAYOUTS'),
-              Tab(text: 'CONTROL'),
-            ],
+          bottom: NeonTabBar(
+            TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              indicatorColor: CT.primary,
+              labelColor: Colors.white,
+              unselectedLabelColor: CT.muted,
+              tabs: neonTabs(const [
+                Tab(text: 'OVERVIEW'),
+                Tab(text: 'ROSTER'),
+                Tab(text: 'TEAMS'),
+                Tab(text: 'MATCHES'),
+                Tab(text: 'RESULTS'),
+                Tab(text: 'MESSAGES'),
+                Tab(text: 'PAYOUTS'),
+                Tab(text: 'CONTROL'),
+              ]),
+            ),
           ),
         ),
         body: Obx(() {
@@ -280,18 +283,20 @@ class ManageTournamentView extends GetView<ManageTournamentController> {
                     ],
                   ),
                 ),
-                TabBar(
-                  indicatorColor: CT.primary,
-                  indicatorSize: TabBarIndicatorSize.label,
-                  dividerColor: CT.hairline,
-                  labelColor: CT.onSurface,
-                  unselectedLabelColor: CT.muted,
-                  labelStyle: CT.mono(9),
-                  tabs: [
-                    Tab(text: 'ALL  ${all.length}'),
-                    Tab(text: 'CONFIRMED  ${confirmed.length}'),
-                    Tab(text: 'CHECKED IN  ${checkedIn.length}'),
-                  ],
+                NeonTabBar(
+                  TabBar(
+                    indicatorColor: CT.primary,
+                    indicatorSize: TabBarIndicatorSize.label,
+                    dividerColor: CT.hairline,
+                    labelColor: CT.onSurface,
+                    unselectedLabelColor: CT.muted,
+                    labelStyle: CT.mono(9),
+                    tabs: neonTabs([
+                      Tab(text: 'ALL  ${all.length}'),
+                      Tab(text: 'CONFIRMED  ${confirmed.length}'),
+                      Tab(text: 'CHECKED IN  ${checkedIn.length}'),
+                    ]),
+                  ),
                 ),
                 Expanded(
                   child: TabBarView(

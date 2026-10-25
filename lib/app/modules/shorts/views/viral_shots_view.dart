@@ -21,7 +21,11 @@ class ViralShotsSection extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const HomeSectionTitle(title: 'Trending ', accent: 'Shorts'),
+          const HomeSectionTitle(
+            title: 'Trending ',
+            accent: 'Shorts',
+            brand: true,
+          ),
           const SizedBox(height: 12),
           Obx(() {
             if (controller.isLoading.value) return _shimmerRow();

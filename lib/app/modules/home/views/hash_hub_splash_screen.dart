@@ -1,11 +1,10 @@
+import 'package:hash/utils/widgets/hash_splash_logo.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/home/controllers/app_mode_controller.dart';
 import 'package:hash/app/modules/home/views/hub_root.dart';
-import 'package:shimmer/shimmer.dart';
 
 class HashHubSplashScreen extends StatefulWidget {
   const HashHubSplashScreen({super.key});
@@ -80,29 +79,7 @@ class _HashHubSplashScreenState extends State<HashHubSplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: Shimmer.fromColors(
-          baseColor: Colors.white.withValues(alpha: 0.2),
-          highlightColor: Colors.white.withValues(alpha: 0.9),
-          period: const Duration(seconds: 2),
-          direction: ShimmerDirection.ltr,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset('assets/nologoblack.png', width: 220),
-              const SizedBox(height: 10),
-              Text(
-                'LEVEL UP YOUR GAME',
-                style: GoogleFonts.orbitron(
-                  color: Colors.white,
-                  fontSize: 16,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      body: const HashSplashLogo(),
     );
   }
 }

@@ -356,7 +356,11 @@ class _GamesSectionState extends State<GamesSection> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const HomeSectionTitle(title: 'Upcoming ', accent: 'Games'),
+          const HomeSectionTitle(
+            title: 'Upcoming ',
+            accent: 'Games',
+            brand: true,
+          ),
           const SizedBox(height: 12),
           Obx(() {
             if (ctrl.isLoading.value && ctrl.games.isEmpty) {

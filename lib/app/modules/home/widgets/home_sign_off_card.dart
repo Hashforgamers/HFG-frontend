@@ -89,7 +89,7 @@ class _HomeSignOffCardState extends State<HomeSignOffCard> {
         final streak = snapshot.data?.currentStreak ?? 0;
         final copy = signOffCopy(streak: streak, name: _name());
         return HomeCard(
-          accent: streak > 0 ? HomeTokens.gold : HomeTokens.green,
+          accent: streak > 0 ? HomeTokens.gold : HomeTokens.coral,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -122,7 +122,7 @@ class _HomeSignOffCardState extends State<HomeSignOffCard> {
                           streak > 0 ? 'Keep it going' : 'One more game',
                           color: streak > 0
                               ? HomeTokens.gold
-                              : HomeTokens.green,
+                              : HomeTokens.coral,
                         ),
                         const SizedBox(height: 4),
                         Text(

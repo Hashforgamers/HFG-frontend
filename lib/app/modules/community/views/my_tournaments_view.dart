@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/hash_store/widgets/neon_switch.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
@@ -23,15 +24,14 @@ class MyTournamentsView extends GetView<MyTournamentsController> {
           elevation: 0,
           iconTheme: const IconThemeData(color: CT.onSurface),
           title: Text('My Tournaments', style: CT.headline(18)),
-          bottom: TabBar(
-            indicatorColor: CT.primary,
-            labelColor: CT.primary,
-            unselectedLabelColor: CT.muted,
-            labelStyle: CT.body(14, w: FontWeight.w700),
-            tabs: const [
-              Tab(text: 'Joined'),
-              Tab(text: 'Hosted'),
-            ],
+          bottom: NeonTabBar(
+            TabBar(
+              indicatorColor: CT.primary,
+              labelColor: CT.primary,
+              unselectedLabelColor: CT.muted,
+              labelStyle: CT.body(14, w: FontWeight.w700),
+              tabs: neonTabs(const [Tab(text: 'Joined'), Tab(text: 'Hosted')]),
+            ),
           ),
         ),
         body: Obx(() {

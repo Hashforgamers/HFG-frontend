@@ -1,3 +1,6 @@
+import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
+import 'package:hash/app/modules/hash_store/widgets/neon_switch.dart';
 import 'dart:async';
 import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:math';
@@ -462,113 +465,10 @@ class _HomeViewState extends State<HomeView> {
           return const SizedBox.shrink();
         }
 
-        final unreadCount = chatService.unreadRoomCount.value;
-        const neonGreen = Color(0xff00DC00);
-        final bool showLabel = !_isHomeScrolling;
-        const fabShape = BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(0),
-        );
-
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Frosted blurred-glass pill: a translucent surface over a
-            // BackdropFilter so the feed behind shows through, framed by the
-            // neon-green brand border.
-            ClipRRect(
-              borderRadius: fabShape,
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _openChatInbox,
-                    borderRadius: fabShape,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOut,
-                      height: 56,
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
-                      decoration: BoxDecoration(
-                        // Subtle green-tinted frost so the blur reads even over
-                        // dark content.
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.white.withValues(alpha: 0.10),
-                            neonGreen.withValues(alpha: 0.08),
-                          ],
-                        ),
-                        borderRadius: fabShape,
-                        border: Border.all(color: neonGreen, width: 1.6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Image.asset(
-                            'assets/chat.png',
-                            width: 20,
-                            height: 20,
-                            color: neonGreen,
-                            fit: BoxFit.contain,
-                          ),
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeOut,
-                            child: showLabel
-                                ? Padding(
-                                    padding: const EdgeInsets.only(left: 10),
-                                    child: Text(
-                                      'Chat',
-                                      style: GoogleFonts.inter(
-                                        color: neonGreen,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (unreadCount > 0)
-              Positioned(
-                right: -2,
-                top: -2,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 18,
-                    minHeight: 18,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.black, width: 1),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    unreadCount > 99 ? '99+' : '$unreadCount',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-          ],
+        return _ChatFab(
+          unread: chatService.unreadRoomCount.value,
+          showLabel: !_isHomeScrolling,
+          onTap: _openChatInbox,
         );
       }),
 
@@ -582,35 +482,46 @@ class _HomeViewState extends State<HomeView> {
           clipBehavior: Clip.none,
           children: [
             // --- Bottom Navigation Bar ---
-            BottomNavigationBar(
-              type: BottomNavigationBarType.fixed,
-              enableFeedback: true,
-              showSelectedLabels: true,
-              showUnselectedLabels: false,
-              selectedFontSize: 10.5,
-              unselectedFontSize: 10,
-              selectedLabelStyle: GoogleFonts.inter(
-                fontWeight: FontWeight.w700,
-                height: 1.4,
-              ),
-              currentIndex: _navTabs
+            NeonSwitchFx(
+              index: _navTabs
                   .indexWhere((t) => t.screen == controller.selectedIndex.value)
                   .clamp(0, _navTabs.length - 1),
-              onTap: (position) =>
-                  _onMainNavigationTap(_navTabs[position].screen),
-              backgroundColor: Colors.black,
-              selectedItemColor: const Color(0xff00DC00),
-              unselectedItemColor: Colors.grey[800],
-              items: <BottomNavigationBarItem>[
-                for (final tab in _navTabs)
-                  _buildNavigationItem(
-                    tab.icon,
-                    label: tab.label,
-                    isSelected: controller.selectedIndex.value == tab.screen,
-                    isSpecial: tab.isSpecial,
-                    iconHeight: tab.iconHeight,
-                  ),
-              ],
+              count: _navTabs.length,
+              // Slower than the shop dock so the main tabs read clearly.
+              response: 1.3,
+              child: BottomNavigationBar(
+                type: BottomNavigationBarType.fixed,
+                enableFeedback: true,
+                showSelectedLabels: true,
+                showUnselectedLabels: false,
+                selectedFontSize: 10.5,
+                unselectedFontSize: 10,
+                selectedLabelStyle: GoogleFonts.inter(
+                  fontWeight: FontWeight.w700,
+                  height: 1.4,
+                ),
+                currentIndex: _navTabs
+                    .indexWhere(
+                      (t) => t.screen == controller.selectedIndex.value,
+                    )
+                    .clamp(0, _navTabs.length - 1),
+                onTap: (position) =>
+                    _onMainNavigationTap(_navTabs[position].screen),
+                backgroundColor: Colors.black,
+                selectedItemColor: const Color(0xff00DC00),
+                unselectedItemColor: Colors.grey[800],
+                items: <BottomNavigationBarItem>[
+                  for (final (i, tab) in _navTabs.indexed)
+                    _buildNavigationItem(
+                      tab.icon,
+                      slot: i,
+                      label: tab.label,
+                      isSelected: controller.selectedIndex.value == tab.screen,
+                      isSpecial: tab.isSpecial,
+                      iconHeight: tab.iconHeight,
+                    ),
+                ],
+              ),
             ),
 
             // --- Hash Shop dock: pill that unfolds into the shop nav bar ---
@@ -656,6 +567,7 @@ class _HomeViewState extends State<HomeView> {
   // --- BottomNavigationBar Item Builder ---
   BottomNavigationBarItem _buildNavigationItem(
     String iconPath, {
+    required int slot,
     required String label,
     required bool isSelected,
     bool isSpecial = false,
@@ -669,15 +581,18 @@ class _HomeViewState extends State<HomeView> {
     if (isSpecial) {
       return BottomNavigationBarItem(
         backgroundColor: Colors.black,
-        icon: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          height: isSelected ? 27 : 25,
-          width: isSelected ? 27 : 25,
-          child: Image.asset(
-            iconPath,
-            height: 12,
-            color: isSelected ? selected : unselected,
-            colorBlendMode: BlendMode.srcIn,
+        icon: NeonFlip(
+          slot: slot,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            height: isSelected ? 27 : 25,
+            width: isSelected ? 27 : 25,
+            child: Image.asset(
+              iconPath,
+              height: 12,
+              color: isSelected ? selected : unselected,
+              colorBlendMode: BlendMode.srcIn,
+            ),
           ),
         ),
         label: label,
@@ -686,14 +601,17 @@ class _HomeViewState extends State<HomeView> {
 
     return BottomNavigationBarItem(
       backgroundColor: Colors.black,
-      icon: AnimatedScale(
-        scale: isSelected ? 1.2 : 1.0,
-        duration: const Duration(milliseconds: 200),
-        child: Image.asset(
-          iconPath,
-          height: iconHeight,
-          color: isSelected ? selected : unselected,
-          colorBlendMode: BlendMode.srcIn,
+      icon: NeonFlip(
+        slot: slot,
+        child: AnimatedScale(
+          scale: isSelected ? 1.2 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          child: Image.asset(
+            iconPath,
+            height: iconHeight,
+            color: isSelected ? selected : unselected,
+            colorBlendMode: BlendMode.srcIn,
+          ),
         ),
       ),
       label: label,
@@ -715,4 +633,171 @@ class _NavTab {
   final String label;
   final bool isSpecial;
   final double iconHeight;
+}
+
+/// Frosted chat pill with a soft pink-to-orange rim and coral icon, a
+/// brand-pink unread badge that pops when the count changes, and a small
+/// squish on press.
+class _ChatFab extends StatefulWidget {
+  const _ChatFab({
+    required this.unread,
+    required this.showLabel,
+    required this.onTap,
+  });
+
+  final int unread;
+  final bool showLabel;
+  final VoidCallback onTap;
+
+  @override
+  State<_ChatFab> createState() => _ChatFabState();
+}
+
+class _ChatFabState extends State<_ChatFab> {
+  bool _down = false;
+
+  static const _shape = BorderRadius.only(
+    topLeft: Radius.circular(28),
+    topRight: Radius.circular(28),
+    bottomLeft: Radius.circular(28),
+  );
+  static const _rim = 1.0;
+  static const _innerShape = BorderRadius.only(
+    topLeft: Radius.circular(28 - _rim),
+    topRight: Radius.circular(28 - _rim),
+    bottomLeft: Radius.circular(28 - _rim),
+  );
+
+  void _setDown(bool down) {
+    if (_down != down) setState(() => _down = down);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final unread = widget.unread;
+    final brand = HomeTokens.brandGradient;
+    return Semantics(
+      button: true,
+      label: unread > 0 ? 'Chat, $unread unread' : 'Chat',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTapDown: (_) => _setDown(true),
+        onTapUp: (_) => _setDown(false),
+        onTapCancel: () => _setDown(false),
+        onTap: () {
+          Haptics.selection();
+          widget.onTap();
+        },
+        child: AnimatedScale(
+          scale: _down ? 0.94 : 1,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Gradient rim around a frosted pane, so the feed shows
+              // through and the brand colour frames it.
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      for (final c in brand.colors) c.withValues(alpha: 0.55),
+                    ],
+                  ),
+                  borderRadius: _shape,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(_rim),
+                  child: ClipRRect(
+                    borderRadius: _innerShape,
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOut,
+                        height: 56 - _rim * 2,
+                        padding: const EdgeInsets.symmetric(horizontal: 17),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white.withValues(alpha: 0.08),
+                              Colors.black.withValues(alpha: 0.35),
+                            ],
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              'assets/chat.png',
+                              width: 20,
+                              height: 20,
+                              color: HomeTokens.coral,
+                              fit: BoxFit.contain,
+                            ),
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOut,
+                              child: widget.showLabel
+                                  ? Padding(
+                                      padding: const EdgeInsets.only(left: 10),
+                                      child: Text(
+                                        'Chat',
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.9,
+                                          ),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (unread > 0)
+                Positioned(
+                  right: -3,
+                  top: -4,
+                  child: StorePop(
+                    trigger: unread,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 20,
+                        minHeight: 20,
+                      ),
+                      decoration: BoxDecoration(
+                        color: HomeTokens.pink,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: Colors.black, width: 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        unread > 99 ? '99+' : '$unread',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

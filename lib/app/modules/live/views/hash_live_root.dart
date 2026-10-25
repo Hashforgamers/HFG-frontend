@@ -1,3 +1,7 @@
+import 'package:url_launcher/url_launcher.dart';
+import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/app/modules/live/utils/live_time.dart';
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -224,118 +228,258 @@ class _HashLiveRootState extends State<HashLiveRoot> {
   }
 }
 
-class _DiscoverTab extends StatelessWidget {
+class _DiscoverTab extends StatefulWidget {
   const _DiscoverTab();
 
   @override
+  State<_DiscoverTab> createState() => _DiscoverTabState();
+}
+
+class _DiscoverTabState extends State<_DiscoverTab> {
+  final _controller = Get.find<HashLiveController>();
+  final _service = Get.find<HashLiveService>();
+
+  // Created once: rebuilds must not resubscribe to Firestore.
+  late final _live = _controller.liveStreams;
+  late final _upcoming = _service.watchUpcomingStreams();
+  late final _recent = _service.watchRecentStreams();
+
+  @override
   Widget build(BuildContext context) {
-    final controller = Get.find<HashLiveController>();
-    final service = Get.find<HashLiveService>();
-
     return StreamBuilder<List<LiveStreamModel>>(
-      stream: controller.liveStreams,
-      builder: (context, liveSnapshot) {
-        final streams = liveSnapshot.data ?? const <LiveStreamModel>[];
+      stream: _live,
+      builder: (context, liveSnap) {
+        final streams = liveSnap.data ?? const <LiveStreamModel>[];
+        final loadingLive = liveSnap.connectionState == ConnectionState.waiting;
         return StreamBuilder<List<UpcomingStreamModel>>(
-          stream: service.watchUpcomingStreams(),
-          builder: (context, upcomingSnapshot) {
-            final upcoming =
-                upcomingSnapshot.data ?? const <UpcomingStreamModel>[];
+          stream: _upcoming,
+          builder: (context, upSnap) {
+            final upcoming = upSnap.data ?? const <UpcomingStreamModel>[];
+            final loadingUp = upSnap.connectionState == ConnectionState.waiting;
+            return StreamBuilder<List<LiveStreamModel>>(
+              stream: _recent,
+              builder: (context, recentSnap) {
+                final recent = recentSnap.data ?? const <LiveStreamModel>[];
+                final quiet = !loadingLive && streams.isEmpty;
+                // When nobody is live, the soonest scheduled stream becomes
+                // the hero so the page still has something to look forward to.
+                final hero = quiet && upcoming.isNotEmpty
+                    ? upcoming.first
+                    : null;
+                final rail = hero == null
+                    ? upcoming
+                    : upcoming.skip(1).toList();
 
-            final loadingLive =
-                liveSnapshot.connectionState == ConnectionState.waiting;
-            final loadingUpcoming =
-                upcomingSnapshot.connectionState == ConnectionState.waiting;
-
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-              physics: const BouncingScrollPhysics(),
-              children: [
-                // The slogan hero that used to sit here took roughly a sixth of
-                // the viewport to say nothing. On a streaming surface the
-                // content is the hero, so live streams start above the fold.
-                LiveSectionTitle(
-                  'Live now',
-                  trailing: streams.isEmpty
-                      ? null
-                      : '${streams.length} streaming',
-                ),
-                const SizedBox(height: 12),
-                if (loadingLive)
-                  const _LiveLoading(height: 322)
-                else if (streams.isEmpty)
-                  LiveEmptyState(
-                    icon: Icons.wifi_tethering_off_rounded,
-                    title: 'Nobody is live right now',
-                    message:
-                        'Streams appear here the moment a host goes live. '
-                        'You could be the first.',
-                    actionLabel: 'Go live',
-                    onAction: () => controller.setTab(1),
-                  )
-                else
-                  SizedBox(
-                    height: 322,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      clipBehavior: Clip.none,
-                      itemCount: streams.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 12),
-                      itemBuilder: (_, i) =>
-                          _StanLiveCard(stream: streams[i], width: 304),
-                    ),
-                  ),
-                const SizedBox(height: 26),
-                LiveSectionTitle(
-                  'Coming up',
-                  trailing: upcoming.isEmpty
-                      ? null
-                      : '${upcoming.length} scheduled',
-                ),
-                const SizedBox(height: 12),
-                if (loadingUpcoming)
-                  const _LiveLoading(height: 148)
-                else if (upcoming.isEmpty)
-                  LiveEmptyState(
-                    icon: Icons.event_available_rounded,
-                    title: 'Nothing scheduled yet',
-                    message:
-                        'Schedule a stream and your followers get a reminder '
-                        'before it starts.',
-                    actionLabel: 'Schedule a stream',
-                    onAction: () => controller.setTab(1),
-                  )
-                else
-                  SizedBox(
-                    height: 148,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      clipBehavior: Clip.none,
-                      itemCount: upcoming.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 10),
-                      itemBuilder: (_, i) =>
-                          _UpcomingCard(item: upcoming[i], width: 280),
-                    ),
-                  ),
-                // The empty states already offer this action, so only show the
-                // standalone CTA when there is content above it.
-                if (streams.isNotEmpty || upcoming.isNotEmpty) ...[
-                  const SizedBox(height: 26),
-                  LiveCta(
-                    label: 'Start a live stream',
-                    icon: Icons.videocam_rounded,
-                    height: 54,
-                    onTap: () => controller.setTab(1),
-                  ),
-                ],
-              ],
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    if (loadingLive)
+                      const _LiveLoading(height: 270)
+                    else if (streams.isNotEmpty) ...[
+                      LiveSectionTitle(
+                        'Live now',
+                        trailing: '${streams.length} streaming',
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 270,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          clipBehavior: Clip.none,
+                          itemCount: streams.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 12),
+                          itemBuilder: (_, i) =>
+                              _StanLiveCard(stream: streams[i], width: 304),
+                        ),
+                      ),
+                    ] else
+                      _QuietBanner(onGoLive: () => _controller.setTab(1)),
+                    if (hero != null) ...[
+                      const SizedBox(height: 22),
+                      const LiveSectionTitle('Next up'),
+                      const SizedBox(height: 12),
+                      _UpcomingCard(item: hero, hero: true),
+                    ],
+                    if (loadingUp || rail.isNotEmpty) ...[
+                      const SizedBox(height: 22),
+                      LiveSectionTitle(
+                        'Coming up',
+                        trailing: rail.isEmpty
+                            ? null
+                            : '${rail.length} scheduled',
+                      ),
+                      const SizedBox(height: 12),
+                      if (loadingUp)
+                        const _LiveLoading(height: 128)
+                      else
+                        SizedBox(
+                          height: 128,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            clipBehavior: Clip.none,
+                            itemCount: rail.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 10),
+                            itemBuilder: (_, i) =>
+                                _UpcomingCard(item: rail[i], width: 290),
+                          ),
+                        ),
+                    ] else if (quiet && hero == null) ...[
+                      const SizedBox(height: 22),
+                      LiveEmptyState(
+                        icon: Icons.event_available_rounded,
+                        title: 'Nothing scheduled yet',
+                        message:
+                            'Schedule a stream and your followers get a '
+                            'reminder before it starts.',
+                        actionLabel: 'Schedule a stream',
+                        onAction: () => _controller.setTab(1),
+                      ),
+                    ],
+                    if (recent.isNotEmpty) ...[
+                      const SizedBox(height: 22),
+                      const LiveSectionTitle('Catch the replays'),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 186,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          clipBehavior: Clip.none,
+                          itemCount: recent.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 10),
+                          itemBuilder: (_, i) => _ReplayCard(stream: recent[i]),
+                        ),
+                      ),
+                    ],
+                    if (streams.isNotEmpty) ...[
+                      const SizedBox(height: 26),
+                      LiveCta(
+                        label: 'Start a live stream',
+                        icon: Icons.videocam_rounded,
+                        height: 54,
+                        onTap: () => _controller.setTab(1),
+                      ),
+                    ],
+                  ],
+                );
+              },
             );
           },
         );
       },
     );
   }
+}
 
+/// Compact "nobody's live" row with a Go live action, instead of a page-high
+/// empty card, so upcoming streams and replays stay above the fold.
+class _QuietBanner extends StatelessWidget {
+  const _QuietBanner({required this.onGoLive});
+  final VoidCallback onGoLive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+      decoration: LiveUi.cardDecoration(radius: LiveUi.radiusMd),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: LiveUi.accent.withValues(alpha: 0.12),
+              border: Border.all(color: LiveUi.accent.withValues(alpha: 0.35)),
+            ),
+            child: const Icon(
+              Icons.wifi_tethering_rounded,
+              color: LiveUi.accentSoft,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Nobody's live right now", style: LiveUi.title),
+                const SizedBox(height: 2),
+                Text(
+                  'Go first. Your followers get a ping.',
+                  style: LiveUi.body,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _PillButton(
+            label: 'Go live',
+            icon: Icons.videocam_rounded,
+            filled: true,
+            onTap: onGoLive,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small red pill action used on the Discover cards.
+class _PillButton extends StatelessWidget {
+  const _PillButton({
+    required this.label,
+    required this.icon,
+    required this.filled,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool filled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: filled ? LiveUi.accent : Colors.transparent,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: filled ? LiveUi.accent : LiveUi.accent.withValues(alpha: 0.5),
+        ),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: () {
+          Haptics.selection();
+          onTap();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: filled ? Colors.white : LiveUi.accentSoft,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  color: filled ? Colors.white : LiveUi.accentSoft,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Keeps the horizontal rails at their real height while loading, so the page
@@ -382,10 +526,7 @@ class _GoLiveTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const LiveEyebrow(
-                'Quick schedule',
-                color: LiveUi.textTertiary,
-              ),
+              const LiveEyebrow('Quick schedule', color: LiveUi.textTertiary),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -632,7 +773,8 @@ class _HostTab extends StatelessWidget {
       return const LiveEmptyState(
         icon: Icons.lock_outline_rounded,
         title: 'Sign in to host',
-        message: 'Your streams, followers and schedule live here once you '
+        message:
+            'Your streams, followers and schedule live here once you '
             'sign in.',
       );
     }
@@ -971,10 +1113,7 @@ class _HostTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Followers',
-                    style: LiveUi.heading(17),
-                  ),
+                  Text('Followers', style: LiveUi.heading(17)),
                   const SizedBox(height: 10),
                   Expanded(
                     child: StreamBuilder<List<Map<String, dynamic>>>(
@@ -1289,34 +1428,85 @@ class _HostUpcomingEditableCard extends StatelessWidget {
   }
 }
 
-class _StanLiveCard extends StatelessWidget {
+/// Live stream card: thumbnail, pulsing red rim, centred play button, host.
+/// The whole card opens the stream.
+class _StanLiveCard extends StatefulWidget {
   final LiveStreamModel stream;
   final double? width;
 
   const _StanLiveCard({required this.stream, this.width});
 
   @override
+  State<_StanLiveCard> createState() => _StanLiveCardState();
+}
+
+class _StanLiveCardState extends State<_StanLiveCard>
+    with SingleTickerProviderStateMixin {
+  late final _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (still) {
+      _pulse.value = 0.5;
+    } else if (!_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  void _open() {
+    Haptics.selection();
+    Get.to(() => LiveStreamScreen(streamId: widget.stream.id));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final stream = widget.stream;
     final thumb = LiveYoutubeUtils.thumbnailUrl(stream.youtubeUrl);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => Get.to(() => LiveStreamScreen(streamId: stream.id)),
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          width: width,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.36),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
+    return Semantics(
+      button: true,
+      label: '${stream.title}, live, by ${stream.hostName}. Watch.',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: _open,
+        child: AnimatedBuilder(
+          animation: _pulse,
+          builder: (context, child) {
+            final p = Curves.easeInOut.transform(_pulse.value);
+            return Container(
+              width: widget.width,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: LiveUi.accent.withValues(alpha: 0.35 + 0.5 * p),
+                  width: 1.4,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: LiveUi.accent.withValues(alpha: 0.10 + 0.22 * p),
+                    blurRadius: 22,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.36),
+                    blurRadius: 18,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
+              clipBehavior: Clip.antiAlias,
+              child: child,
+            );
+          },
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -1331,52 +1521,44 @@ class _StanLiveCard extends StatelessWidget {
                 )
               else
                 Container(color: const Color(0xFF1A1D23)),
-              Container(
-                decoration: const BoxDecoration(
+              const DecoratedBox(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Color(0x0D000000), Color(0xD9000000)],
+                    colors: [
+                      Color(0x14000000),
+                      Color(0x22000000),
+                      Color(0xE6000000),
+                    ],
+                    stops: [0, 0.45, 1],
                   ),
                 ),
               ),
-              Positioned(
-                top: 10,
-                left: 10,
-                child: const LivePill(),
-              ),
+              const Positioned(top: 10, left: 10, child: LivePill()),
               Positioned(
                 top: 10,
                 right: 10,
+                child: _ViewerChip(count: stream.viewerCount),
+              ),
+              // Play affordance in the middle of the frame.
+              Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
+                  width: 58,
+                  height: 58,
+                  margin: const EdgeInsets.only(bottom: 40),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.72),
-                    borderRadius: BorderRadius.circular(999),
+                    shape: BoxShape.circle,
+                    color: Colors.black.withValues(alpha: 0.45),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      width: 1.5,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.visibility_rounded,
-                        size: 12,
-                        color: Colors.white70,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        stream.viewerCount > 0
-                            ? '${stream.viewerCount}'
-                            : 'Just started',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                  child: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 34,
                   ),
                 ),
               ),
@@ -1389,53 +1571,50 @@ class _StanLiveCard extends StatelessWidget {
                   children: [
                     Text(
                       stream.title,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         color: Colors.white,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                         fontSize: 16,
+                        height: 1.2,
+                        letterSpacing: -0.2,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 11,
-                          backgroundImage: stream.hostPhotoUrl.isNotEmpty
-                              ? CachedNetworkImageProvider(stream.hostPhotoUrl)
-                              : null,
-                          backgroundColor: LiveUi.surface,
-                          child: stream.hostPhotoUrl.isEmpty
-                              ? const Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 12,
-                                )
-                              : null,
+                        _HostAvatar(
+                          url: stream.hostPhotoUrl,
+                          size: 26,
+                          live: true,
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            '@${stream.hostName} • ${stream.game}',
+                          child: Text.rich(
+                            TextSpan(
+                              text: '@${stream.hostName}',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12.5,
+                              ),
+                              children: [
+                                if (stream.game.isNotEmpty)
+                                  TextSpan(
+                                    text: '  ·  ${stream.game}',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white60,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                              ],
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 10),
-                    LiveCta(
-                      label: 'Watch live',
-                      icon: Icons.play_arrow_rounded,
-                      height: 42,
-                      onTap: () =>
-                          Get.to(() => LiveStreamScreen(streamId: stream.id)),
                     ),
                   ],
                 ),
@@ -1448,76 +1627,320 @@ class _StanLiveCard extends StatelessWidget {
   }
 }
 
+class _ViewerChip extends StatelessWidget {
+  const _ViewerChip({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.visibility_rounded, size: 12, color: Colors.white70),
+          const SizedBox(width: 5),
+          // Ticks smoothly as viewers join and leave.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            transitionBuilder: (child, a) => FadeTransition(
+              opacity: a,
+              child: SlideTransition(
+                position: Tween(
+                  begin: const Offset(0, 0.4),
+                  end: Offset.zero,
+                ).animate(a),
+                child: child,
+              ),
+            ),
+            child: Text(
+              count > 0 ? '$count watching' : 'Just started',
+              key: ValueKey(count),
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HostAvatar extends StatelessWidget {
+  const _HostAvatar({required this.url, required this.size, this.live = false});
+  final String url;
+  final double size;
+  final bool live;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      padding: const EdgeInsets.all(1.5),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: live ? LiveUi.accent : LiveUi.stroke,
+      ),
+      child: CircleAvatar(
+        backgroundColor: LiveUi.surface,
+        backgroundImage: url.isNotEmpty
+            ? CachedNetworkImageProvider(url)
+            : null,
+        child: url.isEmpty
+            ? Icon(Icons.person, color: Colors.white70, size: size * 0.5)
+            : null,
+      ),
+    );
+  }
+}
+
+/// Scheduled stream: host, title, a live countdown and a reminder toggle.
+/// [hero] is the larger "Next up" version shown when nobody is live.
 class _UpcomingCard extends StatelessWidget {
   final UpcomingStreamModel item;
   final double? width;
+  final bool hero;
 
-  const _UpcomingCard({required this.item, this.width});
+  const _UpcomingCard({required this.item, this.width, this.hero = false});
+
+  Future<void> _toggle(HashLiveService service, bool joined) async {
+    try {
+      await service.toggleUpcomingJoin(upcomingId: item.id, join: !joined);
+    } catch (_) {
+      Fluttertoast.showToast(
+        msg: 'Could not update the reminder. Please try again.',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final service = Get.find<HashLiveService>();
     final joined = service.isJoinedUpcoming(item);
+    final remind = _PillButton(
+      label: joined ? 'Reminded' : 'Notify me',
+      icon: joined
+          ? Icons.notifications_active_rounded
+          : Icons.notifications_none_rounded,
+      filled: !joined,
+      onTap: () => _toggle(service, joined),
+    );
 
     return Container(
       width: width,
-      padding: const EdgeInsets.all(12),
-      decoration: LiveUi.cardDecoration(radius: 14),
-      child: Row(
+      padding: EdgeInsets.all(hero ? 16 : 12),
+      decoration: LiveUi.cardDecoration(radius: hero ? LiveUi.radiusLg : 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _HostAvatar(url: item.hostPhotoUrl, size: hero ? 44 : 36),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: hero ? 17 : 14,
+                        height: 1.2,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      [
+                        '@${item.hostName}',
+                        if (item.game.isNotEmpty) item.game,
+                      ].join('  ·  '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: LiveUi.body,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text('Host: ${item.hostName}', style: LiveUi.body),
-                Text(
-                  DateFormat('EEE, d MMM • hh:mm a').format(item.startAt),
+              ),
+            ],
+          ),
+          // The rail gives the card a fixed height; the hero sizes to content.
+          if (hero) const SizedBox(height: 14) else const Spacer(),
+          Row(
+            children: [
+              const Icon(
+                Icons.schedule_rounded,
+                size: 15,
+                color: LiveUi.accentSoft,
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: _Countdown(
+                  start: item.startAt,
                   style: GoogleFonts.inter(
                     color: LiveUi.accentSoft,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: hero ? 15 : 12.5,
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await service.toggleUpcomingJoin(
-                  upcomingId: item.id,
-                  join: !joined,
-                );
-                Fluttertoast.showToast(
-                  msg: joined
-                      ? 'Reminder removed'
-                      : 'Reminder set successfully',
-                  toastLength: Toast.LENGTH_SHORT,
-                  gravity: ToastGravity.BOTTOM,
-                );
-              } catch (_) {
-                Fluttertoast.showToast(
-                  msg: 'Unable to update reminder. Please try again.',
-                  toastLength: Toast.LENGTH_SHORT,
-                  gravity: ToastGravity.BOTTOM,
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: joined ? LiveUi.surfaceSoft : LiveUi.accent,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(joined ? 'Joined' : 'Notify'),
+              ),
+              remind,
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Re-renders the "Starts in…" label every 20 seconds.
+class _Countdown extends StatefulWidget {
+  const _Countdown({required this.start, required this.style});
+  final DateTime start;
+  final TextStyle style;
+
+  @override
+  State<_Countdown> createState() => _CountdownState();
+}
+
+class _CountdownState extends State<_Countdown> {
+  late final Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => setState(() {}),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Text(
+    startsInLabel(widget.start, DateTime.now()),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: widget.style,
+  );
+}
+
+/// Past stream with a video link. Opens in YouTube: the in-app player is for
+/// live streams and would count the viewer as joining.
+class _ReplayCard extends StatelessWidget {
+  const _ReplayCard({required this.stream});
+  final LiveStreamModel stream;
+
+  @override
+  Widget build(BuildContext context) {
+    final thumb = LiveYoutubeUtils.thumbnailUrl(stream.youtubeUrl);
+    return Semantics(
+      button: true,
+      label: 'Replay: ${stream.title} by ${stream.hostName}. Opens YouTube.',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () {
+          Haptics.selection();
+          launchUrl(
+            Uri.parse(stream.youtubeUrl),
+            mode: LaunchMode.externalApplication,
+          );
+        },
+        child: SizedBox(
+          width: 220,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (thumb != null)
+                        CachedNetworkImage(
+                          imageUrl: thumb,
+                          fit: BoxFit.cover,
+                          placeholder: (_, _) =>
+                              Container(color: const Color(0xFF1A1D23)),
+                          errorWidget: (_, _, _) =>
+                              Container(color: const Color(0xFF1A1D23)),
+                        )
+                      else
+                        Container(color: const Color(0xFF1A1D23)),
+                      Positioned(
+                        left: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.65),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'REPLAY',
+                            style: LiveUi.eyebrow(Colors.white),
+                          ),
+                        ),
+                      ),
+                      const Center(
+                        child: Icon(
+                          Icons.play_circle_fill_rounded,
+                          color: Colors.white70,
+                          size: 36,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                stream.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '@${stream.hostName}  ·  ${agoLabel(stream.updatedAt, DateTime.now())}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: LiveUi.body,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

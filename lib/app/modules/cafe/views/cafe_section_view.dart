@@ -1666,6 +1666,7 @@ class _CafeSectionState extends State<CafeSection> {
           HomeSectionTitle(
             title: 'Gaming Cafes ',
             accent: 'Near You',
+            brand: true,
             actionLabel: 'Add yours',
             onAction: _openCafeOnboarding,
           ),

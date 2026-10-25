@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/hash_store/widgets/neon_switch.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -104,13 +105,17 @@ class _HashModeSwitchState extends State<HashModeSwitch> {
         ),
         color: Color(0xFF0E0F10),
       ),
-      child: Row(
-        children: [
-          for (var i = 0; i < _options.length; i++) ...[
-            if (i > 0) const SizedBox(width: 6),
-            Expanded(child: _card(i)),
+      child: NeonSwitchFx(
+        index: _selected,
+        count: _options.length,
+        child: Row(
+          children: [
+            for (var i = 0; i < _options.length; i++) ...[
+              if (i > 0) const SizedBox(width: 6),
+              Expanded(child: _card(i)),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -174,7 +179,14 @@ class _HashModeSwitchState extends State<HashModeSwitch> {
                 ),
                 Row(
                   children: [
-                    Icon(o.icon, size: 22, color: on ? Colors.white : o.accent),
+                    NeonFlip(
+                      slot: i,
+                      child: Icon(
+                        o.icon,
+                        size: 22,
+                        color: on ? Colors.white : o.accent,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(

@@ -1,8 +1,7 @@
+import 'package:hash/utils/widgets/hash_splash_logo.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/deeplink_service.dart';
-import 'package:shimmer/shimmer.dart';
 import '../../../routes/app_routes.dart';
 
 class SplashView extends StatefulWidget {
@@ -30,32 +29,7 @@ class _SplashViewState extends State<SplashView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: Shimmer.fromColors(
-          baseColor: Colors.white.withOpacity(0.2),
-          highlightColor: Colors.white.withOpacity(0.9),
-          period: const Duration(seconds: 2),
-          direction: ShimmerDirection.ltr,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/nologoblack.png',
-                width: 220,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'LEVEL UP YOUR GAME',
-                style: GoogleFonts.orbitron(
-                  color: Colors.white,
-                  fontSize: 16,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      body: const HashSplashLogo(),
     );
   }
 }

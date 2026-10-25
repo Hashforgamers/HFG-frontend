@@ -1,3 +1,6 @@
+import 'package:hash/app/modules/home/widgets/home_design.dart';
+import 'dart:ui' show FontFeature;
+import 'package:hash/app/modules/hash_store/widgets/neon_switch.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -46,7 +49,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ctr.fetchUserBookings(forceRefresh: false).then((_) {
         if (!mounted) return;
-        if (!hasRated && ctr.userBookings.isNotEmpty) {
+        if (!hasRated && ctr.userBookings.isNotEmpty && _ratePromptDue) {
           _maybeShowRatingDialogIfPending();
         }
       });
@@ -84,6 +87,15 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     return 'pending';
   }
 
+  String _subtitle() {
+    final upcoming = _countFor('confirmed');
+    final total = _countFor('all');
+    if (total == 0) return 'Your bookings show up here';
+    return upcoming > 0
+        ? '$upcoming locked in · $total total'
+        : '$total session${total == 1 ? '' : 's'}';
+  }
+
   // Count per bucket for tab badges
   int _countFor(String filter) {
     return ctr.userBookings.where((b) {
@@ -114,8 +126,17 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     return filtered;
   }
 
+  // Ask at most once every 30 days; "Maybe Later" used to re-ask on every
+  // visit to Sessions.
+  bool get _ratePromptDue {
+    final last = prefs.getInt('ratePromptShownAt') ?? 0;
+    return DateTime.now().millisecondsSinceEpoch - last >
+        const Duration(days: 30).inMilliseconds;
+  }
+
   void _maybeShowRatingDialogIfPending() {
     if (!mounted) return;
+    prefs.setInt('ratePromptShownAt', DateTime.now().millisecondsSinceEpoch);
     showDialog(
       context: context,
       builder: (context) {
@@ -137,8 +158,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
               onPressed: () {
                 Navigator.of(
                   context,
-                ).pop(); // "Maybe later" – do NOT set hasRatedApp
-                // Next successful payment will set ratePromptPending again.
+                ).pop(); // "Maybe later": asked again after 30 days
               },
               child: const Text(
                 "Maybe Later",
@@ -186,8 +206,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
               onPressed: () {
                 Navigator.of(
                   context,
-                ).pop(); // "Maybe later" – do NOT set hasRatedApp
-                // Next successful payment will set ratePromptPending again.
+                ).pop(); // "Maybe later": asked again after 30 days
               },
               child: const Text(
                 "Maybe Later",
@@ -214,215 +233,6 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     );
   }
 
-  Widget _buildNextSessionHero() {
-    final confirmed =
-        ctr.userBookings
-            .where((booking) => _statusBucket(booking['status']) == 'confirmed')
-            .toList()
-          ..sort((a, b) {
-            final aId = int.tryParse('${a['booking_id'] ?? 0}') ?? 0;
-            final bId = int.tryParse('${b['booking_id'] ?? 0}') ?? 0;
-            return bId.compareTo(aId);
-          });
-    final booking = confirmed.isEmpty ? null : confirmed.first;
-    if (booking == null) {
-      return Container(
-        margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF121712),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0x3300DC00)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: const Color(0x2200DC00),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(
-                Icons.add_business_rounded,
-                color: Color(0xFF00DC00),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'NO SESSION QUEUED',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Lock a setup and pull up.',
-                    style: GoogleFonts.inter(
-                      color: Colors.white54,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            TextButton(
-              onPressed: () => Get.find<HomeController>().onItemTapped(1),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF00DC00),
-              ),
-              child: const Text('FIND SETUP'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final slot = booking['slot'] is Map
-        ? Map<String, dynamic>.from(booking['slot'] as Map)
-        : const <String, dynamic>{};
-    final gaming = slot['gaming_type_id'] is Map
-        ? Map<String, dynamic>.from(slot['gaming_type_id'] as Map)
-        : const <String, dynamic>{};
-    final cafe = gaming['cafe_name'] is Map
-        ? Map<String, dynamic>.from(gaming['cafe_name'] as Map)
-        : const <String, dynamic>{};
-    final time = slot['time'] is Map
-        ? Map<String, dynamic>.from(slot['time'] as Map)
-        : const <String, dynamic>{};
-    final cafeName = (cafe['cafe_name'] ?? cafe['name'] ?? 'Gaming café')
-        .toString();
-    final game = (gaming['game_name'] ?? 'Gaming setup').toString();
-    final date = (booking['book_date'] ?? 'Date locked').toString();
-    final start = _fmt(time['start_time']?.toString());
-    final end = _fmt(time['end_time']?.toString());
-    final code = (booking['access_code'] ?? '').toString();
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF132417), Color(0xFF111318)],
-        ),
-        borderRadius: BorderRadius.circular(19),
-        border: Border.all(color: const Color(0x6600DC00)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00B840),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  'LOCKED IN',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: .5,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '#${booking['booking_id'] ?? '--'}',
-                style: GoogleFonts.inter(
-                  color: Colors.white54,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 13),
-          Text(
-            cafeName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '$game · $date · $start–$end',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              color: Colors.white60,
-              fontSize: 11,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              if (code.isNotEmpty)
-                Expanded(
-                  child: Container(
-                    height: 42,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black26,
-                      borderRadius: BorderRadius.circular(11),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'ACCESS  $code',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF93F80A),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: .6,
-                      ),
-                    ),
-                  ),
-                ),
-              if (code.isNotEmpty) const SizedBox(width: 9),
-              SizedBox(
-                height: 42,
-                child: ElevatedButton.icon(
-                  onPressed: () => _tabController.animateTo(1),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00DC00),
-                    foregroundColor: Colors.black,
-                  ),
-                  icon: const Icon(Icons.confirmation_number_rounded, size: 17),
-                  label: Text(
-                    'OPEN TICKET',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext ctx) => Scaffold(
     backgroundColor: Colors.black,
@@ -430,18 +240,37 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.fromLTRB(20, 0, 12, 0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Sessions',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sessions',
+                        style: GoogleFonts.inter(
+                          fontSize: 26,
+                          height: 1.1,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Obx(
+                        () => Text(
+                          _subtitle(),
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            color: Colors.white54,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 IconButton(
@@ -463,78 +292,80 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                           ? CupertinoIcons.sort_down_circle
                           : CupertinoIcons.sort_up_circle,
                       key: ValueKey(_sortOrder),
-                      size: 20,
-                      color: Colors.green,
+                      size: 22,
+                      color: _green,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          Obx(() => _buildNextSessionHero()),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
+          // Segmented control: equal-width tabs on a dark track, the
+          // selected one a glowing green pill. Clipped so the neon wave
+          // stays inside the track, as it does in the shop dock.
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF141415),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.transparent),
+            height: 48,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(4),
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF15171A), Color(0xFF0E0F11)],
               ),
-              child: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                dividerColor: Colors.transparent,
-                indicatorAnimation: TabIndicatorAnimation.elastic,
-                enableFeedback: true,
-                labelPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 0,
-                ),
-                indicatorColor: Colors.transparent,
-                indicator: BoxDecoration(
-                  color: const Color(0xFF1F2A1C),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _green.withValues(alpha: 0.5)),
-                ),
-                indicatorPadding: const EdgeInsets.symmetric(
-                  horizontal: 0,
-                  vertical: 4,
-                ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                labelColor: const Color(0xFF93F80A),
-                unselectedLabelColor: Colors.white70,
-                labelStyle: GoogleFonts.inter(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-                unselectedLabelStyle: GoogleFonts.inter(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13,
-                ),
-                overlayColor: MaterialStateProperty.all(Colors.transparent),
-                tabs: [
-                  Tab(
-                    child: _TabChip(text: 'All Runs', count: _countFor('all')),
-                  ),
-                  Tab(
-                    child: _TabChip(
-                      text: 'Locked',
-                      count: _countFor('confirmed'),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+            ),
+            child: Obx(
+              () => NeonTabBar(
+                TabBar(
+                  controller: _tabController,
+                  dividerColor: Colors.transparent,
+                  indicatorAnimation: TabIndicatorAnimation.elastic,
+                  enableFeedback: true,
+                  labelPadding: EdgeInsets.zero,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicator: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF3CF03C), Color(0xff00DC00)],
                     ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _green.withValues(alpha: 0.35),
+                        blurRadius: 14,
+                        spreadRadius: -2,
+                      ),
+                    ],
                   ),
-                  Tab(
-                    child: _TabChip(
-                      text: 'Pending',
-                      count: _countFor('pending'),
-                    ),
+                  labelColor: Colors.black,
+                  unselectedLabelColor: Colors.white60,
+                  labelStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    letterSpacing: -0.1,
                   ),
-                ],
+                  unselectedLabelStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  overlayColor: WidgetStateProperty.all(Colors.transparent),
+                  splashFactory: NoSplash.splashFactory,
+                  tabs: neonTabs([
+                    _TabChip(text: 'All', count: _countFor('all')),
+                    _TabChip(text: 'Locked', count: _countFor('confirmed')),
+                    _TabChip(text: 'Pending', count: _countFor('pending')),
+                  ]),
+                ),
               ),
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
           Expanded(
             child: Obx(() {
@@ -577,27 +408,35 @@ class _TabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(text),
-        const SizedBox(width: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.white12,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            '$count',
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+    // Follows the TabBar's label colour, so it reads on the green pill too.
+    final color = DefaultTextStyle.of(context).style.color ?? Colors.white;
+    return Tab(
+      height: 40,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(text),
+          const SizedBox(width: 6),
+          Container(
+            constraints: const BoxConstraints(minWidth: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$count',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: color,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -653,9 +492,9 @@ class _BookingsList extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1C),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Color(0xff292929), width: 0.5),
+            color: const Color(0xFF111214),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -692,7 +531,7 @@ class _BookingsList extends StatelessWidget {
                     vertical: 12,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: Text(
@@ -718,8 +557,8 @@ class _BookingsList extends StatelessWidget {
       color: const Color(0xff00DC00),
       backgroundColor: const Color(0xFF1D1D1F),
       child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        separatorBuilder: (_, __) => const SizedBox(height: 20),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
         itemCount: bookings.length,
         itemBuilder: (_, i) {
           final d = bookings[i];
@@ -1190,8 +1029,18 @@ class BookingTicketCard extends StatelessWidget {
         return const Color(0xff00DC00); // green
       if (v.contains('pend') || v.contains('await') || v.contains('unpaid'))
         return const Color(0xFFF5C042); // yellow
-      return Colors.white; // default for any other/unknown
+      if (v.contains('cancel') || v.contains('fail')) {
+        return const Color(0xFFE2584E); // red
+      }
+      return const Color(0xFFB9BCC4); // completed and anything else
     }
+
+    final accent = _accentForStatus(status);
+    const tabular = [FontFeature.tabularFigures()];
+    const pink = HomeTokens.pink;
+    const coral = HomeTokens.coral;
+    const orange = HomeTokens.orange;
+    const brand = HomeTokens.brandGradient;
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
@@ -1202,10 +1051,25 @@ class BookingTicketCard extends StatelessWidget {
         clipper: _TicketClipper(),
         child: Container(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            // A warm pink-to-orange wash over the dark ticket.
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF1C1E22), Color(0xFF131417), Color(0xFF0D0E10)],
+              colors: [
+                Color.alphaBlend(
+                  pink.withValues(alpha: 0.20),
+                  const Color(0xFF17151A),
+                ),
+                Color.alphaBlend(
+                  coral.withValues(alpha: 0.08),
+                  const Color(0xFF121214),
+                ),
+                Color.alphaBlend(
+                  orange.withValues(alpha: 0.14),
+                  const Color(0xFF0E0D0E),
+                ),
+              ],
+              stops: const [0, 0.55, 1],
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
@@ -1241,22 +1105,28 @@ class BookingTicketCard extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '#$id',
-                                style: GoogleFonts.inter(
-                                  color: _accentForStatus(status),
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
+                              ShaderMask(
+                                blendMode: BlendMode.srcIn,
+                                shaderCallback: brand.createShader,
+                                child: Text(
+                                  '#$id',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.5,
+                                    fontFeatures: tabular,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'Booking ID',
+                                'BOOKING',
                                 style: GoogleFonts.inter(
-                                  color: _accentForStatus(
-                                    status,
-                                  ).withValues(alpha: 0.75),
-                                  fontSize: 10,
+                                  color: coral.withValues(alpha: 0.75),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.2,
                                 ),
                               ),
                             ],
@@ -1326,40 +1196,68 @@ class BookingTicketCard extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  '$cafe - $game',
+                                Text.rich(
+                                  TextSpan(
+                                    text: cafe,
+                                    children: [
+                                      TextSpan(
+                                        text: '  ·  $game',
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white54,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.inter(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 14.5,
+                                    letterSpacing: -0.2,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 5),
                                 Text(
-                                  '$start - $end',
+                                  '$start – $end',
                                   style: GoogleFonts.inter(
-                                    color: Colors.white70,
-                                    fontSize: 11,
+                                    color: Colors.white.withValues(alpha: 0.88),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    fontFeatures: tabular,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  formattedDate,
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white54,
+                                    fontSize: 11.5,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Date: $formattedDate',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white54,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Status: $formattedStatus',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white54,
-                                    fontSize: 11,
-                                  ),
+                                const SizedBox(height: 5),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: accent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      formattedStatus,
+                                      style: GoogleFonts.inter(
+                                        color: accent,
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -1470,22 +1368,27 @@ class BookingTicketCard extends StatelessWidget {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.045),
-                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.black.withValues(alpha: 0.32),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: coral.withValues(alpha: 0.22),
+                          ),
                         ),
                         child: Row(
                           children: [
                             const Icon(
                               Icons.lock_outline,
                               size: 14,
-                              color: Colors.white38,
+                              color: coral,
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              'Access Code',
+                              'ACCESS CODE',
                               style: GoogleFonts.inter(
-                                fontSize: 11,
+                                fontSize: 9.5,
                                 color: Colors.white54,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1,
                               ),
                             ),
                             const Spacer(),
@@ -1496,10 +1399,13 @@ class BookingTicketCard extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.right,
                                 style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: Colors.white70,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.8,
+                                  fontSize: 13,
+                                  color: accessCode == null
+                                      ? Colors.white38
+                                      : orange,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.6,
+                                  fontFeatures: tabular,
                                 ),
                               ),
                             ),

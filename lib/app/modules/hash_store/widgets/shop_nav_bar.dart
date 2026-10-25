@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_cart_cubit.dart';
+import 'package:hash/app/modules/hash_store/widgets/neon_switch.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 import 'package:hash/core/utils/haptics.dart';
 
@@ -179,13 +180,17 @@ class _HashShopDockState extends State<HashShopDock>
                             ),
                           ),
                           child: CustomPaint(
-                            foregroundPainter: _UnfoldFx(
+                            foregroundPainter: NeonFxPainter(
                               t: t,
-                              opening: widget.open,
-                              originFromRight: _pillWidth / 2,
                               // Stays where the pill was while the dock grows.
-                              originFromBottom:
-                                  bottomInset + 5 + _pillHeight / 2 - lift,
+                              origin: Offset(
+                                width - _pillWidth / 2,
+                                height -
+                                    (bottomInset + 5 + _pillHeight / 2 - lift)
+                                        .clamp(0, height),
+                              ),
+                              streakFrom: width,
+                              streakTo: 0,
                             ),
                             child: Stack(
                               fit: StackFit.expand,
@@ -265,58 +270,65 @@ class _HashShopDockState extends State<HashShopDock>
       maxWidth: fullW,
       maxHeight: HashShopDock.barHeight,
       minHeight: HashShopDock.barHeight,
-      child: Stack(
-        children: [
-          // Sliding active-tab pill; grows in last, once the tabs have landed.
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 320),
-            curve: Curves.easeOutCubic,
-            left: activeSlot * slot + 8,
-            width: slot - 16,
-            top: 5,
-            bottom: 5,
-            child: Opacity(
-              opacity: indicator,
-              child: Transform.scale(
-                scaleX: 0.4 + 0.6 * indicator,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: StoreColors.green.withValues(alpha: 0.13),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: StoreColors.green.withValues(alpha: 0.45),
+      child: NeonSwitchFx(
+        index: activeSlot,
+        count: _tabs.length,
+        child: Stack(
+          children: [
+            // Sliding active-tab pill; grows in last, once the tabs have landed.
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutCubic,
+              left: activeSlot * slot + 8,
+              width: slot - 16,
+              top: 5,
+              bottom: 5,
+              child: Opacity(
+                opacity: indicator,
+                child: Transform.scale(
+                  scaleX: 0.4 + 0.6 * indicator,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: StoreColors.green.withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: StoreColors.green.withValues(alpha: 0.45),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          Row(
-            children: [
-              for (final (i, tab) in _tabs.indexed)
-                _flipIn(
-                  // Right to left: Orders lands first, Hash App last.
-                  _phase(t, 0.32 + 0.11 * (_tabs.length - 1 - i), 0.34),
-                  _NavItem(
-                    width: slot,
-                    icon: tab.icon,
-                    iconSize: tab.index == -1 ? 17 : 22,
-                    label: tab.label,
-                    selected: tab.index == widget.activeIndex,
-                    badge: tab.index == 2 ? _cartBadge() : null,
-                    onTap: () {
-                      Haptics.selection();
-                      if (tab.index == -1) {
-                        widget.onExit();
-                      } else if (tab.index != widget.activeIndex) {
-                        widget.onSelect(tab.index);
-                      }
-                    },
+            Row(
+              children: [
+                for (final (i, tab) in _tabs.indexed)
+                  _flipIn(
+                    // Right to left: Orders lands first, Hash App last.
+                    _phase(t, 0.32 + 0.11 * (_tabs.length - 1 - i), 0.34),
+                    NeonFlip(
+                      slot: i,
+                      child: _NavItem(
+                        width: slot,
+                        icon: tab.icon,
+                        iconSize: tab.index == -1 ? 17 : 22,
+                        label: tab.label,
+                        selected: tab.index == widget.activeIndex,
+                        badge: tab.index == 2 ? _cartBadge() : null,
+                        onTap: () {
+                          Haptics.selection();
+                          if (tab.index == -1) {
+                            widget.onExit();
+                          } else if (tab.index != widget.activeIndex) {
+                            widget.onSelect(tab.index);
+                          }
+                        },
+                      ),
+                    ),
                   ),
-                ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -345,86 +357,6 @@ class _HashShopDockState extends State<HashShopDock>
         ? const SizedBox.shrink()
         : StorePop(trigger: s.itemCount, child: _Badge('${s.itemCount}')),
   );
-}
-
-/// Shockwave ring and top-edge neon streak for the unfold.
-class _UnfoldFx extends CustomPainter {
-  final double t;
-  final bool opening;
-  final double originFromRight;
-  final double originFromBottom;
-  const _UnfoldFx({
-    required this.t,
-    required this.opening,
-    required this.originFromRight,
-    required this.originFromBottom,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (t <= 0 || t >= 1) return;
-    final origin = Offset(
-      size.width - originFromRight,
-      size.height - originFromBottom.clamp(0, size.height),
-    );
-
-    // Shockwave: a ring rolling out from the pill, fading as it grows.
-    final wave = ((t - 0.02) / 0.7).clamp(0.0, 1.0);
-    if (wave > 0 && wave < 1) {
-      final r = size.width * 1.15 * Curves.easeOutCubic.transform(wave);
-      final fade = 1 - wave;
-      canvas.drawCircle(
-        origin,
-        r,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2 + 10 * fade
-          ..shader = RadialGradient(
-            colors: [
-              StoreColors.greenSoft.withValues(alpha: 0.0),
-              StoreColors.greenSoft.withValues(alpha: 0.55 * fade),
-              StoreColors.purpleSoft.withValues(alpha: 0.45 * fade),
-            ],
-            stops: const [0.6, 0.9, 1],
-          ).createShader(Rect.fromCircle(center: origin, radius: r + 12)),
-      );
-    }
-
-    // Neon streak racing along the top edge, right to left.
-    final run = ((t - 0.18) / 0.62).clamp(0.0, 1.0);
-    if (run > 0 && run < 1) {
-      final x = size.width * (1 - Curves.easeInOutCubic.transform(run));
-      const len = 120.0;
-      final glow = Paint()
-        ..strokeWidth = 2
-        ..strokeCap = StrokeCap.round
-        ..shader = LinearGradient(
-          colors: [
-            Colors.white.withValues(alpha: 0),
-            StoreColors.greenSoft,
-            Colors.white,
-            StoreColors.purpleSoft.withValues(alpha: 0),
-          ],
-          stops: const [0, 0.35, 0.5, 1],
-        ).createShader(Rect.fromLTWH(x - len / 2, 0, len, 2));
-      canvas.drawLine(Offset(x - len / 2, 1), Offset(x + len / 2, 1), glow);
-      // Soft halo under the streak.
-      canvas.drawCircle(
-        Offset(x, 1),
-        26,
-        Paint()
-          ..shader = RadialGradient(
-            colors: [
-              StoreColors.greenSoft.withValues(alpha: 0.35),
-              StoreColors.greenSoft.withValues(alpha: 0),
-            ],
-          ).createShader(Rect.fromCircle(center: Offset(x, 1), radius: 26)),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_UnfoldFx old) => old.t != t;
 }
 
 class _NavItem extends StatelessWidget {

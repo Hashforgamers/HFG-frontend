@@ -15,6 +15,7 @@ class HomeSectionTitle extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.accentColor = const Color(0xFF00DC00),
+    this.brand = false,
     this.maxLines = 1,
   });
 
@@ -29,6 +30,10 @@ class HomeSectionTitle extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
   final Color accentColor;
+
+  /// Paints [accent] in the website's pink-to-orange gradient instead of
+  /// [accentColor]. Used by the home screen's sections.
+  final bool brand;
   final int maxLines;
 
   /// Apple-style section title (like the App Store's "Top Games"):
@@ -49,7 +54,17 @@ class HomeSectionTitle extends StatelessWidget {
         TextSpan(
           children: [
             TextSpan(text: title, style: style()),
-            if (accent != null)
+            if (accent != null && brand)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.baseline,
+                baseline: TextBaseline.alphabetic,
+                child: ShaderMask(
+                  blendMode: BlendMode.srcIn,
+                  shaderCallback: HomeTokens.brandGradient.createShader,
+                  child: Text(accent!, style: style()),
+                ),
+              )
+            else if (accent != null)
               TextSpan(
                 text: accent,
                 style: style(color: accentColor),

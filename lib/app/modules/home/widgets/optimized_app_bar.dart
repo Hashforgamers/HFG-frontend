@@ -20,13 +20,15 @@ import 'package:hash/app/modules/home/widgets/home_design.dart';
 
 class OptimizedAppBar extends StatelessWidget {
   final Color gradientBottomColor;
-  final Color avatarBorderColor;
+
+  /// Solid ring colour; null paints the brand pink-to-orange ring.
+  final Color? avatarBorderColor;
   final bool showModeToggle;
 
   const OptimizedAppBar({
     super.key,
-    this.gradientBottomColor = const Color(0xff00DC00),
-    this.avatarBorderColor = const Color(0xff00DC00),
+    this.gradientBottomColor = HomeTokens.pink,
+    this.avatarBorderColor,
     this.showModeToggle = true,
   });
 
@@ -37,6 +39,10 @@ class OptimizedAppBar extends StatelessWidget {
         Get.isRegistered<AppNotificationsController>()
         ? Get.find<AppNotificationsController>()
         : Get.put(AppNotificationsController(), permanent: true);
+
+    final tintEnd = gradientBottomColor == HomeTokens.pink
+        ? HomeTokens.orange
+        : gradientBottomColor;
 
     return SliverAppBar(
       backgroundColor: Colors.black.withValues(alpha: 0.58),
@@ -51,17 +57,37 @@ class OptimizedAppBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          // Just a hint of the website's pink-to-orange: a faint warm wash
+          // low in the glass and a soft hairline along the bottom edge.
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [
                   const Color(0xFFFFFFFF).withValues(alpha: 0.055),
-                  gradientBottomColor.withValues(alpha: 0.12),
+                  gradientBottomColor.withValues(alpha: 0.07),
+                  tintEnd.withValues(alpha: 0.06),
                 ],
               ),
               borderRadius: BorderRadius.circular(25),
+            ),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                height: 0.5,
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      gradientBottomColor.withValues(alpha: 0.35),
+                      tintEnd.withValues(alpha: 0.35),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -218,15 +244,27 @@ class OptimizedAppBar extends StatelessWidget {
         : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
               .trim();
 
+    // Brand ring: pink -> coral -> orange around the photo.
     return Container(
       width: size,
       height: size,
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: avatarBorderColor, width: 2),
+        color: avatarBorderColor,
+        gradient: avatarBorderColor == null
+            ? const SweepGradient(
+                colors: [
+                  HomeTokens.pink,
+                  HomeTokens.coral,
+                  HomeTokens.orange,
+                  HomeTokens.pink,
+                ],
+              )
+            : null,
       ),
       child: CircleAvatar(
-        radius: size / 2,
+        radius: size / 2 - 2,
         backgroundImage: effectivePhoto.isNotEmpty
             ? CachedNetworkImageProvider(
                 effectivePhoto,

@@ -157,7 +157,11 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const HomeSectionTitle(title: 'Gamer ', accent: 'Firewire'),
+          const HomeSectionTitle(
+            title: 'Gamer ',
+            accent: 'Firewire',
+            brand: true,
+          ),
           const SizedBox(height: 12),
           Center(
             child: GestureDetector(

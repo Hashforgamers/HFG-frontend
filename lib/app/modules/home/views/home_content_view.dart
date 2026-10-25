@@ -1,3 +1,9 @@
+import 'package:hash/app/modules/live/widgets/live_now_strip.dart';
+import 'package:hash/features/mini_games/score/mini_game_score_service.dart';
+import 'package:hash/features/mini_games/score/mini_game_leaderboard_service.dart';
+import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
+import 'package:hash/features/mini_games/score/leader_marquee.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/config/feature_flags.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -113,6 +119,7 @@ class _HomeContentViewState extends State<HomeContentView>
   // Cached widgets for better performance
   Widget? _cachedGamePassContainer;
   Widget? _cachedGameOnIndiaBanner;
+  final _arcadeBoard = MiniGameLeaderboardService();
   late final Widget _cachedCafeSection;
   late final Widget _cachedMiniGamesSection;
   late final Widget _cachedShortsSection;
@@ -367,7 +374,11 @@ class _HomeContentViewState extends State<HomeContentView>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const HomeSectionTitle(title: 'Refer to a ', accent: 'Friend'),
+        const HomeSectionTitle(
+          title: 'Refer to a ',
+          accent: 'Friend',
+          brand: true,
+        ),
         const SizedBox(height: 12),
         Obx(() {
           final user = userController.user.value;
@@ -422,6 +433,20 @@ class _HomeContentViewState extends State<HomeContentView>
           slivers: [
             const OptimizedAppBar(),
             SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: LeaderMarquee(
+                  service: _arcadeBoard,
+                  onOpen: () => Get.to(
+                    () => MiniGameLeaderboardPage(
+                      scoreService: MiniGameScoreService(),
+                      leaderboardService: _arcadeBoard,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final horizontalPadding = constraints.maxWidth >= 600
@@ -456,6 +481,8 @@ class _HomeContentViewState extends State<HomeContentView>
                                 ],
                                 // Only takes space while someone is waiting.
                                 const LudoLookingBanner(bottomGap: _sectionGap),
+                                // Only takes space while someone is streaming.
+                                const LiveNowStrip(bottomGap: _sectionGap),
                                 ..._intersperse(
                                   _buildVisibleSections(),
                                   const SizedBox(height: _sectionGap),
@@ -590,7 +617,11 @@ class _HomeContentViewState extends State<HomeContentView>
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
             children: [
-              const HomeSectionTitle(title: 'Upcoming ', accent: 'Tournaments'),
+              const HomeSectionTitle(
+                title: 'Upcoming ',
+                accent: 'Tournaments',
+                brand: true,
+              ),
               const Spacer(),
               TextButton(
                 onPressed: () => Get.find<HomeController>().onItemTapped(2),
@@ -663,7 +694,12 @@ class _HomeContentViewState extends State<HomeContentView>
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Color(0x99000000)],
+                          colors: [
+                            Colors.transparent,
+                            Color(0x55FF3E8E),
+                            Color(0xE6140A10),
+                          ],
+                          stops: [0.35, 0.72, 1],
                         ),
                       ),
                     ),
@@ -676,7 +712,7 @@ class _HomeContentViewState extends State<HomeContentView>
                           Text(
                             tournament.statusLabel.toUpperCase(),
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF00DC00),
+                              color: HomeTokens.orange,
                               fontSize: 8,
                               fontWeight: FontWeight.w800,
                               letterSpacing: .7,
@@ -877,6 +913,7 @@ class _HomeContentViewState extends State<HomeContentView>
         HomeSectionTitle(
           title: 'Earn with ',
           accent: 'HASH',
+          brand: true,
           actionLabel: 'Host program',
           onAction: () => Get.toNamed(AppRoutes.HOST_ONBOARDING),
         ),

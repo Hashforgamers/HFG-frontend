@@ -1,3 +1,4 @@
+import 'package:hash/features/mini_games/score/leader_marquee.dart';
 import '../ludo/ludo_game_screen.dart';
 import 'package:hash/core/utils/app_snackbar.dart';
 import '../snakes_ladders/snl_game_screen.dart';
@@ -242,10 +243,10 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: GameColors.bgBottom,
+      backgroundColor: _Warm.bg,
       body: Stack(
         children: [
-          const GameBackground(),
+          const GameBackground(colors: (_Warm.bgTop, _Warm.bg)),
           SafeArea(
             child: Column(
               children: [
@@ -254,12 +255,22 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                   child: Row(
                     children: [
                       GameIconButton(
+                        colors: GameColors.coral,
                         icon: Icons.arrow_back_rounded,
                         tooltip: 'Back',
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 10),
                       const Expanded(child: GameText('LEADERBOARD', size: 24)),
+                      Builder(
+                        builder: (btn) => GameIconButton(
+                          icon: Icons.ios_share_rounded,
+                          tooltip: 'Share leaderboard',
+                          colors: GameColors.orange,
+                          onPressed: () => _share(btn),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       StreamBuilder<int>(
                         stream: _chatService.streamUnreadCountForRoom(
                           _leaderboardLobbyRoomId,
@@ -272,7 +283,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                               GameIconButton(
                                 icon: Icons.forum_rounded,
                                 tooltip: 'Open leaderboard chat',
-                                colors: GameColors.green,
+                                colors: GameColors.pink,
                                 onPressed: _openingChat
                                     ? null
                                     : () => _openLeaderboardChat(),
@@ -330,7 +341,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
               Text(
                 'Couldn\'t load the leaderboard.',
                 textAlign: TextAlign.center,
-                style: gameFont(15, GameColors.soft),
+                style: gameFont(15, _Warm.soft),
               ),
               const SizedBox(height: 12),
               SizedBox(
@@ -395,7 +406,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
     final showFooter = _hasMore || _loadingMore;
 
     return RefreshIndicator(
-      color: GameColors.green.$1,
+      color: GameColors.pink.$1,
       onRefresh: () => _loadBoard(keepRows: true),
       child: ListView.builder(
         controller: _scrollController,
@@ -460,17 +471,17 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: selected ? GameColors.outline : GameColors.trayEdge,
+                  color: selected ? GameColors.outline : _Warm.trayEdge,
                   width: 2.5,
                 ),
                 gradient: selected
                     ? LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [GameColors.green.$1, GameColors.green.$2],
+                        colors: [GameColors.pink.$1, GameColors.pink.$2],
                       )
                     : null,
-                color: selected ? null : GameColors.socket,
+                color: selected ? null : _Warm.socket,
                 boxShadow: selected
                     ? const [
                         BoxShadow(
@@ -482,7 +493,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
               ),
               child: selected
                   ? GameText(option.value, size: 15)
-                  : Text(option.value, style: gameFont(15, GameColors.soft)),
+                  : Text(option.value, style: gameFont(15, _Warm.soft)),
             ),
           );
         },
@@ -498,7 +509,9 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   }) {
     final top3 = entries.take(3).toList();
     return GamePanel(
-      headerColors: GameColors.yellow,
+      bodyColors: (_Warm.bodyTop, _Warm.bodyBottom),
+      lipColor: _Warm.lip,
+      headerColors: GameColors.orange,
       header: Row(
         children: [
           const Text('🏆', style: TextStyle(fontSize: 26)),
@@ -621,12 +634,14 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
   }) {
     Widget stat(String label, String value, Color color) => Expanded(
       child: GameTray(
+        edge: _Warm.trayEdge,
+        fill: _Warm.tray,
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Column(
           children: [
             GameText(value, size: 20, color: color),
             const SizedBox(height: 2),
-            Text(label, style: gameFont(11.5, GameColors.soft)),
+            Text(label, style: gameFont(11.5, _Warm.soft)),
           ],
         ),
       ),
@@ -642,6 +657,8 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
         : 'Beat ${nextTarget.displayName.split(' ').first} by $gap pts';
 
     return GamePanel(
+      bodyColors: (_Warm.bodyTop, _Warm.bodyBottom),
+      lipColor: _Warm.lip,
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -657,10 +674,10 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
               stat(
                 'Your score',
                 myEntry == null ? '0' : '${_displayScore(myEntry)}',
-                GameColors.green.$1,
+                GameColors.pink.$1,
               ),
               const SizedBox(width: 8),
-              stat('Top score', '$topScore', GameColors.yellow.$1),
+              stat('Top score', '$topScore', GameColors.orange.$1),
             ],
           ),
           const SizedBox(height: 12),
@@ -717,7 +734,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
           const SizedBox(height: 4),
           Text(
             '$players players on the ${_selectedGameLabel()} board',
-            style: gameFont(12, GameColors.soft),
+            style: gameFont(12, _Warm.soft),
           ),
         ],
       ),
@@ -729,7 +746,9 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: GamePanel(
-          headerColors: GameColors.purple,
+          bodyColors: (_Warm.bodyTop, _Warm.bodyBottom),
+          lipColor: _Warm.lip,
+          headerColors: GameColors.coral,
           header: const Center(child: GameText('NO SCORES YET', size: 22)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -738,7 +757,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
               Text(
                 'Play any mini game to put the first score on the board.',
                 textAlign: TextAlign.center,
-                style: gameFont(14, GameColors.soft),
+                style: gameFont(14, _Warm.soft),
               ),
               const SizedBox(height: 12),
               GameButton(
@@ -760,7 +779,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
       child: Text(
         'No ranked runs for ${_selectedGameLabel()} yet. Be the first!',
         textAlign: TextAlign.center,
-        style: gameFont(14, GameColors.soft),
+        style: gameFont(14, _Warm.soft),
       ),
     );
   }
@@ -787,7 +806,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(2.5, 2.5, 2.5, 5),
           decoration: BoxDecoration(
-            color: isCurrentUser ? GameColors.green.$2 : GameColors.outline,
+            color: isCurrentUser ? GameColors.pink.$2 : GameColors.outline,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Container(
@@ -797,7 +816,7 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
               gradient: const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [GameColors.bodyTop, GameColors.bodyBottom],
+                colors: [_Warm.bodyTop, _Warm.bodyBottom],
               ),
             ),
             child: Row(
@@ -809,13 +828,13 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
-                    child: GameText('#$rank', size: 16, color: GameColors.soft),
+                    child: GameText('#$rank', size: 16, color: _Warm.soft),
                   ),
                 ),
                 LudoSeatToken(
                   color: isCurrentUser
-                      ? GameColors.green.$1
-                      : GameColors.purple.$1,
+                      ? GameColors.pink.$1
+                      : GameColors.coral.$1,
                   name: data.displayName,
                   photo: data.avatarUrl,
                   size: 40,
@@ -831,14 +850,14 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
                         overflow: TextOverflow.ellipsis,
                         style: gameFont(15, Colors.white),
                       ),
-                      Text(subtitle, style: gameFont(11.5, GameColors.soft)),
+                      Text(subtitle, style: gameFont(11.5, _Warm.soft)),
                     ],
                   ),
                 ),
                 GameText(
                   '${_displayScore(data)}',
                   size: 17,
-                  color: GameColors.yellow.$1,
+                  color: GameColors.orange.$1,
                 ),
               ],
             ),
@@ -1217,6 +1236,30 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
     return entry.scores[_selectedGameId] ?? 0;
   }
 
+  void _share(BuildContext anchor) {
+    final entries = _mergedEntries();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final i = entries.indexWhere((e) => e.userId == uid);
+    final me = i >= 0 ? entries[i] : _standing?.me;
+    unawaited(
+      _trackLeaderboardEvent('Arcade Leaderboard Shared', {
+        'selected_board': _selectedGameId,
+      }),
+    );
+    unawaited(
+      shareArcadeLeaderboard(
+        anchor,
+        top: entries,
+        myRank: i >= 0 ? i + 1 : _standing?.rank,
+        myScore: me == null ? null : _displayScore(me),
+        scoreOf: _displayScore,
+        board: _selectedGameId == MiniGameLeaderboardService.overallGameId
+            ? 'Hash Arcade'
+            : _selectedGameLabel(),
+      ),
+    );
+  }
+
   String _selectedGameLabel() {
     return _gameOptions
         .firstWhere(
@@ -1251,4 +1294,18 @@ class _MiniGameLeaderboardPageState extends State<MiniGameLeaderboardPage> {
     await _segmentService.onCustomEvent(name, eventPayload);
     await _fbEventsService.onCustomEvent(name, eventPayload);
   }
+}
+
+/// The leaderboard's colours: the arcade panels re-skinned in the website's
+/// warm pink-to-orange, same shapes. Medals stay gold, silver and bronze.
+abstract final class _Warm {
+  static const bgTop = Color(0xFF4A1530);
+  static const bg = Color(0xFF1A0812);
+  static const bodyTop = Color(0xFF7A2450);
+  static const bodyBottom = Color(0xFF4E1636);
+  static const lip = Color(0xFF2E0C20);
+  static const trayEdge = Color(0xFF2A0A1C);
+  static const socket = Color(0xFF1E0814);
+  static const tray = Color(0xFF240A19);
+  static const soft = Color(0xFFFFD3E2);
 }

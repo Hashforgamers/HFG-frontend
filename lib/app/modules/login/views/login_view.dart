@@ -1,3 +1,4 @@
+import 'package:hash/utils/widgets/hash_splash_logo.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -189,33 +190,34 @@ class LoginView extends StatelessWidget {
           ),
         ),
       ),
+      // Body spans the whole screen (behind the login panel) so the logo can
+      // sit at the exact screen centre, where the splash screens put it.
+      extendBody: true,
       body: Stack(
         children: [
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 40,
+          HashSplashLogo.colorBadge(),
+          // Tag-line above the badge: below it the login panel would cover it
+          // on short phones.
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, c) => Padding(
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  0,
+                  24,
+                  c.maxHeight / 2 + HashSplashLogo.size / 2,
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // logo
-                    Image.asset('assets/logo.png', width: 160),
-                    const SizedBox(height: 25),
-
-                    // Tag-line
-                    Text(
-                      'Welcome to\nHash for Gamers',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.orbitron(
-                        color: Colors.white70,
-                        fontSize: 18,
-                        letterSpacing: 1.1,
-                      ),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Text(
+                    'Welcome to\nHash for Gamers',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.orbitron(
+                      color: Colors.white70,
+                      fontSize: 18,
+                      letterSpacing: 1.1,
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),

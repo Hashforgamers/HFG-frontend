@@ -12,6 +12,15 @@ abstract final class HomeTokens {
   static const Color gold = Color(0xFFF4C342);
   static const Color goldLight = Color(0xFFFFE08A);
 
+  /// hashforgamers.com "BOOK. WIN." palette, for brand and compete moments
+  /// (section accents, tournaments, hosting). Actions stay green, money gold.
+  static const Color pink = Color(0xFFFF3E8E);
+  static const Color coral = Color(0xFFFF6F61);
+  static const Color orange = Color(0xFFFF9A3D);
+  static const LinearGradient brandGradient = LinearGradient(
+    colors: [pink, coral, orange],
+  );
+
   static const Color ink = Color(0xFF0B0D12);
   static const Color surface = Color(0xFF13161E);
   static const Color hairline = Color(0x1AFFFFFF);

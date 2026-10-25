@@ -48,7 +48,7 @@ class _HomeHostCardState extends State<HomeHostCard> {
       decoration: const ShapeDecoration(
         shape: ContinuousRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(48)),
-          side: BorderSide(color: Color(0x5900DC00), width: 0.8),
+          side: BorderSide(color: Color(0x59FF6F61), width: 0.8),
         ),
         color: _surface,
         shadows: [

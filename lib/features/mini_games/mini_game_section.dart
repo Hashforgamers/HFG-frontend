@@ -175,7 +175,11 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(
             children: [
-              const HomeSectionTitle(title: 'Hash ', accent: 'Arcade'),
+              const HomeSectionTitle(
+                title: 'Hash ',
+                accent: 'Arcade',
+                brand: true,
+              ),
               const Spacer(),
               GestureDetector(
                 onTap: () => _showLeaderboard(context, _scoreService),

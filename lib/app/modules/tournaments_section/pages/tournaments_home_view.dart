@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/hash_store/widgets/neon_switch.dart';
 import 'package:animated_glitch/animated_glitch.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -402,8 +403,8 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView>
                       ),
                     ),
                   ),
-                IconButton(
-                  tooltip: _actionCenterExpanded ? 'Collapse' : 'Expand',
+                  IconButton(
+                    tooltip: _actionCenterExpanded ? 'Collapse' : 'Expand',
                     visualDensity: VisualDensity.compact,
                     onPressed: () => setState(
                       () => _actionCenterExpanded = !_actionCenterExpanded,
@@ -2117,23 +2118,33 @@ class _TabsSectionState extends State<_TabsSection> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Row(
-          children: List.generate(tabs.length, (index) {
-            final text = tabs[index];
-            final isSelected = selectedIndex == index;
-            return Row(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    setState(() => selectedIndex = index);
-                    context.read<TournamentHomeCubit>().filterTournaments(text);
-                  },
-                  child: _TabButton(text: text, isSelected: isSelected),
-                ),
-                const SizedBox(width: 8),
-              ],
-            );
-          }),
+        child: NeonSwitchFx(
+          index: selectedIndex,
+          count: tabs.length,
+          wave: false,
+          child: Row(
+            children: List.generate(tabs.length, (index) {
+              final text = tabs[index];
+              final isSelected = selectedIndex == index;
+              return Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      setState(() => selectedIndex = index);
+                      context.read<TournamentHomeCubit>().filterTournaments(
+                        text,
+                      );
+                    },
+                    child: NeonFlip(
+                      slot: index,
+                      child: _TabButton(text: text, isSelected: isSelected),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              );
+            }),
+          ),
         ),
       ),
     );

@@ -381,28 +381,26 @@ class HashLiveService extends GetxService {
   }
 
   Stream<Map<String, dynamic>?> watchHostProfile(String hostUid) {
-    return _firestore
-        .collection(_hosts)
-        .doc(hostUid)
-        .snapshots()
-        .asyncMap((doc) async {
-          if (!doc.exists) return null;
-          final data = doc.data() ?? <String, dynamic>{};
-          final activeStreamId = (data['active_stream_id'] ?? '').toString().trim();
-          if (data['is_live'] == true && activeStreamId.isNotEmpty) {
-            final streamSnap = await _streamsRef.doc(activeStreamId).get();
-            final streamData = streamSnap.data() ?? <String, dynamic>{};
-            if (streamData.isEmpty || _isExpiredLiveData(streamData)) {
-              await _expireLiveStream(activeStreamId, hostUid: hostUid);
-              return <String, dynamic>{
-                ...data,
-                'is_live': false,
-                'active_stream_id': null,
-              };
-            }
-          }
-          return data;
-        });
+    return _firestore.collection(_hosts).doc(hostUid).snapshots().asyncMap((
+      doc,
+    ) async {
+      if (!doc.exists) return null;
+      final data = doc.data() ?? <String, dynamic>{};
+      final activeStreamId = (data['active_stream_id'] ?? '').toString().trim();
+      if (data['is_live'] == true && activeStreamId.isNotEmpty) {
+        final streamSnap = await _streamsRef.doc(activeStreamId).get();
+        final streamData = streamSnap.data() ?? <String, dynamic>{};
+        if (streamData.isEmpty || _isExpiredLiveData(streamData)) {
+          await _expireLiveStream(activeStreamId, hostUid: hostUid);
+          return <String, dynamic>{
+            ...data,
+            'is_live': false,
+            'active_stream_id': null,
+          };
+        }
+      }
+      return data;
+    });
   }
 
   Stream<int> watchHostFollowersCount(String hostUid) {
@@ -474,6 +472,37 @@ class HashLiveService extends GetxService {
       final items = snapshot.docs.map(LiveStreamModel.fromDoc).toList()
         ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
       return items;
+    });
+  }
+
+  /// Streams live right now, most-watched first. Queries only `is_live`
+  /// docs (unlike [watchLiveStreams]) so the Hub home strip stays cheap, and
+  /// skips stale ones without writing, leaving expiry to the Live tab.
+  Stream<List<LiveStreamModel>> watchLiveNow() {
+    return _streamsRef.where('is_live', isEqualTo: true).snapshots().map((
+      snapshot,
+    ) {
+      final items =
+          snapshot.docs
+              .where((d) => !_isExpiredLiveData(d.data()))
+              .map(LiveStreamModel.fromDoc)
+              .toList()
+            ..sort((a, b) => b.viewerCount.compareTo(a.viewerCount));
+      return items;
+    });
+  }
+
+  /// Ended streams that still have a video link, newest first, for the
+  /// replay rail. Same query as [watchLiveStreams], so it adds no reads.
+  Stream<List<LiveStreamModel>> watchRecentStreams({int limit = 12}) {
+    return _streamsRef.snapshots().map((snapshot) {
+      final items =
+          snapshot.docs
+              .map(LiveStreamModel.fromDoc)
+              .where((s) => !s.isLive && s.youtubeUrl.isNotEmpty)
+              .toList()
+            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      return items.take(limit).toList();
     });
   }
 
@@ -750,7 +779,8 @@ class HashLiveService extends GetxService {
       if (hostRef != null) {
         final hostSnap = await txn.get(hostRef);
         final hostData = hostSnap.data() ?? <String, dynamic>{};
-        if ((hostData['active_stream_id'] ?? '').toString().trim() == streamId) {
+        if ((hostData['active_stream_id'] ?? '').toString().trim() ==
+            streamId) {
           txn.set(hostRef, {
             'is_live': false,
             'active_stream_id': null,

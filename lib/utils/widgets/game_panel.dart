@@ -21,6 +21,11 @@ class GameColors {
   static const yellow = (Color(0xFFFFE45C), Color(0xFFFFB81A));
   static const purple = (Color(0xFF8F7BFF), Color(0xFF6A4DF0));
   static const grey = (Color(0xFF6E6E78), Color(0xFF4A4A52));
+
+  // hashforgamers.com "BOOK. WIN." palette as glossy (light, dark) pairs.
+  static const pink = (Color(0xFFFF77AE), Color(0xFFFF3E8E));
+  static const coral = (Color(0xFFFF9A8F), Color(0xFFFF6F61));
+  static const orange = (Color(0xFFFFBE7A), Color(0xFFFF9A3D));
 }
 
 /// Chunky text style for body copy on game surfaces.
@@ -37,6 +42,8 @@ class GamePanel extends StatelessWidget {
     this.headerHeight = 60,
     this.padding = const EdgeInsets.all(12),
     this.onTap,
+    this.bodyColors = (GameColors.bodyTop, GameColors.bodyBottom),
+    this.lipColor = GameColors.lip,
   });
 
   final Widget child;
@@ -47,6 +54,11 @@ class GamePanel extends StatelessWidget {
   final double headerHeight;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
+
+  /// Body gradient (top, bottom) and the darker lip under it; the default
+  /// is the arcade purple.
+  final (Color, Color) bodyColors;
+  final Color lipColor;
 
   @override
   Widget build(BuildContext context) {
@@ -65,18 +77,18 @@ class GamePanel extends StatelessWidget {
       padding: const EdgeInsets.all(3),
       child: Container(
         decoration: BoxDecoration(
-          color: GameColors.lip,
+          color: lipColor,
           borderRadius: BorderRadius.circular(21),
         ),
         padding: const EdgeInsets.only(bottom: 6),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(21),
           child: DecoratedBox(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [GameColors.bodyTop, GameColors.bodyBottom],
+                colors: [bodyColors.$1, bodyColors.$2],
               ),
             ),
             child: Column(
@@ -171,10 +183,14 @@ class GameTray extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.fromLTRB(8, 12, 8, 10),
+    this.edge = GameColors.trayEdge,
+    this.fill = GameColors.tray,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
+  final Color edge;
+  final Color fill;
 
   @override
   Widget build(BuildContext context) {
@@ -182,11 +198,11 @@ class GameTray extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: GameColors.trayEdge, width: 2),
-        gradient: const LinearGradient(
+        border: Border.all(color: edge, width: 2),
+        gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [GameColors.trayEdge, GameColors.tray, GameColors.tray],
+          colors: [edge, fill, fill],
           stops: [0, 0.18, 1],
         ),
       ),
@@ -334,20 +350,26 @@ class _GameIconButtonState extends State<GameIconButton> {
 
 /// Deep purple backdrop with a faint diamond grid, like a game menu floor.
 class GameBackground extends StatelessWidget {
-  const GameBackground({super.key});
+  const GameBackground({
+    super.key,
+    this.colors = (GameColors.bgTop, GameColors.bgBottom),
+  });
+
+  /// Backdrop gradient (top, bottom); the default is the arcade purple.
+  final (Color, Color) colors;
 
   @override
   Widget build(BuildContext context) {
-    return const Positioned.fill(
+    return Positioned.fill(
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [GameColors.bgTop, GameColors.bgBottom],
+            colors: [colors.$1, colors.$2],
           ),
         ),
-        child: CustomPaint(painter: _DiamondGridPainter()),
+        child: const CustomPaint(painter: _DiamondGridPainter()),
       ),
     );
   }
