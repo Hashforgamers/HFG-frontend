@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform, debugPrint;
+    show defaultTargetPlatform, TargetPlatform, debugPrint, visibleForTesting;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
@@ -65,8 +65,17 @@ String _channelNameFromId(String channelId) {
   };
 }
 
+/// Whether the background handler must post its own notification. A push
+/// with a `notification` block is already shown by the OS (Firebase posts it
+/// to the tray while the app is backgrounded), so showing it again doubled
+/// every notification. Only data-only pushes need a local one.
+@visibleForTesting
+bool needsLocalNotificationInBackground(RemoteMessage message) =>
+    message.notification == null;
+
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  if (!needsLocalNotificationInBackground(message)) return;
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   final fln = FlutterLocalNotificationsPlugin();
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
