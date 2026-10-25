@@ -25,7 +25,10 @@ class _CategoriesViewState extends State<CategoriesView> {
           return Scaffold(
             floatingActionButton: FloatingActionButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => HashStoreCartView()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => HashStoreCartView()),
+                );
               },
               child: Icon(Icons.arrow_forward),
             ),
@@ -38,7 +41,10 @@ class _CategoriesViewState extends State<CategoriesView> {
                     const HashStoreAppBar(),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 24,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
@@ -55,7 +61,8 @@ class _CategoriesViewState extends State<CategoriesView> {
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: state.categories.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 20),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 20),
                                 itemBuilder: (context, index) {
                                   final category = state.categories[index];
                                   return _buildProductCard(
@@ -65,8 +72,14 @@ class _CategoriesViewState extends State<CategoriesView> {
                                 },
                               ),
                             if (state is HashStoreCategoriesError)
-                              Center(child: Text(state.message, style: const TextStyle(color: Colors.red))),
-                            if (state is! HashStoreCategoriesLoaded && state is! HashStoreCategoriesError)
+                              Center(
+                                child: Text(
+                                  state.message,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            if (state is! HashStoreCategoriesLoaded &&
+                                state is! HashStoreCategoriesError)
                               const SizedBox.shrink(),
                           ],
                         ),
@@ -76,9 +89,7 @@ class _CategoriesViewState extends State<CategoriesView> {
                 ),
                 // Centered loader when loading
                 if (state is HashStoreCategoriesLoading)
-                  const Center(
-                    child: RainbowGlowingLoader(size: 60),
-                  ),
+                  const Center(child: RainbowGlowingLoader(size: 60)),
               ],
             ),
           );
@@ -87,10 +98,7 @@ class _CategoriesViewState extends State<CategoriesView> {
     );
   }
 
-  Widget _buildProductCard({
-    required String title,
-    String? productImage,
-  }) {
+  Widget _buildProductCard({required String title, String? productImage}) {
     return BounceTap(
       onTap: () {
         AppLogger.d('Tapped $title');

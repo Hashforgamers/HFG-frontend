@@ -50,20 +50,22 @@ class HashStoreAppBar extends StatelessWidget {
       leadingWidth: 55,
       centerTitle: false,
       leading: Obx(
-            () => Padding(
+        () => Padding(
           padding: const EdgeInsets.only(left: 10, top: 5),
           child: userController.isLoading.value
               ? _buildShimmerAvatar()
               : GestureDetector(
-            onTap: (){
-              Get.to(UserProfileView());
-            },
-            child: _buildOptimizedUserAvatar(userController.user.value.photoUrl),
-          ),
+                  onTap: () {
+                    Get.to(UserProfileView());
+                  },
+                  child: _buildOptimizedUserAvatar(
+                    userController.user.value.photoUrl,
+                  ),
+                ),
         ),
       ),
       title: Obx(
-            () => Padding(
+        () => Padding(
           padding: const EdgeInsets.only(top: 15.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,8 +110,7 @@ class HashStoreAppBar extends StatelessWidget {
 
   Widget _buildOptimizedUserAvatar(String? photoUrl) {
     const double size = 40;
-    final effectivePhoto =
-        (photoUrl ?? '').trim().isNotEmpty
+    final effectivePhoto = (photoUrl ?? '').trim().isNotEmpty
         ? photoUrl!.trim()
         : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
               .trim();
@@ -125,9 +126,10 @@ class HashStoreAppBar extends StatelessWidget {
         radius: size / 2,
         backgroundImage: effectivePhoto.isNotEmpty
             ? CachedNetworkImageProvider(
-          effectivePhoto,
-          errorListener: (error) => AppLogger.d('Avatar image error: $error'),
-        )
+                effectivePhoto,
+                errorListener: (error) =>
+                    AppLogger.d('Avatar image error: $error'),
+              )
             : null,
         backgroundColor: Colors.white,
         child: effectivePhoto.isEmpty

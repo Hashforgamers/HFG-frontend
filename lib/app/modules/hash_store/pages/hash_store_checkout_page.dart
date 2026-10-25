@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_cart_cubit.dart';
 import 'package:hash/app/modules/hash_store/data/medusa_store_service.dart';
+import 'package:hash/app/modules/hash_store/data/store_razorpay.dart';
 import 'package:hash/app/modules/hash_store/pages/hash_store_order_page.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
@@ -17,9 +18,11 @@ void openStoreCheckout(BuildContext context) {
   );
 }
 
-/// The only payment provider the app can complete today. Others need their
-/// SDK wired to `payment_sessions[].data` first.
+/// Demo provider for tests; Razorpay is the real one. Others need their SDK
+/// wired to `payment_sessions[].data` first.
 const _manualProvider = 'pp_system_default';
+
+bool _supported(String? id) => id == _manualProvider || isRazorpayProvider(id);
 
 class HashStoreCheckoutPage extends StatefulWidget {
   const HashStoreCheckoutPage({super.key});
@@ -117,9 +120,10 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
         _options = results[0];
         _providers = results[1];
         _optionId = _options!.isEmpty ? null : _options!.first['id'] as String;
-        _providerId = _providers.any((p) => p['id'] == _manualProvider)
-            ? _manualProvider
-            : null;
+        final ids = _providers.map((p) => p['id'] as String?);
+        _providerId =
+            ids.where(isRazorpayProvider).firstOrNull ??
+            ids.where(_supported).firstOrNull;
       });
     } catch (e) {
       storeToast(e.toString(), error: true);
@@ -149,7 +153,21 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
       final cart = await _store.selectShipping(id, _optionId!);
       cubit.replace(cart);
       setState(() => _cart = cart);
-      await _store.startPayment(cart, _providerId!);
+      final collection = await _store.startPayment(cart, _providerId!);
+      if (isRazorpayProvider(_providerId)) {
+        final options = razorpayOptions(
+          collection,
+          _providerId!,
+          email: _f['email']!.text.trim(),
+          phone: _f['phone']!.text.trim(),
+        );
+        if (options == null) {
+          throw const StoreException(
+            'Razorpay is not set up for the store yet. Please try later.',
+          );
+        }
+        await payWithRazorpay(options);
+      }
       final order = await _store.completeCart(id);
       cubit.replace(null);
       if (!mounted) return;
@@ -355,14 +373,18 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
                                 for (final p in _providers)
                                   _Choice(
                                     icon: Icons.account_balance_wallet_outlined,
-                                    title: p['id'] == _manualProvider
+                                    title: isRazorpayProvider(p['id'])
+                                        ? 'Razorpay'
+                                        : p['id'] == _manualProvider
                                         ? 'Manual payment (test)'
                                         : '${p['id']}',
-                                    subtitle: p['id'] == _manualProvider
+                                    subtitle: isRazorpayProvider(p['id'])
+                                        ? 'UPI, cards, netbanking and wallets'
+                                        : p['id'] == _manualProvider
                                         ? 'Demo provider. No money is taken.'
                                         : 'Not available in the app yet',
                                     selected: _providerId == p['id'],
-                                    onTap: p['id'] == _manualProvider
+                                    onTap: _supported(p['id'])
                                         ? () => setState(
                                             () =>
                                                 _providerId = p['id'] as String,
