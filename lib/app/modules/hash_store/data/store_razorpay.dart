@@ -29,7 +29,13 @@ Map<String, dynamic>? razorpayOptions(
     // key wins when the session exposes it.
     'key': data['key_id'] ?? data['key'] ?? ApiEndpoints.razorpayKeyWallet,
     'order_id': orderId,
-    'amount': data['amount'] ?? session?['amount'],
+    // Provider data is already in paise; Medusa's session amount is rupees.
+    'amount':
+        data['amount'] ??
+        data['amount_paise'] ??
+        (session?['amount'] is num
+            ? ((session!['amount'] as num) * 100).round()
+            : null),
     'currency': (data['currency'] ?? 'INR').toString().toUpperCase(),
     'name': 'Hash Store',
     'prefill': {'email': ?email, 'contact': ?phone},

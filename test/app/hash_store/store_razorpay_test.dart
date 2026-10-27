@@ -32,6 +32,23 @@ void main() {
     expect(o['prefill'], {'email': 'a@b.c'});
   });
 
+  test('Medusa rupee fallback converts once to paise', () {
+    expect(
+      razorpayOptions(
+        collection({'id': 'order_abc'}),
+        'pp_razorpay_razorpay',
+      )!['amount'],
+      599900,
+    );
+    expect(
+      razorpayOptions(
+        collection({'id': 'order_abc', 'amount_paise': 12345}),
+        'pp_razorpay_razorpay',
+      )!['amount'],
+      12345,
+    );
+  });
+
   test('null without a razorpay order id', () {
     expect(razorpayOptions(collection({}), 'pp_razorpay_razorpay'), isNull);
     expect(razorpayOptions(collection({'id': 'x'}), 'pp_other'), isNull);

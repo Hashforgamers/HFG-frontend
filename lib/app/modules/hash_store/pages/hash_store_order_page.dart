@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:hash/app/modules/hash_store/data/medusa_store_service.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 import 'package:hash/core/utils/haptics.dart';
@@ -15,45 +16,106 @@ String storeDate(Object? iso, [String pattern = 'd MMM yyyy, h:mm a']) {
 class HashStoreOrderPage extends StatefulWidget {
   final String orderId;
   final bool justPlaced;
+  final MedusaStoreService? store;
   const HashStoreOrderPage({
     super.key,
     required this.orderId,
     this.justPlaced = false,
+    this.store,
   });
 
   @override
   State<HashStoreOrderPage> createState() => _HashStoreOrderPageState();
 }
 
-class _HashStoreOrderPageState extends State<HashStoreOrderPage> {
-  final _store = MedusaStoreService.instance;
+class _HashStoreOrderPageState extends State<HashStoreOrderPage>
+    with WidgetsBindingObserver {
+  MedusaStoreService get _store => widget.store ?? MedusaStoreService.instance;
   Map<String, dynamic>? _order;
   Map<String, dynamic>? _completion;
   String? _error;
+  String? _trackingError;
+  Map<String, dynamic>? _tracking;
+  Timer? _poll;
+  bool _loading = false;
+  bool _foreground = true;
+  int _failures = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
   }
 
+  @override
+  void dispose() {
+    _poll?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _poll?.cancel();
+    if (_foreground) _load();
+  }
+
   Future<void> _load() async {
-    setState(() => _error = null);
+    if (_loading || !mounted) return;
+    _poll?.cancel();
+    _loading = true;
     try {
-      final results = await Future.wait([
-        _store.order(widget.orderId),
-        // The order is still worth showing if the Hash status call fails.
-        _store
-            .completionStatus(widget.orderId)
-            .then<Map<String, dynamic>?>((v) => v, onError: (_) => null),
-      ]);
+      final order = await _store.order(widget.orderId);
       if (!mounted) return;
       setState(() {
-        _order = results[0];
-        _completion = results[1];
+        _order = order;
+        _error = null;
       });
+      try {
+        final result = await _store.tracking(widget.orderId);
+        if (!mounted) return;
+        setState(() {
+          _completion = result['order'] is Map
+              ? Map<String, dynamic>.from(result['order'])
+              : null;
+          _tracking = result['tracking'] is Map
+              ? Map<String, dynamic>.from(result['tracking'])
+              : null;
+          if (_completion != null) {
+            _completion!['on_hold'] =
+                _tracking?['on_hold'] ?? _completion!['on_hold'];
+            if (_tracking?['status'] == 'canceled') {
+              _completion!['completion_eligible'] = false;
+            }
+          }
+          _trackingError = null;
+        });
+        _failures = 0;
+      } catch (e) {
+        _failures++;
+        if (mounted) {
+          setState(
+            () => _trackingError = e is StoreException && e.statusCode == 404
+                ? 'Tracking is being prepared. Pull to refresh or check again shortly.'
+                : 'Could not refresh tracking. Showing the last available update.',
+          );
+        }
+      }
     } catch (e) {
+      _failures++;
       if (mounted) setState(() => _error = e.toString());
+    } finally {
+      _loading = false;
+      if (mounted && _foreground) {
+        final seconds = 30 * (1 << _failures.clamp(0, 3));
+        _poll = Timer.periodic(Duration(seconds: seconds), (_) {
+          if (_foreground && (ModalRoute.of(context)?.isCurrent ?? false)) {
+            _load();
+          }
+        });
+      }
     }
   }
 
@@ -109,11 +171,20 @@ class _HashStoreOrderPageState extends State<HashStoreOrderPage> {
                       const _PlacedBanner(),
                       const SizedBox(height: 16),
                     ],
-                    _Tracker(status: _completion),
+                    if (_trackingError != null || _error != null) ...[
+                      Text(
+                        _trackingError ?? _error!,
+                        style: storeBody(color: Colors.orangeAccent),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    StoreOrderTracker(status: _tracking),
                     const SizedBox(height: 16),
                     _CompletionCard(
                       orderId: widget.orderId,
-                      status: _completion,
+                      status: _trackingError == null && _error == null
+                          ? _completion
+                          : null,
                       onRefresh: _load,
                     ),
                     const SizedBox(height: 24),
@@ -314,64 +385,158 @@ class _FlipDigit extends StatelessWidget {
 }
 
 /// Placed → Paid → Completed.
-class _Tracker extends StatelessWidget {
+String storeTrackingLabel(Object? status) =>
+    const {
+      'placed': 'Order placed',
+      'payment_confirmed': 'Payment confirmed',
+      'preparing': 'Preparing your order',
+      'shipped': 'Shipped',
+      'out_for_delivery': 'Out for delivery',
+      'delivery_attempted': 'Delivery attempted',
+      'delivered': 'Delivery confirmed',
+      'ready_for_service': 'Ready for service',
+      'in_progress': 'Service in progress',
+      'completed': 'Service completed',
+      'canceled': 'Order canceled',
+      'carrier_delivered': 'Courier reports delivered — awaiting OTP',
+      'return_in_progress': 'Return in progress',
+      'carrier_update': 'Carrier update',
+    }[status] ??
+    'Order update';
+
+Uri? storeTrackingUri(Object? value) {
+  final uri = Uri.tryParse('$value');
+  return uri != null &&
+          uri.scheme == 'https' &&
+          uri.host.isNotEmpty &&
+          uri.userInfo.isEmpty
+      ? uri
+      : null;
+}
+
+List<Map<String, dynamic>> storeTimeline(Map<String, dynamic>? tracking) {
+  final entries = (tracking?['timeline'] as List? ?? [])
+      .whereType<Map>()
+      .map((e) => Map<String, dynamic>.from(e))
+      .toList();
+  // Stable ordering keeps repeated notes, even when their timestamps match.
+  final indexed = entries.indexed.toList();
+  indexed.sort((a, b) {
+    final ad = DateTime.tryParse('${a.$2['at']}');
+    final bd = DateTime.tryParse('${b.$2['at']}');
+    final result = ad == null
+        ? (bd == null ? 0 : 1)
+        : bd == null
+        ? -1
+        : ad.compareTo(bd);
+    return result == 0 ? a.$1.compareTo(b.$1) : result;
+  });
+  return indexed.map((e) => e.$2).toList();
+}
+
+class StoreOrderTracker extends StatelessWidget {
   final Map<String, dynamic>? status;
-  const _Tracker({required this.status});
+  const StoreOrderTracker({super.key, required this.status});
 
   @override
   Widget build(BuildContext context) {
-    final done = [
-      true,
-      status?['paid'] == true,
-      status?['completed_at'] != null,
-    ];
-    const labels = ['Placed', 'Paid', 'Completed'];
-    return StorePanel(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-      child: Row(
+    final entries = storeTimeline(status);
+    Widget details(Map<String, dynamic> data) {
+      final uri = storeTrackingUri(data['tracking_url']);
+      final expected = data['expected_delivery'];
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (var i = 0; i < 3; i++) ...[
-            Column(
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: done[i] ? StoreColors.green : Colors.transparent,
-                    border: Border.all(
-                      color: done[i] ? StoreColors.green : StoreColors.faint,
-                      width: 1.5,
+          if (data['courier'] != null)
+            Text('${data['courier']}', style: storeBody()),
+          if (data['tracking_number'] != null)
+            Text('Tracking: ${data['tracking_number']}', style: storeBody()),
+          if (expected != null)
+            Text(
+              'Estimated delivery: $expected',
+              style: storeBody(color: StoreColors.muted),
+            ),
+          if (uri != null)
+            TextButton.icon(
+              onPressed: () async {
+                try {
+                  if (!await launchUrl(
+                    uri,
+                    mode: LaunchMode.externalApplication,
+                  )) {
+                    storeToast('Could not open tracking link.', error: true);
+                  }
+                } catch (_) {
+                  storeToast('Could not open tracking link.', error: true);
+                }
+              },
+              icon: const Icon(Icons.open_in_new, size: 16),
+              label: const Text('Track with courier'),
+            ),
+        ],
+      );
+    }
+
+    return StorePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            status == null
+                ? 'Tracking is being prepared'
+                : storeTrackingLabel(status!['status']),
+            style: storeTitle(17),
+          ),
+          if (status?['on_hold'] == true)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                'Order on hold — under review',
+                style: storeBody(color: Colors.orangeAccent),
+              ),
+            ),
+          if (status != null) details(status!),
+          for (final entry in entries)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.circle, size: 12, color: StoreColors.green),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          storeTrackingLabel(entry['status']),
+                          style: storeBody(weight: FontWeight.w600),
+                        ),
+                        if (entry['at'] != null)
+                          Text(
+                            storeDate(entry['at']),
+                            style: storeBody(
+                              size: 11,
+                              color: StoreColors.muted,
+                            ),
+                          ),
+                        if (entry['note'] != null)
+                          Text(
+                            '${entry['note']}',
+                            style: storeBody(color: StoreColors.muted),
+                          ),
+                        details(entry),
+                      ],
                     ),
                   ),
-                  child: done[i]
-                      ? const Icon(
-                          Icons.check_rounded,
-                          size: 16,
-                          color: Colors.black,
-                        )
-                      : null,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  labels[i],
-                  style: storeBody(
-                    size: 11,
-                    color: done[i] ? Colors.white : StoreColors.faint,
-                    weight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            if (i < 2)
-              Expanded(
-                child: Container(
-                  height: 2,
-                  margin: const EdgeInsets.fromLTRB(6, 0, 6, 20),
-                  color: done[i + 1] ? StoreColors.green : StoreColors.border,
-                ),
+                ],
               ),
-          ],
+            ),
+          const SizedBox(height: 12),
+          Text(
+            'Updates refresh automatically. Courier sync can take about 15 minutes.',
+            style: storeBody(size: 11, color: StoreColors.muted),
+          ),
         ],
       ),
     );
@@ -419,7 +584,11 @@ class _CompletionCardState extends State<_CompletionCard> {
       _tick = Timer.periodic(const Duration(seconds: 1), (t) {
         if (!mounted) return t.cancel();
         setState(() {});
-        if (DateTime.now().isAfter(_resendAt!)) t.cancel();
+        final expires = DateTime.tryParse('${_otp?['expires_at']}');
+        if (expires != null && !DateTime.now().isBefore(expires)) {
+          setState(() => _otp = null);
+          t.cancel();
+        }
       });
       Haptics.medium();
       setState(() => _otp = otp);
@@ -459,10 +628,14 @@ class _CompletionCardState extends State<_CompletionCard> {
         action: refresh,
       );
     }
-    if (!paid || !eligible) {
+    if (s['on_hold'] == true || !paid || !eligible) {
       return _info(
         icon: Icons.schedule_rounded,
-        title: paid ? 'Being prepared' : 'Waiting for payment confirmation',
+        title: s['on_hold'] == true
+            ? 'Order under review'
+            : paid
+            ? 'Completion not available yet'
+            : 'Waiting for payment confirmation',
         body: 'Your completion code unlocks once the order is ready.',
         action: refresh,
       );
@@ -540,7 +713,7 @@ class _CompletionCardState extends State<_CompletionCard> {
                 ],
                 StoreButton(
                   label: code == null
-                      ? 'Get completion code'
+                      ? 'Show completion OTP'
                       : secondsLeft > 0
                       ? 'New code in ${secondsLeft}s'
                       : 'Get a new code',

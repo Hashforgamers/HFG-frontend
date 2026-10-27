@@ -17,7 +17,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// key, region and sales channel come from the public `GET /hash-store/config`
 /// bootstrap and live in memory for the current store visit.
 class MedusaStoreService {
-  MedusaStoreService._();
+  MedusaStoreService._() : _requestOverride = null, _regionOverride = null;
+
+  @visibleForTesting
+  MedusaStoreService.forTesting(
+    this._requestOverride, {
+    String regionId = 'reg_test',
+  }) : _regionOverride = regionId;
+
+  final String? _regionOverride;
+
+  final Future<Map<String, dynamic>> Function(
+    String method,
+    String path,
+    Object? data,
+    Map<String, dynamic>? query,
+  )?
+  _requestOverride;
   static final MedusaStoreService instance = MedusaStoreService._();
 
   static const String baseUrl = String.fromEnvironment(
@@ -248,6 +264,9 @@ class MedusaStoreService {
     Object? data,
     Map<String, dynamic>? query,
   }) async {
+    if (_requestOverride != null) {
+      return _requestOverride(method, path, data, query);
+    }
     for (var attempt = 0; ; attempt++) {
       final token = await _token();
       try {
@@ -292,7 +311,8 @@ class MedusaStoreService {
 
   // ---------------------------------------------------------------- catalog
 
-  Future<String> regionId() async => (await _config()).regionId;
+  Future<String> regionId() async =>
+      _regionOverride ?? (await _config()).regionId;
 
   /// `{products, count, offset, limit}` from the approved Hash catalog.
   Future<Map<String, dynamic>> catalog({
@@ -367,6 +387,7 @@ class MedusaStoreService {
     bool replaceCart = false,
   }) async {
     final saved = await _savedCart();
+    if (saved != null) _requireEditable(saved.cartId);
     if (saved != null && !replaceCart) {
       if (saved.vendorId != vendorId) throw const VendorMismatch();
       try {
@@ -405,6 +426,7 @@ class MedusaStoreService {
     String itemId,
     int quantity,
   ) async {
+    _requireEditable(cartId);
     final data = await _customer(
       'POST',
       '/store/carts/$cartId/line-items/$itemId',
@@ -415,6 +437,7 @@ class MedusaStoreService {
 
   /// Returns the parent cart, or null when the cart is now empty.
   Future<Map<String, dynamic>?> removeItem(String cartId, String itemId) async {
+    _requireEditable(cartId);
     final data = await _customer(
       'DELETE',
       '/store/carts/$cartId/line-items/$itemId',
@@ -442,6 +465,7 @@ class MedusaStoreService {
     required String email,
     required Map<String, dynamic> address,
   }) async {
+    _requireEditable(cartId);
     final data = await _customer(
       'POST',
       '/store/carts/$cartId',
@@ -453,6 +477,83 @@ class MedusaStoreService {
     );
     return Map<String, dynamic>.from(data['cart'] as Map);
   }
+
+  bool paymentAwaitingCompletion(String cartId) =>
+      locator<SharedPreferences>().getBool('hash_store_paid_$cartId') ?? false;
+
+  Future<void> rememberPaidCart(String cartId) async {
+    final saved = await locator<SharedPreferences>().setBool(
+      'hash_store_paid_$cartId',
+      true,
+    );
+    if (!saved) {
+      throw const StoreException(
+        'Payment received. Keep this screen open and retry order confirmation.',
+      );
+    }
+  }
+
+  void _requireEditable(String cartId) {
+    if (paymentAwaitingCompletion(cartId)) {
+      throw const StoreException(
+        'Payment received. Open checkout to confirm this order before changing your cart.',
+      );
+    }
+  }
+
+  Future<({bool sellerPaid, List<Map<String, dynamic>> options})>
+  deliveryOptions(String cartId) async {
+    final policy = await deliveryPolicy(cartId);
+    if (policy['payer'] != 'customer' && policy['payer'] != 'seller') {
+      throw const StoreException(
+        'Delivery policy is unavailable. Please try again.',
+      );
+    }
+    if ((policy['missing_package_product_ids'] as List? ?? []).isNotEmpty &&
+        policy['payer'] == 'customer') {
+      throw const StoreException(
+        'The seller needs to add package details before delivery can be quoted.',
+      );
+    }
+    final available = await shippingOptions(cartId);
+    final options = <Map<String, dynamic>>[];
+    for (final option in available.where(
+      (o) => o['provider_id'] == 'hash_delivery_hash_delivery',
+    )) {
+      final quote = await calculateShipping(cartId, option['id'] as String);
+      final amount =
+          quote['amount'] ??
+          (quote['calculated_price'] as Map?)?['calculated_amount'];
+      if (amount is! num ||
+          !amount.isFinite ||
+          amount < 0 ||
+          (policy['payer'] == 'seller' && amount != 0)) {
+        throw const StoreException(
+          'Delivery quote is unavailable. Please try again.',
+        );
+      }
+      options.add({...option, ...quote, 'id': option['id'], 'amount': amount});
+    }
+    return (sellerPaid: policy['payer'] == 'seller', options: options);
+  }
+
+  Future<Map<String, dynamic>> deliveryPolicy(String cartId) =>
+      _customer('GET', '/store/hash/carts/$cartId/delivery');
+
+  Future<Map<String, dynamic>> calculateShipping(
+    String cartId,
+    String optionId,
+  ) async {
+    final data = await _customer(
+      'POST',
+      '/store/shipping-options/$optionId/calculate',
+      data: {'cart_id': cartId, 'data': <String, dynamic>{}},
+    );
+    return Map<String, dynamic>.from(data['shipping_option'] as Map);
+  }
+
+  Future<Map<String, dynamic>> tracking(String orderId) =>
+      _customer('GET', '/store/hash/orders/$orderId');
 
   Future<List<Map<String, dynamic>>> shippingOptions(String cartId) async {
     final data = await _customer(
@@ -469,10 +570,11 @@ class MedusaStoreService {
     String cartId,
     String optionId,
   ) async {
+    _requireEditable(cartId);
     final data = await _customer(
       'POST',
       '/store/carts/$cartId/shipping-methods',
-      data: {'option_id': optionId},
+      data: {'option_id': optionId, 'data': <String, dynamic>{}},
     );
     return Map<String, dynamic>.from(data['cart'] as Map);
   }
@@ -493,6 +595,7 @@ class MedusaStoreService {
     Map<String, dynamic> cart,
     String providerId,
   ) async {
+    _requireEditable(cart['id'] as String);
     var collectionId = (cart['payment_collection'] as Map?)?['id'] as String?;
     if (collectionId == null) {
       final data = await _customer(
@@ -511,11 +614,12 @@ class MedusaStoreService {
   }
 
   /// Only `type: "order"` is success. On failure the cart is kept for retry.
-  /// On a timeout the cart is re-read instead of resubmitting.
+  /// A timeout preserves the same cart for completion retry, never a new charge.
   Future<Map<String, dynamic>> completeCart(String cartId) async {
     try {
       final data = await _customer('POST', '/store/carts/$cartId/complete');
       if (data['type'] == 'order') {
+        await locator<SharedPreferences>().remove('hash_store_paid_$cartId');
         await forgetCart();
         return Map<String, dynamic>.from(data['order'] as Map);
       }
@@ -526,10 +630,6 @@ class MedusaStoreService {
       );
     } on StoreException catch (e) {
       if (!e.isTimeout) rethrow;
-      final orders = await this.orders(limit: 1);
-      final latest = orders.isEmpty ? null : orders.first;
-      final current = await cart();
-      if (current == null && latest != null) return latest;
       throw const StoreException(
         'We could not confirm your order yet. Check Orders before retrying.',
       );

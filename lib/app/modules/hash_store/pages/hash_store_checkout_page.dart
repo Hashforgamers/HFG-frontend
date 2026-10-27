@@ -26,14 +26,16 @@ const _manualProvider = 'pp_system_default';
 bool _supported(String? id) => id == _manualProvider || isRazorpayProvider(id);
 
 class HashStoreCheckoutPage extends StatefulWidget {
-  const HashStoreCheckoutPage({super.key});
+  final MedusaStoreService? store;
+  final Future<void> Function(Map<String, dynamic>)? pay;
+  const HashStoreCheckoutPage({super.key, this.store, this.pay});
 
   @override
   State<HashStoreCheckoutPage> createState() => _HashStoreCheckoutPageState();
 }
 
 class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
-  final _store = MedusaStoreService.instance;
+  MedusaStoreService get _store => widget.store ?? MedusaStoreService.instance;
   final _form = GlobalKey<FormState>();
   final _f = {
     for (final k in const [
@@ -57,6 +59,9 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
   String? _optionId;
   String? _providerId;
   bool _saving = false;
+  bool _paid = false;
+  bool _shippingSelected = false;
+  bool _sellerPaid = false;
   bool _placing = false;
   String? _checkoutError;
 
@@ -66,6 +71,8 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
   void initState() {
     super.initState();
     _cart = context.read<HashStoreCartCubit>().state.cart!;
+    _paid = _store.paymentAwaitingCompletion(_cart['id'] as String);
+    if (_paid) _options = [];
     final address = _cart['shipping_address'];
     if (address is Map) _fill(Map<String, dynamic>.from(address));
     _f['email']!.text = '${_cart['email'] ?? _store.profileEmail ?? ''}';
@@ -114,17 +121,17 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
         email: _f['email']!.text.trim(),
         address: _address,
       );
-      final results = await Future.wait([
-        _store.shippingOptions(id),
-        _store.paymentProviders(),
-      ]);
+      final delivery = await _store.deliveryOptions(id);
+      final providers = await _store.paymentProviders();
       if (!mounted) return;
       context.read<HashStoreCartCubit>().replace(cart);
       setState(() {
         _cart = cart;
-        _options = results[0];
-        _providers = results[1];
-        _optionId = _options!.isEmpty ? null : _options!.first['id'] as String;
+        _options = delivery.options;
+        _sellerPaid = delivery.sellerPaid;
+        _shippingSelected = false;
+        _providers = providers;
+        _optionId = null;
         final ids = _providers.map((p) => p['id'] as String?);
         _providerId =
             ids.where(isRazorpayProvider).firstOrNull ??
@@ -139,53 +146,89 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
   }
 
   Future<void> _selectOption(String id) async {
-    setState(() => _optionId = id);
-    // Refresh totals so the bar shows the delivery price straight away.
+    if (_saving || _placing || _paid) return;
+    setState(() {
+      _saving = true;
+      _shippingSelected = false;
+      _checkoutError = null;
+    });
     try {
       final cart = await _store.selectShipping(_cart['id'] as String, id);
       if (!mounted) return;
       context.read<HashStoreCartCubit>().replace(cart);
-      setState(() => _cart = cart);
-    } catch (_) {
-      // Re-applied when the order is placed.
+      setState(() {
+        _cart = cart;
+        _optionId = id;
+        _shippingSelected = true;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _optionId = null;
+          _checkoutError = e.toString();
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
   Future<void> _placeOrder() async {
-    if (_placing) return;
+    if (_placing || _saving) return;
     if (kDebugMode) debugPrint('[HashStoreCheckout] Place order tapped');
     FocusScope.of(context).unfocus();
     setState(() {
       _placing = true;
       _checkoutError = null;
     });
-    var paymentSetup = true;
+    var paymentSetup = !_paid;
     final cubit = context.read<HashStoreCartCubit>();
     try {
       final id = _cart['id'] as String;
-      final cart = await _store.selectShipping(id, _optionId!);
-      if (kDebugMode) debugPrint('[HashStoreCheckout] Shipping selected');
-      cubit.replace(cart);
-      setState(() => _cart = cart);
-      final collection = await _store.startPayment(cart, _providerId!);
-      if (kDebugMode) debugPrint('[HashStoreCheckout] Payment session ready');
-      paymentSetup = false;
-      if (isRazorpayProvider(_providerId)) {
-        final options = razorpayOptions(
-          collection,
-          _providerId!,
-          email: _f['email']!.text.trim(),
-          phone: _f['phone']!.text.trim(),
-        );
-        if (options == null) {
-          throw const StoreException(
-            'Razorpay is not set up for the store yet. Please try later.',
+      if (!_paid) {
+        final previousTotal = _cart['total'];
+        final cart = await _store.selectShipping(id, _optionId!);
+        cubit.replace(cart);
+        if (!mounted) return;
+        setState(() => _cart = cart);
+        if (cart['total'] != previousTotal) {
+          _checkoutError =
+              'Your delivery total changed. Review the updated total and tap Place order to accept.';
+          return;
+        }
+        final collection = await _store.startPayment(cart, _providerId!);
+        if (kDebugMode) debugPrint('[HashStoreCheckout] Payment session ready');
+        paymentSetup = false;
+        if (isRazorpayProvider(_providerId)) {
+          final options = razorpayOptions(
+            collection,
+            _providerId!,
+            email: _f['email']!.text.trim(),
+            phone: _f['phone']!.text.trim(),
           );
+          if (options == null) {
+            throw const StoreException(
+              'Razorpay is not set up for the store yet. Please try later.',
+            );
+          }
+          final amount = options['amount'];
+          final total = cart['total'];
+          if (amount is! num ||
+              total is! num ||
+              amount != (total * 100).round() ||
+              options['currency'] !=
+                  '${cart['currency_code'] ?? 'inr'}'.toUpperCase()) {
+            throw const StoreException(
+              'Payment total does not match your order. Refresh delivery and try again.',
+            );
+          }
+          await (widget.pay ?? payWithRazorpay)(options);
+          if (kDebugMode) {
+            debugPrint('[HashStoreCheckout] Razorpay success callback');
+          }
         }
-        await payWithRazorpay(options);
-        if (kDebugMode) {
-          debugPrint('[HashStoreCheckout] Razorpay success callback');
-        }
+        _paid = true;
+        await _store.rememberPaidCart(id);
       }
       final order = await _store.completeCart(id);
       if (kDebugMode) {
@@ -276,13 +319,15 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
                       const SizedBox(width: 20),
                       Expanded(
                         child: StoreButton(
-                          label: 'Place order',
+                          label: _paid ? 'Confirm paid order' : 'Place order',
                           icon: Icons.lock_rounded,
                           loading: _placing,
                           onTap:
-                              _optionId == null ||
-                                  _providerId == null ||
-                                  _saving
+                              _saving ||
+                                  (!_paid &&
+                                      (!_shippingSelected ||
+                                          _optionId == null ||
+                                          _providerId == null))
                               ? null
                               : _placeOrder,
                         ),
@@ -424,7 +469,7 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
                     StoreSection(
                       title: 'Delivering to',
                       trailing: TextButton.icon(
-                        onPressed: _placing
+                        onPressed: (_placing || _paid)
                             ? null
                             : () => setState(() {
                                 _options = null;
@@ -469,7 +514,7 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
                       ),
                     ),
                   ],
-                  if (_ready) ...[
+                  if (_ready && !_paid) ...[
                     const SizedBox(height: 24),
                     StoreSection(
                       title: 'Delivery method',
@@ -482,14 +527,17 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
                                 for (final o in _options!)
                                   _Choice(
                                     icon: Icons.local_shipping_outlined,
-                                    title: '${o['name'] ?? 'Delivery'}',
+                                    title: _sellerPaid
+                                        ? 'Delivery paid by seller'
+                                        : '${o['name'] ?? 'Delivery'}',
                                     trailing: () {
                                       final amount =
                                           o['amount'] ??
                                           (o['calculated_price']
                                               as Map?)?['calculated_amount'];
-                                      return storeNum(amount) == 0
-                                          ? 'Free'
+                                      return _sellerPaid ||
+                                              storeNum(amount) == 0
+                                          ? '₹0'
                                           : storeMoney(amount);
                                     }(),
                                     selected: _optionId == o['id'],
@@ -522,7 +570,10 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
                                         ? 'Demo provider. No money is taken.'
                                         : 'Not available in the app yet',
                                     selected: _providerId == p['id'],
-                                    onTap: _supported(p['id'])
+                                    onTap:
+                                        !_placing &&
+                                            !_saving &&
+                                            _supported(p['id'])
                                         ? () => setState(
                                             () =>
                                                 _providerId = p['id'] as String,
